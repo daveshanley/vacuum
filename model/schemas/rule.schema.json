@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/quobix/vaccum/model/schemas/rule.schema",
+  "$id": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/rule.schema.json",
   "$defs": {
     "Then": {
       "type": "object",
