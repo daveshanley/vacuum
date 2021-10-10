@@ -1,0 +1,26 @@
+{
+  "documentationUrl": "https://meta.stoplight.io/docs/spectral/docs/reference/openapi-rules.md",
+  "formats": ["oas2", "oas3"],
+  "rules": {
+    "operation-success-response": {
+      "description": "Operation must have at least one '2xx' or '3xx' response.",
+      "recommended": true,
+      "type": "style",
+      "given": "$.paths[*][?( @property === 'get' || @property === 'put' || @property === 'post' )]",
+      "then": {
+        "field": "responses",
+        "function": "oasOpSuccessResponse"
+      }
+    },
+    "oas2-operation-formData-consume-check": {
+      "description": "Operations with 'in: formData' parameter must include 'application/x-www-form-urlencoded'.",
+      "recommended": true,
+      "formats": ["oas2"],
+      "type": "validation",
+      "given": "$.paths[*][?( @property === 'get' || @property === 'put' )]",
+      "then": {
+        "function": "oasOpFormDataConsumeCheck"
+      }
+    }
+  }
+}
