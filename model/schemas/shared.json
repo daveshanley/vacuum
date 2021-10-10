@@ -6,7 +6,7 @@
       "$anchor": "formats",
       "type": "array",
       "items": {
-        "$ref": "#format"
+        "$ref": "#/$defs/Format"
       },
       "errorMessage": "must be an array of formats"
     },

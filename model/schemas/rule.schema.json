@@ -20,7 +20,7 @@
       ]
     },
     "Severity": {
-      "$ref": "shared#severity"
+      "$ref": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/shared.json#severity"
     }
   },
   "oneOf": [
@@ -66,7 +66,7 @@
           "type": "array"
         },
         "formats": {
-          "$ref": "shared#formats"
+          "$ref": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/shared.json#formats"
         },
         "then": {
           "anyOf": [
@@ -95,7 +95,7 @@
       }
     },
     {
-      "$ref": "shared#/$defs/HumanReadableSeverity"
+      "$ref": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/shared.json#/$defs/HumanReadableSeverity"
     },
     {
       "type": "boolean"
