@@ -83,7 +83,11 @@ func IsYAML(testString string) bool {
 	if err != nil {
 		return false
 	}
-	return true
+	_, err = yaml.Marshal(n)
+	if err != nil {
+		return false
+	}
+	return false
 }
 
 func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {

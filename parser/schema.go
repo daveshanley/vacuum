@@ -42,23 +42,24 @@ func CheckSpecIsValidOpenAPI(spec []byte) (*gojsonschema.Result, error) {
 
 		return processJSONSpec(spec)
 
-	} else if utils.IsYAML(specString) {
+	}
+
+	if utils.IsYAML(specString) {
 
 		// convert to JSON (we don't need to worry about losing fidelity at this point).
-		var yamlData map[string]interface{}
-		if err := yaml.Unmarshal(spec, &yamlData); err != nil {
-			return nil, err
-		}
+		// there is little point capturing the errors here as have already unmarshalled data at least once.
 
-		jsonData, err := json.Marshal(yamlData)
-		if err != nil {
-			return nil, err
-		}
+		var yamlData map[string]interface{}
+		yaml.Unmarshal(spec, &yamlData)
+
+		jsonData, _ := json.Marshal(yamlData)
 
 		return processJSONSpec(jsonData)
 
 	} else {
+
 		return nil, errors.New("spec is neither YAML nor JSON, unable to process")
+
 	}
 }
 
@@ -83,13 +84,11 @@ func processJSONSpec(spec []byte) (*gojsonschema.Result, error) {
 		break
 	}
 
-	if schemaToValidate == nil {
-		return nil, errors.New("unable to determine specification type")
-	}
-
 	// validate spec
 	res, err := gojsonschema.Validate(schemaToValidate, doc)
 
+	// at this point, it's hard to trigger an error on validation.
+	// but let's catch what ever could be thrown out.
 	if err != nil {
 		return nil, err
 	}
