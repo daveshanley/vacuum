@@ -28,6 +28,7 @@ func MapBuiltinFunctions() Functions {
 
 		// add known rules
 		funcs["hello"] = openapi_functions.HelloFunction{}
+		funcs["post_response_success"] = openapi_functions.PostResponseSuccess{}
 	})
 
 	return functionsSingleton

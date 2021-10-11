@@ -23,13 +23,13 @@ type RuleFunctionResult struct {
 }
 
 type RuleFunction interface {
-	RunRule(nodes []*yaml.Node, options map[string]interface{}, context *RuleFunctionContext) []RuleFunctionResult
+	RunRule(nodes []*yaml.Node, options interface{}, context *RuleFunctionContext) []RuleFunctionResult
 }
 
 type RuleAction struct {
-	Field           string                 `json:"field"`
-	FunctionName    string                 `json:"function"`
-	FunctionOptions map[string]interface{} `json:"functionOptions"`
+	Field           string      `json:"field"`
+	FunctionName    string      `json:"function"`
+	FunctionOptions interface{} `json:"functionOptions"`
 }
 
 type Rule struct {

@@ -10,11 +10,11 @@ import (
 type HelloFunction struct {
 }
 
-func (hf HelloFunction) RunRule(nodes []*yaml.Node, options map[string]interface{},
+func (hf HelloFunction) RunRule(nodes []*yaml.Node, options interface{},
 	context *model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	// get title node and return it.
-	title := utils.FindKeyNode("title", nodes)
+	_, title := utils.FindKeyNode("title", nodes)
 
 	return []model.RuleFunctionResult{{
 		Message: fmt.Sprintf("oh hello '%s'", title.Value),

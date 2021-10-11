@@ -34,17 +34,39 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	}
 }
 
-func FindKeyNode(key string, nodes []*yaml.Node) *yaml.Node {
+func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
+	if vals, ok := raw.([]interface{}); ok {
+		s := make([]string, len(vals))
+		for i, v := range vals {
+			s[i] = fmt.Sprint(v)
+		}
+		return s
+	} else {
+		return nil
+	}
+}
+
+func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
+
+	if propMap, ok := raw.(map[string]interface{}); ok {
+		if props, ok := propMap[name].([]interface{}); ok {
+			return props
+		}
+	}
+	return nil
+}
+
+func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 
 	for i, v := range nodes {
 		if key == v.Value {
-			return nodes[i+1] // next node is what we need.
+			return v, nodes[i+1] // next node is what we need.
 		}
 		if len(v.Content) > 0 {
 			return FindKeyNode(key, v.Content)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // FixContext will clean up a JSONpath string to be correctly traversable.
