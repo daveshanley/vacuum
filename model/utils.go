@@ -42,7 +42,7 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 
 		// double check for the right version, people mix this up.
 		if majorVersion < 3 {
-			return nil, errors.New("spec is defined as an openapi spec, but is using a swagger (2.0) version")
+			return nil, errors.New("spec is defined as an openapi spec, but is using a swagger (2.0), or unknown version")
 		}
 		specVersion.Version = version
 	}
@@ -52,7 +52,7 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 
 		// I am not certain this edge-case is very frequent, but let's make sure we handle it anyway.
 		if majorVersion > 2 {
-			return nil, errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3.0 version")
+			return nil, errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unkown version")
 		}
 		specVersion.Version = version
 	}

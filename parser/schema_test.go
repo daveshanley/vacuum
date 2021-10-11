@@ -39,7 +39,7 @@ func TestCheckSpecIsValidOpenAPI2_WrongVersion(t *testing.T) {
 	assert.Nil(t, res)
 }
 
-func TestCheckSpecIsValidOpenAPI2_Validn(t *testing.T) {
+func TestCheckSpecIsValidOpenAPI2_Valid(t *testing.T) {
 
 	spec, _ := ioutil.ReadFile("schemas/test_files/tiny.swagger.yaml")
 	res, err := CheckSpecIsValidOpenAPI(spec)

@@ -87,7 +87,7 @@ func IsYAML(testString string) bool {
 	if err != nil {
 		return false
 	}
-	return false
+	return true
 }
 
 func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
