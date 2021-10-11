@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vaccum/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"io/ioutil"
 	"strings"
@@ -46,7 +47,7 @@ type RuleSet struct {
 
 func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	jsonString := string(jsonData)
-	if !IsJSON(jsonString) {
+	if !utils.IsJSON(jsonString) {
 		return nil, errors.New("data is not JSON")
 	}
 

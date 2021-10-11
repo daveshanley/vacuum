@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/daveshanley/vaccum/model"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -15,42 +14,6 @@ const (
 	OpenApi2 = "swagger"
 	AsyncApi = "asyncapi"
 )
-
-func ExtractSpecInfo(spec []byte) (*model.SpecInfo, error) {
-	var parsedSpec map[string]interface{}
-	specVersion := &model.SpecInfo{}
-	err := yaml.Unmarshal(spec, &parsedSpec)
-	if err != nil {
-		// yaml failed, try JSON
-		err = json.Unmarshal(spec, &parsedSpec)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse specification: %s", err.Error())
-		}
-		specVersion.Version = "json"
-	} else {
-		specVersion.SpecFormat = "yaml"
-	}
-
-	// check for specific keys
-	if parsedSpec[OpenApi3] != nil {
-		specVersion.SpecType = OpenApi3
-		specVersion.Version = parseVersionTypeData(parsedSpec[OpenApi3])
-	}
-	if parsedSpec[OpenApi2] != nil {
-		specVersion.SpecType = OpenApi2
-		specVersion.Version = parseVersionTypeData(parsedSpec[OpenApi2])
-	}
-	if parsedSpec[AsyncApi] != nil {
-		specVersion.SpecType = AsyncApi
-		specVersion.Version = parseVersionTypeData(parsedSpec[AsyncApi])
-	}
-
-	if specVersion.SpecType == "" {
-		specVersion.SpecType = "unknown specification type, unsupported schema"
-		specVersion.Version = "-1"
-	}
-	return specVersion, nil
-}
 
 // FindNodes will find a node based on JSONPath.
 func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
@@ -100,17 +63,19 @@ func IsJSON(testString string) bool {
 	if testString == "" {
 		return false
 	}
-	var n interface{}
-	err := json.Unmarshal([]byte(testString), &n)
-	if err != nil {
-		return false
+	runes := []rune(strings.TrimSpace(testString))
+	if runes[0] == '{' && runes[len(runes)-1] == '}' {
+		return true
 	}
-	return true
+	return false
 }
 
 // IsYAML will tell you if a string is YAML or not.
 func IsYAML(testString string) bool {
 	if testString == "" {
+		return false
+	}
+	if IsJSON(testString) {
 		return false
 	}
 	var n interface{}
@@ -119,6 +84,20 @@ func IsYAML(testString string) bool {
 		return false
 	}
 	return true
+}
+
+func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
+	var decodedYaml map[string]interface{}
+	err := yaml.Unmarshal(yamlData, &decodedYaml)
+	if err != nil {
+		return nil, err
+	}
+	jsonData, err := json.Marshal(decodedYaml)
+	if err != nil {
+		return nil, err
+	}
+	return jsonData, nil
+
 }
 
 func parseVersionTypeData(d interface{}) string {
