@@ -34,6 +34,19 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	}
 }
 
+func FindKeyNode(key string, nodes []*yaml.Node) *yaml.Node {
+
+	for i, v := range nodes {
+		if key == v.Value {
+			return nodes[i+1] // next node is what we need.
+		}
+		if len(v.Content) > 0 {
+			return FindKeyNode(key, v.Content)
+		}
+	}
+	return nil
+}
+
 // FixContext will clean up a JSONpath string to be correctly traversable.
 func FixContext(context string) string {
 

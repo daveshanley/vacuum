@@ -1,14 +1,18 @@
 package model
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/daveshanley/vaccum/utils"
 	"github.com/xeipuuv/gojsonschema"
-	"io/ioutil"
+	"gopkg.in/yaml.v3"
 	"strings"
 )
+
+//go:embed schemas/ruleset.schema.json
+var rulesetSchema string
 
 type RuleFunctionContext struct {
 }
@@ -19,7 +23,7 @@ type RuleFunctionResult struct {
 }
 
 type RuleFunction interface {
-	RunRule(input string, options map[string]interface{}, context RuleFunctionContext)
+	RunRule(nodes []*yaml.Node, options map[string]interface{}, context *RuleFunctionContext) []RuleFunctionResult
 }
 
 type RuleAction struct {
@@ -29,19 +33,19 @@ type RuleAction struct {
 }
 
 type Rule struct {
-	Description string     `json:"description"`
-	Given       string     `json:"given"`
-	Formats     []string   `json:"formats"`
-	Resolved    bool       `json:"resolved"`
-	Recommended bool       `json:"recommended"`
-	Severity    int        `json:"severity"`
-	Then        RuleAction `json:"then"`
+	Description string      `json:"description"`
+	Given       string      `json:"given"`
+	Formats     []string    `json:"formats"`
+	Resolved    bool        `json:"resolved"`
+	Recommended bool        `json:"recommended"`
+	Severity    int         `json:"severity"`
+	Then        *RuleAction `json:"then"`
 }
 
 type RuleSet struct {
-	DocumentationURI string          `json:"documentationUrl"`
-	Formats          []string        `json:"formats"`
-	Rules            map[string]Rule `json:"rules"`
+	DocumentationURI string           `json:"documentationUrl"`
+	Formats          []string         `json:"formats"`
+	Rules            map[string]*Rule `json:"rules"`
 	schemaLoader     gojsonschema.JSONLoader
 }
 
@@ -52,14 +56,10 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	}
 
 	jsonLoader := gojsonschema.NewStringLoader(jsonString)
-	schemaLoader, err := LoadRulesetSchema()
-	if err != nil {
-		return nil, err
-	}
+	schemaLoader := LoadRulesetSchema()
 
 	// check blob is a valid contract, before creating ruleset.
 	res, err := gojsonschema.Validate(schemaLoader, jsonLoader)
-
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +85,6 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	return rs, nil
 }
 
-func LoadRulesetSchema() (gojsonschema.JSONLoader, error) {
-
-	schemaMain, err := ioutil.ReadFile("schemas/ruleset.schema.json")
-	if err != nil {
-		return nil, err
-	}
-	return gojsonschema.NewStringLoader(string(schemaMain)), nil
+func LoadRulesetSchema() gojsonschema.JSONLoader {
+	return gojsonschema.NewStringLoader(rulesetSchema)
 }
