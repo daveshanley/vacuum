@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"github.com/daveshanley/vaccum/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -19,7 +20,7 @@ func Test_RunHelloFunction(t *testing.T) {
 	funcs := MapBuiltinFunctions()
 	helloFunc := funcs.FindFunction("hello")
 
-	res := helloFunc.RunRule(nil, nil, nil)
+	res := helloFunc.RunRule(nil, model.RuleFunctionContext{})
 	assert.NotNil(t, res)
 	assert.Equal(t, "oh hello", res[0].Message)
 }

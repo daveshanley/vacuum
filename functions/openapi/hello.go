@@ -8,8 +8,7 @@ import (
 type HelloFunction struct {
 }
 
-func (hf HelloFunction) RunRule(nodes []*yaml.Node, options interface{},
-	context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (hf HelloFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	return []model.RuleFunctionResult{{
 		Message: "oh hello",

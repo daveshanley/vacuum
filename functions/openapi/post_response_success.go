@@ -11,19 +11,18 @@ import (
 type PostResponseSuccess struct {
 }
 
-func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, options interface{},
-	context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
 		return nil
 	}
 
-	props := utils.ExtractValueFromInterfaceMap("properties", options)
+	props := utils.ExtractValueFromInterfaceMap("properties", context.Options)
 	values := utils.ConvertInterfaceArrayToStringArray(props)
 	found := false
 
 	for _, propVal := range values {
-		key, _ := utils.FindKeyNode(propVal, nodes)
+		key, _ := utils.FindFirstKeyNode(propVal, nodes)
 		if key != nil {
 			found = true
 			break

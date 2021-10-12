@@ -56,17 +56,41 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 	return nil
 }
 
-func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
+func FindFirstKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 
 	for i, v := range nodes {
 		if key == v.Value {
 			return v, nodes[i+1] // next node is what we need.
 		}
 		if len(v.Content) > 0 {
-			return FindKeyNode(key, v.Content)
+			return FindFirstKeyNode(key, v.Content)
 		}
 	}
 	return nil, nil
+}
+
+func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
+
+	for i, v := range nodes {
+		if key == v.Value {
+			return v, nodes[i+1] // next node is what we need.
+		}
+	}
+	return nil, nil
+}
+
+func FindAllKeyNodes(key string, nodes []*yaml.Node, foundNodes []*yaml.Node) []*yaml.Node {
+
+	for i, v := range nodes {
+		if key == v.Value {
+			foundNodes = append(foundNodes, nodes[i+1])
+			return foundNodes
+		}
+		if len(v.Content) > 0 {
+			return FindAllKeyNodes(key, v.Content, foundNodes)
+		}
+	}
+	return nil
 }
 
 // FixContext will clean up a JSONpath string to be correctly traversable.

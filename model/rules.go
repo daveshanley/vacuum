@@ -15,6 +15,8 @@ import (
 var rulesetSchema string
 
 type RuleFunctionContext struct {
+	RuleAction *RuleAction
+	Options    interface{}
 }
 
 type RuleFunctionResult struct {
@@ -23,7 +25,7 @@ type RuleFunctionResult struct {
 }
 
 type RuleFunction interface {
-	RunRule(nodes []*yaml.Node, options interface{}, context *RuleFunctionContext) []RuleFunctionResult
+	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult
 }
 
 type RuleAction struct {
@@ -38,8 +40,13 @@ type Rule struct {
 	Formats     []string    `json:"formats"`
 	Resolved    bool        `json:"resolved"`
 	Recommended bool        `json:"recommended"`
-	Severity    int         `json:"severity"`
+	Severity    string      `json:"severity"`
 	Then        *RuleAction `json:"then"`
+}
+
+func (r Rule) ToJSON() string {
+	d, _ := json.Marshal(r)
+	return string(d)
 }
 
 type RuleSet struct {

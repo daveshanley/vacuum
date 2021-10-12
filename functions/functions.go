@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"github.com/daveshanley/vaccum/functions/core"
 	openapi_functions "github.com/daveshanley/vaccum/functions/openapi"
 	"github.com/daveshanley/vaccum/model"
 	"sync"
@@ -29,6 +30,7 @@ func MapBuiltinFunctions() Functions {
 		// add known rules
 		funcs["hello"] = openapi_functions.HelloFunction{}
 		funcs["post_response_success"] = openapi_functions.PostResponseSuccess{}
+		funcs["truthy"] = core.Truthy{}
 	})
 
 	return functionsSingleton

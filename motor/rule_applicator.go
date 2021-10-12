@@ -10,11 +10,6 @@ import (
 func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
 
 	builtinFunctions := functions.MapBuiltinFunctions()
-
-	//// decode using YAML as it handles JSON well, and we're going to need the AST nodes.
-	//var yamlData map[string]interface{}
-	//yaml.Unmarshal(spec, &yamlData)
-
 	var ruleResults []model.RuleFunctionResult
 
 	for _, rule := range ruleSet.Rules {
@@ -29,7 +24,13 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 		ruleFunction := builtinFunctions.FindFunction(rule.Then.FunctionName)
 		if ruleFunction != nil {
-			ruleResults = append(ruleResults, ruleFunction.RunRule(nodes, rule.Then.FunctionOptions, nil)...)
+
+			rfc := model.RuleFunctionContext{
+				Options:    rule.Then.FunctionOptions,
+				RuleAction: rule.Then,
+			}
+
+			ruleResults = append(ruleResults, ruleFunction.RunRule(nodes, rfc)...)
 		}
 
 	}
