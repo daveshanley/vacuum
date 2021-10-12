@@ -8,7 +8,7 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 3)
+	assert.Len(t, funcs.GetAllFunctions(), 4)
 }
 
 func Test_FindHelloFunction(t *testing.T) {

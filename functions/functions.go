@@ -31,6 +31,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["hello"] = openapi_functions.HelloFunction{}
 		funcs["post_response_success"] = openapi_functions.PostResponseSuccess{}
 		funcs["truthy"] = core.Truthy{}
+		funcs["falsy"] = core.Falsy{}
 	})
 
 	return functionsSingleton
