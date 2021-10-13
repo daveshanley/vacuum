@@ -91,3 +91,9 @@ func parseVersionTypeData(d interface{}) (string, int) {
 	r := []rune(strings.TrimSpace(fmt.Sprintf("%v", d)))
 	return string(r), int(r[0]) - '0'
 }
+
+func BuildFunctionResult(key, message string, value interface{}) RuleFunctionResult {
+	return RuleFunctionResult{
+		Message: fmt.Sprintf("'%s' %s '%v'", key, message, value),
+	}
+}

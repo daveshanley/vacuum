@@ -34,6 +34,15 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	}
 }
 
+func ConvertInterfaceIntoIntMap(context interface{}) map[string]int {
+	if context != nil {
+		if v, ok := context.(map[string]int); ok {
+			return v
+		}
+	}
+	return nil
+}
+
 func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
 	if vals, ok := raw.([]interface{}); ok {
 		s := make([]string, len(vals))
@@ -77,6 +86,41 @@ func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 		}
 	}
 	return nil, nil
+}
+
+func IsNodeMap(node *yaml.Node) bool {
+	if node.Tag == "!!map" {
+		return true
+	}
+	return false
+}
+
+func IsNodeArray(node *yaml.Node) bool {
+	if node.Tag == "!!seq" {
+		return true
+	}
+	return false
+}
+
+func IsNodeStringValue(node *yaml.Node) bool {
+	if node.Tag == "!!str" {
+		return true
+	}
+	return false
+}
+
+func IsNodeIntValue(node *yaml.Node) bool {
+	if node.Tag == "!!int" {
+		return true
+	}
+	return false
+}
+
+func IsNodeFloatValue(node *yaml.Node) bool {
+	if node.Tag == "!!float" {
+		return true
+	}
+	return false
 }
 
 func FindAllKeyNodes(key string, nodes []*yaml.Node, foundNodes []*yaml.Node) []*yaml.Node {
