@@ -2,26 +2,26 @@ openapi: 3.0.1
 info:
   title: Burger Shop
   description: |
-    The best burger API at vmware. You can find the testiest burgers on the world
-  termsOfService: http://eve.vmware.com
+    The best burger API at quobix. You can find the testiest burgers on the world
+  termsOfService: https://quobix.com
   contact:
-    name: VMware
+    name: quobix
   license:
-    name: Copyright (c) 2020 VMware, Inc. All rights reserved.
+    name: Quobix
   version: "1.2"
 tags:
   - name: "pizza"
     description: false
     externalDocs:
       description: "Find out more"
-      url: "http://eve.vmware.com/"
+      url: "https://quobix.com/"
   - name: "Dressing"
     description: "Variety of dressings: cheese, veggie, oil and a lot more"
     externalDocs:
       description: "Find out more information about our products"
-      url: "http://eve.vmware.com/"
+      url: "https://quobix.com/"
 servers:
-  - url: http://eve.vmware.com/api
+  - url: https://quobix.com/api
 paths:
   /burgers:
     post:
