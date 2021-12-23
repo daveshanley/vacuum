@@ -30,10 +30,11 @@ func MapBuiltinFunctions() Functions {
 		// add known rules
 		funcs["hello"] = openapi_functions.HelloFunction{}
 		funcs["post_response_success"] = openapi_functions.PostResponseSuccess{}
-		funcs["truthy"] = core.Truthy{}
+		funcs["truthy"] = &core.Truthy{}
 		funcs["falsy"] = core.Falsy{}
 		funcs["defined"] = core.Defined{}
 		funcs["undefined"] = core.Undefined{}
+		funcs["casing"] = core.Casing{}
 	})
 
 	return functionsSingleton
