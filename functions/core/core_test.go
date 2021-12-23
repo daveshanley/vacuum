@@ -25,3 +25,10 @@ func buildCoreTestContext(action *model.RuleAction, options interface{}) model.R
 		Options:    options,
 	}
 }
+
+func buildCoreTestContextFromRule(action *model.RuleAction, rule model.Rule) model.RuleFunctionContext {
+	return model.RuleFunctionContext{
+		RuleAction: action,
+		Options:    rule.Then.FunctionOptions,
+	}
+}
