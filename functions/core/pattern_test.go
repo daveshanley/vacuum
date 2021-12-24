@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestCasing_RunRule_PatternMatchSuccess(t *testing.T) {
+func TestPattern_RunRule_PatternMatchSuccess(t *testing.T) {
 
 	sampleYaml := `carpet: "abc"`
 	path := "$.carpet"
@@ -25,7 +25,7 @@ func TestCasing_RunRule_PatternMatchSuccess(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
-func TestCasing_RunRule_PatternNothingSupplied(t *testing.T) {
+func TestPattern_RunRule_PatternNothingSupplied(t *testing.T) {
 
 	sampleYaml := `carpet: "abc"`
 	path := "$.carpet"
@@ -41,7 +41,7 @@ func TestCasing_RunRule_PatternNothingSupplied(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
-func TestCasing_RunRule_PatternNotMatchError(t *testing.T) {
+func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 
 	sampleYaml := `carpet: "nice-rice"`
 	path := "$.carpet"
@@ -60,7 +60,7 @@ func TestCasing_RunRule_PatternNotMatchError(t *testing.T) {
 	assert.Len(t, res, 1)
 }
 
-func TestCasing_RunRule_PatternMatchFail(t *testing.T) {
+func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 
 	sampleYaml := `carpet: "def"`
 	path := "$.carpet"
@@ -79,7 +79,7 @@ func TestCasing_RunRule_PatternMatchFail(t *testing.T) {
 	assert.Len(t, res, 1)
 }
 
-func TestCasing_RunRule_PatternMatchError(t *testing.T) {
+func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 
 	sampleYaml := `carpet: "abc"`
 	path := "$.carpet"
@@ -98,7 +98,7 @@ func TestCasing_RunRule_PatternMatchError(t *testing.T) {
 	assert.Len(t, res, 1)
 }
 
-func TestCasing_RunRule_PatternNotMatchFail(t *testing.T) {
+func TestPattern_RunRule_PatternNotMatchFail(t *testing.T) {
 
 	sampleYaml := `pizza: "cat1"`
 	path := "$.pizza"
