@@ -16,7 +16,7 @@ var rulesetSchema string
 
 type RuleFunctionContext struct {
 	RuleAction *RuleAction
-	Options    interface{}
+	Options    map[string]string
 }
 
 type RuleFunctionResult struct {
@@ -26,12 +26,13 @@ type RuleFunctionResult struct {
 
 type RuleFunction interface {
 	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult
+	GetSchema() RuleFunctionSchema
 }
 
 type RuleAction struct {
-	Field           string      `json:"field"`
-	FunctionName    string      `json:"function"`
-	FunctionOptions interface{} `json:"functionOptions"`
+	Field           string            `json:"field"`
+	FunctionName    string            `json:"function"`
+	FunctionOptions map[string]string `json:"functionOptions"`
 }
 
 type Rule struct {
@@ -42,6 +43,27 @@ type Rule struct {
 	Recommended bool        `json:"recommended"`
 	Severity    string      `json:"severity"`
 	Then        *RuleAction `json:"then"`
+}
+
+type RuleFunctionProperty struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type RuleFunctionSchema struct {
+	Required      []string               `json:"required,omitempty"`
+	Properties    []RuleFunctionProperty `json:"properties"`
+	MinProperties int                    `json:"minProperties,omitempty"`
+	ErrorMessage  string                 `json:"errorMessage,omitempty"`
+}
+
+func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
+	for _, prop := range rfs.Properties {
+		if prop.Name == name {
+			return prop.Description
+		}
+	}
+	return ""
 }
 
 func (r Rule) ToJSON() string {

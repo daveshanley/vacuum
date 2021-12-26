@@ -34,6 +34,23 @@ type Casing struct {
 	compiled              bool
 }
 
+var casingTypes = []string{flat, camel, pascal, kebab, cobol, snake, macro}
+
+func (c Casing) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Required: []string{"type"},
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name: "type",
+				Description: fmt.Sprintf("'casing' requires a 'type' to be supplied, which can be one of:"+
+					" '%s'", casingTypes),
+			},
+		},
+		ErrorMessage: "'alphabetical' function has invalid options supplied. Example valid options are 'type' = 'camel'" +
+			" or 'disallowDigits' = true",
+	}
+}
+
 func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) != 1 { // there can only be a single node passed in to this function.

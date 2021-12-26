@@ -1,7 +1,8 @@
 package core
 
 import (
-	"github.com/daveshanley/vaccum/utils"
+	"github.com/daveshanley/vaccum/model"
+	gen_utils "github.com/daveshanley/vaccum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -12,7 +13,7 @@ func TestCasing_RunRule_CamelSuccess(t *testing.T) {
 
 	path := "$.beer"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -33,7 +34,7 @@ func TestCasing_RunRule_CamelFail(t *testing.T) {
 
 	path := "$.beer"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -54,7 +55,7 @@ func TestCasing_RunRule_PascalSuccess(t *testing.T) {
 
 	path := "$.spaghetti"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -75,7 +76,7 @@ func TestCasing_RunRule_PascalFail(t *testing.T) {
 
 	path := "$.spaghetti"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -96,7 +97,7 @@ func TestCasing_RunRule_KebabSuccess(t *testing.T) {
 
 	path := "$.melody"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -117,7 +118,7 @@ func TestCasing_RunRule_KebabFail(t *testing.T) {
 
 	path := "$.melody"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -138,7 +139,7 @@ func TestCasing_RunRule_CobolSuccess(t *testing.T) {
 
 	path := "$.maddy"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -159,7 +160,7 @@ func TestCasing_RunRule_CobolFail(t *testing.T) {
 
 	path := "$.maddy"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -180,7 +181,7 @@ func TestCasing_RunRule_SnakeSuccess(t *testing.T) {
 
 	path := "$.ember"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -201,7 +202,7 @@ func TestCasing_RunRule_SnakeFail(t *testing.T) {
 
 	path := "$.ember"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -222,7 +223,7 @@ func TestCasing_RunRule_MacroSuccess(t *testing.T) {
 
 	path := "$.chicken"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -243,7 +244,7 @@ func TestCasing_RunRule_MacroFail(t *testing.T) {
 
 	path := "$.chicken"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -264,7 +265,7 @@ func TestCasing_RunRule_CamelNoDigits_Success(t *testing.T) {
 
 	path := "$.alchomohol"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -286,7 +287,7 @@ func TestCasing_RunRule_CamelNoDigits_Fail(t *testing.T) {
 
 	path := "$.alchomohol"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -308,7 +309,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Success(t *testing.T) {
 
 	path := "$.alchomohol"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -330,7 +331,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Fail(t *testing.T) {
 
 	path := "$.alchomohol"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -352,7 +353,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Success(t *testing.T) {
 
 	path := "$.mo_money"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -375,7 +376,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 
 	path := "$.mo_money"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
@@ -390,4 +391,17 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
+}
+
+func TestCasing_GetSchema_Valid(t *testing.T) {
+
+	opts := make(map[string]string)
+	opts["type"] = "snake"
+
+	rf := &Casing{}
+
+	res, errs := model.ValidateRuleFunctionContextAgainstSchema(rf, model.RuleFunctionContext{Options: opts})
+	assert.Len(t, errs, 0)
+	assert.True(t, res)
+
 }

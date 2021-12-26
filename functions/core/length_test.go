@@ -21,8 +21,8 @@ paths:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["min"] = 3
+	ops := make(map[string]string)
+	ops["min"] = "3"
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -48,8 +48,8 @@ paths:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["min"] = 4
+	ops := make(map[string]string)
+	ops["min"] = "4"
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -75,8 +75,8 @@ paths:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["min"] = 4
+	ops := make(map[string]string)
+	ops["min"] = "4"
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -100,8 +100,8 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["min"] = 6
+	ops := make(map[string]string)
+	ops["min"] = "6"
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -125,8 +125,8 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["max"] = 2
+	ops := make(map[string]string)
+	ops["max"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -152,9 +152,9 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["max"] = 4
-	ops["min"] = 2
+	ops := make(map[string]string)
+	ops["max"] = "4"
+	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -179,9 +179,9 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["max"] = 3
-	ops["min"] = 2
+	ops := make(map[string]string)
+	ops["max"] = "3"
+	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -206,9 +206,9 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["max"] = 9
-	ops["min"] = 2
+	ops := make(map[string]string)
+	ops["max"] = "9"
+	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -235,9 +235,9 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["max"] = 9
-	ops["min"] = 2
+	ops := make(map[string]string)
+	ops["max"] = "9"
+	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)
@@ -260,9 +260,9 @@ tags:`
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]int)
-	ops["max"] = 9
-	ops["min"] = 2
+	ops := make(map[string]string)
+	ops["max"] = "9"
+	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(rule.Then, ops)

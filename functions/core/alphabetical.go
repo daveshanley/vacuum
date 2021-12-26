@@ -12,6 +12,19 @@ import (
 
 type Alphabetical struct{}
 
+func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "keyedBy",
+				Description: "this is the key of an object you want to use to sort objects",
+			},
+		},
+		ErrorMessage: "'alphabetical' function has invalid options supplied. To sort objects use 'keyedBy'" +
+			"and decide which property on the array of objects you want to use.",
+	}
+}
+
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	if len(nodes) <= 0 {
@@ -34,8 +47,8 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 			if keyedBy == "" {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' is a map/object, not a string or number. se 'keyedBy' for objects",
-						node.Value),
+					Message: fmt.Sprintf("'%s' is a map/object. %s",
+						node.Value, a.GetSchema().ErrorMessage),
 				})
 				continue
 			}

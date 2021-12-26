@@ -43,6 +43,15 @@ func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 	return nil
 }
 
+func ConvertInterfaceIntoStringMapStringSlice(context interface{}) map[string][]string {
+	if context != nil {
+		if v, ok := context.(map[string][]string); ok {
+			return v
+		}
+	}
+	return nil
+}
+
 func ConvertInterfaceIntoStringArrayMap(context interface{}) map[string][]string {
 	if context != nil {
 		if v, ok := context.(map[string][]string); ok {

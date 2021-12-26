@@ -35,6 +35,9 @@ func MapBuiltinFunctions() Functions {
 		funcs["defined"] = core.Defined{}
 		funcs["undefined"] = core.Undefined{}
 		funcs["casing"] = core.Casing{}
+		funcs["alphabetical"] = core.Alphabetical{}
+		funcs["enumeration"] = core.Enumeration{}
+		funcs["pattern"] = core.Pattern{}
 	})
 
 	return functionsSingleton

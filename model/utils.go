@@ -52,7 +52,7 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 
 		// I am not certain this edge-case is very frequent, but let's make sure we handle it anyway.
 		if majorVersion > 2 {
-			return nil, errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unkown version")
+			return nil, errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unknown version")
 		}
 		specVersion.Version = version
 	}
@@ -96,4 +96,38 @@ func BuildFunctionResult(key, message string, value interface{}) RuleFunctionRes
 	return RuleFunctionResult{
 		Message: fmt.Sprintf("'%s' %s '%v'", key, message, value),
 	}
+}
+
+func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx RuleFunctionContext) (bool, []string) {
+	valid := true
+	var errs []string
+	schema := ruleFunction.GetSchema()
+
+	// check if this schema has required properties, then check them out.
+	if len(schema.Required) > 0 {
+		var missingProps []string
+		for _, req := range schema.Required {
+			for _, prop := range schema.Properties {
+				if prop.Name == req {
+					continue
+				}
+				missingProps = append(missingProps, prop.Name)
+			}
+		}
+		if len(missingProps) > 0 {
+			valid = false
+			for _, mProp := range missingProps {
+				errs = append(errs, fmt.Sprintf("%s: missing required property: %s (%s)",
+					schema.ErrorMessage, mProp, schema.GetPropertyDescription(mProp)))
+			}
+		}
+
+		if schema.MinProperties > 0 && len(ctx.Options) < schema.MinProperties {
+			valid = false
+			errs = append(errs, fmt.Sprintf("%s: minimum property number not met (%v)",
+				schema.ErrorMessage, schema.MinProperties))
+		}
+
+	}
+	return valid, errs
 }

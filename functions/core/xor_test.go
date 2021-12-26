@@ -17,8 +17,8 @@ func TestXor_RunRule_Success(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string][]string)
-	opts["properties"] = []string{"sparkles", "rainbows"}
+	opts := make(map[string]string)
+	opts["properties"] = "sparkles, rainbows"
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(rule.Then, opts)
@@ -40,8 +40,8 @@ func TestXor_RunRule_Fail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string][]string)
-	opts["properties"] = []string{"sparkles", "shiny"}
+	opts := make(map[string]string)
+	opts["properties"] = "sparkles, shiny"
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(rule.Then, opts)
@@ -63,8 +63,8 @@ func TestXor_RunRule_Fail_AllUndefined(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string][]string)
-	opts["properties"] = []string{"clouds", "rain"}
+	opts := make(map[string]string)
+	opts["properties"] = "clouds, rain"
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(rule.Then, opts)

@@ -7,7 +7,7 @@ const (
 	severityWarn  = "warn"
 )
 
-func buildCoreTestRule(given, severity, function, field string, functionOptions interface{}) model.Rule {
+func buildCoreTestRule(given, severity, function, field string, functionOptions map[string]string) model.Rule {
 	return model.Rule{
 		Given:    given,
 		Severity: severity,
@@ -19,7 +19,7 @@ func buildCoreTestRule(given, severity, function, field string, functionOptions 
 	}
 }
 
-func buildCoreTestContext(action *model.RuleAction, options interface{}) model.RuleFunctionContext {
+func buildCoreTestContext(action *model.RuleAction, options map[string]string) model.RuleFunctionContext {
 	return model.RuleFunctionContext{
 		RuleAction: action,
 		Options:    options,
