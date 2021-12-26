@@ -89,6 +89,19 @@ func TestXor_GetSchema_Invalid_Min(t *testing.T) {
 
 }
 
+func TestXor_GetSchema_Invalid_Min_NotEnough(t *testing.T) {
+
+	opts := make(map[string]string)
+	opts["properties"] = "notenough"
+
+	rf := &Xor{}
+
+	res, errs := model.ValidateRuleFunctionContextAgainstSchema(rf, model.RuleFunctionContext{Options: opts})
+	assert.Len(t, errs, 1)
+	assert.False(t, res)
+
+}
+
 func TestXor_GetSchema_Invalid_Max(t *testing.T) {
 
 	opts := make(map[string]string)
