@@ -95,13 +95,14 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 func FindFirstKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 
 	for i, v := range nodes {
-		if key == v.Value {
+		if key != "" && key == v.Value {
 			return v, nodes[i+1] // next node is what we need.
 		}
 		if len(v.Content) > 0 {
 			return FindFirstKeyNode(key, v.Content)
 		}
 	}
+	fmt.Println("rice")
 	return nil, nil
 }
 
@@ -110,6 +111,11 @@ func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 	for i, v := range nodes {
 		if key == v.Value {
 			return v, nodes[i+1] // next node is what we need.
+		}
+		for x, j := range v.Content {
+			if key == j.Value {
+				return v, v.Content[x+1] // next node is what we need.
+			}
 		}
 	}
 	return nil, nil

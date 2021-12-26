@@ -30,7 +30,15 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 				RuleAction: rule.Then,
 			}
 
-			ruleResults = append(ruleResults, ruleFunction.RunRule(nodes, rfc)...)
+			// validate the rule is configured correctly before running it.
+			res, errs := model.ValidateRuleFunctionContextAgainstSchema(ruleFunction, rfc)
+			if !res {
+				for _, e := range errs {
+					ruleResults = append(ruleResults, model.RuleFunctionResult{Message: e})
+				}
+			} else {
+				ruleResults = append(ruleResults, ruleFunction.RunRule(nodes, rfc)...)
+			}
 		}
 
 	}

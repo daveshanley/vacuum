@@ -101,3 +101,72 @@ func TestApplyRules_TruthyTest(t *testing.T) {
 	assert.Equal(t, "'description' must be truthy", results[0].Message)
 
 }
+
+func TestApplyRules_LengthTestFail(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$.paths./burgers.post.requestBody.content.application/json",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "examples",
+		"functionOptions" : { 
+			"max" : "1"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "'examples' must not be longer/greater than '1'", results[0].Message)
+
+}
+
+func TestApplyRules_LengthTestSuccess(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$.paths./burgers.post.requestBody.content.application/json",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "examples",
+		"functionOptions" : { 
+			"min" : "2",
+			"max" : "4"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 0)
+}
