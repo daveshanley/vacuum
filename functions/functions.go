@@ -37,6 +37,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["alphabetical"] = core.Alphabetical{}
 		funcs["enumeration"] = core.Enumeration{}
 		funcs["pattern"] = core.Pattern{}
+		funcs["length"] = core.Length{}
 		funcs["xor"] = core.Xor{}
 
 	})

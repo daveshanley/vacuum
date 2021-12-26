@@ -117,11 +117,14 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	if len(schema.Required) > 0 {
 		var missingProps []string
 		for _, req := range schema.Required {
+			found := false
 			for _, prop := range schema.Properties {
 				if prop.Name == req {
-					continue
+					found = true
 				}
-				missingProps = append(missingProps, prop.Name)
+			}
+			if !found {
+				missingProps = append(missingProps, req)
 			}
 		}
 		if len(missingProps) > 0 {

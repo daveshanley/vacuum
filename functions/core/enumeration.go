@@ -11,7 +11,18 @@ import (
 type Enumeration struct{}
 
 func (e Enumeration) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{
+		Required: []string{"values"},
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "values",
+				Description: "'enumeration' requires a set of values to operate against",
+			},
+		},
+		MinProperties: 1,
+		MaxProperties: 2,
+		ErrorMessage:  "'enumerate' needs 'values' to operate. A valid example of 'values' are: 'cake, egg, milk'",
+	}
 }
 
 func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {

@@ -45,6 +45,18 @@ func (c Casing) GetSchema() model.RuleFunctionSchema {
 				Description: fmt.Sprintf("'casing' requires a 'type' to be supplied, which can be one of:"+
 					" '%s'", casingTypes),
 			},
+			{
+				Name:        "disallowDigits",
+				Description: "don't allow digits in any matched pattern",
+			},
+			{
+				Name:        "separator.char",
+				Description: "use a separator character",
+			},
+			{
+				Name:        "separator.allowLeading",
+				Description: "Allow a leading separator or not",
+			},
 		},
 		ErrorMessage: "'alphabetical' function has invalid options supplied. Example valid options are 'type' = 'camel'" +
 			" or 'disallowDigits' = true",

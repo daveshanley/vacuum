@@ -15,7 +15,21 @@ type Pattern struct {
 }
 
 func (p Pattern) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "match",
+				Description: "'pattern' requires a match",
+			},
+			{
+				Name:        "notMatch",
+				Description: "'pattern' needs something to not match against",
+			},
+		},
+		MinProperties: 1,
+		MaxProperties: 2,
+		ErrorMessage:  "'pattern' needs 'match' or 'notMatch' properties being set to operate",
+	}
 }
 
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {

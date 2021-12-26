@@ -9,6 +9,24 @@ import (
 
 type Length struct{}
 
+func (l Length) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "min",
+				Description: "'length' requires minimum value to check against",
+			},
+			{
+				Name:        "max",
+				Description: "'length' needs a maximum value to check against",
+			},
+		},
+		MinProperties: 1,
+		MaxProperties: 2,
+		ErrorMessage:  "'length' needs 'min' or 'max' (or both) properties being set to operate",
+	}
+}
+
 func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	if len(nodes) <= 0 {
