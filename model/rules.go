@@ -54,6 +54,7 @@ type RuleFunctionSchema struct {
 	Required      []string               `json:"required,omitempty"`
 	Properties    []RuleFunctionProperty `json:"properties"`
 	MinProperties int                    `json:"minProperties,omitempty"`
+	MaxProperties int                    `json:"maxProperties,omitempty"`
 	ErrorMessage  string                 `json:"errorMessage,omitempty"`
 }
 

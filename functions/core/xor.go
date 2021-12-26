@@ -11,6 +11,22 @@ import (
 type Xor struct {
 }
 
+func (x Xor) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Required: []string{"properties"},
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "properties",
+				Description: "'xor' requires two values, separated by commas, no more, no less",
+			},
+		},
+		MinProperties: 2,
+		MaxProperties: 2,
+		ErrorMessage: "'xor' function has invalid options supplied. Example valid options are 'properties' = 'a, b'" +
+			" or 'properties' = '1, 2'",
+	}
+}
+
 func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

@@ -14,6 +14,10 @@ type Pattern struct {
 	patternCache map[string]*regexp.Regexp
 }
 
+func (p Pattern) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{}
+}
+
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) != 1 { // there can only be a single node passed in to this function.

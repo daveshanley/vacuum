@@ -11,6 +11,10 @@ import (
 type PostResponseSuccess struct {
 }
 
+func (prs PostResponseSuccess) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{}
+}
+
 func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

@@ -10,7 +10,11 @@ import (
 type Falsy struct {
 }
 
-func (t Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (f Falsy) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{}
+}
+
+func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
 		return nil

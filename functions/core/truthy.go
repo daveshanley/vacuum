@@ -10,6 +10,10 @@ import (
 type Truthy struct {
 }
 
+func (t Truthy) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{}
+}
+
 func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

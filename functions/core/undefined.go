@@ -10,6 +10,10 @@ import (
 type Undefined struct {
 }
 
+func (u Undefined) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{}
+}
+
 func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

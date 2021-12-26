@@ -10,6 +10,10 @@ import (
 
 type Enumeration struct{}
 
+func (e Enumeration) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{}
+}
+
 func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) != 1 { // there can only be a single node passed in to this function.

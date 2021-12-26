@@ -16,7 +16,7 @@ func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Properties: []model.RuleFunctionProperty{
 			{
-				Name:        "keyedBy",
+				Name:        "schema",
 				Description: "this is the key of an object you want to use to sort objects",
 			},
 		},

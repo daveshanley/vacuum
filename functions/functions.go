@@ -28,7 +28,6 @@ func MapBuiltinFunctions() Functions {
 		}
 
 		// add known rules
-		funcs["hello"] = openapi_functions.HelloFunction{}
 		funcs["post_response_success"] = openapi_functions.PostResponseSuccess{}
 		funcs["truthy"] = &core.Truthy{}
 		funcs["falsy"] = core.Falsy{}
@@ -38,6 +37,8 @@ func MapBuiltinFunctions() Functions {
 		funcs["alphabetical"] = core.Alphabetical{}
 		funcs["enumeration"] = core.Enumeration{}
 		funcs["pattern"] = core.Pattern{}
+		funcs["xor"] = core.Xor{}
+
 	})
 
 	return functionsSingleton

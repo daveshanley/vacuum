@@ -102,6 +102,16 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	valid := true
 	var errs []string
 	schema := ruleFunction.GetSchema()
+	numProps := 0
+
+	for _, v := range ctx.Options {
+		if strings.Contains(v, ",") {
+			split := strings.Split(v, ",")
+			numProps += len(split)
+		} else {
+			numProps++
+		}
+	}
 
 	// check if this schema has required properties, then check them out.
 	if len(schema.Required) > 0 {
@@ -121,13 +131,18 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 					schema.ErrorMessage, mProp, schema.GetPropertyDescription(mProp)))
 			}
 		}
+	}
 
-		if schema.MinProperties > 0 && len(ctx.Options) < schema.MinProperties {
-			valid = false
-			errs = append(errs, fmt.Sprintf("%s: minimum property number not met (%v)",
-				schema.ErrorMessage, schema.MinProperties))
-		}
+	if schema.MinProperties > 0 && numProps < schema.MinProperties {
+		valid = false
+		errs = append(errs, fmt.Sprintf("%s: minimum property number not met (%v)",
+			schema.ErrorMessage, schema.MinProperties))
+	}
 
+	if schema.MaxProperties > 0 && numProps > schema.MaxProperties {
+		valid = false
+		errs = append(errs, fmt.Sprintf("%s: maximum number (%v) of properties exceeded. '%v' provided.",
+			schema.ErrorMessage, schema.MaxProperties, numProps))
 	}
 	return valid, errs
 }
