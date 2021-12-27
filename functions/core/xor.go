@@ -13,11 +13,12 @@ type Xor struct {
 
 func (x Xor) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
+		Name:     "xor",
 		Required: []string{"properties"},
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name:        "properties",
-				Description: "'xor' requires two values, separated by commas, no more, no less",
+				Description: "'xor' requires two values",
 			},
 		},
 		MinProperties: 2,
@@ -35,7 +36,14 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 
 	// check supplied properties, there can only be two
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
-	properties := strings.Split(props["properties"], ",")
+	var properties []string
+
+	if len(props) <= 0 {
+		properties = utils.ConvertInterfaceToStringArray(context.Options)
+	} else {
+		properties = strings.Split(props["properties"], ",")
+	}
+
 	if len(properties) != 2 {
 		return nil
 	}

@@ -11,7 +11,9 @@ type Undefined struct {
 }
 
 func (u Undefined) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{
+		Name: "undefined",
+	}
 }
 
 func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {

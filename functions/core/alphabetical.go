@@ -14,6 +14,7 @@ type Alphabetical struct{}
 
 func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
+		Name: "alphabetical",
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name:        "keyedBy",

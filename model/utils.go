@@ -124,6 +124,11 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 			schema.ErrorMessage, schema.MaxProperties, numProps))
 	}
 
+	// check if the function requires a field or not, and check if it's been set
+	if schema.RequiresField && ctx.RuleAction.Field == "" {
+		errs = append(errs, fmt.Sprintf("'%s' requires a 'field' value to be set", schema.Name))
+	}
+
 	// check if this schema has required properties, then check them out.
 	if len(schema.Required) > 0 {
 		var missingProps []string
@@ -176,6 +181,9 @@ func countPropsInterface(options map[string]interface{}, numProps int) int {
 		}
 		if _, ok := v.(bool); ok {
 			numProps++
+		}
+		if arr, ok := v.([]interface{}); ok {
+			numProps += len(arr)
 		}
 	}
 	return numProps

@@ -16,6 +16,7 @@ type Pattern struct {
 
 func (p Pattern) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
+		Name: "pattern",
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name:        "match",

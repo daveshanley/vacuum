@@ -11,6 +11,7 @@ type Length struct{}
 
 func (l Length) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
+		Name: "length",
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name:        "min",
@@ -127,7 +128,9 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				if context.RuleAction.Field != "" {
 					results = append(results, createMinError(context.RuleAction.Field, min))
 				} else {
-					results = append(results, createMinError(context.Rule.Given, min))
+
+					//results = append(results, createMinError(context.Rule.Given, min))
+					results = append(results, createMinError("chicken", min))
 				}
 				continue
 			}
@@ -136,7 +139,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				if context.RuleAction.Field != "" {
 					results = append(results, createMaxError(context.RuleAction.Field, max))
 				} else {
-					results = append(results, createMaxError(context.Rule.Given, max))
+					//results = append(results, createMaxError(context.Rule.Given, max))
+					results = append(results, createMaxError("chops", max))
 				}
 				continue
 			}

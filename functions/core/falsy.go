@@ -11,7 +11,9 @@ type Falsy struct {
 }
 
 func (f Falsy) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{
+		Name: "falsy",
+	}
 }
 
 func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {

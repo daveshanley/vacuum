@@ -11,7 +11,9 @@ type Truthy struct {
 }
 
 func (t Truthy) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{
+		Name: "truthy",
+	}
 }
 
 func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {

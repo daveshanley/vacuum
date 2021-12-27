@@ -49,8 +49,29 @@ func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 				converted[k] = n
 			}
 		}
+		if v, ok := context.(map[string]string); ok {
+			for k, n := range v {
+				converted[k] = n
+			}
+		}
 	}
 	return converted
+}
+
+func ConvertInterfaceToStringArray(raw interface{}) []string {
+	if vals, ok := raw.(map[string]interface{}); ok {
+		var s []string
+		for _, v := range vals {
+			if v, ok := v.([]interface{}); ok {
+				for _, q := range v {
+					s = append(s, fmt.Sprint(q))
+				}
+			}
+		}
+		return s
+	} else {
+		return nil
+	}
 }
 
 func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
@@ -82,10 +103,12 @@ func FindFirstKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 			return v, nodes[i+1] // next node is what we need.
 		}
 		if len(v.Content) > 0 {
-			return FindFirstKeyNode(key, v.Content)
+			x, y := FindFirstKeyNode(key, v.Content)
+			if x != nil && y != nil {
+				return x, y
+			}
 		}
 	}
-	fmt.Println("rice")
 	return nil, nil
 }
 

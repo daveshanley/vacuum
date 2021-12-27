@@ -12,6 +12,7 @@ type Enumeration struct{}
 
 func (e Enumeration) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
+		Name:     "enumeration",
 		Required: []string{"values"},
 		Properties: []model.RuleFunctionProperty{
 			{

@@ -11,7 +11,10 @@ type Defined struct {
 }
 
 func (d Defined) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{
+		Name:          "defined",
+		RequiresField: true,
+	}
 }
 
 func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {

@@ -38,7 +38,7 @@ type RuleAction struct {
 
 type Rule struct {
 	Description string      `json:"description"`
-	Given       string      `json:"given"`
+	Given       interface{} `json:"given"`
 	Formats     []string    `json:"formats"`
 	Resolved    bool        `json:"resolved"`
 	Recommended bool        `json:"recommended"`
@@ -52,7 +52,9 @@ type RuleFunctionProperty struct {
 }
 
 type RuleFunctionSchema struct {
+	Name          string                 `json:"name,omitempty"`
 	Required      []string               `json:"required,omitempty"`
+	RequiresField bool                   `json:"requiresField,omitempty"`
 	Properties    []RuleFunctionProperty `json:"properties"`
 	MinProperties int                    `json:"minProperties,omitempty"`
 	MaxProperties int                    `json:"maxProperties,omitempty"`

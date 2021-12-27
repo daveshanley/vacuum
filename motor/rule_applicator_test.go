@@ -247,7 +247,7 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 	json := `{
   "documentationUrl": "quobix.com",
   "rules": {
-    "pattern-test-description": {
+    "alpha-test-description": {
       "description": "this is a test for checking the alphabetical function",
       "recommended": true,
       "type": "style",
@@ -279,7 +279,7 @@ func TestApplyRules_LengthFail_Tags(t *testing.T) {
 	json := `{
   "documentationUrl": "quobix.com",
   "rules": {
-    "pattern-test-description": {
+    "length-test-description": {
       "description": "this is a test for checking the length function",
       "recommended": true,
       "type": "style",
@@ -311,7 +311,7 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 	json := `{
   "documentationUrl": "quobix.com",
   "rules": {
-    "pattern-test-description": {
+    "length-test-description": {
       "description": "this is a test for checking the length function",
       "recommended": true,
       "type": "style",
@@ -322,6 +322,84 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 		"field": "required",
 		"functionOptions" : { 
 			"max" : "2"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 0)
+}
+
+func TestApplyRules_Xor_Success(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "xor-test-description": {
+      "description": "this is a test for checking the xor function",
+      "recommended": true,
+      "type": "style",
+      "given": [
+        "$.components.examples[*]",
+        "$.paths[*][*]..content[*].examples[*]",
+        "$.paths[*][*]..parameters[*].examples[*]",
+        "$.components.parameters[*].examples[*]",
+        "$.paths[*][*]..headers[*].examples[*]",
+        "$.components.headers[*].examples[*]"
+      ],
+      "severity": "error",
+      "then": {
+        "function": "xor",
+		"functionOptions" : { 
+			"properties" : ["externalValue", "value"]
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 0)
+}
+
+func TestApplyRules_Xor_Fail(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "xor-test-description": {
+      "description": "this is a test for checking the xor function",
+      "recommended": true,
+      "type": "style",
+      "given": [
+        "$.components.examples[*]",
+        "$.paths[*][*]..content[*].examples[*]",
+        "$.paths[*][*]..parameters[*].examples[*]",
+        "$.components.parameters[*].examples[*]",
+        "$.paths[*][*]..headers[*].examples[*]",
+        "$.components.headers[*].examples[*]"
+      ],
+      "severity": "error",
+      "then": {
+        "function": "xor",
+		"functionOptions" : { 
+			"properties" : ["externalValue", "value"]
 		}
       }
     }

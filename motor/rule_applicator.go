@@ -16,28 +16,48 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 	for _, rule := range ruleSet.Rules {
 
-		nodes, err := utils.FindNodes(spec, rule.Given)
-		if err != nil {
-			return nil, err
-		}
-		if len(nodes) <= 0 {
-			return nil, fmt.Errorf("no nodes found matching path: '%s'", rule.Given)
+		var givenPaths []string
+		if x, ok := rule.Given.(string); ok {
+			givenPaths = append(givenPaths, x)
 		}
 
-		var ruleAction model.RuleAction
-		err = mapstructure.Decode(rule.Then, &ruleAction)
+		if x, ok := rule.Given.([]interface{}); ok {
+			for _, gpI := range x {
+				if gp, ok := gpI.(string); ok {
+					givenPaths = append(givenPaths, gp)
+				}
+				if gp, ok := gpI.(int); ok {
+					givenPaths = append(givenPaths, fmt.Sprintf("%v", gp))
+				}
+			}
 
-		if err == nil {
+		}
 
-			ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes)
+		for _, givenPath := range givenPaths {
 
-		} else {
-			var ruleActions []model.RuleAction
-			err = mapstructure.Decode(rule.Then, &ruleActions)
+			nodes, err := utils.FindNodes(spec, givenPath)
+			if err != nil {
+				return nil, err
+			}
+			if len(nodes) <= 0 {
+				continue
+			}
+
+			var ruleAction model.RuleAction
+			err = mapstructure.Decode(rule.Then, &ruleAction)
 
 			if err == nil {
-				for _, rAction := range ruleActions {
-					ruleResults = buildResults(rule, builtinFunctions, rAction, ruleResults, nodes)
+
+				ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes)
+
+			} else {
+				var ruleActions []model.RuleAction
+				err = mapstructure.Decode(rule.Then, &ruleActions)
+
+				if err == nil {
+					for _, rAction := range ruleActions {
+						ruleResults = buildResults(rule, builtinFunctions, rAction, ruleResults, nodes)
+					}
 				}
 			}
 		}
@@ -66,7 +86,14 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 				ruleResults = append(ruleResults, model.RuleFunctionResult{Message: e})
 			}
 		} else {
-			ruleResults = append(ruleResults, ruleFunction.RunRule(nodes, rfc)...)
+
+			// iterate through nodes and supply them one at a time so we don't pollute each run
+			// TODO: change this signature to be singular and not an array so this is handled permanently.
+
+			for _, node := range nodes {
+				ruleResults = append(ruleResults, ruleFunction.RunRule([]*yaml.Node{node}, rfc)...)
+			}
+
 		}
 	}
 	return ruleResults
