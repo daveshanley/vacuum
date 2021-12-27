@@ -53,33 +53,6 @@ func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 	return converted
 }
 
-func ConvertInterfaceIntoStringMapStringSlice(context interface{}) map[string][]string {
-	if context != nil {
-		if v, ok := context.(map[string][]string); ok {
-			return v
-		}
-	}
-	return nil
-}
-
-func ConvertInterfaceIntoStringArrayMap(context interface{}) map[string][]string {
-	if context != nil {
-		if v, ok := context.(map[string][]string); ok {
-			return v
-		}
-	}
-	return nil
-}
-
-func ConvertInterfaceIntoIntMap(context interface{}) map[string]int {
-	if context != nil {
-		if v, ok := context.(map[string]int); ok {
-			return v
-		}
-	}
-	return nil
-}
-
 func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
 	if vals, ok := raw.([]interface{}); ok {
 		s := make([]string, len(vals))

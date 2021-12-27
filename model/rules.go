@@ -16,6 +16,7 @@ var rulesetSchema string
 
 type RuleFunctionContext struct {
 	RuleAction *RuleAction
+	Rule       *Rule
 	Options    interface{}
 }
 

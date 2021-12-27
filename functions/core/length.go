@@ -55,15 +55,24 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// run through nodes
 	for _, node := range nodes {
 
-		// check field type, is it a map? is it an array?
-		k, p := utils.FindFirstKeyNode(context.RuleAction.Field, []*yaml.Node{node})
+		var p *yaml.Node
 
-		// no luck? try again.
-		if k == nil || p == nil {
-			k, p = utils.FindKeyNode(context.RuleAction.Field, []*yaml.Node{node})
+		// check field type, is it a map? is it an array?
+		if context.RuleAction.Field != "" {
+			_, p = utils.FindFirstKeyNode(context.RuleAction.Field, []*yaml.Node{node})
+
+			// no luck? try again.
+			if p == nil {
+				_, p = utils.FindKeyNode(context.RuleAction.Field, []*yaml.Node{node})
+			}
+		} else {
+
+			if p == nil {
+				p = node
+			}
 		}
 
-		if k == nil || p == nil {
+		if p == nil {
 			continue
 		}
 
@@ -115,12 +124,20 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 			// check for structure sizes (maps and arrays)
 			if min > 0 && nodeCount < min {
-				results = append(results, createMinError(context.RuleAction.Field, min))
+				if context.RuleAction.Field != "" {
+					results = append(results, createMinError(context.RuleAction.Field, min))
+				} else {
+					results = append(results, createMinError(context.Rule.Given, min))
+				}
 				continue
 			}
 
 			if max > 0 && nodeCount > max {
-				results = append(results, createMaxError(context.RuleAction.Field, max))
+				if context.RuleAction.Field != "" {
+					results = append(results, createMaxError(context.RuleAction.Field, max))
+				} else {
+					results = append(results, createMaxError(context.Rule.Given, max))
+				}
 				continue
 			}
 		}

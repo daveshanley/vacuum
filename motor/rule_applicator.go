@@ -29,7 +29,7 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 		if err == nil {
 
-			ruleResults = buildResults(builtinFunctions, ruleAction, ruleResults, nodes)
+			ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes)
 
 		} else {
 			var ruleActions []model.RuleAction
@@ -37,7 +37,7 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 			if err == nil {
 				for _, rAction := range ruleActions {
-					ruleResults = buildResults(builtinFunctions, rAction, ruleResults, nodes)
+					ruleResults = buildResults(rule, builtinFunctions, rAction, ruleResults, nodes)
 				}
 			}
 		}
@@ -46,8 +46,9 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 	return ruleResults, nil
 }
 
-func buildResults(builtinFunctions functions.Functions, ruleAction model.RuleAction,
+func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAction model.RuleAction,
 	ruleResults []model.RuleFunctionResult, nodes []*yaml.Node) []model.RuleFunctionResult {
+
 	ruleFunction := builtinFunctions.FindFunction(ruleAction.Function)
 
 	if ruleFunction != nil {
@@ -55,6 +56,7 @@ func buildResults(builtinFunctions functions.Functions, ruleAction model.RuleAct
 		rfc := model.RuleFunctionContext{
 			Options:    ruleAction.FunctionOptions,
 			RuleAction: &ruleAction,
+			Rule:       rule,
 		}
 
 		// validate the rule is configured correctly before running it.

@@ -242,7 +242,7 @@ func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
 	assert.Len(t, results, 0)
 }
 
-func TestApplyRules_AlphabeticalTestSuccess_Tags(t *testing.T) {
+func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 
 	json := `{
   "documentationUrl": "quobix.com",
@@ -272,4 +272,69 @@ func TestApplyRules_AlphabeticalTestSuccess_Tags(t *testing.T) {
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
+}
+
+func TestApplyRules_LengthFail_Tags(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "pattern-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$.tags",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"functionOptions" : { 
+			"max" : "1"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+}
+
+func TestApplyRules_LengthSuccess_Description(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "pattern-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$.components.schemas.Burger",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "required",
+		"functionOptions" : { 
+			"max" : "2"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 0)
 }
