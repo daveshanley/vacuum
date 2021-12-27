@@ -43,8 +43,6 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 		if utils.IsNodeMap(node) {
 
-			var resultsFromKey []string
-
 			if keyedBy == "" {
 				results = append(results, model.RuleFunctionResult{
 					Message: fmt.Sprintf("'%s' is a map/object. %s",
@@ -53,22 +51,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
-			for x, v := range node.Content {
-				// run odd numbers for values.
-				if x%2 != 0 {
-					if v.Tag == "!!map" {
-
-						for y, kv := range v.Content {
-
-							// check keys for keyedBy match
-							if y%2 == 0 && keyedBy == kv.Value && y+1 < len(v.Content) {
-								resultsFromKey = append(resultsFromKey, v.Content[y+1].Value)
-							}
-						}
-					}
-				}
-			}
-
+			resultsFromKey := a.processMap(node, keyedBy)
 			results = compareStringArray(resultsFromKey)
 			continue
 		}
@@ -85,6 +68,12 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 					results = append(results, rs...)
 				}
 
+				if a.isValidMapArray(node) {
+					var resultsFromKey []string
+					resultsFromKey = a.processMap(node, keyedBy)
+					results = compareStringArray(resultsFromKey)
+				}
+
 			}
 			continue
 		}
@@ -94,6 +83,26 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 	}
 
 	return results
+}
+
+func (a Alphabetical) processMap(node *yaml.Node, keyedBy string) []string {
+	var resultsFromKey []string
+	for x, v := range node.Content {
+		// run odd numbers for values.
+		if x == 0 || x%2 != 0 {
+			if v.Tag == "!!map" {
+
+				for y, kv := range v.Content {
+
+					// check keys for keyedBy match
+					if y%2 == 0 && keyedBy == kv.Value && y+1 < len(v.Content) {
+						resultsFromKey = append(resultsFromKey, v.Content[y+1].Value)
+					}
+				}
+			}
+		}
+	}
+	return resultsFromKey
 }
 
 func (a Alphabetical) isValidArray(arr *yaml.Node) bool {
@@ -115,6 +124,13 @@ func (a Alphabetical) isValidStringArray(arr *yaml.Node) bool {
 
 func (a Alphabetical) isValidNumberArray(arr *yaml.Node) bool {
 	if arr.Content[0].Tag == "!!int" || arr.Content[0].Tag == "!!float" {
+		return true
+	}
+	return false
+}
+
+func (a Alphabetical) isValidMapArray(arr *yaml.Node) bool {
+	if arr.Content[0].Tag == "!!map" {
 		return true
 	}
 	return false

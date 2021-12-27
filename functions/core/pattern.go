@@ -34,10 +34,6 @@ func (p Pattern) GetSchema() model.RuleFunctionSchema {
 
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) != 1 { // there can only be a single node passed in to this function.
-		return nil
-	}
-
 	// check supplied type
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 
@@ -60,34 +56,35 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		p.patternCache = make(map[string]*regexp.Regexp)
 	}
 
-	// match
-	if p.match != "" {
-		rx, err := p.getPatternFromCache(p.match)
-		if err != nil {
-			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.match, err.Error()),
-			})
-		} else {
-			if !rx.MatchString(nodes[0].Value) {
+	for _, node := range nodes {
+		if p.match != "" {
+			rx, err := p.getPatternFromCache(p.match)
+			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' does not match the expression '%s'", nodes[0].Value, p.match),
+					Message: fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.match, err.Error()),
 				})
+			} else {
+				if !rx.MatchString(node.Value) {
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("'%s' does not match the expression '%s'", node.Value, p.match),
+					})
+				}
 			}
 		}
-	}
 
-	// not match
-	if p.notMatch != "" {
-		rx, err := p.getPatternFromCache(p.notMatch)
-		if err != nil {
-			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.notMatch, err.Error()),
-			})
-		} else {
-			if rx.MatchString(nodes[0].Value) {
+		// not match
+		if p.notMatch != "" {
+			rx, err := p.getPatternFromCache(p.notMatch)
+			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' matches the expression '%s'", nodes[0].Value, p.notMatch),
+					Message: fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.notMatch, err.Error()),
 				})
+			} else {
+				if rx.MatchString(node.Value) {
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("'%s' matches the expression '%s'", node.Value, p.notMatch),
+					})
+				}
 			}
 		}
 	}

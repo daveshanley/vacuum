@@ -18,7 +18,7 @@ tags:
   - name: "Dressing"
     description: "Variety of dressings: cheese, veggie, oil and a lot more"
     externalDocs:
-      description: "Find out more information about our products"
+      description: "Find out more information about our products)"
       url: "https://quobix.com/"
 servers:
   - url: https://quobix.com/api
