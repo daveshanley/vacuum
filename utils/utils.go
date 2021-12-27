@@ -35,12 +35,22 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 }
 
 func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
+	converted := make(map[string]string)
 	if context != nil {
+		if v, ok := context.(map[string]interface{}); ok {
+			for k, n := range v {
+				if s, okB := n.(string); okB {
+					converted[k] = s
+				}
+			}
+		}
 		if v, ok := context.(map[string]string); ok {
-			return v
+			for k, n := range v {
+				converted[k] = n
+			}
 		}
 	}
-	return nil
+	return converted
 }
 
 func ConvertInterfaceIntoStringMapStringSlice(context interface{}) map[string][]string {

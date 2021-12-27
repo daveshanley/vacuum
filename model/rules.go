@@ -16,7 +16,7 @@ var rulesetSchema string
 
 type RuleFunctionContext struct {
 	RuleAction *RuleAction
-	Options    map[string]string
+	Options    interface{}
 }
 
 type RuleFunctionResult struct {
@@ -30,9 +30,9 @@ type RuleFunction interface {
 }
 
 type RuleAction struct {
-	Field           string            `json:"field"`
-	FunctionName    string            `json:"function"`
-	FunctionOptions map[string]string `json:"functionOptions"`
+	Field           string      `json:"field"`
+	FunctionName    string      `json:"function"`
+	FunctionOptions interface{} `json:"functionOptions"`
 }
 
 type Rule struct {

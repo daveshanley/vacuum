@@ -104,12 +104,23 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	schema := ruleFunction.GetSchema()
 	numProps := 0
 
-	for _, v := range ctx.Options {
-		if strings.Contains(v, ",") {
-			split := strings.Split(v, ",")
-			numProps += len(split)
-		} else {
-			numProps++
+	if options, ok := ctx.Options.(map[string]interface{}); ok {
+		for _, v := range options {
+
+			if stringVal, ok := v.(string); ok {
+				if strings.Contains(stringVal, ",") {
+					split := strings.Split(stringVal, ",")
+					numProps += len(split)
+				} else {
+					numProps++
+				}
+			}
+			if _, ok := v.(int); ok {
+				numProps++
+			}
+			if _, ok := v.(bool); ok {
+				numProps++
+			}
 		}
 	}
 
