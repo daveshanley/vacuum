@@ -13,7 +13,7 @@ func buildCoreTestRule(given, severity, function, field string, functionOptions 
 		Severity: severity,
 		Then: &model.RuleAction{
 			Field:           field,
-			FunctionName:    function,
+			Function:        function,
 			FunctionOptions: functionOptions,
 		},
 	}
@@ -27,8 +27,9 @@ func buildCoreTestContext(action *model.RuleAction, options map[string]string) m
 }
 
 func buildCoreTestContextFromRule(action *model.RuleAction, rule model.Rule) model.RuleFunctionContext {
+	ruleAction := model.CastToRuleAction(rule.Then)
 	return model.RuleFunctionContext{
 		RuleAction: action,
-		Options:    rule.Then.FunctionOptions,
+		Options:    ruleAction.FunctionOptions,
 	}
 }

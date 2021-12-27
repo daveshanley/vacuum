@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vaccum/functions"
 	"github.com/daveshanley/vaccum/model"
+	"github.com/mitchellh/mapstructure"
 )
 
 type RuleComposer struct {
@@ -30,10 +31,40 @@ func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*model.RuleSet, error) {
 
 	// check builtinFunctions exist for rules defined
 	for k, v := range rs.Rules {
-		if v.Then != nil && v.Then.FunctionName != "" {
-			f := builtinFunctions.FindFunction(v.Then.FunctionName)
-			if f == nil {
-				return nil, fmt.Errorf("unable to locate function '%s' for rule '%s", v.Then.FunctionName, k)
+
+		if v.Then != nil {
+
+			var ruleAction model.RuleAction
+			err = mapstructure.Decode(v.Then, &ruleAction)
+
+			if err == nil {
+
+				if ruleAction.Function != "" {
+
+					f := builtinFunctions.FindFunction(ruleAction.Function)
+					if f == nil {
+						return nil, fmt.Errorf("unable to locate function '%s' for rule '%s",
+							ruleAction.Function, k)
+					}
+				}
+			}
+
+			// must be an array of then rule actions.
+			var ruleActions []model.RuleAction
+			err = mapstructure.Decode(v.Then, &ruleActions)
+
+			if err == nil {
+
+				for _, rAction := range ruleActions {
+					if rAction.Function != "" {
+
+						f := builtinFunctions.FindFunction(rAction.Function)
+						if f == nil {
+							return nil, fmt.Errorf("unable to locate function '%s' for rule '%s",
+								rAction.Function, k)
+						}
+					}
+				}
 			}
 		}
 	}

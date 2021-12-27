@@ -160,3 +160,10 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	}
 	return valid, errs
 }
+
+func CastToRuleAction(action interface{}) *RuleAction {
+	if ra, ok := action.(*RuleAction); ok {
+		return ra
+	}
+	return nil
+}

@@ -102,6 +102,45 @@ func TestApplyRules_TruthyTest(t *testing.T) {
 
 }
 
+func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "truthy-test": {
+      "description": "this is a test for checking truthy",
+      "recommended": true,
+      "type": "style",
+      "given": "$.info.contact",
+      "severity": "error",
+      "then": [
+		{
+        	"function": "truthy",
+			"field": "name"
+		},
+		{
+        	"function": "truthy",
+			"field": "url"
+		},
+		{
+        	"function": "truthy",
+			"field": "email"
+		}]
+
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, _ := rc.ComposeRuleSet([]byte(json))
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 2)
+
+}
+
 func TestApplyRules_LengthTestFail(t *testing.T) {
 
 	json := `{

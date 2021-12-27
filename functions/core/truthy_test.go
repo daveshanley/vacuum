@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/daveshanley/vaccum/model"
 	"github.com/daveshanley/vaccum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -24,7 +25,7 @@ tags:
 	assert.Len(t, nodes, 4)
 
 	rule := buildCoreTestRule(path, severityError, "truthy", "description", nil)
-	ctx := buildCoreTestContext(rule.Then, nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	tru := Truthy{}
 	res := tru.RunRule(nodes, ctx)
@@ -50,7 +51,7 @@ notTags:
 	assert.Len(t, nodes, 0)
 
 	rule := buildCoreTestRule(path, severityError, "truthy", "description", nil)
-	ctx := buildCoreTestContext(rule.Then, nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	tru := Truthy{}
 	res := tru.RunRule(nodes, ctx)
@@ -77,7 +78,7 @@ tags:
 	assert.Len(t, nodes, 4)
 
 	rule := buildCoreTestRule(path, severityError, "truthy", "description", nil)
-	ctx := buildCoreTestContext(rule.Then, nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	tru := Truthy{}
 	res := tru.RunRule(nodes, ctx)

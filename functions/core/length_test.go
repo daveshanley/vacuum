@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/daveshanley/vaccum/model"
 	"github.com/daveshanley/vaccum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -25,7 +26,7 @@ paths:
 	ops["min"] = "3"
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -52,7 +53,7 @@ paths:
 	ops["min"] = "4"
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -79,7 +80,7 @@ paths:
 	ops["min"] = "4"
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -104,7 +105,7 @@ tags:
 	ops["min"] = "6"
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -129,7 +130,7 @@ tags:
 	ops["max"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -157,7 +158,7 @@ tags:
 	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -184,7 +185,7 @@ tags:
 	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -211,7 +212,7 @@ tags:
 	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -240,7 +241,7 @@ tags:
 	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -265,7 +266,7 @@ tags:`
 	ops["min"] = "2"
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
-	ctx := buildCoreTestContext(rule.Then, ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)

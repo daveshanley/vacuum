@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/daveshanley/vaccum/model"
 	"github.com/daveshanley/vaccum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -17,7 +18,7 @@ func TestPattern_RunRule_PatternMatchSuccess(t *testing.T) {
 	opts["match"] = "[abc]+"
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -33,7 +34,7 @@ func TestPattern_RunRule_PatternNothingSupplied(t *testing.T) {
 	assert.Len(t, nodes, 1)
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", nil)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -52,7 +53,7 @@ func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 	opts["notMatch"] = "[[abc)"
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -71,7 +72,7 @@ func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 	opts["match"] = "[abc]+"
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -90,7 +91,7 @@ func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 	opts["match"] = "([abc]"
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -109,7 +110,7 @@ func TestPattern_RunRule_PatternNotMatchFail(t *testing.T) {
 	opts["notMatch"] = `\w{3}\d`
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)

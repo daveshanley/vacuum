@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/daveshanley/vaccum/model"
 	"github.com/daveshanley/vaccum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -17,7 +18,7 @@ func TestUndefined_RunRule_Success(t *testing.T) {
 	assert.Len(t, nodes, 1)
 
 	rule := buildCoreTestRule(path, severityError, "undefined", "cake", nil)
-	ctx := buildCoreTestContext(rule.Then, nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := Undefined{}
 	res := def.RunRule(nodes, ctx)
@@ -36,7 +37,7 @@ func TestUndefined_RunRule_Fail(t *testing.T) {
 	assert.Len(t, nodes, 1)
 
 	rule := buildCoreTestRule(path, severityError, "undefined", "cake", nil)
-	ctx := buildCoreTestContext(rule.Then, nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := Undefined{}
 	res := def.RunRule(nodes, ctx)

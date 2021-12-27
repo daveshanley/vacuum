@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/daveshanley/vaccum/model"
 	"github.com/daveshanley/vaccum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -16,7 +17,7 @@ func TestEnumeration_RunRule_Success(t *testing.T) {
 	opts["values"] = "turkey, sprouts, presents, ham"
 
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Enumeration{}
 	res := def.RunRule(nodes, ctx)
@@ -34,7 +35,7 @@ func TestEnumeration_RunRule_Fail(t *testing.T) {
 	opts["values"] = "turkey, sprouts, presents, ham"
 
 	rule := buildCoreTestRule(path, severityError, "enumeration", "", opts)
-	ctx := buildCoreTestContextFromRule(rule.Then, rule)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 
 	def := &Enumeration{}
 	res := def.RunRule(nodes, ctx)

@@ -31,7 +31,7 @@ type RuleFunction interface {
 
 type RuleAction struct {
 	Field           string      `json:"field"`
-	FunctionName    string      `json:"function"`
+	Function        string      `json:"function"`
 	FunctionOptions interface{} `json:"functionOptions"`
 }
 
@@ -42,7 +42,7 @@ type Rule struct {
 	Resolved    bool        `json:"resolved"`
 	Recommended bool        `json:"recommended"`
 	Severity    string      `json:"severity"`
-	Then        *RuleAction `json:"then"`
+	Then        interface{} `json:"then"`
 }
 
 type RuleFunctionProperty struct {

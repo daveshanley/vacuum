@@ -20,7 +20,7 @@ func TestCasing_RunRule_CamelSuccess(t *testing.T) {
 	opts["type"] = "camel"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -41,7 +41,7 @@ func TestCasing_RunRule_CamelFail(t *testing.T) {
 	opts["type"] = "camel"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -62,7 +62,7 @@ func TestCasing_RunRule_PascalSuccess(t *testing.T) {
 	opts["type"] = "pascal"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -83,7 +83,7 @@ func TestCasing_RunRule_PascalFail(t *testing.T) {
 	opts["type"] = "pascal"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -104,7 +104,7 @@ func TestCasing_RunRule_KebabSuccess(t *testing.T) {
 	opts["type"] = "kebab"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -125,7 +125,7 @@ func TestCasing_RunRule_KebabFail(t *testing.T) {
 	opts["type"] = "kebab"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -146,7 +146,7 @@ func TestCasing_RunRule_CobolSuccess(t *testing.T) {
 	opts["type"] = "cobol"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -167,7 +167,7 @@ func TestCasing_RunRule_CobolFail(t *testing.T) {
 	opts["type"] = "cobol"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -188,7 +188,7 @@ func TestCasing_RunRule_SnakeSuccess(t *testing.T) {
 	opts["type"] = "snake"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -209,7 +209,7 @@ func TestCasing_RunRule_SnakeFail(t *testing.T) {
 	opts["type"] = "snake"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -230,7 +230,7 @@ func TestCasing_RunRule_MacroSuccess(t *testing.T) {
 	opts["type"] = "macro"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -251,7 +251,7 @@ func TestCasing_RunRule_MacroFail(t *testing.T) {
 	opts["type"] = "macro"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -273,7 +273,7 @@ func TestCasing_RunRule_CamelNoDigits_Success(t *testing.T) {
 	opts["disallowDigits"] = "true"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -295,7 +295,7 @@ func TestCasing_RunRule_CamelNoDigits_Fail(t *testing.T) {
 	opts["disallowDigits"] = "true"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -317,7 +317,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Success(t *testing.T) {
 	opts["separator.char"] = ","
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -339,7 +339,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Fail(t *testing.T) {
 	opts["separator.char"] = ","
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -362,7 +362,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Success(t *testing.T) {
 	opts["separator.allowLeading"] = "true"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -385,7 +385,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 	opts["separator.allowLeading"] = "false"
 
 	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)

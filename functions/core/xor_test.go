@@ -22,7 +22,7 @@ func TestXor_RunRule_Success(t *testing.T) {
 	opts["properties"] = "sparkles, rainbows"
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
@@ -45,7 +45,7 @@ func TestXor_RunRule_Fail(t *testing.T) {
 	opts["properties"] = "sparkles, shiny"
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
@@ -68,7 +68,7 @@ func TestXor_RunRule_Fail_AllUndefined(t *testing.T) {
 	opts["properties"] = "clouds, rain"
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
-	ctx := buildCoreTestContext(rule.Then, opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
