@@ -35,6 +35,22 @@ func TestCreateRuleSetUsingJSON_Fail(t *testing.T) {
 
 }
 
+func TestRuleFunctionSchema_GetPropertyDescription(t *testing.T) {
+	df := dummyFunc{}
+	assert.Equal(t, "a type", df.GetSchema().GetPropertyDescription("type"))
+}
+
+func TestRuleFunctionSchema_GetPropertyDescription_Fail(t *testing.T) {
+	df := dummyFunc{}
+	assert.Empty(t, df.GetSchema().GetPropertyDescription("pizza"))
+}
+
+func TestRule_ToJSON(t *testing.T) {
+	r := Rule{}
+	assert.NotEmpty(t, r.ToJSON())
+
+}
+
 func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
 
 	// this should work.

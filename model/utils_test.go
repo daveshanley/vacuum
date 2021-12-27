@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -118,4 +119,165 @@ func TestExtractSpecInfo_AsyncAPI(t *testing.T) {
 	assert.Nil(t, e)
 	assert.Equal(t, AsyncApi, r.SpecType)
 	assert.Equal(t, "2.0.0", r.Version)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success(t *testing.T) {
+
+	opts := make(map[string]string)
+	opts["type"] = "snake"
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = "snake"
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Fail(t *testing.T) {
+
+	opts := make(map[string]string)
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.False(t, res)
+	assert.Len(t, errs, 1)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_MinMax_FailMin(t *testing.T) {
+
+	opts := make(map[string]string)
+	rf := dummyFuncMinMax{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.False(t, res)
+	assert.Len(t, errs, 2)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_MinMax_FailMax(t *testing.T) {
+
+	opts := make(map[string]string)
+	opts["beer"] = "shoes"
+	opts["lime"] = "kitty"
+	opts["carrot"] = "cake"
+	rf := dummyFuncMinMax{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.False(t, res)
+	assert.Len(t, errs, 2)
+}
+
+func TestBuildFunctionResult(t *testing.T) {
+	fr := BuildFunctionResult("pizza", "party", "tonight")
+	assert.Equal(t, "'pizza' party 'tonight'", fr.Message)
+}
+
+func TestCastToRuleAction(t *testing.T) {
+	var ra interface{}
+	ra = &RuleAction{
+		Field: "choco",
+	}
+	assert.Equal(t, "choco", CastToRuleAction(ra).Field)
+}
+
+func TestCastToRuleAction_Fail_WrongType(t *testing.T) {
+	var ra interface{}
+	ra = "not a rule action"
+	assert.Nil(t, CastToRuleAction(ra))
+}
+
+func TestCastToRuleAction_Fail_Nil(t *testing.T) {
+	var ra interface{}
+	assert.Nil(t, CastToRuleAction(ra))
+}
+
+type dummyFunc struct {
+}
+
+func (df dummyFunc) GetSchema() RuleFunctionSchema {
+	return RuleFunctionSchema{
+		Required: []string{"type"},
+		Properties: []RuleFunctionProperty{
+			{
+				Name:        "type",
+				Description: "a type",
+			},
+		},
+		ErrorMessage: "missing the type my friend.",
+	}
+}
+
+func (df dummyFunc) RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult {
+	return nil
+}
+
+type dummyFuncMinMax struct {
+}
+
+func (df dummyFuncMinMax) GetSchema() RuleFunctionSchema {
+	return RuleFunctionSchema{
+		Required: []string{"type"},
+		Properties: []RuleFunctionProperty{
+			{
+				Name:        "type",
+				Description: "a type",
+			},
+		},
+		MinProperties: 1,
+		MaxProperties: 2,
+		ErrorMessage:  "missing the type my friend.",
+	}
+}
+
+func (df dummyFuncMinMax) RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult {
+	return nil
 }

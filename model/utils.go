@@ -105,46 +105,11 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	numProps := 0
 
 	if options, ok := ctx.Options.(map[string]interface{}); ok {
-		for _, v := range options {
-
-			if stringVal, ok := v.(string); ok {
-				if strings.Contains(stringVal, ",") {
-					split := strings.Split(stringVal, ",")
-					numProps += len(split)
-				} else {
-					numProps++
-				}
-			}
-			if _, ok := v.(int); ok {
-				numProps++
-			}
-			if _, ok := v.(bool); ok {
-				numProps++
-			}
-		}
+		numProps = countPropsInterface(options, numProps)
 	}
 
-	// check if this schema has required properties, then check them out.
-	if len(schema.Required) > 0 {
-		var missingProps []string
-		for _, req := range schema.Required {
-			found := false
-			for _, prop := range schema.Properties {
-				if prop.Name == req {
-					found = true
-				}
-			}
-			if !found {
-				missingProps = append(missingProps, req)
-			}
-		}
-		if len(missingProps) > 0 {
-			valid = false
-			for _, mProp := range missingProps {
-				errs = append(errs, fmt.Sprintf("%s: missing required property: %s (%s)",
-					schema.ErrorMessage, mProp, schema.GetPropertyDescription(mProp)))
-			}
-		}
+	if options, ok := ctx.Options.(map[string]string); ok {
+		numProps = countPropsString(options, numProps)
 	}
 
 	if schema.MinProperties > 0 && numProps < schema.MinProperties {
@@ -158,12 +123,84 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 		errs = append(errs, fmt.Sprintf("%s: maximum number (%v) of properties exceeded. '%v' provided.",
 			schema.ErrorMessage, schema.MaxProperties, numProps))
 	}
+
+	// check if this schema has required properties, then check them out.
+	if len(schema.Required) > 0 {
+		var missingProps []string
+		for _, req := range schema.Required {
+			found := false
+
+			if options, ok := ctx.Options.(map[string]interface{}); ok {
+				for k, _ := range options {
+					if k == req {
+						found = true
+					}
+				}
+			}
+			if options, ok := ctx.Options.(map[string]string); ok {
+				for k, _ := range options {
+					if k == req {
+						found = true
+					}
+				}
+			}
+
+			if !found {
+				missingProps = append(missingProps, req)
+			}
+		}
+		if len(missingProps) > 0 {
+			valid = false
+			for _, mProp := range missingProps {
+				errs = append(errs, fmt.Sprintf("%s: missing required property: %s (%s)",
+					schema.ErrorMessage, mProp, schema.GetPropertyDescription(mProp)))
+			}
+		}
+	}
+
 	return valid, errs
 }
 
-func CastToRuleAction(action interface{}) *RuleAction {
-	if ra, ok := action.(*RuleAction); ok {
-		return ra
+func countPropsInterface(options map[string]interface{}, numProps int) int {
+	for _, v := range options {
+		if stringVal, ok := v.(string); ok {
+			if strings.Contains(stringVal, ",") {
+				split := strings.Split(stringVal, ",")
+				numProps += len(split)
+			} else {
+				numProps++
+			}
+		}
+		if _, ok := v.(int); ok {
+			numProps++
+		}
+		if _, ok := v.(bool); ok {
+			numProps++
+		}
 	}
-	return nil
+	return numProps
+}
+
+func countPropsString(options map[string]string, numProps int) int {
+	for _, v := range options {
+		if strings.Contains(v, ",") {
+			split := strings.Split(v, ",")
+			numProps += len(split)
+		} else {
+			numProps++
+		}
+	}
+	return numProps
+}
+
+func CastToRuleAction(action interface{}) *RuleAction {
+	if action == nil {
+		return nil
+	} else {
+		if ra, ok := action.(*RuleAction); ok {
+			return ra
+		} else {
+			return nil
+		}
+	}
 }
