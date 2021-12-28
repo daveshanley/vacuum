@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+func TestSuccessResponse_GetSchema(t *testing.T) {
+	def := SuccessResponse{}
+	assert.Equal(t, "success_response", def.GetSchema().Name)
+}
+
 func TestSuccessResponse_RunRule_Success(t *testing.T) {
 
 	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/burgershop.openapi.yaml")

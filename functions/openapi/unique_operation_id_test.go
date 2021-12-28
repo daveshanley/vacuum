@@ -7,6 +7,11 @@ import (
 	"testing"
 )
 
+func TestUniqueOperationId_GetSchema(t *testing.T) {
+	def := UniqueOperationId{}
+	assert.Equal(t, "unique_operation_id", def.GetSchema().Name)
+}
+
 func TestUniqueOperationId_RunRule_DuplicateId(t *testing.T) {
 
 	yml := `paths:
@@ -24,7 +29,7 @@ func TestUniqueOperationId_RunRule_DuplicateId(t *testing.T) {
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "responses", nil)
+	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := UniqueOperationId{}
@@ -50,7 +55,7 @@ func TestUniqueOperationId_RunRule_MissingId_AndDuplicate(t *testing.T) {
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "responses", nil)
+	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := UniqueOperationId{}
@@ -75,7 +80,7 @@ func TestUniqueOperationId_RunRule_MissingId(t *testing.T) {
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "responses", nil)
+	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := UniqueOperationId{}
@@ -102,7 +107,7 @@ func TestUniqueOperationId_RunRule_Success(t *testing.T) {
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "responses", nil)
+	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := UniqueOperationId{}
