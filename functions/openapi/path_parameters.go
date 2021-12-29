@@ -6,8 +6,6 @@ import (
 )
 
 type PathParameters struct {
-	tagNodes []*yaml.Node
-	opsNodes []*yaml.Node
 }
 
 func (pp PathParameters) GetSchema() model.RuleFunctionSchema {

@@ -139,52 +139,23 @@ func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 }
 
 func IsNodeMap(node *yaml.Node) bool {
-	if node.Tag == "!!map" {
-		return true
-	}
-	return false
+	return node.Tag == "!!map"
 }
 
 func IsNodeArray(node *yaml.Node) bool {
-	if node.Tag == "!!seq" {
-		return true
-	}
-	return false
+	return node.Tag == "!!seq"
 }
 
 func IsNodeStringValue(node *yaml.Node) bool {
-	if node.Tag == "!!str" {
-		return true
-	}
-	return false
+	return node.Tag == "!!str"
 }
 
 func IsNodeIntValue(node *yaml.Node) bool {
-	if node.Tag == "!!int" {
-		return true
-	}
-	return false
+	return node.Tag == "!!int"
 }
 
 func IsNodeFloatValue(node *yaml.Node) bool {
-	if node.Tag == "!!float" {
-		return true
-	}
-	return false
-}
-
-func FindAllKeyNodes(key string, nodes []*yaml.Node, foundNodes []*yaml.Node) []*yaml.Node {
-
-	for i, v := range nodes {
-		if key == v.Value {
-			foundNodes = append(foundNodes, nodes[i+1])
-			return foundNodes
-		}
-		if len(v.Content) > 0 {
-			return FindAllKeyNodes(key, v.Content, foundNodes)
-		}
-	}
-	return nil
+	return node.Tag == "!!float"
 }
 
 // FixContext will clean up a JSONpath string to be correctly traversable.
@@ -237,10 +208,7 @@ func IsYAML(testString string) bool {
 		return false
 	}
 	_, err = yaml.Marshal(n)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
@@ -257,19 +225,19 @@ func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
 
 }
 
-func parseVersionTypeData(d interface{}) string {
-	switch d.(type) {
-	case int:
-		return strconv.Itoa(d.(int))
-	case float64:
-		return strconv.FormatFloat(d.(float64), 'f', 2, 32)
-	case bool:
-		if d.(bool) {
-			return "true"
-		}
-		return "false"
-	case []string:
-		return "multiple versions detected"
-	}
-	return fmt.Sprintf("%v", d)
-}
+//func parseVersionTypeData(d interface{}) string {
+//	switch d.(type) {
+//	case int:
+//		return strconv.Itoa(d.(int))
+//	case float64:
+//		return strconv.FormatFloat(d.(float64), 'f', 2, 32)
+//	case bool:
+//		if d.(bool) {
+//			return "true"
+//		}
+//		return "false"
+//	case []string:
+//		return "multiple versions detected"
+//	}
+//	return fmt.Sprintf("%v", d)
+//}

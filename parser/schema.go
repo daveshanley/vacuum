@@ -77,11 +77,9 @@ func processJSONSpec(spec []byte) (*gojsonschema.Result, error) {
 	switch info.SpecType {
 	case utils.OpenApi2:
 		schemaToValidate = openAPI2Schema
-		break
 
 	case utils.OpenApi3:
 		schemaToValidate = openAPI3Schema
-		break
 	}
 
 	// validate spec

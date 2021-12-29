@@ -97,7 +97,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// char (rune, what ever), then we're done.
 	if len(nodes[0].Value) == 1 &&
 		c.separatorChar != "" &&
-		c.separatorAllowLeading == true &&
+		c.separatorAllowLeading &&
 		c.separatorChar == nodes[0].Value {
 		return nil
 	}
@@ -105,32 +105,25 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	var results []model.RuleFunctionResult
 	var pattern string
 
-	if c.compiled == false {
+	if !c.compiled {
 		c.compileExpressions()
 	}
 
 	switch casingType {
 	case camel:
 		pattern = c.camel
-		break
 	case pascal:
 		pattern = c.pascal
-		break
 	case kebab:
 		pattern = c.kebab
-		break
 	case cobol:
 		pattern = c.cobol
-		break
 	case snake:
 		pattern = c.snake
-		break
 	case macro:
 		pattern = c.macro
-		break
 	case flat:
 		pattern = c.flat
-		break
 	}
 
 	if c.separatorChar == "" {

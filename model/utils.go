@@ -75,13 +75,13 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 }
 
 func parseVersionTypeData(d interface{}) (string, int) {
-	switch d.(type) {
+	switch dat := d.(type) {
 	case int:
-		return strconv.Itoa(d.(int)), d.(int)
+		return strconv.Itoa(dat), dat
 	case float64:
-		return strconv.FormatFloat(d.(float64), 'f', 2, 32), int(d.(float64))
+		return strconv.FormatFloat(dat, 'f', 2, 32), int(dat)
 	case bool:
-		if d.(bool) {
+		if dat {
 			return "true", 0
 		}
 		return "false", 0
@@ -136,14 +136,14 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 			found := false
 
 			if options, ok := ctx.Options.(map[string]interface{}); ok {
-				for k, _ := range options {
+				for k := range options {
 					if k == req {
 						found = true
 					}
 				}
 			}
 			if options, ok := ctx.Options.(map[string]string); ok {
-				for k, _ := range options {
+				for k := range options {
 					if k == req {
 						found = true
 					}

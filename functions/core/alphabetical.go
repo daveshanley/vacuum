@@ -70,8 +70,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				}
 
 				if a.isValidMapArray(node) {
-					var resultsFromKey []string
-					resultsFromKey = a.processMap(node, keyedBy)
+					resultsFromKey := a.processMap(node, keyedBy)
 					results = compareStringArray(resultsFromKey)
 				}
 
@@ -117,24 +116,15 @@ func (a Alphabetical) isValidArray(arr *yaml.Node) bool {
 }
 
 func (a Alphabetical) isValidStringArray(arr *yaml.Node) bool {
-	if arr.Content[0].Tag == "!!str" {
-		return true
-	}
-	return false
+	return arr.Content[0].Tag == "!!str"
 }
 
 func (a Alphabetical) isValidNumberArray(arr *yaml.Node) bool {
-	if arr.Content[0].Tag == "!!int" || arr.Content[0].Tag == "!!float" {
-		return true
-	}
-	return false
+	return arr.Content[0].Tag == "!!int" || arr.Content[0].Tag == "!!float"
 }
 
 func (a Alphabetical) isValidMapArray(arr *yaml.Node) bool {
-	if arr.Content[0].Tag == "!!map" {
-		return true
-	}
-	return false
+	return arr.Content[0].Tag == "!!map"
 }
 
 func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node) []model.RuleFunctionResult {

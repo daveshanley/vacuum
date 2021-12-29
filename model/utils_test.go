@@ -222,16 +222,14 @@ func TestBuildFunctionResult(t *testing.T) {
 }
 
 func TestCastToRuleAction(t *testing.T) {
-	var ra interface{}
-	ra = &RuleAction{
+	ra := &RuleAction{
 		Field: "choco",
 	}
 	assert.Equal(t, "choco", CastToRuleAction(ra).Field)
 }
 
 func TestCastToRuleAction_Fail_WrongType(t *testing.T) {
-	var ra interface{}
-	ra = "not a rule action"
+	ra := "not a rule action"
 	assert.Nil(t, CastToRuleAction(ra))
 }
 

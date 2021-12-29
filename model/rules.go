@@ -103,7 +103,7 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 			buf.WriteString(fmt.Sprintf("%s (line),", e.Description()))
 		}
 
-		return nil, errors.New(fmt.Sprintf("rules not valid: %s", buf.String()))
+		return nil, fmt.Errorf("rules not valid: %s", buf.String())
 	}
 
 	// unmarshal JSON into new RuleSet
