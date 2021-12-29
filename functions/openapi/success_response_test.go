@@ -13,6 +13,12 @@ func TestSuccessResponse_GetSchema(t *testing.T) {
 	assert.Equal(t, "success_response", def.GetSchema().Name)
 }
 
+func TestSuccessResponse_RunRule(t *testing.T) {
+	def := SuccessResponse{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
 func TestSuccessResponse_RunRule_Success(t *testing.T) {
 
 	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/burgershop.openapi.yaml")

@@ -12,6 +12,12 @@ func TestOperationParameters_GetSchema(t *testing.T) {
 	assert.Equal(t, "operation_parameters", def.GetSchema().Name)
 }
 
+func TestOperationParameters_RunRule(t *testing.T) {
+	def := OperationParameters{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
 func TestOperationParameters_RunRule_Success(t *testing.T) {
 
 	yml := `paths:

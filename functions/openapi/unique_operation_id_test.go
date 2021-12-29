@@ -12,6 +12,12 @@ func TestUniqueOperationId_GetSchema(t *testing.T) {
 	assert.Equal(t, "unique_operation_id", def.GetSchema().Name)
 }
 
+func TestUniqueOperationId_RunRule(t *testing.T) {
+	def := UniqueOperationId{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
 func TestUniqueOperationId_RunRule_DuplicateId(t *testing.T) {
 
 	yml := `paths:
