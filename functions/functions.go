@@ -1,9 +1,9 @@
 package functions
 
 import (
-	"github.com/daveshanley/vaccum/functions/core"
-	openapi_functions "github.com/daveshanley/vaccum/functions/openapi"
-	"github.com/daveshanley/vaccum/model"
+	"github.com/daveshanley/vacuum/functions/core"
+	openapi_functions "github.com/daveshanley/vacuum/functions/openapi"
+	"github.com/daveshanley/vacuum/model"
 	"sync"
 )
 

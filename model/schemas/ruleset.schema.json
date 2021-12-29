@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/ruleset.schema.json",
+  "$id": "https://raw.githubusercontent.com/daveshanley/vacuum/main/model/schemas/ruleset.schema.json",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -12,7 +12,7 @@
     "rules": {
       "type": "object",
       "additionalProperties": {
-        "$ref": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/rule.schema.json#"
+        "$ref": "https://raw.githubusercontent.com/daveshanley/vacuum/main/model/schemas/rule.schema.json#"
       }
     }
   }

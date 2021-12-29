@@ -69,7 +69,7 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 	}
 
 	if specVersion.SpecType == "" {
-		return nil, errors.New("spec type not supported by vaccum, sorry")
+		return nil, errors.New("spec type not supported by vacuum, sorry")
 	}
 	return specVersion, nil
 }

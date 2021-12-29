@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/daveshanley/vaccum/main/model/schemas/shared.json",
+  "$id": "https://raw.githubusercontent.com/daveshanley/vacuum/main/model/schemas/shared.json",
   "$defs": {
     "Formats": {
       "$anchor": "formats",

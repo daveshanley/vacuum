@@ -2,9 +2,9 @@ package motor
 
 import (
 	"fmt"
-	"github.com/daveshanley/vaccum/functions"
-	"github.com/daveshanley/vaccum/model"
-	"github.com/daveshanley/vaccum/utils"
+	"github.com/daveshanley/vacuum/functions"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
 )

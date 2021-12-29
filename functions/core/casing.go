@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/daveshanley/vaccum/model"
-	"github.com/daveshanley/vaccum/utils"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 	"regexp"
 	"strconv"

@@ -1,4 +1,4 @@
-module github.com/daveshanley/vaccum
+module github.com/daveshanley/vacuum
 
 go 1.16
 

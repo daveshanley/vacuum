@@ -1,4 +1,4 @@
-name: vaccum pipeline
+name: vacuum pipeline
 
 on:
   push:

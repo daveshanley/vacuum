@@ -1,6 +1,6 @@
 package core
 
-import "github.com/daveshanley/vaccum/model"
+import "github.com/daveshanley/vacuum/model"
 
 const (
 	severityError = "error"

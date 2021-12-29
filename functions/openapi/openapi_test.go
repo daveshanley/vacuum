@@ -1,6 +1,6 @@
 package openapi_functions
 
-import "github.com/daveshanley/vaccum/model"
+import "github.com/daveshanley/vacuum/model"
 
 func buildOpenApiTestRuleAction(given, function, field string, functionOptions interface{}) model.Rule {
 	return model.Rule{

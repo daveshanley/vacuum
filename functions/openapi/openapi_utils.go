@@ -1,7 +1,7 @@
 package openapi_functions
 
 import (
-	"github.com/daveshanley/vaccum/utils"
+	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
 

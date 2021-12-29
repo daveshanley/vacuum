@@ -1,8 +1,8 @@
 package core
 
 import (
-	"github.com/daveshanley/vaccum/model"
-	gen_utils "github.com/daveshanley/vaccum/utils"
+	"github.com/daveshanley/vacuum/model"
+	gen_utils "github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
