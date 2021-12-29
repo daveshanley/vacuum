@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package openapi
 
 import (
@@ -8,13 +11,16 @@ import (
 	"strconv"
 )
 
+// SuccessResponse is a rule that checks if an operation returns a code >= 200 and <= 400
 type SuccessResponse struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the SuccessResponse rule.
 func (sr SuccessResponse) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "success_response"}
 }
 
+// RunRule will execute the SuccessResponse rule, based on supplied context and a supplied []*yaml.Node slice.
 func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

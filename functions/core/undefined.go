@@ -14,14 +14,14 @@ import (
 type Undefined struct {
 }
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Undefined' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Undefined rule.
 func (u Undefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "undefined",
 	}
 }
 
-// RunRule will execute the 'Undefined' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Undefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

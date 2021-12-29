@@ -40,7 +40,7 @@ type Casing struct {
 
 var casingTypes = []string{flat, camel, pascal, kebab, cobol, snake, macro}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Casing' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Casing rule.
 func (c Casing) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name:     "casing",
@@ -69,7 +69,7 @@ func (c Casing) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// RunRule will execute the 'Casing' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Casing rule, based on supplied context and a supplied []*yaml.Node slice.
 func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) != 1 { // there can only be a single node passed in to this function.

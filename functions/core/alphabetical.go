@@ -18,7 +18,7 @@ import (
 // data.
 type Alphabetical struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Alphabetical' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Alphabetical rule.
 func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "alphabetical",
@@ -33,7 +33,7 @@ func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// RunRule will execute the 'Alphabetical' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Alphabetical rule, based on supplied context and a supplied []*yaml.Node slice.
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	if len(nodes) <= 0 {

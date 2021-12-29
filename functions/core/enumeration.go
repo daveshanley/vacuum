@@ -14,7 +14,7 @@ import (
 // Enumeration is a rule that will check that a set of values meet the supplied 'values' supplied via functionOptions.
 type Enumeration struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Enumeration' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Enumeration rule.
 func (e Enumeration) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name:     "enumeration",
@@ -31,7 +31,7 @@ func (e Enumeration) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// RunRule will execute the 'Enumeration' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Enumeration rule, based on supplied context and a supplied []*yaml.Node slice.
 func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) != 1 { // there can only be a single node passed in to this function.

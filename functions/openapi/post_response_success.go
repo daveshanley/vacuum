@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package openapi
 
 import (
@@ -8,13 +11,16 @@ import (
 	"strings"
 )
 
+// PostResponseSuccess is a rule that will check if a post operations contain a successful response code or not.
 type PostResponseSuccess struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the PostResponseSuccess rule.
 func (prs PostResponseSuccess) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "operation_response_success"}
 }
 
+// RunRule will execute the PostResponseSuccess rule, based on supplied context and a supplied []*yaml.Node slice.
 func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

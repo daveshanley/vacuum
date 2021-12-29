@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package openapi
 
 import (
@@ -7,17 +10,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// TagDefined is a rule that checks if an operation uses a tag, it's also defined in the global tag definitions.
 type TagDefined struct {
 	tagNodes []*yaml.Node
 	opsNodes []*yaml.Node
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the TagDefined rule.
 func (td TagDefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "tag_defined",
 	}
 }
 
+// RunRule will execute the TagDefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

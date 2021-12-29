@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package openapi
 
 import (
@@ -7,15 +10,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// OperationParameters is a rule that checks for valid parameters and parameters combinations
 type OperationParameters struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationParameters rule.
 func (op OperationParameters) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "operation_parameters",
 	}
 }
 
+// RunRule will execute the OperationParameters rule, based on supplied context and a supplied []*yaml.Node slice.
 func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

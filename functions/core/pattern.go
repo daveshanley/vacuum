@@ -18,7 +18,7 @@ type Pattern struct {
 	patternCache map[string]*regexp.Regexp
 }
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Pattern' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Pattern rule.
 func (p Pattern) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "pattern",
@@ -38,7 +38,7 @@ func (p Pattern) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// RunRule will execute the 'Pattern' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Pattern rule, based on supplied context and a supplied []*yaml.Node slice.
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	// check supplied type

@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package openapi
 
 import (
@@ -7,15 +10,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// UniqueOperationId is a rule that will check if each operation provides an operationId, as well as making sure
+// that all the operationId's in the spec are unique.
 type UniqueOperationId struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the UniqueOperationId rule.
 func (oId UniqueOperationId) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "unique_operation_id",
 	}
 }
 
+// RunRule will execute the UniqueOperationId rule, based on supplied context and a supplied []*yaml.Node slice.
 func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

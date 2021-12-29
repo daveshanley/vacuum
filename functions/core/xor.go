@@ -15,7 +15,7 @@ import (
 type Xor struct {
 }
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Xor' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Xor rule.
 func (x Xor) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name:     "xor",
@@ -33,7 +33,7 @@ func (x Xor) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// RunRule will execute the 'Xor' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Xor rule, based on supplied context and a supplied []*yaml.Node slice.
 func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

@@ -14,7 +14,7 @@ import (
 type Defined struct {
 }
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Defined' rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the Defined rule.
 func (d Defined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name:          "defined",
@@ -22,7 +22,7 @@ func (d Defined) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// RunRule will execute the 'Defined' rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the Defined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
