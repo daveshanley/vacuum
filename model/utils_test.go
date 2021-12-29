@@ -30,7 +30,7 @@ servers:
 
 var OpenApiFalse = `openapi: false
 info:
-  title: Test API verison is a bool?
+  title: Test API version is a bool?
 servers:
   - url: http://eve.vmware.com/api`
 

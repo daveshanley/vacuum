@@ -1,4 +1,4 @@
-package openapi_functions
+package openapi
 
 import (
 	"github.com/daveshanley/vacuum/utils"
