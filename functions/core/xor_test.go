@@ -7,6 +7,35 @@ import (
 	"testing"
 )
 
+func TestXor_RunRule(t *testing.T) {
+	def := Xor{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
+func TestXor_RunRule_SuccessPropsStringArray(t *testing.T) {
+
+	sampleYaml := `glitter:
+  sparkles: "lots"
+  shiny: 1000`
+
+	path := "$.glitter"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string][]string)
+	opts["properties"] = []string{"sparkles", "rainbows"}
+
+	rule := buildCoreTestRule(path, severityError, "xor", "", nil)
+	ctx := model.RuleFunctionContext{RuleAction: model.CastToRuleAction(rule.Then), Rule: &rule, Options: opts}
+
+	def := Xor{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestXor_RunRule_Success(t *testing.T) {
 
 	sampleYaml := `glitter:
@@ -28,6 +57,28 @@ func TestXor_RunRule_Success(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 0)
+}
+
+func TestXor_RunRule_NoProps(t *testing.T) {
+
+	sampleYaml := `glitter:
+  sparkles: "lots"
+  shiny: 1000`
+
+	path := "$.glitter"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]string)
+
+	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := Xor{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0) // no props? the rule is useless, validation should catch this however.
 }
 
 func TestXor_RunRule_Fail(t *testing.T) {

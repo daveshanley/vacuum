@@ -69,9 +69,15 @@ func ConvertInterfaceToStringArray(raw interface{}) []string {
 			}
 		}
 		return s
-	} else {
-		return nil
 	}
+	if vals, ok := raw.(map[string][]string); ok {
+		var s []string
+		for _, v := range vals {
+			s = append(s, v...)
+		}
+		return s
+	}
+	return nil
 }
 
 func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
