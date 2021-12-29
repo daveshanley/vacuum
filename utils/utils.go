@@ -81,9 +81,11 @@ func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
 			s[i] = fmt.Sprint(v)
 		}
 		return s
-	} else {
-		return nil
 	}
+	if vals, ok := raw.([]string); ok {
+		return vals
+	}
+	return nil
 }
 
 func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
@@ -92,6 +94,9 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 		if props, ok := propMap[name].([]interface{}); ok {
 			return props
 		}
+	}
+	if propMap, ok := raw.(map[string][]string); ok {
+		return propMap[name]
 	}
 	return nil
 }

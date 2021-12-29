@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestTagDefined_GetSchema(t *testing.T) {
+func TestOperd_GetSchema(t *testing.T) {
 	def := TagDefined{}
 	assert.Equal(t, "tag_defined", def.GetSchema().Name)
 }

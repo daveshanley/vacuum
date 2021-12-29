@@ -30,6 +30,7 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 			var currentPath string
 			var currentVerb string
 			if pn.Tag == "!!str" {
+
 				currentPath = pn.Value
 				verbNode := node.Content[x+1]
 

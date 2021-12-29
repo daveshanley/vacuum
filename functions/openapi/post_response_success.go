@@ -12,7 +12,7 @@ type PostResponseSuccess struct {
 }
 
 func (prs PostResponseSuccess) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{}
+	return model.RuleFunctionSchema{Name: "operation_response_success"}
 }
 
 func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
@@ -23,21 +23,20 @@ func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 	props := utils.ExtractValueFromInterfaceMap("properties", context.Options)
 	values := utils.ConvertInterfaceArrayToStringArray(props)
-	found := false
+	found := 0
 
 	for _, propVal := range values {
 		key, _ := utils.FindFirstKeyNode(propVal, nodes)
 		if key != nil {
-			found = true
-			break
+			found++
 		}
 	}
 
 	var results []model.RuleFunctionResult
 
-	if !found {
+	if found <= 0 {
 		results = append(results, model.RuleFunctionResult{
-			Message: fmt.Sprintf("operations must define a success response with one of the following codes: %s",
+			Message: fmt.Sprintf("operations must define a success response with one of the following codes: '%s'",
 				strings.Join(values, ", ")),
 		})
 	}

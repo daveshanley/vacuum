@@ -68,7 +68,8 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
-	assert.Equal(t, "operations must define a success response with one of the following codes: 900, 300, 750, 600", results[0].Message)
+	assert.Equal(t, "operations must define a success response with one of the following codes: "+
+		"'900, 300, 750, 600'", results[0].Message)
 
 }
 
