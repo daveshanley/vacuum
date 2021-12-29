@@ -46,17 +46,16 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// check if there are min and max values
 	if context.Options == nil {
 		return results
-	} else {
-		if opts := utils.ConvertInterfaceIntoStringMap(context.Options); opts != nil {
-			if v, ok := opts["min"]; ok {
-				min, _ = strconv.Atoi(v)
-			}
-			if v, ok := opts["max"]; ok {
-				max, _ = strconv.Atoi(v)
-			}
-		} else {
-			return results // can't do much without a min or a max.
+	}
+	if opts := utils.ConvertInterfaceIntoStringMap(context.Options); opts != nil {
+		if v, ok := opts["min"]; ok {
+			min, _ = strconv.Atoi(v)
 		}
+		if v, ok := opts["max"]; ok {
+			max, _ = strconv.Atoi(v)
+		}
+	} else {
+		return results // can't do much without a min or a max.
 	}
 
 	// run through nodes

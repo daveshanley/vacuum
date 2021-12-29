@@ -136,7 +136,6 @@ func (a Alphabetical) isValidMapArray(arr *yaml.Node) bool {
 }
 
 func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node) []model.RuleFunctionResult {
-	var results []model.RuleFunctionResult
 	var strArr []string
 	for _, n := range arr.Content {
 		if n.Tag == "!!str" {
@@ -145,11 +144,8 @@ func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node) []model.RuleFunct
 	}
 	if sort.StringsAreSorted(strArr) {
 		return nil
-	} else {
-		results = compareStringArray(strArr)
 	}
-
-	return results
+	return compareStringArray(strArr)
 }
 
 func compareStringArray(strArr []string) []model.RuleFunctionResult {

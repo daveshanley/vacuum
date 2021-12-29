@@ -11,14 +11,20 @@ type functionsModel struct {
 	functions map[string]model.RuleFunction
 }
 
+// Functions is used to Query available functions loaded into vacuum
 type Functions interface {
+
+	// GetAllFunctions returns a model.RuleFunction map, the key is the function name.
 	GetAllFunctions() map[string]model.RuleFunction
+
+	// FindFunction returns a model.RuleFunction with the supplied name, or nil.
 	FindFunction(string) model.RuleFunction
 }
 
 var functionsSingleton *functionsModel
 var functionGrab sync.Once
 
+// MapBuiltinFunctions will correctly map core (non-specific) functions to correct names.
 func MapBuiltinFunctions() Functions {
 
 	functionGrab.Do(func() {

@@ -34,6 +34,7 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	}
 }
 
+// ConvertInterfaceIntoStringMap will convert an unknown input into a string map.
 func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 	converted := make(map[string]string)
 	if context != nil {
@@ -58,6 +59,7 @@ func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 	return converted
 }
 
+// ConvertInterfaceToStringArray will convert an unknown input map type into a string array/slice
 func ConvertInterfaceToStringArray(raw interface{}) []string {
 	if vals, ok := raw.(map[string]interface{}); ok {
 		var s []string
@@ -80,6 +82,7 @@ func ConvertInterfaceToStringArray(raw interface{}) []string {
 	return nil
 }
 
+// ConvertInterfaceArrayToStringArray will convert an unknown interface array type, into a string slice
 func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
 	if vals, ok := raw.([]interface{}); ok {
 		s := make([]string, len(vals))
@@ -94,6 +97,7 @@ func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
 	return nil
 }
 
+// ExtractValueFromInterfaceMap pulls out an unknown value from a map using a string key
 func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 
 	if propMap, ok := raw.(map[string]interface{}); ok {
@@ -107,7 +111,8 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 	return nil
 }
 
-func FindFirstKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
+// FindFirstKeyNode will locate the first key and value yaml.Node based on a key.
+func FindFirstKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
 
 	for i, v := range nodes {
 		if key != "" && key == v.Value {
@@ -123,7 +128,9 @@ func FindFirstKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 	return nil, nil
 }
 
-func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
+// FindKeyNode is a non-recursive search of an  yaml.Node Content for a child node with a key.
+// Returns the key and value
+func FindKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
 
 	for i, v := range nodes {
 		if key == v.Value {
@@ -138,22 +145,27 @@ func FindKeyNode(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
 	return nil, nil
 }
 
+// IsNodeMap checks if the node is a map type
 func IsNodeMap(node *yaml.Node) bool {
 	return node.Tag == "!!map"
 }
 
+// IsNodeArray checks if a node is an array type
 func IsNodeArray(node *yaml.Node) bool {
 	return node.Tag == "!!seq"
 }
 
+// IsNodeStringValue checks if a node is a string value
 func IsNodeStringValue(node *yaml.Node) bool {
 	return node.Tag == "!!str"
 }
 
+// IsNodeIntValue will check if a node is an int value
 func IsNodeIntValue(node *yaml.Node) bool {
 	return node.Tag == "!!int"
 }
 
+// IsNodeFloatValue will check is a node is a float value.
 func IsNodeFloatValue(node *yaml.Node) bool {
 	return node.Tag == "!!float"
 }
@@ -211,6 +223,7 @@ func IsYAML(testString string) bool {
 	return err == nil
 }
 
+// ConvertYAMLtoJSON will do exactly what you think it will. It will deserialize YAML into serialized JSON.
 func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
 	var decodedYaml map[string]interface{}
 	err := yaml.Unmarshal(yamlData, &decodedYaml)

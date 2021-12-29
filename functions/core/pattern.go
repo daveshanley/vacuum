@@ -101,13 +101,11 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 func (p Pattern) getPatternFromCache(pattern string) (*regexp.Regexp, error) {
 	if pat, ok := p.patternCache[pattern]; ok {
 		return pat, nil
-	} else {
-
-		rx, err := regexp.Compile(pattern)
-		if err != nil {
-			return nil, err
-		}
-		p.patternCache[pattern] = rx
-		return rx, nil
 	}
+	rx, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+	p.patternCache[pattern] = rx
+	return rx, nil
 }

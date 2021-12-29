@@ -15,6 +15,8 @@ const (
 	AsyncApi = "asyncapi"
 )
 
+// ExtractSpecInfo will look at a supplied OpenAPI specification, and return a *SpecInfo pointer, or an error
+// if the spec cannot be parsed correctly.\
 func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 	var parsedSpec map[string]interface{}
 	specVersion := &SpecInfo{}
@@ -92,12 +94,15 @@ func parseVersionTypeData(d interface{}) (string, int) {
 	return string(r), int(r[0]) - '0'
 }
 
+// BuildFunctionResult will create a RuleFunctionResult from a key, message and value.
 func BuildFunctionResult(key, message string, value interface{}) RuleFunctionResult {
 	return RuleFunctionResult{
 		Message: fmt.Sprintf("'%s' %s '%v'", key, message, value),
 	}
 }
 
+// ValidateRuleFunctionContextAgainstSchema will perform run-time validation against a rule to ensure that
+// options being passed in are acceptable and meet the needs of the Rule schema
 func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx RuleFunctionContext) (bool, []string) {
 	valid := true
 	var errs []string
@@ -201,14 +206,15 @@ func countPropsString(options map[string]string, numProps int) int {
 	return numProps
 }
 
+// CastToRuleAction is a utility function to cast an unknown structure into a RuleAction.
+// useful for when building rules or testing out concepts.
 func CastToRuleAction(action interface{}) *RuleAction {
 	if action == nil {
 		return nil
 	} else {
 		if ra, ok := action.(*RuleAction); ok {
 			return ra
-		} else {
-			return nil
 		}
+		return nil
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
 func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
 
 	builtinFunctions := functions.MapBuiltinFunctions()

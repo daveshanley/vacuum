@@ -1,7 +1,7 @@
 package parser
 
 import (
-	_ "embed"
+	_ "embed" // using embed, throws off golint.
 	"encoding/json"
 	"errors"
 	"github.com/daveshanley/vacuum/model"
@@ -22,6 +22,9 @@ var openAPI2SchemaData string
 var openAPI3Schema gojsonschema.JSONLoader
 var openAPI2Schema gojsonschema.JSONLoader
 
+// CheckSpecIsValidOpenAPI will check if a supplied specification is a valid OpenAPI spec or not, it runs a JSON
+// Schema check against the supplied spec against the known standard. This is not yet linted, it's just validated as
+// Being a valid spec against the schema.
 func CheckSpecIsValidOpenAPI(spec []byte) (*gojsonschema.Result, error) {
 
 	openAPISchemaGrab.Do(func() {

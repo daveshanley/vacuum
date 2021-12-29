@@ -82,9 +82,8 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 	if props["type"] == "" {
 		return nil
-	} else {
-		casingType = props["type"]
 	}
+	casingType = props["type"]
 
 	// pull out props
 	if props["disallowDigits"] != "" {
