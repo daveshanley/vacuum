@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func TestDefined_GetSchema(t *testing.T) {
+	def := Defined{}
+	assert.Equal(t, "defined", def.GetSchema().Name)
+}
+
+func TestDefined_RunRule(t *testing.T) {
+	def := Defined{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
 func TestDefined_RunRule_Success(t *testing.T) {
 
 	sampleYaml := `pizza:

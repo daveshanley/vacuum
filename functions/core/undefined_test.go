@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func TestUndefined_GetSchema(t *testing.T) {
+	def := Undefined{}
+	assert.Equal(t, "undefined", def.GetSchema().Name)
+}
+
+func TestUndefined_RunRule(t *testing.T) {
+	def := Undefined{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
 func TestUndefined_RunRule_Success(t *testing.T) {
 
 	sampleYaml := `pizza:
