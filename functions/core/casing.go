@@ -142,8 +142,8 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	} else {
 
 		c.separatorPattern = fmt.Sprintf("[%s]", regexp.QuoteMeta(c.separatorChar))
-		leadingSepPattern := ""
-		var leadingPattern = ""
+		var leadingSepPattern string
+		var leadingPattern string
 		leadingSepPattern = c.separatorPattern
 		if c.separatorAllowLeading {
 			leadingPattern = fmt.Sprintf("^(?:%[1]s)?%[3]s(?:%[2]s%[3]s)*$", leadingSepPattern, c.separatorPattern, pattern)

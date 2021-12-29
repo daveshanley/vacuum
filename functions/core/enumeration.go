@@ -45,9 +45,8 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 	if props["values"] == "" {
 		return nil
-	} else {
-		values = strings.Split(props["values"], ",")
 	}
+	values = strings.Split(props["values"], ",")
 
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {

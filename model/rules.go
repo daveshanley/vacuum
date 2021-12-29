@@ -14,28 +14,33 @@ import (
 //go:embed schemas/ruleset.schema.json
 var rulesetSchema string
 
+// RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
 	RuleAction *RuleAction
 	Rule       *Rule
 	Options    interface{}
 }
 
+// RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
 	Message string
 	Path    string
 }
 
+// RuleFunction is any compatible structure that can be used to run vacuum rules.
 type RuleFunction interface {
 	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult
 	GetSchema() RuleFunctionSchema
 }
 
+// RuleAction is what to do, on what field, and what options are to be used.
 type RuleAction struct {
 	Field           string      `json:"field"`
 	Function        string      `json:"function"`
 	FunctionOptions interface{} `json:"functionOptions"`
 }
 
+// Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
 	Description string      `json:"description"`
 	Given       interface{} `json:"given"`
@@ -46,11 +51,13 @@ type Rule struct {
 	Then        interface{} `json:"then"`
 }
 
+// RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
 type RuleFunctionProperty struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
+// RuleFunctionSchema describes the name, required properties and a slice of RuleFunctionProperty properties.
 type RuleFunctionSchema struct {
 	Name          string                 `json:"name,omitempty"`
 	Required      []string               `json:"required,omitempty"`
@@ -61,6 +68,7 @@ type RuleFunctionSchema struct {
 	ErrorMessage  string                 `json:"errorMessage,omitempty"`
 }
 
+// GetPropertyDescription is a shortcut method for extracting the description of a property by its name.
 func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
 	for _, prop := range rfs.Properties {
 		if prop.Name == name {
@@ -70,11 +78,13 @@ func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
 	return ""
 }
 
+// ToJSON render out a rule to JSON.
 func (r Rule) ToJSON() string {
 	d, _ := json.Marshal(r)
 	return string(d)
 }
 
+// RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
 	DocumentationURI string           `json:"documentationUrl"`
 	Formats          []string         `json:"formats"`
@@ -82,6 +92,7 @@ type RuleSet struct {
 	schemaLoader     gojsonschema.JSONLoader
 }
 
+// CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
 func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	jsonString := string(jsonData)
 	if !utils.IsJSON(jsonString) {
@@ -118,6 +129,7 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	return rs, nil
 }
 
+// LoadRulesetSchema creates a new JSON Schema loader for the RuleSet schema.
 func LoadRulesetSchema() gojsonschema.JSONLoader {
 	return gojsonschema.NewStringLoader(rulesetSchema)
 }
