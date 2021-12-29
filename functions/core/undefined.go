@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -7,15 +10,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Undefined is a rule that will check if a field has not been defined.
 type Undefined struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Undefined' rule.
 func (u Undefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "undefined",
 	}
 }
 
+// RunRule will execute the 'Undefined' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

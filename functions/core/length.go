@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -7,8 +10,10 @@ import (
 	"strconv"
 )
 
+// Length is a rule that will determine if nodes meet a 'min' or 'max' size. It checks arrays, strings and maps.
 type Length struct{}
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Length' rule.
 func (l Length) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "length",
@@ -28,6 +33,7 @@ func (l Length) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// RunRule will execute the 'Length' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	if len(nodes) <= 0 {

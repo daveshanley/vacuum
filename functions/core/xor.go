@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -8,9 +11,11 @@ import (
 	"strings"
 )
 
+// Xor is a rule that will check if one property or another has been set, but not both.
 type Xor struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Xor' rule.
 func (x Xor) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name:     "xor",
@@ -28,6 +33,7 @@ func (x Xor) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// RunRule will execute the 'Xor' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

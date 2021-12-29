@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -7,15 +10,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Truthy is a rule that will determine if something is seen as 'true' (could be a 1 or "pizza", or actually 'true')
 type Truthy struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Truthy' rule.
 func (t Truthy) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "truthy",
 	}
 }
 
+// RunRule will execute the 'Truthy' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {

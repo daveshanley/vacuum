@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -19,6 +22,7 @@ const (
 	macro  string = "macro"
 )
 
+// Casing is a rule that will check the value of a node to ensure it meets the required casing type.
 type Casing struct {
 	flat                  string
 	camel                 string
@@ -36,6 +40,7 @@ type Casing struct {
 
 var casingTypes = []string{flat, camel, pascal, kebab, cobol, snake, macro}
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Casing' rule.
 func (c Casing) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name:     "casing",
@@ -64,6 +69,7 @@ func (c Casing) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// RunRule will execute the 'Casing' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) != 1 { // there can only be a single node passed in to this function.

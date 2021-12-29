@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -10,8 +13,12 @@ import (
 	"strings"
 )
 
+// Alphabetical is a rule that will check an array or object to determine if the values are in order.
+// if the path is to an object, then the value function option 'keyedBy' must be used, to know how to sort the
+// data.
 type Alphabetical struct{}
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Alphabetical' rule.
 func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "alphabetical",
@@ -26,6 +33,7 @@ func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// RunRule will execute the 'Alphabetical' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	if len(nodes) <= 0 {

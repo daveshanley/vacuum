@@ -1,3 +1,6 @@
+// Copyright 2020-2021 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package core
 
 import (
@@ -7,15 +10,18 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Falsy is a rule that will determine if something is seen as 'false' (could be a 0 or missing, or actually 'false')
 type Falsy struct {
 }
 
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the 'Falsy' rule.
 func (f Falsy) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "falsy",
 	}
 }
 
+// RunRule will execute the 'Falsy' rule, based on supplied context and a supplied []*yaml.Node slice.
 func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
