@@ -8,6 +8,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+// RuleComposer will consume a ruleset specification into a *model.RuleSet
 type RuleComposer struct {
 }
 
@@ -15,6 +16,7 @@ func CreateRuleComposer() *RuleComposer {
 	return &RuleComposer{}
 }
 
+// ComposeRuleSet compose a byte array ruleset specification into a *model.RuleSet
 func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*model.RuleSet, error) {
 	rs, err := model.CreateRuleSetUsingJSON(ruleset)
 	if err != nil {

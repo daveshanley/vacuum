@@ -59,11 +59,8 @@ func CheckSpecIsValidOpenAPI(spec []byte) (*gojsonschema.Result, error) {
 
 		return processJSONSpec(jsonData)
 
-	} else {
-
-		return nil, errors.New("spec is neither YAML nor JSON, unable to process")
-
 	}
+	return nil, errors.New("spec is neither YAML nor JSON, unable to process")
 }
 
 func processJSONSpec(spec []byte) (*gojsonschema.Result, error) {

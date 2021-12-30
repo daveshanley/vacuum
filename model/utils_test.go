@@ -1,9 +1,21 @@
 package model
 
 import (
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
+)
+
+const (
+	// OpenApi3 is used by all OpenAPI 3+ docs
+	OpenApi3 = "openapi"
+
+	// OpenApi2 is used by all OpenAPI 2 docs, formerly known as swagger.
+	OpenApi2 = "swagger"
+
+	// AsyncApi is used by akk AsyncAPI docs, all versions.
+	AsyncApi = "asyncapi"
 )
 
 var goodJSON = `{"name":"kitty", "noises":["meow","purrrr","gggrrraaaaaooooww"]}`
@@ -87,7 +99,7 @@ func TestExtractSpecInfo_OpenAPI3(t *testing.T) {
 
 	r, e := ExtractSpecInfo([]byte(OpenApi3Spec))
 	assert.Nil(t, e)
-	assert.Equal(t, OpenApi3, r.SpecType)
+	assert.Equal(t, utils.OpenApi3, r.SpecType)
 	assert.Equal(t, "3.0.1", r.Version)
 }
 

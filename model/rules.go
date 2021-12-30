@@ -1,7 +1,7 @@
 package model
 
 import (
-	_ "embed"
+	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
 	"errors"
 	"fmt"

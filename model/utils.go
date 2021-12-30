@@ -4,15 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
 	"strings"
-)
-
-const (
-	OpenApi3 = "openapi"
-	OpenApi2 = "swagger"
-	AsyncApi = "asyncapi"
 )
 
 // ExtractSpecInfo will look at a supplied OpenAPI specification, and return a *SpecInfo pointer, or an error
@@ -38,9 +33,9 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 	}
 
 	// check for specific keys
-	if parsedSpec[OpenApi3] != nil {
-		specVersion.SpecType = OpenApi3
-		version, majorVersion := parseVersionTypeData(parsedSpec[OpenApi3])
+	if parsedSpec[utils.OpenApi3] != nil {
+		specVersion.SpecType = utils.OpenApi3
+		version, majorVersion := parseVersionTypeData(parsedSpec[utils.OpenApi3])
 
 		// double check for the right version, people mix this up.
 		if majorVersion < 3 {
@@ -48,9 +43,9 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 		}
 		specVersion.Version = version
 	}
-	if parsedSpec[OpenApi2] != nil {
-		specVersion.SpecType = OpenApi2
-		version, majorVersion := parseVersionTypeData(parsedSpec[OpenApi2])
+	if parsedSpec[utils.OpenApi2] != nil {
+		specVersion.SpecType = utils.OpenApi2
+		version, majorVersion := parseVersionTypeData(parsedSpec[utils.OpenApi2])
 
 		// I am not certain this edge-case is very frequent, but let's make sure we handle it anyway.
 		if majorVersion > 2 {
@@ -58,9 +53,9 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 		}
 		specVersion.Version = version
 	}
-	if parsedSpec[AsyncApi] != nil {
-		specVersion.SpecType = AsyncApi
-		version, majorVersion := parseVersionTypeData(parsedSpec[AsyncApi])
+	if parsedSpec[utils.AsyncApi] != nil {
+		specVersion.SpecType = utils.AsyncApi
+		version, majorVersion := parseVersionTypeData(parsedSpec[utils.AsyncApi])
 
 		// so far there is only 2 as a major release of AsyncAPI
 		if majorVersion > 2 {
@@ -98,6 +93,13 @@ func parseVersionTypeData(d interface{}) (string, int) {
 func BuildFunctionResult(key, message string, value interface{}) RuleFunctionResult {
 	return RuleFunctionResult{
 		Message: fmt.Sprintf("'%s' %s '%v'", key, message, value),
+	}
+}
+
+// BuildFunctionResultString will create a RuleFunctionResult from a string already parsed into a message.
+func BuildFunctionResultString(message string) RuleFunctionResult {
+	return RuleFunctionResult{
+		Message: message,
 	}
 }
 

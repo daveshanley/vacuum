@@ -10,8 +10,13 @@ import (
 )
 
 const (
+	// OpenApi3 is used by all OpenAPI 3+ docs
 	OpenApi3 = "openapi"
+
+	// OpenApi2 is used by all OpenAPI 2 docs, formerly known as swagger.
 	OpenApi2 = "swagger"
+
+	// AsyncApi is used by akk AsyncAPI docs, all versions.
 	AsyncApi = "asyncapi"
 )
 
@@ -168,6 +173,11 @@ func IsNodeIntValue(node *yaml.Node) bool {
 // IsNodeFloatValue will check is a node is a float value.
 func IsNodeFloatValue(node *yaml.Node) bool {
 	return node.Tag == "!!float"
+}
+
+// IsNodeBoolValue will check is a node is a bool
+func IsNodeBoolValue(node *yaml.Node) bool {
+	return node.Tag == "!!bool"
 }
 
 // FixContext will clean up a JSONpath string to be correctly traversable.
