@@ -239,7 +239,12 @@ func AreValuesCorrectlyTyped(valType string, values interface{}) map[string]stri
 					"string, but it's defined as a '%v'", v, valType)
 			}
 		case int64:
-			if valType != "integer" {
+			if valType != "integer" && valType != "number" {
+				results[fmt.Sprintf("%v", v)] = fmt.Sprintf("enum value '%v' is a "+
+					"integer, but it's defined as a '%v'", v, valType)
+			}
+		case int:
+			if valType != "integer" && valType != "number" {
 				results[fmt.Sprintf("%v", v)] = fmt.Sprintf("enum value '%v' is a "+
 					"integer, but it's defined as a '%v'", v, valType)
 			}
