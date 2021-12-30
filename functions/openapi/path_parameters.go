@@ -51,11 +51,10 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	var currentPath string
 	var currentVerb string
 	pathElements := make(map[string]bool)
+	topLevelParams := make(map[string][]string)
+	verbLevelParams := make(map[string][]string)
 
 	for _, operationNode := range opNodes {
-
-		topLevelParams := make(map[string][]string)
-		verbLevelParams := make(map[string][]string)
 
 		if utils.IsNodeStringValue(operationNode) {
 			// replace any params with an invalid char (%) so we can perform a path
@@ -168,9 +167,9 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 func ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult) {
 
-	for k, _ := range allPathParams {
+	for k := range allPathParams {
 		foundInElements := false
-		for e, _ := range pathElements {
+		for e := range pathElements {
 			if k == e {
 				foundInElements = true
 			}
@@ -186,9 +185,9 @@ func ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[stri
 func ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult) {
 
-	for k, _ := range pathElements {
+	for k := range pathElements {
 		foundInParams := false
-		for e, _ := range allPathParams {
+		for e := range allPathParams {
 			if k == e {
 				foundInParams = true
 			}

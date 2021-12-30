@@ -30,13 +30,12 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	path, err := yamlpath.NewPath(jsonPath)
 	if err != nil {
 		return nil, err
-	} else {
-		results, err := path.Find(&node)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
 	}
+	results, err := path.Find(&node)
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 // ConvertInterfaceIntoStringMap will convert an unknown input into a string map.

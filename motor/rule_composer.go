@@ -12,6 +12,7 @@ import (
 type RuleComposer struct {
 }
 
+// CreateRuleComposer will create a new RuleComposer and return a pointer to it.
 func CreateRuleComposer() *RuleComposer {
 	return &RuleComposer{}
 }
