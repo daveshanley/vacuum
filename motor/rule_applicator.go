@@ -34,9 +34,22 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 		}
 
+		var specNode yaml.Node
+		yaml.Unmarshal(spec, &specNode)
+
+		// if the rule determines the spec needs to be resolved, then do that before anything else.
+		if rule.Resolved {
+			var err error
+			resolved, _ := model.ResolveOpenAPIDocument(&specNode)
+			if err != nil {
+				return nil, err
+			}
+			specNode = *resolved
+		}
+
 		for _, givenPath := range givenPaths {
 
-			nodes, err := utils.FindNodes(spec, givenPath)
+			nodes, err := utils.FindNodesWithoutDeserializing(&specNode, givenPath)
 			if err != nil {
 				return nil, err
 			}

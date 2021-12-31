@@ -20,7 +20,7 @@ const (
 	AsyncApi = "asyncapi"
 )
 
-// FindNodes will find a node based on JSONPath.
+// FindNodes will find a node based on JSONPath, it accepts raw yaml/json as input.
 func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	jsonPath = FixContext(jsonPath)
 
@@ -32,6 +32,21 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 		return nil, err
 	}
 	results, err := path.Find(&node)
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// FindNodesWithoutDeserializing will find a node based on JSONPath, without deserializing from yaml/json
+func FindNodesWithoutDeserializing(node *yaml.Node, jsonPath string) ([]*yaml.Node, error) {
+	jsonPath = FixContext(jsonPath)
+
+	path, err := yamlpath.NewPath(jsonPath)
+	if err != nil {
+		return nil, err
+	}
+	results, err := path.Find(node)
 	if err != nil {
 		return nil, err
 	}
