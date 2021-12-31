@@ -47,6 +47,7 @@ type Rule struct {
 	Formats     []string    `json:"formats"`
 	Resolved    bool        `json:"resolved"`
 	Recommended bool        `json:"recommended"`
+	Type        string      `json:"type"`
 	Severity    string      `json:"severity"`
 	Then        interface{} `json:"then"`
 }

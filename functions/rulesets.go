@@ -7,10 +7,12 @@ import (
 )
 
 const (
-	warn  = "warn"
-	error = "error"
-	info  = "info"
-	hint  = "hint"
+	warn       = "warn"
+	error      = "error"
+	info       = "info"
+	hint       = "hint"
+	style      = "style"
+	validation = "validation"
 )
 
 type ruleSetsModel struct {
@@ -47,15 +49,68 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules := make(map[string]*model.Rule)
 
 	// add success response
-	rules["oasOpSuccessResponse"] = &model.Rule{
+	rules["operation-success-response"] = &model.Rule{
 		Description: "Operation must have at least one 2xx or a 3xx response.",
 		Given:       openapi.GetAllOperationsJSONPath(),
 		Resolved:    true,
 		Recommended: true,
+		Type:        style,
 		Severity:    warn,
 		Then: model.RuleAction{
 			Field:    "responses",
 			Function: "oasOpSuccessResponse",
+		},
+	}
+
+	// add unique operation ID rule
+	rules["operation-operationId-unique"] = &model.Rule{
+		Description: "Every operation must have unique \"operationId\".",
+		Given:       "$.paths",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    warn,
+		Then: model.RuleAction{
+			Function: "oasOpIdUnique",
+		},
+	}
+
+	// add operation params rule
+	rules["operation-parameters"] = &model.Rule{
+		Description: "Operation parameters are unique and non-repeating.",
+		Given:       "$.paths",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    warn,
+		Then: model.RuleAction{
+			Function: "oasOpParams",
+		},
+	}
+
+	// add operation tag defined rule
+	rules["operation-tag-defined"] = &model.Rule{
+		Description: "Operation tags must be defined in global tags.",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    warn,
+		Then: model.RuleAction{
+			Function: "oasTagDefined",
+		},
+	}
+
+	// add operation tag defined rule
+	rules["path-params"] = &model.Rule{
+		Description: "Path parameters must be defined and valid.",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function: "oasPathParam",
 		},
 	}
 

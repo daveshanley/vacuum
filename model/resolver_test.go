@@ -14,8 +14,6 @@ func Benchmark_ResolveDocument(b *testing.B) {
 	burgershop, _ := ioutil.ReadFile("test_files/burgershop.openapi.yaml")
 	var rootNode yaml.Node
 	yaml.Unmarshal(burgershop, &rootNode)
-
-	// run the Fib function b.N times
 	for n := 0; n < b.N; n++ {
 		ResolveOpenAPIDocument(&rootNode)
 	}

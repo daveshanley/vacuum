@@ -9,6 +9,6 @@ func TestBuildDefaultRuleSets(t *testing.T) {
 
 	rs := BuildDefaultRuleSets()
 	assert.NotNil(t, rs.GenerateOpenAPIDefaultRuleSet())
-	assert.Len(t, rs.GenerateOpenAPIDefaultRuleSet().Rules, 1)
+	assert.Len(t, rs.GenerateOpenAPIDefaultRuleSet().Rules, 5)
 
 }
