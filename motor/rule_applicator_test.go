@@ -17,7 +17,7 @@ func TestApplyRules_PostResponseSuccess(t *testing.T) {
       "type": "style",
       "given": "$.paths.*.post.responses",
       "then": {
-        "function": "post_response_success",
+        "function": "post-response-success",
 		"functionOptions" : { 
 			"properties": [
 				"200", "201", "202", "204"
@@ -50,7 +50,7 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
       "type": "style",
       "given": "$.paths.*.post.responses",
       "then": {
-        "function": "post_response_success",
+        "function": "post-response-success",
 		"functionOptions" : { 
 			"properties": [
 				"900", "300", "750", "600" 
