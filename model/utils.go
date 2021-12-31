@@ -227,9 +227,9 @@ func AreValuesCorrectlyTyped(valType string, values interface{}) map[string]stri
 	var arr []interface{}
 	if _, ok := values.([]interface{}); !ok {
 		return nil
-	} else {
-		arr = values.([]interface{})
 	}
+	arr = values.([]interface{})
+
 	results := make(map[string]string)
 	for _, v := range arr {
 		switch v.(type) {

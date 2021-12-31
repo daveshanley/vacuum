@@ -22,19 +22,24 @@ type Functions interface {
 }
 
 var functionsSingleton *functionsModel
-var functionGrab sync.Once
+var coreFunctionGrab sync.Once
 
 // MapBuiltinFunctions will correctly map core (non-specific) functions to correct names.
 func MapBuiltinFunctions() Functions {
 
-	functionGrab.Do(func() {
-		funcs := make(map[string]model.RuleFunction)
-		functionsSingleton = &functionsModel{
-			functions: funcs,
+	coreFunctionGrab.Do(func() {
+		var funcs map[string]model.RuleFunction
+
+		if functionsSingleton != nil {
+			funcs = functionsSingleton.functions
+		} else {
+			funcs = make(map[string]model.RuleFunction)
+			functionsSingleton = &functionsModel{
+				functions: funcs,
+			}
 		}
 
 		// add known rules
-		funcs["post_response_success"] = openapi_functions.PostResponseSuccess{}
 		funcs["truthy"] = &core.Truthy{}
 		funcs["falsy"] = core.Falsy{}
 		funcs["defined"] = core.Defined{}
@@ -45,6 +50,14 @@ func MapBuiltinFunctions() Functions {
 		funcs["pattern"] = core.Pattern{}
 		funcs["length"] = core.Length{}
 		funcs["xor"] = core.Xor{}
+
+		// add known OpenAPI rules
+		funcs["post-response-success"] = openapi_functions.PostResponseSuccess{}
+		funcs["oasOpSuccessResponse"] = openapi_functions.SuccessResponse{}
+		funcs["oasOpIdUnique"] = openapi_functions.UniqueOperationId{}
+		funcs["oasOpParams"] = openapi_functions.OperationParameters{}
+		funcs["oasTagDefined"] = openapi_functions.TagDefined{}
+		funcs["oasPathParam"] = openapi_functions.PathParameters{}
 
 	})
 
