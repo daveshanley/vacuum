@@ -63,17 +63,29 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		p.patternCache = make(map[string]*regexp.Regexp)
 	}
 
+	pathValue := "unknown"
+	if path, ok := context.Given.(string); ok {
+		pathValue = path
+	}
+
 	for _, node := range nodes {
+
 		if p.match != "" {
 			rx, err := p.getPatternFromCache(p.match)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.match, err.Error()),
+					Message:   fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.match, err.Error()),
+					StartNode: node,
+					EndNode:   node,
+					Path:      pathValue,
 				})
 			} else {
 				if !rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("'%s' does not match the expression '%s'", node.Value, p.match),
+						Message:   fmt.Sprintf("'%s' does not match the expression '%s'", node.Value, p.match),
+						StartNode: node,
+						EndNode:   node,
+						Path:      pathValue,
 					})
 				}
 			}
@@ -84,12 +96,18 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			rx, err := p.getPatternFromCache(p.notMatch)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.notMatch, err.Error()),
+					Message:   fmt.Sprintf("'%s' cannot be compiled into a regular expression: %s", p.notMatch, err.Error()),
+					StartNode: node,
+					EndNode:   node,
+					Path:      pathValue,
 				})
 			} else {
 				if rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("'%s' matches the expression '%s'", node.Value, p.notMatch),
+						Message:   fmt.Sprintf("'%s' matches the expression '%s'", node.Value, p.notMatch),
+						StartNode: node,
+						EndNode:   node,
+						Path:      pathValue,
 					})
 				}
 			}

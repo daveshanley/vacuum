@@ -55,12 +55,20 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 					if parametersNode != nil {
 
-						for _, paramNode := range parametersNode.Content {
+						for j, paramNode := range parametersNode.Content {
 							if paramNode.Tag == "!!map" {
+
+								startNode := paramNode
+								endNode := paramNode
+								if j+1 < len(parametersNode.Content) {
+									endNode = parametersNode.Content[j+1]
+								}
 
 								// check for 'in' and 'name' nodes in operation parameters.
 								_, paramInNode := utils.FindFirstKeyNode("in", paramNode.Content)
 								_, paramNameNode := utils.FindFirstKeyNode("name", paramNode.Content)
+
+								resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
 
 								if paramInNode != nil {
 									if seenParamInLocations[paramInNode.Value] {
@@ -68,6 +76,9 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 											results = append(results, model.RuleFunctionResult{
 												Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 													"duplicate param in:body definition", currentVerb, currentPath),
+												StartNode: startNode,
+												EndNode:   endNode,
+												Path:      resultPath,
 											})
 										}
 									} else {
@@ -77,6 +88,9 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 													Message: fmt.Sprintf("the '%s' operation at path '%s' "+
 														"contains parameters using both in:body and in:formData",
 														currentVerb, currentPath),
+													StartNode: startNode,
+													EndNode:   endNode,
+													Path:      resultPath,
 												})
 											}
 										}
@@ -86,6 +100,9 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 									results = append(results, model.RuleFunctionResult{
 										Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 											"parameter with no 'in' value", currentVerb, currentPath),
+										StartNode: startNode,
+										EndNode:   endNode,
+										Path:      resultPath,
 									})
 
 								}
@@ -95,6 +112,9 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 										results = append(results, model.RuleFunctionResult{
 											Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 												"parameter with duplicate name '%s'", currentVerb, currentPath, paramNameNode.Value),
+											StartNode: startNode,
+											EndNode:   endNode,
+											Path:      resultPath,
 										})
 									} else {
 										seenParamNames[paramNameNode.Value] = true
@@ -103,6 +123,9 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 									results = append(results, model.RuleFunctionResult{
 										Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 											"parameter with no 'name' value", currentVerb, currentPath),
+										StartNode: startNode,
+										EndNode:   endNode,
+										Path:      resultPath,
 									})
 								}
 							}

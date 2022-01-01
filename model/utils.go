@@ -262,3 +262,16 @@ func AreValuesCorrectlyTyped(valType string, values interface{}) map[string]stri
 	}
 	return results
 }
+
+// MapPathAndNodesToResults will map the same start/end nodes with the same path.
+func MapPathAndNodesToResults(path string, startNode, endNode *yaml.Node, results []RuleFunctionResult) []RuleFunctionResult {
+	var mapped []RuleFunctionResult
+	for _, result := range results {
+		result.Path = path
+		result.StartNode = startNode
+		result.EndNode = endNode
+		mapped = append(mapped, result)
+	}
+
+	return mapped
+}

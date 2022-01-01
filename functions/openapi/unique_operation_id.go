@@ -53,16 +53,27 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 
 					_, opIdValueNode := utils.FindFirstKeyNode("operationId", verbDataNode.Content)
 
+					endNode := verbDataNode
+					if y+2 < len(verbNode.Content) {
+						endNode = verbNode.Content[y+2]
+					}
+
 					if opIdValueNode == nil {
 						results = append(results, model.RuleFunctionResult{
 							Message: fmt.Sprintf("the '%s' operation at path '%s' does not contain an operationId",
 								currentVerb, currentPath),
+							StartNode: verbDataNode,
+							EndNode:   endNode,
+							Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
 						})
 					} else {
 						if seenIds[opIdValueNode.Value] {
 							results = append(results, model.RuleFunctionResult{
 								Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 									"duplicate operationId '%s'", currentVerb, currentPath, opIdValueNode.Value),
+								StartNode: verbDataNode,
+								EndNode:   endNode,
+								Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
 							})
 						} else {
 							seenIds[opIdValueNode.Value] = true

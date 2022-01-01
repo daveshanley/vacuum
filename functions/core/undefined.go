@@ -30,12 +30,20 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	var results []model.RuleFunctionResult
 
+	pathValue := "unknown"
+	if path, ok := context.Given.(string); ok {
+		pathValue = path
+	}
+
 	for _, node := range nodes {
 
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if fieldNode != nil {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("'%s' must be undefined", context.RuleAction.Field),
+				Message:   fmt.Sprintf("'%s' must be undefined", context.RuleAction.Field),
+				StartNode: fieldNode,
+				EndNode:   fieldNode,
+				Path:      pathValue,
 			})
 		}
 	}

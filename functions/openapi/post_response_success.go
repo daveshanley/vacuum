@@ -30,21 +30,40 @@ func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFun
 	props := utils.ExtractValueFromInterfaceMap("properties", context.Options)
 	values := utils.ConvertInterfaceArrayToStringArray(props)
 	found := 0
-
-	for _, propVal := range values {
-		key, _ := utils.FindFirstKeyNode(propVal, nodes)
-		if key != nil {
-			found++
-		}
-	}
-
 	var results []model.RuleFunctionResult
 
-	if found <= 0 {
-		results = append(results, model.RuleFunctionResult{
-			Message: fmt.Sprintf("operations must define a success response with one of the following codes: '%s'",
-				strings.Join(values, ", ")),
-		})
+	for j, node := range nodes {
+
+		var startNode, endNode *yaml.Node
+
+		for _, propVal := range values {
+			key, _ := utils.FindFirstKeyNode(propVal, []*yaml.Node{node})
+			if key != nil {
+				found++
+			} else {
+				startNode = node
+				endNode = node
+				if j+1 < len(nodes) {
+					endNode = nodes[j+1]
+				}
+			}
+		}
+
+		if found <= 0 {
+
+			if j+1 < len(node.Content) {
+				endNode = node.Content[j+1]
+			}
+
+			results = append(results, model.RuleFunctionResult{
+				Message: fmt.Sprintf("operations must define a success response with one of the following codes: '%s'",
+					strings.Join(values, ", ")),
+				StartNode: startNode,
+				EndNode:   endNode,
+			})
+		}
+
 	}
+
 	return results
 }

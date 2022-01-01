@@ -49,6 +49,10 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 	}
 
 	for _, node := range nodes {
+		pathValue := "unknown"
+		if path, ok := context.Given.(string); ok {
+			pathValue = path
+		}
 
 		if utils.IsNodeMap(node) {
 
@@ -56,12 +60,16 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				results = append(results, model.RuleFunctionResult{
 					Message: fmt.Sprintf("'%s' is a map/object. %s",
 						node.Value, a.GetSchema().ErrorMessage),
+					StartNode: node,
+					EndNode:   node,
+					Path:      pathValue,
 				})
 				continue
 			}
 
 			resultsFromKey := a.processMap(node, keyedBy)
 			results = compareStringArray(resultsFromKey)
+			results = model.MapPathAndNodesToResults(pathValue, node, node, results)
 			continue
 		}
 
@@ -81,12 +89,13 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 					resultsFromKey := a.processMap(node, keyedBy)
 					results = compareStringArray(resultsFromKey)
 				}
+				results = model.MapPathAndNodesToResults(pathValue, node, node, results)
 
 			}
 			continue
 		}
 
-		// TODO: handle single value code and object code,
+		// TODO: handle single value code
 
 	}
 

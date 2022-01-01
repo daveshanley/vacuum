@@ -28,33 +28,68 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	}
 
 	var results []model.RuleFunctionResult
-	for _, node := range nodes {
 
-		fieldNode, valNode := utils.FindFirstKeyNode(context.RuleAction.Field, node.Content)
-		if fieldNode != nil && valNode != nil {
-			var responseSeen bool
-			for _, response := range valNode.Content {
-				if response.Tag == "!!str" {
-					responseCode, _ := strconv.Atoi(response.Value)
-					if responseCode >= 200 && responseCode <= 400 {
-						responseSeen = true
-					}
-				}
+	var currentPath string
+	var currentVerb string
+
+	for _, n := range nodes {
+		//for j, operationNode := range n.Content {
+
+		_, pathNode := utils.FindKeyNode("paths", n.Content)
+
+		for j, operationNode := range pathNode.Content {
+
+			if utils.IsNodeStringValue(operationNode) {
+				currentPath = operationNode.Value
 			}
-			if !responseSeen {
+			if utils.IsNodeMap(operationNode) {
 
-				// see if we can extract a name from the operationId
-				_, g := utils.FindKeyNode("operationId", node.Content)
-				var name string
-				if g != nil {
-					name = g.Value
-				} else {
-					name = "undefined operation (no operationId)"
+				for h, verbMapNode := range operationNode.Content {
+					if utils.IsNodeStringValue(verbMapNode) && isHttpVerb(verbMapNode.Value) {
+						currentVerb = verbMapNode.Value
+					} else {
+						continue
+					}
+					verbDataNode := operationNode.Content[h+1]
+
+					fieldNode, valNode := utils.FindFirstKeyNode(context.RuleAction.Field, verbDataNode.Content)
+					if fieldNode != nil && valNode != nil {
+						var responseSeen bool
+						for _, response := range valNode.Content {
+							if response.Tag == "!!str" {
+								responseCode, _ := strconv.Atoi(response.Value)
+								if responseCode >= 200 && responseCode <= 400 {
+									responseSeen = true
+								}
+							}
+						}
+						if !responseSeen {
+
+							// see if we can extract a name from the operationId
+							_, g := utils.FindKeyNode("operationId", operationNode.Content)
+							var name string
+							if g != nil {
+								name = g.Value
+							} else {
+								name = "undefined operation (no operationId)"
+							}
+
+							endNode := operationNode
+							if j+1 < len(operationNode.Content) {
+								endNode = operationNode.Content[j+1]
+							}
+
+							results = append(results, model.RuleFunctionResult{
+								Message:   fmt.Sprintf("Operation '%s' must define at least a single 2xx or 3xx response", name),
+								StartNode: operationNode,
+								EndNode:   endNode,
+								Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
+							})
+						}
+					}
+
 				}
 
-				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("Operation '%s' must define at least a single 2xx or 3xx response", name),
-				})
 			}
 		}
 

@@ -67,15 +67,25 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 
 				if tagsNode != nil {
 
-					for _, operationTag := range tagsNode.Content {
+					tagIndex := 0
+					for j, operationTag := range tagsNode.Content {
 						if operationTag.Tag == "!!str" {
 							if !seenGlobalTags[operationTag.Value] {
+								endNode := operationTag
+								if j+1 < len(tagsNode.Content) {
+									endNode = tagsNode.Content[j+1]
+								}
 								results = append(results, model.RuleFunctionResult{
 									Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 										"tag '%s', that is not defined in the global document tags",
 										currentVerb, currentPath, operationTag.Value),
+									StartNode: operationTag,
+									EndNode:   endNode,
+									Path:      fmt.Sprintf("$.paths.%s.%s.tags[%v]", currentPath, currentVerb, tagIndex),
 								})
 							}
+							tagIndex++
+
 						}
 					}
 				}

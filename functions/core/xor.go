@@ -54,6 +54,11 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		return nil
 	}
 
+	pathValue := "unknown"
+	if path, ok := context.Given.(string); ok {
+		pathValue = path
+	}
+
 	var results []model.RuleFunctionResult
 	seenCount := 0
 	for _, node := range nodes {
@@ -66,13 +71,17 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 				seenCount++
 			}
 		}
-	}
 
-	if seenCount != 1 {
-		results = append(results, model.RuleFunctionResult{
-			Message: fmt.Sprintf("'%s' and '%s' must not be both defined or undefined",
-				properties[0], properties[1]),
-		})
+		if seenCount != 1 {
+			results = append(results, model.RuleFunctionResult{
+				Message: fmt.Sprintf("'%s' and '%s' must not be both defined or undefined",
+					properties[0], properties[1]),
+				StartNode: node,
+				EndNode:   node,
+				Path:      pathValue,
+			})
+		}
+
 	}
 
 	return results

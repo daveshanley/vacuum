@@ -54,7 +54,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	topLevelParams := make(map[string][]string)
 	verbLevelParams := make(map[string][]string)
 
-	for _, operationNode := range opNodes {
+	for j, operationNode := range opNodes {
 
 		if utils.IsNodeStringValue(operationNode) {
 			// replace any params with an invalid char (%) so we can perform a path
@@ -64,10 +64,13 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 			// check if it's been seen
 			if seenPaths[currentPathNormalized] != "" {
-				results = append(results,
-					model.BuildFunctionResultString(
-						fmt.Sprintf("Paths '%s' and '%s' must not be equivalent, paths must be unique",
-							seenPaths[currentPathNormalized], currentPath)))
+				res := model.BuildFunctionResultString(
+					fmt.Sprintf("Paths '%s' and '%s' must not be equivalent, paths must be unique",
+						seenPaths[currentPathNormalized], currentPath))
+				res.StartNode = operationNode
+				res.EndNode = operationNode
+				res.Path = fmt.Sprintf("$.paths.%s", currentPath)
+				results = append(results, res)
 			} else {
 				seenPaths[currentPathNormalized] = currentPath
 			}
@@ -78,10 +81,13 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				strRx, _ := regexp.Compile(`[{}?*;]`)
 				param := strRx.ReplaceAllString(pathParam, "")
 				if pathElements[param] {
-					results = append(results,
-						model.BuildFunctionResultString(
-							fmt.Sprintf("Path '%s' must not use the parameter '%s' multiple times",
-								currentPath, param)))
+					res := model.BuildFunctionResultString(
+						fmt.Sprintf("Path '%s' must not use the parameter '%s' multiple times",
+							currentPath, param))
+					res.StartNode = operationNode
+					res.EndNode = operationNode
+					res.Path = fmt.Sprintf("$.paths.%s", currentPath)
+					results = append(results, res)
 				} else {
 					pathElements[param] = true
 				}
@@ -111,7 +117,6 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			// look for verb level params.
 			c := 0
 			for h, verbMapNode := range operationNode.Content {
-				//verbDataNode := operationNode.Content[y+1]
 				if utils.IsNodeStringValue(verbMapNode) && isHttpVerb(verbMapNode.Value) {
 
 					currentVerb = verbMapNode.Value
@@ -148,8 +153,14 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				}
 			}
 
-			ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams, pathElements, &results)
-			ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams, pathElements, &results)
+			startNode := operationNode
+			endNode := operationNode
+			if j+1 < len(opNodes) {
+				endNode = opNodes[j+1]
+			}
+
+			ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams, pathElements, &results, startNode, endNode)
+			ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams, pathElements, &results, startNode, endNode)
 
 			// reset for the next run.
 			pathElements = make(map[string]bool)
@@ -165,7 +176,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 }
 
 func ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string][]string,
-	pathElements map[string]bool, results *[]model.RuleFunctionResult) {
+	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node) {
 
 	for k := range allPathParams {
 		foundInElements := false
@@ -176,14 +187,17 @@ func ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[stri
 		}
 		if !foundInElements {
 			err := fmt.Sprintf("parameter '%s' must be used in path '%s'", k, path)
-			*results = append(*results,
-				model.BuildFunctionResultString(err))
+			res := model.BuildFunctionResultString(err)
+			res.StartNode = startNode
+			res.EndNode = endNode
+			res.Path = fmt.Sprintf("$.paths.%s", path)
+			*results = append(*results, res)
 		}
 	}
 }
 
 func ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string][]string,
-	pathElements map[string]bool, results *[]model.RuleFunctionResult) {
+	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node) {
 
 	for k := range pathElements {
 		foundInParams := false
@@ -194,8 +208,11 @@ func ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[stri
 		}
 		if !foundInParams {
 			err := fmt.Sprintf("Operation must define parameter '%s' as expected by path '%s'", k, path)
-			*results = append(*results,
-				model.BuildFunctionResultString(err))
+			res := model.BuildFunctionResultString(err)
+			res.StartNode = startNode
+			res.EndNode = endNode
+			res.Path = fmt.Sprintf("$.paths.%s", path)
+			*results = append(*results, res)
 		}
 	}
 }
@@ -230,24 +247,30 @@ func isNamedPathParamUnknown(in, required, name *yaml.Node, currentPath, current
 		errMsg := fmt.Sprintf("%s %s must have 'required' parameter that is set to 'true'",
 			currentPath, currentVerb)
 
+		res := model.BuildFunctionResultString(errMsg)
+		res.StartNode = required
+		res.EndNode = required
+		res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
+
 		if utils.IsNodeBoolValue(required) {
 			if required.Value != "true" {
-				*results = append(*results,
-					model.BuildFunctionResultString(errMsg))
+				*results = append(*results, res)
 			}
 		} else {
-			*results = append(*results,
-				model.BuildFunctionResultString(errMsg))
+			*results = append(*results, res)
 		}
 	}
 
 	// check if name is defined and if it's been defined multiple times.
 	if name != nil {
 		if seenNodes[name.Value] != nil {
-			*results = append(*results,
-				model.BuildFunctionResultString(
-					fmt.Sprintf("%s %s contains has a parameter '%s' defined multiple times'",
-						currentPath, currentVerb, name.Value)))
+			res := model.BuildFunctionResultString(
+				fmt.Sprintf("%s %s contains has a parameter '%s' defined multiple times'",
+					currentPath, currentVerb, name.Value))
+			res.StartNode = name
+			res.EndNode = name
+			res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
+			*results = append(*results, res)
 			return false
 		}
 	}

@@ -1,7 +1,6 @@
 package functions
 
 import (
-	"github.com/daveshanley/vacuum/functions/openapi"
 	"github.com/daveshanley/vacuum/model"
 	"sync"
 )
@@ -51,7 +50,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// add success response
 	rules["operation-success-response"] = &model.Rule{
 		Description: "Operation must have at least one 2xx or a 3xx response.",
-		Given:       openapi.GetAllOperationsJSONPath(),
+		Given:       "$",
 		Resolved:    true,
 		Recommended: true,
 		Type:        style,
@@ -115,7 +114,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	}
 
 	set := &model.RuleSet{
-		DocumentationURI: "https://quobix.com/vaccum/rules/oasOpSuccessResponse",
+		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,
 	}
 

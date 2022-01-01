@@ -29,6 +29,7 @@ func TestXor_RunRule_SuccessPropsStringArray(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", nil)
 	ctx := model.RuleFunctionContext{RuleAction: model.CastToRuleAction(rule.Then), Rule: &rule, Options: opts}
+	ctx.Given = path
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
@@ -52,6 +53,7 @@ func TestXor_RunRule_Success(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
@@ -74,6 +76,7 @@ func TestXor_RunRule_NoProps(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
@@ -97,6 +100,7 @@ func TestXor_RunRule_Fail(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)
@@ -120,6 +124,7 @@ func TestXor_RunRule_Fail_AllUndefined(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
 
 	def := Xor{}
 	res := def.RunRule(nodes, ctx)

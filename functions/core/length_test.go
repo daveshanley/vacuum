@@ -27,6 +27,7 @@ paths:
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -54,6 +55,7 @@ paths:
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -81,6 +83,7 @@ paths:
 
 	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -106,6 +109,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -131,6 +135,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -159,6 +164,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -186,6 +192,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -213,6 +220,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -242,6 +250,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)
@@ -267,6 +276,7 @@ tags:`
 
 	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)

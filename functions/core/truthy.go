@@ -29,6 +29,10 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	var results []model.RuleFunctionResult
+	pathValue := "unknown"
+	if path, ok := context.Given.(string); ok {
+		pathValue = path
+	}
 	for _, node := range nodes {
 
 		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
@@ -36,7 +40,10 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			fieldNodeValue.Value == "" || fieldNodeValue.Value == "false" ||
 			fieldNodeValue.Value == "0" {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("'%s' must be truthy", context.RuleAction.Field),
+				Message:   fmt.Sprintf("'%s' must be truthy", context.RuleAction.Field),
+				StartNode: fieldNodeValue,
+				EndNode:   fieldNodeValue,
+				Path:      pathValue,
 			})
 		}
 	}

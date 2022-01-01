@@ -8,11 +8,13 @@ import (
 )
 
 func Benchmark_DefaultOpenAPI(b *testing.B) {
-	badDoc := ` paths:
+	badDoc := `paths:
   /curry/{hurry}/{salsa}:
     get:
       tags:
         - rice
+        - ice
+        - fresh
       parameters:
       - in: path
         name: hurry
@@ -21,6 +23,8 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
       responses:
       "500":
         description: no curry!
+    post:
+      description: can I get a curry?    
   /curry/{chips}/{cheese}:
     get:
       parameters:
@@ -37,11 +41,13 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
 
 func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
 
-	badDoc := ` paths:
+	badDoc := `paths:
   /curry/{hurry}/{salsa}:
     get:
       tags:
         - rice
+        - ice
+        - fresh
       parameters:
       - in: path
         name: hurry
@@ -50,6 +56,8 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
       responses:
       "500":
         description: no curry!
+    post:
+      description: can I get a curry?    
   /curry/{chips}/{cheese}:
     get:
       parameters:
@@ -60,6 +68,12 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
 	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
-	assert.Len(t, results, 10)
+	assert.Len(t, results, 13)
+
+	for n := 0; n < len(results); n++ {
+		assert.NotNil(t, results[n].Path)
+		assert.NotNil(t, results[n].StartNode)
+		assert.NotNil(t, results[n].EndNode)
+	}
 
 }

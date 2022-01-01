@@ -54,7 +54,10 @@ func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
 func TestPathParameters_RunRule_DuplicatePathParamCheck_MissingParam(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.0.1
+info:
+  title: pizza-cake
+paths:
   /pizza/{cake}/{cake}:
     parameters:
       - in: path

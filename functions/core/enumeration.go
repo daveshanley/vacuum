@@ -48,10 +48,18 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	}
 	values = strings.Split(props["values"], ",")
 
+	pathValue := "unknown"
+	if path, ok := context.Given.(string); ok {
+		pathValue = path
+	}
+
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("'%s' must equal to one of the following: %v", node.Value, values),
+				Message:   fmt.Sprintf("'%s' must equal to one of the following: %v", node.Value, values),
+				StartNode: node,
+				EndNode:   node,
+				Path:      pathValue,
 			})
 		}
 	}

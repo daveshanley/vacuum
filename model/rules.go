@@ -18,13 +18,16 @@ var rulesetSchema string
 type RuleFunctionContext struct {
 	RuleAction *RuleAction
 	Rule       *Rule
+	Given      interface{} // path/s being used by rule.
 	Options    interface{}
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message string
-	Path    string
+	Message   string
+	StartNode *yaml.Node
+	EndNode   *yaml.Node
+	Path      string
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.

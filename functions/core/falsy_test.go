@@ -26,6 +26,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)
@@ -52,6 +53,7 @@ notTags:
 
 	rule := buildCoreTestRule(path, severityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)
@@ -77,6 +79,7 @@ tags:
 
 	rule := buildCoreTestRule(path, severityError, "Falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)

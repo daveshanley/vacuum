@@ -30,6 +30,7 @@ func TestUndefined_RunRule_Success(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "undefined", "cake", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
 
 	def := Undefined{}
 	res := def.RunRule(nodes, ctx)
@@ -49,6 +50,7 @@ func TestUndefined_RunRule_Fail(t *testing.T) {
 
 	rule := buildCoreTestRule(path, severityError, "undefined", "cake", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
 
 	def := Undefined{}
 	res := def.RunRule(nodes, ctx)

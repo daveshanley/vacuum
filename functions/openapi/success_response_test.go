@@ -23,7 +23,7 @@ func TestSuccessResponse_RunRule_Success(t *testing.T) {
 
 	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/burgershop.openapi.yaml")
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), GetAllOperationsJSONPath())
+	nodes, _ := utils.FindNodes(sampleYaml, "$")
 
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -36,7 +36,7 @@ func TestSuccessResponse_RunRule_Success(t *testing.T) {
 
 func TestSuccessResponse_RunRule_NoNodes(t *testing.T) {
 
-	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
+	rule := buildOpenApiTestRuleAction("$", "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := SuccessResponse{}

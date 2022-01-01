@@ -82,6 +82,11 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			continue
 		}
 
+		pathValue := "unknown"
+		if path, ok := context.Given.(string); ok {
+			pathValue = path
+		}
+
 		// check for value lengths.
 		if utils.IsNodeStringValue(p) || utils.IsNodeIntValue(p) || utils.IsNodeFloatValue(p) {
 
@@ -98,21 +103,37 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			if utils.IsNodeFloatValue(p) {
 				fValue, _ := strconv.ParseFloat(p.Value, 64)
 				if float64(min) > 0 && fValue < float64(min) {
-					results = append(results, createMinError(p.Value, min))
+					res := createMinError(p.Value, min)
+					res.StartNode = node
+					res.EndNode = node
+					res.Path = pathValue
+					results = append(results, res)
 					continue
 				}
 				if float64(max) > 0 && fValue > float64(max) {
-					results = append(results, createMaxError(p.Value, max))
+					res := createMaxError(p.Value, max)
+					res.StartNode = node
+					res.EndNode = node
+					res.Path = pathValue
+					results = append(results, res)
 					continue
 				}
 			}
 
 			if min > 0 && valueCheck < min {
-				results = append(results, createMinError(p.Value, min))
+				res := createMinError(p.Value, min)
+				res.StartNode = node
+				res.EndNode = node
+				res.Path = pathValue
+				results = append(results, res)
 				continue
 			}
 			if max > 0 && valueCheck > max {
-				results = append(results, createMaxError(p.Value, max))
+				res := createMaxError(p.Value, max)
+				res.StartNode = node
+				res.EndNode = node
+				res.Path = pathValue
+				results = append(results, res)
 				continue
 			}
 		} else {
@@ -131,25 +152,42 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			// check for structure sizes (maps and arrays)
 			if min > 0 && nodeCount < min {
 				if context.RuleAction.Field != "" {
-					results = append(results, createMinError(context.RuleAction.Field, min))
+					res := createMinError(context.RuleAction.Field, min)
+					res.StartNode = node
+					res.EndNode = node
+					res.Path = pathValue
+					results = append(results, res)
 				} else {
-
-					//results = append(results, createMinError(context.Rule.Given, min))
-					results = append(results, createMinError("chicken", min))
+					res := createMinError(context.Rule.Given.(string), min)
+					res.StartNode = node
+					res.EndNode = node
+					res.Path = pathValue
+					results = append(results, res)
 				}
+				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue
 			}
 
 			if max > 0 && nodeCount > max {
 				if context.RuleAction.Field != "" {
-					results = append(results, createMaxError(context.RuleAction.Field, max))
+					res := createMaxError(context.RuleAction.Field, max)
+					res.StartNode = node
+					res.EndNode = node
+					res.Path = pathValue
+					results = append(results, res)
 				} else {
-					//results = append(results, createMaxError(context.Rule.Given, max))
-					results = append(results, createMaxError("chops", max))
+					res := createMaxError(context.Rule.Given.(string), max)
+					res.StartNode = node
+					res.EndNode = node
+					res.Path = pathValue
+					results = append(results, res)
+
 				}
+
 				continue
 			}
 		}
+
 	}
 
 	return results
