@@ -1,8 +1,8 @@
 package rule_tests
 
 import (
-	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -31,7 +31,7 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
       - in: path
         name: hurry`
 
-	rs := functions.BuildDefaultRuleSets()
+	rs := rulesets.BuildDefaultRuleSets()
 	rules := rs.GenerateOpenAPIDefaultRuleSet()
 	for n := 0; n < b.N; n++ {
 		motor.ApplyRules(rules, []byte(badDoc))
@@ -64,7 +64,7 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
       - in: path
         name: hurry`
 
-	rs := functions.BuildDefaultRuleSets()
+	rs := rulesets.BuildDefaultRuleSets()
 	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
 	assert.NoError(t, err)
 	assert.NotNil(t, results)

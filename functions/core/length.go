@@ -65,7 +65,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 		// check field type, is it a map? is it an array?
 		if context.RuleAction.Field != "" {
-			_, p = utils.FindFirstKeyNode(context.RuleAction.Field, []*yaml.Node{node})
+			_, p = utils.FindFirstKeyNode(context.RuleAction.Field, []*yaml.Node{node}, 0)
 
 			// no luck? try again.
 			if p == nil {

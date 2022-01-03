@@ -402,3 +402,75 @@ func TestResolveDocument_File_Fail_InvalidPath(t *testing.T) {
 	result, _ := path.Find(resolved)
 	assert.NotNil(t, result)
 }
+
+func TestResolveDocument_CircularReferences(t *testing.T) {
+
+	yml := `paths:
+  /naughty/{puppy}:
+    parameters:
+      - in: path
+        name: puppy
+    get:
+      responses:
+      "200":
+        description: The naughty pup
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Puppy'
+components:
+  schemas:
+    Puppy:
+      $ref: '#/components/schemas/Kitty'
+    Kitty:
+      $ref: '#/components/schemas/Puppy'`
+
+	spec := strings.TrimSpace(yml)
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(spec), &rootNode)
+
+	resolved, errs := ResolveOpenAPIDocument(&rootNode)
+	assert.NotNil(t, resolved)
+	assert.Len(t, errs, 3)
+
+}
+
+func TestResolveDocument_Parameter_Resolving(t *testing.T) {
+
+	yml := `parameters:
+    Louie:
+        in: query
+        name: louie
+    Chewy:
+        $ref: '#/parameters/Louie'
+paths:
+    /naughty/{puppy}:
+        parameters:
+            - $ref: '#/parameters/Chewy'
+        get:
+            responses:
+            "200":
+                description: The naughty pup
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/Puppy'
+components:
+    schemas:
+        Puppy:
+            type: string`
+
+	spec := strings.TrimSpace(yml)
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(spec), &rootNode)
+
+	resolved, errs := ResolveOpenAPIDocument(&rootNode)
+
+	b, _ := yaml.Marshal(resolved)
+	assert.NotNil(t, b)
+	assert.NotNil(t, resolved)
+	assert.Len(t, errs, 0)
+
+}

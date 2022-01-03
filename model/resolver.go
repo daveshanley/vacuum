@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -24,81 +23,75 @@ const (
 var seenRemoteSources = make(map[string]*yaml.Node)
 
 // ResolveOpenAPIDocument will resolve all $ref schema nodes. Will resolve local, file based and remote nodes.
-func ResolveOpenAPIDocument(rootNode *yaml.Node) (*yaml.Node, error) {
+func ResolveOpenAPIDocument(rootNode *yaml.Node) (*yaml.Node, []ResolvingError) {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	// before we touch anything, lets copy our root node.
 	resolvedRoot := *rootNode
+	var errors []ResolvingError
 
-	// first, lets track down every non array schema and check if it needs resolving.
-	path, _ := yamlpath.NewPath("$..schema")
+	// resolve components
+	path, _ := yamlpath.NewPath("$..[?(@.$ref)]")
 	results, _ := path.Find(&resolvedRoot)
-	resolveReference(results, resolvedRoot)
+	errors = append(errors, resolveReference(results, resolvedRoot)...)
 
-	// repeat for array types
-	path, _ = yamlpath.NewPath("$..schema.items")
-	results, _ = path.Find(&resolvedRoot)
-	resolveReference(results, resolvedRoot)
-
-	// repeat components
-	path, _ = yamlpath.NewPath("$.components.schemas..properties..[?(@.$ref)]")
-	results, _ = path.Find(&resolvedRoot)
-	resolveReference(results, resolvedRoot)
-
-	// repeat old definitions (swagger 2.0)
-	path, _ = yamlpath.NewPath("$.definitions..[?(@.$ref)]")
-	results, _ = path.Find(&resolvedRoot)
-	resolveReference(results, resolvedRoot)
-
-	return &resolvedRoot, nil
+	return &resolvedRoot, errors
 }
 
-func resolveReference(results []*yaml.Node, resolvedRoot yaml.Node) {
+type ResolvingError struct {
+	Error error
+	Node  *yaml.Node
+}
+
+func resolveReference(results []*yaml.Node, resolvedRoot yaml.Node) []ResolvingError {
+	var errors []ResolvingError
 
 	for _, result := range results {
-		refKeyNode, refValueNode := utils.FindKeyNode("$ref", []*yaml.Node{result})
+		refKeyNode := result.Content[0]
+		refValueNode := result.Content[1]
 
 		if refKeyNode != nil && refValueNode != nil {
 			if determineReferenceResolveType(refValueNode.Value) == localResolve {
-				refResolved, err := lookupLocalReference(refValueNode.Value, &resolvedRoot)
+				refResolved, err := lookupLocalReference(refValueNode.Value, &resolvedRoot, make(map[string]bool))
 				if refResolved != nil {
-					refKeyNode.Content = refResolved.Content
+					result.Content = refResolved.Content
 				}
 				if err != nil {
-					log.Err(err)
+					errors = append(errors, ResolvingError{Error: err, Node: refValueNode})
 				}
 				continue
 			}
 			if determineReferenceResolveType(refValueNode.Value) == httpResolve {
 				refResolved, err := lookupRemoteReference(refValueNode.Value)
 				if refResolved != nil {
-					refKeyNode.Content = refResolved.Content
+					result.Content = refResolved.Content
 				}
 				if err != nil {
-					log.Err(err)
+					errors = append(errors, ResolvingError{Error: err, Node: refValueNode})
 				}
 				continue
 			}
 			if determineReferenceResolveType(refValueNode.Value) == fileResolve {
 				refResolved, err := lookupFileReference(refValueNode.Value)
 				if refResolved != nil {
-					refKeyNode.Content = refResolved.Content
+					result.Content = refResolved.Content
 				}
 				if err != nil {
-					log.Err(err)
+					errors = append(errors, ResolvingError{Error: err, Node: refValueNode})
 				}
 				continue
 			}
 		}
 	}
+	return errors
 }
 
 func determineReferenceResolveType(ref string) int {
-	if ref[0] == '#' {
+	if ref != "" && ref[0] == '#' {
 		return localResolve
 	}
-	if ref[:5] == "https" || ref[:5] == "http:" {
+	if ref != "" && len(ref) >= 5 && (ref[:5] == "https" || ref[:5] == "http:") {
 		return httpResolve
 	}
 	if strings.Contains(ref, ".json") ||
@@ -109,7 +102,7 @@ func determineReferenceResolveType(ref string) int {
 	return -1
 }
 
-func lookupLocalReference(ref string, rootNode *yaml.Node) (*yaml.Node, error) {
+func lookupLocalReference(ref string, rootNode *yaml.Node, seenRefs map[string]bool) (*yaml.Node, error) {
 
 	// create a JSONPath to look up local node.
 	pathValue := fmt.Sprintf("$%s", strings.ReplaceAll(
@@ -120,11 +113,26 @@ func lookupLocalReference(ref string, rootNode *yaml.Node) (*yaml.Node, error) {
 	}
 	result, _ := path.Find(rootNode)
 	if len(result) == 1 {
-		return result[0], nil
+
+		// now we need to recurse over every reference.
+		_, refValueNode := utils.FindFirstKeyNode("$ref", []*yaml.Node{result[0]}, 0)
+		if refValueNode != nil {
+			if !seenRefs[refValueNode.Value] {
+				seenRefs[refValueNode.Value] = true
+				return lookupLocalReference(refValueNode.Value, rootNode, seenRefs)
+			} else {
+				err = fmt.Errorf("'%s' contains a circular reference to '%s', "+
+					"resolving will stop here", ref, refValueNode.Value)
+				return result[0], err
+			}
+		} else {
+			return result[0], nil
+		}
 	}
-	return nil, fmt.Errorf("zero or multiple nodes returned for '%s'", pathValue)
+	return nil, fmt.Errorf("zero (or multiple nodes) returned for '%s'", pathValue)
 }
 
+// TODO: perform recursive lookup once resolved.
 func lookupRemoteReference(ref string) (*yaml.Node, error) {
 
 	// split string to remove file reference
@@ -177,6 +185,7 @@ func lookupRemoteReference(ref string) (*yaml.Node, error) {
 	return nil, nil
 }
 
+// TODO: perform recursive lookup once resolved.
 func lookupFileReference(ref string) (*yaml.Node, error) {
 
 	// split string to remove file reference

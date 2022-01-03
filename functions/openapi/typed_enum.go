@@ -31,7 +31,7 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 	var results []model.RuleFunctionResult
 
-	for _, enumNode := range nodes {
+	for j, enumNode := range nodes {
 
 		var enumType string
 		var enumDataNode *yaml.Node
@@ -70,10 +70,19 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 			typeResults := model.AreValuesCorrectlyTyped(enumType, typeArray)
 
+			startNode := enumNode
+			endNode := utils.FindLastChildNode(enumNode)
+			if j+1 < len(enumNode.Content) {
+				endNode = enumNode.Content[j+1]
+			}
+
 			// iterate through type results and add to rule output.
 			for _, res := range typeResults {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("enum type mismatch: %s", res),
+					Message:   fmt.Sprintf("enum type mismatch: %s", res),
+					StartNode: startNode,
+					EndNode:   endNode,
+					Path:      fmt.Sprintf("%v", context.Given),
 				})
 			}
 		}

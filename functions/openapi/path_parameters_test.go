@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -56,7 +57,7 @@ func TestPathParameters_RunRule_DuplicatePathParamCheck_MissingParam(t *testing.
 
 	yml := `openapi: 3.0.1
 info:
-  title: pizza-cake
+title: pizza-cake
 paths:
   /pizza/{cake}/{cake}:
     parameters:
@@ -71,7 +72,7 @@ paths:
       - in: path
         name: minty
     get:
-      parameters:`
+      parameters:          `
 
 	path := "$"
 
@@ -90,16 +91,16 @@ paths:
 func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) {
 
 	yml := `paths:
-  /musical/{melody}/{pizza}:
-    parameters:
-        - in: path
-          name: melody
-          required: fresh
-    get:
-      parameters:
-        - in: path
-          name: pizza
-          required: true`
+ /musical/{melody}/{pizza}:
+   parameters:
+       - in: path
+         name: melody
+         required: fresh
+   get:
+     parameters:
+       - in: path
+         name: pizza
+         required: true`
 
 	path := "$"
 
@@ -118,16 +119,16 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) 
 func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testing.T) {
 
 	yml := `paths:
-  /musical/{melody}/{pizza}:
-    parameters:
-        - in: path
-          name: melody
-          required: false
-    get:
-      parameters:
-        - in: path
-          name: pizza
-          required: true`
+ /musical/{melody}/{pizza}:
+   parameters:
+       - in: path
+         name: melody
+         required: false
+   get:
+     parameters:
+       - in: path
+         name: pizza
+         required: true`
 
 	path := "$"
 
@@ -146,16 +147,18 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *testing.T) {
 
 	yml := `paths:
-  /musical/{melody}/{pizza}:
-    parameters:
-        - in: path
-          name: melody
-        - in: path
-          name: melody
-    get:
-      parameters:
-        - in: path
-          name: pizza`
+ /musical/{melody}/{pizza}:
+   parameters:
+       - in: path
+         name: melody
+       - in: path
+         name: melody
+   get:
+     parameters:
+       - in: path
+         name: pizza
+       - in: path
+         name: pizza`
 
 	path := "$"
 
@@ -167,22 +170,20 @@ func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza}  contains has a parameter 'melody' defined multiple times'", res[0].Message)
+	assert.Len(t, res, 2)
 }
 
-func TestPathParameters_RunRule_TopParameterCheck_ParamNoName(t *testing.T) {
+func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 
 	yml := `paths:
-  /musical/{melody}/{pizza}:
-    parameters:
-        - in: path
-          name: melody
-        - in: path
-    get:
-      parameters:
-        - in: path
-          name: pizza`
+ /musical/{melody}/{pizza}:
+   parameters:
+       - in: path
+         name: melody
+   get:
+     parameters:
+       - in: path
+         name: pizza`
 
 	path := "$"
 
@@ -200,16 +201,16 @@ func TestPathParameters_RunRule_TopParameterCheck_ParamNoName(t *testing.T) {
 func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing.T) {
 
 	yml := `paths:
-  /musical/{melody}/{pizza}/{cake}:
-    parameters:
-        - in: path
-          name: melody
-          required: true
-    get:
-      parameters:
-        - in: path
-          name: pizza
-          required: true`
+ /musical/{melody}/{pizza}/{cake}:
+   parameters:
+       - in: path
+         name: melody
+         required: true
+   get:
+     parameters:
+       - in: path
+         name: pizza
+         required: true`
 
 	path := "$"
 
@@ -220,6 +221,56 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "Operation must define parameter 'cake' as expected by path '/musical/{melody}/{pizza}/{cake}'",
+		res[0].Message)
+}
+
+func TestPathParameters_RunRule_MultiplePaths_TopAndVerbParams(t *testing.T) {
+
+	yml := `parameters:
+ chicken:
+   in: path
+   required: true
+   name: chicken
+paths:
+ /musical/{melody}/{pizza}/{cake}:
+   parameters:
+     - in: path
+       name: melody
+       required: true
+   get:
+     parameters:
+       - in: path
+         name: pizza
+         required: true
+ /dogs/{chicken}/{ember}:
+   get:
+     parameters:
+       - in: path
+         name: ember
+         required: true
+       - $ref: '#/parameters/chicken'
+   post:
+     parameters:
+       - in: path
+         name: ember
+       - $ref: '#/parameters/chicken'`
+
+	path := "$"
+
+	nodes, err := utils.FindNodes([]byte(yml), path)
+	assert.NoError(t, err)
+	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := PathParameters{}
+
+	// we need to resolve this
+	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
+
+	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "Operation must define parameter 'cake' as expected by path '/musical/{melody}/{pizza}/{cake}'",

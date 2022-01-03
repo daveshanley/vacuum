@@ -15,14 +15,34 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
-	var errors []error
 
 	var ruleWaitGroup sync.WaitGroup
 	ruleWaitGroup.Add(len(ruleSet.Rules))
 
-	//var errs []error
+	var originalSpecUnresolved yaml.Node
+	err := yaml.Unmarshal(spec, &originalSpecUnresolved)
+	if err != nil {
+		return nil, err
+	}
+
+	resolved, errs := model.ResolveOpenAPIDocument(&originalSpecUnresolved)
+
+	for _, er := range errs {
+		fmt.Printf("Resolving Issue: %v (%d: %d)\n", er.Error, er.Node.Line, er.Node.Column)
+	}
+
+	// write out file to /tmp for now
+	//b, _ := yaml.Marshal(resolved)
+	//
+	//ioutil.WriteFile(fmt.Sprintf("/tmp/output-test-%v.yaml", rand.Int()), b, 777)
+
+	var errors []error
 	for _, rule := range ruleSet.Rules {
-		go runRule(rule, spec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors)
+		ruleSpec := resolved
+		if !rule.Resolved {
+			ruleSpec = &originalSpecUnresolved
+		}
+		go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors)
 	}
 	ruleWaitGroup.Wait()
 
@@ -31,7 +51,7 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 	return ruleResults, nil
 }
 
-func runRule(rule *model.Rule, spec []byte, builtinFunctions functions.Functions,
+func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.Functions,
 	ruleResults *[]model.RuleFunctionResult, wg *sync.WaitGroup, errors *[]error) {
 
 	defer wg.Done()
@@ -52,23 +72,9 @@ func runRule(rule *model.Rule, spec []byte, builtinFunctions functions.Functions
 
 	}
 
-	var specNode yaml.Node
-	yaml.Unmarshal(spec, &specNode)
-
-	// if the rule determines the spec needs to be resolved, then do that before anything else.
-	if rule.Resolved {
-		var err error
-		resolved, _ := model.ResolveOpenAPIDocument(&specNode)
-		if err != nil {
-			*errors = append(*errors, err)
-			return
-		}
-		specNode = *resolved
-	}
-
 	for _, givenPath := range givenPaths {
 
-		nodes, err := utils.FindNodesWithoutDeserializing(&specNode, givenPath)
+		nodes, err := utils.FindNodesWithoutDeserializing(specNode, givenPath)
 		if err != nil {
 			*errors = append(*errors, err)
 			return
@@ -110,6 +116,7 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 			Options:    ruleAction.FunctionOptions,
 			RuleAction: &ruleAction,
 			Rule:       rule,
+			Given:      rule.Given,
 		}
 
 		// validate the rule is configured correctly before running it.

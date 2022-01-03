@@ -51,7 +51,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 					verbDataNode := verbNode.Content[y+1]
 
-					_, parametersNode := utils.FindFirstKeyNode("parameters", verbDataNode.Content)
+					_, parametersNode := utils.FindFirstKeyNode("parameters", verbDataNode.Content, 0)
 
 					if parametersNode != nil {
 
@@ -59,14 +59,14 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 							if paramNode.Tag == "!!map" {
 
 								startNode := paramNode
-								endNode := paramNode
+								endNode := utils.FindLastChildNode(startNode)
 								if j+1 < len(parametersNode.Content) {
 									endNode = parametersNode.Content[j+1]
 								}
 
 								// check for 'in' and 'name' nodes in operation parameters.
-								_, paramInNode := utils.FindFirstKeyNode("in", paramNode.Content)
-								_, paramNameNode := utils.FindFirstKeyNode("name", paramNode.Content)
+								_, paramInNode := utils.FindFirstKeyNode("in", paramNode.Content, 0)
+								_, paramNameNode := utils.FindFirstKeyNode("name", paramNode.Content, 0)
 
 								resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
 

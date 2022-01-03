@@ -1,4 +1,4 @@
-package functions
+package rulesets
 
 import (
 	"github.com/daveshanley/vacuum/model"

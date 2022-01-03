@@ -43,7 +43,7 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 
 				for y, verbMapNode := range verbNode.Content {
 
-					if verbMapNode.Tag == "!!str" {
+					if verbMapNode.Tag == "!!str" && utils.IsHttpVerb(verbMapNode.Value) {
 						currentVerb = verbMapNode.Value
 					} else {
 						continue
@@ -51,9 +51,9 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 
 					verbDataNode := verbNode.Content[y+1]
 
-					_, opIdValueNode := utils.FindFirstKeyNode("operationId", verbDataNode.Content)
+					_, opIdValueNode := utils.FindFirstKeyNode("operationId", verbDataNode.Content, 0)
 
-					endNode := verbDataNode
+					endNode := utils.FindLastChildNode(verbDataNode)
 					if y+2 < len(verbNode.Content) {
 						endNode = verbNode.Content[y+2]
 					}

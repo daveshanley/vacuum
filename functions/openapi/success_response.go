@@ -45,14 +45,14 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 			if utils.IsNodeMap(operationNode) {
 
 				for h, verbMapNode := range operationNode.Content {
-					if utils.IsNodeStringValue(verbMapNode) && isHttpVerb(verbMapNode.Value) {
+					if utils.IsNodeStringValue(verbMapNode) && utils.IsHttpVerb(verbMapNode.Value) {
 						currentVerb = verbMapNode.Value
 					} else {
 						continue
 					}
 					verbDataNode := operationNode.Content[h+1]
 
-					fieldNode, valNode := utils.FindFirstKeyNode(context.RuleAction.Field, verbDataNode.Content)
+					fieldNode, valNode := utils.FindFirstKeyNode(context.RuleAction.Field, verbDataNode.Content, 0)
 					if fieldNode != nil && valNode != nil {
 						var responseSeen bool
 						for _, response := range valNode.Content {
@@ -74,7 +74,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 								name = "undefined operation (no operationId)"
 							}
 
-							endNode := operationNode
+							endNode := utils.FindLastChildNode(operationNode)
 							if j+1 < len(operationNode.Content) {
 								endNode = operationNode.Content[j+1]
 							}

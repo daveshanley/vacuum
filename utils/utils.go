@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -36,6 +37,21 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 		return nil, err
 	}
 	return results, nil
+}
+
+func FindLastChildNode(node *yaml.Node) *yaml.Node {
+	s := len(node.Content) - 1
+	if s < 0 {
+		s = 0
+	}
+	if len(node.Content) > 0 && len(node.Content[s].Content) > 0 {
+		return FindLastChildNode(node.Content[s])
+	} else {
+		if len(node.Content) > 0 {
+			return node.Content[s]
+		}
+		return node
+	}
 }
 
 // FindNodesWithoutDeserializing will find a node based on JSONPath, without deserializing from yaml/json
@@ -131,17 +147,49 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 }
 
 // FindFirstKeyNode will locate the first key and value yaml.Node based on a key.
-func FindFirstKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
-
+func FindFirstKeyNode(key string, nodes []*yaml.Node, depth int) (keyNode *yaml.Node, valueNode *yaml.Node) {
+	if depth > 100 {
+		log.Err(fmt.Errorf("unable to continue searching for '%s', recursion too high", key))
+		return nil, nil
+	}
 	for i, v := range nodes {
 		if key != "" && key == v.Value {
 			return v, nodes[i+1] // next node is what we need.
 		}
 		if len(v.Content) > 0 {
-			x, y := FindFirstKeyNode(key, v.Content)
+			depth++
+			x, y := FindFirstKeyNode(key, v.Content, depth)
 			if x != nil && y != nil {
 				return x, y
 			}
+		}
+	}
+	return nil, nil
+}
+
+// FindAllKeyNodes will locate the first key and value yaml.Node based on a key.
+func FindAllKeyNodes(key string, nodes []*yaml.Node, results *[][]*yaml.Node, depth int) {
+	if depth > 100 {
+		log.Err(fmt.Errorf("unable to continue searching for '%s', recursion too high", key))
+	}
+	for i, v := range nodes {
+		if key != "" && key == v.Value {
+			*results = append(*results, []*yaml.Node{v, nodes[i+1]})
+		}
+		if len(v.Content) > 0 {
+			depth++
+			FindAllKeyNodes(key, v.Content, results, depth)
+		}
+	}
+}
+
+// FindKeyNodeTop is a non-recursive search of top level nodes for a key, will not look at content.
+// Returns the key and value
+func FindKeyNodeTop(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
+
+	for i, v := range nodes {
+		if key == v.Value {
+			return v, nodes[i+1] // next node is what we need.
 		}
 	}
 	return nil, nil
@@ -260,6 +308,17 @@ func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
 	}
 	return jsonData, nil
 
+}
+
+// IsHttpVerb will check if an operation is valid or not.
+func IsHttpVerb(verb string) bool {
+	verbs := []string{"get", "post", "put", "patch", "delete", "options", "trace", "head"}
+	for _, v := range verbs {
+		if verb == v {
+			return true
+		}
+	}
+	return false
 }
 
 //func parseVersionTypeData(d interface{}) string {

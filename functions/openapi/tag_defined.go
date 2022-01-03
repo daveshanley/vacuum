@@ -63,7 +63,7 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 				}
 
 				verbDataNode := verbNode.Content[y+1]
-				_, tagsNode := utils.FindFirstKeyNode("tags", verbDataNode.Content)
+				_, tagsNode := utils.FindFirstKeyNode("tags", verbDataNode.Content, 0)
 
 				if tagsNode != nil {
 
@@ -71,7 +71,7 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 					for j, operationTag := range tagsNode.Content {
 						if operationTag.Tag == "!!str" {
 							if !seenGlobalTags[operationTag.Value] {
-								endNode := operationTag
+								endNode := utils.FindLastChildNode(operationTag)
 								if j+1 < len(tagsNode.Content) {
 									endNode = tagsNode.Content[j+1]
 								}

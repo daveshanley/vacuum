@@ -16,8 +16,8 @@ func GetAllOperationsJSONPath() string {
 // GetTagsFromRoot will extract all tag nodes from the root of an OpenAPI document.
 func GetTagsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 	for _, node := range nodes {
-		_, tags := utils.FindFirstKeyNode("tags", node.Content)
-		if len(tags.Content) > 0 {
+		_, tags := utils.FindFirstKeyNode("tags", node.Content, 0)
+		if tags != nil && len(tags.Content) > 0 {
 			return tags.Content
 		}
 	}
@@ -27,7 +27,7 @@ func GetTagsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 // GetOperationsFromRoot will extract all operation (paths nodes) from the root of an OpenAPI document.
 func GetOperationsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 	for _, node := range nodes {
-		_, paths := utils.FindFirstKeyNode("paths", node.Content)
+		_, paths := utils.FindFirstKeyNode("paths", node.Content, 0)
 		if len(paths.Content) > 0 {
 			return paths.Content
 		}

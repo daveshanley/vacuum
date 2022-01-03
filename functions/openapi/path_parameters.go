@@ -51,8 +51,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	var currentPath string
 	var currentVerb string
 	pathElements := make(map[string]bool)
-	topLevelParams := make(map[string][]string)
-	verbLevelParams := make(map[string][]string)
+	topLevelParams := make(map[string]map[string][]string)
 
 	for j, operationNode := range opNodes {
 
@@ -94,9 +93,10 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 			}
 		}
+
 		if utils.IsNodeMap(operationNode) {
 
-			_, topLevelParametersNode := utils.FindKeyNode("parameters", operationNode.Content)
+			_, topLevelParametersNode := utils.FindKeyNodeTop("parameters", operationNode.Content)
 
 			// look for top level params
 			if topLevelParametersNode != nil {
@@ -105,10 +105,18 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					_, paramRequiredNode := utils.FindKeyNode("required", topLevelParam.Content)
 					_, paramNameNode := utils.FindKeyNode("name", topLevelParam.Content)
 
-					if isNamedPathParamUnknown(paramInNode, paramRequiredNode, paramNameNode,
-						currentPath, currentVerb, topLevelParams, &results) {
-						topLevelParams[paramNameNode.Value] = []string{"paths", currentPath, "parameters",
-							fmt.Sprintf("%v", x)}
+					if pp.isNamedPathParamUnknown(paramInNode, paramRequiredNode, paramNameNode,
+						currentPath, currentVerb, &topLevelParams, nil, &results) {
+
+						var paramData map[string][]string
+						if topLevelParams["top"] != nil {
+							paramData = topLevelParams["top"]
+						} else {
+							paramData = make(map[string][]string)
+						}
+						path := []string{"paths", currentPath, "parameters", fmt.Sprintf("%v", x)}
+						paramData[paramNameNode.Value] = path
+						topLevelParams["top"] = paramData
 					}
 
 				}
@@ -116,32 +124,45 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 			// look for verb level params.
 			c := 0
-			for h, verbMapNode := range operationNode.Content {
-				if utils.IsNodeStringValue(verbMapNode) && isHttpVerb(verbMapNode.Value) {
+			verbLevelParams := make(map[string]map[string][]string)
 
+			for h, verbMapNode := range operationNode.Content {
+				if utils.IsNodeStringValue(verbMapNode) && utils.IsHttpVerb(verbMapNode.Value) {
 					currentVerb = verbMapNode.Value
 				} else {
 					continue
 				}
 				verbDataNode := operationNode.Content[h+1]
 
-				_, verbParameterNode := utils.FindFirstKeyNode("parameters", verbDataNode.Content)
+				_, verbParameterNode := utils.FindFirstKeyNode("parameters", verbDataNode.Content, 0)
 				if verbParameterNode != nil {
-					_, paramInNode := utils.FindKeyNode("in", verbParameterNode.Content)
-					_, paramRequiredNode := utils.FindKeyNode("required", verbParameterNode.Content)
-					_, paramNameNode := utils.FindKeyNode("name", verbParameterNode.Content)
+					for _, verbParam := range verbParameterNode.Content {
 
-					if isNamedPathParamUnknown(paramInNode, paramRequiredNode, paramNameNode,
-						currentPath, currentVerb, verbLevelParams, &results) {
-						verbLevelParams[paramNameNode.Value] = []string{"paths", currentPath, currentVerb, "parameters",
-							fmt.Sprintf("%v", c)}
+						_, paramInNode := utils.FindKeyNode("in", verbParam.Content)
+						_, paramRequiredNode := utils.FindKeyNode("required", verbParam.Content)
+						_, paramNameNode := utils.FindKeyNode("name", verbParam.Content)
+
+						if pp.isNamedPathParamUnknown(paramInNode, paramRequiredNode, paramNameNode,
+							currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results) {
+
+							path := []string{"paths", currentPath, currentVerb, "parameters",
+								fmt.Sprintf("%v", c)}
+							var paramData map[string][]string
+							if verbLevelParams[currentVerb] != nil {
+								paramData = verbLevelParams[currentVerb]
+							} else {
+								paramData = make(map[string][]string)
+							}
+							paramData[paramNameNode.Value] = path
+							verbLevelParams[currentVerb] = paramData
+						}
+						c++
 					}
-					c++
 				}
 			}
 
 			// blend together all our params and check they all match up!
-			allPathParams := make(map[string][]string, len(topLevelParams)+len(verbLevelParams))
+			allPathParams := make(map[string]map[string][]string, len(topLevelParams)+len(verbLevelParams))
 			if len(topLevelParams) > 0 {
 				for k, v := range topLevelParams {
 					allPathParams[k] = v
@@ -154,80 +175,88 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 
 			startNode := operationNode
-			endNode := operationNode
+			endNode := utils.FindLastChildNode(startNode)
 			if j+1 < len(opNodes) {
 				endNode = opNodes[j+1]
 			}
-
-			ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams, pathElements, &results, startNode, endNode)
-			ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams, pathElements, &results, startNode, endNode)
+			pp.ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams, pathElements, &results, startNode, endNode)
+			pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams, pathElements, &results, startNode, endNode)
 
 			// reset for the next run.
 			pathElements = make(map[string]bool)
-			topLevelParams = make(map[string][]string)
-			verbLevelParams = make(map[string][]string)
+			topLevelParams = make(map[string]map[string][]string)
+			verbLevelParams = make(map[string]map[string][]string)
 
 		}
 
 	}
-
 	return results
 
 }
 
-func ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string][]string,
+func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string]map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node) {
 
-	for k := range allPathParams {
-		foundInElements := false
-		for e := range pathElements {
-			if k == e {
-				foundInElements = true
+	for _, item := range allPathParams {
+
+		for param := range item {
+			foundInElements := false
+			for e := range pathElements {
+				if param == e {
+					foundInElements = true
+				}
 			}
-		}
-		if !foundInElements {
-			err := fmt.Sprintf("parameter '%s' must be used in path '%s'", k, path)
-			res := model.BuildFunctionResultString(err)
-			res.StartNode = startNode
-			res.EndNode = endNode
-			res.Path = fmt.Sprintf("$.paths.%s", path)
-			*results = append(*results, res)
+			if !foundInElements {
+				err := fmt.Sprintf("parameter '%s' must be used in path '%s'", param, path)
+				res := model.BuildFunctionResultString(err)
+				res.StartNode = startNode
+				res.EndNode = endNode
+				res.Path = fmt.Sprintf("$.paths.%s", path)
+				*results = append(*results, res)
+			}
 		}
 	}
 }
 
-func ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string][]string,
+func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string]map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node) {
+	var top map[string][]string
 
-	for k := range pathElements {
-		foundInParams := false
-		for e := range allPathParams {
-			if k == e {
-				foundInParams = true
-			}
+	if allPathParams != nil {
+		top = allPathParams["top"]
+	}
+	for k, e := range allPathParams {
+		if k == "top" {
+			continue
 		}
-		if !foundInParams {
-			err := fmt.Sprintf("Operation must define parameter '%s' as expected by path '%s'", k, path)
-			res := model.BuildFunctionResultString(err)
-			res.StartNode = startNode
-			res.EndNode = endNode
-			res.Path = fmt.Sprintf("$.paths.%s", path)
-			*results = append(*results, res)
+		for p := range pathElements {
+			if !pp.segmentExistsInPathParams(p, e, top) {
+				err := fmt.Sprintf("Operation must define parameter '%s' as expected by path '%s'", p, path)
+				res := model.BuildFunctionResultString(err)
+				res.StartNode = startNode
+				res.EndNode = endNode
+				res.Path = fmt.Sprintf("$.paths.%s", path)
+				*results = append(*results, res)
+			}
 		}
 	}
 }
 
-func isHttpVerb(verb string) bool {
-	verbs := []string{"get", "post", "put", "patch", "delete", "options", "trace", "head"}
-	for _, v := range verbs {
-		if verb == v {
+func (pp PathParameters) segmentExistsInPathParams(segment string, params, top map[string][]string) bool {
+	for k, _ := range params {
+		if k == segment {
+			return true
+		}
+	}
+	for k, _ := range top {
+		if k == segment {
 			return true
 		}
 	}
 	return false
 }
 
-func isPathParamNamed(in, name *yaml.Node) bool {
+func (pp PathParameters) isPathParamNamed(in, name *yaml.Node) bool {
 	if in == nil || name == nil {
 		return false
 	}
@@ -237,9 +266,9 @@ func isPathParamNamed(in, name *yaml.Node) bool {
 	return true
 }
 
-func isNamedPathParamUnknown(in, required, name *yaml.Node, currentPath, currentVerb string,
-	seenNodes map[string][]string, results *[]model.RuleFunctionResult) bool {
-	if !isPathParamNamed(in, name) {
+func (pp PathParameters) isNamedPathParamUnknown(in, required, name *yaml.Node, currentPath, currentVerb string,
+	seenNodes *map[string]map[string][]string, topNodes map[string][]string, results *[]model.RuleFunctionResult) bool {
+	if !pp.isPathParamNamed(in, name) {
 		return false
 	}
 	// check if required is set, if so that it's also a bool
@@ -263,15 +292,27 @@ func isNamedPathParamUnknown(in, required, name *yaml.Node, currentPath, current
 
 	// check if name is defined and if it's been defined multiple times.
 	if name != nil {
-		if seenNodes[name.Value] != nil {
-			res := model.BuildFunctionResultString(
-				fmt.Sprintf("%s %s contains has a parameter '%s' defined multiple times'",
-					currentPath, currentVerb, name.Value))
-			res.StartNode = name
-			res.EndNode = name
-			res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
-			*results = append(*results, res)
-			return false
+
+		var top = topNodes
+		seen := *seenNodes
+		if seen != nil {
+			top = seen["top"]
+		}
+
+		// look through seen values
+		for k, v := range seen {
+			if k == currentVerb || k == "top" {
+				if pp.segmentExistsInPathParams(name.Value, v, top) {
+					res := model.BuildFunctionResultString(
+						fmt.Sprintf("%s %s contains has a parameter '%s' defined multiple times'",
+							currentPath, currentVerb, name.Value))
+					res.StartNode = name
+					res.EndNode = name
+					res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
+					*results = append(*results, res)
+					return false
+				}
+			}
 		}
 	}
 	return true

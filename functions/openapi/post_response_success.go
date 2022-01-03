@@ -37,12 +37,12 @@ func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFun
 		var startNode, endNode *yaml.Node
 
 		for _, propVal := range values {
-			key, _ := utils.FindFirstKeyNode(propVal, []*yaml.Node{node})
+			key, _ := utils.FindFirstKeyNode(propVal, []*yaml.Node{node}, 0)
 			if key != nil {
 				found++
 			} else {
 				startNode = node
-				endNode = node
+				endNode = utils.FindLastChildNode(startNode)
 				if j+1 < len(nodes) {
 					endNode = nodes[j+1]
 				}
