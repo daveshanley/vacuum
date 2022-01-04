@@ -66,7 +66,7 @@ func TestNoRefSiblings_RunRule_Success(t *testing.T) {
           schema:
             $ref: '#/components/schemas/Dog'`
 
-	path := "$."
+	path := "$"
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -97,7 +97,7 @@ func TestNoRefSiblings_RunRule_Fail_Single(t *testing.T) {
             description: still the wrong place for this.
             $ref: '#/components/schemas/Dog'`
 
-	path := "$..[?(@.$ref)]"
+	path := "$"
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 

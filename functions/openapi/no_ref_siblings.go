@@ -46,28 +46,32 @@ func (rfs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 	// look through components next
 	ymlPath, _ = yamlpath.NewPath("$.components")
-	pathNodes, _ = ymlPath.Find(nodes[0])
+	compNodes, _ := ymlPath.Find(nodes[0])
 
-	search.Results = []*utils.KeyNodeResult{}
-	utils.FindAllKeyNodesWithPath(search, nil, pathNodes, nil, 0)
-	results = append(results, rfs.checkNodes("components", search, results)...)
-
+	if len(compNodes) > 0 {
+		search.Results = []*utils.KeyNodeResult{}
+		utils.FindAllKeyNodesWithPath(search, nil, compNodes, nil, 0)
+		results = append(results, rfs.checkNodes("components", search, results)...)
+	}
 	// look through parameters
 	ymlPath, _ = yamlpath.NewPath("$.parameters")
-	pathNodes, _ = ymlPath.Find(nodes[0])
+	paramNodes, _ := ymlPath.Find(nodes[0])
 
-	search.Results = []*utils.KeyNodeResult{}
-	utils.FindAllKeyNodesWithPath(search, nil, pathNodes, nil, 0)
-	results = append(results, rfs.checkNodes("parameters", search, results)...)
+	if len(paramNodes) > 0 {
+		search.Results = []*utils.KeyNodeResult{}
+		utils.FindAllKeyNodesWithPath(search, nil, paramNodes, nil, 0)
+		results = append(results, rfs.checkNodes("parameters", search, results)...)
+	}
 
 	// look through definitions (swagger)
 	ymlPath, _ = yamlpath.NewPath("$.definitions")
-	pathNodes, _ = ymlPath.Find(nodes[0])
+	defNodes, _ := ymlPath.Find(nodes[0])
 
-	search.Results = []*utils.KeyNodeResult{}
-	utils.FindAllKeyNodesWithPath(search, nil, pathNodes, nil, 0)
-	results = append(results, rfs.checkNodes("definitions", search, results)...)
-
+	if len(defNodes) > 0 {
+		search.Results = []*utils.KeyNodeResult{}
+		utils.FindAllKeyNodesWithPath(search, nil, defNodes, nil, 0)
+		results = append(results, rfs.checkNodes("definitions", search, results)...)
+	}
 	return results
 
 }

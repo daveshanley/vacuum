@@ -167,6 +167,7 @@ func FindFirstKeyNode(key string, nodes []*yaml.Node, depth int) (keyNode *yaml.
 	return nil, nil
 }
 
+// KeyNodeResult is a result from a KeyNodeSearch performed by the FindAllKeyNodesWithPath
 type KeyNodeResult struct {
 	KeyNode   *yaml.Node
 	ValueNode *yaml.Node
@@ -174,13 +175,10 @@ type KeyNodeResult struct {
 	Path      []yaml.Node
 }
 
+// KeyNodeSearch keeps a track of everything we have found on our adventure down the trees.
 type KeyNodeSearch struct {
-	Key string
-	//Parent      *yaml.Node
-	//FoundPath   []*yaml.Node
-	//SearchNodes []*yaml.Node
+	Key     string
 	Results []*KeyNodeResult
-	//Depth       int
 }
 
 // FindAllKeyNodesWithPath This function will search for a key node recursively. Once it finds the node, it will
