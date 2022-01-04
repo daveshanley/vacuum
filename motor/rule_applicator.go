@@ -19,31 +19,30 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 	var ruleWaitGroup sync.WaitGroup
 	ruleWaitGroup.Add(len(ruleSet.Rules))
 
-	var originalSpecUnresolved yaml.Node
-	err := yaml.Unmarshal(spec, &originalSpecUnresolved)
+	var specResolved yaml.Node
+	var specUnresolved yaml.Node
+	err := yaml.Unmarshal(spec, &specResolved)
 	if err != nil {
 		return nil, err
 	}
+	yaml.Unmarshal(spec, &specUnresolved)
 
-	resolved, errs := model.ResolveOpenAPIDocument(&originalSpecUnresolved)
+	resolved, errs := model.ResolveOpenAPIDocument(&specResolved)
 
 	for _, er := range errs {
 		fmt.Printf("Resolving Issue: %v (%d: %d)\n", er.Error, er.Node.Line, er.Node.Column)
 	}
 
-	// write out file to /tmp for now
-	//b, _ := yaml.Marshal(resolved)
-	//
-	//ioutil.WriteFile(fmt.Sprintf("/tmp/output-test-%v.yaml", rand.Int()), b, 777)
-
 	var errors []error
 	for _, rule := range ruleSet.Rules {
 		ruleSpec := resolved
 		if !rule.Resolved {
-			ruleSpec = &originalSpecUnresolved
+			ruleSpec = &specUnresolved
 		}
 		go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors)
 	}
+
+	fmt.Println("wait for rules")
 	ruleWaitGroup.Wait()
 
 	// did something go wrong?
@@ -143,6 +142,8 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 			}
 
 		}
+	} else {
+		fmt.Printf("oooo nice, an error here.")
 	}
 	return ruleResults
 }

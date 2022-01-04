@@ -41,7 +41,7 @@ paths:
                 summary: A horrible, nutty, sticky mess.
                 value:
                   name: Peanut And Jelly
-                  numPatties: 3
+                numPatties: 3
               cakeBurger:
                 summary: A sickly, sweet, atrocity
                 value:

@@ -113,6 +113,19 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		},
 	}
 
+	// add no $ref siblings
+	rules["no-$ref-siblings"] = &model.Rule{
+		Description: "$ref values cannot be placed next to other properties (like a description)",
+		Given:       "$",
+		Resolved:    false,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function: "refSiblings",
+		},
+	}
+
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,

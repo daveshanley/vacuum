@@ -167,19 +167,74 @@ func FindFirstKeyNode(key string, nodes []*yaml.Node, depth int) (keyNode *yaml.
 	return nil, nil
 }
 
-// FindAllKeyNodes will locate the first key and value yaml.Node based on a key.
-func FindAllKeyNodes(key string, nodes []*yaml.Node, results *[][]*yaml.Node, depth int) {
+type KeyNodeResult struct {
+	KeyNode   *yaml.Node
+	ValueNode *yaml.Node
+	Parent    *yaml.Node
+	Path      []yaml.Node
+}
+
+type KeyNodeSearch struct {
+	Key string
+	//Parent      *yaml.Node
+	//FoundPath   []*yaml.Node
+	//SearchNodes []*yaml.Node
+	Results []*KeyNodeResult
+	//Depth       int
+}
+
+// FindAllKeyNodesWithPath This function will search for a key node recursively. Once it finds the node, it will
+// then update the KeyNodeSearch struct
+func FindAllKeyNodesWithPath(search *KeyNodeSearch, parent *yaml.Node, searchNodes []*yaml.Node, foundPath []yaml.Node, depth int) {
 	if depth > 100 {
-		log.Err(fmt.Errorf("unable to continue searching for '%s', recursion too high", key))
+		log.Err(fmt.Errorf("unable to continue searching for '%s', recursion too high", search.Key))
+		return
 	}
-	for i, v := range nodes {
-		if key != "" && key == v.Value {
-			*results = append(*results, []*yaml.Node{v, nodes[i+1]})
+	for i, v := range searchNodes {
+
+		if v.Kind == yaml.MappingNode || v.Kind == yaml.SequenceNode {
+			FindAllKeyNodesWithPath(search, v, v.Content, foundPath, depth)
 		}
-		if len(v.Content) > 0 {
-			depth++
-			FindAllKeyNodes(key, v.Content, results, depth)
+
+		if v.Kind == yaml.ScalarNode {
+			readMe := false
+
+			if parent.Kind == yaml.MappingNode && i%2 == 0 {
+				readMe = true
+			}
+			if parent.Kind == yaml.SequenceNode {
+				readMe = true
+			}
+
+			if readMe && search.Key != "" && search.Key == v.Value {
+				// we need to copy found path, it keeps messing up our results
+				fp := make([]yaml.Node, len(foundPath))
+				for i, foundPathNode := range foundPath {
+					fp[i] = foundPathNode
+				}
+
+				res := KeyNodeResult{
+					KeyNode:   searchNodes[i],
+					ValueNode: searchNodes[i+1],
+					Parent:    parent,
+					Path:      fp,
+				}
+				search.Results = append(search.Results, &res)
+				continue
+			}
+
+			if readMe && search.Key != "" && search.Key != v.Value {
+				foundPath = append(foundPath, *v)
+				continue
+
+			}
 		}
+		if len(foundPath) > 0 {
+			foundPath = foundPath[:len(foundPath)-1]
+		}
+	}
+	if len(foundPath) > 0 {
+		foundPath = foundPath[:len(foundPath)-1]
 	}
 }
 
