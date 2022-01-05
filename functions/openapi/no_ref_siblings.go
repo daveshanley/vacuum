@@ -86,10 +86,8 @@ func (rfs NoRefSiblings) checkNodes(prefix string, search *utils.KeyNodeSearch, 
 				EndNode:   res.ValueNode,
 				Path:      rfs.createJSONPathFromFoundNodeArray(prefix, res.Path),
 			})
-
 		}
 	}
-
 	return results
 }
 
