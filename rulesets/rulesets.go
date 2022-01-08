@@ -126,6 +126,57 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		},
 	}
 
+	// add unused component rule for openapi3
+	unusedComponentRule := &model.Rule{
+		Description: "Check for unused components and bad references",
+		Given:       "$",
+		Resolved:    false,
+		Recommended: true,
+		Type:        validation,
+		Severity:    warn,
+		Then: model.RuleAction{
+			Function: "oasUnusedComponent",
+		},
+	}
+
+	rules["oas3-unused-component"] = unusedComponentRule
+	// TODO: build in spec types so we don't run this twice :)
+	//rules["oas2-unused-definition"] = unusedComponentRule
+
+	// swagger operation security values defined
+	oasSecurityPath := make(map[string]string)
+	oasSecurityPath["schemesPath"] = "$.components.securitySchemes"
+
+	rules["oas3-operation-security-defined"] = &model.Rule{
+		Description: "'security' values must match a scheme defined in components.securitySchemes",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "oasOpSecurityDefined",
+			FunctionOptions: oasSecurityPath,
+		},
+	}
+
+	// swagger operation security values defined
+	swaggerSecurityPath := make(map[string]string)
+	swaggerSecurityPath["schemesPath"] = "$.securityDefinitions"
+
+	rules["oas2-operation-security-defined"] = &model.Rule{
+		Description: "'security' values must match a scheme defined in securityDefinitions",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "oasOpSecurityDefined",
+			FunctionOptions: swaggerSecurityPath,
+		},
+	}
+
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,
