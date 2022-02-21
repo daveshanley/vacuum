@@ -265,6 +265,24 @@ func FindKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode 
 	return nil, nil
 }
 
+func MakeTagReadable(node *yaml.Node) string {
+	switch node.Tag {
+	case "!!map":
+		return "object"
+	case "!!seq":
+		return "array"
+	case "!!str":
+		return "string"
+	case "!!int":
+		return "integer"
+	case "!!float":
+		return "floating point"
+	case "!!bool":
+		return "boolean"
+	}
+	return "unknown"
+}
+
 // IsNodeMap checks if the node is a map type
 func IsNodeMap(node *yaml.Node) bool {
 	return node.Tag == "!!map"
