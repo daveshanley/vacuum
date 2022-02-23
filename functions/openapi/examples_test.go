@@ -1,7 +1,6 @@
 package openapi
 
 import (
-	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
@@ -99,30 +98,6 @@ components:
 
 func TestExamples_RunRule_Fail_Schema_Examples_Not_Valid(t *testing.T) {
 
-	//	yml := `paths:
-	//  /pizza:
-	//    requestBody:
-	//      content:
-	//        application/json:
-	//          schema:
-	//            $ref: '#/components/schemas/Pizza'
-	//          examples:
-	//            fish:
-	//              id: 1
-	//              name: cod
-	//            cake:
-	//              id: 2
-	//              name: carrot
-	//components:
-	//  schemas:
-	//    Pizza:
-	//      type: object
-	//      properties:
-	//        id:
-	//          type: integer
-	//        name:
-	//          type: string`
-
 	yml := `paths:
  /fruits:
    requestBody:
@@ -151,8 +126,7 @@ components:
 
 	path := "$"
 
-	nodes, e := utils.FindNodes([]byte(yml), path)
-	fmt.Print(e)
+	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
@@ -162,6 +136,80 @@ components:
 	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 4)
 
+}
+
+func TestExamples_RunRule_Fail_Inline_Schema_Multi_Examples(t *testing.T) {
+
+	yml := `paths:
+ /fruits:
+   requestBody:
+     content:
+       application/json:
+         schema:
+          type: object
+          required: 
+            - name
+            - id
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+          examples:
+            lemon:
+              id: in
+              invalidProperty: oh dear
+            lime:
+              id: 2
+              name: Pickles`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 4)
+
+}
+
+func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
+
+	yml := `paths:
+ /fruits:
+   requestBody:
+     content:
+       application/json:
+         schema:
+          type: object
+          required: 
+            - id
+          properties:
+            id:
+              type: integer
+          examples:
+            lemon:
+              summary: this is an example of a lemon.
+              id: 1
+            lime:
+              id: 2`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example 'lime' missing a 'summary', examples need explaining", res[0].Message)
 }

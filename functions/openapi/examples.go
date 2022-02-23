@@ -75,29 +75,43 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 						exampleName = multiExampleNode.Value
 						continue
 					}
+
+					// check if the node is a map (object)
 					if !utils.IsNodeMap(multiExampleNode) {
 						res := model.BuildFunctionResultString(fmt.Sprintf("example '%s' must be an object, not a %v",
 							exampleName, utils.MakeTagReadable(multiExampleNode)))
-
 						res.StartNode = esValue
 						res.EndNode = multiExampleNode
 						results = append(results, res)
 						continue
 					}
 
+					// check if the example validates against the schema
 					res, _ := parser.ValidateNodeAgainstSchema(schema, multiExampleNode)
 					if !res.Valid() {
 						// extract all validation errors.
 						for _, resError := range res.Errors() {
 
-							z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' is not valid: '%s'", exampleName, resError.Description()))
+							z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' is not valid: '%s'",
+								exampleName, resError.Description()))
 							z.StartNode = esValue
 							z.EndNode = multiExampleNode
 							results = append(results, z)
 						}
 					}
 
+					// check if the example contains a summary
+					_, summaryNode := utils.FindFirstKeyNode("summary", []*yaml.Node{multiExampleNode}, 0)
+					if summaryNode == nil {
+						z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' missing a 'summary', "+
+							"examples need explaining", exampleName))
+						z.StartNode = esValue
+						z.EndNode = multiExampleNode
+						results = append(results, z)
+					}
 				}
+
+				// TODO: handle single examples
 			}
 		}
 	}
