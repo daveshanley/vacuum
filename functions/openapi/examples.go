@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/parser"
 	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -64,6 +65,9 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 					continue
 				}
 
+				// extract the schema
+				schema, _ := parser.ConvertNodeDefinitionIntoSchema(sValue)
+
 				// look through multiple examples and evaluate them.
 				var exampleName string
 				for v, multiExampleNode := range esValue.Content {
@@ -81,8 +85,18 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 						continue
 					}
 
-					// check if example is valid against the actual schema.
-					// TODO: Build out schema
+					res, _ := parser.ValidateNodeAgainstSchema(schema, multiExampleNode)
+					if !res.Valid() {
+						// extract all validation errors.
+						for _, resError := range res.Errors() {
+
+							z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' is not valid: '%s'", exampleName, resError.Description()))
+							z.StartNode = esValue
+							z.EndNode = multiExampleNode
+							results = append(results, z)
+						}
+					}
+
 				}
 			}
 		}

@@ -3,6 +3,7 @@ module github.com/daveshanley/vacuum
 go 1.16
 
 require (
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
 	github.com/spf13/cobra v1.3.0 // indirect

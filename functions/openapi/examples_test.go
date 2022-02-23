@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
@@ -96,69 +97,71 @@ components:
 
 }
 
-//func TestExamples_RunRule_Fail_Schema_Examples_Not_Valid(t *testing.T) {
-//
-//	//	yml := `paths:
-//	//  /pizza:
-//	//    requestBody:
-//	//      content:
-//	//        application/json:
-//	//          schema:
-//	//            $ref: '#/components/schemas/Pizza'
-//	//          examples:
-//	//            fish:
-//	//              id: 1
-//	//              name: cod
-//	//            cake:
-//	//              id: 2
-//	//              name: carrot
-//	//components:
-//	//  schemas:
-//	//    Pizza:
-//	//      type: object
-//	//      properties:
-//	//        id:
-//	//          type: integer
-//	//        name:
-//	//          type: string`
-//
-//	yml := `paths:
-//  /fruits:
-//    requestBody:
-//      content:
-//        application/json:
-//          schema:
-//            $ref: '#/components/schemas/Citrus'
-//          examples:
-//            lemon:
-//              id: 1
-//              invalidProperty: oh dear
-//            lime:
-//              id: 2
-//              name: Limes!
-//components:
-//  schemas:
-//    Citrus:
-//      type: object
-//      properties:
-//        id:
-//          type: integer
-//        name:
-//          type: string`
-//
-//	path := "$"
-//
-//	nodes, e := utils.FindNodes([]byte(yml), path)
-//	fmt.Print(e)
-//	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
-//	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-//
-//	def := Examples{}
-//
-//	// we need to resolve this
-//	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
-//	res := def.RunRule([]*yaml.Node{resolved}, ctx)
-//
-//	assert.Len(t, res, 1)
-//
-//}
+func TestExamples_RunRule_Fail_Schema_Examples_Not_Valid(t *testing.T) {
+
+	//	yml := `paths:
+	//  /pizza:
+	//    requestBody:
+	//      content:
+	//        application/json:
+	//          schema:
+	//            $ref: '#/components/schemas/Pizza'
+	//          examples:
+	//            fish:
+	//              id: 1
+	//              name: cod
+	//            cake:
+	//              id: 2
+	//              name: carrot
+	//components:
+	//  schemas:
+	//    Pizza:
+	//      type: object
+	//      properties:
+	//        id:
+	//          type: integer
+	//        name:
+	//          type: string`
+
+	yml := `paths:
+ /fruits:
+   requestBody:
+     content:
+       application/json:
+         schema:
+           $ref: '#/components/schemas/Citrus'
+         examples:
+           lemon:
+             id: not-a-number
+           lime:
+             id: 2
+             name: Limes!
+components:
+ schemas:
+   Citrus:
+     type: object
+     required: 
+      - name
+      - id
+     properties:
+       id:
+         type: integer
+       name:
+         type: string`
+
+	path := "$"
+
+	nodes, e := utils.FindNodes([]byte(yml), path)
+	fmt.Print(e)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	// we need to resolve this
+	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
+	res := def.RunRule([]*yaml.Node{resolved}, ctx)
+
+	assert.Len(t, res, 2)
+
+}

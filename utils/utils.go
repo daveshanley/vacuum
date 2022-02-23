@@ -265,20 +265,30 @@ func FindKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode 
 	return nil, nil
 }
 
+var ObjectLabel = "object"
+var IntegerLabel = "integer"
+var NumberLabel = "number"
+var StringLabel = "string"
+var BinaryLabel = "binary"
+var ArrayLabel = "array"
+var BooleanLabel = "boolean"
+var SchemaSource = "https://json-schema.org/draft/2020-12/schema"
+var SchemaId = "https://quobix.com/api/vacuum"
+
 func MakeTagReadable(node *yaml.Node) string {
 	switch node.Tag {
 	case "!!map":
-		return "object"
+		return ObjectLabel
 	case "!!seq":
-		return "array"
+		return ArrayLabel
 	case "!!str":
-		return "string"
+		return StringLabel
 	case "!!int":
-		return "integer"
+		return IntegerLabel
 	case "!!float":
-		return "floating point"
+		return NumberLabel
 	case "!!bool":
-		return "boolean"
+		return BooleanLabel
 	}
 	return "unknown"
 }
@@ -366,6 +376,7 @@ func IsYAML(testString string) bool {
 	return err == nil
 }
 
+//TODO: Deprecate this and use imported library, this is more complex than it seems.
 // ConvertYAMLtoJSON will do exactly what you think it will. It will deserialize YAML into serialized JSON.
 func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
 	var decodedYaml map[string]interface{}
