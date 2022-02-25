@@ -309,3 +309,87 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 	assert.Equal(t, "example for 'application/json' is not valid: 'Invalid type. Expected: "+
 		"integer, given: string' on field 'id'", res[0].Message)
 }
+
+func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {
+
+	yml := `components:
+  schemas:
+    Chickens:
+      type: object
+      required: 
+        - id
+      properties:
+        id:
+          type: integer
+          `
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "missing example for 'id' on component 'Chickens'", res[0].Message)
+}
+
+func TestExamples_RunRule_Fail_Component_Invalid_Inline_Example(t *testing.T) {
+
+	yml := `components:
+  schemas:
+    Chickens:
+      type: object
+      required: 
+        - id
+      properties:
+        id:
+          type: integer
+          example: burgers`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example for property 'id' is not valid: 'Invalid type. Expected: integer, "+
+		"given: string'. Value 'burgers' is not compatible", res[0].Message)
+}
+
+func TestExamples_RunRule_Fail_Component_Invalid_ObjectLevel_Example(t *testing.T) {
+
+	yml := `components:
+  schemas:
+    Lemons:
+      type: object
+      required: 
+        - id
+      properties:
+        id:
+          type: integer
+      example:
+        id: cake`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
+		"given: string'. Value 'cake' is not compatible", res[0].Message)
+}

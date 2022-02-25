@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	"github.com/daveshanley/vacuum/utils"
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -53,10 +54,114 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		}
 	}
 
-	// TODO: check params and components.
+	// check components.
+	path, _ := yamlpath.NewPath("$.components.schemas")
+	compNodes, _ := path.Find(nodes[0]) // root node.
+
+	compNode := compNodes[0] // can only be a single components' node in a spec.
+	if compNode != nil {
+		var compName string
+		for n, schemaNode := range compNode.Content {
+			if n%2 == 0 {
+				compName = schemaNode.Value
+				continue
+			}
+
+			results = checkComponentForExample(schemaNode, compName, results)
+
+			//schema, _ := parser.ConvertNodeDefinitionIntoSchema(schemaNode)
+			//
+			//// check schema for example.
+			//noExample := true
+			//
+			//fmt.Print(schema)
+			//fmt.Print(compName)
+			//
+			//rd, _ := yaml.Marshal(schemaNode)
+			//
+			//fmt.Print(rd)
+
+		}
+		fmt.Print(compName)
+		//results = checkExamples(compNode, results)
+
+		// TODO: check rules, don't run doubles... also handle parameters.
+	}
 
 	return *results
 
+}
+
+func checkComponentForExample(componentNode *yaml.Node, compName string, results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
+
+	// extract properties and a top level example, if it exists.
+	topExKey, topExValue := utils.FindKeyNode("example", []*yaml.Node{componentNode})
+	pkey, pValue := utils.FindKeyNode("properties", []*yaml.Node{componentNode})
+	var pName string
+
+	// if no object level example exists, check for property examples.
+	if topExKey == nil && topExValue == nil {
+		for n, prop := range pValue.Content {
+			if n%2 == 0 {
+				pName = prop.Value
+				continue
+			}
+			if utils.IsNodeMap(prop) {
+
+				// check for an example
+				exKey, exValue := utils.FindFirstKeyNode("example", prop.Content, 0)
+				if exKey == nil && exValue == nil {
+
+					res := model.BuildFunctionResultString(fmt.Sprintf("missing example for '%s' on component '%s'",
+						pName, compName))
+
+					res.StartNode = prop
+					res.EndNode = prop.Content[len(prop.Content)-1]
+					*results = append(*results, res)
+					continue
+
+				} else {
+
+					// so there is an example, lets validate it.
+					schema, _ := parser.ConvertNodeDefinitionIntoSchema(prop)
+					res, _ := parser.ValidateNodeAgainstSchema(schema, exValue)
+
+					// extract all validation errors.
+					for _, resError := range res.Errors() {
+
+						z := model.BuildFunctionResultString(fmt.Sprintf("example for property '%s' is not valid: '%s'. "+
+							"Value '%s' is not compatible",
+							pName, resError.Description(), resError.Value()))
+						z.StartNode = exKey
+						z.EndNode = exValue
+						*results = append(*results, z)
+					}
+
+				}
+
+				continue
+			}
+
+		}
+	} else {
+		// we have an object level example here, so let's convert our properties into a schema and validate
+		// this example against the schema.
+		schema, _ := parser.ConvertNodeDefinitionIntoSchema(componentNode)
+		res, _ := parser.ValidateNodeAgainstSchema(schema, topExValue)
+
+		// extract all validation errors.
+		for _, resError := range res.Errors() {
+
+			z := model.BuildFunctionResultString(fmt.Sprintf("example for component '%s' is not valid: '%s'. "+
+				"Value '%s' is not compatible", compName, resError.Description(), resError.Value()))
+			z.StartNode = topExKey
+			z.EndNode = topExValue.Content[len(topExValue.Content)-1]
+			*results = append(*results, z)
+		}
+
+	}
+	fmt.Print(pkey)
+	return results
 }
 
 func checkExamples(rbNode *yaml.Node, results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {

@@ -28,7 +28,7 @@ func GetTagsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 func GetOperationsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 	for _, node := range nodes {
 		_, paths := utils.FindFirstKeyNode("paths", node.Content, 0)
-		if len(paths.Content) > 0 {
+		if paths != nil && len(paths.Content) > 0 {
 			return paths.Content
 		}
 	}
