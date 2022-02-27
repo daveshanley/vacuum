@@ -42,9 +42,7 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 		go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors)
 	}
 
-	fmt.Println("wait for rules")
 	ruleWaitGroup.Wait()
-
 	// did something go wrong?
 
 	return ruleResults, nil

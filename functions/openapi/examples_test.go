@@ -28,6 +28,12 @@ func TestExamples_RunRule_Fail_Schema_No_Examples(t *testing.T) {
         application/json:
           schema:
             $ref: '#/components/schemas/Pizza'
+  /pasta:
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Pizza'          
 components:
   schemas:
     Pizza:
@@ -51,7 +57,7 @@ components:
 	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	assert.Len(t, res, 1)
+	assert.Len(t, res, 4)
 	assert.Equal(t, "schema for 'application/json' does not contain a sibling 'example' or 'examples', "+
 		"examples are *super* important", res[0].Message)
 
@@ -92,7 +98,7 @@ components:
 	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 4)
 
 }
 
@@ -136,7 +142,7 @@ components:
 	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	assert.Len(t, res, 4)
+	assert.Len(t, res, 6)
 
 }
 
@@ -310,6 +316,56 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 		"integer, given: string' on field 'id'", res[0].Message)
 }
 
+func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
+
+	yml := `paths:
+ /chicken:
+   get:
+     parameters:
+       - in: path
+         name: nuggets
+         schema:
+           type: integer`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema for 'nuggets' does not contain a sibling 'example' or 'examples', "+
+		"examples are *super* important", res[0].Message)
+}
+
+func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
+
+	yml := `components:
+  parameters:
+    - in: path
+      name: icypop
+      schema:
+        type: integer`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema for 'icypop' does not contain a sibling 'example' or 'examples', "+
+		"examples are *super* important", res[0].Message)
+}
+
 func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {
 
 	yml := `components:
@@ -392,4 +448,34 @@ func TestExamples_RunRule_Fail_Component_Invalid_ObjectLevel_Example(t *testing.
 	assert.Len(t, res, 1)
 	assert.Equal(t, "example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
 		"given: string'. Value 'cake' is not compatible", res[0].Message)
+}
+
+func TestExamples_RunRule_Fail_Parameters_Invalid_ObjectLevel_Example(t *testing.T) {
+
+	yml := `components:
+  schemas:
+    Lemons:
+      type: object
+      required: 
+        - id
+      properties:
+        id:
+          type: integer
+      example:
+        id: cake`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
+		"given: string'. Value 'cake' is not compatible", res[0].Message)
+
 }
