@@ -58,8 +58,8 @@ components:
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
 	assert.Len(t, res, 4)
-	assert.Equal(t, "schema for 'application/json' does not contain a sibling 'example' or 'examples', "+
-		"examples are *super* important", res[0].Message)
+	assert.Equal(t, "schema for 'application/json' does not contain any examples or example data! "+
+		"Examples are *super* important", res[0].Message)
 
 }
 
@@ -113,10 +113,12 @@ func TestExamples_RunRule_Fail_Schema_Examples_Not_Valid(t *testing.T) {
            $ref: '#/components/schemas/Citrus'
          examples:
            lemon:
-             id: not-a-number
+             value:
+               id: not-a-number
            lime:
-             id: 2
-             name: Limes!
+             value:
+               id: 2
+               name: Limes!
 components:
  schemas:
    Citrus:
@@ -165,11 +167,13 @@ func TestExamples_RunRule_Fail_Inline_Schema_Multi_Examples(t *testing.T) {
               type: string
           examples:
             lemon:
-              id: in
-              invalidProperty: oh dear
+              value: 
+                id: in
+                invalidProperty: oh dear
             lime:
-              id: 2
-              name: Pickles`
+              value: 
+                id: 2
+                name: Pickles`
 
 	path := "$"
 
@@ -201,10 +205,12 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
               type: integer
           examples:
             lemon:
-              summary: this is an example of a lemon.
-              id: 1
+              value:
+                summary: this is an example of a lemon.
+                id: 1
             lime:
-              id: 2`
+              value: 
+                id: 2`
 
 	path := "$"
 
@@ -316,6 +322,45 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 		"integer, given: string' on field 'id'", res[0].Message)
 }
 
+func TestExamples_RunRule_Fail_InlineExample_Wrong_Type(t *testing.T) {
+
+	yml := `paths:
+ /fruits:
+   responses:
+    '200':
+      content:
+        application/json:
+          schema:
+            type: object
+            required: 
+              - id
+            properties:
+              id:
+                type: integer
+                example: cake
+              enabled:
+                type: boolean
+                example: limes
+              stock:
+                type: number
+                example: fizzbuzz`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 3)
+	assert.Equal(t, "example value 'cake' in 'id' is not a valid integer", res[0].Message)
+	assert.Equal(t, "example value 'limes' in 'enabled' is not a valid boolean", res[1].Message)
+	assert.Equal(t, "example value 'fizzbuzz' in 'stock' is not a valid number", res[2].Message)
+}
+
 func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 
 	yml := `paths:
@@ -338,8 +383,8 @@ func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema for 'nuggets' does not contain a sibling 'example' or 'examples', "+
-		"examples are *super* important", res[0].Message)
+	assert.Equal(t, "schema for 'nuggets' does not contain any examples or example data! "+
+		"Examples are *super* important", res[0].Message)
 }
 
 func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
@@ -362,8 +407,8 @@ func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema for 'icypop' does not contain a sibling 'example' or 'examples', "+
-		"examples are *super* important", res[0].Message)
+	assert.Equal(t, "schema for 'icypop' does not contain any examples or example data! "+
+		"Examples are *super* important", res[0].Message)
 }
 
 func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {

@@ -216,14 +216,16 @@ func checkExamples(rbNode *yaml.Node, results *[]model.RuleFunctionResult) *[]mo
 
 func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
 
-	_, sValue := utils.FindFirstKeyNode("schema", nameNode.Content, 0)
-	_, esValue := utils.FindFirstKeyNode("examples", nameNode.Content, 0)
-	_, eValue := utils.FindFirstKeyNode("example", nameNode.Content, 0)
+	_, sValue := utils.FindKeyNode("schema", nameNode.Content)
+	_, esValue := utils.FindKeyNode("examples", nameNode.Content)
+	_, eValue := utils.FindKeyNode("example", nameNode.Content)
 
-	// if there are no examples, or an example next to a schema, then add a result.
-	if sValue != nil && (esValue == nil && eValue == nil) {
+	_, eInternalValue := utils.FindFirstKeyNode("example", nameNode.Content, 0)
+
+	// if there are no examples, anywhere then add a result.
+	if sValue != nil && (esValue == nil && eValue == nil && eInternalValue == nil) {
 		res := model.BuildFunctionResultString(fmt.Sprintf("schema for '%s' does not "+
-			"contain a sibling 'example' or 'examples', examples are *super* important", nameNodeValue))
+			"contain any examples or example data! Examples are *super* important", nameNodeValue))
 
 		res.StartNode = nameNode
 		res.EndNode = sValue
@@ -244,39 +246,43 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[
 				continue
 			}
 
-			// check if the node is a map (object)
-			if !utils.IsNodeMap(multiExampleNode) {
-				res := model.BuildFunctionResultString(fmt.Sprintf("example '%s' must be an object, not a %v",
-					exampleName, utils.MakeTagReadable(multiExampleNode)))
-				res.StartNode = esValue
-				res.EndNode = multiExampleNode
-				*results = append(*results, res)
-				continue
-			}
+			_, valueNode := utils.FindFirstKeyNode("value", []*yaml.Node{multiExampleNode}, 0)
+			//_, externalValueNode := utils.FindFirstKeyNode("externalValue", nameNode.Content, 0)
 
-			// check if the example validates against the schema
-			res, _ := parser.ValidateNodeAgainstSchema(schema, multiExampleNode)
-			if !res.Valid() {
-				// extract all validation errors.
-				for _, resError := range res.Errors() {
+			if valueNode != nil {
+				// check if the example validates against the schema
+				res, _ := parser.ValidateNodeAgainstSchema(schema, valueNode)
+				if !res.Valid() {
+					// extract all validation errors.
+					for _, resError := range res.Errors() {
 
-					z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' is not valid: '%s' on field '%s'",
-						exampleName, resError.Description(), resError.Field()))
+						z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' is not valid: '%s'",
+							exampleName, resError.Description()))
+						z.StartNode = esValue
+						z.EndNode = valueNode
+						*results = append(*results, z)
+					}
+				}
+
+				// check if the example contains a summary
+				_, summaryNode := utils.FindFirstKeyNode("summary", []*yaml.Node{valueNode}, 0)
+				if summaryNode == nil {
+					z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' missing a 'summary', "+
+						"examples need explaining", exampleName))
 					z.StartNode = esValue
-					z.EndNode = multiExampleNode
+					z.EndNode = valueNode
 					*results = append(*results, z)
 				}
+			} else {
+				// no value on example,
+
+				z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' has no value, it's malformed", exampleName))
+				z.StartNode = esValue
+				z.EndNode = esValue
+				*results = append(*results, z)
+
 			}
 
-			// check if the example contains a summary
-			_, summaryNode := utils.FindFirstKeyNode("summary", []*yaml.Node{multiExampleNode}, 0)
-			if summaryNode == nil {
-				z := model.BuildFunctionResultString(fmt.Sprintf("example '%s' missing a 'summary', "+
-					"examples need explaining", exampleName))
-				z.StartNode = esValue
-				z.EndNode = multiExampleNode
-				*results = append(*results, z)
-			}
 		}
 	}
 
@@ -316,5 +322,21 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[
 
 	}
 
+	//_, sValue := utils.FindFirstKeyNode("schema", nameNode.Content)
+
+	exampleValidation := parser.ValidateExample(schema)
+	if len(exampleValidation) > 0 {
+		_, pNode := utils.FindKeyNode("properties", sValue.Content)
+		var endNode *yaml.Node
+		if pNode != nil && len(pNode.Content) > 0 {
+			endNode = pNode.Content[len(pNode.Content)-1]
+		}
+		for _, example := range exampleValidation {
+			z := model.BuildFunctionResultString(example.Message)
+			z.StartNode = pNode
+			z.EndNode = endNode
+			*results = append(*results, z)
+		}
+	}
 	return results
 }

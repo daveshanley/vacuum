@@ -60,6 +60,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasPathParam"] = openapi_functions.PathParameters{}
 		funcs["refSiblings"] = openapi_functions.NoRefSiblings{}
 		funcs["oasUnusedComponent"] = openapi_functions.UnusedComponent{}
+		funcs["oasExample"] = openapi_functions.Examples{}
 
 	})
 
