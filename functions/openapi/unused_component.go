@@ -162,7 +162,7 @@ func checkForUnusedComponents(seenDefs []*refResult, knownRefs []*refResult) []*
 
 		known := false
 		for _, ref := range knownRefs {
-			if ref.refDefName == def.refDefName {
+			if ref.refDefName == def.refDefName && ref.path == def.path {
 				known = true
 			}
 		}
