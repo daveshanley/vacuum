@@ -58,7 +58,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 						for _, response := range valNode.Content {
 							if response.Tag == "!!str" {
 								responseCode, _ := strconv.Atoi(response.Value)
-								if responseCode >= 200 && responseCode <= 400 {
+								if responseCode >= 200 && responseCode < 400 {
 									responseSeen = true
 								}
 							}
@@ -66,7 +66,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 						if !responseSeen {
 
 							// see if we can extract a name from the operationId
-							_, g := utils.FindKeyNode("operationId", operationNode.Content)
+							_, g := utils.FindKeyNode("operationId", verbDataNode.Content)
 							var name string
 							if g != nil {
 								name = g.Value
@@ -74,14 +74,14 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 								name = "undefined operation (no operationId)"
 							}
 
-							endNode := utils.FindLastChildNode(operationNode)
-							if j+1 < len(operationNode.Content) {
+							endNode := utils.FindLastChildNode(valNode)
+							if endNode == nil && j+1 < len(operationNode.Content) {
 								endNode = operationNode.Content[j+1]
 							}
 
 							results = append(results, model.RuleFunctionResult{
 								Message:   fmt.Sprintf("Operation '%s' must define at least a single 2xx or 3xx response", name),
-								StartNode: operationNode,
+								StartNode: fieldNode,
 								EndNode:   endNode,
 								Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
 							})
