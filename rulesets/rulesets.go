@@ -177,6 +177,18 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		},
 	}
 
+	rules["oas-3valid-schema-example"] = &model.Rule{
+		Description: "Examples must be present",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function: "oasExample",
+		},
+	}
+
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,

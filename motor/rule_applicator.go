@@ -141,7 +141,9 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 
 		}
 	} else {
-		fmt.Printf("oooo nice, an error here.")
+
+		// TODO: Fix this error handling.
+		//fmt.Printf("oooo nice, an error here.")
 	}
 	return ruleResults
 }

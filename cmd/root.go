@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
+	"text/tabwriter"
 )
 
 var rootCmd = &cobra.Command{
@@ -18,6 +19,7 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("please supply a filename to read")
 			return
 		}
+
 		fmt.Printf("running vacuum against '%s'\n", args[0])
 
 		// read file.
@@ -25,14 +27,20 @@ var rootCmd = &cobra.Command{
 		rs := rulesets.BuildDefaultRuleSets()
 		results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
 		if err != nil {
-			fmt.Printf("error: %v", err.Error())
+			fmt.Printf("error: %v\n\n", err.Error())
 			return
 		}
+
+		writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
+		fmt.Fprintln(writer, "Start\tEnd\tMessage\tPath")
+		fmt.Fprintln(writer, "-----\t---\t-------\t----")
 		for _, r := range results {
-			fmt.Printf("%s (%v:%v) - (%v:%v)\n", r.Message,
-				r.StartNode.Line, r.StartNode.Column,
-				r.EndNode.Line, r.EndNode.Column)
+			start := fmt.Sprintf("(%v:%v)", r.StartNode.Line, r.StartNode.Column)
+			end := fmt.Sprintf("(%v:%v)", r.EndNode.Line, r.EndNode.Column)
+			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v\t%v", start, end, r.Message, r.Path))
+
 		}
+		writer.Flush()
 
 	},
 }

@@ -44,7 +44,7 @@ func TestConvertNode_Simple(t *testing.T) {
 	assert.Len(t, schema.Properties, 3)
 
 	// now check the schema is valid
-	res, e := ValidateNodeAgainstSchema(schema, r[0])
+	res, e := ValidateNodeAgainstSchema(schema, r[0], false)
 	assert.NoError(t, e)
 	assert.Equal(t, true, res.Valid())
 }

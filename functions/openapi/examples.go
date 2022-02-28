@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/parser"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
+	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 )
 
@@ -134,7 +135,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string, result
 			if utils.IsNodeMap(prop) {
 
 				// check for an example
-				exKey, exValue := utils.FindFirstKeyNode("example", prop.Content, 0)
+				exKey, exValue := utils.FindKeyNode("example", prop.Content)
 				if exKey == nil && exValue == nil {
 
 					res := model.BuildFunctionResultString(fmt.Sprintf("missing example for '%s' on component '%s'",
@@ -149,7 +150,13 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string, result
 
 					// so there is an example, lets validate it.
 					schema, _ := parser.ConvertNodeDefinitionIntoSchema(prop)
-					res, _ := parser.ValidateNodeAgainstSchema(schema, exValue)
+					var res *gojsonschema.Result
+					if schema != nil && *schema.Type == "array" {
+						res, _ = parser.ValidateNodeAgainstSchema(schema, exValue, true)
+					}
+					if schema != nil && *schema.Type != "array" {
+						res, _ = parser.ValidateNodeAgainstSchema(schema, exValue, false)
+					}
 
 					// extract all validation errors.
 					for _, resError := range res.Errors() {
@@ -172,7 +179,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string, result
 		// we have an object level example here, so let's convert our properties into a schema and validate
 		// this example against the schema.
 		schema, _ := parser.ConvertNodeDefinitionIntoSchema(componentNode)
-		res, _ := parser.ValidateNodeAgainstSchema(schema, topExValue)
+		res, _ := parser.ValidateNodeAgainstSchema(schema, topExValue, false)
 
 		// extract all validation errors.
 		for _, resError := range res.Errors() {
@@ -225,7 +232,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[
 	// if there are no examples, anywhere then add a result.
 	if sValue != nil && (esValue == nil && eValue == nil && eInternalValue == nil) {
 		res := model.BuildFunctionResultString(fmt.Sprintf("schema for '%s' does not "+
-			"contain any examples or example data! Examples are *super* important", nameNodeValue))
+			"contain any examples or example data", nameNodeValue))
 
 		res.StartNode = nameNode
 		res.EndNode = sValue
@@ -251,7 +258,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[
 
 			if valueNode != nil {
 				// check if the example validates against the schema
-				res, _ := parser.ValidateNodeAgainstSchema(schema, valueNode)
+				res, _ := parser.ValidateNodeAgainstSchema(schema, valueNode, false)
 				if !res.Valid() {
 					// extract all validation errors.
 					for _, resError := range res.Errors() {
@@ -292,8 +299,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[
 		if len(eValue.Content) > 0 {
 
 			// ok, so let's check the object is valid against the schema.
-			res, _ := parser.ValidateNodeAgainstSchema(schema, eValue)
-			fmt.Print(res)
+			res, _ := parser.ValidateNodeAgainstSchema(schema, eValue, false)
 
 			// extract all validation errors.
 			for _, resError := range res.Errors() {
@@ -321,8 +327,6 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, y int, results *[
 		}
 
 	}
-
-	//_, sValue := utils.FindFirstKeyNode("schema", nameNode.Content)
 
 	exampleValidation := parser.ValidateExample(schema)
 	if len(exampleValidation) > 0 {

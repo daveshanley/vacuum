@@ -58,8 +58,7 @@ components:
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
 	assert.Len(t, res, 4)
-	assert.Equal(t, "schema for 'application/json' does not contain any examples or example data! "+
-		"Examples are *super* important", res[0].Message)
+	assert.Equal(t, "schema for 'application/json' does not contain any examples or example data", res[0].Message)
 
 }
 
@@ -383,8 +382,7 @@ func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema for 'nuggets' does not contain any examples or example data! "+
-		"Examples are *super* important", res[0].Message)
+	assert.Equal(t, "schema for 'nuggets' does not contain any examples or example data", res[0].Message)
 }
 
 func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
@@ -407,8 +405,7 @@ func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema for 'icypop' does not contain any examples or example data! "+
-		"Examples are *super* important", res[0].Message)
+	assert.Equal(t, "schema for 'icypop' does not contain any examples or example data", res[0].Message)
 }
 
 func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {

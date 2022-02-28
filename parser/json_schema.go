@@ -114,12 +114,15 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 }
 
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
-func ValidateNodeAgainstSchema(schema *Schema, node *yaml.Node) (*gojsonschema.Result, error) {
+func ValidateNodeAgainstSchema(schema *Schema, node *yaml.Node, isArray bool) (*gojsonschema.Result, error) {
 
 	// convert node to raw yaml first, then convert to json to be used in schema validation
-	d, e := yaml.Marshal(node)
-	if e != nil {
-		return nil, e
+	var d []byte
+	var e error
+	if !isArray {
+		d, e = yaml.Marshal(node)
+	} else {
+		d, e = yaml.Marshal([]*yaml.Node{node})
 	}
 
 	// safely convert yaml to JSON.
