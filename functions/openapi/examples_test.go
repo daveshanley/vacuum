@@ -57,8 +57,9 @@ components:
 	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	assert.Len(t, res, 4)
-	assert.Equal(t, "schema for 'application/json' does not contain any examples or example data", res[0].Message)
+	assert.Len(t, res, 2)
+	assert.Equal(t, "Missing example for 'id' on component 'Pizza'", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 
 }
 
@@ -97,7 +98,8 @@ components:
 	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	assert.Len(t, res, 4)
+	assert.Len(t, res, 2)
+	assert.NotNil(t, res[0].Path)
 
 }
 
@@ -105,19 +107,20 @@ func TestExamples_RunRule_Fail_Schema_Examples_Not_Valid(t *testing.T) {
 
 	yml := `paths:
  /fruits:
-   requestBody:
-     content:
-       application/json:
-         schema:
-           $ref: '#/components/schemas/Citrus'
-         examples:
-           lemon:
-             value:
-               id: not-a-number
-           lime:
-             value:
-               id: 2
-               name: Limes!
+   post:
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Citrus'
+          examples:
+            lemon:
+              value:
+                id: not-a-number
+            lime:
+              value:
+                id: 2
+                name: Limes!
 components:
  schemas:
    Citrus:
@@ -144,35 +147,36 @@ components:
 	res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
 	assert.Len(t, res, 6)
-
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Inline_Schema_Multi_Examples(t *testing.T) {
 
 	yml := `paths:
- /fruits:
-   requestBody:
-     content:
-       application/json:
-         schema:
-          type: object
-          required: 
-            - name
-            - id
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-          examples:
-            lemon:
-              value: 
-                id: in
-                invalidProperty: oh dear
-            lime:
-              value: 
-                id: 2
-                name: Pickles`
+  /fruits:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - name
+                - id
+              properties:
+                id:
+                  type: integer
+                name:
+                  type: string
+              examples:
+                lemon:
+                  value: 
+                    id: in
+                    invalidProperty: oh dear
+                lime:
+                  value: 
+                    id: 2
+                    name: Pickles`
 
 	path := "$"
 
@@ -185,31 +189,32 @@ func TestExamples_RunRule_Fail_Inline_Schema_Multi_Examples(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 4)
-
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
 
 	yml := `paths:
- /fruits:
-   requestBody:
-     content:
-       application/json:
-         schema:
-          type: object
-          required: 
-            - id
-          properties:
-            id:
-              type: integer
-          examples:
-            lemon:
-              value:
-                summary: this is an example of a lemon.
-                id: 1
-            lime:
-              value: 
-                id: 2`
+  /fruits:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - id
+              properties:
+                id:
+                  type: integer
+              examples:
+                lemon:
+                  value:
+                    summary: this is an example of a lemon.
+                    id: 1
+                lime:
+                  value: 
+                    id: 2`
 
 	path := "$"
 
@@ -222,24 +227,26 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example 'lime' missing a 'summary', examples need explaining", res[0].Message)
+	assert.Equal(t, "Example 'lime' missing a 'summary', examples need explaining", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Single_Example_Not_An_Object(t *testing.T) {
 
 	yml := `paths:
- /fruits:
-   requestBody:
-     content:
-       application/json:
-         schema:
-          type: object
-          required: 
-            - id
-          properties:
-            id:
-              type: integer
-          example: apples`
+  /fruits:
+    put:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - id
+              properties:
+                id:
+                  type: integer
+              example: apples`
 
 	path := "$"
 
@@ -252,26 +259,28 @@ func TestExamples_RunRule_Fail_Single_Example_Not_An_Object(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example for media type 'application/json' is malformed, "+
+	assert.Equal(t, "Example for media type 'application/json' is malformed, "+
 		"should be object, not 'apples'", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Single_Example_Invalid_Object(t *testing.T) {
 
 	yml := `paths:
- /fruits:
-   requestBody:
-     content:
-       application/json:
-         schema:
-          type: object
-          required: 
-            - id
-          properties:
-            id:
-              type: integer
-          example:
-            id: cake`
+  /fruits:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - id
+              properties:
+                id:
+                  type: integer
+              example:
+                id: cake`
 
 	path := "$"
 
@@ -284,27 +293,29 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example for 'application/json' is not valid: 'Invalid type. Expected: "+
+	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: "+
 		"integer, given: string' on field 'id'", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing.T) {
 
 	yml := `paths:
- /fruits:
-   responses:
-    '200':
-      content:
-        application/json:
-          schema:
-            type: object
-            required: 
-              - id
-            properties:
-              id:
-                type: integer
-            example:
-              id: cake`
+  /fruits:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: 
+                  - id
+                properties:
+                  id:
+                    type: integer
+                example:
+                  id: cake`
 
 	path := "$"
 
@@ -317,32 +328,34 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example for 'application/json' is not valid: 'Invalid type. Expected: "+
+	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: "+
 		"integer, given: string' on field 'id'", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_InlineExample_Wrong_Type(t *testing.T) {
 
 	yml := `paths:
- /fruits:
-   responses:
-    '200':
-      content:
-        application/json:
-          schema:
-            type: object
-            required: 
-              - id
-            properties:
-              id:
-                type: integer
-                example: cake
-              enabled:
-                type: boolean
-                example: limes
-              stock:
-                type: number
-                example: fizzbuzz`
+  /fruits:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: 
+                  - id
+                properties:
+                  id:
+                    type: integer
+                    example: cake
+                  enabled:
+                    type: boolean
+                    example: limes
+                  stock:
+                    type: number
+                    example: fizzbuzz`
 
 	path := "$"
 
@@ -355,9 +368,7 @@ func TestExamples_RunRule_Fail_InlineExample_Wrong_Type(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 3)
-	assert.Equal(t, "example value 'cake' in 'id' is not a valid integer", res[0].Message)
-	assert.Equal(t, "example value 'limes' in 'enabled' is not a valid boolean", res[1].Message)
-	assert.Equal(t, "example value 'fizzbuzz' in 'stock' is not a valid number", res[2].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
@@ -382,7 +393,8 @@ func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema for 'nuggets' does not contain any examples or example data", res[0].Message)
+	assert.Equal(t, "Schema for 'nuggets' does not contain any examples or example data", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
@@ -405,7 +417,8 @@ func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema for 'icypop' does not contain any examples or example data", res[0].Message)
+	assert.Equal(t, "Schema for 'icypop' does not contain any examples or example data", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {
@@ -432,7 +445,8 @@ func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "missing example for 'id' on component 'Chickens'", res[0].Message)
+	assert.Equal(t, "Missing example for 'id' on component 'Chickens'", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Component_Invalid_Inline_Example(t *testing.T) {
@@ -459,8 +473,9 @@ func TestExamples_RunRule_Fail_Component_Invalid_Inline_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example for property 'id' is not valid: 'Invalid type. Expected: integer, "+
+	assert.Equal(t, "Example for property 'id' is not valid: 'Invalid type. Expected: integer, "+
 		"given: string'. Value 'burgers' is not compatible", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Component_Invalid_ObjectLevel_Example(t *testing.T) {
@@ -488,8 +503,9 @@ func TestExamples_RunRule_Fail_Component_Invalid_ObjectLevel_Example(t *testing.
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
+	assert.Equal(t, "Example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
 		"given: string'. Value 'cake' is not compatible", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Parameters_Invalid_ObjectLevel_Example(t *testing.T) {
@@ -517,7 +533,8 @@ func TestExamples_RunRule_Fail_Parameters_Invalid_ObjectLevel_Example(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
+	assert.Equal(t, "Example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
 		"given: string'. Value 'cake' is not compatible", res[0].Message)
+	assert.NotNil(t, res[0].Path)
 
 }

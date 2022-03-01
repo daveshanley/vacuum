@@ -101,8 +101,13 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 func processSeenComponents(foundComponents []*yaml.Node, seenResults []*refResult) []*refResult {
 	if len(foundComponents) > 0 {
 		var compType string
+
 		for i, fc := range foundComponents[0].Content {
 			if i%2 != 0 {
+				// skip over security, there is a separate rule for that.
+				if compType == "securitySchemes" {
+					continue
+				}
 				for c, nameNode := range fc.Content {
 					if c%2 == 0 {
 						seenResults = append(seenResults, &refResult{
