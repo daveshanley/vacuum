@@ -113,6 +113,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		},
 	}
 
+	// contact-properties
+	rules["contact-properties"] = GetContactPropertiesRule()
+
 	// add no $ref siblings
 	rules["no-$ref-siblings"] = &model.Rule{
 		Description: "$ref values cannot be placed next to other properties (like a description)",
@@ -177,6 +180,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		},
 	}
 
+	// check all examples
 	rules["oas-3valid-schema-example"] = &model.Rule{
 		Description: "Examples must be present",
 		Given:       "$",

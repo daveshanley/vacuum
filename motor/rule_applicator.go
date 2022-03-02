@@ -80,6 +80,7 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 			continue
 		}
 
+		// check for a single action
 		var ruleAction model.RuleAction
 		err = mapstructure.Decode(rule.Then, &ruleAction)
 
@@ -88,6 +89,8 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 			ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes)
 
 		} else {
+
+			// check for multiple actions.
 			var ruleActions []model.RuleAction
 			err = mapstructure.Decode(rule.Then, &ruleActions)
 

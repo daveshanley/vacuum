@@ -37,6 +37,10 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 		_, pathNode := utils.FindKeyNode("paths", n.Content)
 
+		if pathNode == nil {
+			continue
+		}
+
 		for j, operationNode := range pathNode.Content {
 
 			if utils.IsNodeStringValue(operationNode) {
