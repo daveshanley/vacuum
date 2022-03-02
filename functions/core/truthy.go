@@ -40,9 +40,9 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			fieldNodeValue.Value == "" || fieldNodeValue.Value == "false" ||
 			fieldNodeValue.Value == "0" {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("'%s' must be truthy", context.RuleAction.Field),
-				StartNode: fieldNodeValue,
-				EndNode:   fieldNodeValue,
+				Message:   fmt.Sprintf("%s: '%s' must be set", context.Rule.Description, context.RuleAction.Field),
+				StartNode: node,
+				EndNode:   node.Content[len(node.Content)-1],
 				Path:      pathValue,
 			})
 		}

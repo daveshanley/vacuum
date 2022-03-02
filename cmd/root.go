@@ -35,8 +35,14 @@ var rootCmd = &cobra.Command{
 		fmt.Fprintln(writer, "Start\tEnd\tMessage\tPath")
 		fmt.Fprintln(writer, "-----\t---\t-------\t----")
 		for _, r := range results {
-			start := fmt.Sprintf("(%v:%v)", r.StartNode.Line, r.StartNode.Column)
-			end := fmt.Sprintf("(%v:%v)", r.EndNode.Line, r.EndNode.Column)
+			var start, end string
+			if r.StartNode != nil && r.EndNode != nil {
+				start = fmt.Sprintf("(%v:%v)", r.StartNode.Line, r.StartNode.Column)
+				end = fmt.Sprintf("(%v:%v)", r.EndNode.Line, r.EndNode.Column)
+			} else {
+				start = "(x:x)"
+				end = "(x:x)"
+			}
 			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v\t%v", start, end, r.Message, r.Path))
 
 		}

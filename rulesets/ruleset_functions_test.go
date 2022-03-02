@@ -1,3 +1,6 @@
+// Copyright 2020-2022 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package rulesets
 
 import (
@@ -23,6 +26,6 @@ func TestRuleSet_ContactProperties(t *testing.T) {
 
 	results, _ := motor.ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "'url' must be truthy", results[0].Message)
+	assert.Equal(t, "Contact object must be complete': 'url' must be set", results[0].Message)
 
 }

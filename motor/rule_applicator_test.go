@@ -99,7 +99,7 @@ func TestApplyRules_TruthyTest(t *testing.T) {
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
-	assert.Equal(t, "'description' must be truthy", results[0].Message)
+	assert.Equal(t, "this is a test for checking truthy: 'description' must be set", results[0].Message)
 
 }
 

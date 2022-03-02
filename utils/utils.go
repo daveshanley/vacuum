@@ -136,13 +136,16 @@ func ConvertInterfaceArrayToStringArray(raw interface{}) []string {
 func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 
 	if propMap, ok := raw.(map[string]interface{}); ok {
-		if props, ok := propMap[name].([]interface{}); ok {
+		if props, okn := propMap[name].([]interface{}); okn {
 			return props
+		} else {
+			return propMap[name]
 		}
 	}
 	if propMap, ok := raw.(map[string][]string); ok {
 		return propMap[name]
 	}
+
 	return nil
 }
 

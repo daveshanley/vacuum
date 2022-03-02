@@ -6,7 +6,7 @@ import "github.com/daveshanley/vacuum/model"
 // it uses the in-built 'truthy' function
 func GetContactPropertiesRule() *model.Rule {
 	return &model.Rule{
-		Description: "Contact object must have 'name', 'url' and 'email'",
+		Description: "Contact object must be complete'",
 		Given:       "$.info.contact",
 		Resolved:    true,
 		Recommended: true,

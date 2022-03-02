@@ -1,7 +1,12 @@
+// Copyright 2020-2022 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package rulesets
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/parser"
+	"github.com/daveshanley/vacuum/utils"
 	"sync"
 )
 
@@ -115,6 +120,30 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// contact-properties
 	rules["contact-properties"] = GetContactPropertiesRule()
+
+	// duplicated entry in enums
+	duplicatedEnum := make(map[string]interface{})
+	duplicatedEnum["schema"] = parser.Schema{
+		Type: &utils.ArrayLabel,
+		Items: &parser.Schema{
+			Type: &utils.StringLabel,
+		},
+		UniqueItems: true,
+	}
+
+	rules["duplicated-entry-in-enum"] = &model.Rule{
+		Description: "Enum values must not have duplicate entry",
+		Given:       "$..[?(@.enum)]",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:           "enum",
+			Function:        "oasSchema",
+			FunctionOptions: duplicatedEnum,
+		},
+	}
 
 	// add no $ref siblings
 	rules["no-$ref-siblings"] = &model.Rule{
