@@ -121,6 +121,18 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// contact-properties
 	rules["contact-properties"] = GetContactPropertiesRule()
 
+	// info object: contains contact
+	rules["info-contact"] = GetInfoContactRule()
+
+	// info object: contains description
+	rules["info-description"] = GetInfoDescriptionRule()
+
+	// info object: contains a license
+	rules["info-license"] = GetInfoLicenseRule()
+
+	// info object: contains a license url
+	rules["license-url"] = GetInfoLicenseUrlRule()
+
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})
 	duplicatedEnum["schema"] = parser.Schema{
