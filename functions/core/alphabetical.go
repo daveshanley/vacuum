@@ -58,7 +58,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 			if keyedBy == "" {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' is a map/object. %s",
+					Message: fmt.Sprintf("%s: '%s' is a map/object. %s", context.Rule.Description,
 						node.Value, a.GetSchema().ErrorMessage),
 					StartNode: node,
 					EndNode:   node,
@@ -67,8 +67,8 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
-			resultsFromKey := a.processMap(node, keyedBy)
-			results = compareStringArray(resultsFromKey)
+			resultsFromKey := a.processMap(node, keyedBy, context)
+			results = compareStringArray(resultsFromKey, context)
 			results = model.MapPathAndNodesToResults(pathValue, node, node, results)
 			continue
 		}
@@ -76,18 +76,18 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 		if utils.IsNodeArray(node) {
 			if a.isValidArray(node) {
 				if a.isValidStringArray(node) {
-					rs := a.checkStringArrayIsSorted(node)
+					rs := a.checkStringArrayIsSorted(node, context)
 					results = append(results, rs...)
 				}
 
 				if a.isValidNumberArray(node) {
-					rs := a.checkNumberArrayIsSorted(node)
+					rs := a.checkNumberArrayIsSorted(node, context)
 					results = append(results, rs...)
 				}
 
 				if a.isValidMapArray(node) {
-					resultsFromKey := a.processMap(node, keyedBy)
-					results = compareStringArray(resultsFromKey)
+					resultsFromKey := a.processMap(node, keyedBy, context)
+					results = compareStringArray(resultsFromKey, context)
 				}
 				results = model.MapPathAndNodesToResults(pathValue, node, node, results)
 
@@ -102,7 +102,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 	return results
 }
 
-func (a Alphabetical) processMap(node *yaml.Node, keyedBy string) []string {
+func (a Alphabetical) processMap(node *yaml.Node, keyedBy string, context model.RuleFunctionContext) []string {
 	var resultsFromKey []string
 	for x, v := range node.Content {
 		// run odd numbers for values.
@@ -144,7 +144,7 @@ func (a Alphabetical) isValidMapArray(arr *yaml.Node) bool {
 	return arr.Content[0].Tag == "!!map"
 }
 
-func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node) []model.RuleFunctionResult {
+func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var strArr []string
 	for _, n := range arr.Content {
 		if n.Tag == "!!str" {
@@ -154,17 +154,17 @@ func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node) []model.RuleFunct
 	if sort.StringsAreSorted(strArr) {
 		return nil
 	}
-	return compareStringArray(strArr)
+	return compareStringArray(strArr, context)
 }
 
-func compareStringArray(strArr []string) []model.RuleFunctionResult {
+func compareStringArray(strArr []string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	for x := 0; x < len(strArr); x++ {
 		if x+1 < len(strArr) {
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("'%s' must be placed before '%s' (alphabetical)",
+					Message: fmt.Sprintf("%s: '%s' must be placed before '%s' (alphabetical)", context.Rule.Description,
 						strArr[x+1], strArr[x]),
 				})
 			}
@@ -173,7 +173,7 @@ func compareStringArray(strArr []string) []model.RuleFunctionResult {
 	return results
 }
 
-func (a Alphabetical) checkNumberArrayIsSorted(arr *yaml.Node) []model.RuleFunctionResult {
+func (a Alphabetical) checkNumberArrayIsSorted(arr *yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	var intArray []int
 	var floatArray []float64
@@ -189,41 +189,41 @@ func (a Alphabetical) checkNumberArrayIsSorted(arr *yaml.Node) []model.RuleFunct
 		}
 	}
 
-	errmsg := "'%v' is less than '%v', they need to be swapped (numerical ordering)"
+	errmsg := "%s: '%v' is less than '%v', they need to be swapped (numerical ordering)"
 
 	if len(floatArray) > 0 {
 		if !sort.Float64sAreSorted(floatArray) {
-			results = a.evaluateFloatArray(floatArray, errmsg)
+			results = a.evaluateFloatArray(floatArray, errmsg, context)
 		}
 	}
 
 	if len(intArray) > 0 {
 		if !sort.IntsAreSorted(intArray) {
-			results = append(results, a.evaluateIntArray(intArray, errmsg)...)
+			results = append(results, a.evaluateIntArray(intArray, errmsg, context)...)
 		}
 	}
 
 	return results
 }
 
-func (a Alphabetical) evaluateIntArray(intArray []int, errmsg string) []model.RuleFunctionResult {
+func (a Alphabetical) evaluateIntArray(intArray []int, errmsg string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf(errmsg, intArray[x+1], intArray[x]),
+				Message: fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x]),
 			})
 		}
 	}
 	return results
 }
 
-func (a Alphabetical) evaluateFloatArray(floatArray []float64, errmsg string) []model.RuleFunctionResult {
+func (a Alphabetical) evaluateFloatArray(floatArray []float64, errmsg string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf(errmsg, floatArray[x+1], floatArray[x]),
+				Message: fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x]),
 			})
 		}
 	}

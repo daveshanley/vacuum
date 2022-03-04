@@ -99,3 +99,66 @@ func GetInfoLicenseUrlRule() *model.Rule {
 		},
 	}
 }
+
+// GetNoEvalInMarkdownRule will return a rule that uses the pattern function to check if
+// there is no eval statements markdown used in descriptions
+func GetNoEvalInMarkdownRule() *model.Rule {
+
+	fo := make(map[string]string)
+	fo["notMatch"] = "eval\\("
+
+	return &model.Rule{
+		Description: "Markdown descriptions must not have 'eval('",
+		Given:       "$..description",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: fo,
+		},
+	}
+}
+
+// GetNoScriptTagsInMarkdown will return a rule that uses the pattern function to check if
+// there is no script tags used in descriptions and the title.
+func GetNoScriptTagsInMarkdown() *model.Rule {
+
+	fo := make(map[string]string)
+	fo["notMatch"] = "<script"
+
+	return &model.Rule{
+		Description: "Markdown descriptions must not contain '<script>' tags",
+		Given:       "$..description",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: fo,
+		},
+	}
+}
+
+// GetOpenApiTagsAlphabetical will return a rule that uses the alphabetical function to check if
+// tags are in alphabetical order
+func GetOpenApiTagsAlphabetical() *model.Rule {
+
+	fo := make(map[string]string)
+	fo["keyedBy"] = "name"
+
+	return &model.Rule{
+		Description: "Tags must be in alphabetical order",
+		Given:       "$.tags",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "alphabetical",
+			FunctionOptions: fo,
+		},
+	}
+}

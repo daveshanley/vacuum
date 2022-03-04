@@ -133,6 +133,15 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// info object: contains a license url
 	rules["license-url"] = GetInfoLicenseUrlRule()
 
+	// check no eval statements in markdown descriptions.
+	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
+
+	// check no script statements in markdown descriptions.
+	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdown()
+
+	// check tags are in alphabetical order
+	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabetical()
+
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})
 	duplicatedEnum["schema"] = parser.Schema{

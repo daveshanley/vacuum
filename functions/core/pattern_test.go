@@ -37,6 +37,7 @@ func TestPattern_RunRule_PatternNothingSupplied(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "pattern", "", nil)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -57,6 +58,7 @@ func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -77,6 +79,7 @@ func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -97,6 +100,7 @@ func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
@@ -117,6 +121,7 @@ func TestPattern_RunRule_PatternNotMatchFail(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)

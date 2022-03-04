@@ -115,3 +115,61 @@ func TestRuleSet_InfoLicenseUrl(t *testing.T) {
 	assert.Equal(t, "License should contain an url: 'url' must be set", results[0].Message)
 
 }
+
+func TestRuleSet_NoEvalInMarkdown(t *testing.T) {
+
+	yml := `info:
+  description: this has no eval('alert(1234') impact in vacuum, but JS tools might suffer.`
+
+	rules := make(map[string]*model.Rule)
+	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Equal(t, "Markdown descriptions must not have 'eval(': matches the expression 'eval\\('", results[0].Message)
+
+}
+
+func TestRuleSet_NoScriptInMarkdown(t *testing.T) {
+
+	yml := `info:
+  description: this has no impact in vacuum, <script>alert('XSS for you')</script>`
+
+	rules := make(map[string]*model.Rule)
+	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdown()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Equal(t, "Markdown descriptions must not contain '<script>' tags: matches the expression '<script'",
+		results[0].Message)
+
+}
+
+func TestRuleSet_TagsAlphabetical(t *testing.T) {
+
+	yml := `tags:
+  - name: zebra
+  - name: chicken
+  - name: puppy`
+
+	rules := make(map[string]*model.Rule)
+	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabetical()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Equal(t, "Tags must be in alphabetical order: 'chicken' must be placed before 'zebra' (alphabetical)",
+		results[0].Message)
+
+}

@@ -24,6 +24,7 @@ func TestAlphabetical_RunRule_FailStringArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -47,6 +48,7 @@ func TestAlphabetical_RunRule_PassStringArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -67,6 +69,7 @@ func TestAlphabetical_RunRule_FailIntegerArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -87,6 +90,7 @@ func TestAlphabetical_RunRule_FailFloatArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -107,6 +111,7 @@ func TestAlphabetical_RunRule_SuccessIntegerArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -127,6 +132,7 @@ func TestAlphabetical_RunRule_SuccessFloatArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -147,6 +153,7 @@ func TestAlphabetical_RunRule_IgnoreBooleanArray(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -174,6 +181,7 @@ func TestAlphabetical_RunRule_ObjectFail(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -201,6 +209,7 @@ func TestAlphabetical_RunRule_ObjectSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -228,6 +237,7 @@ func TestAlphabetical_RunRule_ObjectIntegersSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -255,6 +265,7 @@ func TestAlphabetical_RunRule_ObjectIntegersFail(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
@@ -281,6 +292,7 @@ func TestAlphabetical_RunRule_ObjectFailNoKeyedBy(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
