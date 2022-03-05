@@ -4,6 +4,7 @@
 package rulesets
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	"github.com/daveshanley/vacuum/utils"
@@ -17,7 +18,13 @@ const (
 	hint       = "hint"
 	style      = "style"
 	validation = "validation"
+	allPaths   = "$.paths[*]"
+	//allOperations = "[?(@.get)]"
+	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head ))]"
+	//allOperations = "[?(@.baps || @.blips || @.plips)]"
 )
+
+var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
 
 type ruleSetsModel struct {
 	openAPIRuleSet *model.RuleSet
@@ -137,10 +144,16 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
 
 	// check no script statements in markdown descriptions.
-	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdown()
+	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
 
 	// check tags are in alphabetical order
-	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabetical()
+	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabeticalRule()
+
+	// check tags exist correctly
+	rules["openapi-tags"] = GetOpenApiTagsRule()
+
+	// check all operations have a description
+	rules["operation-description"] = GetOperationDescriptionRule()
 
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})

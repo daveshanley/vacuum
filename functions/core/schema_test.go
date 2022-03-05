@@ -1,4 +1,4 @@
-package openapi
+package core
 
 import (
 	"github.com/daveshanley/vacuum/model"
@@ -9,12 +9,12 @@ import (
 )
 
 func TestOpenAPISchema_GetSchema(t *testing.T) {
-	def := OpenAPISchema{}
+	def := Schema{}
 	assert.Equal(t, "oas_schema", def.GetSchema().Name)
 }
 
 func TestOpenAPISchema_RunRule(t *testing.T) {
-	def := OpenAPISchema{}
+	def := Schema{}
 	res := def.RunRule(nil, model.RuleFunctionContext{})
 	assert.Len(t, res, 0)
 }
@@ -43,8 +43,16 @@ func TestOpenAPISchema_DuplicateEntryInEnum(t *testing.T) {
 		UniqueItems: true,
 	}
 
-	rule := buildOpenApiTestRuleAction(path, "oas_schema", "enum", opts)
-	rule.Description = "Enum values must not have duplicate entry"
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "enum",
+			Function:        "enum",
+			FunctionOptions: opts,
+		},
+		Description: "Enum values must not have duplicate entry",
+	}
+
 	ctx := model.RuleFunctionContext{
 		RuleAction: model.CastToRuleAction(rule.Then),
 		Rule:       &rule,
@@ -52,7 +60,7 @@ func TestOpenAPISchema_DuplicateEntryInEnum(t *testing.T) {
 		Given:      rule.Given,
 	}
 
-	def := OpenAPISchema{}
+	def := Schema{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)

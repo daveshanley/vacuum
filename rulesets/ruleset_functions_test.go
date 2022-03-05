@@ -140,7 +140,7 @@ func TestRuleSet_NoScriptInMarkdown(t *testing.T) {
   description: this has no impact in vacuum, <script>alert('XSS for you')</script>`
 
 	rules := make(map[string]*model.Rule)
-	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdown()
+	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
 
 	rs := &model.RuleSet{
 		Rules: rules,
@@ -161,7 +161,7 @@ func TestRuleSet_TagsAlphabetical(t *testing.T) {
   - name: puppy`
 
 	rules := make(map[string]*model.Rule)
-	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabetical()
+	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabeticalRule()
 
 	rs := &model.RuleSet{
 		Rules: rules,
@@ -170,6 +170,93 @@ func TestRuleSet_TagsAlphabetical(t *testing.T) {
 	results, _ := motor.ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
 	assert.Equal(t, "Tags must be in alphabetical order: 'chicken' must be placed before 'zebra' (alphabetical)",
+		results[0].Message)
+
+}
+
+func TestRuleSet_TagsMissing(t *testing.T) {
+
+	yml := `info:
+  contact:
+    name: Duck
+paths:
+  /hi:
+    get:
+      description: I love fresh herbs.
+components:
+  schemas:
+    Ducky:
+      type: string`
+
+	rules := make(map[string]*model.Rule)
+	rules["openapi-tags"] = GetOpenApiTagsRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Equal(t, "Top level spec 'tags' must not be empty, and must be an array: 'tags', is missing and is required",
+		results[0].Message)
+
+}
+
+func TestRuleSet_TagsNotArray(t *testing.T) {
+
+	yml := `info:
+  contact:
+    name: Duck
+tags: none
+paths:
+  /hi:
+    get:
+      description: I love fresh herbs.
+components:
+  schemas:
+    Ducky:
+      type: string`
+
+	rules := make(map[string]*model.Rule)
+	rules["openapi-tags"] = GetOpenApiTagsRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Equal(t, "Top level spec 'tags' must not be empty, and must be an array: Invalid type. Expected: array, given: string",
+		results[0].Message)
+
+}
+
+func TestRuleSet_TagsWrongType(t *testing.T) {
+
+	yml := `info:
+  contact:
+    name: Duck
+tags:
+  - lemons
+paths:
+  /hi:
+    get:
+      description: I love fresh herbs.
+components:
+  schemas:
+    Ducky:
+      type: string`
+
+	rules := make(map[string]*model.Rule)
+	rules["openapi-tags"] = GetOpenApiTagsRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Equal(t, "Top level spec 'tags' must not be empty, and must be an array: Invalid type. Expected: object, given: string",
 		results[0].Message)
 
 }

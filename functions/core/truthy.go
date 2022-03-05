@@ -46,6 +46,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				Path:      pathValue,
 			})
 		}
+
 	}
 
 	return results

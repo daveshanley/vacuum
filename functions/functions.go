@@ -50,6 +50,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["pattern"] = core.Pattern{}
 		funcs["length"] = core.Length{}
 		funcs["xor"] = core.Xor{}
+		funcs["schema"] = core.Schema{}
 
 		// add known OpenAPI rules
 		funcs["post-response-success"] = openapi_functions.PostResponseSuccess{}
@@ -61,7 +62,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["refSiblings"] = openapi_functions.NoRefSiblings{}
 		funcs["oasUnusedComponent"] = openapi_functions.UnusedComponent{}
 		funcs["oasExample"] = openapi_functions.Examples{}
-		funcs["oasSchema"] = openapi_functions.OpenAPISchema{}
+		funcs["oasSchema"] = core.Schema{} // can't see a reason to duplicate this yet.
 
 	})
 

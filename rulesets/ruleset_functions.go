@@ -3,7 +3,11 @@
 
 package rulesets
 
-import "github.com/daveshanley/vacuum/model"
+import (
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/parser"
+	"github.com/daveshanley/vacuum/utils"
+)
 
 // GetContactPropertiesRule will return a rule configured to look at contact properties of a spec.
 // it uses the in-built 'truthy' function
@@ -121,9 +125,9 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 	}
 }
 
-// GetNoScriptTagsInMarkdown will return a rule that uses the pattern function to check if
+// GetNoScriptTagsInMarkdownRule will return a rule that uses the pattern function to check if
 // there is no script tags used in descriptions and the title.
-func GetNoScriptTagsInMarkdown() *model.Rule {
+func GetNoScriptTagsInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
 	fo["notMatch"] = "<script"
@@ -142,9 +146,9 @@ func GetNoScriptTagsInMarkdown() *model.Rule {
 	}
 }
 
-// GetOpenApiTagsAlphabetical will return a rule that uses the alphabetical function to check if
+// GetOpenApiTagsAlphabeticalRule will return a rule that uses the alphabetical function to check if
 // tags are in alphabetical order
-func GetOpenApiTagsAlphabetical() *model.Rule {
+func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 
 	fo := make(map[string]string)
 	fo["keyedBy"] = "name"
@@ -162,3 +166,53 @@ func GetOpenApiTagsAlphabetical() *model.Rule {
 		},
 	}
 }
+
+// GetOpenApiTagsRule uses the schema function to check if there tags exist and that
+// it's an array with at least one item.
+func GetOpenApiTagsRule() *model.Rule {
+	items := 1
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["schema"] = parser.Schema{
+		Type: &utils.ArrayLabel,
+		Items: &parser.Schema{
+			Type:     &utils.ObjectLabel,
+			MinItems: &items,
+		},
+		UniqueItems: true,
+	}
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+	return &model.Rule{
+		Description: "Top level spec 'tags' must not be empty, and must be an array",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:           "tags",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetOperationDescriptionRule will return a rule that uses the truthy function to check if an operation
+// has defined a description or not
+func GetOperationDescriptionRule() *model.Rule {
+	return &model.Rule{
+		Description: "Operation description is missing",
+		Given:       AllOperationsPath,
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+}
+
+// TODO: add description rule.

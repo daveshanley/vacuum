@@ -69,6 +69,26 @@ func FindNodesWithoutDeserializing(node *yaml.Node, jsonPath string) ([]*yaml.No
 	return results, nil
 }
 
+// ConvertInterfaceIntoIntMap will convert an unknown input into a integer map.
+//func ConvertInterfaceIntoIntMap(context interface{}) map[string]int {
+//	converted := make(map[string]int)
+//	if context != nil {
+//		if v, ok := context.(map[string]interface{}); ok {
+//			for k, n := range v {
+//				if s, okB := n.(int); okB {
+//					converted[k] = s
+//				}
+//			}
+//		}
+//		if v, ok := context.(map[string]int); ok {
+//			for k, n := range v {
+//				converted[k] = n
+//			}
+//		}
+//	}
+//	return converted
+//}
+
 // ConvertInterfaceIntoStringMap will convert an unknown input into a string map.
 func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 	converted := make(map[string]string)
@@ -85,11 +105,11 @@ func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
 				converted[k] = n
 			}
 		}
-		if v, ok := context.(map[string]string); ok {
-			for k, n := range v {
-				converted[k] = n
-			}
-		}
+		//if v, ok := context.(map[string]string); ok {
+		//	for k, n := range v {
+		//		converted[k] = n
+		//	}
+		//}
 	}
 	return converted
 }
