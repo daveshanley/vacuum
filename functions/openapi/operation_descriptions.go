@@ -1,3 +1,6 @@
+// Copyright 2020-2022 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package openapi
 
 import (
@@ -33,16 +36,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 	minWordsString := props["minWords"]
 	minWords, _ := strconv.Atoi(minWordsString)
 
-	// check operations first.
 	ops := GetOperationsFromRoot(nodes)
-
-	type copyPasta struct {
-		value string
-		node  *yaml.Node
-	}
-
-	//seen := make(map[string]copyPasta)
-	// TODO: explode out copyPasta into new function for a new rule.
 
 	var opPath, opMethod string
 	for i, op := range ops {
@@ -59,42 +53,93 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			}
 
 			basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
-
-			_, descNode := utils.FindKeyNode("description", method.Content)
+			descKey, descNode := utils.FindKeyNode("description", method.Content)
+			requestBodyKey, requestBodyNode := utils.FindKeyNode("requestBody", method.Content)
+			_, responsesNode := utils.FindKeyNode("responses", method.Content)
 
 			if descNode == nil {
 
-				res := model.BuildFunctionResultString(fmt.Sprintf("Operation '%s' at path '%s' is missing a description",
-					opMethod, opPath))
-
-				res.StartNode = method
-				res.EndNode = method
-				res.Path = basePath
+				res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' at path '%s' is missing a description",
+					opMethod, opPath), basePath, method, method)
 				results = append(results, res)
+			} else {
 
-				continue
+				// check if description is above a certain length of words
+				words := strings.Split(descNode.Value, " ")
+				if len(words) < minWords {
+
+					res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' description at path '%s' must be "+
+						"at least %d words long, (%d is not enough)", opMethod, opPath, minWords, len(words)), basePath, descKey, descNode)
+					results = append(results, res)
+				}
+			}
+			// check operation request body
+			if requestBodyNode != nil {
+
+				descKey, descNode = utils.FindKeyNode("description", requestBodyNode.Content)
+
+				if descNode == nil {
+					res := createOperationDescriptionResult(fmt.Sprintf("Operation requestBody '%s' at path '%s' "+
+						"is missing a description", opMethod, opPath),
+						buildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
+					results = append(results, res)
+				} else {
+
+					// check if request body description is above a certain length of words
+					words := strings.Split(descNode.Value, " ")
+					if len(words) < minWords {
+
+						res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' requestBody description "+
+							"at path '%s' must be at least %d words long, (%d is not enough)", opMethod, opPath,
+							minWords, len(words)), basePath, descKey, descNode)
+						results = append(results, res)
+					}
+				}
 			}
 
-			// check if description is above a certain length of words
-			words := strings.Split(descNode.Value, " ")
-			if len(words) < minWords {
+			// check operation responses
+			if responsesNode != nil {
 
-				res := model.BuildFunctionResultString(fmt.Sprintf("Operation '%s' description at path '%s' must be "+
-					"at least %d words long", opMethod, opPath, minWords))
+				// run through each response.
+				var opCode string
+				var opCodeNode *yaml.Node
+				for z, response := range responsesNode.Content {
+					if z%2 == 0 {
+						opCode = response.Value
+						opCodeNode = response
+						continue
+					}
 
-				res.StartNode = descNode
-				res.EndNode = descNode
-				res.Path = basePath
-				results = append(results, res)
-				continue
+					descKey, descNode = utils.FindKeyNode("description", response.Content)
+
+					if descNode == nil {
+						res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
+							"at path '%s' is missing a description", opMethod, opCode, opPath),
+							buildPath(basePath, []string{"requestBody"}), opCodeNode, response)
+						results = append(results, res)
+					} else {
+
+						// check if response description is above a certain length of words
+						words := strings.Split(descNode.Value, " ")
+						if len(words) < minWords {
+
+							res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
+								"description at path '%s' must be at least %d words long, (%d is not enough)", opMethod, opCode, opPath,
+								minWords, len(words)), basePath, descKey, descNode)
+							results = append(results, res)
+						}
+					}
+				}
 			}
-
-			// check if description is a copy paste
-
 		}
-
 	}
-
 	return results
+}
 
+func createOperationDescriptionResult(msg, path string, start *yaml.Node, end *yaml.Node) model.RuleFunctionResult {
+	res := model.BuildFunctionResultString(msg)
+	res.StartNode = start
+	res.EndNode = end
+	res.Path = path
+	return res
 }

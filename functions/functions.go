@@ -1,3 +1,6 @@
+// Copyright 2020-2022 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package functions
 
 import (
@@ -63,6 +66,8 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasUnusedComponent"] = openapi_functions.UnusedComponent{}
 		funcs["oasExample"] = openapi_functions.Examples{}
 		funcs["oasSchema"] = core.Schema{} // can't see a reason to duplicate this yet.
+		funcs["oasDescriptions"] = openapi_functions.OperationDescription{}
+		funcs["oasDescriptionDuplication"] = openapi_functions.DescriptionDuplication{}
 
 	})
 

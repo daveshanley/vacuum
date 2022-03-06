@@ -199,18 +199,37 @@ func GetOpenApiTagsRule() *model.Rule {
 }
 
 // GetOperationDescriptionRule will return a rule that uses the truthy function to check if an operation
-// has defined a description or not
+// has defined a description or not, or does not meet the required length
 func GetOperationDescriptionRule() *model.Rule {
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["minWords"] = "5" // five words is still weak, but it's better than nothing.
 	return &model.Rule{
-		Description: "Operation description is missing",
-		Given:       AllOperationsPath,
+		Description: "Operation description checks",
+		Given:       "$",
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
 		Severity:    error,
 		Then: model.RuleAction{
-			Field:    "description",
-			Function: "truthy",
+			Function:        "oasDescriptions",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetDescriptionDuplicationRule will check if any descriptions have been copy/pasted or duplicated.
+// all descriptions should be unique, otherwise what is the point?
+func GetDescriptionDuplicationRule() *model.Rule {
+	return &model.Rule{
+		Description: "Description duplication check",
+		Given:       "$..description",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function: "oasDescriptions",
 		},
 	}
 }

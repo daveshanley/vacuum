@@ -152,8 +152,11 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check tags exist correctly
 	rules["openapi-tags"] = GetOpenApiTagsRule()
 
-	// check all operations have a description
+	// check all operations have a description, and they match a set length.
 	rules["operation-description"] = GetOperationDescriptionRule()
+
+	// check for description and summary duplication
+	rules["description-duplication"] = GetDescriptionDuplicationRule()
 
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})
