@@ -50,6 +50,84 @@ func TestNoRefSiblings_RunRule_Fail(t *testing.T) {
 
 }
 
+func TestNoRefSiblings_RunRule_Components(t *testing.T) {
+
+	yml := `components:
+  schemas:
+    Beer:
+      description: nice
+      $ref: '#/components/Yum'
+    Bottle:
+      type: string
+    Cake:
+      $ref: '#/components/Sugar'`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := NoRefSiblings{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+
+}
+
+func TestNoRefSiblings_RunRule_Parameters(t *testing.T) {
+
+	yml := `parameters:
+  testParam:
+    $ref: '#/parameters/oldParam'
+  oldParam:
+    in: query
+    description: old
+  wrongParam:
+    description: I should not be here
+    $ref: '#/parameters/oldParam'  `
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := NoRefSiblings{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+
+}
+
+func TestNoRefSiblings_RunRule_Definitions(t *testing.T) {
+
+	yml := `definitions:
+  test:
+    $ref: '#/definitions/old'
+  old:
+    type: object
+    description: old
+  wrong:
+    description: I should not be here
+    $ref: '#/definitions/oldParam'  `
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	def := NoRefSiblings{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+
+}
+
 func TestNoRefSiblings_RunRule_Success(t *testing.T) {
 
 	yml := `paths:
