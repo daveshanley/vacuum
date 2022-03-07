@@ -361,5 +361,82 @@ func TestRuleSetGetPathDeclarationsMustExist(t *testing.T) {
 	results, _ := motor.ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
 	assert.Len(t, results, 1)
+	assert.Equal(t, "Path parameter declarations must not be empty ex. '/api/{}' is invalid:"+
+		" matches the expression '{}'", results[0].Message)
+
+}
+
+func TestRuleSetNoPathTrailingSlashTest(t *testing.T) {
+
+	yml := `paths:
+  /hi/{there}/:
+    get:
+      operationId: a
+  /oh/no/:
+    get:
+      operationId: b
+  /halp:
+    get:
+      operationId: b`
+
+	rules := make(map[string]*model.Rule)
+	rules["path-keys-no-trailing-slash"] = GetPathNoTrailingSlashRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 2)
+
+}
+
+func TestRuleSetNoPathQueryString(t *testing.T) {
+
+	yml := `paths:
+  /hi/{there}?oh=yeah:
+    get:
+      operationId: a
+  /woah/slow/down:
+    get:
+      operationId: b
+  /moving?too=fast:
+    get:
+      operationId: b`
+
+	rules := make(map[string]*model.Rule)
+	rules["path-not-include-query"] = GetPathNotIncludeQueryRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 2)
+
+}
+
+func TestRuleTagDescriptionRequiredRule(t *testing.T) {
+
+	yml := `tags:
+  - name: pizza
+    description: nice
+  - name: cinnamon
+  - name: lemons
+    description: zing`
+
+	rules := make(map[string]*model.Rule)
+	rules["tag-description"] = GetTagDescriptionRequiredRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Tag must have a description defined: 'description' must be set", results[0].Message)
 
 }

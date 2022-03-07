@@ -30,6 +30,8 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 	resolved, errs := model.ResolveOpenAPIDocument(&specResolved)
 
 	for _, er := range errs {
+
+		// TODO: look for circular errors here and add RuleResult
 		fmt.Printf("Resolving Issue: %v (%d: %d)\n", er.Error, er.Node.Line, er.Node.Column)
 	}
 

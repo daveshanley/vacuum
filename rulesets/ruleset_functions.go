@@ -308,16 +308,67 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = "{}"
 	return &model.Rule{
-		Description: "Path parameter declarations must not be empty ex. '/api/{}' is invalid.",
+		Description: "Path parameter declarations must not be empty ex. '/api/{}' is invalid",
 		Given:       "$.paths",
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
 		Severity:    error,
 		Then: model.RuleAction{
-			Field:           "@key",
 			Function:        "pattern",
 			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetPathNoTrailingSlashRule will make sure that paths don't have trailing slashes
+func GetPathNoTrailingSlashRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = ".+\\/$"
+	return &model.Rule{
+		Description: "Path must not end with a slash",
+		Given:       "$.paths",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetPathNotIncludeQueryRule checks to ensure paths are not including any query parameters.
+func GetPathNotIncludeQueryRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "\\?"
+	return &model.Rule{
+		Description: "Path must not include query string",
+		Given:       "$.paths",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetTagDescriptionRequiredRule checks to ensure tags defined have been given a description
+func GetTagDescriptionRequiredRule() *model.Rule {
+	return &model.Rule{
+		Description: "Tag must have a description defined",
+		Given:       "$.tags",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
 		},
 	}
 }

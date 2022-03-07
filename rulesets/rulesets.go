@@ -162,11 +162,20 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check for description and summary duplication
 	rules["description-duplication"] = GetDescriptionDuplicationRule()
 
-	// check operationId does not contain characters that would be invalid in an URL
+	// check operationId does not contain characters that would be invalid in a URL
 	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
 
 	// check paths don't have any empty declarations
 	rules["path-declarations-must-exist"] = GetPathDeclarationsMustExistRule()
+
+	// check paths don't end with a slash
+	rules["path-keys-no-trailing-slash"] = GetPathNoTrailingSlashRule()
+
+	// check paths don't contain a query string
+	rules["path-not-include-query"] = GetPathNotIncludeQueryRule()
+
+	// check tags have a description defined
+	rules["tag-description"] = GetTagDescriptionRequiredRule()
 
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})

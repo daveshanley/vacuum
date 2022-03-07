@@ -33,12 +33,24 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	if path, ok := context.Given.(string); ok {
 		pathValue = path
 	}
-	for _, node := range nodes {
 
-		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
+	isArray := false
+	if len(nodes) == 1 && utils.IsNodeArray(nodes[0]) {
+		nodes = nodes[0].Content
+		isArray = true
+	}
+
+	for x, node := range nodes {
+
+		fieldNode, fieldNodeValue := utils.FindFirstKeyNode(context.RuleAction.Field, node.Content, 0)
 		if fieldNode == nil && fieldNodeValue == nil ||
 			fieldNodeValue.Value == "" || fieldNodeValue.Value == "false" ||
 			fieldNodeValue.Value == "0" {
+
+			if isArray {
+				pathValue = fmt.Sprintf("%s[%d]", pathValue, x)
+			}
+
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("%s: '%s' must be set", context.Rule.Description, context.RuleAction.Field),
 				StartNode: node,
