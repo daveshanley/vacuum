@@ -260,3 +260,27 @@ components:
 		results[0].Message)
 
 }
+
+func TestRuleSet_OperationIdInvalidInUrl(t *testing.T) {
+
+	yml := `paths:
+  /hi:
+    get:
+      operationId: nice rice
+    post:
+      operationId: wow^cool
+    delete:
+      operationId: this-works`
+
+	rules := make(map[string]*model.Rule)
+	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 2)
+
+}

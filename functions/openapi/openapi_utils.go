@@ -4,6 +4,7 @@
 package openapi
 
 import (
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -33,4 +34,23 @@ func GetOperationsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 		}
 	}
 	return nil
+}
+
+// GetComponentsFromRoot will extract all operation (paths nodes) from the root of an OpenAPI document.
+func GetComponentsFromRoot(nodes []*yaml.Node) []*yaml.Node {
+	for _, node := range nodes {
+		_, components := utils.FindFirstKeyNode("components", node.Content, 0)
+		if components != nil && len(components.Content) > 0 {
+			return components.Content
+		}
+	}
+	return nil
+}
+
+func createDescriptionResult(msg, path string, start *yaml.Node, end *yaml.Node) model.RuleFunctionResult {
+	res := model.BuildFunctionResultString(msg)
+	res.StartNode = start
+	res.EndNode = end
+	res.Path = path
+	return res
 }

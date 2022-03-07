@@ -201,7 +201,6 @@ func GetOpenApiTagsRule() *model.Rule {
 // GetOperationDescriptionRule will return a rule that uses the truthy function to check if an operation
 // has defined a description or not, or does not meet the required length
 func GetOperationDescriptionRule() *model.Rule {
-	// create a schema to match against.
 	opts := make(map[string]interface{})
 	opts["minWords"] = "5" // five words is still weak, but it's better than nothing.
 	return &model.Rule{
@@ -229,9 +228,43 @@ func GetDescriptionDuplicationRule() *model.Rule {
 		Type:        validation,
 		Severity:    error,
 		Then: model.RuleAction{
-			Function: "oasDescriptions",
+			Function: "oasDescriptionDuplication",
 		},
 	}
 }
 
-// TODO: add description rule.
+// GetComponentDescriptionsRule will check all components for description problems.
+func GetComponentDescriptionsRule() *model.Rule {
+	return &model.Rule{
+		Description: "Component desciption check",
+		Given:       "$",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function: "oasComponentDescriptions",
+		},
+	}
+}
+
+// GetOperationIdValidInUrlRule will check id an operationId will be valid when used in an url.
+func GetOperationIdValidInUrlRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["match"] = "^[A-Za-z0-9-._~:/?#\\[\\]@!\\$&'()*+,;=]*$"
+	return &model.Rule{
+		Description: "OperationId must use URL friendly characters",
+		Given:       AllOperationsPath,
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:           "operationId",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// TODO: add parameter and components description rules.

@@ -12,16 +12,14 @@ import (
 )
 
 const (
-	warn       = "warn"
-	error      = "error"
-	info       = "info"
-	hint       = "hint"
-	style      = "style"
-	validation = "validation"
-	allPaths   = "$.paths[*]"
-	//allOperations = "[?(@.get)]"
+	warn          = "warn"
+	error         = "error"
+	info          = "info"
+	hint          = "hint"
+	style         = "style"
+	validation    = "validation"
+	allPaths      = "$.paths[*]"
 	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head ))]"
-	//allOperations = "[?(@.baps || @.blips || @.plips)]"
 )
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
@@ -74,7 +72,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	}
 
 	// add unique operation ID rule
-	rules["operation-operationId-unique"] = &model.Rule{
+	rules["operation-operationId"] = &model.Rule{
 		Description: "Every operation must have unique \"operationId\".",
 		Given:       "$.paths",
 		Resolved:    true,
@@ -155,8 +153,14 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check all operations have a description, and they match a set length.
 	rules["operation-description"] = GetOperationDescriptionRule()
 
+	// check all components have a description, and they match a set length.
+	rules["component-description"] = GetComponentDescriptionsRule()
+
 	// check for description and summary duplication
 	rules["description-duplication"] = GetDescriptionDuplicationRule()
+
+	// check operationId does not contain characters that would be invalid in an URL
+	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
 
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})

@@ -59,7 +59,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 			if descNode == nil {
 
-				res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' at path '%s' is missing a description",
+				res := createDescriptionResult(fmt.Sprintf("Operation '%s' at path '%s' is missing a description",
 					opMethod, opPath), basePath, method, method)
 				results = append(results, res)
 			} else {
@@ -68,7 +68,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				words := strings.Split(descNode.Value, " ")
 				if len(words) < minWords {
 
-					res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' description at path '%s' must be "+
+					res := createDescriptionResult(fmt.Sprintf("Operation '%s' description at path '%s' must be "+
 						"at least %d words long, (%d is not enough)", opMethod, opPath, minWords, len(words)), basePath, descKey, descNode)
 					results = append(results, res)
 				}
@@ -79,7 +79,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				descKey, descNode = utils.FindKeyNode("description", requestBodyNode.Content)
 
 				if descNode == nil {
-					res := createOperationDescriptionResult(fmt.Sprintf("Operation requestBody '%s' at path '%s' "+
+					res := createDescriptionResult(fmt.Sprintf("Operation requestBody '%s' at path '%s' "+
 						"is missing a description", opMethod, opPath),
 						buildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
 					results = append(results, res)
@@ -89,7 +89,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					words := strings.Split(descNode.Value, " ")
 					if len(words) < minWords {
 
-						res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' requestBody description "+
+						res := createDescriptionResult(fmt.Sprintf("Operation '%s' requestBody description "+
 							"at path '%s' must be at least %d words long, (%d is not enough)", opMethod, opPath,
 							minWords, len(words)), basePath, descKey, descNode)
 						results = append(results, res)
@@ -113,7 +113,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					descKey, descNode = utils.FindKeyNode("description", response.Content)
 
 					if descNode == nil {
-						res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
+						res := createDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
 							"at path '%s' is missing a description", opMethod, opCode, opPath),
 							buildPath(basePath, []string{"requestBody"}), opCodeNode, response)
 						results = append(results, res)
@@ -123,7 +123,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 						words := strings.Split(descNode.Value, " ")
 						if len(words) < minWords {
 
-							res := createOperationDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
+							res := createDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
 								"description at path '%s' must be at least %d words long, (%d is not enough)", opMethod, opCode, opPath,
 								minWords, len(words)), basePath, descKey, descNode)
 							results = append(results, res)
@@ -134,12 +134,4 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 		}
 	}
 	return results
-}
-
-func createOperationDescriptionResult(msg, path string, start *yaml.Node, end *yaml.Node) model.RuleFunctionResult {
-	res := model.BuildFunctionResultString(msg)
-	res.StartNode = start
-	res.EndNode = end
-	res.Path = path
-	return res
 }

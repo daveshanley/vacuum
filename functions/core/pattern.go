@@ -45,7 +45,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 
 	if props["match"] != "" {
-		p.match = props["match"]
+		p.match = props["match"] // TODO: there should be no state in here, clean this up.
 	}
 
 	if props["notMatch"] != "" {
@@ -68,8 +68,15 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		pathValue = path
 	}
 
-	for _, node := range nodes {
+	// if multiple patterns are being pulled in, unpack them
+	if len(nodes) == 1 && len(nodes[0].Content) > 0 {
+		nodes = nodes[0].Content
+	}
 
+	for x, node := range nodes {
+		if utils.IsNodeMap(node) {
+			continue
+		}
 		if p.match != "" {
 			rx, err := p.getPatternFromCache(p.match)
 			if err != nil {
@@ -81,10 +88,21 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					Path:      pathValue,
 				})
 			} else {
-				if !rx.MatchString(node.Value) {
+
+				// if a field is supplied, use that, if not then use the raw node value.
+				matchValue := node.Value
+				if context.RuleAction.Field != "" && x+1 <= len(nodes) {
+					_, fieldValue := utils.FindKeyNode(context.RuleAction.Field, nodes[x+1].Content)
+					if fieldValue != nil {
+						matchValue = fieldValue.Value
+						pathValue = fmt.Sprintf("%s.%s", pathValue, context.RuleAction.Field)
+					}
+				}
+
+				if !rx.MatchString(matchValue) {
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("%s: '%s' does not match the expression '%s'", context.Rule.Description,
-							node.Value, p.match),
+							matchValue, p.match),
 						StartNode: node,
 						EndNode:   node,
 						Path:      pathValue,
