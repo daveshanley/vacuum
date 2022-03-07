@@ -11,7 +11,6 @@ import (
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // Examples is a rule that checks that examples are being correctly used.
@@ -56,7 +55,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 			// check requests.
 			_, rbNode := utils.FindKeyNode("requestBody", method.Content)
 			if rbNode != nil {
-				results = checkExamples(rbNode, buildPath(basePath, []string{"requestBody"}), results)
+				results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results)
 			}
 
 			// check parameters.
@@ -69,7 +68,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 					_, nameNode := utils.FindFirstKeyNode("name", []*yaml.Node{param}, 0)
 					if nameNode != nil {
 						results = analyzeExample(nameNode.Value, param,
-							buildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results)
+							utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results)
 					}
 				}
 			}
@@ -85,7 +84,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 						code = respCodeNode.Value
 						continue
 					}
-					results = checkExamples(respCodeNode, buildPath(basePath, []string{fmt.Sprintf("%s.%s",
+					results = checkExamples(respCodeNode, utils.BuildPath(basePath, []string{fmt.Sprintf("%s.%s",
 						"responses", code)}), results)
 				}
 			}
@@ -123,7 +122,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 			if nameNode != nil {
 
 				results = analyzeExample(nameNode.Value, param,
-					buildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results)
+					utils.BuildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results)
 			}
 		}
 	}
@@ -173,7 +172,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string, result
 
 					res.StartNode = prop
 					res.EndNode = prop.Content[len(prop.Content)-1]
-					res.Path = buildPath(path, []string{compName, pName})
+					res.Path = utils.BuildPath(path, []string{compName, pName})
 					*results = append(*results, res)
 					continue
 
@@ -252,17 +251,6 @@ func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunc
 	return results
 }
 
-func buildPath(basePath string, segs []string) string {
-
-	path := strings.Join(segs, ".")
-
-	// trim that last period.
-	if len(path) > 0 && path[len(path)-1] == '.' {
-		path = path[:len(path)-1]
-	}
-	return fmt.Sprintf("%s.%s", basePath, path)
-}
-
 func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
 
 	_, sValue := utils.FindKeyNode("schema", nameNode.Content)
@@ -297,7 +285,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				continue
 			}
 
-			nodePath := buildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName, "value"})
+			nodePath := utils.BuildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName, "value"})
 
 			_, valueNode := utils.FindFirstKeyNode("value", []*yaml.Node{multiExampleNode}, 0)
 			//_, externalValueNode := utils.FindFirstKeyNode("externalValue", nameNode.Content, 0)
@@ -330,7 +318,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				}
 			} else {
 				// no value on example,
-				nodePath = buildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName})
+				nodePath = utils.BuildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName})
 				z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' has no value, it's malformed", exampleName))
 				z.StartNode = esValue
 				z.EndNode = esValue

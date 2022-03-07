@@ -183,6 +183,8 @@ func GetOpenApiTagsRule() *model.Rule {
 		UniqueItems: true,
 	}
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+	//opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
+
 	return &model.Rule{
 		Description: "Top level spec 'tags' must not be empty, and must be an array",
 		Given:       "$",
@@ -267,4 +269,55 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 	}
 }
 
-// TODO: add parameter and components description rules.
+// GetOperationTagsRule uses the schema function to check if there tags exist and that
+// it's an array with at least one item.
+// TODO: re-build this at some pont, I don't like it very much.
+func GetOperationTagsRule() *model.Rule {
+	items := 1
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["schema"] = parser.Schema{
+		Type: &utils.ArrayLabel,
+		Items: &parser.Schema{
+			Type:     &utils.StringLabel,
+			MinItems: &items,
+		},
+		UniqueItems: true,
+	}
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+	opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
+
+	return &model.Rule{
+		Description: "Operation 'tags' must not be empty, and must be an array",
+		Given:       AllOperationsPath,
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:           "tags",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetPathDeclarationsMustExistRule will check to make sure there are no empty path variables
+func GetPathDeclarationsMustExistRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "{}"
+	return &model.Rule{
+		Description: "Path parameter declarations must not be empty ex. '/api/{}' is invalid.",
+		Given:       "$.paths",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Field:           "@key",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+	}
+}

@@ -29,12 +29,19 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		return nil
 	}
 
+	unpack := utils.ExtractValueFromInterfaceMap("unpack", context.Options)
+	if _, ok := unpack.(bool); ok {
+		nodes = nodes[0].Content
+	}
+
 	var results []model.RuleFunctionResult
 
 	schema := utils.ExtractValueFromInterfaceMap("schema", context.Options).(parser.Schema)
 
 	for x, node := range nodes {
-
+		if x%2 == 0 && len(nodes) > 1 {
+			continue
+		}
 		// find field from rule
 		_, field := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if field != nil {

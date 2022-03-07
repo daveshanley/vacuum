@@ -284,3 +284,82 @@ func TestRuleSet_OperationIdInvalidInUrl(t *testing.T) {
 	assert.Len(t, results, 2)
 
 }
+
+func TestRuleSetGetOperationTagsRule(t *testing.T) {
+
+	yml := `paths:
+  /hi:
+    get:
+      tags:
+        - fresh
+    post:
+      operationId: cool
+    delete:
+      operationId: jam`
+
+	rules := make(map[string]*model.Rule)
+	rules["operation-tags"] = GetOperationTagsRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 2)
+
+}
+
+func TestRuleSetGetOperationTagsMultipleRule(t *testing.T) {
+
+	yml := `paths:
+  /hi:
+    get:
+      tags:
+        - fresh
+    post:
+      operationId: cool
+    delete:
+      operationId: jam
+  /bye:
+    get:
+      tags:
+        - hot
+    post:
+      operationId: coffee`
+
+	rules := make(map[string]*model.Rule)
+	rules["operation-tags"] = GetOperationTagsRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 3)
+
+}
+
+func TestRuleSetGetPathDeclarationsMustExist(t *testing.T) {
+
+	yml := `paths:
+  /hi/{there}:
+    get:
+      operationId: a
+  /oh/{}:
+    get:
+      operationId: b`
+
+	rules := make(map[string]*model.Rule)
+	rules["path-declarations-must-exist"] = GetPathDeclarationsMustExistRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+
+}

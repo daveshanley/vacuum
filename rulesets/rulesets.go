@@ -19,7 +19,7 @@ const (
 	style         = "style"
 	validation    = "validation"
 	allPaths      = "$.paths[*]"
-	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head ))]"
+	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head)]"
 )
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
@@ -150,6 +150,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check tags exist correctly
 	rules["openapi-tags"] = GetOpenApiTagsRule()
 
+	// check operation tags exist correctly
+	rules["operation-tags"] = GetOperationTagsRule()
+
 	// check all operations have a description, and they match a set length.
 	rules["operation-description"] = GetOperationDescriptionRule()
 
@@ -161,6 +164,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// check operationId does not contain characters that would be invalid in an URL
 	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
+
+	// check paths don't have any empty declarations
+	rules["path-declarations-must-exist"] = GetPathDeclarationsMustExistRule()
 
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})

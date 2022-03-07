@@ -81,7 +81,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				if descNode == nil {
 					res := createDescriptionResult(fmt.Sprintf("Operation requestBody '%s' at path '%s' "+
 						"is missing a description", opMethod, opPath),
-						buildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
+						utils.BuildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
 					results = append(results, res)
 				} else {
 
@@ -115,7 +115,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					if descNode == nil {
 						res := createDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
 							"at path '%s' is missing a description", opMethod, opCode, opPath),
-							buildPath(basePath, []string{"requestBody"}), opCodeNode, response)
+							utils.BuildPath(basePath, []string{"requestBody"}), opCodeNode, response)
 						results = append(results, res)
 					} else {
 

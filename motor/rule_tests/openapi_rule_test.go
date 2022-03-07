@@ -54,8 +54,8 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
       - in: query
         name: hurry  
       responses:
-      "500":
-        description:can I get a curry?
+        "500":
+          description:can I get a curry?
     post:
       description: can I get a curry?    
   /curry/{chips}/{cheese}:
@@ -68,7 +68,7 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
 	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
-	assert.Len(t, results, 16)
+	assert.Len(t, results, 19)
 
 	for n := 0; n < len(results); n++ {
 		assert.NotNil(t, results[n].Path)

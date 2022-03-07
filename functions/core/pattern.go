@@ -105,7 +105,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 							matchValue, p.match),
 						StartNode: node,
 						EndNode:   node,
-						Path:      pathValue,
+						Path:      utils.BuildPath(pathValue, []string{node.Value}),
 					})
 				}
 			}
@@ -128,7 +128,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Message:   fmt.Sprintf("%s: matches the expression '%s'", context.Rule.Description, p.notMatch),
 						StartNode: node,
 						EndNode:   node,
-						Path:      pathValue,
+						Path:      utils.BuildPath(pathValue, []string{node.Value}),
 					})
 				}
 			}

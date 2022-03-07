@@ -54,6 +54,18 @@ func FindLastChildNode(node *yaml.Node) *yaml.Node {
 	}
 }
 
+// BuildPath will construct a JSONPath from a base and an array of strings.
+func BuildPath(basePath string, segs []string) string {
+
+	path := strings.Join(segs, ".")
+
+	// trim that last period.
+	if len(path) > 0 && path[len(path)-1] == '.' {
+		path = path[:len(path)-1]
+	}
+	return fmt.Sprintf("%s.%s", basePath, path)
+}
+
 // FindNodesWithoutDeserializing will find a node based on JSONPath, without deserializing from yaml/json
 func FindNodesWithoutDeserializing(node *yaml.Node, jsonPath string) ([]*yaml.Node, error) {
 	jsonPath = FixContext(jsonPath)
