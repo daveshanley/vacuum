@@ -1,0 +1,47 @@
+components:
+  schemas:
+#    One:
+#      description: "test one"
+#      properties:
+#        things:
+#          anyOf:
+#            - "$ref": "#/components/schemas/Two"
+#    Two:
+#      decription: "test two"
+#      properties:
+#        testThing:
+#          "$ref": "#/components/schemas/Three"
+#        anyOf:
+#          - "$ref": "#/components/schemas/Four"
+    Three:
+      description: "test three"
+      properties:
+        tester:
+          "$ref": "#/components/schemas/Four"
+        bester:
+          "$ref": "#/components/schemas/Seven"
+        yester:
+          "$ref": "#/components/schemas/Seven"
+    Four:
+      desription: "test four"
+      properties:
+        lemons:
+          "$ref": "#/components/schemas/Five"
+    Five:
+      properties:
+        "$ref": "#/components/schemas/Six"
+    Six:
+      properties:
+        "$ref": "#/components/schemas/Nine"
+    Seven:
+      properties:
+        "$ref": "#/components/schemas/Three"
+    Nine:
+      description: done.
+    Ten:
+      properties:
+        "$ref": "#/components/schemas/Ten"
+
+
+
+
