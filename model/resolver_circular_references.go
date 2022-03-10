@@ -49,9 +49,9 @@ func CheckForSchemaCircularReferences(rootNode *yaml.Node) []*CircularReferenceR
 	schemasRequiringResolving := make(map[string]*Reference)
 
 	// remove anything that does not contain any other references, they are not required here.
-
+	// ignore polymorphic stuff, that can create endless loops.
 	for d, knownObject := range knownObjects {
-		path, _ = yamlpath.NewPath("$..[?(@.$ref)]")
+		path, _ = yamlpath.NewPath("$.properties[*][?(@.$ref)]")
 		res, _ := path.Find(knownObject.Node)
 
 		seenRelations := make(map[string]bool)
@@ -95,7 +95,7 @@ func CheckForSchemaCircularReferences(rootNode *yaml.Node) []*CircularReferenceR
 					}
 
 				}
-				//knownObjects[relation.Definition].Seen = true
+				knownObjects[relation.Definition].Seen = true
 			}
 		}
 	}
@@ -111,11 +111,7 @@ func visitReference(
 
 	locatedReference := knownReferences[reference.Definition]
 
-	if locatedReference.Seen {
-		return nil
-	}
-
-	path, _ := yamlpath.NewPath("$..[?(@.$ref)]")
+	path, _ := yamlpath.NewPath("$.properties[*][?(@.$ref)]")
 	res, _ := path.Find(locatedReference.Node)
 
 	if len(res) > 0 {
@@ -143,8 +139,6 @@ func visitReference(
 					} else {
 						journey = append(journey, checkReference)
 					}
-
-					checkReference.Seen = true
 
 					sb := strings.Builder{}
 					for i, j := range journey {
@@ -180,7 +174,6 @@ func visitReference(
 			}
 
 		}
-		locatedReference.Seen = true
 		return circularResults
 
 	}
