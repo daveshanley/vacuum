@@ -15,10 +15,12 @@ func TestCheckForSchemaCircularReferences(t *testing.T) {
 	var rootNode yaml.Node
 	yaml.Unmarshal(circularTest, &rootNode)
 
-	results := CheckForSchemaCircularReferences(&rootNode)
+	results, ko, seq := CheckForSchemaCircularReferences("$.components.schemas", &rootNode)
 
 	assert.NotNil(t, results)
 	assert.Len(t, results, 3)
+	assert.Len(t, ko, 9)
+	assert.Len(t, seq, 9)
 
 	for _, result := range results {
 		assert.Equal(t, result.Journey[len(result.Journey)-1].Definition, result.LoopPoint.Definition)
@@ -32,7 +34,8 @@ func TestCheckForSchemaCircularReferences_Stripe(t *testing.T) {
 	var rootNode yaml.Node
 	yaml.Unmarshal(stripe, &rootNode)
 
-	results := CheckForSchemaCircularReferences(&rootNode)
+	results, _, _ := CheckForSchemaCircularReferences("$.components.schemas",
+		&rootNode)
 	assert.Nil(t, results)
 
 }

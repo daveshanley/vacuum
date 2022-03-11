@@ -5,17 +5,22 @@ import (
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"strings"
+	"sync"
 )
 
+// Reference is a wrapper around *yaml.Node results to make things more manageable when performing
+// algorithms on data models. the *yaml.Node def is just a bit too low level for tracking state.
 type Reference struct {
 	Definition string
 	Name       string
 	Node       *yaml.Node
 	Relations  []*Reference
 	Resolved   bool
+	Circular   bool
 	Seen       bool
 }
 
+// CircularReferenceResult contains a circular reference found when traversing the graph.
 type CircularReferenceResult struct {
 	Journey       []*Reference
 	JourneyString string
@@ -24,33 +29,42 @@ type CircularReferenceResult struct {
 	LoopPoint     *Reference
 }
 
-func CheckForSchemaCircularReferences(rootNode *yaml.Node) []*CircularReferenceResult {
+// CheckForSchemaCircularReferences will traverse a supplied path and look cycles in the graph.
+// will return any circular results (or nil) and will always return the list of node references searched, and a sequenced collection
+// of the same know nodes (so repeat runs find circular references in the same order)
+func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([]*CircularReferenceResult, map[string]*Reference, []*Reference) {
 
-	path, _ := yamlpath.NewPath("$.components.schemas")
+	path, _ := yamlpath.NewPath(searchPath)
 	results, _ := path.Find(rootNode)
 
 	knownObjects := make(map[string]*Reference)
+	var sequenceObjects []*Reference
 	var name string
-	for x, component := range results[0].Content {
-		if x%2 == 0 {
-			name = component.Value
-			continue
-		}
-		def := fmt.Sprintf("%s/%s", "#/components/schemas", name)
-		ref := &Reference{
-			Definition: def,
-			Name:       name,
-			Node:       component,
-		}
+	if results != nil {
+		for x, component := range results[0].Content {
+			if x%2 == 0 {
+				name = component.Value
+				continue
+			}
 
-		knownObjects[def] = ref
+			label := strings.ReplaceAll(strings.ReplaceAll(searchPath, ".", "/"), "$", "#")
+			def := fmt.Sprintf("%s/%s", label, name)
+			ref := &Reference{
+				Definition: def,
+				Name:       name,
+				Node:       component,
+			}
+
+			knownObjects[def] = ref
+			sequenceObjects = append(sequenceObjects, ref)
+		}
 	}
 
-	schemasRequiringResolving := make(map[string]*Reference)
+	var schemasRequiringResolving []*Reference
 
 	// remove anything that does not contain any other references, they are not required here.
 	// ignore polymorphic stuff, that can create endless loops.
-	for d, knownObject := range knownObjects {
+	for _, knownObject := range sequenceObjects {
 		path, _ = yamlpath.NewPath("$.properties[*][?(@.$ref)]")
 		res, _ := path.Find(knownObject.Node)
 
@@ -72,35 +86,44 @@ func CheckForSchemaCircularReferences(rootNode *yaml.Node) []*CircularReferenceR
 		}
 
 		if len(res) > 0 {
-			schemasRequiringResolving[d] = knownObject
+			schemasRequiringResolving = append(schemasRequiringResolving, knownObject)
 		}
 	}
 
-	//visited := make(map[string]*Reference)
 	var problems []*CircularReferenceResult
 	seenProblems := make(map[string]bool)
 	for _, needsResolving := range schemasRequiringResolving {
 		if len(needsResolving.Relations) > 0 {
+
+			wg := sync.WaitGroup{}
+			wg.Add(len(needsResolving.Relations))
+
 			for _, relation := range needsResolving.Relations {
-				journey := []*Reference{needsResolving}
-				problem := visitReference(relation, needsResolving, journey, knownObjects)
 
-				if problem != nil {
-					for _, p := range problem {
-						if !seenProblems[p.LoopPoint.Definition] {
-							seenProblems[p.LoopPoint.Definition] = true
-							problems = append(problems, p)
+				var goVisitEverything = func() {
 
+					journey := []*Reference{needsResolving}
+					problem := visitReference(relation, needsResolving, journey, knownObjects)
+
+					if problem != nil {
+						for _, p := range problem {
+							if !seenProblems[p.LoopPoint.Definition] {
+								seenProblems[p.LoopPoint.Definition] = true
+								problems = append(problems, p)
+
+							}
 						}
 					}
-
+					knownObjects[relation.Definition].Seen = true
+					wg.Done()
 				}
-				knownObjects[relation.Definition].Seen = true
+				go goVisitEverything()
 			}
+			wg.Wait()
 		}
 	}
 
-	return problems
+	return problems, knownObjects, sequenceObjects
 }
 
 func visitReference(
@@ -125,8 +148,8 @@ func visitReference(
 			}
 		}
 		var circularResults []*CircularReferenceResult
-		for _, checkReference := range filtered {
 
+		for _, checkReference := range filtered {
 			if !checkReference.Seen {
 
 				pos := hasReferenceBeenSeen(checkReference, journey)
@@ -163,6 +186,7 @@ func visitReference(
 					}
 
 					checkReference.Seen = true
+					checkReference.Circular = true
 					return []*CircularReferenceResult{circRef}
 				}
 
@@ -172,7 +196,6 @@ func visitReference(
 				circularResults = append(circularResults,
 					visitReference(checkReference, parent, splitJourney, knownReferences)...)
 			}
-
 		}
 		return circularResults
 
