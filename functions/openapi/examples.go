@@ -155,7 +155,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string, result
 	var pName string
 
 	// if no object level example exists, check for property examples.
-	if topExKey == nil && topExValue == nil {
+	if topExKey == nil && topExValue == nil && pValue != nil {
 		for n, prop := range pValue.Content {
 			if n%2 == 0 {
 				pName = prop.Value

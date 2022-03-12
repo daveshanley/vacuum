@@ -265,6 +265,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		},
 	}
 
+	// TODO: Examples is not efficient at all, needs cleaning up significantly,
+	// should be broken down into sub rules most likely.
+
 	// check all examples
 	rules["oas-3valid-schema-example"] = &model.Rule{
 		Description: "Examples must be present",

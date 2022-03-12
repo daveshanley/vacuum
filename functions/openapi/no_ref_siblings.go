@@ -41,6 +41,8 @@ func (rfs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		Key:     "$ref",
 		Results: []*utils.KeyNodeResult{},
 	}
+
+	// TODO: check if a path search here will be faster
 	utils.FindAllKeyNodesWithPath(search, nil, pathNodes, nil, 0)
 	results = append(results, rfs.checkNodes("paths", search, results)...)
 
