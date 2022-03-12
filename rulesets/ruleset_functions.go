@@ -272,6 +272,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 // GetOperationTagsRule uses the schema function to check if there tags exist and that
 // it's an array with at least one item.
 // TODO: re-build this at some pont, I don't like it very much.
+// TODO: use utils.FindAllKeyNodesWithPath
 func GetOperationTagsRule() *model.Rule {
 	items := 1
 

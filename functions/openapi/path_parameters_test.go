@@ -229,11 +229,12 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 
 func TestPathParameters_RunRule_MultiplePaths_TopAndVerbParams(t *testing.T) {
 
-	yml := `parameters:
- chicken:
-   in: path
-   required: true
-   name: chicken
+	yml := `components: 
+  parameters:
+    chicken:
+      in: path
+      required: true
+      name: chicken
 paths:
  /musical/{melody}/{pizza}/{cake}:
    parameters:
@@ -251,12 +252,12 @@ paths:
        - in: path
          name: ember
          required: true
-       - $ref: '#/parameters/chicken'
+       - $ref: '#/components/parameters/chicken'
    post:
      parameters:
        - in: path
          name: ember
-       - $ref: '#/parameters/chicken'`
+       - $ref: '#/components/parameters/chicken'`
 
 	path := "$"
 

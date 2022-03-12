@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -41,22 +42,94 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 	var sequenceObjects []*Reference
 	var name string
 	if results != nil {
-		for x, component := range results[0].Content {
-			if x%2 == 0 {
-				name = component.Value
-				continue
-			}
 
-			label := strings.ReplaceAll(strings.ReplaceAll(searchPath, ".", "/"), "$", "#")
-			def := fmt.Sprintf("%s/%s", label, name)
-			ref := &Reference{
-				Definition: def,
-				Name:       name,
-				Node:       component,
-			}
+		for _, result := range results {
 
-			knownObjects[def] = ref
-			sequenceObjects = append(sequenceObjects, ref)
+			for x, component := range result.Content {
+				if x%2 == 0 {
+					name = component.Value
+					continue
+				}
+
+				if utils.IsNodeMap(component) && len(component.Content) > 0 && component.Content[0].Value != "$ref" {
+
+					if searchPath == "$.paths..items" ||
+						searchPath == "$.paths..schema" ||
+						searchPath == "$.paths..parameters" {
+						continue // we should not be in here, we're looking at anyOf, allOf or oneOf
+					}
+
+					label := strings.ReplaceAll(strings.ReplaceAll(searchPath, ".", "/"), "$", "#")
+					def := fmt.Sprintf("%s/%s", label, name)
+					ref := &Reference{
+						Definition: def,
+						Name:       name,
+						Node:       component,
+					}
+
+					knownObjects[def] = ref
+					sequenceObjects = append(sequenceObjects, ref)
+
+				} else {
+
+					if determineReferenceResolveType(component.Value) == httpResolve {
+
+						uri := strings.Split(component.Value, "#")
+
+						if len(uri) == 2 && knownObjects[uri[1]] == nil {
+							// get name from ref
+							nameSegs := strings.Split(uri[1], "/")
+
+							// extract remote node.
+							node, err := lookupRemoteReference(component.Value)
+
+							if err != nil {
+
+								// TODO: unable to resolve file remotely.
+
+							} else {
+								ref := &Reference{
+									Definition: uri[1],
+									Name:       nameSegs[len(nameSegs)-1],
+									Node:       node,
+								}
+
+								knownObjects[uri[1]] = ref
+								sequenceObjects = append(sequenceObjects, ref)
+							}
+						}
+					}
+
+					if determineReferenceResolveType(component.Value) == fileResolve {
+
+						uri := strings.Split(component.Value, "#")
+
+						if len(uri) == 2 && knownObjects[uri[1]] == nil {
+							// get name from ref
+							nameSegs := strings.Split(uri[1], "/")
+
+							// extract remote node.
+							node, err := lookupFileReference(component.Value)
+
+							if err != nil {
+
+								// TODO: unable to resolve file locally
+
+							} else {
+								ref := &Reference{
+									Definition: uri[1],
+									Name:       nameSegs[len(nameSegs)-1],
+									Node:       node,
+								}
+
+								knownObjects[uri[1]] = ref
+								sequenceObjects = append(sequenceObjects, ref)
+							}
+						}
+					}
+
+				}
+			}
 		}
 	}
 
@@ -65,28 +138,37 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 	// remove anything that does not contain any other references, they are not required here.
 	// ignore polymorphic stuff, that can create endless loops.
 	for _, knownObject := range sequenceObjects {
-		path, _ = yamlpath.NewPath("$.properties[*][?(@.$ref)]")
-		res, _ := path.Find(knownObject.Node)
 
-		seenRelations := make(map[string]bool)
-		for _, relative := range res {
-			if !seenRelations[relative.Content[1].Value] {
-
-				// TODO: add check to make sure known object can be found.
-
-				knownObject.Relations = append(knownObject.Relations,
-					&Reference{
-						Definition: relative.Content[1].Value,
-						Name:       knownObjects[relative.Content[1].Value].Name,
-						Node:       relative,
-					},
-				)
-				seenRelations[relative.Content[1].Value] = true
-			}
+		searchPaths := []string{
+			"$.properties[*][?(@.$ref)]",
+			"$..items[?(@.$ref)]",
 		}
 
-		if len(res) > 0 {
-			schemasRequiringResolving = append(schemasRequiringResolving, knownObject)
+		for _, refSearchPath := range searchPaths {
+
+			path, _ = yamlpath.NewPath(refSearchPath)
+			res, _ := path.Find(knownObject.Node)
+
+			seenRelations := make(map[string]bool)
+			for _, relative := range res {
+				if !seenRelations[relative.Content[1].Value] {
+
+					// TODO: add check to make sure known object can be found.
+
+					knownObject.Relations = append(knownObject.Relations,
+						&Reference{
+							Definition: relative.Content[1].Value,
+							Name:       knownObjects[relative.Content[1].Value].Name,
+							Node:       relative,
+						},
+					)
+					seenRelations[relative.Content[1].Value] = true
+				}
+			}
+
+			if len(res) > 0 {
+				schemasRequiringResolving = append(schemasRequiringResolving, knownObject)
+			}
 		}
 	}
 
@@ -134,74 +216,79 @@ func visitReference(
 
 	locatedReference := knownReferences[reference.Definition]
 
-	path, _ := yamlpath.NewPath("$.properties[*][?(@.$ref)]")
-	res, _ := path.Find(locatedReference.Node)
-
-	if len(res) > 0 {
-
-		// now we need to clean these results again, there could be a ton of dupes
-		filtered := make(map[string]*Reference)
-		for _, rel := range res {
-			dupeCheckRef := knownReferences[rel.Content[1].Value]
-			if filtered[dupeCheckRef.Definition] == nil {
-				filtered[dupeCheckRef.Definition] = dupeCheckRef
-			}
-		}
-		var circularResults []*CircularReferenceResult
-
-		for _, checkReference := range filtered {
-			if !checkReference.Seen {
-
-				pos := hasReferenceBeenSeen(checkReference, journey)
-
-				if pos >= 0 {
-
-					// looking at an immediate loop back?
-					if checkReference.Node.Line != locatedReference.Node.Line {
-						journey = append(journey, locatedReference, checkReference)
-					} else {
-						journey = append(journey, checkReference)
-					}
-
-					sb := strings.Builder{}
-					for i, j := range journey {
-						if i == pos {
-							sb.WriteString(fmt.Sprintf("** %s **", j.Name))
-						} else {
-							sb.WriteString(fmt.Sprintf("%s", j.Name))
-						}
-						if i < len(journey)-1 {
-							sb.WriteString(" --> ")
-						}
-					}
-
-					// TODO: extract the cycle and bubble up for report.
-
-					circRef := &CircularReferenceResult{
-						Journey:       journey,
-						JourneyString: sb.String(),
-						Start:         journey[0],
-						LoopIndex:     pos,
-						LoopPoint:     journey[len(journey)-1],
-					}
-
-					checkReference.Seen = true
-					checkReference.Circular = true
-					return []*CircularReferenceResult{circRef}
-				}
-
-				var splitJourney = journey
-
-				splitJourney = append(journey, locatedReference)
-				circularResults = append(circularResults,
-					visitReference(checkReference, parent, splitJourney, knownReferences)...)
-			}
-		}
-		return circularResults
-
+	searchPaths := []string{
+		"$..properties[*][?(@.$ref)]",
+		"$..items[*][?(@.$ref)]",
 	}
 
-	return nil
+	var circularResults []*CircularReferenceResult
+
+	// look through all search strings
+	for _, pathString := range searchPaths {
+
+		path, _ := yamlpath.NewPath(pathString)
+		res, _ := path.Find(locatedReference.Node)
+
+		if len(res) > 0 {
+
+			// now we need to clean these results again, there could be a ton of dupes
+			filtered := make(map[string]*Reference)
+			for _, rel := range res {
+				dupeCheckRef := knownReferences[rel.Content[1].Value]
+				if filtered[dupeCheckRef.Definition] == nil {
+					filtered[dupeCheckRef.Definition] = dupeCheckRef
+				}
+			}
+
+			for _, checkReference := range filtered {
+				if !checkReference.Seen {
+
+					pos := hasReferenceBeenSeen(checkReference, journey)
+
+					if pos >= 0 {
+
+						// looking at an immediate loop back?
+						if checkReference.Node.Line != locatedReference.Node.Line {
+							journey = append(journey, locatedReference, checkReference)
+						} else {
+							journey = append(journey, checkReference)
+						}
+
+						sb := strings.Builder{}
+						for i, j := range journey {
+							if i == pos {
+								sb.WriteString(fmt.Sprintf("** %s **", j.Name))
+							} else {
+								sb.WriteString(fmt.Sprintf("%s", j.Name))
+							}
+							if i < len(journey)-1 {
+								sb.WriteString(" --> ")
+							}
+						}
+
+						circRef := &CircularReferenceResult{
+							Journey:       journey,
+							JourneyString: sb.String(),
+							Start:         journey[0],
+							LoopIndex:     pos,
+							LoopPoint:     journey[len(journey)-1],
+						}
+
+						checkReference.Seen = true
+						checkReference.Circular = true
+						return []*CircularReferenceResult{circRef}
+					}
+
+					var splitJourney = journey
+
+					splitJourney = append(journey, locatedReference)
+					circularResults = append(circularResults,
+						visitReference(checkReference, parent, splitJourney, knownReferences)...)
+				}
+			}
+		}
+	}
+	return circularResults
 }
 
 func hasReferenceBeenSeen(ref *Reference, journey []*Reference) int {

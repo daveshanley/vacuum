@@ -10,8 +10,17 @@ import (
 	"testing"
 )
 
-func Benchmark_ResolveDocument(b *testing.B) {
+func Benchmark_ResolveDocumentBurgerShop(b *testing.B) {
 	burgershop, _ := ioutil.ReadFile("test_files/burgershop.openapi.yaml")
+	var rootNode yaml.Node
+	yaml.Unmarshal(burgershop, &rootNode)
+	for n := 0; n < b.N; n++ {
+		ResolveOpenAPIDocument(&rootNode)
+	}
+}
+
+func Benchmark_ResolveDocumentStripe(b *testing.B) {
+	burgershop, _ := ioutil.ReadFile("test_files/stripe.yaml")
 	var rootNode yaml.Node
 	yaml.Unmarshal(burgershop, &rootNode)
 	for n := 0; n < b.N; n++ {
@@ -78,6 +87,31 @@ func TestResolveDocument_File(t *testing.T) {
 	// should be x bytes larger after resolving, should also match the same byte size as a remote test.
 	assert.Len(t, burgershop, 7993)
 	assert.Len(t, b, 18205)
+
+}
+
+func TestResolveDocument_Stripe(t *testing.T) {
+
+	stripe, _ := ioutil.ReadFile("test_files/stripe.yaml")
+
+	var rootNode yaml.Node
+	yaml.Unmarshal(stripe, &rootNode)
+
+	resolved, _ := ResolveOpenAPIDocument(&rootNode)
+	assert.NotNil(t, resolved)
+
+	b, err := yaml.Marshal(resolved)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//should be x bytes larger after resolving, should also match the same byte size as a remote test.
+	before := len(stripe)
+	after := len(b)
+
+	assert.Greater(t, after, before)
+	assert.Equal(t, before, 3173977)
+	assert.Equal(t, after, 80745647)
 
 }
 
@@ -393,7 +427,7 @@ func TestResolveDocument_File_Fail_InvalidPath(t *testing.T) {
 	var rootNode yaml.Node
 	yaml.Unmarshal([]byte(spec), &rootNode)
 
-	resolved, _ := ResolveOpenAPIDocument(&rootNode)
+	resolved, errs := ResolveOpenAPIDocument(&rootNode)
 	assert.NotNil(t, resolved)
 
 	// looking up the ref should return a result, which means it was ignored.
@@ -401,6 +435,8 @@ func TestResolveDocument_File_Fail_InvalidPath(t *testing.T) {
 	path, _ := yamlpath.NewPath(pathValue)
 	result, _ := path.Find(resolved)
 	assert.NotNil(t, result)
+	assert.NotNil(t, errs)
+	assert.Len(t, errs, 1)
 }
 
 func TestResolveDocument_CircularReferences(t *testing.T) {
@@ -421,9 +457,15 @@ func TestResolveDocument_CircularReferences(t *testing.T) {
 components:
   schemas:
     Puppy:
-      $ref: '#/components/schemas/Kitty'
+      description: Puppy thing
+      properties:
+        kitty: 
+          $ref: '#/components/schemas/Kitty'
     Kitty:
-      $ref: '#/components/schemas/Puppy'`
+      properties:
+        description: Kitty Thing
+        puppy:  
+          $ref: '#/components/schemas/Puppy'`
 
 	spec := strings.TrimSpace(yml)
 
@@ -432,34 +474,38 @@ components:
 
 	resolved, errs := ResolveOpenAPIDocument(&rootNode)
 	assert.NotNil(t, resolved)
-	assert.Len(t, errs, 3)
+	assert.Len(t, errs, 1)
+
+	//d, _ := yaml.Marshal(&rootNode)
+	//fmt.Print(d)
 
 }
 
 func TestResolveDocument_Parameter_Resolving(t *testing.T) {
 
-	yml := `parameters:
+	yml := `components: 
+  schemas:
+    Puppy:
+      type: string
+  parameters:
     Louie:
-        in: query
-        name: louie
+      in: query
+      name: louie
     Chewy:
-        $ref: '#/parameters/Louie'
+      $ref: '#/components/parameters/Louie'
 paths:
-    /naughty/{puppy}:
-        parameters:
-            - $ref: '#/parameters/Chewy'
-        get:
-            responses:
-            "200":
-                description: The naughty pup
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/Puppy'
-components:
-    schemas:
-        Puppy:
-            type: string`
+  /naughty/{puppy}:
+    parameters:
+      - $ref: '#/components/parameters/Chewy'
+    get:
+      responses:
+        "200":
+          description: The naughty pup
+          content:
+            application/json:
+              schema:
+                  $ref: '#/components/schemas/Puppy'
+`
 
 	spec := strings.TrimSpace(yml)
 
@@ -471,6 +517,6 @@ components:
 	b, _ := yaml.Marshal(resolved)
 	assert.NotNil(t, b)
 	assert.NotNil(t, resolved)
-	assert.Len(t, errs, 0)
-
+	assert.Len(t, errs, 1)
+	assert.Equal(t, "component '#/components/parameters/Chewy' cannot be resolved", errs[0].Error.Error())
 }

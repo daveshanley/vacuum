@@ -226,7 +226,9 @@ func FindAllKeyNodesWithPath(search *KeyNodeSearch, parent *yaml.Node, searchNod
 	for i, v := range searchNodes {
 
 		if v.Kind == yaml.MappingNode || v.Kind == yaml.SequenceNode {
+			depth++
 			FindAllKeyNodesWithPath(search, v, v.Content, foundPath, depth)
+
 		}
 
 		if v.Kind == yaml.ScalarNode {
