@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
@@ -34,6 +35,8 @@ var rootCmd = &cobra.Command{
 		writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
 		//fmt.Fprintln(writer, "Start\tEnd\tMessage\tPath")
 		//fmt.Fprintln(writer, "-----\t---\t-------\t----")
+
+		tableData := [][]string{{"Start", "Severity", "Message", "Path"}}
 		for _, r := range results {
 			var start string
 			if r.StartNode != nil && r.EndNode != nil {
@@ -59,10 +62,16 @@ var rootCmd = &cobra.Command{
 			if r.Rule != nil {
 				sev = r.Rule.Severity
 			}
+			tableData = append(tableData, []string{start, pterm.LightGreen(sev), m, p})
 			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v\t%v", start, sev, m, p))
 
 		}
-		writer.Flush()
+		//writer.Flush()
+		// TODO: build out stats
+
+		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+
+		pterm.Println() // Blank line
 
 	},
 }
