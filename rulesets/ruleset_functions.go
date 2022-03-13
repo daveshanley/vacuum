@@ -373,3 +373,18 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 		},
 	}
 }
+
+// GetTypedEnumRule checks to ensure enums are of the specified type
+func GetTypedEnumRule() *model.Rule {
+	return &model.Rule{
+		Description: "Enum values must respect the specified type",
+		Given:       "$..[?(@.enum && @.type)]",
+		Resolved:    true,
+		Recommended: true,
+		Type:        validation,
+		Severity:    error,
+		Then: model.RuleAction{
+			Function: "typedEnum",
+		},
+	}
+}

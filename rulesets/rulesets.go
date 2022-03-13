@@ -177,6 +177,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check tags have a description defined
 	rules["tag-description"] = GetTagDescriptionRequiredRule()
 
+	// check enums respect specified types
+	rules["typed-enum"] = GetTypedEnumRule()
+
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})
 	duplicatedEnum["schema"] = parser.Schema{
