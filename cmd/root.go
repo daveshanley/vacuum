@@ -32,18 +32,30 @@ var rootCmd = &cobra.Command{
 		}
 
 		writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
-		fmt.Fprintln(writer, "Start\tEnd\tMessage\tPath")
-		fmt.Fprintln(writer, "-----\t---\t-------\t----")
+		//fmt.Fprintln(writer, "Start\tEnd\tMessage\tPath")
+		//fmt.Fprintln(writer, "-----\t---\t-------\t----")
 		for _, r := range results {
-			var start, end string
+			var start string
 			if r.StartNode != nil && r.EndNode != nil {
 				start = fmt.Sprintf("(%v:%v)", r.StartNode.Line, r.StartNode.Column)
-				end = fmt.Sprintf("(%v:%v)", r.EndNode.Line, r.EndNode.Column)
+				//end = fmt.Sprintf("(%v:%v)", r.EndNode.Line, r.EndNode.Column)
 			} else {
-				start = "(x:x)"
-				end = "(x:x)"
+				//start = "(x:x)"
+				//end = "(x:x)"
 			}
-			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v\t%v", start, end, r.Message, r.Path))
+
+			m := r.Message
+			p := r.Path
+			if len(r.Path) > 60 {
+				p = fmt.Sprintf("%s...", r.Path[:60])
+			}
+
+			if len(r.Message) > 80 {
+				m = fmt.Sprintf("%s...", r.Message[:80])
+			}
+
+			//fmt.Fprintln(writer, fmt.Sprintf("%v\t%v", r.Message, p))
+			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v", start, m, p))
 
 		}
 		writer.Flush()

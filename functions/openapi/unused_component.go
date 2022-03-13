@@ -114,7 +114,7 @@ func processSeenComponents(foundComponents []*yaml.Node, seenResults []*refResul
 							ref:        nameNode.Value,
 							refDefName: nameNode.Value,
 							node:       nameNode,
-							path:       fmt.Sprintf("$.%s.%s.%s", "components", compType, nameNode.Value),
+							path:       fmt.Sprintf("$.%s.%s['%s']", "components", compType, nameNode.Value),
 						})
 					}
 				}
@@ -158,7 +158,12 @@ func convertRefIntoPath(ref string) string {
 	if ref[0] == '#' {
 		ref = ref[2:]
 	}
-	return fmt.Sprintf("$.%s", strings.ReplaceAll(ref, "/", "."))
+
+	// use a map approach as class names might have periods in them
+	segs := strings.Split(ref, "/")
+	name := segs[len(segs)-1]
+	trimmed := segs[:len(segs)-1]
+	return fmt.Sprintf("$.%s['%s']", strings.Join(trimmed, "."), name)
 }
 
 func checkForUnusedComponents(seenDefs []*refResult, knownRefs []*refResult) []*refResult {

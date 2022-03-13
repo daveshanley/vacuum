@@ -368,7 +368,6 @@ func TestExamples_RunRule_Fail_InlineExample_Wrong_Type(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 3)
-	assert.NotNil(t, res[0].Path)
 }
 
 func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {

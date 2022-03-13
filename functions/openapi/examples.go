@@ -88,9 +88,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 						"responses", code)}), results)
 				}
 			}
-
 		}
-
 	}
 
 	// check components.
@@ -130,7 +128,8 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	return *results
 }
 
-func checkAllDefinitionsForExamples(objNode []*yaml.Node, results *[]model.RuleFunctionResult, path string) *[]model.RuleFunctionResult {
+func checkAllDefinitionsForExamples(objNode []*yaml.Node,
+	results *[]model.RuleFunctionResult, path string) *[]model.RuleFunctionResult {
 	if len(objNode) > 0 {
 		if objNode[0] != nil {
 			compNode := objNode[0]
@@ -147,7 +146,8 @@ func checkAllDefinitionsForExamples(objNode []*yaml.Node, results *[]model.RuleF
 	return results
 }
 
-func checkDefinitionForExample(componentNode *yaml.Node, compName string, results *[]model.RuleFunctionResult, path string) *[]model.RuleFunctionResult {
+func checkDefinitionForExample(componentNode *yaml.Node, compName string,
+	results *[]model.RuleFunctionResult, path string) *[]model.RuleFunctionResult {
 
 	// extract properties and a top level example, if it exists.
 	topExKey, topExValue := utils.FindKeyNode("example", []*yaml.Node{componentNode})
@@ -271,8 +271,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 
 	}
 
-	// extract the schema
-	schema, _ := parser.ConvertNodeDefinitionIntoSchema(sValue)
+	var schema *parser.Schema
 
 	// look through multiple examples and evaluate them.
 	var exampleName string
@@ -292,6 +291,10 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 
 			if valueNode != nil {
 				// check if the example validates against the schema
+
+				// extract the schema
+				schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+
 				res, _ := parser.ValidateNodeAgainstSchema(schema, valueNode, false)
 				if !res.Valid() {
 					// extract all validation errors.
@@ -336,6 +339,10 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 		if len(eValue.Content) > 0 {
 
 			// ok, so let's check the object is valid against the schema.
+			// extract the schema
+			if schema == nil {
+				schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+			}
 			res, _ := parser.ValidateNodeAgainstSchema(schema, eValue, false)
 
 			// extract all validation errors.
@@ -365,19 +372,32 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 
 	}
 
-	exampleValidation := parser.ValidateExample(schema)
-	if len(exampleValidation) > 0 {
-		_, pNode := utils.FindKeyNode("properties", sValue.Content)
-		var endNode *yaml.Node
-		if pNode != nil && len(pNode.Content) > 0 {
-			endNode = pNode.Content[len(pNode.Content)-1]
+	// check if there are any example fields set, if so, validate schema.
+	ex := 0
+	if sValue != nil {
+		p, _ := yamlpath.NewPath("$..example")
+		z, _ := p.Find(sValue)
+		ex = len(z)
+	}
+	if ex > 0 {
+		if schema == nil {
+			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
 		}
-		for _, example := range exampleValidation {
-			z := model.BuildFunctionResultString(example.Message)
-			z.StartNode = pNode
-			z.EndNode = endNode
-			*results = append(*results, z)
+		exampleValidation := parser.ValidateExample(schema)
+		if len(exampleValidation) > 0 {
+			_, pNode := utils.FindKeyNode("properties", sValue.Content)
+			var endNode *yaml.Node
+			if pNode != nil && len(pNode.Content) > 0 {
+				endNode = pNode.Content[len(pNode.Content)-1]
+			}
+			for _, example := range exampleValidation {
+				z := model.BuildFunctionResultString(example.Message)
+				z.StartNode = pNode
+				z.EndNode = endNode
+				*results = append(*results, z)
+			}
 		}
 	}
+
 	return results
 }

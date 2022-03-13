@@ -20,15 +20,10 @@ func TestUnusedComponent_RunRule(t *testing.T) {
 
 func TestUnusedComponent_RunRule_Success(t *testing.T) {
 
-	yml := `parameters:
-  Chewy:
-    description: chewy
-    in: query
-    name: chewy
-paths:
+	yml := `paths:
   /naughty/{puppy}:
     parameters:
-      - $ref: '#/parameters/Chewy'
+      - $ref: '#/components/parameters/Chewy'
     get:
       responses:
       "200":
@@ -41,7 +36,12 @@ components:
   schemas:
     Puppy:
       type: string
-      description: pup`
+      description: pup
+  parameters:
+    Chewy:
+      description: chewy
+      in: query
+      name: chewy`
 
 	path := "$"
 
@@ -98,19 +98,10 @@ components:
 
 func TestUnusedComponent_RunRule_Success_Fail_Four_Undefined(t *testing.T) {
 
-	yml := `parameters:
-  Minty:
-    description: minty
-    in: header
-    name: minty
-  Chewy:
-    description: chewy
-    in: query
-    name: chewy
-paths:
+	yml := `paths:
   /naughty/{puppy}:
     parameters:
-      - $ref: '#/parameters/Chewy'
+      - $ref: '#/components/parameters/Chewy'
     get:
       responses:
       "200":
@@ -132,7 +123,16 @@ components:
       type: string
       description: pup
     Kitty:
-      $ref: '#/components/schemas/Puppy'`
+      $ref: '#/components/schemas/Puppy'
+  parameters:
+    Minty:
+      description: minty
+      in: header
+      name: minty
+    Chewy:
+      description: chewy
+      in: query
+      name: chewy`
 
 	path := "$"
 
