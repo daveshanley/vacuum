@@ -180,10 +180,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// duplicated entry in enums
 	duplicatedEnum := make(map[string]interface{})
 	duplicatedEnum["schema"] = parser.Schema{
-		Type: &utils.ArrayLabel,
-		Items: &parser.Schema{
-			Type: &utils.StringLabel,
-		},
+		Type:        &utils.ArrayLabel,
 		UniqueItems: true,
 	}
 
