@@ -64,6 +64,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 					StartNode: ref.node,
 					EndNode:   ref.node,
 					Path:      ref.path,
+					Rule:      context.Rule,
 				})
 			}
 		}
@@ -91,6 +92,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 				StartNode: comp.node,
 				EndNode:   comp.node,
 				Path:      comp.path,
+				Rule:      context.Rule,
 			})
 		}
 	}

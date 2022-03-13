@@ -18,7 +18,7 @@ func GetContactPropertiesRule() *model.Rule {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: []model.RuleAction{
 			{
 				Field:    "name",
@@ -45,7 +45,7 @@ func GetInfoContactRule() *model.Rule {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Field:    "contact",
 			Function: "truthy",
@@ -78,8 +78,8 @@ func GetInfoLicenseRule() *model.Rule {
 		Given:       "$.info",
 		Resolved:    true,
 		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Type:        style,
+		Severity:    info,
 		Then: model.RuleAction{
 			Field:    "license",
 			Function: "truthy",
@@ -95,8 +95,8 @@ func GetInfoLicenseUrlRule() *model.Rule {
 		Given:       "$.info.license",
 		Resolved:    true,
 		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Type:        style,
+		Severity:    info,
 		Then: model.RuleAction{
 			Field:    "url",
 			Function: "truthy",
@@ -158,8 +158,8 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 		Given:       "$.tags",
 		Resolved:    true,
 		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Type:        style,
+		Severity:    info,
 		Then: model.RuleAction{
 			Function:        "alphabetical",
 			FunctionOptions: fo,
@@ -191,7 +191,7 @@ func GetOpenApiTagsRule() *model.Rule {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Field:           "tags",
 			Function:        "schema",
@@ -228,7 +228,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Function: "oasDescriptionDuplication",
 		},
@@ -238,7 +238,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 // GetComponentDescriptionsRule will check all components for description problems.
 func GetComponentDescriptionsRule() *model.Rule {
 	return &model.Rule{
-		Description: "Component desciption check",
+		Description: "Component description check",
 		Given:       "$",
 		Resolved:    true,
 		Recommended: true,
@@ -295,7 +295,7 @@ func GetOperationTagsRule() *model.Rule {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Field:           "tags",
 			Function:        "schema",
@@ -382,7 +382,7 @@ func GetTypedEnumRule() *model.Rule {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Function: "typedEnum",
 		},

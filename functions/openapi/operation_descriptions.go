@@ -61,6 +61,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 				res := createDescriptionResult(fmt.Sprintf("Operation '%s' at path '%s' is missing a description",
 					opMethod, opPath), basePath, method, method)
+				res.Rule = context.Rule
 				results = append(results, res)
 			} else {
 
@@ -70,6 +71,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 					res := createDescriptionResult(fmt.Sprintf("Operation '%s' description at path '%s' must be "+
 						"at least %d words long, (%d is not enough)", opMethod, opPath, minWords, len(words)), basePath, descKey, descNode)
+					res.Rule = context.Rule
 					results = append(results, res)
 				}
 			}
@@ -82,6 +84,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					res := createDescriptionResult(fmt.Sprintf("Operation requestBody '%s' at path '%s' "+
 						"is missing a description", opMethod, opPath),
 						utils.BuildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
+					res.Rule = context.Rule
 					results = append(results, res)
 				} else {
 
@@ -92,6 +95,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 						res := createDescriptionResult(fmt.Sprintf("Operation '%s' requestBody description "+
 							"at path '%s' must be at least %d words long, (%d is not enough)", opMethod, opPath,
 							minWords, len(words)), basePath, descKey, descNode)
+						res.Rule = context.Rule
 						results = append(results, res)
 					}
 				}
@@ -116,6 +120,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 						res := createDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
 							"at path '%s' is missing a description", opMethod, opCode, opPath),
 							utils.BuildPath(basePath, []string{"requestBody"}), opCodeNode, response)
+						res.Rule = context.Rule
 						results = append(results, res)
 					} else {
 
@@ -126,6 +131,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 							res := createDescriptionResult(fmt.Sprintf("Operation '%s' response '%s' "+
 								"description at path '%s' must be at least %d words long, (%d is not enough)", opMethod, opCode, opPath,
 								minWords, len(words)), basePath, descKey, descNode)
+							res.Rule = context.Rule
 							results = append(results, res)
 						}
 					}

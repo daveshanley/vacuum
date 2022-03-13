@@ -80,6 +80,7 @@ func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.Ru
 									StartNode: sec,
 									EndNode:   sec,
 									Path:      fmt.Sprintf("$.paths.%s..security", path),
+									Rule:      context.Rule,
 								})
 							}
 						}

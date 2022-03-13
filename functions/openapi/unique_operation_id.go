@@ -65,6 +65,7 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 							StartNode: verbDataNode,
 							EndNode:   endNode,
 							Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
+							Rule:      context.Rule,
 						})
 					} else {
 						if seenIds[opIdValueNode.Value] {
@@ -74,6 +75,7 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 								StartNode: verbDataNode,
 								EndNode:   endNode,
 								Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
+								Rule:      context.Rule,
 							})
 						} else {
 							seenIds[opIdValueNode.Value] = true

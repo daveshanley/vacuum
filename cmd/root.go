@@ -55,7 +55,11 @@ var rootCmd = &cobra.Command{
 			}
 
 			//fmt.Fprintln(writer, fmt.Sprintf("%v\t%v", r.Message, p))
-			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v", start, m, p))
+			sev := "nope"
+			if r.Rule != nil {
+				sev = r.Rule.Severity
+			}
+			fmt.Fprintln(writer, fmt.Sprintf("%v\t%v\t%v\t%v", start, sev, m, p))
 
 		}
 		writer.Flush()

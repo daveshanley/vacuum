@@ -14,6 +14,11 @@ import (
 //go:embed schemas/ruleset.schema.json
 var rulesetSchema string
 
+type RuleCategory struct {
+	Name        string
+	Description string
+}
+
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
 	RuleAction *RuleAction
@@ -28,6 +33,7 @@ type RuleFunctionResult struct {
 	StartNode *yaml.Node
 	EndNode   *yaml.Node
 	Path      string
+	Rule      *Rule
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
@@ -45,14 +51,15 @@ type RuleAction struct {
 
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
-	Description string      `json:"description"`
-	Given       interface{} `json:"given"`
-	Formats     []string    `json:"formats"`
-	Resolved    bool        `json:"resolved"`
-	Recommended bool        `json:"recommended"`
-	Type        string      `json:"type"`
-	Severity    string      `json:"severity"`
-	Then        interface{} `json:"then"`
+	Description  string        `json:"description"`
+	Given        interface{}   `json:"given"`
+	Formats      []string      `json:"formats"`
+	Resolved     bool          `json:"resolved"`
+	Recommended  bool          `json:"recommended"`
+	Type         string        `json:"type"`
+	Severity     string        `json:"severity"`
+	Then         interface{}   `json:"then"`
+	RuleCategory *RuleCategory `json:"-"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts

@@ -154,6 +154,9 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 				if !seenRelations[relative.Content[1].Value] {
 
 					// TODO: add check to make sure known object can be found.
+					if knownObjects[relative.Content[1].Value] == nil {
+						continue
+					}
 
 					knownObject.Relations = append(knownObject.Relations,
 						&Reference{

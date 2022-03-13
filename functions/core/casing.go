@@ -144,6 +144,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      pathValue,
+				Rule:      context.Rule,
 			})
 		}
 	} else {
@@ -165,6 +166,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      pathValue,
+				Rule:      context.Rule,
 			})
 		}
 	}

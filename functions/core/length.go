@@ -10,6 +10,8 @@ import (
 	"strconv"
 )
 
+// TODO: come back and reduce the amount of code in here, it's not very efficient.
+
 // Length is a rule that will determine if nodes meet a 'min' or 'max' size. It checks arrays, strings and maps.
 type Length struct{}
 
@@ -107,6 +109,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
+					res.Rule = context.Rule
 					results = append(results, res)
 					continue
 				}
@@ -115,6 +118,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
+					res.Rule = context.Rule
 					results = append(results, res)
 					continue
 				}
@@ -125,6 +129,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.StartNode = node
 				res.EndNode = node
 				res.Path = pathValue
+				res.Rule = context.Rule
 				results = append(results, res)
 				continue
 			}
@@ -133,6 +138,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.StartNode = node
 				res.EndNode = node
 				res.Path = pathValue
+				res.Rule = context.Rule
 				results = append(results, res)
 				continue
 			}
@@ -156,12 +162,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
+					res.Rule = context.Rule
 					results = append(results, res)
 				} else {
 					res := createMinError(context.Rule.Given.(string), min)
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
+					res.Rule = context.Rule
 					results = append(results, res)
 				}
 				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
@@ -174,12 +182,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
+					res.Rule = context.Rule
 					results = append(results, res)
 				} else {
 					res := createMaxError(context.Rule.Given.(string), max)
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
+					res.Rule = context.Rule
 					results = append(results, res)
 
 				}

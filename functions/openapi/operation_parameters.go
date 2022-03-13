@@ -79,6 +79,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 												StartNode: startNode,
 												EndNode:   endNode,
 												Path:      resultPath,
+												Rule:      context.Rule,
 											})
 										}
 									} else {
@@ -91,6 +92,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 													StartNode: startNode,
 													EndNode:   endNode,
 													Path:      resultPath,
+													Rule:      context.Rule,
 												})
 											}
 										}
@@ -103,6 +105,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 										StartNode: startNode,
 										EndNode:   endNode,
 										Path:      resultPath,
+										Rule:      context.Rule,
 									})
 
 								}
@@ -115,6 +118,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 											StartNode: startNode,
 											EndNode:   endNode,
 											Path:      resultPath,
+											Rule:      context.Rule,
 										})
 									} else {
 										seenParamNames[paramNameNode.Value] = true
@@ -126,6 +130,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 										StartNode: startNode,
 										EndNode:   endNode,
 										Path:      resultPath,
+										Rule:      context.Rule,
 									})
 								}
 							}

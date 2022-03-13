@@ -51,7 +51,7 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 				node:  description,
 			}
 
-			checkDescriptions(seenDescriptions, md5String, description, &results, cp)
+			checkDescriptions(seenDescriptions, md5String, description, &results, cp, context)
 
 		}
 
@@ -65,9 +65,9 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 				node:  summary,
 			}
 
-			checkSummaries(seenSummaries, md5String, summary, &results, cp)
+			checkSummaries(seenSummaries, md5String, summary, &results, cp, context)
 			if len(seenDescriptions) > 0 {
-				checkDescriptions(seenDescriptions, md5String, summary, &results, cp)
+				checkDescriptions(seenDescriptions, md5String, summary, &results, cp, context)
 			}
 
 		}
@@ -78,7 +78,7 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 }
 
 func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summary *yaml.Node,
-	results *[]model.RuleFunctionResult, cp copyPasta) {
+	results *[]model.RuleFunctionResult, cp copyPasta, context model.RuleFunctionContext) {
 	if seenSummaries[md5String] != nil {
 		// duplicate
 		res := model.BuildFunctionResultString(fmt.Sprintf("Summary at line '%d' is a duplicate of line '%d'",
@@ -86,6 +86,7 @@ func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summa
 		res.StartNode = summary
 		res.EndNode = summary
 		res.Path = "$..summary"
+		res.Rule = context.Rule
 		*results = append(*results, res)
 
 	} else {
@@ -94,7 +95,7 @@ func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summa
 }
 
 func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string, description *yaml.Node,
-	results *[]model.RuleFunctionResult, cp copyPasta) {
+	results *[]model.RuleFunctionResult, cp copyPasta, context model.RuleFunctionContext) {
 
 	if seenDescriptions[md5String] != nil {
 		// duplicate
@@ -103,6 +104,7 @@ func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string,
 		res.StartNode = description
 		res.EndNode = description
 		res.Path = "$..description"
+		res.Rule = context.Rule
 		*results = append(*results, res)
 
 	} else {

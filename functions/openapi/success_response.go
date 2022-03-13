@@ -88,6 +88,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 								StartNode: fieldNode,
 								EndNode:   endNode,
 								Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
+								Rule:      context.Rule,
 							})
 						}
 					}

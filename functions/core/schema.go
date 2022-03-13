@@ -57,6 +57,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 					fmt.Sprintf("'%s', is missing and is required", context.RuleAction.Field)))
 				r.StartNode = node
 				r.EndNode = node.Content[len(node.Content)-1]
+				r.Rule = context.Rule
 				if p, ok := context.Given.(string); ok {
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
@@ -81,6 +82,7 @@ func validateNodeAgainstSchema(schema parser.Schema, field *yaml.Node,
 			resError.Description()))
 		r.StartNode = field
 		r.EndNode = field
+		r.Rule = context.Rule
 		if p, ok := context.Given.(string); ok {
 			r.Path = fmt.Sprintf("%s[%d]", p, x)
 		}

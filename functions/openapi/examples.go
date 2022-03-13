@@ -55,7 +55,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 			// check requests.
 			_, rbNode := utils.FindKeyNode("requestBody", method.Content)
 			if rbNode != nil {
-				results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results)
+				results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results, context)
 			}
 
 			// check parameters.
@@ -68,7 +68,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 					_, nameNode := utils.FindFirstKeyNode("name", []*yaml.Node{param}, 0)
 					if nameNode != nil {
 						results = analyzeExample(nameNode.Value, param,
-							utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results)
+							utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results, context)
 					}
 				}
 			}
@@ -85,7 +85,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 						continue
 					}
 					results = checkExamples(respCodeNode, utils.BuildPath(basePath, []string{fmt.Sprintf("%s.%s",
-						"responses", code)}), results)
+						"responses", code)}), results, context)
 				}
 			}
 		}
@@ -96,14 +96,14 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	path, _ := yamlpath.NewPath(componentsPathString)
 	objNode, _ := path.Find(nodes[0])
 
-	results = checkAllDefinitionsForExamples(objNode, results, componentsPathString)
+	results = checkAllDefinitionsForExamples(objNode, results, componentsPathString, context)
 
 	// check definitions (swagger)
 	defPathString := "$.definitions"
 	path, _ = yamlpath.NewPath(defPathString)
 	objNode, _ = path.Find(nodes[0])
 
-	results = checkAllDefinitionsForExamples(objNode, results, defPathString)
+	results = checkAllDefinitionsForExamples(objNode, results, defPathString, context)
 
 	// check parameters
 	componentParamPath := "$.components.parameters"
@@ -120,7 +120,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 			if nameNode != nil {
 
 				results = analyzeExample(nameNode.Value, param,
-					utils.BuildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results)
+					utils.BuildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results, context)
 			}
 		}
 	}
@@ -129,7 +129,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 }
 
 func checkAllDefinitionsForExamples(objNode []*yaml.Node,
-	results *[]model.RuleFunctionResult, path string) *[]model.RuleFunctionResult {
+	results *[]model.RuleFunctionResult, path string, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 	if len(objNode) > 0 {
 		if objNode[0] != nil {
 			compNode := objNode[0]
@@ -139,7 +139,7 @@ func checkAllDefinitionsForExamples(objNode []*yaml.Node,
 					compName = schemaNode.Value
 					continue
 				}
-				results = checkDefinitionForExample(schemaNode, compName, results, path)
+				results = checkDefinitionForExample(schemaNode, compName, results, path, context)
 			}
 		}
 	}
@@ -147,7 +147,7 @@ func checkAllDefinitionsForExamples(objNode []*yaml.Node,
 }
 
 func checkDefinitionForExample(componentNode *yaml.Node, compName string,
-	results *[]model.RuleFunctionResult, path string) *[]model.RuleFunctionResult {
+	results *[]model.RuleFunctionResult, path string, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 
 	// extract properties and a top level example, if it exists.
 	topExKey, topExValue := utils.FindKeyNode("example", []*yaml.Node{componentNode})
@@ -173,6 +173,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					res.StartNode = prop
 					res.EndNode = prop.Content[len(prop.Content)-1]
 					res.Path = utils.BuildPath(path, []string{compName, pName})
+					res.Rule = context.Rule
 					*results = append(*results, res)
 					continue
 
@@ -196,6 +197,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 							pName, resError.Description(), resError.Value()))
 						z.StartNode = exKey
 						z.EndNode = exValue
+						z.Rule = context.Rule
 						*results = append(*results, z)
 					}
 
@@ -218,6 +220,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 				"Value '%s' is not compatible", compName, resError.Description(), resError.Value()))
 			z.StartNode = topExKey
 			z.EndNode = topExValue.Content[len(topExValue.Content)-1]
+			z.Rule = context.Rule
 			*results = append(*results, z)
 		}
 
@@ -225,7 +228,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 	return results
 }
 
-func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
+func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 	// don't bother if we can't see anything.
 	if rbNode == nil {
 		return results
@@ -244,14 +247,14 @@ func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunc
 					continue
 				}
 				nameNodeValue = nameValueNode.Value
-				results = analyzeExample(nameNodeValue, mediaTypeNode.Content[b+1], basePath, results)
+				results = analyzeExample(nameNodeValue, mediaTypeNode.Content[b+1], basePath, results, context)
 			}
 		}
 	}
 	return results
 }
 
-func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
+func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 
 	_, sValue := utils.FindKeyNode("schema", nameNode.Content)
 	_, esValue := utils.FindKeyNode("examples", nameNode.Content)
@@ -267,6 +270,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 		res.StartNode = nameNode
 		res.EndNode = sValue
 		res.Path = basePath
+		res.Rule = context.Rule
 		*results = append(*results, res)
 
 	}
@@ -305,6 +309,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 						z.StartNode = esValue
 						z.EndNode = valueNode
 						z.Path = nodePath
+						z.Rule = context.Rule
 						*results = append(*results, z)
 					}
 				}
@@ -317,6 +322,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 					z.StartNode = esValue
 					z.EndNode = valueNode
 					z.Path = nodePath
+					z.Rule = context.Rule
 					*results = append(*results, z)
 				}
 			} else {
@@ -326,6 +332,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				z.StartNode = esValue
 				z.EndNode = esValue
 				z.Path = nodePath
+				z.Rule = context.Rule
 				*results = append(*results, z)
 
 			}
@@ -352,6 +359,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 					nameNodeValue, resError.Description(), resError.Field()))
 				z.StartNode = eValue
 				z.EndNode = eValue.Content[len(eValue.Content)-1]
+				z.Rule = context.Rule
 				*results = append(*results, z)
 			}
 
@@ -367,6 +375,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				"is malformed, should be object, not '%s'", nameNodeValue, nodeVal))
 			z.StartNode = eValue
 			z.EndNode = eValue
+			z.Rule = context.Rule
 			*results = append(*results, z)
 		}
 
@@ -394,6 +403,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				z := model.BuildFunctionResultString(example.Message)
 				z.StartNode = pNode
 				z.EndNode = endNode
+				z.Rule = context.Rule
 				*results = append(*results, z)
 			}
 		}

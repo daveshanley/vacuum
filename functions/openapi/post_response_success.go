@@ -60,6 +60,7 @@ func (prs PostResponseSuccess) RunRule(nodes []*yaml.Node, context model.RuleFun
 					strings.Join(values, ", ")),
 				StartNode: startNode,
 				EndNode:   endNode,
+				Rule:      context.Rule,
 			})
 		}
 

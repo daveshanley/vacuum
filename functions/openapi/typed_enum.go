@@ -83,6 +83,7 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 					StartNode: startNode,
 					EndNode:   endNode,
 					Path:      fmt.Sprintf("%v", context.Given),
+					Rule:      context.Rule,
 				})
 			}
 		}

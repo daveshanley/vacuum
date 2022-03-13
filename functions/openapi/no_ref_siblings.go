@@ -44,7 +44,7 @@ func (rfs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 	// TODO: check if a path search here will be faster
 	utils.FindAllKeyNodesWithPath(search, nil, pathNodes, nil, 0)
-	results = append(results, rfs.checkNodes("paths", search, results)...)
+	results = append(results, rfs.checkNodes("paths", search, results, context)...)
 
 	// look through components next
 	ymlPath, _ = yamlpath.NewPath("$.components")
@@ -53,7 +53,7 @@ func (rfs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	if len(compNodes) > 0 {
 		search.Results = []*utils.KeyNodeResult{}
 		utils.FindAllKeyNodesWithPath(search, nil, compNodes, nil, 0)
-		results = append(results, rfs.checkNodes("components", search, results)...)
+		results = append(results, rfs.checkNodes("components", search, results, context)...)
 	}
 	// look through parameters
 	ymlPath, _ = yamlpath.NewPath("$.parameters")
@@ -62,7 +62,7 @@ func (rfs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	if len(paramNodes) > 0 {
 		search.Results = []*utils.KeyNodeResult{}
 		utils.FindAllKeyNodesWithPath(search, nil, paramNodes, nil, 0)
-		results = append(results, rfs.checkNodes("parameters", search, results)...)
+		results = append(results, rfs.checkNodes("parameters", search, results, context)...)
 	}
 
 	// look through definitions (swagger)
@@ -72,13 +72,14 @@ func (rfs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	if len(defNodes) > 0 {
 		search.Results = []*utils.KeyNodeResult{}
 		utils.FindAllKeyNodesWithPath(search, nil, defNodes, nil, 0)
-		results = append(results, rfs.checkNodes("definitions", search, results)...)
+		results = append(results, rfs.checkNodes("definitions", search, results, context)...)
 	}
 	return results
 
 }
 
-func (rfs NoRefSiblings) checkNodes(prefix string, search *utils.KeyNodeSearch, results []model.RuleFunctionResult) []model.RuleFunctionResult {
+func (rfs NoRefSiblings) checkNodes(prefix string, search *utils.KeyNodeSearch,
+	results []model.RuleFunctionResult, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	for _, res := range search.Results {
 		if len(res.Parent.Content) > 2 {
 
@@ -87,6 +88,7 @@ func (rfs NoRefSiblings) checkNodes(prefix string, search *utils.KeyNodeSearch, 
 				StartNode: res.KeyNode,
 				EndNode:   res.ValueNode,
 				Path:      rfs.createJSONPathFromFoundNodeArray(prefix, res.Path),
+				Rule:      context.Rule,
 			})
 		}
 	}

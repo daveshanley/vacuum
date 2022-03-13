@@ -24,6 +24,16 @@ const (
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
 
+var RuleCategories = make(map[string]*model.RuleCategory)
+
+func init() {
+	RuleCategories["examples"] = &model.RuleCategory{
+		Name: "Examples",
+		Description: "Checks that examples have been added to component schemas, parameters and operations. This rule" +
+			"also checks that examples match the schema and types provided.",
+	}
+}
+
 type ruleSetsModel struct {
 	openAPIRuleSet *model.RuleSet
 }
@@ -91,7 +101,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    warn,
+		Severity:    error,
 		Then: model.RuleAction{
 			Function: "oasOpParams",
 		},
@@ -104,7 +114,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    warn,
+		Severity:    error,
 		Then: model.RuleAction{
 			Function: "oasTagDefined",
 		},
@@ -208,7 +218,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		Resolved:    false,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Function: "refSiblings",
 		},
@@ -275,7 +285,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 		Resolved:    true,
 		Recommended: true,
 		Type:        validation,
-		Severity:    error,
+		Severity:    warn,
 		Then: model.RuleAction{
 			Function: "oasExample",
 		},

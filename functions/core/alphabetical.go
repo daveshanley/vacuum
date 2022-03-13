@@ -63,6 +63,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 					StartNode: node,
 					EndNode:   node,
 					Path:      pathValue,
+					Rule:      context.Rule,
 				})
 				continue
 			}
@@ -164,7 +165,8 @@ func compareStringArray(strArr []string, context model.RuleFunctionContext) []mo
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: '%s' must be placed before '%s' (alphabetical)", context.Rule.Description,
+					Message: fmt.Sprintf("%s: '%s' must be placed before '%s' (alphabetical)",
+						context.Rule.Description,
 						strArr[x+1], strArr[x]),
 				})
 			}

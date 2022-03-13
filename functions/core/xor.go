@@ -79,6 +79,7 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 				StartNode: node,
 				EndNode:   node,
 				Path:      pathValue,
+				Rule:      context.Rule,
 			})
 		}
 

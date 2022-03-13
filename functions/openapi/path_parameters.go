@@ -69,6 +69,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				res.StartNode = operationNode
 				res.EndNode = operationNode
 				res.Path = fmt.Sprintf("$.paths.%s", currentPath)
+				res.Rule = context.Rule
 				results = append(results, res)
 			} else {
 				seenPaths[currentPathNormalized] = currentPath
@@ -86,6 +87,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					res.StartNode = operationNode
 					res.EndNode = operationNode
 					res.Path = fmt.Sprintf("$.paths.%s", currentPath)
+					res.Rule = context.Rule
 					results = append(results, res)
 				} else {
 					pathElements[param] = true
@@ -106,7 +108,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					_, paramNameNode := utils.FindKeyNode("name", topLevelParam.Content)
 
 					if pp.isNamedPathParamUnknown(paramInNode, paramRequiredNode, paramNameNode,
-						currentPath, currentVerb, &topLevelParams, nil, &results) {
+						currentPath, currentVerb, &topLevelParams, nil, &results, context) {
 
 						var paramData map[string][]string
 						if topLevelParams["top"] != nil {
@@ -143,7 +145,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 						_, paramNameNode := utils.FindKeyNode("name", verbParam.Content)
 
 						if pp.isNamedPathParamUnknown(paramInNode, paramRequiredNode, paramNameNode,
-							currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results) {
+							currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results, context) {
 
 							path := []string{"paths", currentPath, currentVerb, "parameters",
 								fmt.Sprintf("%v", c)}
@@ -179,8 +181,10 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			if j+1 < len(opNodes) {
 				endNode = opNodes[j+1]
 			}
-			pp.ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams, pathElements, &results, startNode, endNode)
-			pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams, pathElements, &results, startNode, endNode)
+			pp.ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams,
+				pathElements, &results, startNode, endNode, context)
+			pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams,
+				pathElements, &results, startNode, endNode, context)
 
 			// reset for the next run.
 			pathElements = make(map[string]bool)
@@ -195,7 +199,8 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 }
 
 func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string]map[string][]string,
-	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node) {
+	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
+	context model.RuleFunctionContext) {
 
 	for _, item := range allPathParams {
 
@@ -212,6 +217,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 				res.StartNode = startNode
 				res.EndNode = endNode
 				res.Path = fmt.Sprintf("$.paths.%s", path)
+				res.Rule = context.Rule
 				*results = append(*results, res)
 			}
 		}
@@ -219,7 +225,8 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 }
 
 func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string]map[string][]string,
-	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node) {
+	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
+	context model.RuleFunctionContext) {
 	var top map[string][]string
 
 	if allPathParams != nil {
@@ -236,6 +243,7 @@ func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, al
 				res.StartNode = startNode
 				res.EndNode = endNode
 				res.Path = fmt.Sprintf("$.paths.%s", path)
+				res.Rule = context.Rule
 				*results = append(*results, res)
 			}
 		}
@@ -267,7 +275,8 @@ func (pp PathParameters) isPathParamNamed(in, name *yaml.Node) bool {
 }
 
 func (pp PathParameters) isNamedPathParamUnknown(in, required, name *yaml.Node, currentPath, currentVerb string,
-	seenNodes *map[string]map[string][]string, topNodes map[string][]string, results *[]model.RuleFunctionResult) bool {
+	seenNodes *map[string]map[string][]string, topNodes map[string][]string, results *[]model.RuleFunctionResult,
+	context model.RuleFunctionContext) bool {
 	if !pp.isPathParamNamed(in, name) {
 		return false
 	}
@@ -280,6 +289,7 @@ func (pp PathParameters) isNamedPathParamUnknown(in, required, name *yaml.Node, 
 		res.StartNode = required
 		res.EndNode = required
 		res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
+		res.Rule = context.Rule
 
 		if utils.IsNodeBoolValue(required) {
 			if required.Value != "true" {
@@ -309,6 +319,7 @@ func (pp PathParameters) isNamedPathParamUnknown(in, required, name *yaml.Node, 
 					res.StartNode = name
 					res.EndNode = name
 					res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
+					res.Rule = context.Rule
 					*results = append(*results, res)
 					return false
 				}

@@ -86,6 +86,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					StartNode: node,
 					EndNode:   node,
 					Path:      pathValue,
+					Rule:      context.Rule,
 				})
 			} else {
 
@@ -106,6 +107,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						StartNode: node,
 						EndNode:   node,
 						Path:      utils.BuildPath(pathValue, []string{node.Value}),
+						Rule:      context.Rule,
 					})
 				}
 			}
@@ -121,6 +123,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					StartNode: node,
 					EndNode:   node,
 					Path:      pathValue,
+					Rule:      context.Rule,
 				})
 			} else {
 				if rx.MatchString(node.Value) {
@@ -129,6 +132,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						StartNode: node,
 						EndNode:   node,
 						Path:      utils.BuildPath(pathValue, []string{node.Value}),
+						Rule:      context.Rule,
 					})
 				}
 			}

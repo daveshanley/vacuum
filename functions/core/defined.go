@@ -44,6 +44,7 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				StartNode: node,
 				EndNode:   node,
 				Path:      pathValue,
+				Rule:      context.Rule,
 			})
 		}
 	}
