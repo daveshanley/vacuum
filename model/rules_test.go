@@ -146,3 +146,26 @@ func TestRuleResults_GetInfoCount(t *testing.T) {
 	assert.Equal(t, 2, results.GetInfoCount())
 
 }
+
+func TestRuleResultSet_GetResultsByRuleCategory(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryOperations],
+	}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3})
+
+	assert.Len(t, results.GetResultsByRuleCategory(CategoryInfo), 2)
+	assert.Len(t, results.GetResultsByRuleCategory(CategoryOperations), 1)
+	assert.Len(t, results.GetResultsByRuleCategory(CategoryInfo), 2)
+
+}

@@ -192,6 +192,8 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					// extract all validation errors.
 					for _, resError := range res.Errors() {
 
+						// TODO: Diagnose examples of arrays of enums.
+
 						z := model.BuildFunctionResultString(fmt.Sprintf("Example for property '%s' is not valid: '%s'. "+
 							"Value '%s' is not compatible",
 							pName, resError.Description(), resError.Value()))
@@ -211,10 +213,18 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 		// we have an object level example here, so let's convert our properties into a schema and validate
 		// this example against the schema.
 		schema, _ := parser.ConvertNodeDefinitionIntoSchema(componentNode)
-		res, _ := parser.ValidateNodeAgainstSchema(schema, topExValue, false)
+
+		var res *gojsonschema.Result
+		var errorResults []gojsonschema.ResultError
+		if topExValue != nil {
+			res, _ = parser.ValidateNodeAgainstSchema(schema, topExValue, false)
+		}
+		if res != nil && len(res.Errors()) > 0 {
+			errorResults = res.Errors()
+		}
 
 		// extract all validation errors.
-		for _, resError := range res.Errors() {
+		for _, resError := range errorResults {
 
 			z := model.BuildFunctionResultString(fmt.Sprintf("Example for component '%s' is not valid: '%s'. "+
 				"Value '%s' is not compatible", compName, resError.Description(), resError.Value()))

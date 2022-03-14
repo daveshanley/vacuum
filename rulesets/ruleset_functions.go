@@ -13,12 +13,13 @@ import (
 // it uses the in-built 'truthy' function
 func GetContactPropertiesRule() *model.Rule {
 	return &model.Rule{
-		Description: "Contact details are incomplete",
-		Given:       "$.info.contact",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Contact details are incomplete",
+		Given:        "$.info.contact",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     warn,
 		Then: []model.RuleAction{
 			{
 				Field:    "name",
@@ -40,12 +41,13 @@ func GetContactPropertiesRule() *model.Rule {
 // info object contains a contact object
 func GetInfoContactRule() *model.Rule {
 	return &model.Rule{
-		Description: "Info section is missing contact details",
-		Given:       "$.info",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Info section is missing contact details",
+		Given:        "$.info",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Field:    "contact",
 			Function: "truthy",
@@ -57,12 +59,13 @@ func GetInfoContactRule() *model.Rule {
 // info object contains a description
 func GetInfoDescriptionRule() *model.Rule {
 	return &model.Rule{
-		Description: "Info section is missing a description",
-		Given:       "$.info",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Info section is missing a description",
+		Given:        "$.info",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Field:    "description",
 			Function: "truthy",
@@ -74,12 +77,13 @@ func GetInfoDescriptionRule() *model.Rule {
 // info object contains a license
 func GetInfoLicenseRule() *model.Rule {
 	return &model.Rule{
-		Description: "Info section should contain a license",
-		Given:       "$.info",
-		Resolved:    true,
-		Recommended: true,
-		Type:        style,
-		Severity:    info,
+		Description:  "Info section should contain a license",
+		Given:        "$.info",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Type:         style,
+		Severity:     info,
 		Then: model.RuleAction{
 			Field:    "license",
 			Function: "truthy",
@@ -91,12 +95,13 @@ func GetInfoLicenseRule() *model.Rule {
 // info object contains a license with an url that is set.
 func GetInfoLicenseUrlRule() *model.Rule {
 	return &model.Rule{
-		Description: "License should contain an url",
-		Given:       "$.info.license",
-		Resolved:    true,
-		Recommended: true,
-		Type:        style,
-		Severity:    info,
+		Description:  "License should contain an url",
+		Given:        "$.info.license",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Type:         style,
+		Severity:     info,
 		Then: model.RuleAction{
 			Field:    "url",
 			Function: "truthy",
@@ -112,12 +117,13 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 	fo["notMatch"] = "eval\\("
 
 	return &model.Rule{
-		Description: "Markdown descriptions must not have 'eval('",
-		Given:       "$..description",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Markdown descriptions must not have 'eval('",
+		Given:        "$..description",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: fo,
@@ -133,12 +139,13 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 	fo["notMatch"] = "<script"
 
 	return &model.Rule{
-		Description: "Markdown descriptions must not contain '<script>' tags",
-		Given:       "$..description",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Markdown descriptions must not contain '<script>' tags",
+		Given:        "$..description",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: fo,
@@ -154,12 +161,13 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 	fo["keyedBy"] = "name"
 
 	return &model.Rule{
-		Description: "Tags must be in alphabetical order",
-		Given:       "$.tags",
-		Resolved:    true,
-		Recommended: true,
-		Type:        style,
-		Severity:    info,
+		Description:  "Tags must be in alphabetical order",
+		Given:        "$.tags",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryTags],
+		Type:         style,
+		Severity:     info,
 		Then: model.RuleAction{
 			Function:        "alphabetical",
 			FunctionOptions: fo,
@@ -186,12 +194,13 @@ func GetOpenApiTagsRule() *model.Rule {
 	//opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
 
 	return &model.Rule{
-		Description: "Top level spec 'tags' must not be empty, and must be an array",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Top level spec 'tags' must not be empty, and must be an array",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryTags],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Field:           "tags",
 			Function:        "schema",
@@ -206,12 +215,13 @@ func GetOperationDescriptionRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["minWords"] = "5" // five words is still weak, but it's better than nothing.
 	return &model.Rule{
-		Description: "Operation description checks",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Operation description checks",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "oasDescriptions",
 			FunctionOptions: opts,
@@ -223,12 +233,13 @@ func GetOperationDescriptionRule() *model.Rule {
 // all descriptions should be unique, otherwise what is the point?
 func GetDescriptionDuplicationRule() *model.Rule {
 	return &model.Rule{
-		Description: "Description duplication check",
-		Given:       "$..description",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Description duplication check",
+		Given:        "$..description",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "oasDescriptionDuplication",
 		},
@@ -238,12 +249,13 @@ func GetDescriptionDuplicationRule() *model.Rule {
 // GetComponentDescriptionsRule will check all components for description problems.
 func GetComponentDescriptionsRule() *model.Rule {
 	return &model.Rule{
-		Description: "Component description check",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Component description check",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function: "oasComponentDescriptions",
 		},
@@ -255,12 +267,13 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["match"] = "^[A-Za-z0-9-._~:/?#\\[\\]@!\\$&'()*+,;=]*$"
 	return &model.Rule{
-		Description: "OperationId must use URL friendly characters",
-		Given:       AllOperationsPath,
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "OperationId must use URL friendly characters",
+		Given:        AllOperationsPath,
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Field:           "operationId",
 			Function:        "pattern",
@@ -290,12 +303,13 @@ func GetOperationTagsRule() *model.Rule {
 	opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
 
 	return &model.Rule{
-		Description: "Operation 'tags' must not be empty, and must be an array",
-		Given:       AllOperationsPath,
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Operation 'tags' must not be empty, and must be an array",
+		Given:        AllOperationsPath,
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryTags],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Field:           "tags",
 			Function:        "schema",
@@ -309,12 +323,13 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = "{}"
 	return &model.Rule{
-		Description: "Path parameter declarations must not be empty ex. '/api/{}' is invalid",
-		Given:       "$.paths",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Path parameter declarations must not be empty ex. '/api/{}' is invalid",
+		Given:        "$.paths",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -327,12 +342,13 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = ".+\\/$"
 	return &model.Rule{
-		Description: "Path must not end with a slash",
-		Given:       "$.paths",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Path must not end with a slash",
+		Given:        "$.paths",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -345,12 +361,13 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = "\\?"
 	return &model.Rule{
-		Description: "Path must not include query string",
-		Given:       "$.paths",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Path must not include query string",
+		Given:        "$.paths",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -361,12 +378,13 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 // GetTagDescriptionRequiredRule checks to ensure tags defined have been given a description
 func GetTagDescriptionRequiredRule() *model.Rule {
 	return &model.Rule{
-		Description: "Tag must have a description defined",
-		Given:       "$.tags",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Tag must have a description defined",
+		Given:        "$.tags",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryTags],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Field:    "description",
 			Function: "truthy",
@@ -377,12 +395,13 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 // GetTypedEnumRule checks to ensure enums are of the specified type
 func GetTypedEnumRule() *model.Rule {
 	return &model.Rule{
-		Description: "Enum values must respect the specified type",
-		Given:       "$..[?(@.enum && @.type)]",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Enum values must respect the specified type",
+		Given:        "$..[?(@.enum && @.type)]",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "typedEnum",
 		},

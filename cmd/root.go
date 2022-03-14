@@ -50,8 +50,8 @@ var rootCmd = &cobra.Command{
 				p = fmt.Sprintf("%s...", r.Path[:60])
 			}
 
-			if len(r.Message) > 80 {
-				m = fmt.Sprintf("%s...", r.Message[:80])
+			if len(r.Message) > 90 {
+				m = fmt.Sprintf("%s...", r.Message[:90])
 			}
 
 			//fmt.Fprintln(writer, fmt.Sprintf("%v\t%v", r.Message, p))
@@ -79,6 +79,26 @@ var rootCmd = &cobra.Command{
 		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 
 		pterm.Println() // Blank line
+
+		positiveBars := pterm.Bars{
+			pterm.Bar{
+				Label: "Errors",
+				Value: resultSet.GetErrorCount(),
+				Style: pterm.NewStyle(pterm.FgLightRed),
+			},
+			pterm.Bar{
+				Label: "Warnings",
+				Value: resultSet.GetWarnCount(),
+				Style: pterm.NewStyle(pterm.FgLightYellow),
+			},
+			pterm.Bar{
+				Label: "Info",
+				Value: resultSet.GetInfoCount(),
+				Style: pterm.NewStyle(pterm.FgLightBlue),
+			},
+		}
+
+		_ = pterm.DefaultBarChart.WithHorizontal().WithBars(positiveBars).Render()
 
 		pterm.Printf("Errors: %d\n", resultSet.GetErrorCount())
 		pterm.Printf("Warnings: %d\n", resultSet.GetWarnCount())

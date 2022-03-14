@@ -24,16 +24,6 @@ const (
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
 
-var RuleCategories = make(map[string]*model.RuleCategory)
-
-func init() {
-	RuleCategories["examples"] = &model.RuleCategory{
-		Name: "Examples",
-		Description: "Checks that examples have been added to component schemas, parameters and operations. This rule" +
-			"also checks that examples match the schema and types provided.",
-	}
-}
-
 type ruleSetsModel struct {
 	openAPIRuleSet *model.RuleSet
 }
@@ -69,12 +59,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add success response
 	rules["operation-success-response"] = &model.Rule{
-		Description: "Operation must have at least one 2xx or a 3xx response.",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        style,
-		Severity:    warn,
+		Description:  "Operation must have at least one 2xx or a 3xx response.",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         style,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Field:    "responses",
 			Function: "oasOpSuccessResponse",
@@ -83,12 +74,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add unique operation ID rule
 	rules["operation-operationId"] = &model.Rule{
-		Description: "Every operation must have unique \"operationId\".",
-		Given:       "$.paths",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Every operation must have unique \"operationId\".",
+		Given:        "$.paths",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "oasOpIdUnique",
 		},
@@ -96,12 +88,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add operation params rule
 	rules["operation-parameters"] = &model.Rule{
-		Description: "Operation parameters are unique and non-repeating.",
-		Given:       "$.paths",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Operation parameters are unique and non-repeating.",
+		Given:        "$.paths",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function: "oasOpParams",
 		},
@@ -109,12 +102,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add operation tag defined rule
 	rules["operation-tag-defined"] = &model.Rule{
-		Description: "Operation tags must be defined in global tags.",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Operation tags must be defined in global tags.",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryTags],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function: "oasTagDefined",
 		},
@@ -122,12 +116,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add operation tag defined rule
 	rules["path-params"] = &model.Rule{
-		Description: "Path parameters must be defined and valid.",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Path parameters must be defined and valid.",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function: "oasPathParam",
 		},
@@ -198,12 +193,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	}
 
 	rules["duplicated-entry-in-enum"] = &model.Rule{
-		Description: "Enum values must not have duplicate entry",
-		Given:       "$..[?(@.enum)]",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "Enum values must not have duplicate entry",
+		Given:        "$..[?(@.enum)]",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Field:           "enum",
 			Function:        "oasSchema",
@@ -213,12 +209,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add no $ref siblings
 	rules["no-$ref-siblings"] = &model.Rule{
-		Description: "$ref values cannot be placed next to other properties (like a description)",
-		Given:       "$",
-		Resolved:    false,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "$ref values cannot be placed next to other properties (like a description)",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "refSiblings",
 		},
@@ -226,12 +223,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// add unused component rule for openapi3
 	unusedComponentRule := &model.Rule{
-		Description: "Check for unused components and bad references",
-		Given:       "$",
-		Resolved:    false,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Check for unused components and bad references",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "oasUnusedComponent",
 		},
@@ -246,12 +244,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	oasSecurityPath["schemesPath"] = "$.components.securitySchemes"
 
 	rules["oas3-operation-security-defined"] = &model.Rule{
-		Description: "'security' values must match a scheme defined in components.securitySchemes",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "'security' values must match a scheme defined in components.securitySchemes",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySecurity],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "oasOpSecurityDefined",
 			FunctionOptions: oasSecurityPath,
@@ -263,12 +262,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	swaggerSecurityPath["schemesPath"] = "$.securityDefinitions"
 
 	rules["oas2-operation-security-defined"] = &model.Rule{
-		Description: "'security' values must match a scheme defined in securityDefinitions",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    error,
+		Description:  "'security' values must match a scheme defined in securityDefinitions",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySecurity],
+		Type:         validation,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function:        "oasOpSecurityDefined",
 			FunctionOptions: swaggerSecurityPath,
@@ -280,12 +280,13 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// check all examples
 	rules["oas-3valid-schema-example"] = &model.Rule{
-		Description: "Examples must be present",
-		Given:       "$",
-		Resolved:    true,
-		Recommended: true,
-		Type:        validation,
-		Severity:    warn,
+		Description:  "Examples must be present",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryExamples],
+		Type:         validation,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "oasExample",
 		},

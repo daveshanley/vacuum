@@ -93,10 +93,12 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				// if a field is supplied, use that, if not then use the raw node value.
 				matchValue := node.Value
 				if context.RuleAction.Field != "" && x+1 <= len(nodes) {
-					_, fieldValue := utils.FindKeyNode(context.RuleAction.Field, nodes[x+1].Content)
-					if fieldValue != nil {
-						matchValue = fieldValue.Value
-						pathValue = fmt.Sprintf("%s.%s", pathValue, context.RuleAction.Field)
+					if x < len(nodes)-1 {
+						_, fieldValue := utils.FindKeyNode(context.RuleAction.Field, nodes[x+1].Content)
+						if fieldValue != nil {
+							matchValue = fieldValue.Value
+							pathValue = fmt.Sprintf("%s.%s", pathValue, context.RuleAction.Field)
+						}
 					}
 				}
 

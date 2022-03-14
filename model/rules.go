@@ -12,15 +12,81 @@ import (
 )
 
 const (
-	severityError = "error"
-	severityWarn  = "warn"
-	severityInfo  = "info"
+	severityError        = "error"
+	severityWarn         = "warn"
+	severityInfo         = "info"
+	CategoryExamples     = "examples"
+	CategoryOperations   = "operations"
+	CategoryInfo         = "into"
+	CategoryDescriptions = "descriptions"
+	CategorySchemas      = "schemas"
+	CategorySecurity     = "security"
+	CategoryTags         = "tags"
+	CategoryValidation   = "validation"
 )
 
 //go:embed schemas/ruleset.schema.json
 var rulesetSchema string
 
+var RuleCategories = make(map[string]*RuleCategory)
+
+func init() {
+	RuleCategories[CategoryExamples] = &RuleCategory{
+		Id:   CategoryExamples,
+		Name: "Examples",
+		Description: "Examples help consumers understand how API calls should look. They are really important for" +
+			"automated tooling for mocking and testing. These rules check examples have been added to component schemas, " +
+			"parameters and operations. These rules also check that examples match the schema and types provided.",
+	}
+	RuleCategories[CategoryOperations] = &RuleCategory{
+		Id:   CategoryOperations,
+		Name: "Operations",
+		Description: "Operations are the core of the contract, they define paths and HTTP methods. These rules check" +
+			" operations have been well constructed, looks for operationId, parameter, schema and return types in depth.",
+	}
+	RuleCategories[CategoryInfo] = &RuleCategory{
+		Id:   CategoryInfo,
+		Name: "Contract Information",
+		Description: "The info object contains licencing, contact, authorship details and more. Checks to confirm " +
+			"required details have been completed.",
+	}
+	RuleCategories[CategoryDescriptions] = &RuleCategory{
+		Id:   CategoryDescriptions,
+		Name: "Descriptions",
+		Description: "Documentation is really important, in OpenAPI, just about everything can and should have a " +
+			"description. This set of rules checks for absent descriptions, poor quality descriptions (copy/paste)," +
+			" or short descriptions.",
+	}
+	RuleCategories[CategorySchemas] = &RuleCategory{
+		Id:   CategorySchemas,
+		Name: "Schemas",
+		Description: "Schemas are how request bodies and response payloads are defined. They define the data going in " +
+			"and the data flowing out of an operation. These rules check for structural validity, checking types, checking" +
+			"required fields and validating correct use of structures.",
+	}
+	RuleCategories[CategorySecurity] = &RuleCategory{
+		Id:   CategorySecurity,
+		Name: "Security",
+		Description: "Security plays a central role in RESTful APIs. These rules make sure that the correct definitions" +
+			"have been used and put in the right places.",
+	}
+	RuleCategories[CategoryTags] = &RuleCategory{
+		Id:   CategoryTags,
+		Name: "Tags",
+		Description: "Tags are used as meta-data for operations. They are mainly used by tooling as a taxonomy mechanism" +
+			" to build navigation, search and more. Tags are important as they help consumers navigate the contract when " +
+			"using documentation, testing, code generation or analysis tools.",
+	}
+	RuleCategories[CategoryValidation] = &RuleCategory{
+		Id:   CategoryValidation,
+		Name: "Validation",
+		Description: "Validation rules make sure that certain characters or patterns have not been used that may cause" +
+			"issues when rendering in different types of applications.",
+	}
+}
+
 type RuleCategory struct {
+	Id          string
 	Name        string
 	Description string
 }
@@ -48,10 +114,11 @@ type RuleFunctionResult struct {
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results    []*RuleFunctionResult
-	warnCount  int
-	errorCount int
-	infoCount  int
+	Results     []*RuleFunctionResult
+	warnCount   int
+	errorCount  int
+	infoCount   int
+	categoryMap map[*RuleCategory][]*RuleFunctionResult
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
@@ -173,7 +240,10 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 		pointerResults = append(pointerResults, &n)
 
 	}
-	return &RuleResultSet{Results: pointerResults}
+	return &RuleResultSet{
+		Results:     pointerResults,
+		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
+	}
 }
 
 // GetErrorCount will return the number of errors returned by the rule results.
@@ -204,6 +274,26 @@ func (rr *RuleResultSet) GetInfoCount() int {
 		rr.infoCount = getCount(rr, severityInfo)
 		return rr.infoCount
 	}
+}
+
+// GetResultsByRuleCategory will return results filtered by the supplied category
+func (rr *RuleResultSet) GetResultsByRuleCategory(category string) []*RuleFunctionResult {
+
+	// check for seen state.
+	if RuleCategories[category] != nil && rr.categoryMap[RuleCategories[category]] != nil {
+		return rr.categoryMap[RuleCategories[category]]
+	}
+
+	var results []*RuleFunctionResult
+	for _, result := range rr.Results {
+		if result.Rule.RuleCategory.Id == category {
+			results = append(results, result)
+		}
+	}
+	if RuleCategories[category] != nil && len(results) > 0 {
+		rr.categoryMap[RuleCategories[category]] = results
+	}
+	return results
 }
 
 func getCount(rr *RuleResultSet, severity string) int {

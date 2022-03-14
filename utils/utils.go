@@ -189,6 +189,9 @@ func FindFirstKeyNode(key string, nodes []*yaml.Node, depth int) (keyNode *yaml.
 	}
 	for i, v := range nodes {
 		if key != "" && key == v.Value {
+			if i+1 >= len(nodes) {
+				return v, nodes[i] // next node is what we need.
+			}
 			return v, nodes[i+1] // next node is what we need.
 		}
 		if len(v.Content) > 0 {

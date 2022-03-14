@@ -41,6 +41,8 @@ func ResolveOpenAPIDocument(rootNode *yaml.Node) (*yaml.Node, []ResolvingError) 
 		"$.components.securitySchemes",
 		"$.components.links",
 		"$.components.callbacks",
+		"$.definitions",
+		"$.parameters",
 		"$.paths..schema",
 		"$.paths..items",
 		"$.paths..parameters",
