@@ -11,6 +11,12 @@ import (
 	"strings"
 )
 
+const (
+	severityError = "error"
+	severityWarn  = "warn"
+	severityInfo  = "info"
+)
+
 //go:embed schemas/ruleset.schema.json
 var rulesetSchema string
 
@@ -34,6 +40,18 @@ type RuleFunctionResult struct {
 	EndNode   *yaml.Node
 	Path      string
 	Rule      *Rule
+}
+
+// TODO: Start here in the morning, we're going to want to be able to sort, calculate severity and categories.
+// TODO: think about a super structure that contains all the sorting and filtering mechanisms.
+
+// RuleResultSet contains all the results found during a linting run, and all the methods required to
+// filter, sort and calculate counts.
+type RuleResultSet struct {
+	Results    []*RuleFunctionResult
+	warnCount  int
+	errorCount int
+	infoCount  int
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
@@ -143,4 +161,57 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 // LoadRulesetSchema creates a new JSON Schema loader for the RuleSet schema.
 func LoadRulesetSchema() gojsonschema.JSONLoader {
 	return gojsonschema.NewStringLoader(rulesetSchema)
+}
+
+// NewRuleResultSet will encapsulate a set of results into a set, that can then be queried.
+// the function will create pointers to results, instead of copying them again.
+func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
+	// use pointers for speed down the road, we don't need to keep copying this data.
+	var pointerResults []*RuleFunctionResult
+	for _, res := range results {
+		n := res
+		pointerResults = append(pointerResults, &n)
+
+	}
+	return &RuleResultSet{Results: pointerResults}
+}
+
+// GetErrorCount will return the number of errors returned by the rule results.
+func (rr *RuleResultSet) GetErrorCount() int {
+	if rr.errorCount > 0 {
+		return rr.errorCount
+	} else {
+		rr.errorCount = getCount(rr, severityError)
+		return rr.errorCount
+	}
+}
+
+// GetWarnCount will return the number of warnings returned by the rule results.
+func (rr *RuleResultSet) GetWarnCount() int {
+	if rr.warnCount > 0 {
+		return rr.warnCount
+	} else {
+		rr.warnCount = getCount(rr, severityWarn)
+		return rr.warnCount
+	}
+}
+
+// GetInfoCount will return the number of warnings returned by the rule results.
+func (rr *RuleResultSet) GetInfoCount() int {
+	if rr.infoCount > 0 {
+		return rr.infoCount
+	} else {
+		rr.infoCount = getCount(rr, severityInfo)
+		return rr.infoCount
+	}
+}
+
+func getCount(rr *RuleResultSet, severity string) int {
+	c := 0
+	for _, res := range rr.Results {
+		if res.Rule.Severity == severity {
+			c++
+		}
+	}
+	return c
 }

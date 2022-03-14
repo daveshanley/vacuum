@@ -75,3 +75,74 @@ func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
 	assert.Len(t, rs.Rules, 1)
 
 }
+
+func TestNewRuleResultSet(t *testing.T) {
+
+	r1 := RuleFunctionResult{
+		Message: "pip",
+		Rule: &Rule{
+			Severity: severityError,
+		},
+	}
+	results := NewRuleResultSet([]RuleFunctionResult{r1})
+
+	assert.Equal(t, r1, *results.Results[0])
+
+}
+
+func TestRuleResults_GetErrorCount(t *testing.T) {
+
+	r1 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityError,
+	}}
+	r2 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityError,
+	}}
+	r3 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityWarn,
+	}}
+
+	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
+
+	assert.Equal(t, 2, results.GetErrorCount())
+	assert.Equal(t, 2, results.GetErrorCount())
+
+}
+
+func TestRuleResults_GetWarnCount(t *testing.T) {
+
+	r1 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityInfo,
+	}}
+	r2 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityError,
+	}}
+	r3 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityWarn,
+	}}
+
+	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
+
+	assert.Equal(t, 1, results.GetErrorCount())
+	assert.Equal(t, 1, results.GetErrorCount())
+
+}
+
+func TestRuleResults_GetInfoCount(t *testing.T) {
+
+	r1 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityInfo,
+	}}
+	r2 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityInfo,
+	}}
+	r3 := &RuleFunctionResult{Rule: &Rule{
+		Severity: severityWarn,
+	}}
+
+	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
+
+	assert.Equal(t, 2, results.GetInfoCount())
+	assert.Equal(t, 2, results.GetInfoCount())
+
+}
