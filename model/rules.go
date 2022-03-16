@@ -287,8 +287,10 @@ func (rr *RuleResultSet) GetResultsByRuleCategory(category string) []*RuleFuncti
 
 	var results []*RuleFunctionResult
 	for _, result := range rr.Results {
-		if result.Rule.RuleCategory.Id == category {
-			results = append(results, result)
+		if result.Rule != nil && result.Rule.RuleCategory != nil {
+			if result.Rule.RuleCategory.Id == category {
+				results = append(results, result)
+			}
 		}
 	}
 	if RuleCategories[category] != nil && len(results) > 0 {
@@ -300,8 +302,10 @@ func (rr *RuleResultSet) GetResultsByRuleCategory(category string) []*RuleFuncti
 func getCount(rr *RuleResultSet, severity string) int {
 	c := 0
 	for _, res := range rr.Results {
-		if res.Rule.Severity == severity {
-			c++
+		if res.Rule != nil && res.Rule.Severity != "" {
+			if res.Rule.Severity == severity {
+				c++
+			}
 		}
 	}
 	return c
