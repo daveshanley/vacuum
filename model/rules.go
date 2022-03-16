@@ -18,7 +18,7 @@ const (
 	severityInfo         = "info"
 	CategoryExamples     = "examples"
 	CategoryOperations   = "operations"
-	CategoryInfo         = "into"
+	CategoryInfo         = "information"
 	CategoryDescriptions = "descriptions"
 	CategorySchemas      = "schemas"
 	CategorySecurity     = "security"
