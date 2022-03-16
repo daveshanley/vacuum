@@ -49,8 +49,10 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		for _, component := range foundRefs {
 			for i, ref := range component.Content {
 				if i%2 != 0 {
-					refSegs := strings.Split(ref.Value, "/")
-					refsToCheck = append(refsToCheck, &refResult{ref: ref.Value, node: ref, refDefName: refSegs[len(refSegs)-1]})
+					if ref.Value != "" {
+						refSegs := strings.Split(ref.Value, "/")
+						refsToCheck = append(refsToCheck, &refResult{ref: ref.Value, node: ref, refDefName: refSegs[len(refSegs)-1]})
+					}
 				}
 			}
 		}
