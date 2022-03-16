@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xeipuuv/gojsonschema"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"testing"
 )
@@ -167,5 +168,32 @@ func TestRuleResultSet_GetResultsByRuleCategory(t *testing.T) {
 	assert.Len(t, results.GetResultsByRuleCategory(CategoryInfo), 2)
 	assert.Len(t, results.GetResultsByRuleCategory(CategoryOperations), 1)
 	assert.Len(t, results.GetResultsByRuleCategory(CategoryInfo), 2)
+
+}
+
+func TestRuleResultSet_SortResultsByLineNumber(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "ten",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "twenty",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 20}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryOperations],
+	}, StartNode: &yaml.Node{Line: 3}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3})
+	sorted := results.SortResultsByLineNumber()
+
+	assert.Equal(t, "three", sorted[0].Rule.Description)
+	assert.Equal(t, "ten", sorted[1].Rule.Description)
+	assert.Equal(t, "twenty", sorted[2].Rule.Description)
 
 }

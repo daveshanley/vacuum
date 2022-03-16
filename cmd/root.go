@@ -28,6 +28,7 @@ var rootCmd = &cobra.Command{
 		results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
 
 		resultSet := model.NewRuleResultSet(results)
+		resultSet.SortResultsByLineNumber()
 
 		if err != nil {
 			return fmt.Errorf("error: %v\n\n", err.Error())
@@ -50,8 +51,8 @@ var rootCmd = &cobra.Command{
 				p = fmt.Sprintf("%s...", r.Path[:60])
 			}
 
-			if len(r.Message) > 90 {
-				m = fmt.Sprintf("%s...", r.Message[:90])
+			if len(r.Message) > 100 {
+				m = fmt.Sprintf("%s...", r.Message[:100])
 			}
 
 			//fmt.Fprintln(writer, fmt.Sprintf("%v\t%v", r.Message, p))
@@ -64,7 +65,7 @@ var rootCmd = &cobra.Command{
 			case "error":
 				sev = pterm.LightRed(sev)
 			case "warn":
-				sev = pterm.LightYellow(sev)
+				sev = pterm.LightYellow("warning")
 			case "info":
 				sev = pterm.LightBlue(sev)
 			}

@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
+	"sort"
 	"strings"
 )
 
@@ -305,3 +306,21 @@ func getCount(rr *RuleResultSet, severity string) int {
 	}
 	return c
 }
+
+// SortResultsByLineNumber will re-order the results by line number. This is a destructive sort,
+// Once the results are sorted, they are permanently sorted.
+func (rr *RuleResultSet) SortResultsByLineNumber() []*RuleFunctionResult {
+	sort.Sort(rr)
+	return rr.Results
+}
+
+// Len returns the length of the results
+func (rr *RuleResultSet) Len() int { return len(rr.Results) }
+
+// Less determines which result has the lower line number
+func (rr *RuleResultSet) Less(i, j int) bool {
+	return rr.Results[i].StartNode.Line < rr.Results[j].StartNode.Line
+}
+
+// Swap will re-sort a result if it's in the wrong order.
+func (rr *RuleResultSet) Swap(i, j int) { rr.Results[i], rr.Results[j] = rr.Results[j], rr.Results[i] }
