@@ -19,7 +19,7 @@ func GetContactPropertiesRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     warn,
+		Severity:     info,
 		Then: []model.RuleAction{
 			{
 				Field:    "name",

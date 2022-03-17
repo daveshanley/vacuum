@@ -43,8 +43,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	for x, node := range nodes {
 
 		fieldNode, fieldNodeValue := utils.FindFirstKeyNode(context.RuleAction.Field, node.Content, 0)
-		if fieldNode == nil && fieldNodeValue == nil ||
-			fieldNodeValue.Value == "" || fieldNodeValue.Value == "false" ||
+		if fieldNode == nil && fieldNodeValue == nil || fieldNodeValue.Value == "false" ||
 			fieldNodeValue.Value == "0" {
 
 			if isArray {

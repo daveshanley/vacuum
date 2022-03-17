@@ -164,7 +164,21 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 				// check for an example
 				exKey, exValue := utils.FindKeyNode("example", prop.Content)
-				if exKey == nil && exValue == nil {
+				_, typeValue := utils.FindKeyNode("type", prop.Content)
+				_, enumValue := utils.FindKeyNode("enum", prop.Content)
+
+				skip := false
+				if typeValue != nil {
+					switch typeValue.Value {
+					case "boolean":
+						skip = true
+					}
+				}
+				if enumValue != nil {
+					skip = true
+				}
+
+				if exKey == nil && exValue == nil && !skip {
 
 					res := model.BuildFunctionResultString(fmt.Sprintf("Missing example for '%s' on component '%s'",
 						pName, compName))
@@ -181,26 +195,31 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					// so there is an example, lets validate it.
 					schema, _ := parser.ConvertNodeDefinitionIntoSchema(prop)
 					var res *gojsonschema.Result
-					if schema != nil && *schema.Type == "array" {
+					if schema != nil && schema.Type != nil && *schema.Type == "array" && exValue != nil {
 						res, _ = parser.ValidateNodeAgainstSchema(schema, exValue, true)
 					}
-					if schema != nil && *schema.Type != "array" {
+					if schema != nil && schema.Type != nil && *schema.Type != "array" && exValue != nil {
 						res, _ = parser.ValidateNodeAgainstSchema(schema, exValue, false)
 					}
 
-					// extract all validation errors.
-					for _, resError := range res.Errors() {
+					// TODO: handle enums in here.
 
-						// TODO: Diagnose examples of arrays of enums.
+					if res != nil {
 
-						z := model.BuildFunctionResultString(fmt.Sprintf("Example for property '%s' is not valid: '%s'. "+
-							"Value '%s' is not compatible",
-							pName, resError.Description(), resError.Value()))
-						z.StartNode = exKey
-						z.EndNode = exValue
-						z.Rule = context.Rule
-						z.Path = utils.BuildPath(path, []string{compName, pName})
-						*results = append(*results, z)
+						// extract all validation errors.
+						for _, resError := range res.Errors() {
+
+							// TODO: Diagnose examples of arrays of enums.
+
+							z := model.BuildFunctionResultString(fmt.Sprintf("Example for property '%s' is not valid: '%s'. "+
+								"Value '%s' is not compatible",
+								pName, resError.Description(), resError.Value()))
+							z.StartNode = exKey
+							z.EndNode = exValue
+							z.Rule = context.Rule
+							z.Path = utils.BuildPath(path, []string{compName, pName})
+							*results = append(*results, z)
+						}
 					}
 
 				}
@@ -325,7 +344,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				}
 
 				// check if the example contains a summary
-				_, summaryNode := utils.FindFirstKeyNode("summary", []*yaml.Node{valueNode}, 0)
+				_, summaryNode := utils.FindFirstKeyNode("summary", []*yaml.Node{multiExampleNode}, 0)
 				if summaryNode == nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' missing a 'summary', "+
 						"examples need explaining", exampleName))
