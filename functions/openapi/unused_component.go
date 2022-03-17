@@ -47,12 +47,15 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 		foundRefs, _ := utils.FindNodesWithoutDeserializing(node, "$..[?(@.$ref)]")
 		for _, component := range foundRefs {
+			var key string
 			for i, ref := range component.Content {
 				if i%2 != 0 {
-					if ref.Value != "" {
+					if ref.Value != "" && key == "$ref" {
 						refSegs := strings.Split(ref.Value, "/")
 						refsToCheck = append(refsToCheck, &refResult{ref: ref.Value, node: ref, refDefName: refSegs[len(refSegs)-1]})
 					}
+				} else {
+					key = ref.Value
 				}
 			}
 		}

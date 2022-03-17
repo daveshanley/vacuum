@@ -55,6 +55,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	rules := make(map[string]*model.Rule)
 
+	///*
 	// add success response
 	rules["operation-success-response"] = GetOperationSuccessResponseRule()
 
@@ -134,9 +135,8 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
 
 	// add unused component rule for openapi3
-	unusedComponentRule := GetOAS3UnusedComponentRule()
+	rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
 
-	rules["oas3-unused-component"] = unusedComponentRule
 	// TODO: build in spec types so we don't run this twice :)
 	//rules["oas2-unused-definition"] = unusedComponentRule
 
@@ -148,18 +148,8 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// should be broken down into sub rules most likely.
 
 	// check all examples
-	rules["oas-3valid-schema-example"] = &model.Rule{
-		Description:  "Examples must be present",
-		Given:        "$",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategoryExamples],
-		Type:         validation,
-		Severity:     warn,
-		Then: model.RuleAction{
-			Function: "oasExample",
-		},
-	}
+	rules["oas-3valid-schema-example"] = GetExamplesRule()
+	//*/
 
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",

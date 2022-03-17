@@ -110,7 +110,6 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	path, _ = yamlpath.NewPath(componentParamPath)
 	paramsNode, _ := path.Find(nodes[0])
 
-	// check parameters.
 	if paramsNode != nil && len(paramsNode) == 1 && utils.IsNodeArray(paramsNode[0]) {
 
 		for x, param := range paramsNode {
@@ -200,6 +199,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 						z.StartNode = exKey
 						z.EndNode = exValue
 						z.Rule = context.Rule
+						z.Path = utils.BuildPath(path, []string{compName, pName})
 						*results = append(*results, z)
 					}
 
@@ -353,43 +353,48 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 	// handle single examples when a schema is used.
 	if sValue != nil && eValue != nil {
 		// there should be two nodes, the second one should be a map, not a value.
-		if len(eValue.Content) > 0 {
+		//if len(eValue.Content) > 0 {
 
-			// ok, so let's check the object is valid against the schema.
-			// extract the schema
-			if schema == nil {
-				schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
-			}
-			res, _ := parser.ValidateNodeAgainstSchema(schema, eValue, false)
+		// ok, so let's check the object is valid against the schema.
+		// extract the schema
+		if schema == nil {
+			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+		}
+		res, _ := parser.ValidateNodeAgainstSchema(schema, eValue, false)
 
-			// extract all validation errors.
-			for _, resError := range res.Errors() {
+		// extract all validation errors.
+		for _, resError := range res.Errors() {
 
-				z := model.BuildFunctionResultString(fmt.Sprintf("Example for '%s' is not valid: '%s' on field '%s'",
-					nameNodeValue, resError.Description(), resError.Field()))
-				z.StartNode = eValue
-				z.EndNode = eValue.Content[len(eValue.Content)-1]
-				z.Rule = context.Rule
-				*results = append(*results, z)
-			}
-
-		} else {
-
-			// no good, so let's report it.
-			nodeVal := "unknown"
-			if len(eValue.Content) == 0 {
-				nodeVal = eValue.Value
-			}
-
-			z := model.BuildFunctionResultString(fmt.Sprintf("Example for media type '%s' "+
-				"is malformed, should be object, not '%s'", nameNodeValue, nodeVal))
+			z := model.BuildFunctionResultString(fmt.Sprintf("Example for '%s' is not valid: '%s'",
+				nameNodeValue, resError.Description()))
 			z.StartNode = eValue
-			z.EndNode = eValue
+			if len(eValue.Content) > 0 {
+				z.EndNode = eValue.Content[len(eValue.Content)-1]
+			} else {
+				z.EndNode = eValue
+			}
 			z.Rule = context.Rule
+			z.Path = basePath
 			*results = append(*results, z)
 		}
 
+		//} else {
+		//
+		//	// no good, so let's report it.
+		//	nodeVal := "unknown"
+		//	if len(eValue.Content) == 0 {
+		//		nodeVal = eValue.Value
+		//	}
+		//
+		//	z := model.BuildFunctionResultString(fmt.Sprintf("Example for media type '%s' "+
+		//		"is malformed, should be object, not '%s'", nameNodeValue, nodeVal))
+		//	z.StartNode = eValue
+		//	z.EndNode = eValue
+		//	z.Rule = context.Rule
+		//	*results = append(*results, z)
 	}
+
+	//}
 
 	// check if there are any example fields set, if so, validate schema.
 	ex := 0

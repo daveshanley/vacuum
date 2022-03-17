@@ -259,8 +259,7 @@ func TestExamples_RunRule_Fail_Single_Example_Not_An_Object(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for media type 'application/json' is malformed, "+
-		"should be object, not 'apples'", res[0].Message)
+	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: object, given: string'", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -294,7 +293,7 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object(t *testing.T) {
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: "+
-		"integer, given: string' on field 'id'", res[0].Message)
+		"integer, given: string'", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -328,8 +327,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: "+
-		"integer, given: string' on field 'id'", res[0].Message)
+	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. "+
+		"Expected: integer, given: string'", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 

@@ -585,3 +585,19 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 		},
 	}
 }
+
+// GetExamplesRule will check the entire spec for correct example use.
+func GetExamplesRule() *model.Rule {
+	return &model.Rule{
+		Description:  "Examples must be present and valid for operations and components",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryExamples],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasExample",
+		},
+	}
+}
