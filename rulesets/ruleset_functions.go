@@ -303,7 +303,7 @@ func GetOperationTagsRule() *model.Rule {
 	opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
 
 	return &model.Rule{
-		Description:  "Operation 'tags' must not be empty, and must be an array",
+		Description:  "Operation 'tags' are missing/empty",
 		Given:        AllOperationsPath,
 		Resolved:     true,
 		Recommended:  true,
@@ -404,6 +404,184 @@ func GetTypedEnumRule() *model.Rule {
 		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "typedEnum",
+		},
+	}
+}
+
+// GetPathParamsRule checks if path params are valid and defined.
+func GetPathParamsRule() *model.Rule {
+	// add operation tag defined rule
+	return &model.Rule{
+		Description:  "Path parameters must be defined and valid.",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasPathParam",
+		},
+	}
+}
+
+// GetGlobalOperationTagsRule will check that an operation tag exists in top level tags
+func GetGlobalOperationTagsRule() *model.Rule {
+	return &model.Rule{
+		Description:  "Operation tags must be defined in global tags.",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryTags],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasTagDefined",
+		},
+	}
+}
+
+// GetOperationParametersRule will check that an operation has valid parameters defined
+func GetOperationParametersRule() *model.Rule {
+	return &model.Rule{
+		Description:  "Operation parameters are unique and non-repeating.",
+		Given:        "$.paths",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasOpParams",
+		},
+	}
+}
+
+// GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
+func GetOperationIdUniqueRule() *model.Rule {
+	return &model.Rule{
+		Description:  "Every operation must have unique \"operationId\".",
+		Given:        "$.paths",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasOpIdUnique",
+		},
+	}
+}
+
+// GetOperationSuccessResponseRule will check that every operation has a success response defined.
+func GetOperationSuccessResponseRule() *model.Rule {
+	return &model.Rule{
+		Description:  "Operation must have at least one 2xx or a 3xx response.",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Field:    "responses",
+			Function: "oasOpSuccessResponse",
+		},
+	}
+}
+
+// GetDuplicatedEntryInEnumRule will check that enums used are not duplicates
+func GetDuplicatedEntryInEnumRule() *model.Rule {
+	duplicatedEnum := make(map[string]interface{})
+	duplicatedEnum["schema"] = parser.Schema{
+		Type:        &utils.ArrayLabel,
+		UniqueItems: true,
+	}
+
+	return &model.Rule{
+		Description:  "Enum values must not have duplicate entry",
+		Given:        "$..[?(@.enum)]",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Field:           "enum",
+			Function:        "oasSchema",
+			FunctionOptions: duplicatedEnum,
+		},
+	}
+}
+
+// GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
+func GetNoRefSiblingsRule() *model.Rule {
+	return &model.Rule{
+		Description:  "$ref values cannot be placed next to other properties (like a description)",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "refSiblings",
+		},
+	}
+}
+
+// GetOAS3UnusedComponentRule will check that there aren't any components anywhere that haven't been used.
+func GetOAS3UnusedComponentRule() *model.Rule {
+	return &model.Rule{
+		Description:  "Check for unused components and bad references",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasUnusedComponent",
+		},
+	}
+}
+
+// GetOAS3SecurityDefinedRule will check that security definitions exist and validate for OpenAPI 3
+func GetOAS3SecurityDefinedRule() *model.Rule {
+	oasSecurityPath := make(map[string]string)
+	oasSecurityPath["schemesPath"] = "$.components.securitySchemes"
+
+	return &model.Rule{
+		Description:  "'security' values must match a scheme defined in components.securitySchemes",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySecurity],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function:        "oasOpSecurityDefined",
+			FunctionOptions: oasSecurityPath,
+		},
+	}
+}
+
+// GetOAS2SecurityDefinedRule will check that security definitions exist and validate for OpenAPI 2
+func GetOAS2SecurityDefinedRule() *model.Rule {
+	swaggerSecurityPath := make(map[string]string)
+	swaggerSecurityPath["schemesPath"] = "$.securityDefinitions"
+
+	return &model.Rule{
+		Description:  "'security' values must match a scheme defined in securityDefinitions",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySecurity],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function:        "oasOpSecurityDefined",
+			FunctionOptions: swaggerSecurityPath,
 		},
 	}
 }

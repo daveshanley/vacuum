@@ -6,8 +6,6 @@ package rulesets
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/parser"
-	"github.com/daveshanley/vacuum/utils"
 	"sync"
 )
 
@@ -58,75 +56,19 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules := make(map[string]*model.Rule)
 
 	// add success response
-	rules["operation-success-response"] = &model.Rule{
-		Description:  "Operation must have at least one 2xx or a 3xx response.",
-		Given:        "$",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategoryOperations],
-		Type:         style,
-		Severity:     warn,
-		Then: model.RuleAction{
-			Field:    "responses",
-			Function: "oasOpSuccessResponse",
-		},
-	}
+	rules["operation-success-response"] = GetOperationSuccessResponseRule()
 
 	// add unique operation ID rule
-	rules["operation-operationId"] = &model.Rule{
-		Description:  "Every operation must have unique \"operationId\".",
-		Given:        "$.paths",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategoryOperations],
-		Type:         validation,
-		Severity:     warn,
-		Then: model.RuleAction{
-			Function: "oasOpIdUnique",
-		},
-	}
+	rules["operation-operationId"] = GetOperationIdUniqueRule()
 
 	// add operation params rule
-	rules["operation-parameters"] = &model.Rule{
-		Description:  "Operation parameters are unique and non-repeating.",
-		Given:        "$.paths",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategoryOperations],
-		Type:         validation,
-		Severity:     error,
-		Then: model.RuleAction{
-			Function: "oasOpParams",
-		},
-	}
+	rules["operation-parameters"] = GetOperationParametersRule()
 
 	// add operation tag defined rule
-	rules["operation-tag-defined"] = &model.Rule{
-		Description:  "Operation tags must be defined in global tags.",
-		Given:        "$",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategoryTags],
-		Type:         validation,
-		Severity:     error,
-		Then: model.RuleAction{
-			Function: "oasTagDefined",
-		},
-	}
+	rules["operation-tag-defined"] = GetGlobalOperationTagsRule()
 
 	// add operation tag defined rule
-	rules["path-params"] = &model.Rule{
-		Description:  "Path parameters must be defined and valid.",
-		Given:        "$",
-		Resolved:     true,
-		RuleCategory: model.RuleCategories[model.CategoryOperations],
-		Recommended:  true,
-		Type:         validation,
-		Severity:     error,
-		Then: model.RuleAction{
-			Function: "oasPathParam",
-		},
-	}
+	rules["path-params"] = GetPathParamsRule()
 
 	// contact-properties
 	rules["contact-properties"] = GetContactPropertiesRule()
@@ -185,95 +127,22 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check enums respect specified types
 	rules["typed-enum"] = GetTypedEnumRule()
 
-	// duplicated entry in enums
-	duplicatedEnum := make(map[string]interface{})
-	duplicatedEnum["schema"] = parser.Schema{
-		Type:        &utils.ArrayLabel,
-		UniqueItems: true,
-	}
-
-	rules["duplicated-entry-in-enum"] = &model.Rule{
-		Description:  "Enum values must not have duplicate entry",
-		Given:        "$..[?(@.enum)]",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategorySchemas],
-		Type:         validation,
-		Severity:     error,
-		Then: model.RuleAction{
-			Field:           "enum",
-			Function:        "oasSchema",
-			FunctionOptions: duplicatedEnum,
-		},
-	}
+	// check for duplication in enums
+	rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
 
 	// add no $ref siblings
-	rules["no-$ref-siblings"] = &model.Rule{
-		Description:  "$ref values cannot be placed next to other properties (like a description)",
-		Given:        "$",
-		Resolved:     false,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategorySchemas],
-		Type:         validation,
-		Severity:     warn,
-		Then: model.RuleAction{
-			Function: "refSiblings",
-		},
-	}
+	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
 
 	// add unused component rule for openapi3
-	unusedComponentRule := &model.Rule{
-		Description:  "Check for unused components and bad references",
-		Given:        "$",
-		Resolved:     false,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategorySchemas],
-		Type:         validation,
-		Severity:     warn,
-		Then: model.RuleAction{
-			Function: "oasUnusedComponent",
-		},
-	}
+	unusedComponentRule := GetOAS3UnusedComponentRule()
 
 	rules["oas3-unused-component"] = unusedComponentRule
 	// TODO: build in spec types so we don't run this twice :)
 	//rules["oas2-unused-definition"] = unusedComponentRule
 
-	// swagger operation security values defined
-	oasSecurityPath := make(map[string]string)
-	oasSecurityPath["schemesPath"] = "$.components.securitySchemes"
-
-	rules["oas3-operation-security-defined"] = &model.Rule{
-		Description:  "'security' values must match a scheme defined in components.securitySchemes",
-		Given:        "$",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategorySecurity],
-		Type:         validation,
-		Severity:     error,
-		Then: model.RuleAction{
-			Function:        "oasOpSecurityDefined",
-			FunctionOptions: oasSecurityPath,
-		},
-	}
-
-	// swagger operation security values defined
-	swaggerSecurityPath := make(map[string]string)
-	swaggerSecurityPath["schemesPath"] = "$.securityDefinitions"
-
-	rules["oas2-operation-security-defined"] = &model.Rule{
-		Description:  "'security' values must match a scheme defined in securityDefinitions",
-		Given:        "$",
-		Resolved:     true,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategorySecurity],
-		Type:         validation,
-		Severity:     error,
-		Then: model.RuleAction{
-			Function:        "oasOpSecurityDefined",
-			FunctionOptions: swaggerSecurityPath,
-		},
-	}
+	// security for versions 2 and 3.
+	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
+	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
 	// TODO: Examples is not efficient at all, needs cleaning up significantly,
 	// should be broken down into sub rules most likely.
