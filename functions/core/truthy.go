@@ -44,19 +44,21 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 		fieldNode, fieldNodeValue := utils.FindFirstKeyNode(context.RuleAction.Field, node.Content, 0)
 		if fieldNode == nil && fieldNodeValue == nil || fieldNodeValue.Value == "false" ||
-			fieldNodeValue.Value == "0" {
+			fieldNodeValue.Value == "0" || fieldNodeValue.Value == "" {
 
 			if isArray {
 				pathValue = fmt.Sprintf("%s[%d]", pathValue, x)
 			}
 
-			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("%s: '%s' must be set", context.Rule.Description, context.RuleAction.Field),
-				StartNode: node,
-				EndNode:   node.Content[len(node.Content)-1],
-				Path:      pathValue,
-				Rule:      context.Rule,
-			})
+			if !utils.IsNodeMap(fieldNode) {
+				results = append(results, model.RuleFunctionResult{
+					Message:   fmt.Sprintf("%s: '%s' must be set", context.Rule.Description, context.RuleAction.Field),
+					StartNode: node,
+					EndNode:   node.Content[len(node.Content)-1],
+					Path:      pathValue,
+					Rule:      context.Rule,
+				})
+			}
 		}
 
 	}

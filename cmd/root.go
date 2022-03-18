@@ -67,7 +67,7 @@ var (
 			duration := time.Since(start)
 
 			if !detailsFlag {
-				RenderSummary(resultSet)
+				RenderSummary(resultSet, args)
 				renderTime(timeFlag, duration, fi)
 
 				return nil
@@ -168,7 +168,7 @@ func processResults(results []*model.RuleFunctionResult) [][]string {
 	return tableData
 }
 
-func RenderSummary(rs *model.RuleResultSet) {
+func RenderSummary(rs *model.RuleResultSet, args []string) {
 
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
@@ -187,6 +187,9 @@ func RenderSummary(rs *model.RuleResultSet) {
 	}
 
 	pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	pterm.Println()
+	pterm.Printf(">> run 'vacuum %s -d' to see full details", args[0])
+	pterm.Println()
 	pterm.Println()
 
 	if rs.GetErrorCount() > 0 {

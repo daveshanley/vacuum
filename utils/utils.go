@@ -335,31 +335,49 @@ func MakeTagReadable(node *yaml.Node) string {
 
 // IsNodeMap checks if the node is a map type
 func IsNodeMap(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
 	return node.Tag == "!!map"
 }
 
 // IsNodeArray checks if a node is an array type
 func IsNodeArray(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
 	return node.Tag == "!!seq"
 }
 
 // IsNodeStringValue checks if a node is a string value
 func IsNodeStringValue(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
 	return node.Tag == "!!str"
 }
 
 // IsNodeIntValue will check if a node is an int value
 func IsNodeIntValue(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
 	return node.Tag == "!!int"
 }
 
 // IsNodeFloatValue will check is a node is a float value.
 func IsNodeFloatValue(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
 	return node.Tag == "!!float"
 }
 
 // IsNodeBoolValue will check is a node is a bool
 func IsNodeBoolValue(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
 	return node.Tag == "!!bool"
 }
 
