@@ -299,6 +299,45 @@ func (rr *RuleResultSet) GetResultsByRuleCategory(category string) []*RuleFuncti
 	return results
 }
 
+// GetErrorsByRuleCategory will return all results with an error level severity from rule category.
+func (rr *RuleResultSet) GetErrorsByRuleCategory(category string) []*RuleFunctionResult {
+	var filtered []*RuleFunctionResult
+	allCats := rr.GetResultsByRuleCategory(category)
+	for _, cat := range allCats {
+		switch cat.Rule.Severity {
+		case severityError:
+			filtered = append(filtered, cat)
+		}
+	}
+	return filtered
+}
+
+// GetWarningsByRuleCategory will return all results with a warning level severity from rule category.
+func (rr *RuleResultSet) GetWarningsByRuleCategory(category string) []*RuleFunctionResult {
+	var filtered []*RuleFunctionResult
+	allCats := rr.GetResultsByRuleCategory(category)
+	for _, cat := range allCats {
+		switch cat.Rule.Severity {
+		case severityWarn:
+			filtered = append(filtered, cat)
+		}
+	}
+	return filtered
+}
+
+// GetInfoByRuleCategory will return all results with a warning level severity from rule category.
+func (rr *RuleResultSet) GetInfoByRuleCategory(category string) []*RuleFunctionResult {
+	var filtered []*RuleFunctionResult
+	allCats := rr.GetResultsByRuleCategory(category)
+	for _, cat := range allCats {
+		switch cat.Rule.Severity {
+		case severityInfo:
+			filtered = append(filtered, cat)
+		}
+	}
+	return filtered
+}
+
 func getCount(rr *RuleResultSet, severity string) int {
 	c := 0
 	for _, res := range rr.Results {

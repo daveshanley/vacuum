@@ -197,3 +197,28 @@ func TestRuleResultSet_SortResultsByLineNumber(t *testing.T) {
 	assert.Equal(t, "twenty", sorted[2].Rule.Description)
 
 }
+
+func TestRuleResultSet_CheckCategoryCounts(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityError,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 20}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 3}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3})
+
+	assert.Len(t, results.GetErrorsByRuleCategory(CategoryInfo), 1)
+	assert.Len(t, results.GetWarningsByRuleCategory(CategoryInfo), 1)
+	assert.Len(t, results.GetInfoByRuleCategory(CategoryInfo), 1)
+}

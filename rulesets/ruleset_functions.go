@@ -221,7 +221,7 @@ func GetOperationDescriptionRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,
-		Severity:     error,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function:        "oasDescriptions",
 			FunctionOptions: opts,
@@ -255,7 +255,7 @@ func GetComponentDescriptionsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,
-		Severity:     error,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "oasComponentDescriptions",
 		},
@@ -384,7 +384,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
-		Severity:     error,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Field:    "description",
 			Function: "truthy",
@@ -523,7 +523,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function: "refSiblings",
 		},
