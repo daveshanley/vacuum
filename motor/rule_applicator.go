@@ -73,7 +73,15 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 
 	for _, givenPath := range givenPaths {
 
-		nodes, err := utils.FindNodesWithoutDeserializing(specNode, givenPath)
+		var nodes []*yaml.Node
+		var err error
+		if givenPath != "$" {
+			nodes, err = utils.FindNodesWithoutDeserializing(specNode, givenPath)
+		} else {
+			// if we're looking for the root, don't bother looking, we already have it.
+			nodes = []*yaml.Node{specNode}
+		}
+
 		if err != nil {
 			*errors = append(*errors, err)
 			return
