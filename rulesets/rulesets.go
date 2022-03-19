@@ -107,8 +107,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check all components have a description, and they match a set length.
 	rules["component-description"] = GetComponentDescriptionsRule()
 
-	// check for description and summary duplication
-	rules["description-duplication"] = GetDescriptionDuplicationRule()
+	// check for description and summary duplication (this is the slowest rule, needs optimizing)
+	// TODO: optimize this rule, it's very slow.
+	//rules["description-duplication"] = GetDescriptionDuplicationRule()
 
 	// check operationId does not contain characters that would be invalid in a URL
 	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
