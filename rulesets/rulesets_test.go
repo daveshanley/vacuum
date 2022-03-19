@@ -26,8 +26,8 @@ func TestStripeSpecAgainstDefaultRuleSet(t *testing.T) {
 
 }
 
-func Benchmark_StripeSpecAgainstDefaultRuleSet(b *testing.B) {
-	m, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
+func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
+	m, _ := ioutil.ReadFile("../model/test_files/k8s.yaml")
 	rs := BuildDefaultRuleSets()
 	for n := 0; n < b.N; n++ {
 		motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)

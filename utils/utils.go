@@ -288,18 +288,14 @@ func FindKeyNodeTop(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNo
 	return nil, nil
 }
 
-// FindKeyNode is a non-recursive search of an  yaml.Node Content for a child node with a key.
+// FindKeyNode is a non-recursive search of a *yaml.Node Content for a child node with a key.
 // Returns the key and value
 func FindKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
 
+	//numNodes := len(nodes)
 	for i, v := range nodes {
-		if key == v.Value {
-			if len(nodes) < i {
-				return v, nodes[i+1] // next node is what we need.
-			} else {
-				return v, v // last node!
-			}
-
+		if i%2 == 0 && key == v.Value {
+			return v, nodes[i+1] // next node is what we need.
 		}
 		for x, j := range v.Content {
 			if key == j.Value {
