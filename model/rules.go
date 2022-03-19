@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -137,15 +138,16 @@ type RuleAction struct {
 
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
-	Description  string        `json:"description"`
-	Given        interface{}   `json:"given"`
-	Formats      []string      `json:"formats"`
-	Resolved     bool          `json:"resolved"`
-	Recommended  bool          `json:"recommended"`
-	Type         string        `json:"type"`
-	Severity     string        `json:"severity"`
-	Then         interface{}   `json:"then"`
-	RuleCategory *RuleCategory `json:"-"`
+	Description       string         `json:"description"`
+	Given             interface{}    `json:"given"`
+	Formats           []string       `json:"formats"`
+	Resolved          bool           `json:"resolved"`
+	Recommended       bool           `json:"recommended"`
+	Type              string         `json:"type"`
+	Severity          string         `json:"severity"`
+	Then              interface{}    `json:"then"`
+	PrecomiledPattern *regexp.Regexp `json:"-"` // regex is slow.
+	RuleCategory      *RuleCategory  `json:"-"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts

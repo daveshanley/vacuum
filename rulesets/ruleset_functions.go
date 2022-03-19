@@ -7,6 +7,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	"github.com/daveshanley/vacuum/utils"
+	"regexp"
 )
 
 // GetContactPropertiesRule will return a rule configured to look at contact properties of a spec.
@@ -115,6 +116,7 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
 	fo["notMatch"] = "eval\\("
+	comp, _ := regexp.Compile(fo["notMatch"])
 
 	return &model.Rule{
 		Description:  "Markdown descriptions must not have 'eval('",
@@ -128,6 +130,7 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: fo,
 		},
+		PrecomiledPattern: comp,
 	}
 }
 
@@ -137,6 +140,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
 	fo["notMatch"] = "<script"
+	comp, _ := regexp.Compile(fo["notMatch"])
 
 	return &model.Rule{
 		Description:  "Markdown descriptions must not contain '<script>' tags",
@@ -150,6 +154,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: fo,
 		},
+		PrecomiledPattern: comp,
 	}
 }
 
@@ -266,6 +271,7 @@ func GetComponentDescriptionsRule() *model.Rule {
 func GetOperationIdValidInUrlRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["match"] = "^[A-Za-z0-9-._~:/?#\\[\\]@!\\$&'()*+,;=]*$"
+	comp, _ := regexp.Compile(opts["match"].(string))
 	return &model.Rule{
 		Description:  "OperationId must use URL friendly characters",
 		Given:        AllOperationsPath,
@@ -279,6 +285,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
+		PrecomiledPattern: comp,
 	}
 }
 
@@ -322,6 +329,7 @@ func GetOperationTagsRule() *model.Rule {
 func GetPathDeclarationsMustExistRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = "{}"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
 		Description:  "Path parameter declarations must not be empty ex. '/api/{}' is invalid",
 		Given:        "$.paths",
@@ -334,6 +342,7 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
+		PrecomiledPattern: comp,
 	}
 }
 
@@ -341,6 +350,7 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 func GetPathNoTrailingSlashRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = ".+\\/$"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
 		Description:  "Path must not end with a slash",
 		Given:        "$.paths",
@@ -353,6 +363,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
+		PrecomiledPattern: comp,
 	}
 }
 
@@ -360,6 +371,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 func GetPathNotIncludeQueryRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["notMatch"] = "\\?"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
 		Description:  "Path must not include query string",
 		Given:        "$.paths",
@@ -372,6 +384,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
+		PrecomiledPattern: comp,
 	}
 }
 

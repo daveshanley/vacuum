@@ -78,7 +78,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			continue
 		}
 		if p.match != "" {
-			rx, err := p.getPatternFromCache(p.match)
+			rx, err := p.getPatternFromCache(p.match, context.Rule)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
 					Message: fmt.Sprintf("%s: '%s' cannot be compiled into a regular expression: %s",
@@ -117,7 +117,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 		// not match
 		if p.notMatch != "" {
-			rx, err := p.getPatternFromCache(p.notMatch)
+			rx, err := p.getPatternFromCache(p.notMatch, context.Rule)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
 					Message: fmt.Sprintf("%s: cannot be compiled into a regular expression: %s",
@@ -143,13 +143,21 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	return results
 }
 
-func (p Pattern) getPatternFromCache(pattern string) (*regexp.Regexp, error) {
+func (p Pattern) getPatternFromCache(pattern string, rule *model.Rule) (*regexp.Regexp, error) {
 	if pat, ok := p.patternCache[pattern]; ok {
 		return pat, nil
 	}
-	rx, err := regexp.Compile(pattern)
-	if err != nil {
-		return nil, err
+	var rx *regexp.Regexp
+	var err error
+
+	// if we're using an built-in rule, we should have already compiled this.
+	if rule.PrecomiledPattern != nil {
+		rx = rule.PrecomiledPattern
+	} else {
+		rx, err = regexp.Compile(pattern)
+		if err != nil {
+			return nil, err
+		}
 	}
 	p.patternCache[pattern] = rx
 	return rx, nil

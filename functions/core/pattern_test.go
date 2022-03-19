@@ -20,6 +20,7 @@ func TestPattern_RunRule_PatternMatchSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
