@@ -82,29 +82,29 @@ var (
 
 			pterm.Println() // Blank line
 
-			positiveBars := pterm.Bars{
-				pterm.Bar{
-					Label: "Errors",
-					Value: resultSet.GetErrorCount(),
-					Style: pterm.NewStyle(pterm.FgLightRed),
-				},
-				pterm.Bar{
-					Label: "Warnings",
-					Value: resultSet.GetWarnCount(),
-					Style: pterm.NewStyle(pterm.FgLightYellow),
-				},
-				pterm.Bar{
-					Label: "Info",
-					Value: resultSet.GetInfoCount(),
-					Style: pterm.NewStyle(pterm.FgLightBlue),
-				},
-			}
+			//positiveBars := pterm.Bars{
+			//	pterm.Bar{
+			//		Label: "Errors",
+			//		Value: resultSet.GetErrorCount(),
+			//		Style: pterm.NewStyle(pterm.FgLightRed),
+			//	},
+			//	pterm.Bar{
+			//		Label: "Warnings",
+			//		Value: resultSet.GetWarnCount(),
+			//		Style: pterm.NewStyle(pterm.FgLightYellow),
+			//	},
+			//	pterm.Bar{
+			//		Label: "Info",
+			//		Value: resultSet.GetInfoCount(),
+			//		Style: pterm.NewStyle(pterm.FgLightBlue),
+			//	},
+			//}
+			//
+			//_ = pterm.DefaultBarChart.WithHorizontal().WithBars(positiveBars).Render()
 
-			_ = pterm.DefaultBarChart.WithHorizontal().WithBars(positiveBars).Render()
-
-			pterm.Printf("Errors: %d\n", resultSet.GetErrorCount())
-			pterm.Printf("Warnings: %d\n", resultSet.GetWarnCount())
-			pterm.Printf("Info: %d\n\n", resultSet.GetInfoCount())
+			//pterm.Printf("Errors: %d\n", resultSet.GetErrorCount())
+			//pterm.Printf("Warnings: %d\n", resultSet.GetWarnCount())
+			//pterm.Printf("Info: %d\n\n", resultSet.GetInfoCount())
 
 			// try a category print out.
 			for key, _ := range model.RuleCategories {
@@ -118,6 +118,8 @@ var (
 					pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 				}
 			}
+
+			pterm.Println() // Blank line
 
 			renderTime(timeFlag, duration, fi)
 

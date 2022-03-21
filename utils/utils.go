@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -184,7 +183,6 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 // FindFirstKeyNode will locate the first key and value yaml.Node based on a key.
 func FindFirstKeyNode(key string, nodes []*yaml.Node, depth int) (keyNode *yaml.Node, valueNode *yaml.Node) {
 	if depth > 100 {
-		log.Err(fmt.Errorf("unable to continue searching for '%s', recursion too high", key))
 		return nil, nil
 	}
 	for i, v := range nodes {
@@ -223,7 +221,6 @@ type KeyNodeSearch struct {
 // then update the KeyNodeSearch struct
 func FindAllKeyNodesWithPath(search *KeyNodeSearch, parent *yaml.Node, searchNodes []*yaml.Node, foundPath []yaml.Node, depth int) {
 	if depth > 100 {
-		log.Err(fmt.Errorf("unable to continue searching for '%s', recursion too high", search.Key))
 		return
 	}
 	for i, v := range searchNodes {

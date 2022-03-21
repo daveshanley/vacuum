@@ -29,10 +29,30 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 	resolved, errs := model.ResolveOpenAPIDocument(&specResolved)
 
-	for _, er := range errs {
+	// create circular rule, it's blank, but we need a rule for a result.
+	circularRule := &model.Rule{
+		Description:  "Specification schemas contain circular references",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         "validation",
+		Severity:     "error",
+		Then: model.RuleAction{
+			Function: "blank",
+		},
+	}
 
-		// TODO: look for circular errors here and add RuleResult
-		fmt.Printf("FIX ME: Resolving Issue: %v (%d: %d)\n", er.Error, er.Node.Line, er.Node.Column)
+	// add all circular references to results.
+	for _, er := range errs {
+		res := model.RuleFunctionResult{
+			Rule:      circularRule,
+			StartNode: er.Node,
+			EndNode:   er.Node,
+			Message:   er.Error.Error(),
+			Path:      er.Path,
+		}
+		ruleResults = append(ruleResults, res)
 	}
 
 	var errors []error

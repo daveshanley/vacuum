@@ -6,7 +6,6 @@ package model
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/rs/zerolog"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -25,8 +24,6 @@ var seenRemoteSources = make(map[string]*yaml.Node)
 
 // ResolveOpenAPIDocument will resolve all $ref schema nodes. Will resolve local, file based and remote nodes.
 func ResolveOpenAPIDocument(rootNode *yaml.Node) (*yaml.Node, []ResolvingError) {
-
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	// before we touch anything, lets copy our root node.
 	resolvedRoot := *rootNode
@@ -153,6 +150,7 @@ func resolve(name string, knownSchemas map[string]*Reference, schema *yaml.Node,
 		errors = append(errors, ResolvingError{
 			Error: fmt.Errorf("component '%s' cannot be resolved", key),
 			Node:  schema,
+			Path:  key, // TODO: come back and make sure this is correct.
 		})
 	}
 	return errors
@@ -168,8 +166,9 @@ func checkForCircularReferences(rootNode *yaml.Node, searchPath string) (map[str
 	if len(circRefs) > 0 {
 		for _, circRef := range circRefs {
 			errors = append(errors, ResolvingError{
-				Error: fmt.Errorf("circular reference detected: %s", circRef.JourneyString),
+				Error: fmt.Errorf("Circular reference detected: %s", circRef.JourneyString),
 				Node:  circRef.LoopPoint.Node,
+				Path:  searchPath,
 			})
 		}
 	}
@@ -191,6 +190,7 @@ func checkForCircularReferences(rootNode *yaml.Node, searchPath string) (map[str
 type ResolvingError struct {
 	Error error
 	Node  *yaml.Node
+	Path  string
 }
 
 func resolveComponent(reference *Reference, known map[string]*Reference) {
