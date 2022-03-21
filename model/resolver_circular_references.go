@@ -30,6 +30,8 @@ type CircularReferenceResult struct {
 	LoopPoint     *Reference
 }
 
+var circLock sync.Mutex
+
 // CheckForSchemaCircularReferences will traverse a supplied path and look cycles in the graph.
 // will return any circular results (or nil) and will always return the list of node references searched, and a sequenced collection
 // of the same know nodes (so repeat runs find circular references in the same order)
@@ -194,7 +196,9 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 						for _, p := range problem {
 							if !seenProblems[p.LoopPoint.Definition] {
 								seenProblems[p.LoopPoint.Definition] = true
+								circLock.Lock()
 								problems = append(problems, p)
+								circLock.Unlock()
 
 							}
 						}
