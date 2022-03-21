@@ -9,23 +9,21 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	// Used for flags.
-	cfgFile     string
-	userLicense string
-
 	rootCmd = &cobra.Command{
 		Use:   "vacuum <your-openapi-file.yaml>",
-		Short: "vacuum is a very fast OpenAPI linter",
-		Long:  `vacuum is a very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
+		Short: "vacuum is a very, very fast OpenAPI linter",
+		Long:  `vacuum is a very, very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			detailsFlag, _ := cmd.Flags().GetBool("details")
 			timeFlag, _ := cmd.Flags().GetBool("time")
+			snippetsFlag, _ := cmd.Flags().GetBool("snippets")
 
 			pterm.Println()
 
@@ -46,6 +44,9 @@ var (
 
 			// read file.
 			b, ferr := ioutil.ReadFile(args[0])
+
+			// split up file into an array with lines.
+			specStringData := strings.Split(string(b), "\n")
 
 			if ferr != nil {
 
@@ -77,46 +78,19 @@ var (
 				return fmt.Errorf("error: %v\n\n", err.Error())
 			}
 
-			//writer.Flush()
-			// TODO: build out stats
-
 			pterm.Println() // Blank line
 
-			//positiveBars := pterm.Bars{
-			//	pterm.Bar{
-			//		Label: "Errors",
-			//		Value: resultSet.GetErrorCount(),
-			//		Style: pterm.NewStyle(pterm.FgLightRed),
-			//	},
-			//	pterm.Bar{
-			//		Label: "Warnings",
-			//		Value: resultSet.GetWarnCount(),
-			//		Style: pterm.NewStyle(pterm.FgLightYellow),
-			//	},
-			//	pterm.Bar{
-			//		Label: "Info",
-			//		Value: resultSet.GetInfoCount(),
-			//		Style: pterm.NewStyle(pterm.FgLightBlue),
-			//	},
-			//}
-			//
-			//_ = pterm.DefaultBarChart.WithHorizontal().WithBars(positiveBars).Render()
-
-			//pterm.Printf("Errors: %d\n", resultSet.GetErrorCount())
-			//pterm.Printf("Warnings: %d\n", resultSet.GetWarnCount())
-			//pterm.Printf("Info: %d\n\n", resultSet.GetInfoCount())
-
 			// try a category print out.
-			for key, _ := range model.RuleCategories {
+			for _, val := range model.RuleCategories {
 
-				categoryResults := resultSet.GetResultsByRuleCategory(key)
-
-				tableData := processResults(categoryResults)
+				categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
 
 				if len(categoryResults) > 0 {
-					pterm.DefaultSection.Printf("%s Results\n", strings.Title(key))
-					pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+					pterm.DefaultSection.Printf("%s Issues\n", val.Name)
+					processResults(categoryResults, specStringData, snippetsFlag, val.Name)
+
 				}
+
 			}
 
 			pterm.Println() // Blank line
@@ -136,9 +110,19 @@ func renderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
 	}
 }
 
-func processResults(results []*model.RuleFunctionResult) [][]string {
-	tableData := [][]string{{"Line / Column", "Severity", "Message", "Path"}}
+func processResults(results []*model.RuleFunctionResult, specData []string, snippets bool, cat string) {
+
+	// if snippets are being used, we render a single table for a result and then a snippet, if not
+	// we just render the entire table, all rows.
+	var tableData [][]string
+	if !snippets {
+		tableData = [][]string{{"Line / Column", "Severity", "Message", "Path"}}
+	}
 	for _, r := range results {
+
+		if snippets {
+			tableData = [][]string{{"Line / Column", "Severity", "Message", "Path"}}
+		}
 		start := fmt.Sprintf("(%v:%v)", r.StartNode.Line, r.StartNode.Column)
 
 		m := r.Message
@@ -166,8 +150,40 @@ func processResults(results []*model.RuleFunctionResult) [][]string {
 		}
 
 		tableData = append(tableData, []string{start, sev, m, p})
+
+		if snippets {
+			pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+			renderCodeSnippet(r, specData)
+		}
 	}
-	return tableData
+
+	if !snippets {
+		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	}
+
+}
+
+func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
+	// render out code snippet
+
+	if r.StartNode.Line-3 >= 0 {
+		pterm.Printf("\n\n%s %s %s\n", pterm.Gray(r.StartNode.Line-3), pterm.Gray("|"), specData[r.StartNode.Line-3])
+	} else {
+		pterm.Printf("\n\n")
+	}
+
+	if r.StartNode.Line-2 >= 1 {
+		pterm.Printf("%s %s %s\n", pterm.Gray(r.StartNode.Line-2), pterm.Gray("|"), specData[r.StartNode.Line-2])
+	}
+	if r.StartNode.Line-1 >= 2 {
+		pterm.Printf("%s %s %s\n", pterm.LightRed(strconv.Itoa(r.StartNode.Line-1)),
+			pterm.Gray("|"), pterm.LightRed(specData[r.StartNode.Line-1]))
+	}
+	pterm.Printf("%s %s %s\n", pterm.Gray(r.StartNode.Line), pterm.Gray("|"), specData[r.StartNode.Line])
+
+	if r.StartNode.Line+1 <= len(specData) {
+		pterm.Printf("%s %s %s\n\n\n", pterm.Gray(r.StartNode.Line+1), pterm.Gray("|"), specData[r.StartNode.Line+1])
+	}
 }
 
 func RenderSummary(rs *model.RuleResultSet, args []string) {
@@ -221,6 +237,7 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolP("details", "d", false, "Show full details of linting report")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
+	rootCmd.PersistentFlags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 
 }
 
