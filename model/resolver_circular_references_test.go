@@ -39,3 +39,37 @@ func TestCheckForSchemaCircularReferences_Stripe(t *testing.T) {
 	assert.Nil(t, results)
 
 }
+
+func TestMagicJourney_ExtractRefs(t *testing.T) {
+
+	mj := new(MagicJourney)
+
+	stripe, _ := ioutil.ReadFile("test_files/asana.yaml")
+
+	var rootNode yaml.Node
+	yaml.Unmarshal(stripe, &rootNode)
+
+	mj.allRefs = make(map[string]*Reference)
+	mj.allMappedRefs = make(map[string]*Reference)
+	mj.pathRefs = make(map[string]map[string]*Reference)
+	mj.paramOpRefs = make(map[string]map[string]*Reference)
+	mj.paramCompRefs = make(map[string]*Reference)
+
+	mj.root = &rootNode
+
+	results := mj.ExtractRefs(mj.root)
+	assert.Len(t, results, 171)
+
+	extracted := mj.ExtractComponentsFromRefs(results)
+	assert.Len(t, extracted, 171)
+
+	assert.Equal(t, 118, mj.GetPathCount())
+	assert.Equal(t, 152, mj.GetOperationCount())
+
+	pcount, err := mj.GetParameterCount()
+	// TODO: continue the magic journey.
+
+	assert.Equal(t, 0, pcount)
+	assert.NoError(t, err)
+
+}
