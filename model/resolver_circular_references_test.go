@@ -44,7 +44,9 @@ func TestMagicJourney_ExtractRefs(t *testing.T) {
 
 	mj := new(MagicJourney)
 
-	stripe, _ := ioutil.ReadFile("test_files/asana.yaml")
+	//stripe, _ := ioutil.ReadFile("test_files/asana.yaml")
+	stripe, _ := ioutil.ReadFile("test_files/stripe.yaml")
+	//stripe, _ := ioutil.ReadFile("../petstore-fixed.json")
 
 	var rootNode yaml.Node
 	yaml.Unmarshal(stripe, &rootNode)
@@ -54,22 +56,30 @@ func TestMagicJourney_ExtractRefs(t *testing.T) {
 	mj.pathRefs = make(map[string]map[string]*Reference)
 	mj.paramOpRefs = make(map[string]map[string]*Reference)
 	mj.paramCompRefs = make(map[string]*Reference)
+	mj.paramAllRefs = make(map[string]*Reference)
+	mj.paramInlineDuplicates = make(map[string][]*Reference)
 
 	mj.root = &rootNode
 
 	results := mj.ExtractRefs(mj.root)
-	assert.Len(t, results, 171)
+	assert.Len(t, results, 537)
 
 	extracted := mj.ExtractComponentsFromRefs(results)
-	assert.Len(t, extracted, 171)
+	assert.Len(t, extracted, 537)
 
-	assert.Equal(t, 118, mj.GetPathCount())
-	assert.Equal(t, 152, mj.GetOperationCount())
+	assert.Equal(t, 246, mj.GetPathCount())
+	assert.Equal(t, 402, mj.GetOperationCount())
+	assert.Equal(t, 537, mj.GetComponentSchemaCount())
 
-	pcount, err := mj.GetParameterCount()
+	pcount := mj.GetComponentParameterCount()
+	opcount := mj.GetOperationsParameterCount()
+	unicount := mj.GetInlineUniqueParamCount()
+	dupcount := mj.GetInlineDuplicateParamCount()
 	// TODO: continue the magic journey.
 
 	assert.Equal(t, 0, pcount)
-	assert.NoError(t, err)
+	assert.Equal(t, 143, opcount)
+	assert.Equal(t, 76, dupcount)
+	assert.Equal(t, 67, unicount)
 
 }

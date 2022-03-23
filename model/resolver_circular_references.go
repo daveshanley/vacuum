@@ -307,20 +307,32 @@ func hasReferenceBeenSeen(ref *Reference, journey []*Reference) int {
 	return -1
 }
 
-type MagicJourney struct {
-	allRefs       map[string]*Reference
-	allMappedRefs map[string]*Reference
-	pathRefs      map[string]map[string]*Reference
-	paramOpRefs   map[string]map[string]*Reference // params in operations.
-	paramCompRefs map[string]*Reference            // params in
+/*
+ new resolver.
+*/
 
-	pathCount      int
-	operationCount int
-	paramCount     int
+type MagicJourney struct {
+	allRefs                        map[string]*Reference
+	allMappedRefs                  map[string]*Reference
+	pathRefs                       map[string]map[string]*Reference
+	paramOpRefs                    map[string]map[string]*Reference // params in operations.
+	paramCompRefs                  map[string]*Reference            // params in components
+	paramAllRefs                   map[string]*Reference            // combined components and ops
+	paramInlineDuplicates          map[string][]*Reference          // inline params all with the same name
+	pathCount                      int
+	operationCount                 int
+	operationParamCount            int // number of params defined in operations
+	componentParamCount            int // number of params defined in components
+	componentsInlineUniqueCount    int // number of inline params with unique names
+	componentsInlineDuplicateCount int // number of inline params with duplicate names
+
 	schemaCount    int
+	refCount       int
 	root           *yaml.Node
 	pathsNode      *yaml.Node
 	componentsNode *yaml.Node
+	parametersNode *yaml.Node
+	schemasNode    *yaml.Node
 }
 
 var methodTypes = []string{"get", "post", "put", "patch", "options", "head", "delete"}
@@ -350,7 +362,7 @@ func (mj *MagicJourney) ExtractRefs(node *yaml.Node) []*Reference {
 			}
 		}
 	}
-	mj.schemaCount = len(mj.allRefs)
+	mj.refCount = len(mj.allRefs)
 	return found
 }
 
@@ -375,6 +387,52 @@ func (mj *MagicJourney) GetPathCount() int {
 		}
 	}
 	return 0
+}
+
+func (mj *MagicJourney) GetComponentSchemaCount() int {
+	if mj.root == nil {
+		return -1
+	}
+
+	if mj.schemaCount > 0 {
+		return mj.schemaCount
+	}
+
+	for i, n := range mj.root.Content[0].Content {
+		if i%2 == 0 {
+			if n.Value == "components" {
+				_, schemasNode := utils.FindKeyNode("schemas", mj.root.Content[0].Content[i+1].Content)
+				if schemasNode != nil {
+					mj.schemasNode = schemasNode
+					mj.schemaCount = len(schemasNode.Content) / 2
+				}
+			}
+		}
+	}
+	return mj.schemaCount
+}
+
+func (mj *MagicJourney) GetComponentParameterCount() int {
+	if mj.root == nil {
+		return -1
+	}
+
+	if mj.componentParamCount > 0 {
+		return mj.componentParamCount
+	}
+
+	for i, n := range mj.root.Content[0].Content {
+		if i%2 == 0 {
+			if n.Value == "components" {
+				_, parametersNode := utils.FindKeyNode("parameters", mj.root.Content[0].Content[i+1].Content)
+				if parametersNode != nil {
+					mj.parametersNode = parametersNode
+					mj.componentParamCount = len(parametersNode.Content) / 2
+				}
+			}
+		}
+	}
+	return mj.componentParamCount
 }
 
 func (mj *MagicJourney) GetOperationCount() int {
@@ -426,86 +484,175 @@ func (mj *MagicJourney) GetOperationCount() int {
 	return opCount
 }
 
-func (mj *MagicJourney) GetParameterCount() (int, error) {
+func (mj *MagicJourney) GetOperationsParameterCount() int {
 	if mj.root == nil {
-		return -1, nil
+		return -1
 	}
 
-	if mj.paramCount > 0 {
-		return mj.paramCount, nil
+	if mj.operationParamCount > 0 {
+		return mj.operationParamCount
 	}
 
-	for x, p := range mj.pathsNode.Content {
+	// parameters are sneaky, they can be in paths, in path operations or in components.
+	// sometimes they are refs, sometimes they are inline definitions, just for fun.
+	// some authors just LOVE to mix and match them all up.
+	// check paths first
+	for x, pathItemNode := range mj.pathsNode.Content {
 		if x%2 == 0 {
 
-			method := mj.pathsNode.Content[x+1]
+			pathPropertyNode := mj.pathsNode.Content[x+1]
 
 			// extract methods for later use.
-			for y, m := range method.Content {
+			for y, prop := range pathPropertyNode.Content {
 				if y%2 == 0 {
 
 					// top level params
-					if m.Value == "parameters" {
+					if prop.Value == "parameters" {
 
 						// let's look at params, check if they are refs or inline.
+						params := pathPropertyNode.Content[y+1].Content
+						mj.scanOperationParams(params, pathItemNode)
+					}
 
-						for _, param := range method.Content[y+1].Content {
+					// method level params.
+					if isHttpMethod(prop.Value) {
 
-							// param is ref
-							if len(param.Content) > 0 && param.Content[0].Value == "$ref" {
-
-								paramRefName := param.Content[1].Value
-								paramRef := mj.allMappedRefs[paramRefName]
-
-								if paramRef == nil {
-									// TODO: handle mapping errors.
-									fmt.Printf("unknown! %s", paramRefName)
-									continue
+						for x, httpMethodProp := range pathPropertyNode.Content[y+1].Content {
+							if x%2 == 0 {
+								if httpMethodProp.Value == "parameters" {
+									params := pathPropertyNode.Content[y+1].Content[x+1].Content
+									mj.scanOperationParams(params, pathItemNode)
 								}
-
-								if mj.paramOpRefs[p.Value] == nil {
-									mj.paramOpRefs[p.Value] = make(map[string]*Reference)
-								}
-								mj.paramOpRefs[p.Value][paramRefName] = paramRef
-								continue
-
-							} else {
-
-								// param is inline.
-
-								_, vn := utils.FindKeyNode("name", param.Content)
-								if vn == nil {
-
-									//TODO: handle error
-									fmt.Printf("no name op param %s", p.Value)
-									continue
-								}
-
-								ref := &Reference{
-									Definition: vn.Value,
-									Name:       vn.Value,
-									Node:       param,
-								}
-								if mj.paramOpRefs[p.Value] == nil {
-									mj.paramOpRefs[p.Value] = make(map[string]*Reference)
-								}
-								mj.paramOpRefs[p.Value][ref.Name] = ref
-								continue
 							}
 						}
 					}
-
-					// TODO: check each method now for inline op level params.
-
 				}
 			}
 		}
 	}
 
-	return 0, nil
+	// Now that all the paths and operations are processed, lets pick out everything from our pre
+	// mapped refs and populate our ready to roll index of component params.
+	for key, component := range mj.allMappedRefs {
+		if strings.Contains(key, "/parameters/") {
+			mj.paramCompRefs[key] = component
+			mj.paramAllRefs[key] = component
+		}
+	}
 
-	// extract paths
+	// now build main index of all params by combining comp refs with inline params from operations.
+	// use the namespace path:::param for inline params to identify them as inline.
+	for path, params := range mj.paramOpRefs {
+		for pName, pValue := range params {
+			if !strings.HasPrefix(pName, "#") {
+				if mj.paramInlineDuplicates[pName] == nil {
+					mj.paramInlineDuplicates[pName] = []*Reference{pValue}
+				} else {
+					mj.paramInlineDuplicates[pName] = append(mj.paramInlineDuplicates[pName], pValue)
+				}
+				mj.paramAllRefs[fmt.Sprintf("%s:::%s", path, pName)] = pValue
+			}
+		}
+	}
+	mj.operationParamCount = len(mj.paramCompRefs) + len(mj.paramInlineDuplicates)
+	return mj.operationParamCount
 
+}
+
+func (mj *MagicJourney) GetInlineDuplicateParamCount() int {
+	if mj.componentsInlineDuplicateCount > 0 {
+		return mj.componentsInlineDuplicateCount
+	}
+	dCount := len(mj.paramInlineDuplicates) - mj.countUniqueInlineDuplicates()
+	mj.componentsInlineDuplicateCount = dCount
+	return dCount
+}
+
+func (mj *MagicJourney) GetInlineUniqueParamCount() int {
+	return mj.countUniqueInlineDuplicates()
+}
+
+func (mj *MagicJourney) countUniqueInlineDuplicates() int {
+	if mj.componentsInlineUniqueCount > 0 {
+		return mj.componentsInlineUniqueCount
+	}
+	if len(mj.paramInlineDuplicates) <= 0 {
+		return -1
+	}
+	unique := 0
+	for _, p := range mj.paramInlineDuplicates {
+		if len(p) == 1 {
+			unique++
+		}
+	}
+	mj.componentsInlineUniqueCount = unique
+	return unique
+}
+
+func (mj *MagicJourney) scanOperationParams(params []*yaml.Node, pathItemNode *yaml.Node) {
+	for _, param := range params {
+
+		// param is ref
+		if len(param.Content) > 0 && param.Content[0].Value == "$ref" {
+
+			paramRefName := param.Content[1].Value
+			paramRef := mj.allMappedRefs[paramRefName]
+
+			if paramRef == nil {
+				// TODO: handle mapping errors.
+				fmt.Printf("unknown! %s", paramRefName)
+				continue
+			}
+
+			if mj.paramOpRefs[pathItemNode.Value] == nil {
+				mj.paramOpRefs[pathItemNode.Value] = make(map[string]*Reference)
+			}
+			mj.paramOpRefs[pathItemNode.Value][paramRefName] = paramRef
+			continue
+
+		} else {
+
+			// param is inline.
+			_, vn := utils.FindKeyNode("name", param.Content)
+			if vn == nil {
+
+				//TODO: handle error
+				fmt.Printf("no name op param %s", pathItemNode.Value)
+				continue
+			}
+
+			ref := &Reference{
+				Definition: vn.Value,
+				Name:       vn.Value,
+				Node:       param,
+			}
+			if mj.paramOpRefs[pathItemNode.Value] == nil {
+				mj.paramOpRefs[pathItemNode.Value] = make(map[string]*Reference)
+			}
+			mj.paramOpRefs[pathItemNode.Value][ref.Name] = ref
+			continue
+		}
+	}
+}
+
+func isHttpMethod(val string) bool {
+	switch strings.ToLower(val) {
+	case methodTypes[0]:
+		return true
+	case methodTypes[1]:
+		return true
+	case methodTypes[2]:
+		return true
+	case methodTypes[3]:
+		return true
+	case methodTypes[4]:
+		return true
+	case methodTypes[5]:
+		return true
+	case methodTypes[6]:
+		return true
+	}
+	return false
 }
 
 func (mj *MagicJourney) ExtractComponentsFromRefs(refs []*Reference) []*Reference {
@@ -515,6 +662,9 @@ func (mj *MagicJourney) ExtractComponentsFromRefs(refs []*Reference) []*Referenc
 		if located != nil {
 			found = append(found, located)
 			mj.allMappedRefs[ref.Definition] = located
+		} else {
+			// TODO: handle this
+			fmt.Printf("NOT FOUND")
 		}
 	}
 	return found
@@ -525,14 +675,17 @@ func (mj *MagicJourney) FindComponent(componentId string) *Reference {
 		return nil
 	}
 
-	componentSearch := strings.ReplaceAll(strings.ReplaceAll(componentId, "/", "."), "#", "$")
-	path, _ := yamlpath.NewPath(componentSearch)
+	//componentSearch := strings.ReplaceAll(strings.ReplaceAll(componentId, "/", "."), "#", "$")
+
+	segs := strings.Split(componentId, "/")
+	name := segs[len(segs)-1]
+
+	friendlySearch := strings.ReplaceAll(fmt.Sprintf("%s['%s']", strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
+
+	path, _ := yamlpath.NewPath(friendlySearch)
 	res, _ := path.Find(mj.root)
+
 	if len(res) == 1 {
-
-		segs := strings.Split(componentSearch, "/")
-		name := segs[len(segs)-1]
-
 		ref := &Reference{
 			Definition: componentId,
 			Name:       name,
