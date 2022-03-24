@@ -86,12 +86,6 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// info object: contains a license url
 	rules["license-url"] = GetInfoLicenseUrlRule()
 
-	// check no eval statements in markdown descriptions.
-	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
-
-	// check no script statements in markdown descriptions.
-	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
-
 	// check tags are in alphabetical order
 	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabeticalRule()
 
@@ -106,10 +100,6 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	// check all components have a description, and they match a set length.
 	rules["component-description"] = GetComponentDescriptionsRule()
-
-	// check for description and summary duplication (this is the slowest rule, needs optimizing)
-	// TODO: optimize this rule, it's very slow.
-	//rules["description-duplication"] = GetDescriptionDuplicationRule()
 
 	// check operationId does not contain characters that would be invalid in a URL
 	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
@@ -126,12 +116,6 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check tags have a description defined
 	rules["tag-description"] = GetTagDescriptionRequiredRule()
 
-	// check enums respect specified types
-	rules["typed-enum"] = GetTypedEnumRule()
-
-	// check for duplication in enums
-	rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
-
 	// add no $ref siblings
 	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
 
@@ -145,12 +129,28 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
 	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
-	// TODO: Examples is not efficient at all, needs cleaning up significantly,
-	// should be broken down into sub rules most likely.
-
 	// check all examples
 	rules["oas-3valid-schema-example"] = GetExamplesRule()
-	//*/
+
+	// check enums respect specified types
+	// TODO: Slow
+	//rules["typed-enum"] = GetTypedEnumRule()
+
+	// check for duplication in enums
+	// TODO: SLOW
+	//rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
+
+	// check no eval statements in markdown descriptions.
+	// TODO: SLOW
+	// rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
+
+	// check no script statements in markdown descriptions.
+	// TODO: SLOW
+	//rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
+
+	// check for description and summary duplication (this is the slowest rule, needs optimizing)
+	// TODO: optimize this rule, it's very slow.
+	//rules["description-duplication"] = GetDescriptionDuplicationRule()
 
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",

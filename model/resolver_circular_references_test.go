@@ -39,3 +39,28 @@ func TestCheckForSchemaCircularReferences_Stripe(t *testing.T) {
 	assert.Nil(t, results)
 
 }
+
+func TestMagicJourney_ExtractRefs(t *testing.T) {
+
+	//stripe, _ := ioutil.ReadFile("test_files/asana.yaml")
+	stripe, _ := ioutil.ReadFile("test_files/stripe.yaml")
+	//stripe, _ := ioutil.ReadFile("../petstore-fixed.json")
+	//stripe, _ := ioutil.ReadFile("../petstore.json")
+	var rootNode yaml.Node
+	yaml.Unmarshal(stripe, &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+
+	assert.Len(t, index.allRefs, 537)
+	assert.Len(t, index.allMappedRefs, 537)
+	assert.Equal(t, 246, index.pathCount)
+	assert.Equal(t, 402, index.operationCount)
+	assert.Equal(t, 537, index.schemaCount)
+	assert.Equal(t, 0, index.globalTagsCount)
+	assert.Equal(t, 0, index.globalLinksCount)
+	assert.Equal(t, 0, index.componentParamCount)
+	assert.Equal(t, 143, index.operationParamCount)
+	assert.Equal(t, 76, index.componentsInlineDuplicateCount)
+	assert.Equal(t, 67, index.componentsInlineUniqueCount)
+
+}
