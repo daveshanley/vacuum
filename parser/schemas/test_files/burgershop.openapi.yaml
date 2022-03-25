@@ -65,6 +65,12 @@ paths:
                   value:
                     name: Filet-O-Fish
                     numPatties: 1
+          links:
+            LocateBurger:
+              operationId: locateBurger
+              parameters:
+                burgerId: '$response.body#/id'
+              description: Go and get a tasty burger
         "500":
           description: Unexpected error creating a new burger. Sorry.
           content:
@@ -120,7 +126,12 @@ paths:
                   value:
                     name: Filet-O-Fish
                     numPatties: 1
-
+          links:
+            ListBurgerDressings:
+              operationId: listBurgerDressings
+              parameters:
+                dressingId: 'something here'
+              description: 'Try the ketchup!'
         "404":
           description: Cannot find your burger. Sorry. We may have sold out of this type
           content:

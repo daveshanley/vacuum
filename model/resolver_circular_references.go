@@ -312,53 +312,57 @@ func hasReferenceBeenSeen(ref *Reference, journey []*Reference) int {
 */
 
 type SpecIndex struct {
-	allRefs                        map[string]*Reference
-	allMappedRefs                  map[string]*Reference
-	pathRefs                       map[string]map[string]*Reference
-	paramOpRefs                    map[string]map[string]*Reference   // params in operations.
-	paramCompRefs                  map[string]*Reference              // params in components
-	paramAllRefs                   map[string]*Reference              // combined components and ops
-	paramInlineDuplicates          map[string][]*Reference            // inline params all with the same name
-	globalTagRefs                  map[string]*Reference              // top level global tags
-	securitySchemeRefs             map[string]*Reference              // top level security schemes
-	requestBodiesRefs              map[string]*Reference              // top level request bodies
-	responsesRefs                  map[string]*Reference              // top level responses
-	headersRefs                    map[string]*Reference              // top level responses
-	examplesRefs                   map[string]*Reference              // top level examples
-	linksRefs                      map[string]map[string][]*Reference // all links
-	callbackRefs                   map[string]*Reference              // top level callback refs
-	externalDocumentsRef           []*Reference                       // all external documents in spec
-	externalDocumentsCount         int                                // number of externalDocument nodes found
-	globalTagsCount                int                                // number of tags defined
-	securitySchemesCount           int                                // security schemes
-	globalRequestBodiesCount       int                                // component request bodies
-	globalResponsesCount           int                                // component responses
-	globalHeadersCount             int                                // component headers
-	globalExamplesCount            int                                // component examples
-	globalLinksCount               int                                // component links
-	globalCallbacks                int                                // component callbacks.
-	pathCount                      int                                // number of paths
-	operationCount                 int                                // number of operations
-	operationParamCount            int                                // number of params defined in operations
-	componentParamCount            int                                // number of params defined in components
-	componentsInlineUniqueCount    int                                // number of inline params with unique names
-	componentsInlineDuplicateCount int                                // number of inline params with duplicate names
-	schemaCount                    int                                // number of schemas
-	refCount                       int                                // total ref count
-	root                           *yaml.Node                         // the root document
-	pathsNode                      *yaml.Node                         // paths node
-	tagsNode                       *yaml.Node                         // tags node
-	componentsNode                 *yaml.Node                         // components node
-	parametersNode                 *yaml.Node                         // components/parameters node
-	schemasNode                    *yaml.Node                         // components/schemas node
-	securitySchemesNode            *yaml.Node                         // components/securitySchemes node
-	requestBodiesNode              *yaml.Node                         // components/requestBodies node
-	responsesNode                  *yaml.Node                         // components/responses node
-	headersNode                    *yaml.Node                         // components/headers node
-	examplesNode                   *yaml.Node                         // components/examples node
-	linksNode                      *yaml.Node                         // components/links node
-	callbacksNode                  *yaml.Node                         // components/callbacks node
-	externalDocumentsNode          *yaml.Node                         // external documents node
+	allRefs                             map[string]*Reference
+	allMappedRefs                       map[string]*Reference
+	pathRefs                            map[string]map[string]*Reference
+	paramOpRefs                         map[string]map[string]*Reference   // params in operations.
+	paramCompRefs                       map[string]*Reference              // params in components
+	paramAllRefs                        map[string]*Reference              // combined components and ops
+	paramInlineDuplicates               map[string][]*Reference            // inline params all with the same name
+	globalTagRefs                       map[string]*Reference              // top level global tags
+	securitySchemeRefs                  map[string]*Reference              // top level security schemes
+	requestBodiesRefs                   map[string]*Reference              // top level request bodies
+	responsesRefs                       map[string]*Reference              // top level responses
+	headersRefs                         map[string]*Reference              // top level responses
+	examplesRefs                        map[string]*Reference              // top level examples
+	linksRefs                           map[string]map[string][]*Reference // all links
+	operationTagsRefs                   map[string]map[string][]*Reference // tags found in operations
+	callbackRefs                        map[string]*Reference              // top level callback refs
+	externalDocumentsRef                []*Reference                       // all external documents in spec
+	pathRefsLock                        sync.Mutex                         // create lock for all refs maps, we want to build data as fast as we can
+	externalDocumentsCount              int                                // number of externalDocument nodes found
+	operationTagsCount                  int                                // number of unique tags in operations
+	globalTagsCount                     int                                // number of global tags defined
+	totalTagsCount                      int                                // number unique tags in spec
+	securitySchemesCount                int                                // security schemes
+	globalRequestBodiesCount            int                                // component request bodies
+	globalResponsesCount                int                                // component responses
+	globalHeadersCount                  int                                // component headers
+	globalExamplesCount                 int                                // component examples
+	globalLinksCount                    int                                // component links
+	globalCallbacks                     int                                // component callbacks.
+	pathCount                           int                                // number of paths
+	operationCount                      int                                // number of operations
+	operationParamCount                 int                                // number of params defined in operations
+	componentParamCount                 int                                // number of params defined in components
+	componentsInlineParamUniqueCount    int                                // number of inline params with unique names
+	componentsInlineParamDuplicateCount int                                // number of inline params with duplicate names
+	schemaCount                         int                                // number of schemas
+	refCount                            int                                // total ref count
+	root                                *yaml.Node                         // the root document
+	pathsNode                           *yaml.Node                         // paths node
+	tagsNode                            *yaml.Node                         // tags node
+	componentsNode                      *yaml.Node                         // components node
+	parametersNode                      *yaml.Node                         // components/parameters node
+	schemasNode                         *yaml.Node                         // components/schemas node
+	securitySchemesNode                 *yaml.Node                         // components/securitySchemes node
+	requestBodiesNode                   *yaml.Node                         // components/requestBodies node
+	responsesNode                       *yaml.Node                         // components/responses node
+	headersNode                         *yaml.Node                         // components/headers node
+	examplesNode                        *yaml.Node                         // components/examples node
+	linksNode                           *yaml.Node                         // components/links node
+	callbacksNode                       *yaml.Node                         // components/callbacks node
+	externalDocumentsNode               *yaml.Node                         // external documents node
 }
 
 var methodTypes = []string{"get", "post", "put", "patch", "options", "head", "delete"}
@@ -370,6 +374,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.allMappedRefs = make(map[string]*Reference)
 	index.pathRefs = make(map[string]map[string]*Reference)
 	index.paramOpRefs = make(map[string]map[string]*Reference)
+	index.operationTagsRefs = make(map[string]map[string][]*Reference)
 	index.paramCompRefs = make(map[string]*Reference)
 	index.paramAllRefs = make(map[string]*Reference)
 	index.paramInlineDuplicates = make(map[string][]*Reference)
@@ -386,41 +391,33 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	results := index.ExtractRefs(index.root)
 	index.ExtractComponentsFromRefs(results)
 	index.ExtractExternalDocuments(index.root)
-
-	//TODO: debug async index building, concurrent map reads and writes are causing panics.
-
-	//countFuncs := []func() int{
-	//	index.GetPathCount,
-	//	index.GetOperationCount,
-	//	index.GetComponentSchemaCount,
-	//	index.GetGlobalTagsCount,
-	//	index.GetGlobalLinksCount,
-	//	index.GetComponentParameterCount,
-	//	index.GetOperationsParameterCount,
-	//	index.GetInlineUniqueParamCount,
-	//	index.GetInlineDuplicateParamCount,
-	//}
-
-	//var wg sync.WaitGroup
-	//wg.Add(len(countFuncs))
-	//for _, cFunc := range countFuncs {
-	//	go func(wg *sync.WaitGroup, cf func() int) {
-	//		cf()
-	//		wg.Done()
-	//	}(&wg, cFunc)
-	//}
-	//
-	//wg.Wait()
-
 	index.GetPathCount()
-	index.GetOperationCount()
-	index.GetComponentSchemaCount()
-	index.GetGlobalTagsCount()
-	index.GetGlobalLinksCount()
-	index.GetComponentParameterCount()
-	index.GetOperationsParameterCount()
+
+	countFuncs := []func() int{
+		index.GetOperationCount,
+		index.GetComponentSchemaCount,
+		index.GetGlobalTagsCount,
+		index.GetComponentParameterCount,
+		index.GetOperationsParameterCount,
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(countFuncs))
+	for _, cFunc := range countFuncs {
+		go func(wg *sync.WaitGroup, cf func() int) {
+			cf()
+			wg.Done()
+		}(&wg, cFunc)
+	}
+
+	wg.Wait()
+
+	// these functions are aggregate and can only run once the rest of the model is ready
 	index.GetInlineUniqueParamCount()
 	index.GetInlineDuplicateParamCount()
+	index.GetOperationTagsCount()
+	index.GetGlobalLinksCount()
+
 	return index
 }
 
@@ -433,8 +430,14 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
+
+				// only look at scalar values, not maps (look at you k8s)
+				if !utils.IsNodeStringValue(node.Content[i+1]) {
+					continue
+				}
+
 				value := node.Content[i+1].Value
-				if index.allRefs[value] != nil {
+				if index.allRefs[value] != nil { // seen before, skip.
 					continue
 				}
 				segs := strings.Split(value, "/")
@@ -443,6 +446,10 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
 					Definition: value,
 					Name:       name,
 					Node:       n,
+				}
+
+				if value == "" {
+					fmt.Printf("why?")
 				}
 				index.allRefs[value] = ref
 				found = append(found, ref)
@@ -525,6 +532,61 @@ func (index *SpecIndex) GetGlobalTagsCount() int {
 	return index.globalTagsCount
 }
 
+func (index *SpecIndex) GetOperationTagsCount() int {
+	if index.root == nil {
+		return -1
+	}
+
+	if index.operationTagsCount > 0 {
+		return index.operationTagsCount
+	}
+
+	// this is an aggregate count function that can only be run after operations
+	// have been calculated.
+	seen := make(map[string]bool)
+	count := 0
+	for _, path := range index.operationTagsRefs {
+		for _, method := range path {
+			for _, tag := range method {
+				if !seen[tag.Name] {
+					seen[tag.Name] = true
+					count++
+				}
+			}
+		}
+	}
+	index.operationTagsCount = count
+	return index.operationTagsCount
+}
+
+func (index *SpecIndex) GetTotalTagsCount() int {
+	if index.totalTagsCount > 0 {
+		return index.totalTagsCount
+	}
+
+	seen := make(map[string]bool)
+	count := 0
+
+	for _, gt := range index.globalTagRefs {
+		if !seen[gt.Name] {
+			seen[gt.Name] = true
+			count++
+		}
+	}
+	for _, ot := range index.operationTagsRefs {
+		for _, m := range ot {
+			for _, t := range m {
+				if !seen[t.Name] {
+					seen[t.Name] = true
+					count++
+				}
+			}
+		}
+	}
+	index.totalTagsCount = count
+	return index.totalTagsCount
+}
+
 func (index *SpecIndex) GetGlobalLinksCount() int {
 	if index.root == nil {
 		return -1
@@ -534,6 +596,7 @@ func (index *SpecIndex) GetGlobalLinksCount() int {
 		return index.globalLinksCount
 	}
 
+	index.pathRefsLock.Lock()
 	for path, p := range index.pathRefs {
 		for _, m := range p {
 
@@ -565,6 +628,7 @@ func (index *SpecIndex) GetGlobalLinksCount() int {
 			}
 		}
 	}
+	index.pathRefsLock.Unlock()
 	return index.globalLinksCount
 }
 
@@ -664,10 +728,12 @@ func (index *SpecIndex) GetOperationCount() int {
 							Name:       m.Value,
 							Node:       method.Content[y+1],
 						}
+						index.pathRefsLock.Lock()
 						if index.pathRefs[p.Value] == nil {
 							index.pathRefs[p.Value] = make(map[string]*Reference)
 						}
 						index.pathRefs[p.Value][ref.Name] = ref
+						index.pathRefsLock.Unlock()
 						// update
 						opCount++
 					}
@@ -719,6 +785,26 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 									params := pathPropertyNode.Content[y+1].Content[z+1].Content
 									index.scanOperationParams(params, pathItemNode)
 								}
+
+								// extract operation tags if set.
+								if httpMethodProp.Value == "tags" {
+									tags := pathPropertyNode.Content[y+1].Content[z+1]
+
+									if index.operationTagsRefs[pathItemNode.Value] == nil {
+										index.operationTagsRefs[pathItemNode.Value] = make(map[string][]*Reference)
+									}
+
+									var tagRefs []*Reference
+									for _, tagRef := range tags.Content {
+										ref := &Reference{
+											Definition: tagRef.Value,
+											Name:       tagRef.Value,
+											Node:       tagRef,
+										}
+										tagRefs = append(tagRefs, ref)
+									}
+									index.operationTagsRefs[pathItemNode.Value][prop.Value] = tagRefs
+								}
 							}
 						}
 					}
@@ -756,11 +842,11 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 }
 
 func (index *SpecIndex) GetInlineDuplicateParamCount() int {
-	if index.componentsInlineDuplicateCount > 0 {
-		return index.componentsInlineDuplicateCount
+	if index.componentsInlineParamDuplicateCount > 0 {
+		return index.componentsInlineParamDuplicateCount
 	}
 	dCount := len(index.paramInlineDuplicates) - index.countUniqueInlineDuplicates()
-	index.componentsInlineDuplicateCount = dCount
+	index.componentsInlineParamDuplicateCount = dCount
 	return dCount
 }
 
@@ -769,8 +855,8 @@ func (index *SpecIndex) GetInlineUniqueParamCount() int {
 }
 
 func (index *SpecIndex) countUniqueInlineDuplicates() int {
-	if index.componentsInlineUniqueCount > 0 {
-		return index.componentsInlineUniqueCount
+	if index.componentsInlineParamUniqueCount > 0 {
+		return index.componentsInlineParamUniqueCount
 	}
 	if len(index.paramInlineDuplicates) <= 0 {
 		return -1
@@ -781,7 +867,7 @@ func (index *SpecIndex) countUniqueInlineDuplicates() int {
 			unique++
 		}
 	}
-	index.componentsInlineUniqueCount = unique
+	index.componentsInlineParamUniqueCount = unique
 	return unique
 }
 
@@ -796,7 +882,6 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 
 			if paramRef == nil {
 				// TODO: handle mapping errors.
-				fmt.Printf("unknown! %s", paramRefName)
 				continue
 			}
 
@@ -811,9 +896,7 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 			// param is inline.
 			_, vn := utils.FindKeyNode("name", param.Content)
 			if vn == nil {
-
-				//TODO: handle error
-				fmt.Printf("no name op param %s", pathItemNode.Value)
+				//TODO: handle this at somepoint.
 				continue
 			}
 
