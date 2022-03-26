@@ -35,13 +35,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Burger'
+              $ref: 'https://raw.githubusercontent.com/daveshanley/vacuum/main/model/test_files/burgershop.openapi.yaml#/components/schemas/Burger'
             examples:
               pbjBurger:
                 summary: A horrible, nutty, sticky mess.
                 value:
                   name: Peanut And Jelly
-                numPatties: 3
+                  numPatties: 3
               cakeBurger:
                 summary: A sickly, sweet, atrocity
                 value:
@@ -53,7 +53,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Burger'
+                $ref: 'https://raw.githubusercontent.com/daveshanley/vacuum/main/model/test_files/burgershop.openapi.yaml#/components/schemas/Burger'
               examples:
                 quarterPounder:
                   summary: A juicy two handler sammich
@@ -65,12 +65,6 @@ paths:
                   value:
                     name: Filet-O-Fish
                     numPatties: 1
-          links:
-            LocateBurger:
-              operationId: locateBurger
-              parameters:
-                burgerId: '$response.body#/id'
-              description: Go and get a tasty burger
         "500":
           description: Unexpected error creating a new burger. Sorry.
           content:
@@ -114,7 +108,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Burger'
+                $ref: 'https://raw.githubusercontent.com/daveshanley/vacuum/main/model/test_files/burgershop.openapi.yaml#/components/schemas/Fries'
               examples:
                 quarterPounder:
                   summary: A juicy two handler sammich
@@ -126,12 +120,7 @@ paths:
                   value:
                     name: Filet-O-Fish
                     numPatties: 1
-          links:
-            ListBurgerDressings:
-              operationId: listBurgerDressings
-              parameters:
-                dressingId: 'something here'
-              description: 'Try the ketchup!'
+
         "404":
           description: Cannot find your burger. Sorry. We may have sold out of this type
           content:
@@ -177,7 +166,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Dressing'
+                  $ref: 'test_files/burgershop.openapi.yaml#/components/schemas/Dressing'
         "404":
           description: Cannot find your burger in which to list dressings. Sorry
           content:
@@ -233,7 +222,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Dressing'
+                  $ref: 'test_files/burgershop.openapi.yaml#/components/schemas/Dressing'
         "500":
           description: Unexpected error. Sorry.
           content:
@@ -250,77 +239,3 @@ components:
           type: string
           description: returns the error message if something wrong happens
           example: No such burger as 'Big-Whopper'
-    Burger:
-      type: object
-      description: The tastiest food on the planet you would love to eat everyday
-      required:
-        - name
-        - numPatties
-      properties:
-        name:
-          type: string
-          description: The name of your tasty burger - burger names are listed in our menus
-          example: Big Mac
-        numPatties:
-          type: integer
-          description: The number of burger patties used
-          example: 2
-        numTomatoes:
-          type: integer
-          description: how many slices of orange goodness would you like?
-          example: 1
-    Fries:
-      type: object
-      description: golden slices of happy fun joy
-      required:
-        - potatoShape
-        - favoriteDressings
-        - favoriteDrink
-      properties:
-        seasoning:
-          type: array
-          description: herbs and spices for your golden joy
-          items:
-            type: string
-            description: type of herb or spice used to liven up the yummy
-            example: salt
-        potatoShape:
-          type: string
-          description: what type of potato shape? wedges? shoestring?
-          example: Crispy Shoestring
-        favoriteDressings:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dressing'
-        favoriteBurger:
-          $ref: '#/components/schemas/Burger'
-        favoriteDrink:
-          $ref: '#/components/schemas/Drink'
-    Dressing:
-      type: object
-      description: This is the object that contains the information about the content of the dressing
-      required:
-        - name
-      properties:
-        name:
-          type: string
-          description: The name of your dressing you can pick up from the menu
-          example: Cheese
-    Drink:
-      type: object
-      description: a frosty cold beverage can be coke or sprite
-      required:
-        - size
-        - drinkType
-      properties:
-        ice:
-          type: boolean
-        drinkType:
-          description: select from coke or sprite
-          enum:
-            - coke
-            - sprite
-        size:
-          type: string
-          description: what size man? S/M/L
-          example: M

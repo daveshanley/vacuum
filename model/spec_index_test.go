@@ -185,3 +185,27 @@ func TestSpecIndex_NoRoot(t *testing.T) {
 	assert.Equal(t, -1, index.GetGlobalLinksCount())
 
 }
+
+func TestSpecIndex_BurgerShopMixedRef(t *testing.T) {
+
+	asana, _ := ioutil.ReadFile("test_files/mixedref-burgershop.openapi.yaml")
+	var rootNode yaml.Node
+	yaml.Unmarshal(asana, &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+
+	assert.Len(t, index.allRefs, 4)
+	assert.Len(t, index.allMappedRefs, 4)
+	assert.Equal(t, 5, index.GetPathCount())
+	assert.Equal(t, 5, index.GetOperationCount())
+	assert.Equal(t, 1, index.GetComponentSchemaCount())
+	assert.Equal(t, 2, index.GetGlobalTagsCount())
+	assert.Equal(t, 2, index.GetTotalTagsCount())
+	assert.Equal(t, 2, index.GetOperationTagsCount())
+	assert.Equal(t, 0, index.GetGlobalLinksCount())
+	assert.Equal(t, 0, index.GetComponentParameterCount())
+	assert.Equal(t, 2, index.GetOperationsParameterCount())
+	assert.Equal(t, 1, index.GetInlineDuplicateParamCount())
+	assert.Equal(t, 1, index.GetInlineUniqueParamCount())
+
+}

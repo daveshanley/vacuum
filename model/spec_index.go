@@ -8,6 +8,8 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"sync"
 )
@@ -68,7 +70,12 @@ type SpecIndex struct {
 	linksNode                           *yaml.Node                         // components/links node
 	callbacksNode                       *yaml.Node                         // components/callbacks node
 	externalDocumentsNode               *yaml.Node                         // external documents node
+	externalSpecIndex                   map[string]*SpecIndex              // create a primary index of all external specs and componentIds
 }
+
+// ExternalLookupFunction is for lookup functions that take a JSONSchema reference and tries to find that node in the
+// URI based document. Decides if the reference is local, remote or in a file.
+type ExternalLookupFunction func(id string) (foundNode *yaml.Node, rootNode *yaml.Node, lookupError error)
 
 var methodTypes = []string{"get", "post", "put", "patch", "options", "head", "delete"}
 
@@ -104,6 +111,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.examplesRefs = make(map[string]*Reference)
 	index.linksRefs = make(map[string]map[string][]*Reference)
 	index.callbackRefs = make(map[string]*Reference)
+	index.externalSpecIndex = make(map[string]*SpecIndex)
 
 	// there is no node! return an empty index.
 	if rootNode == nil {
@@ -635,17 +643,92 @@ func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Referenc
 }
 
 // FindComponent will locate a component by its reference, returns nil if nothing is found.
+// This method will recurse through remote, local and file references. For each new external reference
+// a new index will be created. These indexes can then be traversed recursively.
 func (index *SpecIndex) FindComponent(componentId string) *Reference {
 	if index.root == nil {
 		return nil
 	}
 
-	//componentSearch := strings.ReplaceAll(strings.ReplaceAll(componentId, "/", "."), "#", "$")
+	remoteLookup := func(id string) (*yaml.Node, *yaml.Node, error) {
+		return lookupRemoteReference(id)
+	}
+
+	fileLookup := func(id string) (*yaml.Node, *yaml.Node, error) {
+		return lookupFileReference(id)
+	}
+
+	switch determineReferenceResolveType(componentId) {
+	case localResolve: // ideally, every single ref in every single spec is local. however, this is not the case.
+		return index.findComponentInRoot(componentId)
+
+	case httpResolve:
+		uri := strings.Split(componentId, "#")
+		if len(uri) == 2 {
+			return index.performExternalLookup(uri, componentId, remoteLookup)
+		}
+
+	case fileResolve:
+		uri := strings.Split(componentId, "#")
+		if len(uri) == 2 {
+			return index.performExternalLookup(uri, componentId, fileLookup)
+		}
+	}
+	return nil
+}
+
+/* private */
+
+func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
+	lookupFunction ExternalLookupFunction) *Reference {
+
+	externalSpec := index.externalSpecIndex[uri[0]]
+	var foundNode *yaml.Node
+	if externalSpec == nil {
+
+		n, newRoot, err := lookupFunction(componentId)
+
+		if err != nil {
+			//TODO: handle remote lookup failure.
+			fmt.Printf("oh no, something went wrong, cannot resolve remote ref.\n")
+		}
+
+		if n != nil {
+			foundNode = n
+		}
+
+		// cool, cool, lets index this spec also. This is a recursive action and will keep going
+		// until all remote references have been found.
+		newIndex := NewSpecIndex(newRoot)
+		index.externalSpecIndex[uri[0]] = newIndex
+
+	} else {
+
+		foundRef := externalSpec.findComponentInRoot(uri[1])
+		if foundRef != nil {
+			foundNode = foundRef.Node
+		}
+	}
+
+	if foundNode != nil {
+		nameSegs := strings.Split(uri[1], "/")
+		ref := &Reference{
+			Definition: componentId,
+			Name:       nameSegs[len(nameSegs)-1],
+			Node:       foundNode,
+		}
+		return ref
+	}
+	return nil
+}
+
+func (index *SpecIndex) findComponentInRoot(componentId string) *Reference {
 
 	segs := strings.Split(componentId, "/")
 	name := segs[len(segs)-1]
 
-	friendlySearch := strings.ReplaceAll(fmt.Sprintf("%s['%s']", strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
+	friendlySearch := strings.ReplaceAll(fmt.Sprintf("%s['%s']",
+		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
 
 	path, _ := yamlpath.NewPath(friendlySearch)
 	res, _ := path.Find(index.root)
@@ -660,9 +743,8 @@ func (index *SpecIndex) FindComponent(componentId string) *Reference {
 		return ref
 	}
 	return nil
-}
 
-/* private methods */
+}
 
 func (index *SpecIndex) countUniqueInlineDuplicates() int {
 	if index.componentsInlineParamUniqueCount > 0 {
@@ -739,4 +821,107 @@ func isHttpMethod(val string) bool {
 		return true
 	}
 	return false
+}
+
+func lookupRemoteReference(ref string) (*yaml.Node, *yaml.Node, error) {
+
+	// split string to remove file reference
+	uri := strings.Split(ref, "#")
+
+	if len(uri) != 2 {
+		return nil, nil, fmt.Errorf("unable to determine URI for remote reference: '%s'", ref)
+	}
+	var parsedRemoteDocument *yaml.Node
+	if seenRemoteSources[uri[0]] != nil {
+		parsedRemoteDocument = seenRemoteSources[uri[0]]
+	} else {
+		resp, err := http.Get(uri[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var remoteDoc yaml.Node
+		err = yaml.Unmarshal(body, &remoteDoc)
+		if err != nil {
+			return nil, nil, err
+		}
+		parsedRemoteDocument = &remoteDoc
+		remoteLock.Lock()
+		seenRemoteSources[uri[0]] = &remoteDoc
+		remoteLock.Unlock()
+	}
+
+	if parsedRemoteDocument == nil {
+		return nil, nil, fmt.Errorf("unable to parse remote reference: '%s'", uri[0])
+	}
+
+	// lookup item from reference by using a path query.
+	query := fmt.Sprintf("$%s", strings.ReplaceAll(uri[1], "/", "."))
+
+	path, err := yamlpath.NewPath(query)
+	if err != nil {
+		return nil, nil, err
+	}
+	result, err := path.Find(parsedRemoteDocument)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(result) == 1 {
+		return result[0], parsedRemoteDocument, nil
+	}
+
+	return nil, nil, nil
+}
+
+func lookupFileReference(ref string) (*yaml.Node, *yaml.Node, error) {
+
+	// split string to remove file reference
+	uri := strings.Split(ref, "#")
+
+	if len(uri) != 2 {
+		return nil, nil, fmt.Errorf("unable to determine filename for file reference: '%s'", ref)
+	}
+
+	file := strings.ReplaceAll(uri[0], "file:", "")
+
+	var parsedRemoteDocument *yaml.Node
+	if seenRemoteSources[file] != nil {
+		parsedRemoteDocument = seenRemoteSources[file]
+	} else {
+
+		body, err := ioutil.ReadFile(file)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var remoteDoc yaml.Node
+		err = yaml.Unmarshal(body, &remoteDoc)
+		if err != nil {
+			return nil, nil, err
+		}
+		parsedRemoteDocument = &remoteDoc
+		seenRemoteSources[file] = &remoteDoc
+	}
+
+	if parsedRemoteDocument == nil {
+		return nil, nil, fmt.Errorf("unable to parse file reference: '%s'", file)
+	}
+
+	// lookup item from reference by using a path query.
+	query := fmt.Sprintf("$%s", strings.ReplaceAll(uri[1], "/", "."))
+
+	path, err := yamlpath.NewPath(query)
+	if err != nil {
+		return nil, nil, err
+	}
+	result, _ := path.Find(parsedRemoteDocument)
+	if len(result) == 1 {
+		return result[0], parsedRemoteDocument, nil
+	}
+
+	return nil, parsedRemoteDocument, nil
 }

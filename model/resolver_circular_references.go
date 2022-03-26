@@ -83,7 +83,7 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 							nameSegs := strings.Split(uri[1], "/")
 
 							// extract remote node.
-							node, err := lookupRemoteReference(component.Value)
+							node, _, err := lookupRemoteReference(component.Value)
 
 							if err != nil {
 
@@ -111,7 +111,7 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 							nameSegs := strings.Split(uri[1], "/")
 
 							// extract remote node.
-							node, err := lookupFileReference(component.Value)
+							node, _, err := lookupFileReference(component.Value)
 
 							if err != nil {
 
