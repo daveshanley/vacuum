@@ -81,6 +81,9 @@ func runIndexFunction(funcs []func() int, wg *sync.WaitGroup) {
 	}
 }
 
+// NewSpecIndex will create a new index of an OpenAPI or Swagger spec. It's not resolved or converted into anything
+// other than a raw index of every node for every content type in the specification. This process runs as fast as
+// possible so dependencies looking through the tree, don't need to walk the entire thing over, and over.
 func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 
 	index := new(SpecIndex)
@@ -146,6 +149,8 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	return index
 }
 
+// ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
+// The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
 func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
 	if node == nil {
 		return nil
@@ -195,6 +200,7 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
 	return found
 }
 
+// GetPathCount will return the number of paths found in the spec
 func (index *SpecIndex) GetPathCount() int {
 	if index.root == nil {
 		return -1
@@ -217,6 +223,7 @@ func (index *SpecIndex) GetPathCount() int {
 	return pc
 }
 
+// ExtractExternalDocuments will extract the number of externalDocs nodes found in the document.
 func (index *SpecIndex) ExtractExternalDocuments(node *yaml.Node) []*Reference {
 	if node == nil {
 		return nil
@@ -246,6 +253,7 @@ func (index *SpecIndex) ExtractExternalDocuments(node *yaml.Node) []*Reference {
 	return found
 }
 
+// GetGlobalTagsCount will return the number of tags found in the top level 'tags' node of the document.
 func (index *SpecIndex) GetGlobalTagsCount() int {
 	if index.root == nil {
 		return -1
@@ -269,6 +277,7 @@ func (index *SpecIndex) GetGlobalTagsCount() int {
 	return index.globalTagsCount
 }
 
+// GetOperationTagsCount will return the number of operation tags found (tags referenced in operations)
 func (index *SpecIndex) GetOperationTagsCount() int {
 	if index.root == nil {
 		return -1
@@ -296,6 +305,7 @@ func (index *SpecIndex) GetOperationTagsCount() int {
 	return index.operationTagsCount
 }
 
+// GetTotalTagsCount will return the number of global and operation tags found that are unique.
 func (index *SpecIndex) GetTotalTagsCount() int {
 	if index.root == nil {
 		return -1
@@ -327,6 +337,7 @@ func (index *SpecIndex) GetTotalTagsCount() int {
 	return index.totalTagsCount
 }
 
+// GetGlobalLinksCount for each response of each operation method, multiple links can be defined
 func (index *SpecIndex) GetGlobalLinksCount() int {
 	if index.root == nil {
 		return -1
@@ -372,6 +383,7 @@ func (index *SpecIndex) GetGlobalLinksCount() int {
 	return index.globalLinksCount
 }
 
+// GetRawReferenceCount will return the number of raw references located in the document.
 func (index *SpecIndex) GetRawReferenceCount() int {
 	return len(index.rawSequencedRefs)
 }
@@ -407,6 +419,7 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 	return index.schemaCount
 }
 
+// GetComponentParameterCount returns the number of parameter components defined
 func (index *SpecIndex) GetComponentParameterCount() int {
 	if index.root == nil {
 		return -1
@@ -439,6 +452,7 @@ func (index *SpecIndex) GetComponentParameterCount() int {
 	return index.componentParamCount
 }
 
+// GetOperationCount returns the number of operations (for all paths and) located in the document
 func (index *SpecIndex) GetOperationCount() int {
 	if index.root == nil {
 		return -1
@@ -490,6 +504,9 @@ func (index *SpecIndex) GetOperationCount() int {
 	return opCount
 }
 
+// GetOperationsParameterCount returns the number of parameters defined in paths and operations.
+// this method looks in top level (path level) and inside each operation (get, post etc.). Parameters can
+// be hiding within multiple places.
 func (index *SpecIndex) GetOperationsParameterCount() int {
 	if index.root == nil {
 		return -1
@@ -585,6 +602,7 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 
 }
 
+// GetInlineDuplicateParamCount returns the number of inline duplicate parameters (operation params)
 func (index *SpecIndex) GetInlineDuplicateParamCount() int {
 	if index.componentsInlineParamDuplicateCount > 0 {
 		return index.componentsInlineParamDuplicateCount
@@ -594,9 +612,57 @@ func (index *SpecIndex) GetInlineDuplicateParamCount() int {
 	return dCount
 }
 
+// GetInlineUniqueParamCount returns the number of unique inline parameters (operation params)
 func (index *SpecIndex) GetInlineUniqueParamCount() int {
 	return index.countUniqueInlineDuplicates()
 }
+
+// ExtractComponentsFromRefs returns located components from references. The returned nodes from here
+// can be used for resolving as they contain the actual object properties.
+func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Reference {
+	var found []*Reference
+	for _, ref := range refs {
+		located := index.FindComponent(ref.Definition)
+		if located != nil {
+			found = append(found, located)
+			index.allMappedRefs[ref.Definition] = located
+		} else {
+			// TODO: handle this add indexing error.
+			fmt.Printf("NOT FOUND")
+		}
+	}
+	return found
+}
+
+// FindComponent will locate a component by its reference, returns nil if nothing is found.
+func (index *SpecIndex) FindComponent(componentId string) *Reference {
+	if index.root == nil {
+		return nil
+	}
+
+	//componentSearch := strings.ReplaceAll(strings.ReplaceAll(componentId, "/", "."), "#", "$")
+
+	segs := strings.Split(componentId, "/")
+	name := segs[len(segs)-1]
+
+	friendlySearch := strings.ReplaceAll(fmt.Sprintf("%s['%s']", strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
+
+	path, _ := yamlpath.NewPath(friendlySearch)
+	res, _ := path.Find(index.root)
+
+	if len(res) == 1 {
+		ref := &Reference{
+			Definition: componentId,
+			Name:       name,
+			Node:       res[0],
+		}
+
+		return ref
+	}
+	return nil
+}
+
+/* private methods */
 
 func (index *SpecIndex) countUniqueInlineDuplicates() int {
 	if index.componentsInlineParamUniqueCount > 0 {
@@ -673,46 +739,4 @@ func isHttpMethod(val string) bool {
 		return true
 	}
 	return false
-}
-
-func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Reference {
-	var found []*Reference
-	for _, ref := range refs {
-		located := index.FindComponent(ref.Definition)
-		if located != nil {
-			found = append(found, located)
-			index.allMappedRefs[ref.Definition] = located
-		} else {
-			// TODO: handle this
-			fmt.Printf("NOT FOUND")
-		}
-	}
-	return found
-}
-
-func (index *SpecIndex) FindComponent(componentId string) *Reference {
-	if index.root == nil {
-		return nil
-	}
-
-	//componentSearch := strings.ReplaceAll(strings.ReplaceAll(componentId, "/", "."), "#", "$")
-
-	segs := strings.Split(componentId, "/")
-	name := segs[len(segs)-1]
-
-	friendlySearch := strings.ReplaceAll(fmt.Sprintf("%s['%s']", strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
-
-	path, _ := yamlpath.NewPath(friendlySearch)
-	res, _ := path.Find(index.root)
-
-	if len(res) == 1 {
-		ref := &Reference{
-			Definition: componentId,
-			Name:       name,
-			Node:       res[0],
-		}
-
-		return ref
-	}
-	return nil
 }
