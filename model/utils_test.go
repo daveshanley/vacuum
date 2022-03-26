@@ -38,13 +38,13 @@ var OpenApiWat = `openapi: 3.2
 info:
   title: Test API, valid, but not quite valid 
 servers:
-  - url: http://eve.vmware.com/api`
+  - url: https://quobix.com/api`
 
 var OpenApiFalse = `openapi: false
 info:
   title: Test API version is a bool?
 servers:
-  - url: http://eve.vmware.com/api`
+  - url: https://quobix.com/api`
 
 var OpenApi3Spec = `openapi: 3.0.1
 info:
@@ -53,7 +53,7 @@ tags:
   - name: "Test"
   - name: "Test 2"
 servers:
-  - url: http://eve.vmware.com/api`
+  - url: https://quobix.com/api`
 
 var OpenApi2Spec = `swagger: 2.0.1
 info:
@@ -61,7 +61,7 @@ info:
 tags:
   - name: "Test"
 servers:
-  - url: http://eve.vmware.com/api`
+  - url: https://quobix.com/api`
 
 var AsyncAPISpec = `asyncapi: 2.0.0
 info:

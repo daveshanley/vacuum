@@ -5,23 +5,23 @@ info:
     The best burger API at quobix. You can find the testiest burgers on the world
   termsOfService: https://quobix.com
   contact:
-    name: Quobix
+    name: quobix
   license:
-    name: Copyright (c) 2022 Quobix. All rights reserved.
+    name: Quobix
   version: "1.2"
 tags:
   - name: "pizza"
-    description: Burgers with meat in them and extra tomatoes.
+    description: false
     externalDocs:
       description: "Find out more"
-      url: "http://quobix.com"
+      url: "https://quobix.com/"
   - name: "Dressing"
     description: "Variety of dressings: cheese, veggie, oil and a lot more"
     externalDocs:
-      description: "Find out more information about our products"
-      url: "http://quobix.com/"
+      description: "Find out more information about our products)"
+      url: "https://quobix.com/"
 servers:
-  - url: http://quobix.com
+  - url: https://quobix.com/api
 paths:
   /burgers:
     post:
@@ -41,7 +41,7 @@ paths:
                 summary: A horrible, nutty, sticky mess.
                 value:
                   name: Peanut And Jelly
-                  numPatties: 3
+                numPatties: 3
               cakeBurger:
                 summary: A sickly, sweet, atrocity
                 value:
@@ -206,14 +206,6 @@ paths:
           description: This is the unique identifier for the dressing items.
           required: true
       responses:
-        "200":
-          description: an array of
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Dressing'
         "404":
           description: Cannot find your dressing, sorry.
           content:

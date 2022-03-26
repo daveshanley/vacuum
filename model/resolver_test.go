@@ -44,7 +44,7 @@ func TestResolveDocument(t *testing.T) {
 	}
 
 	// should be x bytes larger after resolving.
-	assert.Len(t, burgershop, 10077)
+	assert.Len(t, burgershop, 10499)
 	assert.Len(t, b, 23936)
 
 }
