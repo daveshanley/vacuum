@@ -17,6 +17,7 @@ func TestSpecIndex_ExtractRefsStripe(t *testing.T) {
 
 	assert.Len(t, index.allRefs, 537)
 	assert.Len(t, index.allMappedRefs, 537)
+	assert.Len(t, index.rawSequencedRefs, 1972)
 	assert.Equal(t, 246, index.pathCount)
 	assert.Equal(t, 402, index.operationCount)
 	assert.Equal(t, 537, index.schemaCount)
@@ -149,8 +150,8 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 	assert.Equal(t, 2, index.operationTagsCount)
 	assert.Equal(t, 2, index.GetOperationTagsCount())
 
-	assert.Equal(t, 2, index.globalLinksCount)
-	assert.Equal(t, 2, index.GetGlobalLinksCount())
+	assert.Equal(t, 3, index.globalLinksCount)
+	assert.Equal(t, 3, index.GetGlobalLinksCount())
 
 	assert.Equal(t, 0, index.componentParamCount)
 	assert.Equal(t, 0, index.GetComponentParameterCount())
@@ -169,11 +170,11 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 func TestSpecIndex_NoRoot(t *testing.T) {
 
 	index := NewSpecIndex(nil)
-	refs := index.ExtractRefs(nil)
+	refs := index.ExtractRefs(nil, nil, 0)
 	docs := index.ExtractExternalDocuments(nil)
-	assert.Nil(t, refs)
 	assert.Nil(t, docs)
-	assert.Nil(t, index.FindComponent("nothing"))
+	assert.Nil(t, refs)
+	assert.Nil(t, index.FindComponent("nothing", nil))
 	assert.Equal(t, -1, index.GetOperationCount())
 	assert.Equal(t, -1, index.GetPathCount())
 	assert.Equal(t, -1, index.GetGlobalTagsCount())
@@ -188,9 +189,9 @@ func TestSpecIndex_NoRoot(t *testing.T) {
 
 func TestSpecIndex_BurgerShopMixedRef(t *testing.T) {
 
-	asana, _ := ioutil.ReadFile("test_files/mixedref-burgershop.openapi.yaml")
+	spec, _ := ioutil.ReadFile("test_files/mixedref-burgershop.openapi.yaml")
 	var rootNode yaml.Node
-	yaml.Unmarshal(asana, &rootNode)
+	yaml.Unmarshal(spec, &rootNode)
 
 	index := NewSpecIndex(&rootNode)
 
@@ -207,5 +208,27 @@ func TestSpecIndex_BurgerShopMixedRef(t *testing.T) {
 	assert.Equal(t, 2, index.GetOperationsParameterCount())
 	assert.Equal(t, 1, index.GetInlineDuplicateParamCount())
 	assert.Equal(t, 1, index.GetInlineUniqueParamCount())
+
+}
+
+func TestSpecIndex_TestEmptyBrokenReferences(t *testing.T) {
+
+	asana, _ := ioutil.ReadFile("test_files/badref-burgershop.openapi.yaml")
+	var rootNode yaml.Node
+	yaml.Unmarshal(asana, &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+	assert.Equal(t, 5, index.GetPathCount())
+	assert.Equal(t, 5, index.GetOperationCount())
+	assert.Equal(t, 5, index.GetComponentSchemaCount())
+	assert.Equal(t, 2, index.GetGlobalTagsCount())
+	assert.Equal(t, 2, index.GetTotalTagsCount())
+	assert.Equal(t, 2, index.GetOperationTagsCount())
+	assert.Equal(t, 2, index.GetGlobalLinksCount())
+	assert.Equal(t, 0, index.GetComponentParameterCount())
+	assert.Equal(t, 2, index.GetOperationsParameterCount())
+	assert.Equal(t, 1, index.GetInlineDuplicateParamCount())
+	assert.Equal(t, 1, index.GetInlineUniqueParamCount())
+	assert.Len(t, index.refErrors, 7)
 
 }

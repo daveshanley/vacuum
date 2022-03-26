@@ -4,6 +4,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
@@ -71,11 +72,18 @@ type SpecIndex struct {
 	callbacksNode                       *yaml.Node                         // components/callbacks node
 	externalDocumentsNode               *yaml.Node                         // external documents node
 	externalSpecIndex                   map[string]*SpecIndex              // create a primary index of all external specs and componentIds
+	refErrors                           []*IndexingError                   // errors when indexing references
 }
 
 // ExternalLookupFunction is for lookup functions that take a JSONSchema reference and tries to find that node in the
 // URI based document. Decides if the reference is local, remote or in a file.
 type ExternalLookupFunction func(id string) (foundNode *yaml.Node, rootNode *yaml.Node, lookupError error)
+
+type IndexingError struct {
+	Error error
+	Node  *yaml.Node
+	Path  string
+}
 
 var methodTypes = []string{"get", "post", "put", "patch", "options", "head", "delete"}
 
@@ -119,7 +127,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	}
 
 	// boot index.
-	results := index.ExtractRefs(index.root)
+	results := index.ExtractRefs(index.root.Content[0], []string{}, 0)
 
 	// pull out references
 	index.ExtractComponentsFromRefs(results)
@@ -159,15 +167,17 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
 // The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
-func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
+func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int) []*Reference {
 	if node == nil {
 		return nil
 	}
 	var found []*Reference
 	if len(node.Content) > 0 {
 		for i, n := range node.Content {
+
 			if utils.IsNodeMap(n) || utils.IsNodeArray(n) {
-				found = append(found, index.ExtractRefs(n)...)
+				level++
+				found = append(found, index.ExtractRefs(n, seenPath, level)...)
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
@@ -175,6 +185,11 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
 				// only look at scalar values, not maps (looking at you k8s)
 				if !utils.IsNodeStringValue(node.Content[i+1]) {
 					continue
+				}
+
+				fp := make([]string, len(seenPath))
+				for x, foundPathNode := range seenPath {
+					fp[x] = foundPathNode
 				}
 
 				value := node.Content[i+1].Value
@@ -196,15 +211,48 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node) []*Reference {
 				}
 
 				if value == "" {
-					fmt.Printf("why?")
+
+					completedPath := fmt.Sprintf("$.%s", strings.Join(fp, "."))
+
+					indexError := &IndexingError{
+						Error: errors.New("schema reference is empty and cannot be processed"),
+						Node:  node.Content[i+1],
+						Path:  completedPath,
+					}
+
+					index.refErrors = append(index.refErrors, indexError)
+
+					continue
 				}
 
 				index.allRefs[value] = ref
 				found = append(found, ref)
 			}
+
+			if i%2 == 0 && n.Value != "$ref" && n.Value != "" {
+				seenPath = append(seenPath, n.Value)
+			}
+
+			// if next node is map, don't add segment.
+			if i < len(node.Content)-1 {
+				next := node.Content[i+1]
+
+				if i%2 != 0 && next != nil && !utils.IsNodeArray(next) && !utils.IsNodeMap(next) {
+					seenPath = seenPath[:len(seenPath)-1]
+				}
+			}
 		}
+		if len(seenPath) > 0 {
+			seenPath = seenPath[:len(seenPath)-1]
+		}
+
 	}
+	if len(seenPath) > 0 {
+		seenPath = seenPath[:len(seenPath)-1]
+	}
+
 	index.refCount = len(index.allRefs)
+
 	return found
 }
 
@@ -365,7 +413,7 @@ func (index *SpecIndex) GetGlobalLinksCount() int {
 
 			if len(res) > 0 {
 
-				for _, link := range res {
+				for _, link := range res[0].Content {
 					if utils.IsNodeMap(link) {
 
 						ref := &Reference{
@@ -630,13 +678,19 @@ func (index *SpecIndex) GetInlineUniqueParamCount() int {
 func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Reference {
 	var found []*Reference
 	for _, ref := range refs {
-		located := index.FindComponent(ref.Definition)
+		located := index.FindComponent(ref.Definition, ref.Node)
 		if located != nil {
 			found = append(found, located)
 			index.allMappedRefs[ref.Definition] = located
 		} else {
-			// TODO: handle this add indexing error.
-			fmt.Printf("NOT FOUND")
+
+			_, path := convertComponentIdIntoFriendlyPathSearch(ref.Definition)
+			indexError := &IndexingError{
+				Error: fmt.Errorf("component '%s' does not exist in the specification", ref.Definition),
+				Node:  ref.Node,
+				Path:  path,
+			}
+			index.refErrors = append(index.refErrors, indexError)
 		}
 	}
 	return found
@@ -645,7 +699,7 @@ func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Referenc
 // FindComponent will locate a component by its reference, returns nil if nothing is found.
 // This method will recurse through remote, local and file references. For each new external reference
 // a new index will be created. These indexes can then be traversed recursively.
-func (index *SpecIndex) FindComponent(componentId string) *Reference {
+func (index *SpecIndex) FindComponent(componentId string, parent *yaml.Node) *Reference {
 	if index.root == nil {
 		return nil
 	}
@@ -665,13 +719,13 @@ func (index *SpecIndex) FindComponent(componentId string) *Reference {
 	case httpResolve:
 		uri := strings.Split(componentId, "#")
 		if len(uri) == 2 {
-			return index.performExternalLookup(uri, componentId, remoteLookup)
+			return index.performExternalLookup(uri, componentId, remoteLookup, parent)
 		}
 
 	case fileResolve:
 		uri := strings.Split(componentId, "#")
 		if len(uri) == 2 {
-			return index.performExternalLookup(uri, componentId, fileLookup)
+			return index.performExternalLookup(uri, componentId, fileLookup, parent)
 		}
 	}
 	return nil
@@ -680,7 +734,7 @@ func (index *SpecIndex) FindComponent(componentId string) *Reference {
 /* private */
 
 func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
-	lookupFunction ExternalLookupFunction) *Reference {
+	lookupFunction ExternalLookupFunction, parent *yaml.Node) *Reference {
 
 	externalSpec := index.externalSpecIndex[uri[0]]
 	var foundNode *yaml.Node
@@ -689,8 +743,12 @@ func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 		n, newRoot, err := lookupFunction(componentId)
 
 		if err != nil {
-			//TODO: handle remote lookup failure.
-			fmt.Printf("oh no, something went wrong, cannot resolve remote ref.\n")
+			indexError := &IndexingError{
+				Error: err,
+				Node:  parent,
+				Path:  componentId,
+			}
+			index.refErrors = append(index.refErrors, indexError)
 		}
 
 		if n != nil {
@@ -724,11 +782,7 @@ func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 
 func (index *SpecIndex) findComponentInRoot(componentId string) *Reference {
 
-	segs := strings.Split(componentId, "/")
-	name := segs[len(segs)-1]
-
-	friendlySearch := strings.ReplaceAll(fmt.Sprintf("%s['%s']",
-		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
+	name, friendlySearch := convertComponentIdIntoFriendlyPathSearch(componentId)
 
 	path, _ := yamlpath.NewPath(friendlySearch)
 	res, _ := path.Find(index.root)
@@ -769,11 +823,6 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 			paramRefName := param.Content[1].Value
 			paramRef := index.allMappedRefs[paramRefName]
 
-			if paramRef == nil {
-				// TODO: handle mapping errors.
-				continue
-			}
-
 			if index.paramOpRefs[pathItemNode.Value] == nil {
 				index.paramOpRefs[pathItemNode.Value] = make(map[string]*Reference)
 			}
@@ -784,10 +833,6 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 
 			// param is inline.
 			_, vn := utils.FindKeyNode("name", param.Content)
-			if vn == nil {
-				//TODO: handle this at somepoint.
-				continue
-			}
 
 			ref := &Reference{
 				Definition: vn.Value,
@@ -801,6 +846,14 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 			continue
 		}
 	}
+}
+
+func convertComponentIdIntoFriendlyPathSearch(id string) (string, string) {
+	segs := strings.Split(id, "/")
+	name := segs[len(segs)-1]
+
+	return name, strings.ReplaceAll(fmt.Sprintf("%s['%s']",
+		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
 }
 
 func isHttpMethod(val string) bool {
@@ -828,9 +881,6 @@ func lookupRemoteReference(ref string) (*yaml.Node, *yaml.Node, error) {
 	// split string to remove file reference
 	uri := strings.Split(ref, "#")
 
-	if len(uri) != 2 {
-		return nil, nil, fmt.Errorf("unable to determine URI for remote reference: '%s'", ref)
-	}
 	var parsedRemoteDocument *yaml.Node
 	if seenRemoteSources[uri[0]] != nil {
 		parsedRemoteDocument = seenRemoteSources[uri[0]]

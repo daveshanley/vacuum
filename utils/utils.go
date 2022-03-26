@@ -213,8 +213,10 @@ type KeyNodeResult struct {
 
 // KeyNodeSearch keeps a track of everything we have found on our adventure down the trees.
 type KeyNodeSearch struct {
-	Key     string
-	Results []*KeyNodeResult
+	Key             string
+	Ignore          []string
+	Results         []*KeyNodeResult
+	AllowExtensions bool
 }
 
 // FindAllKeyNodesWithPath This function will search for a key node recursively. Once it finds the node, it will
@@ -242,12 +244,18 @@ func FindAllKeyNodesWithPath(search *KeyNodeSearch, parent *yaml.Node, searchNod
 			}
 
 			if readMe && search.Key != "" && search.Key == v.Value {
+
 				// we need to copy found path, it keeps messing up our results
 				fp := make([]yaml.Node, len(foundPath))
-				for i, foundPathNode := range foundPath {
-					fp[i] = foundPathNode
+				for x, foundPathNode := range foundPath {
+					fp[x] = foundPathNode
 				}
 
+				for _, ignore := range search.Ignore {
+					if len(foundPath) > 0 && foundPath[len(foundPath)-1].Value == ignore {
+						continue
+					}
+				}
 				res := KeyNodeResult{
 					KeyNode:   searchNodes[i],
 					ValueNode: searchNodes[i+1],

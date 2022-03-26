@@ -35,7 +35,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Burger'
+              $ref: '#/components/schemas/Burgers'
             examples:
               pbjBurger:
                 summary: A horrible, nutty, sticky mess.
@@ -53,7 +53,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Burger'
+                $ref: ''
               examples:
                 quarterPounder:
                   summary: A juicy two handler sammich
@@ -71,11 +71,6 @@ paths:
               parameters:
                 burgerId: '$response.body#/id'
               description: Go and get a tasty burger
-            AnotherLocateBurger:
-              operationId: locateBurger
-              parameters:
-                burgerId: '$response.body#/id'
-              description: Go and get a another really tasty burger
         "500":
           description: Unexpected error creating a new burger. Sorry.
           content:
@@ -92,7 +87,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: 'http://go#/components/schemas/Error'
               examples:
                 unexpectedError:
                   summary: invalid request
@@ -153,7 +148,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: ''
               examples:
                 unexpectedError:
                   summary: oh my stars
@@ -222,7 +217,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Errors'
   /dressings:
     get:
       operationId: getAllDressings
@@ -296,7 +291,7 @@ components:
         favoriteDressings:
           type: array
           items:
-            $ref: '#/components/schemas/Dressing'
+            $ref: '#/components/schemas/NotHere'
         favoriteBurger:
           $ref: '#/components/schemas/Burger'
         favoriteDrink:
