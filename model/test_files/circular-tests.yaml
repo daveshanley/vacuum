@@ -33,11 +33,11 @@ components:
     Six:
       properties:
         mints:
-          "$ref": "#/components/schemas/Nine"
+          "$ref": "#/components/schemas/Seven"
     Seven:
       properties:
         wow:
-          "$ref": "#/components/schemas/Three"
+          "$ref": "#/components/schemas/Five"
     Nine:
       description: done.
     Ten:

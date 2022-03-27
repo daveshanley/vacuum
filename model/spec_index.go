@@ -165,6 +165,24 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	return index
 }
 
+// GetRootNode returns document root node.
+func (index *SpecIndex) GetRootNode() *yaml.Node {
+	if index == nil {
+		return nil
+	}
+	return index.root
+}
+
+// GetDiscoveredReferences will return all unique references found in the spec
+func (index *SpecIndex) GetDiscoveredReferences() map[string]*Reference {
+	return index.allRefs
+}
+
+// GetMappedReferences will return all references that were mapped successfully to actual property nodes.
+func (index *SpecIndex) GetMappedReferences() map[string]*Reference {
+	return index.allMappedRefs
+}
+
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
 // The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
 func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int) []*Reference {
@@ -444,6 +462,7 @@ func (index *SpecIndex) GetRawReferenceCount() int {
 	return len(index.rawSequencedRefs)
 }
 
+// GetComponentSchemaCount will return the number of schemas located in the 'components' or 'definitions' node.
 func (index *SpecIndex) GetComponentSchemaCount() int {
 	if index.root == nil {
 		return -1
@@ -514,6 +533,10 @@ func (index *SpecIndex) GetOperationCount() int {
 		return -1
 	}
 
+	if index.pathsNode == nil {
+		return -1
+	}
+
 	if index.operationCount > 0 {
 		return index.operationCount
 	}
@@ -565,6 +588,10 @@ func (index *SpecIndex) GetOperationCount() int {
 // be hiding within multiple places.
 func (index *SpecIndex) GetOperationsParameterCount() int {
 	if index.root == nil {
+		return -1
+	}
+
+	if index.pathsNode == nil {
 		return -1
 	}
 
