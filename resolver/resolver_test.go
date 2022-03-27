@@ -14,9 +14,9 @@ func TestNewResolver(t *testing.T) {
 
 func TestResolver_ResolveComponents_CircularSpec(t *testing.T) {
 
-	asana, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")
+	circular, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")
 	var rootNode yaml.Node
-	yaml.Unmarshal(asana, &rootNode)
+	yaml.Unmarshal(circular, &rootNode)
 
 	index := model.NewSpecIndex(&rootNode)
 
@@ -24,15 +24,31 @@ func TestResolver_ResolveComponents_CircularSpec(t *testing.T) {
 	assert.NotNil(t, resolver)
 
 	circ := resolver.ResolveComponents()
-	assert.Len(t, circ, 2)
+	assert.Len(t, circ, 3)
 
 }
 
 func TestResolver_ResolveComponents_Stripe(t *testing.T) {
 
-	asana, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
+	stripe, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
 	var rootNode yaml.Node
-	yaml.Unmarshal(asana, &rootNode)
+	yaml.Unmarshal(stripe, &rootNode)
+
+	index := model.NewSpecIndex(&rootNode)
+
+	resolver := NewResolver(index)
+	assert.NotNil(t, resolver)
+
+	circ := resolver.ResolveComponents()
+	assert.Len(t, circ, 0)
+
+}
+
+func TestResolver_ResolveComponents_MixedRef(t *testing.T) {
+
+	mixedref, _ := ioutil.ReadFile("../model/test_files/mixedref-burgershop.openapi.yaml")
+	var rootNode yaml.Node
+	yaml.Unmarshal(mixedref, &rootNode)
 
 	index := model.NewSpecIndex(&rootNode)
 
@@ -46,9 +62,9 @@ func TestResolver_ResolveComponents_Stripe(t *testing.T) {
 
 func TestResolver_ResolveComponents_k8s(t *testing.T) {
 
-	asana, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
+	k8s, _ := ioutil.ReadFile("../model/test_files/k8s.json")
 	var rootNode yaml.Node
-	yaml.Unmarshal(asana, &rootNode)
+	yaml.Unmarshal(k8s, &rootNode)
 
 	index := model.NewSpecIndex(&rootNode)
 

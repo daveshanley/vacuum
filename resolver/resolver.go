@@ -41,50 +41,63 @@ func NewResolver(index *model.SpecIndex) *Resolver {
 }
 
 func (resolver *Resolver) ResolveComponents() []*CircularReferenceResult {
-	for _, ref := range resolver.specIndex.GetMappedReferences() {
+
+	mapped := resolver.specIndex.GetMappedReferences()
+	for _, ref := range mapped {
 		seenReferences := make(map[string]bool)
 		var journey []*model.Reference
 		ref.Node.Content = resolver.VisitReference(ref, seenReferences, journey)
+	}
+
+	schemas := resolver.specIndex.GetAllSchemas()
+
+	for s, schemaRef := range schemas {
+		if mapped[s] == nil {
+			seenReferences := make(map[string]bool)
+			var journey []*model.Reference
+			schemaRef.Node.Content = resolver.VisitReference(schemaRef, seenReferences, journey)
+		}
 	}
 	return resolver.circularReferences
 }
 
 func (resolver *Resolver) VisitReference(ref *model.Reference, seen map[string]bool, journey []*model.Reference) []*yaml.Node {
 
-	if ref.Resolved {
+	if ref.Resolved || ref.Seen {
 		return ref.Node.Content
 	}
 
 	journey = append(journey, ref)
-	duplicateReferences := make(map[string]*model.Reference)
-	relatives := resolver.extractRelatives(ref.Node, seen, duplicateReferences)
+	relatives := resolver.extractRelatives(ref.Node, seen, journey)
 
 	seen = make(map[string]bool)
 
 	seen[ref.Definition] = true
 	for _, r := range relatives {
-		for _, dup := range duplicateReferences {
-			if dup.Definition == r.Definition {
-				continue // ignore duplicateReferences.
-			}
-		}
 
 		// check if we have seen this on the journey before, if so! it's circular
 		skip := false
 		for i, j := range journey {
 			if j.Definition == r.Definition {
 
-				original := resolver.specIndex.GetMappedReferences()[j.Definition]
 				foundDup := resolver.specIndex.GetMappedReferences()[r.Definition]
-				loop := append(journey, foundDup)
-				circRef := &CircularReferenceResult{
-					Journey:   loop,
-					Start:     original,
-					LoopIndex: i,
-					LoopPoint: foundDup,
+
+				var circRef *CircularReferenceResult
+				if !foundDup.Circular {
+
+					loop := append(journey, foundDup)
+					circRef = &CircularReferenceResult{
+						Journey:   loop,
+						Start:     foundDup,
+						LoopIndex: i,
+						LoopPoint: foundDup,
+					}
+
+					foundDup.Seen = true
+					foundDup.Circular = true
+					resolver.circularReferences = append(resolver.circularReferences, circRef)
+
 				}
-				ref.Circular = true // this component has a looping reference.
-				resolver.circularReferences = append(resolver.circularReferences, circRef)
 				skip = true
 
 			}
@@ -92,23 +105,24 @@ func (resolver *Resolver) VisitReference(ref *model.Reference, seen map[string]b
 		if !skip {
 			original := resolver.specIndex.GetMappedReferences()[r.Definition]
 			resolved := resolver.VisitReference(original, seen, journey)
-			r.Node.Content = resolved
+			r.Node.Content = resolved // this is where we perform the actual resolving.
+			ref.Seen = true
 		}
 	}
-
-	ref.Seen = true
 	ref.Resolved = true
 
 	return ref.Node.Content
 }
 
-func (resolver *Resolver) extractRelatives(node *yaml.Node, seenRefs map[string]bool, dups map[string]*model.Reference) []*model.Reference {
+func (resolver *Resolver) extractRelatives(node *yaml.Node,
+	foundRelatives map[string]bool,
+	journey []*model.Reference) []*model.Reference {
 
 	var found []*model.Reference
 	if len(node.Content) > 0 {
 		for i, n := range node.Content {
 			if utils.IsNodeMap(n) || utils.IsNodeArray(n) {
-				found = append(found, resolver.extractRelatives(n, seenRefs, dups)...)
+				found = append(found, resolver.extractRelatives(n, foundRelatives, journey)...)
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
@@ -119,27 +133,22 @@ func (resolver *Resolver) extractRelatives(node *yaml.Node, seenRefs map[string]
 
 				value := node.Content[i+1].Value
 				ref := resolver.specIndex.GetMappedReferences()[value]
-				if seenRefs[value] {
-					dups[value] = ref
+
+				if ref == nil {
+					// TODO handle error, missing ref, can't resolve.
+					fmt.Println("missing ref!")
 					continue
-				} else {
-
-					if ref == nil {
-						// TODO handle error, missing ref, can't resolve.
-						fmt.Println("missing ref!")
-						continue
-					}
-
-					r := &model.Reference{
-						Definition: value,
-						Name:       value,
-						Node:       node,
-					}
-
-					found = append(found, r)
-
-					seenRefs[value] = true
 				}
+
+				r := &model.Reference{
+					Definition: value,
+					Name:       value,
+					Node:       node,
+				}
+
+				found = append(found, r)
+
+				foundRelatives[value] = true
 			}
 
 			if i%2 == 0 && n.Value != "$ref" && n.Value != "" {

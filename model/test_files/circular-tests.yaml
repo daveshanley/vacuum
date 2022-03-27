@@ -25,7 +25,7 @@ components:
       desription: "test four"
       properties:
         lemons:
-          "$ref": "#/components/schemas/Five"
+          "$ref": "#/components/schemas/Nine"
     Five:
       properties:
         rice:
@@ -33,11 +33,11 @@ components:
     Six:
       properties:
         mints:
-          "$ref": "#/components/schemas/Seven"
+          "$ref": "#/components/schemas/Nine"
     Seven:
       properties:
         wow:
-          "$ref": "#/components/schemas/Five"
+          "$ref": "#/components/schemas/Three"
     Nine:
       description: done.
     Ten:

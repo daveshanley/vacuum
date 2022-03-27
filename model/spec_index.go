@@ -37,6 +37,7 @@ type SpecIndex struct {
 	operationTagsRefs                   map[string]map[string][]*Reference // tags found in operations
 	callbackRefs                        map[string]*Reference              // top level callback refs
 	externalDocumentsRef                []*Reference                       // all external documents in spec
+	allSchemas                          map[string]*Reference              // all schemas
 	pathRefsLock                        sync.Mutex                         // create lock for all refs maps, we want to build data as fast as we can
 	externalDocumentsCount              int                                // number of externalDocument nodes found
 	operationTagsCount                  int                                // number of unique tags in operations
@@ -120,6 +121,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.linksRefs = make(map[string]map[string][]*Reference)
 	index.callbackRefs = make(map[string]*Reference)
 	index.externalSpecIndex = make(map[string]*SpecIndex)
+	index.allSchemas = make(map[string]*Reference)
 
 	// there is no node! return an empty index.
 	if rootNode == nil {
@@ -181,6 +183,21 @@ func (index *SpecIndex) GetDiscoveredReferences() map[string]*Reference {
 // GetMappedReferences will return all references that were mapped successfully to actual property nodes.
 func (index *SpecIndex) GetMappedReferences() map[string]*Reference {
 	return index.allMappedRefs
+}
+
+// GetAllSchemas will return all schemas found in the document
+func (index *SpecIndex) GetAllSchemas() map[string]*Reference {
+	return index.allSchemas
+}
+
+// GetSchemasNode will return the schemas node found in the spec
+func (index *SpecIndex) GetSchemasNode() *yaml.Node {
+	return index.schemasNode
+}
+
+// GetParametersNode will return the schemas node found in the spec
+func (index *SpecIndex) GetParametersNode() *yaml.Node {
+	return index.parametersNode
 }
 
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
@@ -477,6 +494,10 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 			if n.Value == "components" {
 				_, schemasNode := utils.FindKeyNode("schemas", index.root.Content[0].Content[i+1].Content)
 				if schemasNode != nil {
+
+					// extract schemas
+					index.extractDefinitionsAndSchemas(schemasNode, "#/components/schemas/")
+
 					index.schemasNode = schemasNode
 					index.schemaCount = len(schemasNode.Content) / 2
 				}
@@ -485,6 +506,9 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 			if n.Value == "definitions" {
 				schemasNode := index.root.Content[0].Content[i+1]
 				if schemasNode != nil {
+
+					// extract schemas
+					index.extractDefinitionsAndSchemas(schemasNode, "#/definitions/")
 					index.schemasNode = schemasNode
 					index.schemaCount = len(schemasNode.Content) / 2
 				}
@@ -492,6 +516,25 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 		}
 	}
 	return index.schemaCount
+}
+
+func (index *SpecIndex) extractDefinitionsAndSchemas(schemasNode *yaml.Node, pathPrefix string) {
+
+	var name string
+	for i, schema := range schemasNode.Content {
+		if i%2 == 0 {
+			name = schema.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       schema,
+		}
+		index.allSchemas[def] = ref
+	}
+
 }
 
 // GetComponentParameterCount returns the number of parameter components defined
