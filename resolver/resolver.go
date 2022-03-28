@@ -18,29 +18,35 @@ type CircularReferenceResult struct {
 	LoopPoint *model.Reference
 }
 
+// ResolvingError represents an issue the resolver had trying to stitch the tree together.
 type ResolvingError struct {
 	Error error
 	Node  *yaml.Node
-	Path  string
 }
 
+// Resolver will use a *model.SpecIndex to stitch together a resolved root tree using all the discovered
+// references in the doc.
 type Resolver struct {
 	specIndex          *model.SpecIndex
-	resolvedRoot       yaml.Node
+	resolvedRoot       *yaml.Node
+	resolvingErrors    []*ResolvingError
 	circularReferences []*CircularReferenceResult
 }
 
+// NewResolver will create a new resolver from a *model.SpecIndex
 func NewResolver(index *model.SpecIndex) *Resolver {
 	if index == nil {
 		return nil
 	}
 	return &Resolver{
 		specIndex:    index,
-		resolvedRoot: *index.GetRootNode(),
+		resolvedRoot: index.GetRootNode(),
 	}
 }
 
-func (resolver *Resolver) ResolveComponents() []*CircularReferenceResult {
+// Resolve will resolve the specification, everything that is not polymorphic and not circular, will be resolved.
+// this data can get big, it results in a massive duplication of data.
+func (resolver *Resolver) Resolve() []*CircularReferenceResult {
 
 	mapped := resolver.specIndex.GetMappedReferences()
 	for _, ref := range mapped {
@@ -58,9 +64,21 @@ func (resolver *Resolver) ResolveComponents() []*CircularReferenceResult {
 			schemaRef.Node.Content = resolver.VisitReference(schemaRef, seenReferences, journey)
 		}
 	}
+
+	// map everything
+	for _, sequenced := range resolver.specIndex.GetAllSequencedReferences() {
+		locatedDef := mapped[sequenced.Definition]
+		if locatedDef != nil {
+			if !locatedDef.Circular && locatedDef.Seen {
+				sequenced.Node.Content = locatedDef.Node.Content
+			}
+		}
+	}
+
 	return resolver.circularReferences
 }
 
+// VisitReference will visit a reference as part of a journey and will return resolved nodes.
 func (resolver *Resolver) VisitReference(ref *model.Reference, seen map[string]bool, journey []*model.Reference) []*yaml.Node {
 
 	if ref.Resolved || ref.Seen {
@@ -106,10 +124,12 @@ func (resolver *Resolver) VisitReference(ref *model.Reference, seen map[string]b
 			original := resolver.specIndex.GetMappedReferences()[r.Definition]
 			resolved := resolver.VisitReference(original, seen, journey)
 			r.Node.Content = resolved // this is where we perform the actual resolving.
+			r.Seen = true
 			ref.Seen = true
 		}
 	}
 	ref.Resolved = true
+	ref.Seen = true
 
 	return ref.Node.Content
 }
@@ -136,7 +156,11 @@ func (resolver *Resolver) extractRelatives(node *yaml.Node,
 
 				if ref == nil {
 					// TODO handle error, missing ref, can't resolve.
-					fmt.Println("missing ref!")
+					err := &ResolvingError{
+						Error: fmt.Errorf("cannot resolve reference '%s', it's missing", value),
+						Node:  nil,
+					}
+					resolver.resolvingErrors = append(resolver.resolvingErrors, err)
 					continue
 				}
 
@@ -156,6 +180,8 @@ func (resolver *Resolver) extractRelatives(node *yaml.Node,
 				if n.Value == "allOf" ||
 					n.Value == "oneOf" ||
 					n.Value == "anyOf" {
+
+					// TODO: track this.
 
 					break
 				}

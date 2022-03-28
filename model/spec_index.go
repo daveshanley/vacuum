@@ -36,6 +36,7 @@ type SpecIndex struct {
 	linksRefs                           map[string]map[string][]*Reference // all links
 	operationTagsRefs                   map[string]map[string][]*Reference // tags found in operations
 	callbackRefs                        map[string]*Reference              // top level callback refs
+	polymorphicRefs                     map[string]*Reference              // every reference to 'allOf' references
 	externalDocumentsRef                []*Reference                       // all external documents in spec
 	allSchemas                          map[string]*Reference              // all schemas
 	pathRefsLock                        sync.Mutex                         // create lock for all refs maps, we want to build data as fast as we can
@@ -122,6 +123,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.callbackRefs = make(map[string]*Reference)
 	index.externalSpecIndex = make(map[string]*SpecIndex)
 	index.allSchemas = make(map[string]*Reference)
+	index.polymorphicRefs = make(map[string]*Reference)
 
 	// there is no node! return an empty index.
 	if rootNode == nil {
@@ -129,7 +131,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	}
 
 	// boot index.
-	results := index.ExtractRefs(index.root.Content[0], []string{}, 0)
+	results := index.ExtractRefs(index.root.Content[0], []string{}, 0, false, "")
 
 	// pull out references
 	index.ExtractComponentsFromRefs(results)
@@ -180,6 +182,23 @@ func (index *SpecIndex) GetDiscoveredReferences() map[string]*Reference {
 	return index.allRefs
 }
 
+// GetPolyReferences will return every polymorphic reference in the doc
+func (index *SpecIndex) GetPolyReferences() map[string]*Reference {
+	return index.polymorphicRefs
+}
+
+// GetAllCombinedReferences will return the number of unique and polymorphic references discovered.
+func (index *SpecIndex) GetAllCombinedReferences() map[string]*Reference {
+	combined := make(map[string]*Reference)
+	for k, ref := range index.allRefs {
+		combined[k] = ref
+	}
+	for k, ref := range index.polymorphicRefs {
+		combined[k] = ref
+	}
+	return combined
+}
+
 // GetMappedReferences will return all references that were mapped successfully to actual property nodes.
 func (index *SpecIndex) GetMappedReferences() map[string]*Reference {
 	return index.allMappedRefs
@@ -188,6 +207,11 @@ func (index *SpecIndex) GetMappedReferences() map[string]*Reference {
 // GetAllSchemas will return all schemas found in the document
 func (index *SpecIndex) GetAllSchemas() map[string]*Reference {
 	return index.allSchemas
+}
+
+// GetAllSequencedReferences will return every reference (in sequence) that was found (non polymorphic)
+func (index *SpecIndex) GetAllSequencedReferences() []*Reference {
+	return index.rawSequencedRefs
 }
 
 // GetSchemasNode will return the schemas node found in the spec
@@ -200,19 +224,38 @@ func (index *SpecIndex) GetParametersNode() *yaml.Node {
 	return index.parametersNode
 }
 
+func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
+	switch name {
+	case "anyOf":
+		return true, "anyOf"
+	case "allOf":
+		return true, "allOf"
+	case "oneOf":
+		return true, "oneOf"
+	}
+	return false, ""
+}
+
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
 // The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
-func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int) []*Reference {
+func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int, poly bool, parentName string) []*Reference {
 	if node == nil {
 		return nil
 	}
 	var found []*Reference
 	if len(node.Content) > 0 {
+		var prev string
 		for i, n := range node.Content {
 
 			if utils.IsNodeMap(n) || utils.IsNodeArray(n) {
 				level++
-				found = append(found, index.ExtractRefs(n, seenPath, level)...)
+				// check if we're using  polymorphic values. These tend to create rabbit warrens of circular
+				// references if every single link is followed. We don't resolve polymorphic values.
+				isPoly, polyName := index.checkPolymorphicNode(prev)
+				if isPoly {
+					poly = true
+				}
+				found = append(found, index.ExtractRefs(n, seenPath, level, poly, polyName)...)
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
@@ -234,11 +277,20 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 				ref := &Reference{
 					Definition: value,
 					Name:       name,
-					Node:       n,
+					Node:       node,
 				}
 
 				// add to raw sequenced refs
 				index.rawSequencedRefs = append(index.rawSequencedRefs, ref)
+
+				// if this is a polymorphic reference, we're going to leave it out
+				// allRefs (we don't ever want these resolved, so instead of polluting
+				// the timeline, we will keep each poly ref in its own collection for later
+				// analysis.
+				if poly {
+					index.polymorphicRefs[value] = ref
+					continue
+				}
 
 				// check if this is a dupe, if so, skip it, we don't care now.
 				if index.allRefs[value] != nil { // seen before, skip.
@@ -266,6 +318,7 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 
 			if i%2 == 0 && n.Value != "$ref" && n.Value != "" {
 				seenPath = append(seenPath, n.Value)
+				prev = n.Value
 			}
 
 			// if next node is map, don't add segment.
@@ -409,6 +462,7 @@ func (index *SpecIndex) GetTotalTagsCount() int {
 	count := 0
 
 	for _, gt := range index.globalTagRefs {
+		// TODO: do we still need this?
 		if !seen[gt.Name] {
 			seen[gt.Name] = true
 			count++

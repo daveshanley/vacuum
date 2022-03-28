@@ -23,9 +23,11 @@ func TestResolver_ResolveComponents_CircularSpec(t *testing.T) {
 	resolver := NewResolver(index)
 	assert.NotNil(t, resolver)
 
-	circ := resolver.ResolveComponents()
+	circ := resolver.Resolve()
 	assert.Len(t, circ, 3)
 
+	_, err := yaml.Marshal(resolver.resolvedRoot)
+	assert.NoError(t, err)
 }
 
 func TestResolver_ResolveComponents_Stripe(t *testing.T) {
@@ -39,7 +41,7 @@ func TestResolver_ResolveComponents_Stripe(t *testing.T) {
 	resolver := NewResolver(index)
 	assert.NotNil(t, resolver)
 
-	circ := resolver.ResolveComponents()
+	circ := resolver.Resolve()
 	assert.Len(t, circ, 0)
 
 }
@@ -55,7 +57,7 @@ func TestResolver_ResolveComponents_MixedRef(t *testing.T) {
 	resolver := NewResolver(index)
 	assert.NotNil(t, resolver)
 
-	circ := resolver.ResolveComponents()
+	circ := resolver.Resolve()
 	assert.Len(t, circ, 0)
 
 }
@@ -71,7 +73,6 @@ func TestResolver_ResolveComponents_k8s(t *testing.T) {
 	resolver := NewResolver(index)
 	assert.NotNil(t, resolver)
 
-	circ := resolver.ResolveComponents()
+	circ := resolver.Resolve()
 	assert.Len(t, circ, 0)
-
 }

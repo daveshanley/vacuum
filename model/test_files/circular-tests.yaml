@@ -1,3 +1,11 @@
+paths:
+  /burgers:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Nine'
 components:
   schemas:
     One:

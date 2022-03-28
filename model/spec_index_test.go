@@ -15,8 +15,12 @@ func TestSpecIndex_ExtractRefsStripe(t *testing.T) {
 
 	index := NewSpecIndex(&rootNode)
 
-	assert.Len(t, index.allRefs, 537)
-	assert.Len(t, index.allMappedRefs, 537)
+	assert.Len(t, index.allRefs, 385)
+	assert.Len(t, index.allMappedRefs, 385)
+
+	combined := index.GetAllCombinedReferences()
+	assert.Equal(t, 537, len(combined))
+
 	assert.Len(t, index.rawSequencedRefs, 1972)
 	assert.Equal(t, 246, index.pathCount)
 	assert.Equal(t, 402, index.operationCount)
@@ -38,8 +42,10 @@ func TestSpecIndex_Asana(t *testing.T) {
 
 	index := NewSpecIndex(&rootNode)
 
-	assert.Len(t, index.allRefs, 171)
-	assert.Len(t, index.allMappedRefs, 171)
+	assert.Len(t, index.allRefs, 152)
+	assert.Len(t, index.allMappedRefs, 152)
+	combined := index.GetAllCombinedReferences()
+	assert.Equal(t, 171, len(combined))
 	assert.Equal(t, 118, index.pathCount)
 	assert.Equal(t, 152, index.operationCount)
 	assert.Equal(t, 135, index.schemaCount)
@@ -59,8 +65,10 @@ func TestSpecIndex_k8s(t *testing.T) {
 
 	index := NewSpecIndex(&rootNode)
 
-	assert.Len(t, index.allRefs, 563)
-	assert.Len(t, index.allMappedRefs, 563)
+	assert.Len(t, index.allRefs, 558)
+	assert.Len(t, index.allMappedRefs, 558)
+	combined := index.GetAllCombinedReferences()
+	assert.Equal(t, 563, len(combined))
 	assert.Equal(t, 436, index.pathCount)
 	assert.Equal(t, 853, index.operationCount)
 	assert.Equal(t, 563, index.schemaCount)
@@ -126,16 +134,24 @@ func TestSpecIndex_PetstoreV3(t *testing.T) {
 
 func TestSpecIndex_BurgerShop(t *testing.T) {
 
-	asana, _ := ioutil.ReadFile("test_files/burgershop.openapi.yaml")
+	burgershop, _ := ioutil.ReadFile("test_files/burgershop.openapi.yaml")
 	var rootNode yaml.Node
-	yaml.Unmarshal(asana, &rootNode)
+	yaml.Unmarshal(burgershop, &rootNode)
 
 	index := NewSpecIndex(&rootNode)
 
 	assert.Len(t, index.allRefs, 4)
 	assert.Len(t, index.allMappedRefs, 4)
+	assert.Equal(t, 4, len(index.GetMappedReferences()))
+
 	assert.Equal(t, 5, index.pathCount)
 	assert.Equal(t, 5, index.GetPathCount())
+
+	assert.Equal(t, 5, len(index.GetAllSchemas()))
+
+	assert.Equal(t, 17, len(index.GetAllSequencedReferences()))
+	assert.NotNil(t, index.GetSchemasNode())
+	assert.Nil(t, index.GetParametersNode())
 
 	assert.Equal(t, 5, index.operationCount)
 	assert.Equal(t, 5, index.GetOperationCount())
@@ -170,7 +186,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 func TestSpecIndex_NoRoot(t *testing.T) {
 
 	index := NewSpecIndex(nil)
-	refs := index.ExtractRefs(nil, nil, 0)
+	refs := index.ExtractRefs(nil, nil, 0, false, "")
 	docs := index.ExtractExternalDocuments(nil)
 	assert.Nil(t, docs)
 	assert.Nil(t, refs)
