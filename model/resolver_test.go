@@ -21,9 +21,9 @@ func Benchmark_ResolveDocumentBurgerShop(b *testing.B) {
 
 func Benchmark_ResolveDocumentStripe(b *testing.B) {
 	burgershop, _ := ioutil.ReadFile("test_files/stripe.yaml")
-	var rootNode yaml.Node
-	yaml.Unmarshal(burgershop, &rootNode)
 	for n := 0; n < b.N; n++ {
+		var rootNode yaml.Node
+		yaml.Unmarshal(burgershop, &rootNode)
 		ResolveOpenAPIDocument(&rootNode)
 	}
 }

@@ -12,6 +12,17 @@ func TestNewResolver(t *testing.T) {
 	assert.Nil(t, NewResolver(nil))
 }
 
+func Benchmark_ResolveDocumentStripe(b *testing.B) {
+	stripe, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
+	for n := 0; n < b.N; n++ {
+		var rootNode yaml.Node
+		yaml.Unmarshal(stripe, &rootNode)
+		index := model.NewSpecIndex(&rootNode)
+		resolver := NewResolver(index)
+		resolver.Resolve()
+	}
+}
+
 func TestResolver_ResolveComponents_CircularSpec(t *testing.T) {
 
 	circular, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")

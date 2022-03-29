@@ -808,7 +808,7 @@ func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Referenc
 			index.allMappedRefs[ref.Definition] = located
 		} else {
 
-			_, path := convertComponentIdIntoFriendlyPathSearch(ref.Definition)
+			_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(ref.Definition)
 			indexError := &IndexingError{
 				Error: fmt.Errorf("component '%s' does not exist in the specification", ref.Definition),
 				Node:  ref.Node,
@@ -906,7 +906,7 @@ func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 
 func (index *SpecIndex) findComponentInRoot(componentId string) *Reference {
 
-	name, friendlySearch := convertComponentIdIntoFriendlyPathSearch(componentId)
+	name, friendlySearch := utils.ConvertComponentIdIntoFriendlyPathSearch(componentId)
 
 	path, _ := yamlpath.NewPath(friendlySearch)
 	res, _ := path.Find(index.root)
@@ -970,14 +970,6 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 			continue
 		}
 	}
-}
-
-func convertComponentIdIntoFriendlyPathSearch(id string) (string, string) {
-	segs := strings.Split(id, "/")
-	name := segs[len(segs)-1]
-
-	return name, strings.ReplaceAll(fmt.Sprintf("%s['%s']",
-		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
 }
 
 func isHttpMethod(val string) bool {

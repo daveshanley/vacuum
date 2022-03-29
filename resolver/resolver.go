@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // CircularReferenceResult contains a circular reference found when traversing the graph.
@@ -18,10 +19,22 @@ type CircularReferenceResult struct {
 	LoopPoint *model.Reference
 }
 
+func (c *CircularReferenceResult) GenerateJourneyPath() string {
+	buf := strings.Builder{}
+	for i, ref := range c.Journey {
+		buf.WriteString(ref.Name)
+		if i < len(c.Journey) {
+			buf.WriteString(" -> ")
+		}
+	}
+	return buf.String()
+}
+
 // ResolvingError represents an issue the resolver had trying to stitch the tree together.
 type ResolvingError struct {
 	Error error
 	Node  *yaml.Node
+	Path  string
 }
 
 // Resolver will use a *model.SpecIndex to stitch together a resolved root tree using all the discovered
@@ -44,9 +57,19 @@ func NewResolver(index *model.SpecIndex) *Resolver {
 	}
 }
 
+// GetResolvingErrors returns all errors found during resolving
+func (resolver *Resolver) GetResolvingErrors() []*ResolvingError {
+	return resolver.resolvingErrors
+}
+
+// GetCircularErrors returns all errors found during resolving
+func (resolver *Resolver) GetCircularErrors() []*CircularReferenceResult {
+	return resolver.circularReferences
+}
+
 // Resolve will resolve the specification, everything that is not polymorphic and not circular, will be resolved.
 // this data can get big, it results in a massive duplication of data.
-func (resolver *Resolver) Resolve() []*CircularReferenceResult {
+func (resolver *Resolver) Resolve() []*ResolvingError {
 
 	mapped := resolver.specIndex.GetMappedReferences()
 	for _, ref := range mapped {
@@ -75,7 +98,15 @@ func (resolver *Resolver) Resolve() []*CircularReferenceResult {
 		}
 	}
 
-	return resolver.circularReferences
+	for _, circRef := range resolver.circularReferences {
+		resolver.resolvingErrors = append(resolver.resolvingErrors, &ResolvingError{
+			Error: fmt.Errorf("Circular reference detected: %s", circRef.Start.Name),
+			Node:  circRef.LoopPoint.Node,
+			Path:  circRef.GenerateJourneyPath(),
+		})
+	}
+
+	return resolver.resolvingErrors
 }
 
 // VisitReference will visit a reference as part of a journey and will return resolved nodes.
@@ -156,9 +187,11 @@ func (resolver *Resolver) extractRelatives(node *yaml.Node,
 
 				if ref == nil {
 					// TODO handle error, missing ref, can't resolve.
+					_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(value)
 					err := &ResolvingError{
 						Error: fmt.Errorf("cannot resolve reference '%s', it's missing", value),
 						Node:  nil,
+						Path:  path,
 					}
 					resolver.resolvingErrors = append(resolver.resolvingErrors, err)
 					continue
