@@ -41,6 +41,8 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		td.tagNodes = GetTagsFromRoot(nodes)
 	}
 
+	// TODO rebuild using the index.
+
 	for _, tagNode := range td.tagNodes {
 		_, tag := utils.FindKeyNode("name", []*yaml.Node{tagNode})
 		if tag != nil {
