@@ -41,10 +41,14 @@ func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -76,10 +80,14 @@ paths:
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -104,16 +112,20 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) 
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza}  must have 'required' parameter that is set to 'true'", res[0].Message)
+	assert.Equal(t, "/musical/{melody}/{pizza} must have 'required' parameter that is set to 'true'", res[0].Message)
 }
 
 func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testing.T) {
@@ -133,15 +145,18 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 	path := "$"
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza}  must have 'required' parameter that is set to 'true'", res[0].Message)
+	assert.Equal(t, "/musical/{melody}/{pizza} must have 'required' parameter that is set to 'true'", res[0].Message)
 }
 
 func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *testing.T) {
@@ -164,8 +179,12 @@ func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -187,10 +206,14 @@ func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -214,10 +237,14 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -261,10 +288,14 @@ paths:
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, err := utils.FindNodes([]byte(yml), path)
 	assert.NoError(t, err)
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 

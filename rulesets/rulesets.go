@@ -65,11 +65,11 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// add operation params rule
 	rules["operation-parameters"] = GetOperationParametersRule()
 
-	//// add operation tag defined rule
-	//rules["operation-tag-defined"] = GetGlobalOperationTagsRule()
-	//
-	//// add operation tag defined rule
-	//rules["path-params"] = GetPathParamsRule()
+	// add operation tag defined rule
+	rules["operation-tag-defined"] = GetGlobalOperationTagsRule()
+
+	// add operation tag defined rule
+	rules["path-params"] = GetPathParamsRule()
 
 	//// contact-properties
 	//rules["contact-properties"] = GetContactPropertiesRule()

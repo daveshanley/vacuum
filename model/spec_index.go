@@ -178,6 +178,22 @@ func (index *SpecIndex) GetRootNode() *yaml.Node {
 	return index.root
 }
 
+// GetGlobalTagsNode returns document root node.
+func (index *SpecIndex) GetGlobalTagsNode() *yaml.Node {
+	if index == nil {
+		return nil
+	}
+	return index.tagsNode
+}
+
+// GetPathsNode returns document root node.
+func (index *SpecIndex) GetPathsNode() *yaml.Node {
+	if index == nil {
+		return nil
+	}
+	return index.pathsNode
+}
+
 // GetDiscoveredReferences will return all unique references found in the spec
 func (index *SpecIndex) GetDiscoveredReferences() map[string]*Reference {
 	return index.allRefs
@@ -213,6 +229,11 @@ func (index *SpecIndex) GetOperationParameterReferences() map[string]map[string]
 // GetAllSchemas will return all schemas found in the document
 func (index *SpecIndex) GetAllSchemas() map[string]*Reference {
 	return index.allSchemas
+}
+
+// GetInlineOperationDuplicateParameters will return a map of duplicates located in operation parameters.
+func (index *SpecIndex) GetInlineOperationDuplicateParameters() map[string][]*Reference {
+	return index.paramInlineDuplicates
 }
 
 // GetAllSequencedReferences will return every reference (in sequence) that was found (non-polymorphic)
@@ -780,7 +801,8 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 		for mName, mValue := range params {
 			for pName, pValue := range mValue {
 				if !strings.HasPrefix(pName, "#") {
-					index.paramInlineDuplicates[pName] = append(index.paramInlineDuplicates[pName], pValue)
+					k := fmt.Sprintf("%s:::%s:::%s", path, mName, pName)
+					index.paramInlineDuplicates[k] = append(index.paramInlineDuplicates[k], pValue)
 					index.paramAllRefs[fmt.Sprintf("%s:::%s", path, mName)] = pValue
 				}
 			}
