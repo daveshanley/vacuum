@@ -218,7 +218,7 @@ func GetOpenApiTagsRule() *model.Rule {
 // has defined a description or not, or does not meet the required length
 func GetOperationDescriptionRule() *model.Rule {
 	opts := make(map[string]interface{})
-	opts["minWords"] = "5" // five words is still weak, but it's better than nothing.
+	opts["minWords"] = "1" // there must be at least a single word.
 	return &model.Rule{
 		Description:  "Operation description checks",
 		Given:        "$",
@@ -291,36 +291,18 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 
 // GetOperationTagsRule uses the schema function to check if there tags exist and that
 // it's an array with at least one item.
-// TODO: re-build this at some pont, I don't like it very much.
-// TODO: use utils.FindAllKeyNodesWithPath
 func GetOperationTagsRule() *model.Rule {
-	items := 1
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["schema"] = parser.Schema{
-		Type: &utils.ArrayLabel,
-		Items: &parser.Schema{
-			Type:     &utils.StringLabel,
-			MinItems: &items,
-		},
-		UniqueItems: true,
-	}
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
-	opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
 
 	return &model.Rule{
 		Description:  "Operation 'tags' are missing/empty",
-		Given:        AllOperationsPath,
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
 		Severity:     warn,
 		Then: model.RuleAction{
-			Field:           "tags",
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "oasOperationTags",
 		},
 	}
 }

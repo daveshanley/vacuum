@@ -72,53 +72,53 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["path-params"] = GetPathParamsRule()
 
 	//// contact-properties
-	//rules["contact-properties"] = GetContactPropertiesRule()
-	//
-	//// info object: contains contact
-	//rules["info-contact"] = GetInfoContactRule()
-	//
-	//// info object: contains description
-	//rules["info-description"] = GetInfoDescriptionRule()
-	//
-	//// info object: contains a license
-	//rules["info-license"] = GetInfoLicenseRule()
-	//
-	//// info object: contains a license url
-	//rules["license-url"] = GetInfoLicenseUrlRule()
-	//
-	//// check tags are in alphabetical order
-	//rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabeticalRule()
-	//
-	//// check tags exist correctly
-	//rules["openapi-tags"] = GetOpenApiTagsRule()
-	//
-	//// check operation tags exist correctly
-	//rules["operation-tags"] = GetOperationTagsRule()
-	//
-	//// check all operations have a description, and they match a set length.
-	//rules["operation-description"] = GetOperationDescriptionRule()
-	//
-	//// check all components have a description, and they match a set length.
-	//rules["component-description"] = GetComponentDescriptionsRule()
-	//
-	//// check operationId does not contain characters that would be invalid in a URL
-	//rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
-	//
-	//// check paths don't have any empty declarations
-	//rules["path-declarations-must-exist"] = GetPathDeclarationsMustExistRule()
-	//
-	//// check paths don't end with a slash
-	//rules["path-keys-no-trailing-slash"] = GetPathNoTrailingSlashRule()
-	//
-	//// check paths don't contain a query string
-	//rules["path-not-include-query"] = GetPathNotIncludeQueryRule()
-	//
-	//// check tags have a description defined
-	//rules["tag-description"] = GetTagDescriptionRequiredRule()
-	//
-	//// add no $ref siblings
+	rules["contact-properties"] = GetContactPropertiesRule()
+
+	// info object: contains contact
+	rules["info-contact"] = GetInfoContactRule()
+
+	// info object: contains description
+	rules["info-description"] = GetInfoDescriptionRule()
+
+	// info object: contains a license
+	rules["info-license"] = GetInfoLicenseRule()
+
+	// info object: contains a license url
+	rules["license-url"] = GetInfoLicenseUrlRule()
+
+	// check tags are in alphabetical order
+	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabeticalRule()
+
+	// check tags exist correctly
+	rules["openapi-tags"] = GetOpenApiTagsRule()
+
+	// check operation tags exist correctly
+	rules["operation-tags"] = GetOperationTagsRule()
+
+	//check all operations have a description, and they match a set length.
+	rules["operation-description"] = GetOperationDescriptionRule()
+
+	// check all components have a description, and they match a set length.
+	rules["component-description"] = GetComponentDescriptionsRule()
+
+	// check operationId does not contain characters that would be invalid in a URL
+	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
+
+	// check paths don't have any empty declarations
+	rules["path-declarations-must-exist"] = GetPathDeclarationsMustExistRule()
+
+	// check paths don't end with a slash
+	rules["path-keys-no-trailing-slash"] = GetPathNoTrailingSlashRule()
+
+	// check paths don't contain a query string
+	rules["path-not-include-query"] = GetPathNotIncludeQueryRule()
+
+	// check tags have a description defined
+	rules["tag-description"] = GetTagDescriptionRequiredRule()
+
+	// add no $ref siblings
 	//rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
-	//
+
 	//// add unused component rule for openapi3
 	//rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
 	//
