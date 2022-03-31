@@ -29,8 +29,8 @@ func TestSpecIndex_ExtractRefsStripe(t *testing.T) {
 	assert.Equal(t, 0, index.globalLinksCount)
 	assert.Equal(t, 0, index.componentParamCount)
 	assert.Equal(t, 143, index.operationParamCount)
-	assert.Equal(t, 76, index.componentsInlineParamDuplicateCount)
-	assert.Equal(t, 67, index.componentsInlineParamUniqueCount)
+	assert.Equal(t, 88, index.componentsInlineParamDuplicateCount)
+	assert.Equal(t, 55, index.componentsInlineParamUniqueCount)
 
 }
 
@@ -103,8 +103,8 @@ func TestSpecIndex_PetstoreV2(t *testing.T) {
 	assert.Equal(t, 1, index.componentParamCount)
 	assert.Equal(t, 1, index.GetComponentParameterCount())
 	assert.Equal(t, 11, index.operationParamCount)
-	assert.Equal(t, 4, index.componentsInlineParamDuplicateCount)
-	assert.Equal(t, 7, index.componentsInlineParamUniqueCount)
+	assert.Equal(t, 5, index.componentsInlineParamDuplicateCount)
+	assert.Equal(t, 6, index.componentsInlineParamUniqueCount)
 	assert.Equal(t, 3, index.GetTotalTagsCount())
 }
 
@@ -126,8 +126,8 @@ func TestSpecIndex_PetstoreV3(t *testing.T) {
 	assert.Equal(t, 0, index.globalLinksCount)
 	assert.Equal(t, 0, index.componentParamCount)
 	assert.Equal(t, 9, index.operationParamCount)
-	assert.Equal(t, 3, index.componentsInlineParamDuplicateCount)
-	assert.Equal(t, 6, index.componentsInlineParamUniqueCount)
+	assert.Equal(t, 4, index.componentsInlineParamDuplicateCount)
+	assert.Equal(t, 5, index.componentsInlineParamUniqueCount)
 	assert.Equal(t, 3, index.GetTotalTagsCount())
 
 }

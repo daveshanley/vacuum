@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -37,10 +38,15 @@ func TestOperationParameters_RunRule_Success(t *testing.T) {
 
 	path := "$.paths"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -60,16 +66,21 @@ func TestOperationParameters_RunRule_MissingName(t *testing.T) {
 
 	path := "$.paths"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/users/{id}' contains a parameter with no 'name' value", res[0].Message)
+	assert.Equal(t, "the 'get' operation parameter at path '/users/{id}', index 1 has no 'name' value", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateId(t *testing.T) {
@@ -85,16 +96,20 @@ func TestOperationParameters_RunRule_DuplicateId(t *testing.T) {
 
 	path := "$.paths"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/users/{id}' contains a parameter with duplicate name 'id'", res[0].Message)
+	assert.Equal(t, "the 'get' operation parameter at path '/users/{id}', index 1 has a duplicate name 'id'", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
@@ -116,16 +131,20 @@ func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
 
 	path := "$.paths"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/users/{id}' contains a parameter with duplicate name 'id'", res[0].Message)
+	assert.Equal(t, "the 'get' operation parameter at path '/users/{id}', index 1 has a duplicate name 'id'", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {
@@ -141,10 +160,14 @@ func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {
 
 	path := "$.paths"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -166,10 +189,14 @@ func TestOperationParameters_RunRule_FormDataAndBody(t *testing.T) {
 
 	path := "$.paths"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)

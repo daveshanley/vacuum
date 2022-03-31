@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/resolver"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
@@ -21,13 +22,27 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 	var specResolved yaml.Node
 	var specUnresolved yaml.Node
-	err := yaml.Unmarshal(spec, &specResolved)
+
+	err := yaml.Unmarshal(spec, &specUnresolved)
 	if err != nil {
 		return nil, err
 	}
-	yaml.Unmarshal(spec, &specUnresolved)
+	specResolved = specUnresolved
 
-	resolved, errs := model.ResolveOpenAPIDocument(&specResolved)
+	// this is the second re-build of the resolver. Leaving it in place for now. however, it's no longer required.
+	//resolved, errs := model.ResolveOpenAPIDocument(&specResolved)
+
+	// create an index
+	index := model.NewSpecIndex(&specResolved)
+
+	// create a resolver (third and final rebuild)
+	resolverInstance := resolver.NewResolver(index)
+
+	// resolve the doc
+	resolverInstance.Resolve()
+
+	// any errors (circular or lookup) from resolving spec.
+	errs := resolverInstance.GetResolvingErrors()
 
 	// create circular rule, it's blank, but we need a rule for a result.
 	circularRule := &model.Rule{
@@ -55,13 +70,14 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 		ruleResults = append(ruleResults, res)
 	}
 
+	// run all rules.
 	var errors []error
 	for _, rule := range ruleSet.Rules {
-		ruleSpec := resolved
+		ruleSpec := &specResolved
 		if !rule.Resolved {
 			ruleSpec = &specUnresolved
 		}
-		go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors)
+		go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors, index)
 	}
 
 	ruleWaitGroup.Wait()
@@ -71,7 +87,7 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 }
 
 func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.Functions,
-	ruleResults *[]model.RuleFunctionResult, wg *sync.WaitGroup, errors *[]error) {
+	ruleResults *[]model.RuleFunctionResult, wg *sync.WaitGroup, errors *[]error, index *model.SpecIndex) {
 
 	defer wg.Done()
 	var givenPaths []string
@@ -116,7 +132,7 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 
 		if err == nil {
 
-			ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes)
+			ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes, index)
 
 		} else {
 
@@ -126,7 +142,7 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 
 			if err == nil {
 				for _, rAction := range ruleActions {
-					ruleResults = buildResults(rule, builtinFunctions, rAction, ruleResults, nodes)
+					ruleResults = buildResults(rule, builtinFunctions, rAction, ruleResults, nodes, index)
 				}
 			}
 		}
@@ -136,7 +152,7 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 var lock sync.Mutex
 
 func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAction model.RuleAction,
-	ruleResults *[]model.RuleFunctionResult, nodes []*yaml.Node) *[]model.RuleFunctionResult {
+	ruleResults *[]model.RuleFunctionResult, nodes []*yaml.Node, index *model.SpecIndex) *[]model.RuleFunctionResult {
 
 	ruleFunction := builtinFunctions.FindFunction(ruleAction.Function)
 
@@ -147,6 +163,7 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 			RuleAction: &ruleAction,
 			Rule:       rule,
 			Given:      rule.Given,
+			Index:      index,
 		}
 
 		// validate the rule is configured correctly before running it.

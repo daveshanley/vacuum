@@ -11,10 +11,7 @@ import (
 )
 
 // TagDefined is a rule that checks if an operation uses a tag, it's also defined in the global tag definitions.
-type TagDefined struct {
-	tagNodes []*yaml.Node
-	opsNodes []*yaml.Node
-}
+type TagDefined struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the TagDefined rule.
 func (td TagDefined) GetSchema() model.RuleFunctionSchema {
@@ -33,27 +30,24 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	var results []model.RuleFunctionResult
 
 	seenGlobalTags := make(map[string]bool)
+	tagsNode := context.Index.GetGlobalTagsNode()
+	pathsNode := context.Index.GetPathsNode()
 
-	if td.opsNodes == nil {
-		td.opsNodes = GetOperationsFromRoot(nodes)
-	}
-	if td.tagNodes == nil {
-		td.tagNodes = GetTagsFromRoot(nodes)
-	}
-
-	for _, tagNode := range td.tagNodes {
-		_, tag := utils.FindKeyNode("name", []*yaml.Node{tagNode})
-		if tag != nil {
-			seenGlobalTags[tag.Value] = true
+	if tagsNode != nil {
+		for _, tagNode := range tagsNode.Content {
+			_, tag := utils.FindKeyNode("name", []*yaml.Node{tagNode})
+			if tag != nil {
+				seenGlobalTags[tag.Value] = true
+			}
 		}
 	}
 
-	for x, operationNode := range td.opsNodes {
+	for x, operationNode := range pathsNode.Content {
 		var currentPath string
 		var currentVerb string
 		if operationNode.Tag == "!!str" {
 			currentPath = operationNode.Value
-			verbNode := td.opsNodes[x+1]
+			verbNode := pathsNode.Content[x+1]
 			for y, verbMapNode := range verbNode.Content {
 
 				if verbMapNode.Tag == "!!str" {
@@ -63,17 +57,17 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 				}
 
 				verbDataNode := verbNode.Content[y+1]
-				_, tagsNode := utils.FindFirstKeyNode("tags", verbDataNode.Content, 0)
+				_, opTagsNode := utils.FindKeyNode("tags", verbDataNode.Content)
 
-				if tagsNode != nil {
+				if opTagsNode != nil {
 
 					tagIndex := 0
-					for j, operationTag := range tagsNode.Content {
+					for j, operationTag := range opTagsNode.Content {
 						if operationTag.Tag == "!!str" {
 							if !seenGlobalTags[operationTag.Value] {
 								endNode := utils.FindLastChildNode(operationTag)
-								if j+1 < len(tagsNode.Content) {
-									endNode = tagsNode.Content[j+1]
+								if j+1 < len(opTagsNode.Content) {
+									endNode = opTagsNode.Content[j+1]
 								}
 								results = append(results, model.RuleFunctionResult{
 									Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+

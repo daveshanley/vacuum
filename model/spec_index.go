@@ -19,62 +19,63 @@ import (
 // quick direct access to paths, operations, tags are all available. No need to walk the entire node tree in rules,
 // everything is pre-walked if you need it.
 type SpecIndex struct {
-	allRefs                             map[string]*Reference              // all (deduplicated) refs
-	rawSequencedRefs                    []*Reference                       // all raw references in sequence as they are scanned, not deduped.
-	allMappedRefs                       map[string]*Reference              // these are the located mapped refs
-	pathRefs                            map[string]map[string]*Reference   // all path references
-	paramOpRefs                         map[string]map[string]*Reference   // params in operations.
-	paramCompRefs                       map[string]*Reference              // params in components
-	paramAllRefs                        map[string]*Reference              // combined components and ops
-	paramInlineDuplicates               map[string][]*Reference            // inline params all with the same name
-	globalTagRefs                       map[string]*Reference              // top level global tags
-	securitySchemeRefs                  map[string]*Reference              // top level security schemes
-	requestBodiesRefs                   map[string]*Reference              // top level request bodies
-	responsesRefs                       map[string]*Reference              // top level responses
-	headersRefs                         map[string]*Reference              // top level responses
-	examplesRefs                        map[string]*Reference              // top level examples
-	linksRefs                           map[string]map[string][]*Reference // all links
-	operationTagsRefs                   map[string]map[string][]*Reference // tags found in operations
-	callbackRefs                        map[string]*Reference              // top level callback refs
-	polymorphicRefs                     map[string]*Reference              // every reference to 'allOf' references
-	externalDocumentsRef                []*Reference                       // all external documents in spec
-	allSchemas                          map[string]*Reference              // all schemas
-	pathRefsLock                        sync.Mutex                         // create lock for all refs maps, we want to build data as fast as we can
-	externalDocumentsCount              int                                // number of externalDocument nodes found
-	operationTagsCount                  int                                // number of unique tags in operations
-	globalTagsCount                     int                                // number of global tags defined
-	totalTagsCount                      int                                // number unique tags in spec
-	securitySchemesCount                int                                // security schemes
-	globalRequestBodiesCount            int                                // component request bodies
-	globalResponsesCount                int                                // component responses
-	globalHeadersCount                  int                                // component headers
-	globalExamplesCount                 int                                // component examples
-	globalLinksCount                    int                                // component links
-	globalCallbacks                     int                                // component callbacks.
-	pathCount                           int                                // number of paths
-	operationCount                      int                                // number of operations
-	operationParamCount                 int                                // number of params defined in operations
-	componentParamCount                 int                                // number of params defined in components
-	componentsInlineParamUniqueCount    int                                // number of inline params with unique names
-	componentsInlineParamDuplicateCount int                                // number of inline params with duplicate names
-	schemaCount                         int                                // number of schemas
-	refCount                            int                                // total ref count
-	root                                *yaml.Node                         // the root document
-	pathsNode                           *yaml.Node                         // paths node
-	tagsNode                            *yaml.Node                         // tags node
-	componentsNode                      *yaml.Node                         // components node
-	parametersNode                      *yaml.Node                         // components/parameters node
-	schemasNode                         *yaml.Node                         // components/schemas node
-	securitySchemesNode                 *yaml.Node                         // components/securitySchemes node
-	requestBodiesNode                   *yaml.Node                         // components/requestBodies node
-	responsesNode                       *yaml.Node                         // components/responses node
-	headersNode                         *yaml.Node                         // components/headers node
-	examplesNode                        *yaml.Node                         // components/examples node
-	linksNode                           *yaml.Node                         // components/links node
-	callbacksNode                       *yaml.Node                         // components/callbacks node
-	externalDocumentsNode               *yaml.Node                         // external documents node
-	externalSpecIndex                   map[string]*SpecIndex              // create a primary index of all external specs and componentIds
-	refErrors                           []*IndexingError                   // errors when indexing references
+	allRefs                             map[string]*Reference                       // all (deduplicated) refs
+	rawSequencedRefs                    []*Reference                                // all raw references in sequence as they are scanned, not deduped.
+	allMappedRefs                       map[string]*Reference                       // these are the located mapped refs
+	pathRefs                            map[string]map[string]*Reference            // all path references
+	paramOpRefs                         map[string]map[string]map[string]*Reference // params in operations.
+	paramCompRefs                       map[string]*Reference                       // params in components
+	paramAllRefs                        map[string]*Reference                       // combined components and ops
+	paramInlineDuplicates               map[string][]*Reference                     // inline params all with the same name
+	globalTagRefs                       map[string]*Reference                       // top level global tags
+	securitySchemeRefs                  map[string]*Reference                       // top level security schemes
+	requestBodiesRefs                   map[string]*Reference                       // top level request bodies
+	responsesRefs                       map[string]*Reference                       // top level responses
+	headersRefs                         map[string]*Reference                       // top level responses
+	examplesRefs                        map[string]*Reference                       // top level examples
+	linksRefs                           map[string]map[string][]*Reference          // all links
+	operationTagsRefs                   map[string]map[string][]*Reference          // tags found in operations
+	callbackRefs                        map[string]*Reference                       // top level callback refs
+	polymorphicRefs                     map[string]*Reference                       // every reference to 'allOf' references
+	externalDocumentsRef                []*Reference                                // all external documents in spec
+	allSchemas                          map[string]*Reference                       // all schemas
+	pathRefsLock                        sync.Mutex                                  // create lock for all refs maps, we want to build data as fast as we can
+	externalDocumentsCount              int                                         // number of externalDocument nodes found
+	operationTagsCount                  int                                         // number of unique tags in operations
+	globalTagsCount                     int                                         // number of global tags defined
+	totalTagsCount                      int                                         // number unique tags in spec
+	securitySchemesCount                int                                         // security schemes
+	globalRequestBodiesCount            int                                         // component request bodies
+	globalResponsesCount                int                                         // component responses
+	globalHeadersCount                  int                                         // component headers
+	globalExamplesCount                 int                                         // component examples
+	globalLinksCount                    int                                         // component links
+	globalCallbacks                     int                                         // component callbacks.
+	pathCount                           int                                         // number of paths
+	operationCount                      int                                         // number of operations
+	operationParamCount                 int                                         // number of params defined in operations
+	componentParamCount                 int                                         // number of params defined in components
+	componentsInlineParamUniqueCount    int                                         // number of inline params with unique names
+	componentsInlineParamDuplicateCount int                                         // number of inline params with duplicate names
+	schemaCount                         int                                         // number of schemas
+	refCount                            int                                         // total ref count
+	root                                *yaml.Node                                  // the root document
+	pathsNode                           *yaml.Node                                  // paths node
+	tagsNode                            *yaml.Node                                  // tags node
+	componentsNode                      *yaml.Node                                  // components node
+	parametersNode                      *yaml.Node                                  // components/parameters node
+	schemasNode                         *yaml.Node                                  // components/schemas node
+	securitySchemesNode                 *yaml.Node                                  // components/securitySchemes node
+	requestBodiesNode                   *yaml.Node                                  // components/requestBodies node
+	responsesNode                       *yaml.Node                                  // components/responses node
+	headersNode                         *yaml.Node                                  // components/headers node
+	examplesNode                        *yaml.Node                                  // components/examples node
+	linksNode                           *yaml.Node                                  // components/links node
+	callbacksNode                       *yaml.Node                                  // components/callbacks node
+	externalDocumentsNode               *yaml.Node                                  // external documents node
+	externalSpecIndex                   map[string]*SpecIndex                       // create a primary index of all external specs and componentIds
+	refErrors                           []*IndexingError                            // errors when indexing references
+	operationParamErrors                []*IndexingError                            // errors when indexing parameters
 }
 
 // ExternalLookupFunction is for lookup functions that take a JSONSchema reference and tries to find that node in the
@@ -108,7 +109,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.allRefs = make(map[string]*Reference)
 	index.allMappedRefs = make(map[string]*Reference)
 	index.pathRefs = make(map[string]map[string]*Reference)
-	index.paramOpRefs = make(map[string]map[string]*Reference)
+	index.paramOpRefs = make(map[string]map[string]map[string]*Reference)
 	index.operationTagsRefs = make(map[string]map[string][]*Reference)
 	index.paramCompRefs = make(map[string]*Reference)
 	index.paramAllRefs = make(map[string]*Reference)
@@ -177,6 +178,22 @@ func (index *SpecIndex) GetRootNode() *yaml.Node {
 	return index.root
 }
 
+// GetGlobalTagsNode returns document root node.
+func (index *SpecIndex) GetGlobalTagsNode() *yaml.Node {
+	if index == nil {
+		return nil
+	}
+	return index.tagsNode
+}
+
+// GetPathsNode returns document root node.
+func (index *SpecIndex) GetPathsNode() *yaml.Node {
+	if index == nil {
+		return nil
+	}
+	return index.pathsNode
+}
+
 // GetDiscoveredReferences will return all unique references found in the spec
 func (index *SpecIndex) GetDiscoveredReferences() map[string]*Reference {
 	return index.allRefs
@@ -204,24 +221,39 @@ func (index *SpecIndex) GetMappedReferences() map[string]*Reference {
 	return index.allMappedRefs
 }
 
+// GetOperationParameterReferences will return all references to operation parameters
+func (index *SpecIndex) GetOperationParameterReferences() map[string]map[string]map[string]*Reference {
+	return index.paramOpRefs
+}
+
 // GetAllSchemas will return all schemas found in the document
 func (index *SpecIndex) GetAllSchemas() map[string]*Reference {
 	return index.allSchemas
 }
 
-// GetAllSequencedReferences will return every reference (in sequence) that was found (non polymorphic)
+// GetInlineOperationDuplicateParameters will return a map of duplicates located in operation parameters.
+func (index *SpecIndex) GetInlineOperationDuplicateParameters() map[string][]*Reference {
+	return index.paramInlineDuplicates
+}
+
+// GetAllSequencedReferences will return every reference (in sequence) that was found (non-polymorphic)
 func (index *SpecIndex) GetAllSequencedReferences() []*Reference {
 	return index.rawSequencedRefs
 }
 
-// GetSchemasNode will return the schemas node found in the spec
+// GetSchemasNode will return the schema's node found in the spec
 func (index *SpecIndex) GetSchemasNode() *yaml.Node {
 	return index.schemasNode
 }
 
-// GetParametersNode will return the schemas node found in the spec
+// GetParametersNode will return the schema's node found in the spec
 func (index *SpecIndex) GetParametersNode() *yaml.Node {
 	return index.parametersNode
+}
+
+// GetOperationParametersIndexErrors any errors that occurred when indexing operation parameters
+func (index *SpecIndex) GetOperationParametersIndexErrors() []*IndexingError {
+	return index.operationParamErrors
 }
 
 func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
@@ -714,7 +746,7 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 
 						// let's look at params, check if they are refs or inline.
 						params := pathPropertyNode.Content[y+1].Content
-						index.scanOperationParams(params, pathItemNode)
+						index.scanOperationParams(params, pathItemNode, "top")
 					}
 
 					// method level params.
@@ -724,7 +756,7 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 							if z%2 == 0 {
 								if httpMethodProp.Value == "parameters" {
 									params := pathPropertyNode.Content[y+1].Content[z+1].Content
-									index.scanOperationParams(params, pathItemNode)
+									index.scanOperationParams(params, pathItemNode, prop.Value)
 								}
 
 								// extract operation tags if set.
@@ -763,20 +795,19 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 		}
 	}
 
-	// now build main index of all params by combining comp refs with inline params from operations.
-	// use the namespace path:::param for inline params to identify them as inline.
+	//now build main index of all params by combining comp refs with inline params from operations.
+	//use the namespace path:::param for inline params to identify them as inline.
 	for path, params := range index.paramOpRefs {
-		for pName, pValue := range params {
-			if !strings.HasPrefix(pName, "#") {
-				if index.paramInlineDuplicates[pName] == nil {
-					index.paramInlineDuplicates[pName] = []*Reference{pValue}
-				} else {
+		for mName, mValue := range params {
+			for pName, pValue := range mValue {
+				if !strings.HasPrefix(pName, "#") {
 					index.paramInlineDuplicates[pName] = append(index.paramInlineDuplicates[pName], pValue)
+					index.paramAllRefs[fmt.Sprintf("%s:::%s", path, mName)] = pValue
 				}
-				index.paramAllRefs[fmt.Sprintf("%s:::%s", path, pName)] = pValue
 			}
 		}
 	}
+
 	index.operationParamCount = len(index.paramCompRefs) + len(index.paramInlineDuplicates)
 	return index.operationParamCount
 
@@ -938,8 +969,8 @@ func (index *SpecIndex) countUniqueInlineDuplicates() int {
 	return unique
 }
 
-func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *yaml.Node) {
-	for _, param := range params {
+func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *yaml.Node, method string) {
+	for i, param := range params {
 
 		// param is ref
 		if len(param.Content) > 0 && param.Content[0].Value == "$ref" {
@@ -948,15 +979,37 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 			paramRef := index.allMappedRefs[paramRefName]
 
 			if index.paramOpRefs[pathItemNode.Value] == nil {
-				index.paramOpRefs[pathItemNode.Value] = make(map[string]*Reference)
+				index.paramOpRefs[pathItemNode.Value] = make(map[string]map[string]*Reference)
+				index.paramOpRefs[pathItemNode.Value][method] = make(map[string]*Reference)
+
 			}
-			index.paramOpRefs[pathItemNode.Value][paramRefName] = paramRef
+			// if we know the path, but it's a new method
+			if index.paramOpRefs[pathItemNode.Value][method] == nil {
+				index.paramOpRefs[pathItemNode.Value][method] = make(map[string]*Reference)
+			}
+			index.paramOpRefs[pathItemNode.Value][method][paramRefName] = paramRef
 			continue
 
 		} else {
 
-			// param is inline.
+			//param is inline.
 			_, vn := utils.FindKeyNode("name", param.Content)
+
+			if vn == nil {
+
+				path := fmt.Sprintf("$.paths.%s.%s.parameters[%d]", pathItemNode.Value, method, i)
+				if method == "top" {
+					path = fmt.Sprintf("$.paths.%s.parameters[%d]", pathItemNode.Value, i)
+				}
+
+				index.operationParamErrors = append(index.operationParamErrors, &IndexingError{
+					Error: fmt.Errorf("the '%s' operation parameter at path '%s', index %d has no 'name' value",
+						method, pathItemNode.Value, i),
+					Node: param,
+					Path: path,
+				})
+				continue
+			}
 
 			ref := &Reference{
 				Definition: vn.Value,
@@ -964,9 +1017,31 @@ func (index *SpecIndex) scanOperationParams(params []*yaml.Node, pathItemNode *y
 				Node:       param,
 			}
 			if index.paramOpRefs[pathItemNode.Value] == nil {
-				index.paramOpRefs[pathItemNode.Value] = make(map[string]*Reference)
+				index.paramOpRefs[pathItemNode.Value] = make(map[string]map[string]*Reference)
+				index.paramOpRefs[pathItemNode.Value][method] = make(map[string]*Reference)
 			}
-			index.paramOpRefs[pathItemNode.Value][ref.Name] = ref
+
+			// if we know the path but this is a new method.
+			if index.paramOpRefs[pathItemNode.Value][method] == nil {
+				index.paramOpRefs[pathItemNode.Value][method] = make(map[string]*Reference)
+			}
+
+			// if this is a duplicate, add an error and ignore it
+			if index.paramOpRefs[pathItemNode.Value][method][ref.Name] != nil {
+				path := fmt.Sprintf("$.paths.%s.%s.parameters[%d]", pathItemNode.Value, method, i)
+				if method == "top" {
+					path = fmt.Sprintf("$.paths.%s.parameters[%d]", pathItemNode.Value, i)
+				}
+
+				index.operationParamErrors = append(index.operationParamErrors, &IndexingError{
+					Error: fmt.Errorf("the '%s' operation parameter at path '%s', index %d has a duplicate name '%s'",
+						method, pathItemNode.Value, i, vn.Value),
+					Node: param,
+					Path: path,
+				})
+			} else {
+				index.paramOpRefs[pathItemNode.Value][method][ref.Name] = ref
+			}
 			continue
 		}
 	}

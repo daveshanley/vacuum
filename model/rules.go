@@ -99,6 +99,7 @@ type RuleFunctionContext struct {
 	Rule       *Rule
 	Given      interface{} // path/s being used by rule.
 	Options    interface{}
+	Index      *SpecIndex
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule

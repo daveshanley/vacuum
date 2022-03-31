@@ -71,7 +71,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// add operation tag defined rule
 	rules["path-params"] = GetPathParamsRule()
 
-	// contact-properties
+	//// contact-properties
 	rules["contact-properties"] = GetContactPropertiesRule()
 
 	// info object: contains contact
@@ -95,7 +95,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check operation tags exist correctly
 	rules["operation-tags"] = GetOperationTagsRule()
 
-	// check all operations have a description, and they match a set length.
+	//check all operations have a description, and they match a set length.
 	rules["operation-description"] = GetOperationDescriptionRule()
 
 	// check all components have a description, and they match a set length.
@@ -117,20 +117,20 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["tag-description"] = GetTagDescriptionRequiredRule()
 
 	// add no $ref siblings
-	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
+	//rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
 
-	// add unused component rule for openapi3
-	rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
-
-	// TODO: build in spec types so we don't run this twice :)
-	//rules["oas2-unused-definition"] = unusedComponentRule
-
-	// security for versions 2 and 3.
-	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
-	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
-
-	// check all examples
-	rules["oas-3valid-schema-example"] = GetExamplesRule()
+	//// add unused component rule for openapi3
+	//rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
+	//
+	//// TODO: build in spec types so we don't run this twice :)
+	////rules["oas2-unused-definition"] = unusedComponentRule
+	//
+	//// security for versions 2 and 3.
+	//rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
+	//rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
+	//
+	//// check all examples
+	//rules["oas-3valid-schema-example"] = GetExamplesRule()
 
 	// check enums respect specified types
 	// TODO: Slow
