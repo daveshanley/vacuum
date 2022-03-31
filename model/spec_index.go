@@ -801,8 +801,7 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 		for mName, mValue := range params {
 			for pName, pValue := range mValue {
 				if !strings.HasPrefix(pName, "#") {
-					k := fmt.Sprintf("%s:::%s:::%s", path, mName, pName)
-					index.paramInlineDuplicates[k] = append(index.paramInlineDuplicates[k], pValue)
+					index.paramInlineDuplicates[pName] = append(index.paramInlineDuplicates[pName], pValue)
 					index.paramAllRefs[fmt.Sprintf("%s:::%s", path, mName)] = pValue
 				}
 			}
