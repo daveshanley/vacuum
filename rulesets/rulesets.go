@@ -55,7 +55,6 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	rules := make(map[string]*model.Rule)
 
-	///*
 	// add success response
 	rules["operation-success-response"] = GetOperationSuccessResponseRule()
 
@@ -116,21 +115,21 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check tags have a description defined
 	rules["tag-description"] = GetTagDescriptionRequiredRule()
 
-	// add no $ref siblings
-	//rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
+	//add no $ref siblings
+	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
 
-	//// add unused component rule for openapi3
-	//rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
-	//
+	// add unused component rule for openapi3
+	rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
+
 	//// TODO: build in spec types so we don't run this twice :)
 	////rules["oas2-unused-definition"] = unusedComponentRule
-	//
+
 	//// security for versions 2 and 3.
-	//rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
-	//rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
-	//
-	//// check all examples
-	//rules["oas-3valid-schema-example"] = GetExamplesRule()
+	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
+	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
+
+	// check all examples
+	//rules["oas3-valid-schema-example"] = GetExamplesRule()
 
 	// check enums respect specified types
 	// TODO: Slow

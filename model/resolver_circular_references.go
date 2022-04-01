@@ -19,6 +19,7 @@ type Reference struct {
 	Resolved   bool
 	Circular   bool
 	Seen       bool
+	Path       string // this won't always be available.
 }
 
 // CircularReferenceResult contains a circular reference found when traversing the graph.

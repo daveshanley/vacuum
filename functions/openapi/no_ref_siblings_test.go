@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -38,10 +39,13 @@ func TestNoRefSiblings_RunRule_Fail(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -64,10 +68,14 @@ func TestNoRefSiblings_RunRule_Components(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -90,10 +98,14 @@ func TestNoRefSiblings_RunRule_Parameters(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -116,10 +128,14 @@ func TestNoRefSiblings_RunRule_Definitions(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -146,10 +162,14 @@ func TestNoRefSiblings_RunRule_Success(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -177,10 +197,14 @@ func TestNoRefSiblings_RunRule_Fail_Single(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+	
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)

@@ -38,6 +38,9 @@ func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.Ru
 		return nil
 	}
 
+	// TODO: this needs to be refactored to use the index. It's quite performant however, so until it's time to
+	// start shaving off more ms, this can stay as is.
+
 	var schemesPath string
 	if context.Options == nil {
 		return results
