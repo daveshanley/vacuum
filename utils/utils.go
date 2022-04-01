@@ -475,6 +475,14 @@ func ConvertComponentIdIntoFriendlyPathSearch(id string) (string, string) {
 		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
 }
 
+func ConvertComponentIdIntoPath(id string) (string, string) {
+	segs := strings.Split(id, "/")
+	name := segs[len(segs)-1]
+
+	return name, strings.ReplaceAll(fmt.Sprintf("%s.%s",
+		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
+}
+
 //func parseVersionTypeData(d interface{}) string {
 //	switch d.(type) {
 //	case int:

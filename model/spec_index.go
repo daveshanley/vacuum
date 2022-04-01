@@ -38,7 +38,7 @@ type SpecIndex struct {
 	callbackRefs                        map[string]*Reference                       // top level callback refs
 	polymorphicRefs                     map[string]*Reference                       // every reference to 'allOf' references
 	externalDocumentsRef                []*Reference                                // all external documents in spec
-	allSchemas                          map[string]*Reference                       // all schemas
+	refsWithSiblings                    map[string]*Reference                       // references with sibling elements next to them.
 	pathRefsLock                        sync.Mutex                                  // create lock for all refs maps, we want to build data as fast as we can
 	externalDocumentsCount              int                                         // number of externalDocument nodes found
 	operationTagsCount                  int                                         // number of unique tags in operations
@@ -64,15 +64,26 @@ type SpecIndex struct {
 	tagsNode                            *yaml.Node                                  // tags node
 	componentsNode                      *yaml.Node                                  // components node
 	parametersNode                      *yaml.Node                                  // components/parameters node
+	allParametersNode                   map[string]*Reference                       // all parameters node
+	allParameters                       map[string]*Reference                       // all parameters (components/defs)
 	schemasNode                         *yaml.Node                                  // components/schemas node
+	allSchemas                          map[string]*Reference                       // all schemas
 	securitySchemesNode                 *yaml.Node                                  // components/securitySchemes node
+	allSecuritySchemes                  map[string]*Reference                       // all security schemes / definitions.
 	requestBodiesNode                   *yaml.Node                                  // components/requestBodies node
+	allRequestBodies                    map[string]*Reference                       // all request bodies
 	responsesNode                       *yaml.Node                                  // components/responses node
+	allResponses                        map[string]*Reference                       // all responses
 	headersNode                         *yaml.Node                                  // components/headers node
+	allHeaders                          map[string]*Reference                       // all headers
 	examplesNode                        *yaml.Node                                  // components/examples node
+	allExamples                         map[string]*Reference                       // all components examples
 	linksNode                           *yaml.Node                                  // components/links node
+	allLinks                            map[string]*Reference                       // all links
 	callbacksNode                       *yaml.Node                                  // components/callbacks node
+	allCallbacks                        map[string]*Reference                       // all components examples
 	externalDocumentsNode               *yaml.Node                                  // external documents node
+	allExtrernalDocuments               map[string]*Reference                       // all external documents
 	externalSpecIndex                   map[string]*SpecIndex                       // create a primary index of all external specs and componentIds
 	refErrors                           []*IndexingError                            // errors when indexing references
 	operationParamErrors                []*IndexingError                            // errors when indexing parameters
@@ -124,7 +135,17 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.callbackRefs = make(map[string]*Reference)
 	index.externalSpecIndex = make(map[string]*SpecIndex)
 	index.allSchemas = make(map[string]*Reference)
+	index.allParameters = make(map[string]*Reference)
+	index.allSecuritySchemes = make(map[string]*Reference)
+	index.allRequestBodies = make(map[string]*Reference)
+	index.allResponses = make(map[string]*Reference)
+	index.allHeaders = make(map[string]*Reference)
+	index.allExamples = make(map[string]*Reference)
+	index.allLinks = make(map[string]*Reference)
+	index.allCallbacks = make(map[string]*Reference)
+	index.allExtrernalDocuments = make(map[string]*Reference)
 	index.polymorphicRefs = make(map[string]*Reference)
+	index.refsWithSiblings = make(map[string]*Reference)
 
 	// there is no node! return an empty index.
 	if rootNode == nil {
@@ -231,9 +252,59 @@ func (index *SpecIndex) GetAllSchemas() map[string]*Reference {
 	return index.allSchemas
 }
 
+// GetAllSecuritySchemes will return all security schemes / definitions found in the document.
+func (index *SpecIndex) GetAllSecuritySchemes() map[string]*Reference {
+	return index.allSecuritySchemes
+}
+
+// GetAllHeaders will return all headers found in the document (under components)
+func (index *SpecIndex) GetAllHeaders() map[string]*Reference {
+	return index.allHeaders
+}
+
+// GetAllExamples will return all examples found in the document (under components)
+func (index *SpecIndex) GetAllExamples() map[string]*Reference {
+	return index.allExamples
+}
+
+// GetAllRequestBodies will return all requestBodies found in the document (under components)
+func (index *SpecIndex) GetAllRequestBodies() map[string]*Reference {
+	return index.allRequestBodies
+}
+
+// GetAllLinks will return all links found in the document (under components)
+func (index *SpecIndex) GetAllLinks() map[string]*Reference {
+	return index.allLinks
+}
+
+// GetAllParameters will return all parameters found in the document (under components)
+func (index *SpecIndex) GetAllParameters() map[string]*Reference {
+	return index.allParameters
+}
+
+// GetAllResponses will return all responses found in the document (under components)
+func (index *SpecIndex) GetAllResponses() map[string]*Reference {
+	return index.allResponses
+}
+
+// GetAllCallbacks will return all links found in the document (under components)
+func (index *SpecIndex) GetAllCallbacks() map[string]*Reference {
+	return index.allCallbacks
+}
+
 // GetInlineOperationDuplicateParameters will return a map of duplicates located in operation parameters.
 func (index *SpecIndex) GetInlineOperationDuplicateParameters() map[string][]*Reference {
 	return index.paramInlineDuplicates
+}
+
+// GetReferencesWithSiblings will return a map of all the references with sibling nodes (illegal)
+func (index *SpecIndex) GetReferencesWithSiblings() map[string]*Reference {
+	return index.refsWithSiblings
+}
+
+// GetAllReferences will return every reference found in the spec, after being de-duplicated.
+func (index *SpecIndex) GetAllReferences() map[string]*Reference {
+	return index.allRefs
 }
 
 // GetAllSequencedReferences will return every reference (in sequence) that was found (non-polymorphic)
@@ -310,10 +381,17 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 					Definition: value,
 					Name:       name,
 					Node:       node,
+					Path:       fmt.Sprintf("$.%s", strings.Join(seenPath, ".")),
 				}
 
 				// add to raw sequenced refs
 				index.rawSequencedRefs = append(index.rawSequencedRefs, ref)
+
+				// if this ref value has any siblings (node.Content is larger than two elements)
+				// then add to refs with siblings
+				if len(node.Content) > 2 {
+					index.refsWithSiblings[value] = ref
+				}
 
 				// if this is a polymorphic reference, we're going to leave it out
 				// allRefs (we don't ever want these resolved, so instead of polluting
@@ -579,14 +657,72 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 		if i%2 == 0 {
 			if n.Value == "components" {
 				_, schemasNode := utils.FindKeyNode("schemas", index.root.Content[0].Content[i+1].Content)
+
+				// while we are here, go ahead and extract everything in components.
+				_, parametersNode := utils.FindKeyNode("parameters", index.root.Content[0].Content[i+1].Content)
+				_, requestBodiesNode := utils.FindKeyNode("requestBodies", index.root.Content[0].Content[i+1].Content)
+				_, responsesNode := utils.FindKeyNode("responses", index.root.Content[0].Content[i+1].Content)
+				_, securitySchemesNode := utils.FindKeyNode("securitySchemes", index.root.Content[0].Content[i+1].Content)
+				_, headersNode := utils.FindKeyNode("headers", index.root.Content[0].Content[i+1].Content)
+				_, examplesNode := utils.FindKeyNode("examples", index.root.Content[0].Content[i+1].Content)
+				_, linksNode := utils.FindKeyNode("links", index.root.Content[0].Content[i+1].Content)
+				_, callbacksNode := utils.FindKeyNode("callbacks", index.root.Content[0].Content[i+1].Content)
+
+				// extract schemas
 				if schemasNode != nil {
-
-					// extract schemas
 					index.extractDefinitionsAndSchemas(schemasNode, "#/components/schemas/")
-
 					index.schemasNode = schemasNode
 					index.schemaCount = len(schemasNode.Content) / 2
 				}
+
+				// extract parameters
+				if parametersNode != nil {
+					index.extractComponentParameters(parametersNode, "#/components/parameters/")
+					index.parametersNode = parametersNode
+				}
+
+				// extract requestBodies
+				if requestBodiesNode != nil {
+					index.extractComponentRequestBodies(requestBodiesNode, "#/components/requestBodies/")
+					index.requestBodiesNode = requestBodiesNode
+				}
+
+				// extract responses
+				if responsesNode != nil {
+					index.extractComponentResponses(responsesNode, "#/components/responses/")
+					index.responsesNode = responsesNode
+				}
+
+				// extract requestBodies
+				if securitySchemesNode != nil {
+					index.extractComponentSecuritySchemes(securitySchemesNode, "#/components/securitySchemes/")
+					index.securitySchemesNode = securitySchemesNode
+				}
+
+				// extract headers
+				if headersNode != nil {
+					index.extractComponentHeaders(headersNode, "#/components/headers/")
+					index.headersNode = headersNode
+				}
+
+				// extract examples
+				if examplesNode != nil {
+					index.extractComponentExamples(examplesNode, "#/components/examples/")
+					index.examplesNode = examplesNode
+				}
+
+				// extract links
+				if linksNode != nil {
+					index.extractComponentLinks(linksNode, "#/components/links/")
+					index.linksNode = linksNode
+				}
+
+				// extract callbacks
+				if callbacksNode != nil {
+					index.extractComponentCallbacks(callbacksNode, "#/components/callbacks/")
+					index.callbacksNode = callbacksNode
+				}
+
 			}
 
 			if n.Value == "definitions" {
@@ -599,28 +735,40 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 					index.schemaCount = len(schemasNode.Content) / 2
 				}
 			}
+
+			if n.Value == "parameters" {
+				parametersNode := index.root.Content[0].Content[i+1]
+				if parametersNode != nil {
+
+					// extract params
+					index.extractComponentParameters(parametersNode, "#/parameters/")
+					index.parametersNode = parametersNode
+				}
+			}
+
+			if n.Value == "responses" {
+				responsesNode := index.root.Content[0].Content[i+1]
+				if responsesNode != nil {
+
+					// extract responses
+					index.extractComponentResponses(responsesNode, "#/responses/")
+					index.responsesNode = responsesNode
+				}
+			}
+
+			if n.Value == "securityDefinitions" {
+				securityDefinitionsNode := index.root.Content[0].Content[i+1]
+				if securityDefinitionsNode != nil {
+
+					// extract security definitions.
+					index.extractComponentSecuritySchemes(securityDefinitionsNode, "#/securityDefinitions/")
+					index.securitySchemesNode = securityDefinitionsNode
+				}
+			}
+
 		}
 	}
 	return index.schemaCount
-}
-
-func (index *SpecIndex) extractDefinitionsAndSchemas(schemasNode *yaml.Node, pathPrefix string) {
-
-	var name string
-	for i, schema := range schemasNode.Content {
-		if i%2 == 0 {
-			name = schema.Value
-			continue
-		}
-		def := fmt.Sprintf("%s%s", pathPrefix, name)
-		ref := &Reference{
-			Definition: def,
-			Name:       name,
-			Node:       schema,
-		}
-		index.allSchemas[def] = ref
-	}
-
 }
 
 // GetComponentParameterCount returns the number of parameter components defined
@@ -887,6 +1035,159 @@ func (index *SpecIndex) FindComponent(componentId string, parent *yaml.Node) *Re
 }
 
 /* private */
+
+func (index *SpecIndex) extractDefinitionsAndSchemas(schemasNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, schema := range schemasNode.Content {
+		if i%2 == 0 {
+			name = schema.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       schema,
+		}
+		index.allSchemas[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentParameters(paramsNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, param := range paramsNode.Content {
+		if i%2 == 0 {
+			name = param.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       param,
+		}
+		index.allParameters[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentRequestBodies(requestBodiesNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, reqBod := range requestBodiesNode.Content {
+		if i%2 == 0 {
+			name = reqBod.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       reqBod,
+		}
+		index.allRequestBodies[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentResponses(responsesNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, response := range responsesNode.Content {
+		if i%2 == 0 {
+			name = response.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       response,
+		}
+		index.allResponses[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentHeaders(headersNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, header := range headersNode.Content {
+		if i%2 == 0 {
+			name = header.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       header,
+		}
+		index.allHeaders[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentCallbacks(callbacksNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, callback := range callbacksNode.Content {
+		if i%2 == 0 {
+			name = callback.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       callback,
+		}
+		index.allCallbacks[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentLinks(linksNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, link := range linksNode.Content {
+		if i%2 == 0 {
+			name = link.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       link,
+		}
+		index.allLinks[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentExamples(examplesNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, example := range examplesNode.Content {
+		if i%2 == 0 {
+			name = example.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       example,
+		}
+		index.allExamples[def] = ref
+	}
+}
+
+func (index *SpecIndex) extractComponentSecuritySchemes(securitySchemesNode *yaml.Node, pathPrefix string) {
+	var name string
+	for i, secScheme := range securitySchemesNode.Content {
+		if i%2 == 0 {
+			name = secScheme.Value
+			continue
+		}
+		def := fmt.Sprintf("%s%s", pathPrefix, name)
+		ref := &Reference{
+			Definition: def,
+			Name:       name,
+			Node:       secScheme,
+		}
+		index.allSecuritySchemes[def] = ref
+	}
+}
 
 func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 	lookupFunction ExternalLookupFunction, parent *yaml.Node) *Reference {
