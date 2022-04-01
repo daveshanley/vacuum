@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -45,10 +46,14 @@ components:
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := UnusedComponent{}
 	res := def.RunRule(nodes, ctx)
@@ -85,15 +90,19 @@ components:
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := UnusedComponent{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 4)
+	assert.Len(t, res, 2)
 }
 
 func TestUnusedComponent_RunRule_Success_Fail_Four_Undefined(t *testing.T) {
@@ -136,11 +145,15 @@ components:
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-
+	ctx.Index = model.NewSpecIndex(&rootNode)
+	
 	def := UnusedComponent{}
 	res := def.RunRule(nodes, ctx)
 
