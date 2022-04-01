@@ -129,7 +129,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
 	// check all examples
-	//rules["oas3-valid-schema-example"] = GetExamplesRule()
+	rules["oas3-valid-schema-example"] = GetExamplesRule()
 
 	// check enums respect specified types
 	// TODO: Slow

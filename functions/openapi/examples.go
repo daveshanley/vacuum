@@ -8,7 +8,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -33,91 +32,94 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	var results = &[]model.RuleFunctionResult{}
 
-	// check operations first.
-	ops := GetOperationsFromRoot(nodes)
+	ops := context.Index.GetPathsNode()
 
 	var opPath, opMethod string
-	for i, op := range ops {
-		if i%2 == 0 {
-			opPath = op.Value
-			continue
-		}
-
-		for m, method := range op.Content {
-
-			if m%2 == 0 {
-				opMethod = method.Value
+	if ops != nil {
+		for i, op := range ops.Content {
+			if i%2 == 0 {
+				opPath = op.Value
 				continue
 			}
 
-			basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
+			for m, method := range op.Content {
 
-			// check requests.
-			_, rbNode := utils.FindKeyNode("requestBody", method.Content)
-			if rbNode != nil {
-				results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results, context)
-			}
+				if m%2 == 0 {
+					opMethod = method.Value
+					continue
+				}
 
-			// check parameters.
-			_, paramsNode := utils.FindFirstKeyNode("parameters", method.Content, 0)
-			if paramsNode != nil && utils.IsNodeArray(paramsNode) {
+				basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
 
-				for y, param := range paramsNode.Content {
+				// check requests.
+				_, rbNode := utils.FindKeyNode("requestBody", method.Content)
 
-					// extract name from param
-					_, nameNode := utils.FindFirstKeyNode("name", []*yaml.Node{param}, 0)
-					if nameNode != nil {
-						results = analyzeExample(nameNode.Value, param,
-							utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results, context)
+				// check responses
+				_, respNode := utils.FindKeyNode("responses", method.Content)
+
+				if rbNode != nil {
+					results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results, context)
+				}
+
+				// check parameters.
+				_, paramsNode := utils.FindKeyNode("parameters", method.Content)
+				if paramsNode != nil && utils.IsNodeArray(paramsNode) {
+
+					for y, param := range paramsNode.Content {
+
+						// extract name from param
+						_, nameNode := utils.FindKeyNode("name", []*yaml.Node{param})
+						if nameNode != nil {
+							results = analyzeExample(nameNode.Value, param,
+								utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results, context)
+						}
 					}
 				}
-			}
 
-			// check responses
-			_, respNode := utils.FindFirstKeyNode("responses", method.Content, 0)
-
-			// for each response code, check examples.
-			if respNode != nil {
-				var code string
-				for x, respCodeNode := range respNode.Content {
-					if x%2 == 0 {
-						code = respCodeNode.Value
-						continue
+				// for each response code, check examples.
+				if respNode != nil {
+					var code string
+					for x, respCodeNode := range respNode.Content {
+						if x%2 == 0 {
+							code = respCodeNode.Value
+							continue
+						}
+						results = checkExamples(respCodeNode, utils.BuildPath(basePath, []string{fmt.Sprintf("%s.%s",
+							"responses", code)}), results, context)
 					}
-					results = checkExamples(respCodeNode, utils.BuildPath(basePath, []string{fmt.Sprintf("%s.%s",
-						"responses", code)}), results, context)
 				}
 			}
 		}
 	}
 
 	// check components.
-	componentsPathString := "$.components.schemas"
-	path, _ := yamlpath.NewPath(componentsPathString)
-	objNode, _ := path.Find(nodes[0])
+	objNode := context.Index.GetSchemasNode()
 
-	results = checkAllDefinitionsForExamples(objNode, results, componentsPathString, context)
+	//TODO: run a seperate path if we're using swagger! ($.definitions)
+	results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.components.schemas", context)
 
-	// check definitions (swagger)
-	defPathString := "$.definitions"
-	path, _ = yamlpath.NewPath(defPathString)
-	objNode, _ = path.Find(nodes[0])
+	/*
+		// check definitions (swagger)
+		defPathString := "$.definitions"
+		path, _ = yamlpath.NewPath(defPathString)
+		objNode, _ = path.Find(nodes[0])
 
-	results = checkAllDefinitionsForExamples(objNode, results, defPathString, context)
+		results = checkAllDefinitionsForExamples(objNode, results, defPathString, context)
+
+	*/
 
 	// check parameters
+
 	componentParamPath := "$.components.parameters"
-	path, _ = yamlpath.NewPath(componentParamPath)
-	paramsNode, _ := path.Find(nodes[0])
+	paramsNode := context.Index.GetParametersNode()
 
-	if paramsNode != nil && len(paramsNode) == 1 && utils.IsNodeArray(paramsNode[0]) {
+	if paramsNode != nil && utils.IsNodeArray(paramsNode) {
 
-		for x, param := range paramsNode {
+		for x, param := range paramsNode.Content {
 
 			// extract name from param
-			_, nameNode := utils.FindFirstKeyNode("name", []*yaml.Node{param}, 0)
+			_, nameNode := utils.FindKeyNode("name", []*yaml.Node{param})
 			if nameNode != nil {
-
 				results = analyzeExample(nameNode.Value, param,
 					utils.BuildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results, context)
 			}
@@ -194,6 +196,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 					// so there is an example, lets validate it.
 					schema, _ := parser.ConvertNodeDefinitionIntoSchema(prop)
+
 					var res *gojsonschema.Result
 					if schema != nil && schema.Type != nil && *schema.Type == "array" && exValue != nil {
 						res, _ = parser.ValidateNodeAgainstSchema(schema, exValue, true)
@@ -221,39 +224,41 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 							*results = append(*results, z)
 						}
 					}
-
 				}
-
 				continue
 			}
-
 		}
 	} else {
+
 		// we have an object level example here, so let's convert our properties into a schema and validate
 		// this example against the schema.
-		schema, _ := parser.ConvertNodeDefinitionIntoSchema(componentNode)
+		// don't start chasing polymorphic nodes. Converting the schema could end up in an endless loop.
+		if !utils.IsNodePolyMorphic(componentNode) {
 
-		var res *gojsonschema.Result
-		var errorResults []gojsonschema.ResultError
-		if topExValue != nil {
-			res, _ = parser.ValidateNodeAgainstSchema(schema, topExValue, false)
+			schema, _ := parser.ConvertNodeDefinitionIntoSchema(componentNode)
+
+			var res *gojsonschema.Result
+			var errorResults []gojsonschema.ResultError
+			if topExValue != nil {
+				res, _ = parser.ValidateNodeAgainstSchema(schema, topExValue, false)
+			}
+			if res != nil && len(res.Errors()) > 0 {
+				errorResults = res.Errors()
+			}
+
+			// extract all validation errors.
+			for _, resError := range errorResults {
+
+				z := model.BuildFunctionResultString(fmt.Sprintf("Example for component '%s' is not valid: '%s'. "+
+					"Value '%s' is not compatible", compName, resError.Description(), resError.Value()))
+				z.StartNode = topExKey
+				z.EndNode = topExValue.Content[len(topExValue.Content)-1]
+				z.Rule = context.Rule
+				*results = append(*results, z)
+			}
 		}
-		if res != nil && len(res.Errors()) > 0 {
-			errorResults = res.Errors()
-		}
-
-		// extract all validation errors.
-		for _, resError := range errorResults {
-
-			z := model.BuildFunctionResultString(fmt.Sprintf("Example for component '%s' is not valid: '%s'. "+
-				"Value '%s' is not compatible", compName, resError.Description(), resError.Value()))
-			z.StartNode = topExKey
-			z.EndNode = topExValue.Content[len(topExValue.Content)-1]
-			z.Rule = context.Rule
-			*results = append(*results, z)
-		}
-
 	}
+
 	return results
 }
 
@@ -276,6 +281,7 @@ func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunc
 					continue
 				}
 				nameNodeValue = nameValueNode.Value
+
 				results = analyzeExample(nameNodeValue, mediaTypeNode.Content[b+1], basePath, results, context)
 			}
 		}
@@ -283,20 +289,21 @@ func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunc
 	return results
 }
 
-func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
+func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 
-	_, sValue := utils.FindKeyNode("schema", nameNode.Content)
-	_, esValue := utils.FindKeyNode("examples", nameNode.Content)
-	_, eValue := utils.FindKeyNode("example", nameNode.Content)
+	_, sValue := utils.FindKeyNode("schema", mediaTypeNode.Content)
+	_, esValue := utils.FindKeyNode("examples", mediaTypeNode.Content)
+	_, eValue := utils.FindKeyNode("example", mediaTypeNode.Content)
 
-	_, eInternalValue := utils.FindFirstKeyNode("example", nameNode.Content, 0)
+	//_, eInternalValue := utils.FindFirstKeyNode("example", mediaTypeNode.Content, 0)
 
 	// if there are no examples, anywhere then add a result.
-	if sValue != nil && (esValue == nil && eValue == nil && eInternalValue == nil) {
+
+	if sValue != nil && (esValue == nil && eValue == nil) {
 		res := model.BuildFunctionResultString(fmt.Sprintf("Schema for '%s' does not "+
 			"contain any examples or example data", nameNodeValue))
 
-		res.StartNode = nameNode
+		res.StartNode = mediaTypeNode
 		res.EndNode = sValue
 		res.Path = basePath
 		res.Rule = context.Rule
@@ -319,8 +326,8 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 
 			nodePath := utils.BuildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName, "value"})
 
-			_, valueNode := utils.FindFirstKeyNode("value", []*yaml.Node{multiExampleNode}, 0)
-			//_, externalValueNode := utils.FindFirstKeyNode("externalValue", nameNode.Content, 0)
+			_, valueNode := utils.FindKeyNode("value", []*yaml.Node{multiExampleNode})
+			//_, externalValueNode := utils.FindFirstKeyNode("externalValue", mediaTypeNode.Content, 0)
 
 			if valueNode != nil {
 				// check if the example validates against the schema
@@ -344,7 +351,7 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 				}
 
 				// check if the example contains a summary
-				_, summaryNode := utils.FindFirstKeyNode("summary", []*yaml.Node{multiExampleNode}, 0)
+				_, summaryNode := utils.FindKeyNode("summary", []*yaml.Node{valueNode})
 				if summaryNode == nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' missing a 'summary', "+
 						"examples need explaining", exampleName))
@@ -414,16 +421,28 @@ func analyzeExample(nameNodeValue string, nameNode *yaml.Node, basePath string, 
 	}
 
 	//}
+	//
+	//// check if there are any example fields set, if so, validate schema.
 
-	// check if there are any example fields set, if so, validate schema.
-	ex := 0
+	ex := false
 	if sValue != nil {
-		p, _ := yamlpath.NewPath("$..example")
-		z, _ := p.Find(sValue)
-		ex = len(z)
+
+		_, propsNode := utils.FindKeyNode("properties", []*yaml.Node{sValue})
+
+		if propsNode != nil {
+			for n, prop := range propsNode.Content {
+				if n%2 != 0 {
+					_, exampleNode := utils.FindKeyNode("example", []*yaml.Node{prop})
+					if exampleNode != nil {
+						ex = true
+					}
+				}
+			}
+		}
 	}
-	if ex > 0 {
-		if schema == nil {
+	//fmt.Println(ex)
+	if ex {
+		if schema == nil && !utils.IsNodePolyMorphic(sValue) {
 			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
 		}
 		exampleValidation := parser.ValidateExample(schema)
