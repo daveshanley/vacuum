@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -32,6 +33,9 @@ func TestOperationDescription_CheckDescriptionMissing(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	opts := make(map[string]string)
@@ -39,6 +43,7 @@ func TestOperationDescription_CheckDescriptionMissing(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -56,6 +61,9 @@ func TestOperationDescription_CheckDescriptionTooShort(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	opts := make(map[string]string)
@@ -63,6 +71,7 @@ func TestOperationDescription_CheckDescriptionTooShort(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -86,6 +95,9 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	opts := make(map[string]string)
@@ -93,6 +105,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -117,6 +130,8 @@ func TestOperationDescription_CheckRequestBodyDescriptionMeetsLength(t *testing.
               type: string`
 
 	path := "$"
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -125,6 +140,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionMeetsLength(t *testing.
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -153,6 +169,9 @@ func TestOperationDescription_CheckResponsesDescriptionExist(t *testing.T) {
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	opts := make(map[string]string)
@@ -160,6 +179,7 @@ func TestOperationDescription_CheckResponsesDescriptionExist(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -189,6 +209,9 @@ func TestOperationDescription_CheckResponsesDescriptionLongEnough(t *testing.T) 
 
 	path := "$"
 
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	opts := make(map[string]string)
@@ -196,6 +219,7 @@ func TestOperationDescription_CheckResponsesDescriptionLongEnough(t *testing.T) 
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)

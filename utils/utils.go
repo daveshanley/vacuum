@@ -347,6 +347,18 @@ func IsNodeMap(node *yaml.Node) bool {
 	return node.Tag == "!!map"
 }
 
+// IsNodePolyMorphic will return true if the node contains polymorphic keys.
+func IsNodePolyMorphic(node *yaml.Node) bool {
+	for i, v := range node.Content {
+		if i%2 == 0 {
+			if v.Value == "anyOf" || v.Value == "oneOf" || v.Value == "allOf" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // IsNodeArray checks if a node is an array type
 func IsNodeArray(node *yaml.Node) bool {
 	if node == nil {

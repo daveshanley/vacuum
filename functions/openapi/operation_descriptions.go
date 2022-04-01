@@ -36,7 +36,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 	minWordsString := props["minWords"]
 	minWords, _ := strconv.Atoi(minWordsString)
 
-	ops := GetOperationsFromRoot(nodes)
+	ops := context.Index.GetPathsNode().Content
 
 	var opPath, opMethod string
 	for i, op := range ops {

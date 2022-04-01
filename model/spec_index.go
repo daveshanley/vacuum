@@ -19,74 +19,77 @@ import (
 // quick direct access to paths, operations, tags are all available. No need to walk the entire node tree in rules,
 // everything is pre-walked if you need it.
 type SpecIndex struct {
-	allRefs                             map[string]*Reference                       // all (deduplicated) refs
-	rawSequencedRefs                    []*Reference                                // all raw references in sequence as they are scanned, not deduped.
-	allMappedRefs                       map[string]*Reference                       // these are the located mapped refs
-	pathRefs                            map[string]map[string]*Reference            // all path references
-	paramOpRefs                         map[string]map[string]map[string]*Reference // params in operations.
-	paramCompRefs                       map[string]*Reference                       // params in components
-	paramAllRefs                        map[string]*Reference                       // combined components and ops
-	paramInlineDuplicates               map[string][]*Reference                     // inline params all with the same name
-	globalTagRefs                       map[string]*Reference                       // top level global tags
-	securitySchemeRefs                  map[string]*Reference                       // top level security schemes
-	requestBodiesRefs                   map[string]*Reference                       // top level request bodies
-	responsesRefs                       map[string]*Reference                       // top level responses
-	headersRefs                         map[string]*Reference                       // top level responses
-	examplesRefs                        map[string]*Reference                       // top level examples
-	linksRefs                           map[string]map[string][]*Reference          // all links
-	operationTagsRefs                   map[string]map[string][]*Reference          // tags found in operations
-	callbackRefs                        map[string]*Reference                       // top level callback refs
-	polymorphicRefs                     map[string]*Reference                       // every reference to 'allOf' references
-	externalDocumentsRef                []*Reference                                // all external documents in spec
-	refsWithSiblings                    map[string]*Reference                       // references with sibling elements next to them.
-	pathRefsLock                        sync.Mutex                                  // create lock for all refs maps, we want to build data as fast as we can
-	externalDocumentsCount              int                                         // number of externalDocument nodes found
-	operationTagsCount                  int                                         // number of unique tags in operations
-	globalTagsCount                     int                                         // number of global tags defined
-	totalTagsCount                      int                                         // number unique tags in spec
-	securitySchemesCount                int                                         // security schemes
-	globalRequestBodiesCount            int                                         // component request bodies
-	globalResponsesCount                int                                         // component responses
-	globalHeadersCount                  int                                         // component headers
-	globalExamplesCount                 int                                         // component examples
-	globalLinksCount                    int                                         // component links
-	globalCallbacks                     int                                         // component callbacks.
-	pathCount                           int                                         // number of paths
-	operationCount                      int                                         // number of operations
-	operationParamCount                 int                                         // number of params defined in operations
-	componentParamCount                 int                                         // number of params defined in components
-	componentsInlineParamUniqueCount    int                                         // number of inline params with unique names
-	componentsInlineParamDuplicateCount int                                         // number of inline params with duplicate names
-	schemaCount                         int                                         // number of schemas
-	refCount                            int                                         // total ref count
-	root                                *yaml.Node                                  // the root document
-	pathsNode                           *yaml.Node                                  // paths node
-	tagsNode                            *yaml.Node                                  // tags node
-	componentsNode                      *yaml.Node                                  // components node
-	parametersNode                      *yaml.Node                                  // components/parameters node
-	allParametersNode                   map[string]*Reference                       // all parameters node
-	allParameters                       map[string]*Reference                       // all parameters (components/defs)
-	schemasNode                         *yaml.Node                                  // components/schemas node
-	allSchemas                          map[string]*Reference                       // all schemas
-	securitySchemesNode                 *yaml.Node                                  // components/securitySchemes node
-	allSecuritySchemes                  map[string]*Reference                       // all security schemes / definitions.
-	requestBodiesNode                   *yaml.Node                                  // components/requestBodies node
-	allRequestBodies                    map[string]*Reference                       // all request bodies
-	responsesNode                       *yaml.Node                                  // components/responses node
-	allResponses                        map[string]*Reference                       // all responses
-	headersNode                         *yaml.Node                                  // components/headers node
-	allHeaders                          map[string]*Reference                       // all headers
-	examplesNode                        *yaml.Node                                  // components/examples node
-	allExamples                         map[string]*Reference                       // all components examples
-	linksNode                           *yaml.Node                                  // components/links node
-	allLinks                            map[string]*Reference                       // all links
-	callbacksNode                       *yaml.Node                                  // components/callbacks node
-	allCallbacks                        map[string]*Reference                       // all components examples
-	externalDocumentsNode               *yaml.Node                                  // external documents node
-	allExtrernalDocuments               map[string]*Reference                       // all external documents
-	externalSpecIndex                   map[string]*SpecIndex                       // create a primary index of all external specs and componentIds
-	refErrors                           []*IndexingError                            // errors when indexing references
-	operationParamErrors                []*IndexingError                            // errors when indexing parameters
+	allRefs               map[string]*Reference                       // all (deduplicated) refs
+	rawSequencedRefs      []*Reference                                // all raw references in sequence as they are scanned, not deduped.
+	allMappedRefs         map[string]*Reference                       // these are the located mapped refs
+	pathRefs              map[string]map[string]*Reference            // all path references
+	paramOpRefs           map[string]map[string]map[string]*Reference // params in operations.
+	paramCompRefs         map[string]*Reference                       // params in components
+	paramAllRefs          map[string]*Reference                       // combined components and ops
+	paramInlineDuplicates map[string][]*Reference                     // inline params all with the same name
+	globalTagRefs         map[string]*Reference                       // top level global tags
+	securitySchemeRefs    map[string]*Reference                       // top level security schemes
+	requestBodiesRefs     map[string]*Reference                       // top level request bodies
+	responsesRefs         map[string]*Reference                       // top level responses
+	headersRefs           map[string]*Reference                       // top level responses
+	examplesRefs          map[string]*Reference                       // top level examples
+	linksRefs             map[string]map[string][]*Reference          // all links
+	operationTagsRefs     map[string]map[string][]*Reference          // tags found in operations
+
+	//operationExamples                   map[string]map[string][]*Reference          // tags found in operations
+
+	callbackRefs                        map[string]*Reference // top level callback refs
+	polymorphicRefs                     map[string]*Reference // every reference to 'allOf' references
+	externalDocumentsRef                []*Reference          // all external documents in spec
+	refsWithSiblings                    map[string]*Reference // references with sibling elements next to them.
+	pathRefsLock                        sync.Mutex            // create lock for all refs maps, we want to build data as fast as we can
+	externalDocumentsCount              int                   // number of externalDocument nodes found
+	operationTagsCount                  int                   // number of unique tags in operations
+	globalTagsCount                     int                   // number of global tags defined
+	totalTagsCount                      int                   // number unique tags in spec
+	securitySchemesCount                int                   // security schemes
+	globalRequestBodiesCount            int                   // component request bodies
+	globalResponsesCount                int                   // component responses
+	globalHeadersCount                  int                   // component headers
+	globalExamplesCount                 int                   // component examples
+	globalLinksCount                    int                   // component links
+	globalCallbacks                     int                   // component callbacks.
+	pathCount                           int                   // number of paths
+	operationCount                      int                   // number of operations
+	operationParamCount                 int                   // number of params defined in operations
+	componentParamCount                 int                   // number of params defined in components
+	componentsInlineParamUniqueCount    int                   // number of inline params with unique names
+	componentsInlineParamDuplicateCount int                   // number of inline params with duplicate names
+	schemaCount                         int                   // number of schemas
+	refCount                            int                   // total ref count
+	root                                *yaml.Node            // the root document
+	pathsNode                           *yaml.Node            // paths node
+	tagsNode                            *yaml.Node            // tags node
+	componentsNode                      *yaml.Node            // components node
+	parametersNode                      *yaml.Node            // components/parameters node
+	allParametersNode                   map[string]*Reference // all parameters node
+	allParameters                       map[string]*Reference // all parameters (components/defs)
+	schemasNode                         *yaml.Node            // components/schemas node
+	allSchemas                          map[string]*Reference // all schemas
+	securitySchemesNode                 *yaml.Node            // components/securitySchemes node
+	allSecuritySchemes                  map[string]*Reference // all security schemes / definitions.
+	requestBodiesNode                   *yaml.Node            // components/requestBodies node
+	allRequestBodies                    map[string]*Reference // all request bodies
+	responsesNode                       *yaml.Node            // components/responses node
+	allResponses                        map[string]*Reference // all responses
+	headersNode                         *yaml.Node            // components/headers node
+	allHeaders                          map[string]*Reference // all headers
+	examplesNode                        *yaml.Node            // components/examples node
+	allExamples                         map[string]*Reference // all components examples
+	linksNode                           *yaml.Node            // components/links node
+	allLinks                            map[string]*Reference // all links
+	callbacksNode                       *yaml.Node            // components/callbacks node
+	allCallbacks                        map[string]*Reference // all components examples
+	externalDocumentsNode               *yaml.Node            // external documents node
+	allExtrernalDocuments               map[string]*Reference // all external documents
+	externalSpecIndex                   map[string]*SpecIndex // create a primary index of all external specs and componentIds
+	refErrors                           []*IndexingError      // errors when indexing references
+	operationParamErrors                []*IndexingError      // errors when indexing parameters
 }
 
 // ExternalLookupFunction is for lookup functions that take a JSONSchema reference and tries to find that node in the
