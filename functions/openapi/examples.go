@@ -147,6 +147,20 @@ func checkAllDefinitionsForExamples(objNode []*yaml.Node,
 	return results
 }
 
+// super lean DFS to check if example is circular.
+func miniCircCheck(node *yaml.Node, seen map[*yaml.Node]bool) bool {
+	if seen[node] {
+		return true
+	}
+	seen[node] = true
+	circ := false
+	for _, child := range node.Content {
+		circ = miniCircCheck(child, seen)
+	}
+	return circ
+
+}
+
 func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 	results *[]model.RuleFunctionResult, path string, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 
@@ -195,7 +209,14 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 				} else {
 
 					// so there is an example, lets validate it.
-					schema, _ := parser.ConvertNodeDefinitionIntoSchema(prop)
+					var schema *parser.Schema
+
+					// if this node is somehow circular, we won't be able to convert it into a schema.
+					if !miniCircCheck(prop, make(map[*yaml.Node]bool)) {
+						schema, _ = parser.ConvertNodeDefinitionIntoSchema(prop)
+					} else {
+						continue // no point moving on past here.
+					}
 
 					var res *gojsonschema.Result
 					if schema != nil && schema.Type != nil && *schema.Type == "array" && exValue != nil {
