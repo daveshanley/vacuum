@@ -129,6 +129,10 @@ func TestSpecIndex_PetstoreV3(t *testing.T) {
 	assert.Equal(t, 4, index.componentsInlineParamDuplicateCount)
 	assert.Equal(t, 5, index.componentsInlineParamUniqueCount)
 	assert.Equal(t, 3, index.GetTotalTagsCount())
+	assert.Equal(t, 90, index.GetAllDescriptionsCount())
+	assert.Equal(t, 19, index.GetAllSummariesCount())
+	assert.Len(t, index.GetAllDescriptions(), 90)
+	assert.Len(t, index.GetAllSummaries(), 19)
 
 }
 
@@ -161,7 +165,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 
 	assert.Equal(t, 2, index.globalTagsCount)
 	assert.Equal(t, 2, index.GetGlobalTagsCount())
-	assert.Equal(t, 2, index.GetTotalTagsCount())
+	assert.Equal(t, 3, index.GetTotalTagsCount())
 
 	assert.Equal(t, 2, index.operationTagsCount)
 	assert.Equal(t, 2, index.GetOperationTagsCount())
@@ -217,7 +221,7 @@ func TestSpecIndex_BurgerShopMixedRef(t *testing.T) {
 	assert.Equal(t, 5, index.GetOperationCount())
 	assert.Equal(t, 1, index.GetComponentSchemaCount())
 	assert.Equal(t, 2, index.GetGlobalTagsCount())
-	assert.Equal(t, 2, index.GetTotalTagsCount())
+	assert.Equal(t, 3, index.GetTotalTagsCount())
 	assert.Equal(t, 2, index.GetOperationTagsCount())
 	assert.Equal(t, 0, index.GetGlobalLinksCount())
 	assert.Equal(t, 0, index.GetComponentParameterCount())
@@ -238,7 +242,7 @@ func TestSpecIndex_TestEmptyBrokenReferences(t *testing.T) {
 	assert.Equal(t, 5, index.GetOperationCount())
 	assert.Equal(t, 5, index.GetComponentSchemaCount())
 	assert.Equal(t, 2, index.GetGlobalTagsCount())
-	assert.Equal(t, 2, index.GetTotalTagsCount())
+	assert.Equal(t, 3, index.GetTotalTagsCount())
 	assert.Equal(t, 2, index.GetOperationTagsCount())
 	assert.Equal(t, 2, index.GetGlobalLinksCount())
 	assert.Equal(t, 0, index.GetComponentParameterCount())
