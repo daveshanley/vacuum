@@ -64,6 +64,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasPathParam"] = openapi_functions.PathParameters{}
 		funcs["refSiblings"] = openapi_functions.NoRefSiblings{}
 		funcs["typedEnum"] = openapi_functions.TypedEnum{}
+		funcs["duplicatedEnum"] = openapi_functions.DuplicatedEnum{}
 		funcs["oasUnusedComponent"] = openapi_functions.UnusedComponent{}
 		funcs["oasExample"] = openapi_functions.Examples{}
 		funcs["oasSchema"] = core.Schema{} // can't see a reason to duplicate this yet.

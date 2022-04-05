@@ -487,24 +487,16 @@ func GetOperationSuccessResponseRule() *model.Rule {
 
 // GetDuplicatedEntryInEnumRule will check that enums used are not duplicates
 func GetDuplicatedEntryInEnumRule() *model.Rule {
-	duplicatedEnum := make(map[string]interface{})
-	duplicatedEnum["schema"] = parser.Schema{
-		Type:        &utils.ArrayLabel,
-		UniqueItems: true,
-	}
-
 	return &model.Rule{
 		Description:  "Enum values must not have duplicate entry",
-		Given:        "$..[?(@.enum)]",
-		Resolved:     true,
+		Given:        "$",
+		Resolved:     false,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Field:           "enum",
-			Function:        "oasSchema",
-			FunctionOptions: duplicatedEnum,
+			Function: "duplicatedEnum",
 		},
 	}
 }

@@ -8,18 +8,18 @@ import (
 	"testing"
 )
 
-func TestTypedEnum_GetSchema(t *testing.T) {
-	def := TypedEnum{}
-	assert.Equal(t, "typed_enum", def.GetSchema().Name)
+func TestDuplicatedEnum_GetSchema(t *testing.T) {
+	def := DuplicatedEnum{}
+	assert.Equal(t, "duplicated_enum", def.GetSchema().Name)
 }
 
-func TestTypedEnum_RunRule(t *testing.T) {
-	def := TypedEnum{}
+func TestDuplicatedEnum_RunRule(t *testing.T) {
+	def := DuplicatedEnum{}
 	res := def.RunRule(nil, model.RuleFunctionContext{})
 	assert.Len(t, res, 0)
 }
 
-func TestTypedEnum_RunRule_SuccessCheck(t *testing.T) {
+func TestDuplicatedEnum_RunRule_SuccessCheck(t *testing.T) {
 
 	yml := `paths:
   /pizza/:
@@ -49,17 +49,17 @@ components:
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "duplicated_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 
-	def := TypedEnum{}
+	def := DuplicatedEnum{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 0)
 }
 
-func TestTypedEnums_RunRule_ThreeValue_WrongType(t *testing.T) {
+func TestDuplicatedEnum_RunRule_DuplicationFail(t *testing.T) {
 
 	yml := `paths:
   /pizza/:
@@ -68,19 +68,19 @@ func TestTypedEnums_RunRule_ThreeValue_WrongType(t *testing.T) {
         name: party
         schema:
           type: string
-          enum: [big, 1]
+          enum: [big, small, big, huge, small]
   /cake/:
     parameters:
       - in: query
         name: icecream
         schema:
           type: string
-          enum: [0.2, little]        
+          enum: [little, little]        
 components:
   schemas:
     YesNo:
       type: string
-      enum: [yes, true]`
+      enum: [yes, no, yes, no]`
 
 	path := "$"
 
@@ -89,12 +89,12 @@ components:
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "duplicated_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 
-	def := TypedEnum{}
+	def := DuplicatedEnum{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 3)
+	assert.Len(t, res, 5)
 }

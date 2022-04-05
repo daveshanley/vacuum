@@ -278,6 +278,36 @@ func TestAreValuesCorrectlyTyped(t *testing.T) {
 
 }
 
+func TestCheckEnumForDuplicates_Success(t *testing.T) {
+
+	yml := "- yes\n- no\n- crisps"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.Len(t, CheckEnumForDuplicates(rootNode.Content[0].Content), 0)
+
+}
+
+func TestCheckEnumForDuplicates_Fail(t *testing.T) {
+
+	yml := "- yes\n- no\n- crisps\n- no"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.Len(t, CheckEnumForDuplicates(rootNode.Content[0].Content), 1)
+
+}
+
+func TestCheckEnumForDuplicates_FailMultiple(t *testing.T) {
+
+	yml := "- yes\n- no\n- crisps\n- no\n- rice\n- yes\n- no"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.Len(t, CheckEnumForDuplicates(rootNode.Content[0].Content), 3)
+
+}
+
 type dummyFunc struct {
 }
 
