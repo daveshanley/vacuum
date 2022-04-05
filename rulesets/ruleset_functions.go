@@ -115,11 +115,11 @@ func GetInfoLicenseUrlRule() *model.Rule {
 func GetNoEvalInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
-	fo["notMatch"] = "eval\\("
-	comp, _ := regexp.Compile(fo["notMatch"])
+	fo["pattern"] = "eval\\("
+	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
-		Description:  "Markdown descriptions must not have 'eval('",
+		Description:  "Markdown descriptions must not have 'eval()' statements'",
 		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
@@ -139,19 +139,19 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 func GetNoScriptTagsInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
-	fo["notMatch"] = "<script"
-	comp, _ := regexp.Compile(fo["notMatch"])
+	fo["pattern"] = "<script"
+	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
-		Description:  "Markdown descriptions must not contain '<script>' tags",
-		Given:        "$..description",
+		Description:  "Markdown descriptions must not have '<script>' tags'",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Function:        "pattern",
+			Function:        "noEvalDescription",
 			FunctionOptions: fo,
 		},
 		PrecomiledPattern: comp,

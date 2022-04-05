@@ -4,7 +4,9 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,6 +28,11 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 	var results []model.RuleFunctionResult
 
+	// check supplied type
+	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+
+	pattern := props["pattern"]
+
 	descriptions := context.Index.GetAllDescriptions()
 	compiledRegex := context.Rule.PrecomiledPattern
 
@@ -37,7 +44,7 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 			endNode := desc.Node
 
 			results = append(results, model.RuleFunctionResult{
-				Message:   "description contains an 'eval()' statement, forbidden",
+				Message:   fmt.Sprintf("description contains content with '%s', forbidden", pattern),
 				StartNode: startNode,
 				EndNode:   endNode,
 				Path:      desc.Path,
