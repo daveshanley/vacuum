@@ -135,12 +135,10 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["typed-enum"] = GetTypedEnumRule()
 
 	// check for duplication in enums
-	// TODO: SLOW
 	rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
 
 	// check no eval statements in markdown descriptions.
-	// TODO: SLOW
-	//rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
+	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
 
 	// check no script statements in markdown descriptions.
 	// TODO: SLOW

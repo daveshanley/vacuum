@@ -120,14 +120,14 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 
 	return &model.Rule{
 		Description:  "Markdown descriptions must not have 'eval('",
-		Given:        "$..description",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Function:        "pattern",
+			Function:        "noEvalDescription",
 			FunctionOptions: fo,
 		},
 		PrecomiledPattern: comp,

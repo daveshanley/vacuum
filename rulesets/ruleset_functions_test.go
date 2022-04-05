@@ -130,7 +130,7 @@ func TestRuleSet_NoEvalInMarkdown(t *testing.T) {
 
 	results, _ := motor.ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Markdown descriptions must not have 'eval(': matches the expression 'eval\\('", results[0].Message)
+	assert.Equal(t, "description contains an 'eval()' statement, forbidden", results[0].Message)
 
 }
 
