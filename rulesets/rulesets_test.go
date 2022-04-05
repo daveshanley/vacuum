@@ -15,6 +15,17 @@ func TestBuildDefaultRuleSets(t *testing.T) {
 
 }
 
+func TestPetstoreSpecAgainstDefaultRuleSet(t *testing.T) {
+
+	b, _ := ioutil.ReadFile("../model/test_files/petstorev3.json")
+	rs := BuildDefaultRuleSets()
+	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, results)
+
+}
+
 func TestStripeSpecAgainstDefaultRuleSet(t *testing.T) {
 
 	b, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")

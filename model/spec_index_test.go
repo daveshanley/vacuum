@@ -31,6 +31,8 @@ func TestSpecIndex_ExtractRefsStripe(t *testing.T) {
 	assert.Equal(t, 143, index.operationParamCount)
 	assert.Equal(t, 88, index.componentsInlineParamDuplicateCount)
 	assert.Equal(t, 55, index.componentsInlineParamUniqueCount)
+	assert.Equal(t, 1516, index.enumCount)
+	assert.Len(t, index.GetAllEnums(), 1516)
 
 }
 

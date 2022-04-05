@@ -391,7 +391,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 func GetTypedEnumRule() *model.Rule {
 	return &model.Rule{
 		Description:  "Enum values must respect the specified type",
-		Given:        "$..[?(@.enum && @.type)]",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],

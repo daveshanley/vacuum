@@ -196,8 +196,8 @@ func CheckForSchemaCircularReferences(searchPath string, rootNode *yaml.Node) ([
 					if problem != nil {
 						for _, p := range problem {
 							if !seenProblems[p.LoopPoint.Definition] {
-								seenProblems[p.LoopPoint.Definition] = true
 								circLock.Lock()
+								seenProblems[p.LoopPoint.Definition] = true
 								problems = append(problems, p)
 								circLock.Unlock()
 

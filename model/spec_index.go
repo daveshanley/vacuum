@@ -91,6 +91,8 @@ type SpecIndex struct {
 	operationParamErrors                []*IndexingError                            // errors when indexing parameters
 	allDescriptions                     []*DescriptionReference                     // every single description found in the spec.
 	allSummaries                        []*DescriptionReference                     // every single summary found in the spec.
+	allEnums                            []*EnumReference                            // every single enum found in the spec.
+	enumCount                           int
 	descriptionCount                    int
 	summaryCount                        int
 }
@@ -99,17 +101,25 @@ type SpecIndex struct {
 // URI based document. Decides if the reference is local, remote or in a file.
 type ExternalLookupFunction func(id string) (foundNode *yaml.Node, rootNode *yaml.Node, lookupError error)
 
+// IndexingError holds data about something that went wrong during indexing.
 type IndexingError struct {
 	Error error
 	Node  *yaml.Node
 	Path  string
 }
 
+// DescriptionReference holds data about a description that was found and where it was found.
 type DescriptionReference struct {
 	Content   string
 	Path      string
 	Node      *yaml.Node
 	IsSummary bool
+}
+
+type EnumReference struct {
+	Node *yaml.Node
+	Type *yaml.Node
+	Path string
 }
 
 var methodTypes = []string{"get", "post", "put", "patch", "options", "head", "delete"}
@@ -201,8 +211,8 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 
 	// these have final calculation dependencies
 	index.GetInlineDuplicateParamCount()
-	index.GetTotalTagsCount()
 	index.GetAllDescriptionsCount()
+	index.GetTotalTagsCount()
 
 	return index
 }
@@ -286,6 +296,11 @@ func (index *SpecIndex) GetAllExamples() map[string]*Reference {
 // GetAllDescriptions will return all descriptions found in the document
 func (index *SpecIndex) GetAllDescriptions() []*DescriptionReference {
 	return index.allDescriptions
+}
+
+// GetAllEnums will return all enums found in the document
+func (index *SpecIndex) GetAllEnums() []*EnumReference {
+	return index.allEnums
 }
 
 // GetAllSummaries will return all summaries found in the document
@@ -454,11 +469,13 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 
 			if i%2 == 0 && n.Value != "$ref" && n.Value != "" {
 
+				nodePath := fmt.Sprintf("$.%s", strings.Join(seenPath, "."))
+
 				// capture descriptions and summaries
 				if n.Value == "description" {
 					ref := &DescriptionReference{
 						Content:   node.Content[i+1].Value,
-						Path:      fmt.Sprintf("$.%s", strings.Join(seenPath, ".")),
+						Path:      nodePath,
 						Node:      node.Content[i+1],
 						IsSummary: false,
 					}
@@ -470,13 +487,31 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 				if n.Value == "summary" {
 					ref := &DescriptionReference{
 						Content:   node.Content[i+1].Value,
-						Path:      fmt.Sprintf("$.%s", strings.Join(seenPath, ".")),
+						Path:      nodePath,
 						Node:      node.Content[i+1],
 						IsSummary: true,
 					}
 
 					index.allSummaries = append(index.allSummaries, ref)
 					index.summaryCount++
+				}
+
+				// capture enums
+				if n.Value == "enum" {
+
+					// all enums need to have a type, extract the type from the node where the enum was found.
+					_, enumKeyValueNode := utils.FindKeyNode("type", node.Content)
+
+					if enumKeyValueNode != nil {
+						ref := &EnumReference{
+							Path: nodePath,
+							Node: node.Content[i+1],
+							Type: enumKeyValueNode,
+						}
+
+						index.allEnums = append(index.allEnums, ref)
+						index.enumCount++
+					}
 				}
 
 				seenPath = append(seenPath, n.Value)
@@ -581,13 +616,19 @@ func (index *SpecIndex) GetGlobalTagsCount() int {
 						_, name := utils.FindKeyNode("name", tagNode.Content)
 						_, description := utils.FindKeyNode("description", tagNode.Content)
 
-						ref := &Reference{
-							Definition: description.Value,
-							Name:       name.Value,
-							Node:       tagNode,
-							Path:       fmt.Sprintf("$.tags[%d]", x),
+						var desc string
+						if description == nil {
+							desc = ""
 						}
-						index.globalTagRefs[name.Value] = ref
+						if name != nil {
+							ref := &Reference{
+								Definition: desc,
+								Name:       name.Value,
+								Node:       tagNode,
+								Path:       fmt.Sprintf("$.tags[%d]", x),
+							}
+							index.globalTagRefs[name.Value] = ref
+						}
 					}
 				}
 			}
