@@ -150,7 +150,7 @@ func (p Pattern) getPatternFromCache(pattern string, rule *model.Rule) (*regexp.
 	var rx *regexp.Regexp
 	var err error
 
-	// if we're using an built-in rule, we should have already compiled this.
+	// if we're using a built-in rule, we should have already compiled this.
 	if rule.PrecomiledPattern != nil {
 		rx = rule.PrecomiledPattern
 	} else {

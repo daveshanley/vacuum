@@ -115,19 +115,19 @@ func GetInfoLicenseUrlRule() *model.Rule {
 func GetNoEvalInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
-	fo["notMatch"] = "eval\\("
-	comp, _ := regexp.Compile(fo["notMatch"])
+	fo["pattern"] = "eval\\("
+	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
-		Description:  "Markdown descriptions must not have 'eval('",
-		Given:        "$..description",
+		Description:  "Markdown descriptions must not have 'eval()' statements'",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Function:        "pattern",
+			Function:        "noEvalDescription",
 			FunctionOptions: fo,
 		},
 		PrecomiledPattern: comp,
@@ -139,19 +139,19 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 func GetNoScriptTagsInMarkdownRule() *model.Rule {
 
 	fo := make(map[string]string)
-	fo["notMatch"] = "<script"
-	comp, _ := regexp.Compile(fo["notMatch"])
+	fo["pattern"] = "<script"
+	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
-		Description:  "Markdown descriptions must not contain '<script>' tags",
-		Given:        "$..description",
+		Description:  "Markdown descriptions must not have '<script>' tags'",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Function:        "pattern",
+			Function:        "noEvalDescription",
 			FunctionOptions: fo,
 		},
 		PrecomiledPattern: comp,
@@ -391,7 +391,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 func GetTypedEnumRule() *model.Rule {
 	return &model.Rule{
 		Description:  "Enum values must respect the specified type",
-		Given:        "$..[?(@.enum && @.type)]",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
@@ -487,24 +487,16 @@ func GetOperationSuccessResponseRule() *model.Rule {
 
 // GetDuplicatedEntryInEnumRule will check that enums used are not duplicates
 func GetDuplicatedEntryInEnumRule() *model.Rule {
-	duplicatedEnum := make(map[string]interface{})
-	duplicatedEnum["schema"] = parser.Schema{
-		Type:        &utils.ArrayLabel,
-		UniqueItems: true,
-	}
-
 	return &model.Rule{
 		Description:  "Enum values must not have duplicate entry",
-		Given:        "$..[?(@.enum)]",
-		Resolved:     true,
+		Given:        "$",
+		Resolved:     false,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Field:           "enum",
-			Function:        "oasSchema",
-			FunctionOptions: duplicatedEnum,
+			Function: "duplicatedEnum",
 		},
 	}
 }

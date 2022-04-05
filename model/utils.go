@@ -263,6 +263,21 @@ func AreValuesCorrectlyTyped(valType string, values interface{}) map[string]stri
 	return results
 }
 
+// CheckEnumForDuplicates will check an array of nodes to check if there are any duplicates.
+func CheckEnumForDuplicates(seq []*yaml.Node) []*yaml.Node {
+	var res []*yaml.Node
+	seen := make(map[string]*yaml.Node)
+
+	for _, enum := range seq {
+		if seen[enum.Value] != nil {
+			res = append(res, enum)
+			continue
+		}
+		seen[enum.Value] = enum
+	}
+	return res
+}
+
 // MapPathAndNodesToResults will map the same start/end nodes with the same path.
 func MapPathAndNodesToResults(path string, startNode, endNode *yaml.Node, results []RuleFunctionResult) []RuleFunctionResult {
 	var mapped []RuleFunctionResult

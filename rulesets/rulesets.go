@@ -126,22 +126,19 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	//// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
-	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
+	//rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
 	// check all examples
 	rules["oas3-valid-schema-example"] = GetExamplesRule()
 
 	// check enums respect specified types
-	// TODO: Slow
-	//rules["typed-enum"] = GetTypedEnumRule()
+	rules["typed-enum"] = GetTypedEnumRule()
 
 	// check for duplication in enums
-	// TODO: SLOW
-	//rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
+	rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
 
 	// check no eval statements in markdown descriptions.
-	// TODO: SLOW
-	// rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
+	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
 
 	// check no script statements in markdown descriptions.
 	// TODO: SLOW
