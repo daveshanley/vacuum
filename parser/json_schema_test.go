@@ -52,3 +52,52 @@ func TestConvertNode_Simple(t *testing.T) {
 	assert.NoError(t, e)
 	assert.Equal(t, true, res.Valid())
 }
+
+func TestValidateExample_AllInvalid(t *testing.T) {
+
+	yml := `components:
+  schemas:
+    Citrus:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1234
+        name:
+          type: string
+          example: false
+    Savory:
+      type: object
+      properties:
+        tasteIndex:
+          type: integer
+          example: hello
+        butter:
+          type: boolean
+          example: 123.224
+        fridge:
+          type: number
+          example: false
+        cake:
+          type: string
+          example: 1233
+        pizza:
+          $ref: '#/components/schemas/Citrus'`
+
+	var node yaml.Node
+	yaml.Unmarshal([]byte(yml), &node)
+
+	index := model.NewSpecIndex(&node)
+
+	resolver := resolver.NewResolver(index)
+	resolver.Resolve()
+
+	p, _ := yamlpath.NewPath("$.components.schemas.Savory")
+	r, _ := p.Find(&node)
+
+	schema, _ := ConvertNodeDefinitionIntoSchema(r[0])
+
+	results := ValidateExample(schema)
+	assert.Len(t, results, 5)
+
+}

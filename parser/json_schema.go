@@ -7,7 +7,6 @@ import (
 	yamlAlt "github.com/ghodss/yaml"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
-	"strconv"
 )
 
 type Schema struct {
@@ -54,39 +53,59 @@ func ValidateExample(jc *Schema) []*ExampleValidation {
 	if len(jc.Properties) > 0 {
 		for propName, prop := range jc.Properties {
 			if prop.Type != nil && prop.Example != nil {
-				if propExample, ok := prop.Example.(string); ok {
-					switch *prop.Type {
-					case utils.IntegerLabel:
-						_, e := strconv.Atoi(propExample)
-						if e != nil {
-							examples = append(examples, &ExampleValidation{
-								Message: fmt.Sprintf("example value '%s' in '%s' is not a valid %s", propExample,
-									propName, utils.IntegerLabel),
-							})
-						}
-					case utils.NumberLabel:
-						_, e := strconv.ParseFloat(propExample, 64)
-						if e != nil {
-							examples = append(examples, &ExampleValidation{
-								Message: fmt.Sprintf("example value '%s' in '%s' is not a valid %s", prop.Example,
-									propName, utils.NumberLabel),
-							})
-						}
-					case utils.BooleanLabel:
-						_, e := strconv.ParseBool(propExample)
-						if e != nil {
-							examples = append(examples, &ExampleValidation{
-								Message: fmt.Sprintf("example value '%s' in '%s' is not a valid %s", prop.Example,
-									propName, utils.BooleanLabel),
-							})
-						}
+
+				isInt := false
+				isBool := false
+				isFloat := false
+				isString := false
+
+				if _, ok := prop.Example.(string); ok {
+					isString = true
+				}
+
+				if _, ok := prop.Example.(bool); ok {
+					isBool = true
+				}
+
+				if _, ok := prop.Example.(float64); ok {
+					isFloat = true
+				}
+
+				if _, ok := prop.Example.(int); ok {
+					isInt = true
+				}
+
+				invalidMessage := "example value '%v' in '%s' is not a valid %v"
+
+				switch *prop.Type {
+				case utils.StringLabel:
+					if !isString {
+						examples = append(examples, &ExampleValidation{
+							Message: fmt.Sprintf(invalidMessage, prop.Example, propName, utils.IntegerLabel),
+						})
+					}
+				case utils.IntegerLabel:
+					if !isInt {
+						examples = append(examples, &ExampleValidation{
+							Message: fmt.Sprintf(invalidMessage, prop.Example, propName, utils.IntegerLabel),
+						})
+					}
+				case utils.NumberLabel:
+					if !isFloat {
+						examples = append(examples, &ExampleValidation{
+							Message: fmt.Sprintf(invalidMessage, prop.Example, propName, utils.NumberLabel),
+						})
+					}
+				case utils.BooleanLabel:
+					if !isBool {
+						examples = append(examples, &ExampleValidation{
+							Message: fmt.Sprintf(invalidMessage, prop.Example, propName, utils.BooleanLabel),
+						})
 					}
 				}
 			} else {
 				if len(prop.Properties) > 0 {
-					for _, p := range prop.Properties {
-						examples = append(examples, ValidateExample(p)...)
-					}
+					examples = append(examples, ValidateExample(prop)...)
 				}
 			}
 		}
