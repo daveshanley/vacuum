@@ -2,14 +2,18 @@
 [![codecov](https://codecov.io/gh/daveshanley/vacuum/branch/main/graph/badge.svg?)](https://codecov.io/gh/daveshanley/vacuum)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 
-A super-fast, lightweight OpenAPI linter, inspired by [Spectral](https://github.com/stoplightio/spectral).
+A super-fast, lightweight OpenAPI linter and quality checking tool, inspired by [Spectral](https://github.com/stoplightio/spectral).
+
+It's also compatible with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
 ---
 
+## The world's fastest OpenAPI linter. 
 
+**Vacuum can suck all the lint of a 5mb OpenAPI spec in about 250ms.**
 
 Designed to reliably and lint OpenAPI specifications, **very quickly**. Including _very large_ ones. Spectral can be quite slow
-when used as an API and does not scale at all for enterprise applications.
+when used as an API and does not scale for enterprise applications.
 
 Vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
 
