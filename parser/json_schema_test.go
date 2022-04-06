@@ -2,6 +2,7 @@ package parser
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
@@ -33,10 +34,13 @@ func TestConvertNode_Simple(t *testing.T) {
 	var node yaml.Node
 	yaml.Unmarshal([]byte(yml), &node)
 
-	resolved, _ := model.ResolveOpenAPIDocument(&node)
+	index := model.NewSpecIndex(&node)
+
+	resolver := resolver.NewResolver(index)
+	resolver.Resolve()
 
 	p, _ := yamlpath.NewPath("$.components.schemas.Citrus")
-	r, _ := p.Find(resolved)
+	r, _ := p.Find(&node)
 
 	schema, err := ConvertNodeDefinitionIntoSchema(r[0])
 	assert.NoError(t, err)

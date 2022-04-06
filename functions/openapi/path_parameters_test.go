@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/resolver"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -291,8 +292,6 @@ paths:
 	var rootNode yaml.Node
 	yaml.Unmarshal([]byte(yml), &rootNode)
 
-	nodes, err := utils.FindNodes([]byte(yml), path)
-	assert.NoError(t, err)
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
@@ -300,9 +299,9 @@ paths:
 	def := PathParameters{}
 
 	// we need to resolve this
-	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
-
-	res := def.RunRule([]*yaml.Node{resolved}, ctx)
+	resolver := resolver.NewResolver(ctx.Index)
+	resolver.Resolve()
+	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "Operation must define parameter 'cake' as expected by path '/musical/{melody}/{pizza}/{cake}'",

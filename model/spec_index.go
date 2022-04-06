@@ -15,6 +15,34 @@ import (
 	"sync"
 )
 
+const (
+	localResolve int = 0
+	httpResolve  int = 1
+	fileResolve  int = 2
+)
+
+// Reference is a wrapper around *yaml.Node results to make things more manageable when performing
+// algorithms on data models. the *yaml.Node def is just a bit too low level for tracking state.
+type Reference struct {
+	Definition string
+	Name       string
+	Node       *yaml.Node
+	Relations  []*Reference
+	Resolved   bool
+	Circular   bool
+	Seen       bool
+	Path       string // this won't always be available.
+}
+
+// CircularReferenceResult contains a circular reference found when traversing the graph.
+type CircularReferenceResult struct {
+	Journey       []*Reference
+	JourneyString string
+	Start         *Reference
+	LoopIndex     int
+	LoopPoint     *Reference
+}
+
 // SpecIndex is a complete pre-computed index of the entire specification. Numbers are pre-calculated and
 // quick direct access to paths, operations, tags are all available. No need to walk the entire node tree in rules,
 // everything is pre-walked if you need it.
@@ -95,6 +123,8 @@ type SpecIndex struct {
 	enumCount                           int
 	descriptionCount                    int
 	summaryCount                        int
+	seenRemoteSources                   map[string]*yaml.Node
+	remoteLock                          sync.Mutex
 }
 
 // ExternalLookupFunction is for lookup functions that take a JSONSchema reference and tries to find that node in the
@@ -171,6 +201,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.allExternalDocuments = make(map[string]*Reference)
 	index.polymorphicRefs = make(map[string]*Reference)
 	index.refsWithSiblings = make(map[string]*Reference)
+	index.seenRemoteSources = make(map[string]*yaml.Node)
 
 	// there is no node! return an empty index.
 	if rootNode == nil {
@@ -178,7 +209,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	}
 
 	// boot index.
-	results := index.ExtractRefs(index.root.Content[0], []string{}, 0, false, "")
+	results := index.ExtractRefs(index.root.Content[0], []string{}, 0, false)
 
 	// pull out references
 	index.ExtractComponentsFromRefs(results)
@@ -382,7 +413,7 @@ func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
 
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
 // The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
-func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int, poly bool, parentName string) []*Reference {
+func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int, poly bool) []*Reference {
 	if node == nil {
 		return nil
 	}
@@ -395,11 +426,11 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 				level++
 				// check if we're using  polymorphic values. These tend to create rabbit warrens of circular
 				// references if every single link is followed. We don't resolve polymorphic values.
-				isPoly, polyName := index.checkPolymorphicNode(prev)
+				isPoly, _ := index.checkPolymorphicNode(prev)
 				if isPoly {
 					poly = true
 				}
-				found = append(found, index.ExtractRefs(n, seenPath, level, poly, polyName)...)
+				found = append(found, index.ExtractRefs(n, seenPath, level, poly)...)
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
@@ -1143,11 +1174,11 @@ func (index *SpecIndex) FindComponent(componentId string, parent *yaml.Node) *Re
 	}
 
 	remoteLookup := func(id string) (*yaml.Node, *yaml.Node, error) {
-		return lookupRemoteReference(id)
+		return index.lookupRemoteReference(id)
 	}
 
 	fileLookup := func(id string) (*yaml.Node, *yaml.Node, error) {
-		return lookupFileReference(id)
+		return index.lookupFileReference(id)
 	}
 
 	switch determineReferenceResolveType(componentId) {
@@ -1181,20 +1212,19 @@ func (index *SpecIndex) GetAllSummariesCount() int {
 
 /* private */
 
-func iterateOverRefCollection(refs map[string]*Reference) []*DescriptionReference {
-	var results []*DescriptionReference
-	for _, value := range refs {
-		results = append(results, buildDescriptionReference(value.Definition, value.Path, value.Node))
+func determineReferenceResolveType(ref string) int {
+	if ref != "" && ref[0] == '#' {
+		return localResolve
 	}
-	return results
-}
-
-func buildDescriptionReference(desc, path string, node *yaml.Node) *DescriptionReference {
-	return &DescriptionReference{
-		Content: desc,
-		Path:    path,
-		Node:    node,
+	if ref != "" && len(ref) >= 5 && (ref[:5] == "https" || ref[:5] == "http:") {
+		return httpResolve
 	}
+	if strings.Contains(ref, ".json") ||
+		strings.Contains(ref, ".yaml") ||
+		strings.Contains(ref, ".yml") {
+		return fileResolve
+	}
+	return -1
 }
 
 func (index *SpecIndex) extractDefinitionsAndSchemas(schemasNode *yaml.Node, pathPrefix string) {
@@ -1529,14 +1559,14 @@ func isHttpMethod(val string) bool {
 	return false
 }
 
-func lookupRemoteReference(ref string) (*yaml.Node, *yaml.Node, error) {
+func (index *SpecIndex) lookupRemoteReference(ref string) (*yaml.Node, *yaml.Node, error) {
 
 	// split string to remove file reference
 	uri := strings.Split(ref, "#")
 
 	var parsedRemoteDocument *yaml.Node
-	if seenRemoteSources[uri[0]] != nil {
-		parsedRemoteDocument = seenRemoteSources[uri[0]]
+	if index.seenRemoteSources[uri[0]] != nil {
+		parsedRemoteDocument = index.seenRemoteSources[uri[0]]
 	} else {
 		resp, err := http.Get(uri[0])
 		if err != nil {
@@ -1553,9 +1583,9 @@ func lookupRemoteReference(ref string) (*yaml.Node, *yaml.Node, error) {
 			return nil, nil, err
 		}
 		parsedRemoteDocument = &remoteDoc
-		remoteLock.Lock()
-		seenRemoteSources[uri[0]] = &remoteDoc
-		remoteLock.Unlock()
+		index.remoteLock.Lock()
+		index.seenRemoteSources[uri[0]] = &remoteDoc
+		index.remoteLock.Unlock()
 	}
 
 	if parsedRemoteDocument == nil {
@@ -1580,7 +1610,7 @@ func lookupRemoteReference(ref string) (*yaml.Node, *yaml.Node, error) {
 	return nil, nil, nil
 }
 
-func lookupFileReference(ref string) (*yaml.Node, *yaml.Node, error) {
+func (index *SpecIndex) lookupFileReference(ref string) (*yaml.Node, *yaml.Node, error) {
 
 	// split string to remove file reference
 	uri := strings.Split(ref, "#")
@@ -1592,8 +1622,8 @@ func lookupFileReference(ref string) (*yaml.Node, *yaml.Node, error) {
 	file := strings.ReplaceAll(uri[0], "file:", "")
 
 	var parsedRemoteDocument *yaml.Node
-	if seenRemoteSources[file] != nil {
-		parsedRemoteDocument = seenRemoteSources[file]
+	if index.seenRemoteSources[file] != nil {
+		parsedRemoteDocument = index.seenRemoteSources[file]
 	} else {
 
 		body, err := ioutil.ReadFile(file)
@@ -1607,7 +1637,7 @@ func lookupFileReference(ref string) (*yaml.Node, *yaml.Node, error) {
 			return nil, nil, err
 		}
 		parsedRemoteDocument = &remoteDoc
-		seenRemoteSources[file] = &remoteDoc
+		index.seenRemoteSources[file] = &remoteDoc
 	}
 
 	if parsedRemoteDocument == nil {
