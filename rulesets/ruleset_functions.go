@@ -239,7 +239,7 @@ func GetOperationDescriptionRule() *model.Rule {
 func GetDescriptionDuplicationRule() *model.Rule {
 	return &model.Rule{
 		Description:  "Description duplication check",
-		Given:        "$..description",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],

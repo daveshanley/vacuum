@@ -126,7 +126,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	//// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
-	//rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
+	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
 	// check all examples
 	rules["oas3-valid-schema-example"] = GetExamplesRule()
@@ -141,12 +141,11 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
 
 	// check no script statements in markdown descriptions.
-	// TODO: SLOW
-	//rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
+	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
 
 	// check for description and summary duplication (this is the slowest rule, needs optimizing)
 	// TODO: optimize this rule, it's very slow.
-	//rules["description-duplication"] = GetDescriptionDuplicationRule()
+	rules["description-duplication"] = GetDescriptionDuplicationRule()
 
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
