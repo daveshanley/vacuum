@@ -7,7 +7,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,47 +31,45 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 		return nil
 	}
 
+	var results []model.RuleFunctionResult
+
 	seenDescriptions := make(map[string]*copyPasta)
 	seenSummaries := make(map[string]*copyPasta)
 
-	var results []model.RuleFunctionResult
-
 	// extract all descriptions and summaries
-	for _, root := range nodes {
-		descriptions, _ := utils.FindNodesWithoutDeserializing(root, "$..description")
-		summaries, _ := utils.FindNodesWithoutDeserializing(root, "$..summary")
+	descriptions := context.Index.GetAllDescriptions()
+	summaries := context.Index.GetAllSummaries()
 
-		for _, description := range descriptions {
+	for _, description := range descriptions {
 
-			data := []byte(description.Value)
-			md5String := fmt.Sprintf("%x", md5.Sum(data))
-			cp := copyPasta{
-				value: description.Value,
-				node:  description,
-			}
-
-			checkDescriptions(seenDescriptions, md5String, description, &results, cp, context)
-
+		data := []byte(description.Node.Value)
+		md5String := fmt.Sprintf("%x", md5.Sum(data))
+		cp := copyPasta{
+			value: description.Node.Value,
+			node:  description.Node,
 		}
 
-		// look through summaries
-		for _, summary := range summaries {
+		checkDescriptions(seenDescriptions, md5String, description.Node, &results, cp, context)
 
-			data := []byte(summary.Value)
-			md5String := fmt.Sprintf("%x", md5.Sum(data))
-			cp := copyPasta{
-				value: summary.Value,
-				node:  summary,
-			}
+	}
 
-			checkSummaries(seenSummaries, md5String, summary, &results, cp, context)
-			if len(seenDescriptions) > 0 {
-				checkDescriptions(seenDescriptions, md5String, summary, &results, cp, context)
-			}
+	// look through summaries
+	for _, summary := range summaries {
 
+		data := []byte(summary.Node.Value)
+		md5String := fmt.Sprintf("%x", md5.Sum(data))
+		cp := copyPasta{
+			value: summary.Node.Value,
+			node:  summary.Node,
+		}
+
+		checkSummaries(seenSummaries, md5String, summary.Node, &results, cp, context)
+		if len(seenDescriptions) > 0 {
+			checkDescriptions(seenDescriptions, md5String, summary.Node, &results, cp, context)
 		}
 
 	}
+
 	return results
 
 }

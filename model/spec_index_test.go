@@ -192,7 +192,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 func TestSpecIndex_NoRoot(t *testing.T) {
 
 	index := NewSpecIndex(nil)
-	refs := index.ExtractRefs(nil, nil, 0, false, "")
+	refs := index.ExtractRefs(nil, nil, 0, false)
 	docs := index.ExtractExternalDocuments(nil)
 	assert.Nil(t, docs)
 	assert.Nil(t, refs)

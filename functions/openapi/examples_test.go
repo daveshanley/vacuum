@@ -50,8 +50,6 @@ components:
 	var rootNode yaml.Node
 	yaml.Unmarshal([]byte(yml), &rootNode)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
@@ -59,8 +57,9 @@ components:
 	def := Examples{}
 
 	// we need to resolve this
-	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
-	res := def.RunRule([]*yaml.Node{resolved}, ctx)
+	resolver := resolver.NewResolver(ctx.Index)
+	resolver.Resolve()
+	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 2)
 	assert.Equal(t, "Missing example for 'id' on component 'Pizza'", res[0].Message)
@@ -95,8 +94,6 @@ components:
 	var rootNode yaml.Node
 	yaml.Unmarshal([]byte(yml), &rootNode)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
@@ -104,8 +101,9 @@ components:
 	def := Examples{}
 
 	// we need to resolve this
-	resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
-	res := def.RunRule([]*yaml.Node{resolved}, ctx)
+	resolver := resolver.NewResolver(ctx.Index)
+	resolver.Resolve()
+	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 2)
 	assert.NotNil(t, res[0].Path)
