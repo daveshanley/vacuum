@@ -49,7 +49,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			results = append(results, validateNodeAgainstSchema(schema, field, context, x)...)
 
 		} else {
-			// If the field is not found and we're being strict, it's invalid.
+			// If the field is not found, and we're being strict, it's invalid.
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
 			if _, ok := forceValidation.(bool); ok {
 
