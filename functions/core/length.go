@@ -56,8 +56,10 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		if v, ok := opts["max"]; ok {
 			max, _ = strconv.Atoi(v)
 		}
-	} else {
-		return results // can't do much without a min or a max.
+	}
+
+	if min == 0 && max == 0 {
+		return results
 	}
 
 	// run through nodes
@@ -157,43 +159,36 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 			// check for structure sizes (maps and arrays)
 			if min > 0 && nodeCount < min {
+				var fv string
 				if context.RuleAction.Field != "" {
-					res := createMinError(context.RuleAction.Field, min)
-					res.StartNode = node
-					res.EndNode = node
-					res.Path = pathValue
-					res.Rule = context.Rule
-					results = append(results, res)
+					fv = context.RuleAction.Field
 				} else {
-					res := createMinError(context.Rule.Given.(string), min)
-					res.StartNode = node
-					res.EndNode = node
-					res.Path = pathValue
-					res.Rule = context.Rule
-					results = append(results, res)
+					fv = context.Rule.Given.(string)
 				}
+				res := createMinError(fv, min)
+				res.StartNode = node
+				res.EndNode = node
+				res.Path = pathValue
+				res.Rule = context.Rule
+				results = append(results, res)
 				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue
 			}
 
 			if max > 0 && nodeCount > max {
+				var fv string
 				if context.RuleAction.Field != "" {
-					res := createMaxError(context.RuleAction.Field, max)
-					res.StartNode = node
-					res.EndNode = node
-					res.Path = pathValue
-					res.Rule = context.Rule
-					results = append(results, res)
+					fv = context.RuleAction.Field
 				} else {
-					res := createMaxError(context.Rule.Given.(string), max)
-					res.StartNode = node
-					res.EndNode = node
-					res.Path = pathValue
-					res.Rule = context.Rule
-					results = append(results, res)
-
+					fv = context.Rule.Given.(string)
 				}
-
+				res := createMaxError(fv, max)
+				res.StartNode = node
+				res.EndNode = node
+				res.Path = pathValue
+				res.Rule = context.Rule
+				results = append(results, res)
+				//results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue
 			}
 		}

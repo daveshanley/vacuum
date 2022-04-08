@@ -7,6 +7,17 @@ import (
 	"testing"
 )
 
+func TestLength_GetSchema(t *testing.T) {
+	def := Length{}
+	assert.Equal(t, "length", def.GetSchema().Name)
+}
+
+func TestLength_RunRule(t *testing.T) {
+	def := Length{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
 func TestLength_RunRule_Pass(t *testing.T) {
 
 	sampleYaml := `
@@ -259,6 +270,64 @@ tags:
 
 }
 
+func TestLength_RunRule_EmptyRuleActionField_Min(t *testing.T) {
+
+	sampleYaml := `
+tags:
+  - name: "taggy"
+    description: 10.12
+  - name: "tiggy"
+    description: 1.22`
+
+	path := "$.tags"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
+	ops := make(map[string]string)
+	ops["max"] = "9"
+	ops["min"] = "3"
+
+	rule := buildCoreTestRule(path, severityError, "length", "", ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	le := Length{}
+	res := le.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+
+}
+
+func TestLength_RunRule_EmptyRuleActionField_Max(t *testing.T) {
+
+	sampleYaml := `
+tags:
+  - name: "taggy"
+    description: 10.12
+  - name: "tiggy"
+    description: 1.22`
+
+	path := "$.tags"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
+	ops := make(map[string]string)
+	ops["max"] = "1"
+	ops["min"] = "0"
+
+	rule := buildCoreTestRule(path, severityError, "length", "", ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	le := Length{}
+	res := le.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+
+}
+
 func TestLength_RunRule_NoNodes(t *testing.T) {
 
 	// should have the same effect as an int.
@@ -282,5 +351,57 @@ tags:`
 	res := le.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 0)
+
+}
+
+func TestLength_RunRule_NoOptions(t *testing.T) {
+
+	sampleYaml := `
+tags:
+  - name: "taggy"
+    description: 10.12
+  - name: "tiggy"
+    description: 1.22`
+
+	path := "$.tags"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
+	rule := buildCoreTestRule(path, severityError, "length", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Options = nil
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	le := Length{}
+	res := le.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0) // no opts/mix/max returns nothing.
+
+}
+
+func TestLength_RunRule_InvalidOptions(t *testing.T) {
+
+	sampleYaml := `
+tags:
+  - name: "taggy"
+    description: 10.12
+  - name: "tiggy"
+    description: 1.22`
+
+	path := "$.tags"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
+	rule := buildCoreTestRule(path, severityError, "length", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Options = "not options at all"
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	le := Length{}
+	res := le.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0) // should just do nothing.
 
 }
