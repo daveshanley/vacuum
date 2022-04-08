@@ -417,3 +417,149 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, results, 0)
 }
+
+func TestApplyRules_BadData(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$.paths./burgers.post.requestBody.content.application/json",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "examples",
+		"functionOptions" : { 
+			"min" : "2",
+			"max" : "4"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop := []byte("!@#$%^&*()(*&^%$#%^&*(*)))]")
+
+	_, err = ApplyRules(rs, burgershop)
+	assert.Error(t, err)
+}
+
+func TestApplyRules_CircularReferences(t *testing.T) {
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")
+
+	// circular references can still be extracted, even without a ruleset.
+
+	results, _ := ApplyRules(nil, burgershop)
+	assert.Len(t, results, 3)
+}
+
+func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "required",
+		"functionOptions" : { 
+			"max" : "2"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+	assert.NoError(t, err)
+	assert.Len(t, results, 0)
+}
+
+func TestApplyRules_Length_Description_BadPath(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "I AM NOT A PATH",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "required",
+		"functionOptions" : { 
+			"max" : "2"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	_, err = ApplyRules(rs, burgershop)
+
+	// TODO: this doesn't return any errors yet, we need to change the signature of the ApplyRules function
+	// to return an array of errors, no a single one.
+	assert.NoError(t, err)
+
+}
+
+func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$.info",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "required",
+		"functionOptions" : {
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	results, err := ApplyRules(rs, burgershop)
+
+	assert.Len(t, results, 1)
+	assert.NoError(t, err)
+
+}

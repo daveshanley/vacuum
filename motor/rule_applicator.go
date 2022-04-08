@@ -1,7 +1,6 @@
 package motor
 
 import (
-	"fmt"
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/resolver"
@@ -12,13 +11,17 @@ import (
 )
 
 // ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
+// TODO: change signature of the error return type, to be an array, this currently returns no errors, with a success.
 func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
 
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
 
 	var ruleWaitGroup sync.WaitGroup
-	ruleWaitGroup.Add(len(ruleSet.Rules))
+
+	if ruleSet != nil && ruleSet.Rules != nil {
+		ruleWaitGroup.Add(len(ruleSet.Rules))
+	}
 
 	var specResolved yaml.Node
 	var specUnresolved yaml.Node
@@ -28,9 +31,6 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 		return nil, err
 	}
 	specResolved = specUnresolved
-
-	// this is the second re-build of the resolver. Leaving it in place for now. however, it's no longer required.
-	//resolved, errs := model.ResolveOpenAPIDocument(&specResolved)
 
 	// create an index
 	index := model.NewSpecIndex(&specResolved)
@@ -72,18 +72,22 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 	// run all rules.
 	var errors []error
-	for _, rule := range ruleSet.Rules {
-		ruleSpec := &specResolved
-		if !rule.Resolved {
-			ruleSpec = &specUnresolved
+
+	if ruleSet != nil {
+		for _, rule := range ruleSet.Rules {
+			ruleSpec := &specResolved
+			if !rule.Resolved {
+				ruleSpec = &specUnresolved
+			}
+			go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors, index)
 		}
-		go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors, index)
+
+		ruleWaitGroup.Wait()
 	}
+	// TODO: THIS Signature needs to change to return []error and not error. these errors are not
+	// currently being returned as you can see below.
 
-	ruleWaitGroup.Wait()
-	// did something go wrong?
-
-	return ruleResults, nil
+	return ruleResults, nil // <-- change me please!
 }
 
 func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.Functions,
@@ -100,11 +104,12 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 			if gp, ok := gpI.(string); ok {
 				givenPaths = append(givenPaths, gp)
 			}
-			if gp, ok := gpI.(int); ok {
-				givenPaths = append(givenPaths, fmt.Sprintf("%v", gp))
-			}
+			// TODO: come back and clean this up if it proves to be required.
+			// Not sure why I added this check for a given field, it's always a string path.
+			//if gp, ok := gpI.(int); ok { //
+			//	givenPaths = append(givenPaths, fmt.Sprintf("%v", gp))
+			//}
 		}
-
 	}
 
 	for _, givenPath := range givenPaths {
