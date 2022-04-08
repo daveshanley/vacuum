@@ -16,7 +16,6 @@ type Pattern struct {
 	match        string
 	notMatch     string
 	patternCache map[string]*regexp.Regexp
-	seenNodes    map[string]bool
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the Pattern rule.
@@ -41,8 +40,6 @@ func (p Pattern) GetSchema() model.RuleFunctionSchema {
 
 // RunRule will execute the Pattern rule, based on supplied context and a supplied []*yaml.Node slice.
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
-	p.seenNodes = make(map[string]bool)
 
 	// check supplied type
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
@@ -80,10 +77,6 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		if utils.IsNodeMap(node) {
 			continue
 		}
-		if p.seenNodes[node.Value] { // if this node has been seen already, ignore.
-			continue
-		}
-
 		if p.match != "" {
 			rx, err := p.getPatternFromCache(p.match, context.Rule)
 			if err != nil {
@@ -101,7 +94,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				matchValue := node.Value
 				if context.RuleAction.Field != "" && x+1 <= len(nodes) {
 					if x < len(nodes)-1 {
-						_, fieldValue := utils.FindKeyNode(context.RuleAction.Field, nodes)
+						_, fieldValue := utils.FindKeyNode(context.RuleAction.Field, nodes[x+1].Content)
 						if fieldValue != nil {
 							matchValue = fieldValue.Value
 							pathValue = fmt.Sprintf("%s.%s", pathValue, context.RuleAction.Field)
@@ -118,7 +111,6 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Path:      utils.BuildPath(pathValue, []string{node.Value}),
 						Rule:      context.Rule,
 					})
-					p.seenNodes[matchValue] = true
 				}
 			}
 		}
@@ -145,7 +137,6 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Rule:      context.Rule,
 					})
 				}
-				p.seenNodes[node.Value] = true
 			}
 		}
 	}

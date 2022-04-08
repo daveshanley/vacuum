@@ -269,6 +269,7 @@ func GetComponentDescriptionsRule() *model.Rule {
 
 // GetOperationIdValidInUrlRule will check id an operationId will be valid when used in an url.
 func GetOperationIdValidInUrlRule() *model.Rule {
+	// TODO: re-build this the path is useless.
 	opts := make(map[string]interface{})
 	opts["match"] = "^[A-Za-z0-9-._~:/?#\\[\\]@!\\$&'()*+,;=]*$"
 	comp, _ := regexp.Compile(opts["match"].(string))
@@ -292,7 +293,6 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 // GetOperationTagsRule uses the schema function to check if there tags exist and that
 // it's an array with at least one item.
 func GetOperationTagsRule() *model.Rule {
-
 	return &model.Rule{
 		Description:  "Operation 'tags' are missing/empty",
 		Given:        "$",

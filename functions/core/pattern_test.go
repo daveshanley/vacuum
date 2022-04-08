@@ -160,7 +160,7 @@ func TestPattern_RunRule_UseFieldName(t *testing.T) {
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 1)
+	assert.Len(t, res, 2)
 }
 
 func TestPattern_RunRule_ContainMap(t *testing.T) {
