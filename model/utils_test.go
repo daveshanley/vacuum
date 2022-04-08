@@ -63,6 +63,14 @@ tags:
 servers:
   - url: https://quobix.com/api`
 
+var OpenApi2SpecOdd = `swagger: 3.0.1
+info:
+  title: Test API
+tags:
+  - name: "Test"
+servers:
+  - url: https://quobix.com/api`
+
 var AsyncAPISpec = `asyncapi: 2.0.0
 info:
   title: Hello world application
@@ -74,6 +82,11 @@ channels:
         payload:
           type: string
           pattern: '^hello .+$'`
+
+var AsyncAPISpecOdd = `asyncapi: 3.0.0
+info:
+  title: Hello world application
+  version: '0.1.0'`
 
 func TestExtractSpecInfo_ValidJSON(t *testing.T) {
 	_, e := ExtractSpecInfo([]byte(goodJSON))
@@ -125,6 +138,14 @@ func TestExtractSpecInfo_OpenAPI2(t *testing.T) {
 	assert.Equal(t, "2.0.1", r.Version)
 }
 
+func TestExtractSpecInfo_OpenAPI2_OddVersion(t *testing.T) {
+
+	_, e := ExtractSpecInfo([]byte(OpenApi2SpecOdd))
+	assert.NotNil(t, e)
+	assert.Equal(t,
+		"spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unknown version", e.Error())
+}
+
 func TestExtractSpecInfo_AsyncAPI(t *testing.T) {
 
 	r, e := ExtractSpecInfo([]byte(AsyncAPISpec))
@@ -133,10 +154,37 @@ func TestExtractSpecInfo_AsyncAPI(t *testing.T) {
 	assert.Equal(t, "2.0.0", r.Version)
 }
 
+func TestExtractSpecInfo_AsyncAPI_OddVersion(t *testing.T) {
+
+	_, e := ExtractSpecInfo([]byte(AsyncAPISpecOdd))
+	assert.NotNil(t, e)
+	assert.Equal(t,
+		"spec is defined as asyncapi, but has a major version that is invalid", e.Error())
+}
+
 func TestValidateRuleFunctionContextAgainstSchema_Success(t *testing.T) {
 
 	opts := make(map[string]string)
 	opts["type"] = "snake"
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_SuccessMultiple(t *testing.T) {
+
+	opts := make(map[string]string)
+	opts["type"] = "snake,camel"
 	rf := dummyFunc{}
 	ctx := RuleFunctionContext{
 		RuleAction: &RuleAction{
@@ -169,6 +217,120 @@ func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML(t *testin
 
 	assert.True(t, res)
 	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML_Multiple(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = "snake,camel,pascal"
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML_IntType(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = 123
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML_BoolType(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = true
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML_Float(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = 123.456
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Success_SimulateYAML_InterfaceArray(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = []interface{}{123, "oh hai!"}
+	rf := dummyFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_Fail_SimulateYAML_NoField(t *testing.T) {
+
+	opts := make(map[string]interface{})
+	opts["type"] = "woah"
+	rf := dummyFuncMinMax{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 1)
 }
 
 func TestValidateRuleFunctionContextAgainstSchema_Fail(t *testing.T) {
@@ -276,6 +438,8 @@ func TestAreValuesCorrectlyTyped(t *testing.T) {
 	assert.Len(t, AreValuesCorrectlyTyped("boolean", []interface{}{true, true, "burgers"}), 1)
 	assert.Len(t, AreValuesCorrectlyTyped("boolean", []interface{}{true, false, "what", 1.2, 4}), 3)
 
+	assert.Nil(t, AreValuesCorrectlyTyped("boolean", []string{"hi"}))
+
 }
 
 func TestCheckEnumForDuplicates_Success(t *testing.T) {
@@ -308,6 +472,34 @@ func TestCheckEnumForDuplicates_FailMultiple(t *testing.T) {
 
 }
 
+func TestMapPathAndNodesToResults(t *testing.T) {
+
+	results := []RuleFunctionResult{
+		{Path: "$.pie.and.mash"},
+		{Path: "$.splish.and.splash"},
+	}
+
+	path := "$.fish.and.chips"
+	yml := "cake: bake"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	mapped := MapPathAndNodesToResults(path, &rootNode, &rootNode, results)
+
+	for _, mappedValue := range mapped {
+		assert.Equal(t, path, mappedValue.Path)
+		assert.Equal(t, &rootNode, mappedValue.StartNode)
+		assert.Equal(t, &rootNode, mappedValue.EndNode)
+
+	}
+}
+
+func TestBuildFunctionResultString(t *testing.T) {
+	assert.Equal(t, "wow, a cheese ball",
+		BuildFunctionResultString("wow, a cheese ball").Message)
+}
+
 type dummyFunc struct {
 }
 
@@ -333,7 +525,8 @@ type dummyFuncMinMax struct {
 
 func (df dummyFuncMinMax) GetSchema() RuleFunctionSchema {
 	return RuleFunctionSchema{
-		Required: []string{"type"},
+		Required:      []string{"type"},
+		RequiresField: true,
 		Properties: []RuleFunctionProperty{
 			{
 				Name:        "type",
