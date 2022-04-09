@@ -144,6 +144,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check for description and summary duplication
 	rules["description-duplication"] = GetDescriptionDuplicationRule()
 
+	// check for correct 'consumes' type used with parameters and in: formData
+	rules["oas2-operation-formData-consume-check"] = GetOAS2FormDataConsumesRule()
+
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,

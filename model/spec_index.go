@@ -414,6 +414,16 @@ func (index *SpecIndex) GetOperationParametersIndexErrors() []*IndexingError {
 	return index.operationParamErrors
 }
 
+// GetAllPaths will return all paths indexed in the document
+func (index *SpecIndex) GetAllPaths() map[string]map[string]*Reference {
+	return index.pathRefs
+}
+
+// GetAllParametersFromOperations will return all paths indexed in the document
+func (index *SpecIndex) GetAllParametersFromOperations() map[string]map[string]map[string]*Reference {
+	return index.paramOpRefs
+}
+
 func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
 	switch name {
 	case "anyOf":

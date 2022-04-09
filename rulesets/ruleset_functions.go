@@ -474,6 +474,25 @@ func GetOperationParametersRule() *model.Rule {
 	}
 }
 
+// GetOAS2FormDataConsumesRule will check that an "application/x-www-form-urlencoded" or "multipart/form-data"
+// is defined in the 'consumes' node for in any parameters that use in formData.
+func GetOAS2FormDataConsumesRule() *model.Rule {
+	return &model.Rule{
+		Formats: model.OAS2Format,
+		Description: "Operations with 'in: formData' parameter must include 'application/x-www-form-urlencoded' or" +
+			" 'multipart/form-data' in their 'consumes' property.",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasOpFormDataConsumeCheck",
+		},
+	}
+}
+
 // GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
 func GetOperationIdUniqueRule() *model.Rule {
 	return &model.Rule{

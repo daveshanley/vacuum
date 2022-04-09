@@ -72,6 +72,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasDescriptions"] = openapi_functions.OperationDescription{}
 		funcs["oasDescriptionDuplication"] = openapi_functions.DescriptionDuplication{}
 		funcs["oasOperationTags"] = openapi_functions.OperationTags{}
+		funcs["oasOpFormDataConsumeCheck"] = openapi_functions.FormDataConsumeCheck{}
 
 	})
 
