@@ -71,17 +71,19 @@ func (resolver *Resolver) GetCircularErrors() []*CircularReferenceResult {
 // this data can get big, it results in a massive duplication of data.
 func (resolver *Resolver) Resolve() []*ResolvingError {
 
-	mapped := resolver.specIndex.GetMappedReferences()
+	mapped := resolver.specIndex.GetMappedReferencesSequenced()
+	mappedIndex := resolver.specIndex.GetMappedReferences()
+
 	for _, ref := range mapped {
 		seenReferences := make(map[string]bool)
 		var journey []*model.Reference
-		ref.Node.Content = resolver.VisitReference(ref, seenReferences, journey)
+		ref.Reference.Node.Content = resolver.VisitReference(ref.Reference, seenReferences, journey)
 	}
 
 	schemas := resolver.specIndex.GetAllSchemas()
 
 	for s, schemaRef := range schemas {
-		if mapped[s] == nil {
+		if mappedIndex[s] == nil {
 			seenReferences := make(map[string]bool)
 			var journey []*model.Reference
 			schemaRef.Node.Content = resolver.VisitReference(schemaRef, seenReferences, journey)
@@ -90,7 +92,7 @@ func (resolver *Resolver) Resolve() []*ResolvingError {
 
 	// map everything
 	for _, sequenced := range resolver.specIndex.GetAllSequencedReferences() {
-		locatedDef := mapped[sequenced.Definition]
+		locatedDef := mappedIndex[sequenced.Definition]
 		if locatedDef != nil {
 			if !locatedDef.Circular && locatedDef.Seen {
 				sequenced.Node.Content = locatedDef.Node.Content

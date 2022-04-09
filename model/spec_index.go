@@ -27,7 +27,6 @@ type Reference struct {
 	Definition string
 	Name       string
 	Node       *yaml.Node
-	Relations  []*Reference
 	Resolved   bool
 	Circular   bool
 	Seen       bool
@@ -43,6 +42,12 @@ type CircularReferenceResult struct {
 	LoopPoint     *Reference
 }
 
+// ReferenceMapped is a helper struct for mapped references put into sequence (we lose the key)
+type ReferenceMapped struct {
+	Reference  *Reference
+	Definition string
+}
+
 // SpecIndex is a complete pre-computed index of the entire specification. Numbers are pre-calculated and
 // quick direct access to paths, operations, tags are all available. No need to walk the entire node tree in rules,
 // everything is pre-walked if you need it.
@@ -50,6 +55,7 @@ type SpecIndex struct {
 	allRefs                             map[string]*Reference                       // all (deduplicated) refs
 	rawSequencedRefs                    []*Reference                                // all raw references in sequence as they are scanned, not deduped.
 	allMappedRefs                       map[string]*Reference                       // these are the located mapped refs
+	allMappedRefsSequenced              []*ReferenceMapped                          // sequenced mapped refs
 	pathRefs                            map[string]map[string]*Reference            // all path references
 	paramOpRefs                         map[string]map[string]map[string]*Reference // params in operations.
 	paramCompRefs                       map[string]*Reference                       // params in components
@@ -295,8 +301,17 @@ func (index *SpecIndex) GetAllCombinedReferences() map[string]*Reference {
 }
 
 // GetMappedReferences will return all references that were mapped successfully to actual property nodes.
+// this collection is completely unsorted, traversing it may produce random results when resolving it and
+// encountering circular references can change results depending on where in the collection the resolver started
+// its journey through the index.
 func (index *SpecIndex) GetMappedReferences() map[string]*Reference {
 	return index.allMappedRefs
+}
+
+// GetMappedReferencesSequenced will return all references that were mapped successfully to nodes, performed in sequence
+// as they were read in from the document.
+func (index *SpecIndex) GetMappedReferencesSequenced() []*ReferenceMapped {
+	return index.allMappedRefsSequenced
 }
 
 // GetOperationParameterReferences will return all references to operation parameters
@@ -1151,6 +1166,10 @@ func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Referenc
 		if located != nil {
 			found = append(found, located)
 			index.allMappedRefs[ref.Definition] = located
+			index.allMappedRefsSequenced = append(index.allMappedRefsSequenced, &ReferenceMapped{
+				Reference:  located,
+				Definition: ref.Definition,
+			})
 		} else {
 
 			_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(ref.Definition)
