@@ -90,7 +90,7 @@ info:
 
 func TestExtractSpecInfo_ValidJSON(t *testing.T) {
 	_, e := ExtractSpecInfo([]byte(goodJSON))
-	assert.NotNil(t, e)
+	assert.Error(t, e)
 }
 
 func TestExtractSpecInfo_InvalidJSON(t *testing.T) {
@@ -121,13 +121,14 @@ func TestExtractSpecInfo_OpenAPIWat(t *testing.T) {
 	r, e := ExtractSpecInfo([]byte(OpenApiWat))
 	assert.Nil(t, e)
 	assert.Equal(t, OpenApi3, r.SpecType)
-	assert.Equal(t, "3.20", r.Version)
+	assert.Equal(t, "3.2", r.Version)
 }
 
 func TestExtractSpecInfo_OpenAPIFalse(t *testing.T) {
 
-	_, e := ExtractSpecInfo([]byte(OpenApiFalse))
-	assert.Error(t, e)
+	spec, e := ExtractSpecInfo([]byte(OpenApiFalse))
+	assert.NoError(t, e)
+	assert.Equal(t, "false", spec.Version)
 }
 
 func TestExtractSpecInfo_OpenAPI2(t *testing.T) {

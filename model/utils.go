@@ -1,7 +1,6 @@
 package model
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
@@ -10,64 +9,85 @@ import (
 	"strings"
 )
 
+const (
+	OAS2  = "oas2"
+	OAS3  = "oas3"
+	OAS31 = "oas3_1"
+)
+
+var OAS3_1Format = []string{OAS31}
+var OAS3Format = []string{OAS3}
+var OAS3AllFormat = []string{OAS3, OAS31}
+var OAS2Format = []string{OAS2}
+var AllFormats = []string{OAS3, OAS31, OAS2}
+
 // ExtractSpecInfo will look at a supplied OpenAPI specification, and return a *SpecInfo pointer, or an error
 // if the spec cannot be parsed correctly.\
 func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
-	var parsedSpec map[string]interface{}
+	var parsedSpec yaml.Node
 	specVersion := &SpecInfo{}
 	runes := []rune(strings.TrimSpace(string(spec)))
 	if runes[0] == '{' && runes[len(runes)-1] == '}' {
-		// try JSON
-		err := json.Unmarshal(spec, &parsedSpec)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse specification: %s", err.Error())
-		}
-		specVersion.Version = "json"
+		specVersion.SpecFileType = "json"
 	} else {
-		// try YAML
-		err := yaml.Unmarshal(spec, &parsedSpec)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse specification: %s", err.Error())
-		}
-		specVersion.Version = "yaml"
+		specVersion.SpecFileType = "yaml"
 	}
 
+	err := yaml.Unmarshal(spec, &parsedSpec)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse specification: %s", err.Error())
+	}
+
+	specVersion.RootNode = &parsedSpec
+
+	_, openAPI3 := utils.FindKeyNode(utils.OpenApi3, parsedSpec.Content)
+	_, openAPI2 := utils.FindKeyNode(utils.OpenApi2, parsedSpec.Content)
+	_, asyncAPI := utils.FindKeyNode(utils.AsyncApi, parsedSpec.Content)
+
 	// check for specific keys
-	if parsedSpec[utils.OpenApi3] != nil {
+	if openAPI3 != nil {
 		specVersion.SpecType = utils.OpenApi3
-		version, majorVersion := parseVersionTypeData(parsedSpec[utils.OpenApi3])
+		version, majorVersion := parseVersionTypeData(openAPI3.Value)
 
 		// double check for the right version, people mix this up.
 		if majorVersion < 3 {
-			return nil, errors.New("spec is defined as an openapi spec, but is using a swagger (2.0), or unknown version")
+			specVersion.Error = errors.New("spec is defined as an openapi spec, but is using a swagger (2.0), or unknown version")
+			return specVersion, specVersion.Error
 		}
 		specVersion.Version = version
+		specVersion.SpecFormat = OAS3
 	}
-	if parsedSpec[utils.OpenApi2] != nil {
+	if openAPI2 != nil {
 		specVersion.SpecType = utils.OpenApi2
-		version, majorVersion := parseVersionTypeData(parsedSpec[utils.OpenApi2])
+		version, majorVersion := parseVersionTypeData(openAPI2.Value)
 
 		// I am not certain this edge-case is very frequent, but let's make sure we handle it anyway.
 		if majorVersion > 2 {
-			return nil, errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unknown version")
+			specVersion.Error = errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unknown version")
+			return specVersion, specVersion.Error
 		}
 		specVersion.Version = version
+		specVersion.SpecFormat = OAS2
 	}
-	if parsedSpec[utils.AsyncApi] != nil {
+	if asyncAPI != nil {
 		specVersion.SpecType = utils.AsyncApi
-		version, majorVersion := parseVersionTypeData(parsedSpec[utils.AsyncApi])
+		version, majorVersion := parseVersionTypeData(asyncAPI.Value)
 
 		// so far there is only 2 as a major release of AsyncAPI
 		if majorVersion > 2 {
-			return nil, errors.New("spec is defined as asyncapi, but has a major version that is invalid")
+			specVersion.Error = errors.New("spec is defined as asyncapi, but has a major version that is invalid")
+			return specVersion, specVersion.Error
 		}
 		specVersion.Version = version
+		// TODO: format for AsyncAPI.
 
 	}
 
 	if specVersion.SpecType == "" {
-		return nil, errors.New("spec type not supported by vacuum, sorry")
+		specVersion.Error = errors.New("spec type not supported by vacuum, sorry")
+		return specVersion, specVersion.Error
 	}
+
 	return specVersion, nil
 }
 

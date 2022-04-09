@@ -49,7 +49,7 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 			node:  description.Node,
 		}
 
-		checkDescriptions(seenDescriptions, md5String, description.Node, &results, cp, context)
+		checkDescriptions(seenDescriptions, md5String, description.Node, &results, cp, description.Path, context)
 
 	}
 
@@ -63,9 +63,9 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 			node:  summary.Node,
 		}
 
-		checkSummaries(seenSummaries, md5String, summary.Node, &results, cp, context)
+		checkSummaries(seenSummaries, md5String, summary.Node, &results, cp, summary.Path, context)
 		if len(seenDescriptions) > 0 {
-			checkDescriptions(seenDescriptions, md5String, summary.Node, &results, cp, context)
+			checkDescriptions(seenDescriptions, md5String, summary.Node, &results, cp, summary.Path, context)
 		}
 
 	}
@@ -75,14 +75,14 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 }
 
 func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summary *yaml.Node,
-	results *[]model.RuleFunctionResult, cp copyPasta, context model.RuleFunctionContext) {
+	results *[]model.RuleFunctionResult, cp copyPasta, path string, context model.RuleFunctionContext) {
 	if seenSummaries[md5String] != nil {
 		// duplicate
 		res := model.BuildFunctionResultString(fmt.Sprintf("Summary at line '%d' is a duplicate of line '%d'",
 			summary.Line, seenSummaries[md5String].node.Line))
 		res.StartNode = summary
 		res.EndNode = summary
-		res.Path = "$..summary"
+		res.Path = path
 		res.Rule = context.Rule
 		*results = append(*results, res)
 
@@ -92,7 +92,7 @@ func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summa
 }
 
 func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string, description *yaml.Node,
-	results *[]model.RuleFunctionResult, cp copyPasta, context model.RuleFunctionContext) {
+	results *[]model.RuleFunctionResult, cp copyPasta, path string, context model.RuleFunctionContext) {
 
 	if seenDescriptions[md5String] != nil {
 		// duplicate
@@ -100,7 +100,7 @@ func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string,
 			description.Line, seenDescriptions[md5String].node.Line))
 		res.StartNode = description
 		res.EndNode = description
-		res.Path = "$..description"
+		res.Path = path
 		res.Rule = context.Rule
 		*results = append(*results, res)
 

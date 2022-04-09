@@ -10,6 +10,17 @@ import (
 	"sync"
 )
 
+type ruleContext struct {
+	rule             *model.Rule
+	specNode         *yaml.Node
+	builtinFunctions functions.Functions
+	ruleResults      *[]model.RuleFunctionResult
+	wg               *sync.WaitGroup
+	errors           *[]error
+	index            *model.SpecIndex
+	specInfo         *model.SpecInfo
+}
+
 // ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
 // TODO: change signature of the error return type, to be an array, this currently returns no errors, with a success.
 func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
@@ -26,16 +37,21 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 	var specResolved yaml.Node
 	var specUnresolved yaml.Node
 
-	err := yaml.Unmarshal(spec, &specUnresolved)
-	if err != nil {
-		return nil, err
+	// extract spec info, make this available to rule context.
+	specInfo, err := model.ExtractSpecInfo(spec)
+	if err != nil || specInfo == nil {
+		if specInfo == nil || specInfo.RootNode == nil {
+			return nil, err
+		}
 	}
+
+	specUnresolved = *specInfo.RootNode
 	specResolved = specUnresolved
 
 	// create an index
 	index := model.NewSpecIndex(&specResolved)
 
-	// create a resolver (third and final rebuild)
+	// create a resolver
 	resolverInstance := resolver.NewResolver(index)
 
 	// resolve the doc
@@ -79,7 +95,19 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 			if !rule.Resolved {
 				ruleSpec = &specUnresolved
 			}
-			go runRule(rule, ruleSpec, builtinFunctions, &ruleResults, &ruleWaitGroup, &errors, index)
+
+			// this list of things is most likely going to grow a bit, so we use a nice clean message design.
+			ctx := ruleContext{
+				rule:             rule,
+				specNode:         ruleSpec,
+				builtinFunctions: builtinFunctions,
+				ruleResults:      &ruleResults,
+				wg:               &ruleWaitGroup,
+				errors:           &errors,
+				index:            index,
+				specInfo:         specInfo,
+			}
+			go runRule(ctx)
 		}
 
 		ruleWaitGroup.Wait()
@@ -90,16 +118,15 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 	return ruleResults, nil // <-- change me please!
 }
 
-func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.Functions,
-	ruleResults *[]model.RuleFunctionResult, wg *sync.WaitGroup, errors *[]error, index *model.SpecIndex) {
+func runRule(ctx ruleContext) {
 
-	defer wg.Done()
+	defer ctx.wg.Done()
 	var givenPaths []string
-	if x, ok := rule.Given.(string); ok {
+	if x, ok := ctx.rule.Given.(string); ok {
 		givenPaths = append(givenPaths, x)
 	}
 
-	if x, ok := rule.Given.([]interface{}); ok {
+	if x, ok := ctx.rule.Given.([]interface{}); ok {
 		for _, gpI := range x {
 			if gp, ok := gpI.(string); ok {
 				givenPaths = append(givenPaths, gp)
@@ -117,14 +144,14 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 		var nodes []*yaml.Node
 		var err error
 		if givenPath != "$" {
-			nodes, err = utils.FindNodesWithoutDeserializing(specNode, givenPath)
+			nodes, err = utils.FindNodesWithoutDeserializing(ctx.specNode, givenPath)
 		} else {
 			// if we're looking for the root, don't bother looking, we already have it.
-			nodes = []*yaml.Node{specNode}
+			nodes = []*yaml.Node{ctx.specNode}
 		}
 
 		if err != nil {
-			*errors = append(*errors, err)
+			*ctx.errors = append(*ctx.errors, err)
 			return
 		}
 		if len(nodes) <= 0 {
@@ -133,21 +160,21 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 
 		// check for a single action
 		var ruleAction model.RuleAction
-		err = mapstructure.Decode(rule.Then, &ruleAction)
+		err = mapstructure.Decode(ctx.rule.Then, &ruleAction)
 
 		if err == nil {
 
-			ruleResults = buildResults(rule, builtinFunctions, ruleAction, ruleResults, nodes, index)
+			ctx.ruleResults = buildResults(ctx, ruleAction, nodes)
 
 		} else {
 
 			// check for multiple actions.
 			var ruleActions []model.RuleAction
-			err = mapstructure.Decode(rule.Then, &ruleActions)
+			err = mapstructure.Decode(ctx.rule.Then, &ruleActions)
 
 			if err == nil {
 				for _, rAction := range ruleActions {
-					ruleResults = buildResults(rule, builtinFunctions, rAction, ruleResults, nodes, index)
+					ctx.ruleResults = buildResults(ctx, rAction, nodes)
 				}
 			}
 		}
@@ -156,19 +183,19 @@ func runRule(rule *model.Rule, specNode *yaml.Node, builtinFunctions functions.F
 
 var lock sync.Mutex
 
-func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAction model.RuleAction,
-	ruleResults *[]model.RuleFunctionResult, nodes []*yaml.Node, index *model.SpecIndex) *[]model.RuleFunctionResult {
+func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.Node) *[]model.RuleFunctionResult {
 
-	ruleFunction := builtinFunctions.FindFunction(ruleAction.Function)
+	ruleFunction := ctx.builtinFunctions.FindFunction(ruleAction.Function)
 
 	if ruleFunction != nil {
 
 		rfc := model.RuleFunctionContext{
 			Options:    ruleAction.FunctionOptions,
 			RuleAction: &ruleAction,
-			Rule:       rule,
-			Given:      rule.Given,
-			Index:      index,
+			Rule:       ctx.rule,
+			Given:      ctx.rule.Given,
+			Index:      ctx.index,
+			SpecInfo:   ctx.specInfo,
 		}
 
 		// validate the rule is configured correctly before running it.
@@ -176,7 +203,7 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 		if !res {
 			for _, e := range errs {
 				lock.Lock()
-				*ruleResults = append(*ruleResults, model.RuleFunctionResult{Message: e})
+				*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{Message: e})
 				lock.Unlock()
 			}
 		} else {
@@ -190,7 +217,7 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 				// because this function is running in multiple threads, we need to sync access to the final result
 				// list, otherwise things can get a bit random.
 				lock.Lock()
-				*ruleResults = append(*ruleResults, runRuleResults...)
+				*ctx.ruleResults = append(*ctx.ruleResults, runRuleResults...)
 				lock.Unlock()
 			}
 
@@ -200,5 +227,5 @@ func buildResults(rule *model.Rule, builtinFunctions functions.Functions, ruleAc
 		// TODO: Fix this error handling.
 		//fmt.Printf("oooo nice, an error here.")
 	}
-	return ruleResults
+	return ctx.ruleResults
 }

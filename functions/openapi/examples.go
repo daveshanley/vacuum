@@ -95,22 +95,22 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	// check components.
 	objNode := context.Index.GetSchemasNode()
 
-	//TODO: run a seperate path if we're using swagger! ($.definitions)
-	results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.components.schemas", context)
-
-	/*
-		// check definitions (swagger)
-		defPathString := "$.definitions"
-		path, _ = yamlpath.NewPath(defPathString)
-		objNode, _ = path.Find(nodes[0])
-
-		results = checkAllDefinitionsForExamples(objNode, results, defPathString, context)
-
-	*/
+	if context.SpecInfo.SpecFormat == model.OAS3 {
+		results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.components.schemas", context)
+	}
+	if context.SpecInfo.SpecFormat == model.OAS2 {
+		results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.definitions", context)
+	}
 
 	// check parameters
+	var componentParamPath string
+	if context.SpecInfo.SpecFormat == model.OAS3 {
+		componentParamPath = "$.components.parameters"
+	}
+	if context.SpecInfo.SpecFormat == model.OAS3 {
+		componentParamPath = "$.parameters"
+	}
 
-	componentParamPath := "$.components.parameters"
 	paramsNode := context.Index.GetParametersNode()
 
 	if paramsNode != nil && utils.IsNodeArray(paramsNode) {

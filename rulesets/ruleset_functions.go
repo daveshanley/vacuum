@@ -14,6 +14,7 @@ import (
 // it uses the in-built 'truthy' function
 func GetContactPropertiesRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Contact details are incomplete",
 		Given:        "$.info.contact",
 		Resolved:     true,
@@ -42,6 +43,7 @@ func GetContactPropertiesRule() *model.Rule {
 // info object contains a contact object
 func GetInfoContactRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Info section is missing contact details",
 		Given:        "$.info",
 		Resolved:     true,
@@ -60,6 +62,7 @@ func GetInfoContactRule() *model.Rule {
 // info object contains a description
 func GetInfoDescriptionRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Info section is missing a description",
 		Given:        "$.info",
 		Resolved:     true,
@@ -78,6 +81,7 @@ func GetInfoDescriptionRule() *model.Rule {
 // info object contains a license
 func GetInfoLicenseRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Info section should contain a license",
 		Given:        "$.info",
 		Resolved:     true,
@@ -96,6 +100,7 @@ func GetInfoLicenseRule() *model.Rule {
 // info object contains a license with an url that is set.
 func GetInfoLicenseUrlRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "License should contain an url",
 		Given:        "$.info.license",
 		Resolved:     true,
@@ -119,6 +124,7 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Markdown descriptions must not have 'eval()' statements'",
 		Given:        "$",
 		Resolved:     true,
@@ -143,6 +149,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Markdown descriptions must not have '<script>' tags'",
 		Given:        "$",
 		Resolved:     true,
@@ -166,6 +173,7 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 	fo["keyedBy"] = "name"
 
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Tags must be in alphabetical order",
 		Given:        "$.tags",
 		Resolved:     true,
@@ -199,6 +207,7 @@ func GetOpenApiTagsRule() *model.Rule {
 	//opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
 
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Top level spec 'tags' must not be empty, and must be an array",
 		Given:        "$",
 		Resolved:     true,
@@ -220,6 +229,7 @@ func GetOperationDescriptionRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["minWords"] = "1" // there must be at least a single word.
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Operation description checks",
 		Given:        "$",
 		Resolved:     true,
@@ -238,13 +248,14 @@ func GetOperationDescriptionRule() *model.Rule {
 // all descriptions should be unique, otherwise what is the point?
 func GetDescriptionDuplicationRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Description duplication check",
 		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     info,
 		Then: model.RuleAction{
 			Function: "oasDescriptionDuplication",
 		},
@@ -254,6 +265,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 // GetComponentDescriptionsRule will check all components for description problems.
 func GetComponentDescriptionsRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Component description check",
 		Given:        "$",
 		Resolved:     true,
@@ -274,6 +286,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 	opts["match"] = "^[A-Za-z0-9-._~:/?#\\[\\]@!\\$&'()*+,;=]*$"
 	comp, _ := regexp.Compile(opts["match"].(string))
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "OperationId must use URL friendly characters",
 		Given:        AllOperationsPath,
 		Resolved:     true,
@@ -294,6 +307,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 // it's an array with at least one item.
 func GetOperationTagsRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Operation 'tags' are missing/empty",
 		Given:        "$",
 		Resolved:     true,
@@ -313,6 +327,7 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 	opts["notMatch"] = "{}"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Path parameter declarations must not be empty ex. '/api/{}' is invalid",
 		Given:        "$.paths",
 		Resolved:     true,
@@ -334,6 +349,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 	opts["notMatch"] = ".+\\/$"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Path must not end with a slash",
 		Given:        "$.paths",
 		Resolved:     true,
@@ -355,6 +371,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 	opts["notMatch"] = "\\?"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Path must not include query string",
 		Given:        "$.paths",
 		Resolved:     true,
@@ -373,6 +390,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 // GetTagDescriptionRequiredRule checks to ensure tags defined have been given a description
 func GetTagDescriptionRequiredRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Tag must have a description defined",
 		Given:        "$.tags",
 		Resolved:     true,
@@ -390,6 +408,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 // GetTypedEnumRule checks to ensure enums are of the specified type
 func GetTypedEnumRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Enum values must respect the specified type",
 		Given:        "$",
 		Resolved:     true,
@@ -407,6 +426,7 @@ func GetTypedEnumRule() *model.Rule {
 func GetPathParamsRule() *model.Rule {
 	// add operation tag defined rule
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Path parameters must be defined and valid.",
 		Given:        "$",
 		Resolved:     true,
@@ -423,6 +443,7 @@ func GetPathParamsRule() *model.Rule {
 // GetGlobalOperationTagsRule will check that an operation tag exists in top level tags
 func GetGlobalOperationTagsRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Operation tags must be defined in global tags.",
 		Given:        "$",
 		Resolved:     true,
@@ -439,6 +460,7 @@ func GetGlobalOperationTagsRule() *model.Rule {
 // GetOperationParametersRule will check that an operation has valid parameters defined
 func GetOperationParametersRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Operation parameters are unique and non-repeating.",
 		Given:        "$.paths",
 		Resolved:     true,
@@ -455,6 +477,7 @@ func GetOperationParametersRule() *model.Rule {
 // GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
 func GetOperationIdUniqueRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Every operation must have unique \"operationId\".",
 		Given:        "$.paths",
 		Resolved:     true,
@@ -471,6 +494,7 @@ func GetOperationIdUniqueRule() *model.Rule {
 // GetOperationSuccessResponseRule will check that every operation has a success response defined.
 func GetOperationSuccessResponseRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Operation must have at least one 2xx or a 3xx response.",
 		Given:        "$",
 		Resolved:     true,
@@ -488,6 +512,7 @@ func GetOperationSuccessResponseRule() *model.Rule {
 // GetDuplicatedEntryInEnumRule will check that enums used are not duplicates
 func GetDuplicatedEntryInEnumRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Enum values must not have duplicate entry",
 		Given:        "$",
 		Resolved:     false,
@@ -504,6 +529,7 @@ func GetDuplicatedEntryInEnumRule() *model.Rule {
 // GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
 func GetNoRefSiblingsRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "$ref values cannot be placed next to other properties (like a description)",
 		Given:        "$",
 		Resolved:     false,
@@ -520,6 +546,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 // GetOAS3UnusedComponentRule will check that there aren't any components anywhere that haven't been used.
 func GetOAS3UnusedComponentRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.OAS3AllFormat,
 		Description:  "Check for unused components and bad references",
 		Given:        "$",
 		Resolved:     false,
@@ -539,6 +566,7 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 	oasSecurityPath["schemesPath"] = "$.components.securitySchemes"
 
 	return &model.Rule{
+		Formats:      model.OAS3AllFormat,
 		Description:  "'security' values must match a scheme defined in components.securitySchemes",
 		Given:        "$",
 		Resolved:     true,
@@ -559,6 +587,7 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 	swaggerSecurityPath["schemesPath"] = "$.securityDefinitions"
 
 	return &model.Rule{
+		Formats:      model.OAS2Format,
 		Description:  "'security' values must match a scheme defined in securityDefinitions",
 		Given:        "$",
 		Resolved:     true,
@@ -576,6 +605,7 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 // GetExamplesRule will check the entire spec for correct example use.
 func GetExamplesRule() *model.Rule {
 	return &model.Rule{
+		Formats:      model.AllFormats,
 		Description:  "Examples must be present and valid for operations and components",
 		Given:        "$",
 		Resolved:     true,
