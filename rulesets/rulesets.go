@@ -118,11 +118,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	//add no $ref siblings
 	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
 
-	// add unused component rule for openapi3
+	// add unused component rule
 	rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
-
-	//// TODO: build in spec types so we don't run this twice :)
-	////rules["oas2-unused-definition"] = unusedComponentRule
+	rules["oas2-unused-definition"] = GetOAS2UnusedComponentRule()
 
 	//// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
@@ -143,8 +141,7 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check no script statements in markdown descriptions.
 	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
 
-	// check for description and summary duplication (this is the slowest rule, needs optimizing)
-	// TODO: optimize this rule, it's very slow.
+	// check for description and summary duplication
 	rules["description-duplication"] = GetDescriptionDuplicationRule()
 
 	set := &model.RuleSet{

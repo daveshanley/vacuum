@@ -212,6 +212,20 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			// TODO: change this signature to be singular and not an array so this is handled permanently.
 
 			for _, node := range nodes {
+
+				// if this rule is designed for a different version, skip it.
+				if len(ctx.rule.Formats) > 0 {
+					match := false
+					for _, format := range ctx.rule.Formats {
+						if format == ctx.specInfo.SpecFormat {
+							match = true
+						}
+					}
+					if ctx.specInfo.SpecFormat != "" && !match {
+						continue // does not apply to this spec.
+					}
+				}
+
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
 				// because this function is running in multiple threads, we need to sync access to the final result

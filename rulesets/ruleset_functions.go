@@ -560,6 +560,23 @@ func GetOAS3UnusedComponentRule() *model.Rule {
 	}
 }
 
+// GetOAS2UnusedComponentRule will check that there aren't any components anywhere that haven't been used.
+func GetOAS2UnusedComponentRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "Check for unused components and bad references",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasUnusedComponent",
+		},
+	}
+}
+
 // GetOAS3SecurityDefinedRule will check that security definitions exist and validate for OpenAPI 3
 func GetOAS3SecurityDefinedRule() *model.Rule {
 	oasSecurityPath := make(map[string]string)
