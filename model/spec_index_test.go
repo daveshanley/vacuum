@@ -149,6 +149,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 	assert.Len(t, index.allRefs, 4)
 	assert.Len(t, index.allMappedRefs, 4)
 	assert.Equal(t, 4, len(index.GetMappedReferences()))
+	assert.Equal(t, 4, len(index.GetMappedReferencesSequenced()))
 
 	assert.Equal(t, 5, index.pathCount)
 	assert.Equal(t, 5, index.GetPathCount())
