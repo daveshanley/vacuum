@@ -28,6 +28,7 @@ var (
 			timeFlag, _ := cmd.Flags().GetBool("time")
 			snippetsFlag, _ := cmd.Flags().GetBool("snippets")
 			errorsFlag, _ := cmd.Flags().GetBool("errors")
+			categoryFlag, _ := cmd.Flags().GetString("category")
 
 			pterm.Println()
 
@@ -83,8 +84,35 @@ var (
 
 			pterm.Println() // Blank line
 
+			var cats []*model.RuleCategory
+
+			if categoryFlag != "" {
+				switch categoryFlag {
+				case model.CategoryDescriptions:
+					cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
+				case model.CategoryExamples:
+					cats = append(cats, model.RuleCategories[model.CategoryExamples])
+				case model.CategoryInfo:
+					cats = append(cats, model.RuleCategories[model.CategoryInfo])
+				case model.CategorySchemas:
+					cats = append(cats, model.RuleCategories[model.CategorySchemas])
+				case model.CategorySecurity:
+					cats = append(cats, model.RuleCategories[model.CategorySecurity])
+				case model.CategoryValidation:
+					cats = append(cats, model.RuleCategories[model.CategoryValidation])
+				case model.CategoryOperations:
+					cats = append(cats, model.RuleCategories[model.CategoryOperations])
+				case model.CategoryTags:
+					cats = append(cats, model.RuleCategories[model.CategoryTags])
+				default:
+					cats = model.RuleCategoriesOrdered
+				}
+			} else {
+				cats = model.RuleCategoriesOrdered
+			}
+
 			// try a category print out.
-			for _, val := range model.RuleCategoriesOrdered {
+			for _, val := range cats {
 
 				categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
 
