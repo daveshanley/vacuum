@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// TODO: This is a temporary UI, it's to help figure out the best experience, and it is not intended as a final face
+// of vacuum. It's going to change around a good bit, so don't get too comfy with it :)
+
 var (
 	rootCmd = &cobra.Command{
 		Use:   "vacuum <your-openapi-file.yaml>",
@@ -24,6 +27,7 @@ var (
 			detailsFlag, _ := cmd.Flags().GetBool("details")
 			timeFlag, _ := cmd.Flags().GetBool("time")
 			snippetsFlag, _ := cmd.Flags().GetBool("snippets")
+			errorsFlag, _ := cmd.Flags().GetBool("errors")
 
 			pterm.Println()
 
@@ -70,7 +74,6 @@ var (
 			if !detailsFlag {
 				RenderSummary(resultSet, args)
 				renderTime(timeFlag, duration, fi)
-
 				return nil
 			}
 
@@ -81,13 +84,13 @@ var (
 			pterm.Println() // Blank line
 
 			// try a category print out.
-			for _, val := range model.RuleCategories {
+			for _, val := range model.RuleCategoriesOrdered {
 
 				categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
 
 				if len(categoryResults) > 0 {
 					pterm.DefaultSection.Printf("%s Issues\n", val.Name)
-					processResults(categoryResults, specStringData, snippetsFlag, val.Name)
+					processResults(categoryResults, specStringData, snippetsFlag, errorsFlag, val.Name)
 
 				}
 
@@ -110,7 +113,7 @@ func renderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
 	}
 }
 
-func processResults(results []*model.RuleFunctionResult, specData []string, snippets bool, cat string) {
+func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, cat string) {
 
 	// if snippets are being used, we render a single table for a result and then a snippet, if not
 	// we just render the entire table, all rows.
@@ -147,6 +150,10 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			sev = pterm.LightYellow("warning")
 		case "info":
 			sev = pterm.LightBlue(sev)
+		}
+
+		if errors && r.Rule.Severity != "error" {
+			continue // only show errors
 		}
 
 		tableData = append(tableData, []string{start, sev, m, p})
@@ -191,10 +198,10 @@ func RenderSummary(rs *model.RuleResultSet, args []string) {
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
 
-	for key, cat := range model.RuleCategories {
-		errors := rs.GetErrorsByRuleCategory(key)
-		warn := rs.GetWarningsByRuleCategory(key)
-		info := rs.GetInfoByRuleCategory(key)
+	for _, cat := range model.RuleCategoriesOrdered {
+		errors := rs.GetErrorsByRuleCategory(cat.Id)
+		warn := rs.GetWarningsByRuleCategory(cat.Id)
+		info := rs.GetInfoByRuleCategory(cat.Id)
 
 		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
 
@@ -238,6 +245,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("details", "d", false, "Show full details of linting report")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
+	rootCmd.PersistentFlags().BoolP("errors", "e", false, "Show errors only")
+	rootCmd.PersistentFlags().StringP("category", "c", "", "Show a single category of results (can be ")
 
 }
 

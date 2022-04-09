@@ -23,7 +23,7 @@ func (c *CircularReferenceResult) GenerateJourneyPath() string {
 	buf := strings.Builder{}
 	for i, ref := range c.Journey {
 		buf.WriteString(ref.Name)
-		if i < len(c.Journey) {
+		if i+1 < len(c.Journey) {
 			buf.WriteString(" -> ")
 		}
 	}
