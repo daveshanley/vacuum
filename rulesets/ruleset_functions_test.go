@@ -440,3 +440,52 @@ func TestRuleTagDescriptionRequiredRule(t *testing.T) {
 	assert.Equal(t, "Tag must have a description defined: 'description' must be set", results[0].Message)
 
 }
+
+func TestRuleOAS2APIHostRule(t *testing.T) {
+
+	yml := `swagger: 2.0
+paths:
+  /nice:
+    get:
+      description: fresh fish
+definitions: 
+  Cake: 
+    description: and tea`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-api-host"] = GetOAS2APIHostRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+
+}
+
+func TestRuleOAS2APIHostRule_Success(t *testing.T) {
+
+	yml := `swagger: 2.0
+host: https://quobix.com
+paths:
+  /nice:
+    get:
+      description: fresh fish
+definitions: 
+  Cake: 
+    description: and tea`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-api-host"] = GetOAS2APIHostRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.Nil(t, results)
+	assert.Len(t, results, 0)
+
+}

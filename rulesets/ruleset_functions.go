@@ -527,6 +527,24 @@ func GetOperationSingleTagRule() *model.Rule {
 	}
 }
 
+// GetOAS2APIHostRule will check swagger specs for the host property being set.
+func GetOAS2APIHostRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "OpenAPI 'host' must be present and a non-empty string.",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Type:         style,
+		Severity:     info,
+		Then: model.RuleAction{
+			Field:    "host",
+			Function: "truthy",
+		},
+	}
+}
+
 // GetOperationIdRule will check to make sure that operationIds  exist on all operations
 func GetOperationIdRule() *model.Rule {
 	return &model.Rule{

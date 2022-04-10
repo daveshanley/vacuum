@@ -128,7 +128,10 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
 	rules["oas2-unused-definition"] = GetOAS2UnusedComponentRule()
 
-	//// security for versions 2 and 3.
+	// oas2 check for host value
+	rules["oas2-api-host"] = GetOAS2APIHostRule()
+
+	// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
 	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
