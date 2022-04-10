@@ -510,6 +510,23 @@ func GetOperationIdUniqueRule() *model.Rule {
 	}
 }
 
+// GetOperationSingleTagRule will check to see if an operation has more than a single tag
+func GetOperationSingleTagRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.AllFormats,
+		Description:  "Operation cannot have more than a single tag defined",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasOpSingleTag",
+		},
+	}
+}
+
 // GetOperationIdRule will check to make sure that operationIds  exist on all operations
 func GetOperationIdRule() *model.Rule {
 	return &model.Rule{

@@ -419,6 +419,11 @@ func (index *SpecIndex) GetAllPaths() map[string]map[string]*Reference {
 	return index.pathRefs
 }
 
+// GetOperationTags will return all references to all tags found in operations.
+func (index *SpecIndex) GetOperationTags() map[string]map[string][]*Reference {
+	return index.operationTagsRefs
+}
+
 // GetAllParametersFromOperations will return all paths indexed in the document
 func (index *SpecIndex) GetAllParametersFromOperations() map[string]map[string]map[string]*Reference {
 	return index.paramOpRefs

@@ -67,6 +67,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// add operation params rule
 	rules["operation-parameters"] = GetOperationParametersRule()
 
+	// add operation single tag rule
+	rules["operation-singular-tag"] = GetOperationSingleTagRule()
+
 	// add operation tag defined rule
 	rules["operation-tag-defined"] = GetGlobalOperationTagsRule()
 
