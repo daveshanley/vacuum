@@ -68,7 +68,7 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
 	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
-	assert.Len(t, results, 21)
+	assert.Len(t, results, 22)
 
 	for n := 0; n < len(results); n++ {
 		assert.NotNil(t, results[n].Path)
