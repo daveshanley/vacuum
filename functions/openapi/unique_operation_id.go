@@ -1,4 +1,4 @@
-// Copyright 2020-2021 Dave Shanley / Quobix
+// Copyright 2022 Dave Shanley / Quobix
 // SPDX-License-Identifier: MIT
 
 package openapi
@@ -31,56 +31,28 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 
 	var results []model.RuleFunctionResult
 
-	for _, node := range nodes {
-		seenIds := make(map[string]bool)
-		for x, pn := range node.Content {
-			var currentPath string
-			var currentVerb string
-			if pn.Tag == "!!str" {
+	paths := context.Index.GetAllPaths()
+	seenIds := make(map[string]bool)
 
-				currentPath = pn.Value
-				verbNode := node.Content[x+1]
+	for path, methodMap := range paths {
 
-				for y, verbMapNode := range verbNode.Content {
+		for method, methodNode := range methodMap {
 
-					if verbMapNode.Tag == "!!str" && utils.IsHttpVerb(verbMapNode.Value) {
-						currentVerb = verbMapNode.Value
-					} else {
-						continue
-					}
+			_, operationId := utils.FindKeyNode("operationId", methodNode.Node.Content)
+			lastNode := utils.FindLastChildNode(methodNode.Node)
 
-					verbDataNode := verbNode.Content[y+1]
-
-					_, opIdValueNode := utils.FindFirstKeyNode("operationId", verbDataNode.Content, 0)
-
-					endNode := utils.FindLastChildNode(verbDataNode)
-					if y+2 < len(verbNode.Content) {
-						endNode = verbNode.Content[y+2]
-					}
-
-					if opIdValueNode == nil {
-						results = append(results, model.RuleFunctionResult{
-							Message: fmt.Sprintf("the '%s' operation at path '%s' does not contain an operationId",
-								currentVerb, currentPath),
-							StartNode: verbDataNode,
-							EndNode:   endNode,
-							Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
-							Rule:      context.Rule,
-						})
-					} else {
-						if seenIds[opIdValueNode.Value] {
-							results = append(results, model.RuleFunctionResult{
-								Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
-									"duplicate operationId '%s'", currentVerb, currentPath, opIdValueNode.Value),
-								StartNode: verbDataNode,
-								EndNode:   endNode,
-								Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
-								Rule:      context.Rule,
-							})
-						} else {
-							seenIds[opIdValueNode.Value] = true
-						}
-					}
+			if operationId != nil {
+				if seenIds[operationId.Value] {
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
+							"duplicate operationId '%s'", method, path, operationId.Value),
+						StartNode: methodNode.Node,
+						EndNode:   lastNode,
+						Path:      fmt.Sprintf("$.paths.%s.%s", path, method),
+						Rule:      context.Rule,
+					})
+				} else {
+					seenIds[operationId.Value] = true
 				}
 			}
 		}

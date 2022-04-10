@@ -2,8 +2,8 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -31,18 +31,19 @@ func TestUniqueOperationId_RunRule_DuplicateId(t *testing.T) {
     get:
       operationId: littleSong`
 
-	path := "$.paths"
+	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := UniqueOperationId{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/ember' contains a duplicate operationId 'littleSong'", res[0].Message)
 }
 
 func TestUniqueOperationId_RunRule_MissingId_AndDuplicate(t *testing.T) {
@@ -57,43 +58,19 @@ func TestUniqueOperationId_RunRule_MissingId_AndDuplicate(t *testing.T) {
     get:
       operationId: littleSong`
 
-	path := "$.paths"
+	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-
-	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-
-	def := UniqueOperationId{}
-	res := def.RunRule(nodes, ctx)
-
-	assert.Len(t, res, 2)
-}
-
-func TestUniqueOperationId_RunRule_MissingId(t *testing.T) {
-
-	yml := `paths:
-  /melody:
-    post:
-      operationId: littleSong
-  /maddox:
-    get:
-  /ember:
-    get:
-      operationId: littleMenace`
-
-	path := "$.paths"
-
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := UniqueOperationId{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/maddox' does not contain an operationId", res[0].Message)
 }
 
 func TestUniqueOperationId_RunRule_Success(t *testing.T) {
@@ -109,15 +86,16 @@ func TestUniqueOperationId_RunRule_Success(t *testing.T) {
     get:
       operationId: littleMenace`
 
-	path := "$.paths"
-
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	path := "$"
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := UniqueOperationId{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 0)
 

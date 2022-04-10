@@ -59,6 +59,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["post-response-success"] = openapi_functions.PostResponseSuccess{}
 		funcs["oasOpSuccessResponse"] = openapi_functions.SuccessResponse{}
 		funcs["oasOpIdUnique"] = openapi_functions.UniqueOperationId{}
+		funcs["oasOpId"] = openapi_functions.OperationId{}
 		funcs["oasOpParams"] = openapi_functions.OperationParameters{}
 		funcs["oasTagDefined"] = openapi_functions.TagDefined{}
 		funcs["oasPathParam"] = openapi_functions.PathParameters{}

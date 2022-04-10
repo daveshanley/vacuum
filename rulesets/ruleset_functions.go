@@ -503,9 +503,26 @@ func GetOperationIdUniqueRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     error,
 		Then: model.RuleAction{
 			Function: "oasOpIdUnique",
+		},
+	}
+}
+
+// GetOperationIdRule will check to make sure that operationIds  exist on all operations
+func GetOperationIdRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.AllFormats,
+		Description:  "Every operation must contain an \"operationId\".",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasOpId",
 		},
 	}
 }

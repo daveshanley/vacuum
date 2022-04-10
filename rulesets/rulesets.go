@@ -59,7 +59,10 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["operation-success-response"] = GetOperationSuccessResponseRule()
 
 	// add unique operation ID rule
-	rules["operation-operationId"] = GetOperationIdUniqueRule()
+	rules["operation-operationId-unique"] = GetOperationIdUniqueRule()
+
+	// add operation ID rule
+	rules["operation-operationId"] = GetOperationIdRule()
 
 	// add operation params rule
 	rules["operation-parameters"] = GetOperationParametersRule()
