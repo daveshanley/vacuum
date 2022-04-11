@@ -256,25 +256,16 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 
 // GetRootNode returns document root node.
 func (index *SpecIndex) GetRootNode() *yaml.Node {
-	if index == nil {
-		return nil
-	}
 	return index.root
 }
 
 // GetGlobalTagsNode returns document root node.
 func (index *SpecIndex) GetGlobalTagsNode() *yaml.Node {
-	if index == nil {
-		return nil
-	}
 	return index.tagsNode
 }
 
 // GetPathsNode returns document root node.
 func (index *SpecIndex) GetPathsNode() *yaml.Node {
-	if index == nil {
-		return nil
-	}
 	return index.pathsNode
 }
 
@@ -860,7 +851,7 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 					index.responsesNode = responsesNode
 				}
 
-				// extract requestBodies
+				// extract security schemes
 				if securitySchemesNode != nil {
 					index.extractComponentSecuritySchemes(securitySchemesNode, "#/components/securitySchemes/")
 					index.securitySchemesNode = securitySchemesNode
@@ -892,6 +883,7 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 
 			}
 
+			// swagger
 			if n.Value == "definitions" {
 				schemasNode := index.root.Content[0].Content[i+1]
 				if schemasNode != nil {
@@ -903,6 +895,7 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 				}
 			}
 
+			// swagger
 			if n.Value == "parameters" {
 				parametersNode := index.root.Content[0].Content[i+1]
 				if parametersNode != nil {

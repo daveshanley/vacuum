@@ -188,6 +188,79 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 	assert.Equal(t, 1, index.componentsInlineParamUniqueCount)
 	assert.Equal(t, 1, index.GetInlineUniqueParamCount())
 
+	assert.Equal(t, 0, len(index.GetAllRequestBodies()))
+	assert.NotNil(t, index.GetRootNode())
+	assert.NotNil(t, index.GetGlobalTagsNode())
+	assert.NotNil(t, index.GetPathsNode())
+	assert.NotNil(t, index.GetDiscoveredReferences())
+	assert.Equal(t, 0, len(index.GetPolyReferences()))
+	assert.NotNil(t, index.GetOperationParameterReferences())
+	assert.Equal(t, 0, len(index.GetAllSecuritySchemes()))
+	assert.Equal(t, 0, len(index.GetAllParameters()))
+	assert.Equal(t, 0, len(index.GetAllResponses()))
+	assert.Equal(t, 2, len(index.GetInlineOperationDuplicateParameters()))
+	assert.Equal(t, 0, len(index.GetReferencesWithSiblings()))
+	assert.Equal(t, 4, len(index.GetAllReferences()))
+	assert.Equal(t, 0, len(index.GetOperationParametersIndexErrors()))
+	assert.Equal(t, 5, len(index.GetAllPaths()))
+	assert.Equal(t, 5, len(index.GetOperationTags()))
+	assert.Equal(t, 3, len(index.GetAllParametersFromOperations()))
+
+}
+
+func TestSpecIndex_BurgerShop_AllTheComponents(t *testing.T) {
+
+	burgershop, _ := ioutil.ReadFile("test_files/all-the-components.yaml")
+	var rootNode yaml.Node
+	yaml.Unmarshal(burgershop, &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+
+	assert.Equal(t, 1, len(index.GetAllHeaders()))
+	assert.Equal(t, 1, len(index.GetAllLinks()))
+	assert.Equal(t, 1, len(index.GetAllCallbacks()))
+	assert.Equal(t, 1, len(index.GetAllExamples()))
+	assert.Equal(t, 1, len(index.GetAllResponses()))
+
+}
+
+func TestSpecIndex_SwaggerResponses(t *testing.T) {
+
+	yml := `swagger: 2.0
+responses:
+  niceResponse: 
+    description: hi`
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+
+	assert.Equal(t, 1, len(index.GetAllResponses()))
+
+}
+
+func TestSpecIndex_NoNameParam(t *testing.T) {
+
+	yml := `paths:
+  /users/{id}:
+    parameters:
+    - in: path
+      name: id
+    - in: query
+    get:
+      parameters:
+        - in: path
+          name: id
+        - in: query`
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+
+	assert.Equal(t, 2, len(index.GetOperationParametersIndexErrors()))
+
 }
 
 func TestSpecIndex_NoRoot(t *testing.T) {
