@@ -131,6 +131,18 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// oas2 check for host value
 	rules["oas2-api-host"] = GetOAS2APIHostRule()
 
+	// oas2 check for schemes
+	rules["oas2-api-schemes"] = GetOAS2APISchemesRule()
+
+	// oas2 check for discriminator
+	rules["oas2-discriminator"] = GetOAS2DiscriminatorRule()
+
+	// oas2 check for example.com being used
+	rules["oas2-host-not-example"] = GetOAS2HostNotExampleRule()
+
+	// oas2 check host does not have a trailing slash
+	rules["oas2-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
+
 	// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
 	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()

@@ -39,7 +39,7 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
 
 }
 
-func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
+func Test_Default_OpenAPIRuleSet_FireABunchOfIssues(t *testing.T) {
 
 	badDoc := `paths:
   /curry/{hurry}/{salsa}:
@@ -68,7 +68,7 @@ func Test_Default_OpenAPIRuleSet_oasOpSuccessResponse(t *testing.T) {
 	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
-	assert.Len(t, results, 22)
+	assert.Len(t, results, 23)
 
 	for n := 0; n < len(results); n++ {
 		assert.NotNil(t, results[n].Path)

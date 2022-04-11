@@ -223,6 +223,87 @@ func GetOpenApiTagsRule() *model.Rule {
 	}
 }
 
+// GetOAS2APISchemesRule uses the schema function to check if swagger has schemes and that
+// it's an array with at least one item.
+func GetOAS2APISchemesRule() *model.Rule {
+	items := 1
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["schema"] = parser.Schema{
+		Type: &utils.ArrayLabel,
+		Items: &parser.Schema{
+			Type:     &utils.StringLabel,
+			MinItems: &items,
+		},
+		UniqueItems: true,
+	}
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+
+	return &model.Rule{
+		Formats:      model.AllFormats,
+		Description:  "OpenAPI host 'schemes' must be present and non-empty array.",
+		Given:        "$",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Field:           "schemes",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+	}
+}
+
+// GetOAS2HostNotExampleRule checks to make sure that example.com is not being used as a host.
+// TODO: how common is this? should we keep it? change it?
+func GetOAS2HostNotExampleRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "example\\.com"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "Host URL should not point at example.com",
+		Given:        "$.host",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Field:           "host",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecomiledPattern: comp,
+	}
+}
+
+// GetOAS2HostTrailingSlashRule checks to make sure there is no trailing slash on the host
+func GetOAS2HostTrailingSlashRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "/$"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "Host URL should not contain a trailing slash",
+		Given:        "$.host",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Field:           "host",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecomiledPattern: comp,
+	}
+}
+
 // GetOperationDescriptionRule will return a rule that uses the truthy function to check if an operation
 // has defined a description or not, or does not meet the required length
 func GetOperationDescriptionRule() *model.Rule {
@@ -686,6 +767,23 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 		Then: model.RuleAction{
 			Function:        "oasOpSecurityDefined",
 			FunctionOptions: swaggerSecurityPath,
+		},
+	}
+}
+
+// GetOAS2DiscriminatorRule will check swagger schemas to ensure they are using discriminations correctly.
+func GetOAS2DiscriminatorRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "discriminators are used correctly in schemas",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasDiscriminator",
 		},
 	}
 }

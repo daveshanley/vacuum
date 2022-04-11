@@ -489,3 +489,125 @@ definitions:
 	assert.Len(t, results, 0)
 
 }
+
+func TestRuleOAS2APISchemesRule(t *testing.T) {
+
+	yml := `swagger: 2.0
+no-schemes: [yeah]
+paths:
+  /nice:
+    get:
+      description: fresh fish
+definitions: 
+  Cake: 
+    description: and tea`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-api-schemes"] = GetOAS2APISchemesRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+
+}
+
+func TestRuleOAS2APISchemesRule_Success(t *testing.T) {
+
+	yml := `swagger: 2.0
+schemes: [http, https]
+paths:
+  /nice:
+    get:
+      description: fresh fish
+definitions: 
+  Cake: 
+    description: and tea`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-api-schemes"] = GetOAS2APISchemesRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.Nil(t, results)
+	assert.Len(t, results, 0)
+
+}
+
+func TestRuleOAS2HostNotExampleRule(t *testing.T) {
+
+	yml := `swagger: 2.0
+host: https://quobix.com`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-host-not-example"] = GetOAS2HostNotExampleRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.Nil(t, results)
+	assert.Len(t, results, 0)
+
+}
+
+func TestRuleOAS2HostNotExampleRule_Fail(t *testing.T) {
+
+	yml := `swagger: 2.0
+host: https://example.com`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-host-not-example"] = GetOAS2HostNotExampleRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+
+}
+
+func TestRuleOAS2HostTrailingSlashRule_Fail(t *testing.T) {
+
+	yml := `swagger: 2.0
+host: https://quobix.com/`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+
+}
+
+func TestRuleOAS2HostTrailingSlashRule(t *testing.T) {
+
+	yml := `swagger: 2.0
+host: https://quobix.com`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas2-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.Nil(t, results)
+	assert.Len(t, results, 0)
+
+}
