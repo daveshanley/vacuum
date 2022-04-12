@@ -325,6 +325,23 @@ func GetOperationDescriptionRule() *model.Rule {
 	}
 }
 
+// GetOAS2ParameterDescriptionRule will check swagger specs to make sure parameters have a description.
+func GetOAS2ParameterDescriptionRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "Parameter description checks",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasParamDescriptions",
+		},
+	}
+}
+
 // GetDescriptionDuplicationRule will check if any descriptions have been copy/pasted or duplicated.
 // all descriptions should be unique, otherwise what is the point?
 func GetDescriptionDuplicationRule() *model.Rule {

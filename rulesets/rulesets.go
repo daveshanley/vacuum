@@ -143,6 +143,9 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// oas2 check host does not have a trailing slash
 	rules["oas2-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
 
+	// oas2 parameter description check
+	rules["oas2-parameter-description"] = GetOAS2ParameterDescriptionRule()
+
 	// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
 	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()

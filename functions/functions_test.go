@@ -7,5 +7,5 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 31)
+	assert.Len(t, funcs.GetAllFunctions(), 32)
 }
