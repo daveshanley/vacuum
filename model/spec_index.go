@@ -74,6 +74,7 @@ type SpecIndex struct {
 	callbackRefs                        map[string]*Reference                       // top level callback refs
 	polymorphicRefs                     map[string]*Reference                       // every reference to 'allOf' references
 	externalDocumentsRef                []*Reference                                // all external documents in spec
+	swaggerRootSecurity                 []*Reference                                // swagger (2.0) allows security to be defined at the root.
 	refsWithSiblings                    map[string]*Reference                       // references with sibling elements next to them.
 	pathRefsLock                        sync.Mutex                                  // create lock for all refs maps, we want to build data as fast as we can
 	externalDocumentsCount              int                                         // number of externalDocument nodes found
@@ -418,6 +419,11 @@ func (index *SpecIndex) GetOperationTags() map[string]map[string][]*Reference {
 // GetAllParametersFromOperations will return all paths indexed in the document
 func (index *SpecIndex) GetAllParametersFromOperations() map[string]map[string]map[string]*Reference {
 	return index.paramOpRefs
+}
+
+// GetSwaggerRootSecurity will return all root security settings for swagger docs (not available in 3.0)
+func (index *SpecIndex) GetSwaggerRootSecurity() []*Reference {
+	return index.swaggerRootSecurity
 }
 
 func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
@@ -813,6 +819,24 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 
 	for i, n := range index.root.Content[0].Content {
 		if i%2 == 0 {
+
+			// swagger (2.0) allows security to be defined at the root of the spec. Not for OpenAPI 3.0
+			if n.Value == "security" {
+				if i+1 < len(index.root.Content[0].Content) {
+					securityDefinitions := index.root.Content[0].Content[i+1]
+					for x, def := range securityDefinitions.Content {
+						name := def.Content[0]
+						ref := &Reference{
+							Definition: name.Value,
+							Name:       name.Value,
+							Node:       def,
+							Path:       fmt.Sprintf("$.security[%d]", x),
+						}
+						index.swaggerRootSecurity = append(index.swaggerRootSecurity, ref)
+					}
+				}
+			}
+
 			if n.Value == "components" {
 				_, schemasNode := utils.FindKeyNode("schemas", index.root.Content[0].Content[i+1].Content)
 

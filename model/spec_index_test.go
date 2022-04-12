@@ -110,6 +110,24 @@ func TestSpecIndex_PetstoreV2(t *testing.T) {
 	assert.Equal(t, 3, index.GetTotalTagsCount())
 }
 
+func TestSpecIndex_XSOAR(t *testing.T) {
+
+	xsoar, _ := ioutil.ReadFile("test_files/xsoar.json")
+	var rootNode yaml.Node
+	yaml.Unmarshal(xsoar, &rootNode)
+
+	index := NewSpecIndex(&rootNode)
+	assert.Len(t, index.allRefs, 209)
+	assert.Equal(t, 85, index.pathCount)
+	assert.Equal(t, 88, index.operationCount)
+	assert.Equal(t, 245, index.schemaCount)
+	assert.Equal(t, 207, len(index.allMappedRefs))
+	assert.Equal(t, 0, index.globalTagsCount)
+	assert.Equal(t, 0, index.operationTagsCount)
+	assert.Equal(t, 0, index.globalLinksCount)
+	assert.Len(t, index.swaggerRootSecurity, 1)
+}
+
 func TestSpecIndex_PetstoreV3(t *testing.T) {
 
 	asana, _ := ioutil.ReadFile("test_files/petstorev3.json")
