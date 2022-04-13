@@ -42,17 +42,30 @@ func (sd OAS2OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model
 
 			if securityNode != nil {
 
+				basePath := fmt.Sprintf("$.paths.%s.%s", path, method)
+
 				results = sd.checkSecurityNode(securityNode, securityDefinitions, results,
-					method, path, methodNode, lastNode, context)
+					basePath, methodNode.Node, lastNode, context)
 			}
 		}
 	}
+
+	// look through root security if it has been set.
+	rootSecurity := context.Index.GetRootSecurityNode()
+	if rootSecurity != nil {
+		basePath := "$"
+		lastNode := utils.FindLastChildNode(rootSecurity)
+
+		results = sd.checkSecurityNode(rootSecurity, securityDefinitions, results,
+			basePath, rootSecurity, lastNode, context)
+	}
+
 	return results
 }
 
 func (sd OAS2OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 	securityDefinitions map[string]*model.Reference, results []model.RuleFunctionResult,
-	method string, path string, methodNode *model.Reference, lastNode *yaml.Node,
+	basePath string, startNode *yaml.Node, endNode *yaml.Node,
 	context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	// look through each security item and check it exists in the global security index.
@@ -67,11 +80,11 @@ func (sd OAS2OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node
 			if securityDefinitions[lookup] == nil {
 
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("the '%s' operation at '%s' references a non-existent "+
-						"security definition '%s'", method, path, name.Value),
-					StartNode: methodNode.Node,
-					EndNode:   lastNode,
-					Path:      fmt.Sprintf("$.paths.%s.%s.security[%d]", path, method, i),
+					Message: fmt.Sprintf("Security definition points a non-existent "+
+						"securityDefinition '%s'", name.Value),
+					StartNode: startNode,
+					EndNode:   endNode,
+					Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
 					Rule:      context.Rule,
 				})
 			}

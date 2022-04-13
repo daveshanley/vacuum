@@ -32,76 +32,72 @@ func (osd OperationSecurityDefined) GetSchema() model.RuleFunctionSchema {
 
 // RunRule will execute the OperationSecurityDefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	var results []model.RuleFunctionResult
 
 	if len(nodes) <= 0 {
 		return nil
 	}
 
-	// TODO: this needs to be refactored to use the index. It's quite performant however, so until it's time to
-	// start shaving off more ms, this can stay as is.
+	var results []model.RuleFunctionResult
 
-	var schemesPath string
-	if context.Options == nil {
-		return results
-	}
-	if opts := utils.ConvertInterfaceIntoStringMap(context.Options); opts != nil {
-		if v, ok := opts["schemesPath"]; ok {
-			schemesPath = v
-		}
-	} else {
-		return results // can't do anything without a schemesPath to look at.
-	}
+	paths := context.Index.GetAllPaths()
+	securityDefinitions := context.Index.GetAllSecuritySchemes()
 
-	ops := GetOperationsFromRoot(nodes)
+	for path, methodMap := range paths {
 
-	for _, node := range nodes {
-		securitySchemes, _ := utils.FindNodesWithoutDeserializing(node, schemesPath)
-		var definedSchemes []string
-		for _, schemeNode := range securitySchemes {
-			for i, scheme := range schemeNode.Content {
-				if i%2 == 0 {
-					definedSchemes = append(definedSchemes, scheme.Value)
-				}
+		for method, methodNode := range methodMap {
+
+			_, securityNode := utils.FindKeyNode("security", methodNode.Node.Content)
+			lastNode := utils.FindLastChildNode(methodNode.Node)
+
+			if securityNode != nil {
+
+				basePath := fmt.Sprintf("$.paths.%s.%s", path, method)
+
+				results = osd.checkSecurityNode(securityNode, securityDefinitions, results,
+					basePath, methodNode.Node, lastNode, context)
 			}
 		}
+	}
 
-		// now lets pull out all operations and then look for security definitions on them.
-		var path string
-		for _, op := range ops {
-			if op.Kind == yaml.ScalarNode {
-				path = op.Value
-			} else {
-				_, secVal := utils.FindFirstKeyNode("security", []*yaml.Node{op}, 0)
+	// look through root security if it has been set.
+	rootSecurity := context.Index.GetRootSecurityNode()
+	if rootSecurity != nil {
+		basePath := "$"
+		lastNode := utils.FindLastChildNode(rootSecurity)
 
-				if secVal != nil {
-					for n, sec := range secVal.Content[0].Content {
-						if n%2 == 0 {
-							if !osd.isSecuritySchemeNameDefined(sec.Value, definedSchemes) {
-								results = append(results, model.RuleFunctionResult{
-									Message:   fmt.Sprintf("operation at '%s' references an undefined security schema '%s'", path, sec.Value),
-									StartNode: sec,
-									EndNode:   sec,
-									Path:      fmt.Sprintf("$.paths.%s..security", path),
-									Rule:      context.Rule,
-								})
-							}
-						}
-					}
-				}
-			}
-		}
+		results = osd.checkSecurityNode(rootSecurity, securityDefinitions, results,
+			basePath, rootSecurity, lastNode, context)
 	}
 
 	return results
 }
 
-func (osd OperationSecurityDefined) isSecuritySchemeNameDefined(name string, defined []string) bool {
-	found := false
-	for _, def := range defined {
-		if name == def {
-			found = true
+func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
+	securityDefinitions map[string]*model.Reference, results []model.RuleFunctionResult,
+	basePath string, startNode *yaml.Node, endNode *yaml.Node,
+	context model.RuleFunctionContext) []model.RuleFunctionResult {
+
+	// look through each security item and check it exists in the global security index.
+	for i, securityItem := range securityNode.Content {
+
+		// name is key and role scope an array value.
+		name := securityItem.Content[0]
+		if name != nil {
+
+			// lookup in security definitions
+			lookup := fmt.Sprintf("#/components/securitySchemes/%s", name.Value)
+			if securityDefinitions[lookup] == nil {
+
+				results = append(results, model.RuleFunctionResult{
+					Message: fmt.Sprintf("Security definition points a non-existent "+
+						"securityScheme '%s'", name.Value),
+					StartNode: startNode,
+					EndNode:   endNode,
+					Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
+					Rule:      context.Rule,
+				})
+			}
 		}
 	}
-	return found
+	return results
 }

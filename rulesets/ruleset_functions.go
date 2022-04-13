@@ -769,9 +769,6 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 
 // GetOAS2SecurityDefinedRule will check that security definitions exist and validate for OpenAPI 2
 func GetOAS2SecurityDefinedRule() *model.Rule {
-	swaggerSecurityPath := make(map[string]string)
-	swaggerSecurityPath["schemesPath"] = "$.securityDefinitions"
-
 	return &model.Rule{
 		Formats:      model.OAS2Format,
 		Description:  "'security' values must match a scheme defined in securityDefinitions",
@@ -782,8 +779,7 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 		Type:         validation,
 		Severity:     error,
 		Then: model.RuleAction{
-			Function:        "oasOpSecurityDefined",
-			FunctionOptions: swaggerSecurityPath,
+			Function: "oas2OpSecurityDefined",
 		},
 	}
 }

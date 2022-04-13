@@ -2,8 +2,8 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -37,16 +37,18 @@ components:
 
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	ops := make(map[string]string)
 	ops["schemesPath"] = "$.components.securitySchemes"
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 0)
 }
@@ -70,18 +72,81 @@ components:
 
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	ops := make(map[string]string)
 	ops["schemesPath"] = "$.components.securitySchemes"
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 1)
+}
+
+func TestOperationSecurityDefined_Fail_One_Root(t *testing.T) {
+
+	yml := `openapi: 3.0
+security:
+  - BingoDingo: [admin]
+paths:
+  /hot/{dog}:
+    get:
+      security:
+        - BasicAuth: [admin]
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "operation_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := OperationSecurityDefined{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestOperationSecurityDefined_Fail_Two_Root(t *testing.T) {
+
+	yml := `openapi: 3.0
+security:
+  - BingoDingo: [admin]
+  - JingoLingo: [admin]
+paths:
+  /hot/{dog}:
+    get:
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "operation_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := OperationSecurityDefined{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 2)
 }
 
 func TestOperationSecurityDefined_Fail_Two(t *testing.T) {
@@ -103,16 +168,18 @@ components:
 
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
 
 	ops := make(map[string]string)
 	ops["schemesPath"] = "$.components.securitySchemes"
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Index = model.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 2)
 }

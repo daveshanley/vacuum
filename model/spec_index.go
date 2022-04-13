@@ -74,7 +74,8 @@ type SpecIndex struct {
 	callbackRefs                        map[string]*Reference                       // top level callback refs
 	polymorphicRefs                     map[string]*Reference                       // every reference to 'allOf' references
 	externalDocumentsRef                []*Reference                                // all external documents in spec
-	swaggerRootSecurity                 []*Reference                                // swagger (2.0) allows security to be defined at the root.
+	rootSecurity                        []*Reference                                // root security definitions.
+	rootSecurityNode                    *yaml.Node                                  // root security node.
 	refsWithSiblings                    map[string]*Reference                       // references with sibling elements next to them.
 	pathRefsLock                        sync.Mutex                                  // create lock for all refs maps, we want to build data as fast as we can
 	externalDocumentsCount              int                                         // number of externalDocument nodes found
@@ -421,9 +422,14 @@ func (index *SpecIndex) GetAllParametersFromOperations() map[string]map[string]m
 	return index.paramOpRefs
 }
 
-// GetSwaggerRootSecurity will return all root security settings for swagger docs (not available in 3.0)
-func (index *SpecIndex) GetSwaggerRootSecurity() []*Reference {
-	return index.swaggerRootSecurity
+// GetRootSecurityReferences will return all root security settings for swagger docs (not available in 3.0)
+func (index *SpecIndex) GetRootSecurityReferences() []*Reference {
+	return index.rootSecurity
+}
+
+// GetRootSecurityNode will return all root security node for swagger docs (not available in 3.0)
+func (index *SpecIndex) GetRootSecurityNode() *yaml.Node {
+	return index.rootSecurityNode
 }
 
 func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
@@ -822,6 +828,7 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 
 			// swagger (2.0) allows security to be defined at the root of the spec. Not for OpenAPI 3.0
 			if n.Value == "security" {
+				index.rootSecurityNode = index.root.Content[0].Content[i+1]
 				if i+1 < len(index.root.Content[0].Content) {
 					securityDefinitions := index.root.Content[0].Content[i+1]
 					for x, def := range securityDefinitions.Content {
@@ -832,7 +839,7 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 							Node:       def,
 							Path:       fmt.Sprintf("$.security[%d]", x),
 						}
-						index.swaggerRootSecurity = append(index.swaggerRootSecurity, ref)
+						index.rootSecurity = append(index.rootSecurity, ref)
 					}
 				}
 			}

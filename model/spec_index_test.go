@@ -125,7 +125,8 @@ func TestSpecIndex_XSOAR(t *testing.T) {
 	assert.Equal(t, 0, index.globalTagsCount)
 	assert.Equal(t, 0, index.operationTagsCount)
 	assert.Equal(t, 0, index.globalLinksCount)
-	assert.Len(t, index.swaggerRootSecurity, 1)
+	assert.Len(t, index.GetRootSecurityReferences(), 1)
+	assert.NotNil(t, index.GetRootSecurityNode())
 }
 
 func TestSpecIndex_PetstoreV3(t *testing.T) {

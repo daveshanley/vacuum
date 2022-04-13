@@ -52,6 +52,103 @@ securityDefinitions:
 	assert.Len(t, res, 0)
 }
 
+func TestOAS2OperationSecurityDefined_RunRule_Success_Root_Security(t *testing.T) {
+
+	yml := `swagger: 2.0
+security:
+  - littleChampion: []
+paths:
+  /melody:
+    get:
+      security:
+        - littleSong: []		
+securityDefinitions:
+  littleChampion:
+    type: basic
+  littleSong:
+    type: apiKey
+    in: header
+    name: X-API-KEY`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := OAS2OperationSecurityDefined{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestOAS2OperationSecurityDefined_RunRule_Success_Root_SecurityAllRoot(t *testing.T) {
+
+	yml := `swagger: 2.0
+security:
+  - littleChampion: []
+  - littleSong: []		
+paths:
+  /melody:
+    get:      
+securityDefinitions:
+  littleChampion:
+    type: basic
+  littleSong:
+    type: apiKey
+    in: header
+    name: X-API-KEY`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := OAS2OperationSecurityDefined{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestOAS2OperationSecurityDefined_RunRule_Fail_Root_SecurityAllRoot(t *testing.T) {
+
+	yml := `swagger: 2.0
+security:
+  - littleScreamer: []
+  - littleTantrum: []		
+paths:
+  /melody:
+    get:      
+securityDefinitions:
+  littleChampion:
+    type: basic
+  littleSong:
+    type: apiKey
+    in: header
+    name: X-API-KEY`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := OAS2OperationSecurityDefined{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 2)
+}
+
 func TestOAS2OperationSecurityDefined_RunRule_Fail(t *testing.T) {
 
 	yml := `swagger: 2.0
