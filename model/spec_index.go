@@ -72,7 +72,10 @@ type SpecIndex struct {
 	operationDescriptionRefs            map[string]map[string]*Reference            // descriptions in operations.
 	operationSummaryRefs                map[string]map[string]*Reference            // summaries in operations
 	callbackRefs                        map[string]*Reference                       // top level callback refs
-	polymorphicRefs                     map[string]*Reference                       // every reference to 'allOf' references
+	polymorphicRefs                     map[string]*Reference                       // every reference to a polymorphic ref
+	polymorphicAllOfRefs                []*Reference                                // every reference to 'allOf' references
+	polymorphicOneOfRefs                []*Reference                                // every reference to 'oneOf' references
+	polymorphicAnyOfRefs                []*Reference                                // every reference to 'anyOf' references
 	externalDocumentsRef                []*Reference                                // all external documents in spec
 	rootSecurity                        []*Reference                                // root security definitions.
 	rootSecurityNode                    *yaml.Node                                  // root security node.
@@ -217,7 +220,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	}
 
 	// boot index.
-	results := index.ExtractRefs(index.root.Content[0], []string{}, 0, false)
+	results := index.ExtractRefs(index.root.Content[0], []string{}, 0, false, "")
 
 	// pull out references
 	index.ExtractComponentsFromRefs(results)
@@ -279,6 +282,21 @@ func (index *SpecIndex) GetDiscoveredReferences() map[string]*Reference {
 // GetPolyReferences will return every polymorphic reference in the doc
 func (index *SpecIndex) GetPolyReferences() map[string]*Reference {
 	return index.polymorphicRefs
+}
+
+// GetPolyAllOfReferences will return every 'allOf' polymorphic reference in the doc
+func (index *SpecIndex) GetPolyAllOfReferences() []*Reference {
+	return index.polymorphicAllOfRefs
+}
+
+// GetPolyAnyOfReferences will return every 'anyOf' polymorphic reference in the doc
+func (index *SpecIndex) GetPolyAnyOfReferences() []*Reference {
+	return index.polymorphicAnyOfRefs
+}
+
+// GetPolyOneOfReferences will return every 'allOf' polymorphic reference in the doc
+func (index *SpecIndex) GetPolyOneOfReferences() []*Reference {
+	return index.polymorphicOneOfRefs
 }
 
 // GetAllCombinedReferences will return the number of unique and polymorphic references discovered.
@@ -446,13 +464,13 @@ func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
 
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
 // The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
-func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int, poly bool) []*Reference {
+func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int, poly bool, pName string) []*Reference {
 	if node == nil {
 		return nil
 	}
 	var found []*Reference
 	if len(node.Content) > 0 {
-		var prev string
+		var prev, polyName string
 		for i, n := range node.Content {
 
 			if utils.IsNodeMap(n) || utils.IsNodeArray(n) {
@@ -460,10 +478,14 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 				// check if we're using  polymorphic values. These tend to create rabbit warrens of circular
 				// references if every single link is followed. We don't resolve polymorphic values.
 				isPoly, _ := index.checkPolymorphicNode(prev)
+				polyName = pName
 				if isPoly {
 					poly = true
+					if prev != "" {
+						polyName = prev
+					}
 				}
-				found = append(found, index.ExtractRefs(n, seenPath, level, poly)...)
+				found = append(found, index.ExtractRefs(n, seenPath, level, poly, polyName)...)
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
@@ -499,11 +521,21 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 				}
 
 				// if this is a polymorphic reference, we're going to leave it out
-				// allRefs (we don't ever want these resolved, so instead of polluting
+				// allRefs. We don't ever want these resolved, so instead of polluting
 				// the timeline, we will keep each poly ref in its own collection for later
 				// analysis.
 				if poly {
 					index.polymorphicRefs[value] = ref
+
+					// index each type
+					switch pName {
+					case "anyOf":
+						index.polymorphicAnyOfRefs = append(index.polymorphicAnyOfRefs, ref)
+					case "allOf":
+						index.polymorphicAnyOfRefs = append(index.polymorphicAllOfRefs, ref)
+					case "oneOf":
+						index.polymorphicOneOfRefs = append(index.polymorphicOneOfRefs, ref)
+					}
 					continue
 				}
 

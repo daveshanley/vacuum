@@ -171,6 +171,16 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check for correct 'consumes' type used with parameters and in: formData
 	rules["oas2-operation-formData-consume-check"] = GetOAS2FormDataConsumesRule()
 
+	// check that no 'anyOf' polymorphism has been used in 2.0 spec.
+	rules["oas2-anyOf"] = GetOAS2PolymorphicAnyOf()
+
+	// check that no 'oneOf' polymorphism has been used in 2.0 spec.
+	rules["oas2-oneOf"] = GetOAS2PolymorphicOneOf()
+
+	// TODO: need to map all spectral rules that don't map specifically to vacuum (like examples).
+	//oas2-valid-schema-example
+	//oas2-valid-media-example
+
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,

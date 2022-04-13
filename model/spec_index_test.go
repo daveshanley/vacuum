@@ -33,6 +33,9 @@ func TestSpecIndex_ExtractRefsStripe(t *testing.T) {
 	assert.Equal(t, 55, index.componentsInlineParamUniqueCount)
 	assert.Equal(t, 1516, index.enumCount)
 	assert.Len(t, index.GetAllEnums(), 1516)
+	assert.Len(t, index.GetPolyAllOfReferences(), 0)
+	assert.Len(t, index.GetPolyOneOfReferences(), 275)
+	assert.Len(t, index.GetPolyAnyOfReferences(), 553)
 
 }
 
@@ -285,7 +288,7 @@ func TestSpecIndex_NoNameParam(t *testing.T) {
 func TestSpecIndex_NoRoot(t *testing.T) {
 
 	index := NewSpecIndex(nil)
-	refs := index.ExtractRefs(nil, nil, 0, false)
+	refs := index.ExtractRefs(nil, nil, 0, false, "")
 	docs := index.ExtractExternalDocuments(nil)
 	assert.Nil(t, docs)
 	assert.Nil(t, refs)

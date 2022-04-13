@@ -591,6 +591,40 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
 	}
 }
 
+// GetOAS2PolymorphicAnyOf will check that 'anyOf' has not been used in a swagger spec (introduced in 3.0)
+func GetOAS2PolymorphicAnyOf() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "'anyOf' was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasPolymorphicAnyOf",
+		},
+	}
+}
+
+// GetOAS2PolymorphicOneOf will check that 'oneOf' has not been used in a swagger spec (introduced in 3.0)
+func GetOAS2PolymorphicOneOf() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "'oneOf' was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasPolymorphicOneOf",
+		},
+	}
+}
+
 // GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
 func GetOperationIdUniqueRule() *model.Rule {
 	return &model.Rule{
