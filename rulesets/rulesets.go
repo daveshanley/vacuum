@@ -177,11 +177,14 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	// check that no 'oneOf' polymorphism has been used in 2.0 spec.
 	rules["oas2-oneOf"] = GetOAS2PolymorphicOneOfRule()
 
+	// TODO: These schema rules are super slow, due to the nature of the library we're using.
+	// so only run these rules on hard mode.
+
 	// check that the schema is even valid if it's a swagger doc
-	rules["oas2-schema"] = GetOAS2SchemaRule()
+	//rules["oas2-schema"] = GetOAS2SchemaRule()
 
 	// check that the schema is even valid, if it's an OpenAPI doc.
-	rules["oas3-schema"] = GetOAS3SchemaRule()
+	//rules["oas3-schema"] = GetOAS3SchemaRule()
 
 	// TODO: need to map all spectral rules that don't map specifically to vacuum (like examples).
 	//oas2-valid-schema-example
