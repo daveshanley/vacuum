@@ -591,8 +591,8 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
 	}
 }
 
-// GetOAS2PolymorphicAnyOf will check that 'anyOf' has not been used in a swagger spec (introduced in 3.0)
-func GetOAS2PolymorphicAnyOf() *model.Rule {
+// GetOAS2PolymorphicAnyOfRule will check that 'anyOf' has not been used in a swagger spec (introduced in 3.0)
+func GetOAS2PolymorphicAnyOfRule() *model.Rule {
 	return &model.Rule{
 		Formats:      model.OAS2Format,
 		Description:  "'anyOf' was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
@@ -608,8 +608,8 @@ func GetOAS2PolymorphicAnyOf() *model.Rule {
 	}
 }
 
-// GetOAS2PolymorphicOneOf will check that 'oneOf' has not been used in a swagger spec (introduced in 3.0)
-func GetOAS2PolymorphicOneOf() *model.Rule {
+// GetOAS2PolymorphicOneOfRule will check that 'oneOf' has not been used in a swagger spec (introduced in 3.0)
+func GetOAS2PolymorphicOneOfRule() *model.Rule {
 	return &model.Rule{
 		Formats:      model.OAS2Format,
 		Description:  "'oneOf' was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
@@ -621,6 +621,40 @@ func GetOAS2PolymorphicOneOf() *model.Rule {
 		Severity:     error,
 		Then: model.RuleAction{
 			Function: "oasPolymorphicOneOf",
+		},
+	}
+}
+
+// GetOAS2SchemaRule will check that the schema is valid for swagger docs.
+func GetOAS2SchemaRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
+		Description:  "OpenAPI 2 specification is invalid",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasDocumentSchema",
+		},
+	}
+}
+
+// GetOAS3SchemaRule will check that the schema is valid for openapi 3+ docs.
+func GetOAS3SchemaRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS3Format,
+		Description:  "OpenAPI 3 specification is invalid",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasDocumentSchema",
 		},
 	}
 }

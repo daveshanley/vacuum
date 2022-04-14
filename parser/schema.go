@@ -14,10 +14,10 @@ import (
 var openAPISchemaGrab sync.Once
 
 //go:embed schemas/oas3-schema.yaml
-var openAPI3SchemaData string
+var OpenAPI3SchemaData string
 
 //go:embed schemas/swagger2-schema.yaml
-var openAPI2SchemaData string
+var OpenAPI2SchemaData string
 
 var openAPI3Schema gojsonschema.JSONLoader
 var openAPI2Schema gojsonschema.JSONLoader
@@ -29,8 +29,8 @@ func CheckSpecIsValidOpenAPI(spec []byte) (*gojsonschema.Result, error) {
 
 	openAPISchemaGrab.Do(func() {
 		// render yaml as JSON, YAML v3 is smart enough to do this for us.
-		openAPI3JSON, _ := utils.ConvertYAMLtoJSON([]byte(openAPI3SchemaData))
-		openAPI2JSON, _ := utils.ConvertYAMLtoJSON([]byte(openAPI2SchemaData))
+		openAPI3JSON, _ := utils.ConvertYAMLtoJSON([]byte(OpenAPI3SchemaData))
+		openAPI2JSON, _ := utils.ConvertYAMLtoJSON([]byte(OpenAPI2SchemaData))
 		openAPI3Schema = gojsonschema.NewStringLoader(string(openAPI3JSON))
 		openAPI2Schema = gojsonschema.NewStringLoader(string(openAPI2JSON))
 	})

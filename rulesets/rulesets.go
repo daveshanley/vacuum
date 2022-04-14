@@ -172,10 +172,16 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["oas2-operation-formData-consume-check"] = GetOAS2FormDataConsumesRule()
 
 	// check that no 'anyOf' polymorphism has been used in 2.0 spec.
-	rules["oas2-anyOf"] = GetOAS2PolymorphicAnyOf()
+	rules["oas2-anyOf"] = GetOAS2PolymorphicAnyOfRule()
 
 	// check that no 'oneOf' polymorphism has been used in 2.0 spec.
-	rules["oas2-oneOf"] = GetOAS2PolymorphicOneOf()
+	rules["oas2-oneOf"] = GetOAS2PolymorphicOneOfRule()
+
+	// check that the schema is even valid if it's a swagger doc
+	rules["oas2-schema"] = GetOAS2SchemaRule()
+
+	// check that the schema is even valid, if it's an OpenAPI doc.
+	rules["oas3-schema"] = GetOAS3SchemaRule()
 
 	// TODO: need to map all spectral rules that don't map specifically to vacuum (like examples).
 	//oas2-valid-schema-example

@@ -1,9 +1,12 @@
 package model
 
 import (
+	_ "embed"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
+	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"strconv"
 	"strings"
@@ -15,6 +18,12 @@ const (
 	OAS31 = "oas3_1"
 )
 
+//go:embed schemas/oas3-schema.yaml
+var OpenAPI3SchemaData string
+
+//go:embed schemas/swagger2-schema.yaml
+var OpenAPI2SchemaData string
+
 var OAS3_1Format = []string{OAS31}
 var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31}
@@ -22,10 +31,17 @@ var OAS2Format = []string{OAS2}
 var AllFormats = []string{OAS3, OAS31, OAS2}
 
 // ExtractSpecInfo will look at a supplied OpenAPI specification, and return a *SpecInfo pointer, or an error
-// if the spec cannot be parsed correctly.\
+// if the spec cannot be parsed correctly.
 func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
+
 	var parsedSpec yaml.Node
+
 	specVersion := &SpecInfo{}
+	specVersion.jsonParsingChannel = make(chan bool)
+
+	// set original bytes
+	specVersion.SpecBytes = &spec
+
 	runes := []rune(strings.TrimSpace(string(spec)))
 	if runes[0] == '{' && runes[len(runes)-1] == '}' {
 		specVersion.SpecFileType = "json"
@@ -44,10 +60,41 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 	_, openAPI2 := utils.FindKeyNode(utils.OpenApi2, parsedSpec.Content)
 	_, asyncAPI := utils.FindKeyNode(utils.AsyncApi, parsedSpec.Content)
 
+	parseJSON := func(bytes []byte, spec *SpecInfo) {
+		var jsonSpec map[string]interface{}
+
+		// no point in worrying about errors here, extract JSON friendly format.
+		// run in a separate thread, don't block.
+
+		if spec.SpecType == utils.OpenApi3 {
+			openAPI3JSON, _ := utils.ConvertYAMLtoJSON([]byte(OpenAPI3SchemaData))
+			spec.APISchema = gojsonschema.NewStringLoader(string(openAPI3JSON))
+		}
+		if spec.SpecType == utils.OpenApi2 {
+			openAPI2JSON, _ := utils.ConvertYAMLtoJSON([]byte(OpenAPI2SchemaData))
+			spec.APISchema = gojsonschema.NewStringLoader(string(openAPI2JSON))
+		}
+
+		if utils.IsYAML(string(bytes)) {
+			yaml.Unmarshal(bytes, &jsonSpec)
+			jsonData, _ := json.Marshal(jsonSpec)
+			spec.SpecJSONBytes = &jsonData
+			spec.SpecJSON = &jsonSpec
+		} else {
+			json.Unmarshal(bytes, &jsonSpec)
+			spec.SpecJSONBytes = &bytes
+			spec.SpecJSON = &jsonSpec
+		}
+		spec.jsonParsingChannel <- true
+		close(spec.jsonParsingChannel)
+	}
 	// check for specific keys
 	if openAPI3 != nil {
 		specVersion.SpecType = utils.OpenApi3
 		version, majorVersion := parseVersionTypeData(openAPI3.Value)
+
+		// parse JSON
+		go parseJSON(spec, specVersion)
 
 		// double check for the right version, people mix this up.
 		if majorVersion < 3 {
@@ -61,6 +108,9 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 		specVersion.SpecType = utils.OpenApi2
 		version, majorVersion := parseVersionTypeData(openAPI2.Value)
 
+		// parse JSON
+		go parseJSON(spec, specVersion)
+
 		// I am not certain this edge-case is very frequent, but let's make sure we handle it anyway.
 		if majorVersion > 2 {
 			specVersion.Error = errors.New("spec is defined as a swagger (openapi 2.0) spec, but is an openapi 3 or unknown version")
@@ -73,6 +123,9 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 		specVersion.SpecType = utils.AsyncApi
 		version, majorVersion := parseVersionTypeData(asyncAPI.Value)
 
+		// parse JSON
+		go parseJSON(spec, specVersion)
+
 		// so far there is only 2 as a major release of AsyncAPI
 		if majorVersion > 2 {
 			specVersion.Error = errors.New("spec is defined as asyncapi, but has a major version that is invalid")
@@ -84,6 +137,10 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 	}
 
 	if specVersion.SpecType == "" {
+
+		// parse JSON
+		go parseJSON(spec, specVersion)
+
 		specVersion.Error = errors.New("spec type not supported by vacuum, sorry")
 		return specVersion, specVersion.Error
 	}

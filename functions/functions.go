@@ -82,6 +82,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oas2OpSecurityDefined"] = openapi_functions.OAS2OperationSecurityDefined{}
 		funcs["oasPolymorphicAnyOf"] = openapi_functions.PolymorphicAnyOf{}
 		funcs["oasPolymorphicOneOf"] = openapi_functions.PolymorphicOneOf{}
+		funcs["oasDocumentSchema"] = openapi_functions.OASSchema{}
 
 	})
 
