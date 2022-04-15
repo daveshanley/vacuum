@@ -98,6 +98,11 @@ func TestExtractSpecInfo_InvalidJSON(t *testing.T) {
 	assert.Error(t, e)
 }
 
+func TestExtractSpecInfo_Nothing(t *testing.T) {
+	_, e := ExtractSpecInfo([]byte(""))
+	assert.Error(t, e)
+}
+
 func TestExtractSpecInfo_ValidYAML(t *testing.T) {
 	_, e := ExtractSpecInfo([]byte(goodYAML))
 	assert.Error(t, e)
