@@ -1,0 +1,147 @@
+package openapi
+
+import (
+	"github.com/daveshanley/vacuum/model"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
+	"testing"
+)
+
+func TestAPIServers_GetSchema(t *testing.T) {
+	def := APIServers{}
+	assert.Equal(t, "api_servers", def.GetSchema().Name)
+}
+
+func TestAPIServers_RunRule(t *testing.T) {
+	def := APIServers{}
+	res := def.RunRule(nil, model.RuleFunctionContext{})
+	assert.Len(t, res, 0)
+}
+
+func TestAPIServers_RunRule_Fail(t *testing.T) {
+
+	yml := `nope: no"`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestAPIServers_RunRule_Fail_EmptyServers(t *testing.T) {
+
+	yml := `servers:
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestAPIServers_RunRule_Success(t *testing.T) {
+
+	yml := `servers:
+  - url: https://quobix.com
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestAPIServers_RunRule_Fail_EmptyURL(t *testing.T) {
+
+	yml := `servers:
+  - pizza: https://quobix.com
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestAPIServers_RunRule_Fail_BadURL(t *testing.T) {
+	// https://stackoverflow.com/questions/25747580/ensure-a-uri-is-valid/25747925#25747925
+	yml := `servers:
+  - url: http.\:::/not.valid/a//a??a?b=&&c#hi
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestAPIServers_RunRule_Fail_ReallyBadURL(t *testing.T) {
+
+	yml := `servers:
+  - url: http::no::///no
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+}

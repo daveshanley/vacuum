@@ -68,7 +68,7 @@ func Test_Default_OpenAPIRuleSet_FireABunchOfIssues(t *testing.T) {
 	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
 	assert.NoError(t, err)
 	assert.NotNil(t, results)
-	assert.Len(t, results, 25)
+	assert.Len(t, results, 26)
 
 	for n := 0; n < len(results); n++ {
 		assert.NotNil(t, results[n].Path)

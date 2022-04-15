@@ -22,8 +22,12 @@ tags:
       url: "https://quobix.com/"
 servers:
   - url: https://quobix.com/api
+  - url: https://pb33f.com/api
 paths:
   /burgers:
+    servers:
+      - url: https://somwhere.quobix.com/api
+      - url: https://pb33f.io/api
     post:
       operationId: createBurger
       tags:
@@ -100,6 +104,9 @@ paths:
                     message: unable to accept this request, looks bad, missing something.
   /burgers/{burgerId}:
     get:
+      servers:
+        - url: https://nowhere.quobix.com/api
+        - url: https://pb33f.net/api
       operationId: locateBurger
       tags:
         - "Meat"

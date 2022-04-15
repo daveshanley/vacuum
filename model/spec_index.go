@@ -72,6 +72,9 @@ type SpecIndex struct {
 	operationDescriptionRefs            map[string]map[string]*Reference            // descriptions in operations.
 	operationSummaryRefs                map[string]map[string]*Reference            // summaries in operations
 	callbackRefs                        map[string]*Reference                       // top level callback refs
+	serversRefs                         []*Reference                                // all top level server refs
+	rootServersNode                     *yaml.Node                                  // servers root node
+	opServersRefs                       map[string]map[string][]*Reference          // all operation level server overrides.
 	polymorphicRefs                     map[string]*Reference                       // every reference to a polymorphic ref
 	polymorphicAllOfRefs                []*Reference                                // every reference to 'allOf' references
 	polymorphicOneOfRefs                []*Reference                                // every reference to 'oneOf' references
@@ -213,6 +216,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.polymorphicRefs = make(map[string]*Reference)
 	index.refsWithSiblings = make(map[string]*Reference)
 	index.seenRemoteSources = make(map[string]*yaml.Node)
+	index.opServersRefs = make(map[string]map[string][]*Reference)
 
 	// there is no node! return an empty index.
 	if rootNode == nil {
@@ -440,14 +444,29 @@ func (index *SpecIndex) GetAllParametersFromOperations() map[string]map[string]m
 	return index.paramOpRefs
 }
 
-// GetRootSecurityReferences will return all root security settings for swagger docs (not available in 3.0)
+// GetRootSecurityReferences will return all root security settings
 func (index *SpecIndex) GetRootSecurityReferences() []*Reference {
 	return index.rootSecurity
 }
 
-// GetRootSecurityNode will return all root security node for swagger docs (not available in 3.0)
+// GetRootSecurityNode will return the root security node
 func (index *SpecIndex) GetRootSecurityNode() *yaml.Node {
 	return index.rootSecurityNode
+}
+
+// GetRootServersNode will return the root servers node
+func (index *SpecIndex) GetRootServersNode() *yaml.Node {
+	return index.rootServersNode
+}
+
+// GetAllRootServers will return all root servers defined
+func (index *SpecIndex) GetAllRootServers() []*Reference {
+	return index.serversRefs
+}
+
+// GetAllOperationsServers will return all operation overrides for servers.
+func (index *SpecIndex) GetAllOperationsServers() map[string]map[string][]*Reference {
+	return index.opServersRefs
 }
 
 func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
@@ -858,7 +877,24 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 	for i, n := range index.root.Content[0].Content {
 		if i%2 == 0 {
 
-			// swagger (2.0) allows security to be defined at the root of the spec. Not for OpenAPI 3.0
+			// servers
+			if n.Value == "servers" {
+				index.rootServersNode = index.root.Content[0].Content[i+1]
+				if i+1 < len(index.root.Content[0].Content) {
+					serverDefinitions := index.root.Content[0].Content[i+1]
+					for x, def := range serverDefinitions.Content {
+						ref := &Reference{
+							Definition: "servers",
+							Name:       "server",
+							Node:       def,
+							Path:       fmt.Sprintf("$.servers[%d]", x),
+						}
+						index.serversRefs = append(index.serversRefs, ref)
+					}
+				}
+			}
+
+			// root security definitions
 			if n.Value == "security" {
 				index.rootSecurityNode = index.root.Content[0].Content[i+1]
 				if i+1 < len(index.root.Content[0].Content) {
@@ -1027,7 +1063,7 @@ func (index *SpecIndex) GetComponentParameterCount() int {
 	return index.componentParamCount
 }
 
-// GetOperationCount returns the number of operations (for all paths and) located in the document
+// GetOperationCount returns the number of operations (for all paths) located in the document
 func (index *SpecIndex) GetOperationCount() int {
 	if index.root == nil {
 		return -1
@@ -1112,6 +1148,24 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 			for y, prop := range pathPropertyNode.Content {
 				if y%2 == 0 {
 
+					// while we're here, lets extract any top level servers
+					if prop.Value == "servers" {
+						serversNode := pathPropertyNode.Content[y+1]
+						if index.opServersRefs[pathItemNode.Value] == nil {
+							index.opServersRefs[pathItemNode.Value] = make(map[string][]*Reference)
+						}
+						var serverRefs []*Reference
+						for _, serverRef := range serversNode.Content {
+							ref := &Reference{
+								Definition: serverRef.Value,
+								Name:       serverRef.Value,
+								Node:       serverRef,
+							}
+							serverRefs = append(serverRefs, ref)
+						}
+						index.opServersRefs[pathItemNode.Value]["top"] = serverRefs
+					}
+
 					// top level params
 					if prop.Value == "parameters" {
 
@@ -1178,6 +1232,28 @@ func (index *SpecIndex) GetOperationsParameterCount() int {
 
 									index.operationSummaryRefs[pathItemNode.Value][prop.Value] = ref
 								}
+
+								// extract servers from method operation.
+								if httpMethodProp.Value == "servers" {
+									serversNode := pathPropertyNode.Content[y+1].Content[z+1]
+
+									var serverRefs []*Reference
+									for _, serverRef := range serversNode.Content {
+										ref := &Reference{
+											Definition: "servers",
+											Name:       "servers",
+											Node:       serverRef,
+										}
+										serverRefs = append(serverRefs, ref)
+									}
+
+									if index.opServersRefs[pathItemNode.Value] == nil {
+										index.opServersRefs[pathItemNode.Value] = make(map[string][]*Reference)
+									}
+
+									index.opServersRefs[pathItemNode.Value][prop.Value] = serverRefs
+								}
+
 							}
 						}
 					}

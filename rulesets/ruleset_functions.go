@@ -377,6 +377,23 @@ func GetComponentDescriptionsRule() *model.Rule {
 	}
 }
 
+// GetAPIServersRule checks to make sure there is a valid 'servers' definition in the document.
+func GetAPIServersRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS3Format,
+		Description:  "Check for valid API servers definition",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         validation,
+		Severity:     error,
+		Then: model.RuleAction{
+			Function: "oasAPIServers",
+		},
+	}
+}
+
 // GetOperationIdValidInUrlRule will check id an operationId will be valid when used in an url.
 func GetOperationIdValidInUrlRule() *model.Rule {
 	// TODO: re-build this the path is useless.

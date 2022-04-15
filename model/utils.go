@@ -43,6 +43,10 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 	specVersion.SpecBytes = &spec
 
 	runes := []rune(strings.TrimSpace(string(spec)))
+	if len(runes) <= 0 {
+		return specVersion, errors.New("there are no runes in the spec")
+	}
+
 	if runes[0] == '{' && runes[len(runes)-1] == '}' {
 		specVersion.SpecFileType = "json"
 	} else {

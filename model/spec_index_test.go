@@ -36,6 +36,8 @@ func TestSpecIndex_ExtractRefsStripe(t *testing.T) {
 	assert.Len(t, index.GetPolyAllOfReferences(), 0)
 	assert.Len(t, index.GetPolyOneOfReferences(), 275)
 	assert.Len(t, index.GetPolyAnyOfReferences(), 553)
+	assert.NotNil(t, index.GetRootServersNode())
+	assert.Len(t, index.GetAllRootServers(), 1)
 
 }
 
@@ -243,6 +245,8 @@ func TestSpecIndex_BurgerShop_AllTheComponents(t *testing.T) {
 	assert.Equal(t, 1, len(index.GetAllCallbacks()))
 	assert.Equal(t, 1, len(index.GetAllExamples()))
 	assert.Equal(t, 1, len(index.GetAllResponses()))
+	assert.Equal(t, 2, len(index.GetAllRootServers()))
+	assert.Equal(t, 2, len(index.GetAllOperationsServers()))
 
 }
 
