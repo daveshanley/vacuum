@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 	"net/url"
+	"strings"
 )
 
 // APIServers checks that each operation only has a single tag.
@@ -33,6 +34,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	rootServers := context.Index.GetAllRootServers()
 	rootServersNode := context.Index.GetRootServersNode()
 
+	// does the 'servers' node exist?
 	if rootServersNode == nil && rootServers == nil {
 		results = append(results, model.RuleFunctionResult{
 			Message:   "No servers defined for the specification",
@@ -42,6 +44,8 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			Rule:      context.Rule,
 		})
 	}
+
+	// check that we actually have something defined by the node.
 	if rootServersNode != nil && len(rootServers) < 1 {
 		results = append(results, model.RuleFunctionResult{
 			Message:   "Servers definition is empty, contains no servers!",
@@ -79,6 +83,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			continue
 		}
 
+		// check the host and the path are not empty.
 		if parsed.Host == "" && parsed.Path == "" {
 			msg := "Server URL is not valid: no hostname or path provided"
 			results = append(results, model.RuleFunctionResult{
@@ -88,11 +93,25 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 				Path:      fmt.Sprintf("$.servers[%d].url", i),
 				Rule:      context.Rule,
 			})
+			continue
+		}
+
+		// check the path doesn't have a trailing slash.
+		if strings.LastIndex(parsed.Path, "/") == len(parsed.Path)-1 {
+			msg := "Server URL is not valid: must not have a trailing slash"
+			results = append(results, model.RuleFunctionResult{
+				Message:   msg,
+				StartNode: urlLabelNode,
+				EndNode:   urlNode,
+				Path:      fmt.Sprintf("$.servers[%d].url", i),
+				Rule:      context.Rule,
+			})
+			continue
 		}
 	}
 
 	// TODO: check operation server references, the above needs to be broken down into a function
-	// and repeated for each operation server override.
+	// and repeated for each operation server override, remember each path and verb can override servers.
 
 	return results
 }
