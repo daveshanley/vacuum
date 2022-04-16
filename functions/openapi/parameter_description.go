@@ -10,19 +10,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// OAS2ParameterDescription will check swagger spec parameters for a description. ($.parameters)
-type OAS2ParameterDescription struct {
+// ParameterDescription will check swagger spec parameters for a description. ($.parameters)
+type ParameterDescription struct {
 }
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the OAS2ParameterDescription rule.
-func (pd OAS2ParameterDescription) GetSchema() model.RuleFunctionSchema {
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the ParameterDescription rule.
+func (pd ParameterDescription) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "oas2_parameter_description",
 	}
 }
 
-// RunRule will execute the OAS2ParameterDescription rule, based on supplied context and a supplied []*yaml.Node slice.
-func (pd OAS2ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+// RunRule will execute the ParameterDescription rule, based on supplied context and a supplied []*yaml.Node slice.
+func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
 		return nil

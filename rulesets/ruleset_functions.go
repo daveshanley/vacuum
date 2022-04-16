@@ -281,6 +281,29 @@ func GetOAS2HostNotExampleRule() *model.Rule {
 	}
 }
 
+// GetOAS3HostNotExampleRule checks to make sure that example.com is not being used as a host.
+// TODO: how common is this? should we keep it? change it?
+func GetOAS3HostNotExampleRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "example\\.com"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+	return &model.Rule{
+		Formats:      model.OAS3AllFormat,
+		Description:  "Server URL should not point at example.com",
+		Given:        "$.servers[*].url",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecomiledPattern: comp,
+	}
+}
+
 // GetOAS2HostTrailingSlashRule checks to make sure there is no trailing slash on the host
 func GetOAS2HostTrailingSlashRule() *model.Rule {
 	opts := make(map[string]interface{})
@@ -325,10 +348,10 @@ func GetOperationDescriptionRule() *model.Rule {
 	}
 }
 
-// GetOAS2ParameterDescriptionRule will check swagger specs to make sure parameters have a description.
-func GetOAS2ParameterDescriptionRule() *model.Rule {
+// GetParameterDescriptionRule will check specs to make sure parameters have a description.
+func GetParameterDescriptionRule() *model.Rule {
 	return &model.Rule{
-		Formats:      model.OAS2Format,
+		Formats:      model.AllFormats,
 		Description:  "Parameter description checks",
 		Given:        "$",
 		Resolved:     true,

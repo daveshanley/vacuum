@@ -8,12 +8,12 @@ import (
 )
 
 func TestOAS2ParameterDescription_GetSchema(t *testing.T) {
-	def := OAS2ParameterDescription{}
+	def := ParameterDescription{}
 	assert.Equal(t, "oas2_parameter_description", def.GetSchema().Name)
 }
 
 func TestOAS2ParameterDescription_RunRule(t *testing.T) {
-	def := OAS2ParameterDescription{}
+	def := ParameterDescription{}
 	res := def.RunRule(nil, model.RuleFunctionContext{})
 	assert.Len(t, res, 0)
 }
@@ -43,7 +43,7 @@ parameters:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 
-	def := OAS2ParameterDescription{}
+	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 0)
@@ -72,7 +72,7 @@ parameters:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 
-	def := OAS2ParameterDescription{}
+	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 2)
@@ -99,7 +99,7 @@ parameters:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 
-	def := OAS2ParameterDescription{}
+	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 0)
@@ -130,7 +130,39 @@ parameters:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 
-	def := OAS2ParameterDescription{}
+	def := ParameterDescription{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 2)
+}
+
+func TestParameterDescription_RunRule_Fail_EmptyDescription_OpenAPI3(t *testing.T) {
+
+	yml := `openapi: 3.0
+paths:
+  /melody:
+    post:
+      parameters:
+        - in: header
+          name: blue-eyes
+          description:  
+components:
+  parameters:
+    Maddy:
+      in: header
+      name: little champion
+      description:`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "oas3_parameter_description", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 2)

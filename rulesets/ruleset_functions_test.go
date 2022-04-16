@@ -611,3 +611,43 @@ host: https://quobix.com`
 	assert.Len(t, results, 0)
 
 }
+
+func TestRuleOAS3HostNotExampleRule_Fail(t *testing.T) {
+
+	yml := `openapi: 3.0
+servers:
+  - url: https://example.com/
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas3-host-not-example"] = GetOAS3HostNotExampleRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.NotNil(t, results)
+	assert.Len(t, results, 1)
+
+}
+
+func TestRuleOAS3HostNotExampleRule_Success(t *testing.T) {
+
+	yml := `openapi: 3.0
+servers:
+  - url: https://quobix.com/
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas3-host-not-example"] = GetOAS3HostNotExampleRule()
+
+	rs := &model.RuleSet{
+		Rules: rules,
+	}
+
+	results, _ := motor.ApplyRules(rs, []byte(yml))
+	assert.Nil(t, results)
+	assert.Len(t, results, 0)
+
+}
