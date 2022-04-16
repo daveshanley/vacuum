@@ -8,7 +8,6 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
-	"strconv"
 	"strings"
 )
 
@@ -153,19 +152,6 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 }
 
 func parseVersionTypeData(d interface{}) (string, int) {
-	switch dat := d.(type) {
-	case int:
-		return strconv.Itoa(dat), dat
-	case float64:
-		return strconv.FormatFloat(dat, 'f', 2, 32), int(dat)
-	case bool:
-		if dat {
-			return "true", 0
-		}
-		return "false", 0
-	case []string:
-		return "multiple versions detected", 0
-	}
 	r := []rune(strings.TrimSpace(fmt.Sprintf("%v", d)))
 	return string(r), int(r[0]) - '0'
 }

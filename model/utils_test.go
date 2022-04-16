@@ -46,6 +46,12 @@ info:
 servers:
   - url: https://quobix.com/api`
 
+var OpenApiOne = `openapi: 1.0.1
+info:
+  title: Test API version is what version?
+servers:
+  - url: https://quobix.com/api`
+
 var OpenApi3Spec = `openapi: 3.0.1
 info:
   title: Test API
@@ -110,6 +116,11 @@ func TestExtractSpecInfo_ValidYAML(t *testing.T) {
 
 func TestExtractSpecInfo_InvalidYAML(t *testing.T) {
 	_, e := ExtractSpecInfo([]byte(badYAML))
+	assert.Error(t, e)
+}
+
+func TestExtractSpecInfo_InvalidOpenAPIVersion(t *testing.T) {
+	_, e := ExtractSpecInfo([]byte(OpenApiOne))
 	assert.Error(t, e)
 }
 
