@@ -316,10 +316,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 	_, esValue := utils.FindKeyNode("examples", mediaTypeNode.Content)
 	_, eValue := utils.FindKeyNode("example", mediaTypeNode.Content)
 
-	//_, eInternalValue := utils.FindFirstKeyNode("example", mediaTypeNode.Content, 0)
-
 	// if there are no examples, anywhere then add a result.
-
 	if sValue != nil && (esValue == nil && eValue == nil) {
 		res := model.BuildFunctionResultString(fmt.Sprintf("Schema for '%s' does not "+
 			"contain any examples or example data", nameNodeValue))
@@ -348,7 +345,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			nodePath := utils.BuildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName, "value"})
 
 			_, valueNode := utils.FindKeyNode("value", []*yaml.Node{multiExampleNode})
-			//_, externalValueNode := utils.FindFirstKeyNode("externalValue", mediaTypeNode.Content, 0)
+			_, externalValueNode := utils.FindKeyNode("externalValue", []*yaml.Node{multiExampleNode})
 
 			if valueNode != nil {
 				// check if the example validates against the schema
@@ -382,25 +379,26 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					z.Rule = context.Rule
 					*results = append(*results, z)
 				}
-			} else {
-				// no value on example,
-				nodePath = utils.BuildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName})
-				z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' has no value, it's malformed", exampleName))
-				z.StartNode = esValue
-				z.EndNode = esValue
-				z.Path = nodePath
-				z.Rule = context.Rule
-				*results = append(*results, z)
+
+				// can't both have a value and an external value set!
+				if valueNode != nil && externalValueNode != nil {
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' is not valid: cannot use"+
+						" both 'value' and 'externalValue', choose one or the other",
+						exampleName))
+					z.StartNode = esValue
+					z.EndNode = valueNode
+					z.Path = nodePath
+					z.Rule = context.Rule
+					*results = append(*results, z)
+
+				}
 
 			}
-
 		}
 	}
 
 	// handle single examples when a schema is used.
 	if sValue != nil && eValue != nil {
-		// there should be two nodes, the second one should be a map, not a value.
-		//if len(eValue.Content) > 0 {
 
 		// ok, so let's check the object is valid against the schema.
 		// extract the schema
@@ -425,25 +423,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			*results = append(*results, z)
 		}
 
-		//} else {
-		//
-		//	// no good, so let's report it.
-		//	nodeVal := "unknown"
-		//	if len(eValue.Content) == 0 {
-		//		nodeVal = eValue.Value
-		//	}
-		//
-		//	z := model.BuildFunctionResultString(fmt.Sprintf("Example for media type '%s' "+
-		//		"is malformed, should be object, not '%s'", nameNodeValue, nodeVal))
-		//	z.StartNode = eValue
-		//	z.EndNode = eValue
-		//	z.Rule = context.Rule
-		//	*results = append(*results, z)
 	}
-
-	//}
-	//
-	//// check if there are any example fields set, if so, validate schema.
 
 	ex := false
 	if sValue != nil {

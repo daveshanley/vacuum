@@ -632,3 +632,50 @@ func TestExamples_RunRule_Fail_Parameters_Invalid_ObjectLevel_Example(t *testing
 	assert.NotNil(t, res[0].Path)
 
 }
+
+func TestExamples_RunRule_Fail_ExternalAndValue(t *testing.T) {
+
+	yml := `paths:
+  /fruits:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: 
+                - id
+              properties:
+                id:
+                  type: integer
+              examples:
+                lemon:
+                  externalValue: https://quobix.com
+                  value:
+                    summary: this is an example of a lemon.
+                    id: 1
+                lime:
+                  value:
+                    summary: nice chickens 
+                    id: 2`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.SpecInfo = &model.SpecInfo{
+		SpecFormat: model.OAS3,
+	}
+	def := Examples{}
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "Example 'lemon' is not valid: cannot use both 'value' and 'externalValue', choose one or the other", res[0].Message)
+	assert.NotNil(t, res[0].Path)
+}
