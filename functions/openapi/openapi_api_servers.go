@@ -97,7 +97,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		}
 
 		// check the path doesn't have a trailing slash.
-		if strings.LastIndex(parsed.Path, "/") == len(parsed.Path)-1 {
+		if parsed.Path != "" && strings.LastIndex(parsed.Path, "/") == len(parsed.Path)-1 {
 			msg := "Server URL is not valid: must not have a trailing slash"
 			results = append(results, model.RuleFunctionResult{
 				Message:   msg,

@@ -80,6 +80,50 @@ paths:
 	assert.Len(t, res, 0)
 }
 
+func TestAPIServers_RunRule_Success_With_Path(t *testing.T) {
+
+	yml := `servers:
+  - url: https://quobix.com/vacuum/docs
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestAPIServers_RunRule_Fail_With_Path(t *testing.T) {
+
+	yml := `servers:
+  - url: https://quobix.com/vacuum/docs/
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+}
+
 func TestAPIServers_RunRule_Fail_EmptyURL(t *testing.T) {
 
 	yml := `servers:
