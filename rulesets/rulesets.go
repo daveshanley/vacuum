@@ -141,20 +141,29 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	rules["oas2-host-not-example"] = GetOAS2HostNotExampleRule()
 
 	// oas3 check for example.com being used
-	rules["oas3-host-not-example"] = GetOAS3HostNotExampleRule()
+	rules["oas3-host-not-example.com"] = GetOAS3HostNotExampleRule()
 
 	// oas2 check host does not have a trailing slash
 	rules["oas2-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
 
+	// oas3 check host does not have a trailing slash
+	rules["oas3-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
+
 	// oas2 parameter description check
-	rules["oas2-parameter-description"] = GetParameterDescriptionRule()
+	rules["oas2-parameter-description"] = GetOAS2ParameterDescriptionRule()
+
+	// oas3 parameter description check
+	rules["oas3-parameter-description"] = GetOAS3ParameterDescriptionRule()
 
 	// security for versions 2 and 3.
 	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
 	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
 
 	// check all examples
-	rules["oas3-valid-schema-example"] = GetExamplesRule()
+	rules["oas3-valid-schema-example"] = GetOAS3ExamplesRule()
+
+	// check all examples
+	rules["oas2-valid-schema-example"] = GetOAS2ExamplesRule()
 
 	// check enums respect specified types
 	rules["typed-enum"] = GetTypedEnumRule()

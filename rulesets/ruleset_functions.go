@@ -348,10 +348,27 @@ func GetOperationDescriptionRule() *model.Rule {
 	}
 }
 
-// GetParameterDescriptionRule will check specs to make sure parameters have a description.
-func GetParameterDescriptionRule() *model.Rule {
+// GetOAS2ParameterDescriptionRule will check specs to make sure parameters have a description.
+func GetOAS2ParameterDescriptionRule() *model.Rule {
 	return &model.Rule{
-		Formats:      model.AllFormats,
+		Formats:      model.OAS2Format,
+		Description:  "Parameter description checks",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasParamDescriptions",
+		},
+	}
+}
+
+// GetOAS3ParameterDescriptionRule will check specs to make sure parameters have a description.
+func GetOAS3ParameterDescriptionRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS3AllFormat,
 		Description:  "Parameter description checks",
 		Given:        "$",
 		Resolved:     true,
@@ -909,10 +926,27 @@ func GetOAS2DiscriminatorRule() *model.Rule {
 	}
 }
 
-// GetExamplesRule will check the entire spec for correct example use.
-func GetExamplesRule() *model.Rule {
+// GetOAS3ExamplesRule will check the entire spec for correct example use.
+func GetOAS3ExamplesRule() *model.Rule {
 	return &model.Rule{
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Examples must be present and valid for operations and components",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryExamples],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasExample",
+		},
+	}
+}
+
+// GetOAS2ExamplesRule will check the entire spec for correct example use.
+func GetOAS2ExamplesRule() *model.Rule {
+	return &model.Rule{
+		Formats:      model.OAS2Format,
 		Description:  "Examples must be present and valid for operations and components",
 		Given:        "$",
 		Resolved:     true,
