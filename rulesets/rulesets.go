@@ -11,13 +11,62 @@ import (
 
 const (
 	warn          = "warn"
-	error         = "error"
+	err           = "error"
 	info          = "info"
 	hint          = "hint"
 	style         = "style"
 	validation    = "validation"
 	allPaths      = "$.paths[*]"
 	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head)]"
+
+	operationSuccessResponse          = "operation-success-response"
+	operationOperationIdUnique        = "operation-operationId-unique"
+	operationOperationId              = "operation-operationId"
+	operationParameters               = "operation-parameters"
+	operationSingularTag              = "operation-singular-tag"
+	operationTagDefined               = "operation-tag-defined"
+	pathParamsRule                    = "path-params"
+	contactProperties                 = "contact-properties"
+	infoContact                       = "info-contact"
+	infoDescription                   = "info-description"
+	infoLicense                       = "info-license"
+	licenseUrl                        = "license-url"
+	openAPITagsAlphabetical           = "openapi-tags-alphabetical"
+	openAPITags                       = "openapi-tags"
+	operationTags                     = "operation-tags"
+	operationDescription              = "operation-description"
+	componentDescription              = "component-description"
+	operationOperationIdValidInUrl    = "operation-operationId-valid-in-url"
+	pathDeclarationsMustExist         = "path-declarations-must-exist"
+	pathKeysNoTrailingSlash           = "path-keys-no-trailing-slash"
+	pathNotIncludeQuery               = "path-not-include-query"
+	tagDescription                    = "tag-description"
+	noRefSiblings                     = "no-$ref-siblings"
+	oas3UnusedComponent               = "oas3-unused-component"
+	oas2UnusedDefinition              = "oas2-unused-definition"
+	oas2APIHost                       = "oas2-api-host"
+	oas2APISchemes                    = "oas2-api-schemes"
+	oas2Discriminator                 = "oas2-discriminator"
+	oas2HostNotExample                = "oas2-host-not-example"
+	oas3HostNotExample                = "oas3-host-not-example.com"
+	oas2HostTrailingSlash             = "oas2-host-trailing-slash"
+	oas2ParameterDescription          = "oas2-parameter-description"
+	oas3ParameterDescription          = "oas3-parameter-description"
+	oas3OperationSecurityDefined      = "oas3-operation-security-defined"
+	oas2OperationSecurityDefined      = "oas2-operation-security-defined"
+	oas3ValidSchemaExample            = "oas3-valid-schema-example"
+	oas2ValidSchemaExample            = "oas2-valid-schema-example"
+	typedEnum                         = "typed-enum"
+	duplicatedEntryInEnum             = "duplicated-entry-in-enum"
+	noEvalInMarkdown                  = "no-eval-in-markdown"
+	noScriptTagsInMarkdown            = "no-script-tags-in-markdown"
+	descriptionDuplication            = "description-duplication"
+	oas3APIServers                    = "oas3-api-servers"
+	oas2OperationFormDataConsumeCheck = "oas2-operation-formData-consume-check"
+	oas2AnyOf                         = "oas2-anyOf"
+	oas2OneOf                         = "oas2-oneOf"
+	oas2Schema                        = "oas2-schema"
+	oas3Schema                        = "oas3-schema"
 )
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
@@ -54,156 +103,56 @@ func (rsm ruleSetsModel) GenerateOpenAPIDefaultRuleSet() *model.RuleSet {
 func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 
 	rules := make(map[string]*model.Rule)
+	rules[operationSuccessResponse] = GetOperationSuccessResponseRule()
+	rules[operationOperationIdUnique] = GetOperationIdUniqueRule()
+	rules[operationOperationId] = GetOperationIdRule()
+	rules[operationParameters] = GetOperationParametersRule()
+	rules[operationSingularTag] = GetOperationSingleTagRule()
+	rules[operationTagDefined] = GetGlobalOperationTagsRule()
+	rules[pathParamsRule] = GetPathParamsRule()
+	rules[contactProperties] = GetContactPropertiesRule()
+	rules[infoContact] = GetInfoContactRule()
+	rules[infoDescription] = GetInfoDescriptionRule()
+	rules[infoLicense] = GetInfoLicenseRule()
+	rules[licenseUrl] = GetInfoLicenseUrlRule()
+	rules[openAPITagsAlphabetical] = GetOpenApiTagsAlphabeticalRule()
+	rules[openAPITags] = GetOpenApiTagsRule()
+	rules[operationTags] = GetOperationTagsRule()
+	rules[operationDescription] = GetOperationDescriptionRule()
+	rules[componentDescription] = GetComponentDescriptionsRule()
+	rules[operationOperationIdValidInUrl] = GetOperationIdValidInUrlRule()
+	rules[pathDeclarationsMustExist] = GetPathDeclarationsMustExistRule()
+	rules[pathKeysNoTrailingSlash] = GetPathNoTrailingSlashRule()
+	rules[pathNotIncludeQuery] = GetPathNotIncludeQueryRule()
+	rules[tagDescription] = GetTagDescriptionRequiredRule()
+	rules[noRefSiblings] = GetNoRefSiblingsRule()
+	rules[oas3UnusedComponent] = GetOAS3UnusedComponentRule()
+	rules[oas2UnusedDefinition] = GetOAS2UnusedComponentRule()
+	rules[oas2APIHost] = GetOAS2APIHostRule()
+	rules[oas2APISchemes] = GetOAS2APISchemesRule()
+	rules[oas2Discriminator] = GetOAS2DiscriminatorRule()
+	rules[oas2HostNotExample] = GetOAS2HostNotExampleRule()
+	rules[oas3HostNotExample] = GetOAS3HostNotExampleRule()
+	rules[oas2HostTrailingSlash] = GetOAS2HostTrailingSlashRule()
+	rules[oas2ParameterDescription] = GetOAS2ParameterDescriptionRule()
+	rules[oas3ParameterDescription] = GetOAS3ParameterDescriptionRule()
+	rules[oas3OperationSecurityDefined] = GetOAS3SecurityDefinedRule()
+	rules[oas2OperationSecurityDefined] = GetOAS2SecurityDefinedRule()
+	rules[oas3ValidSchemaExample] = GetOAS3ExamplesRule()
+	rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
+	rules[typedEnum] = GetTypedEnumRule()
+	rules[duplicatedEntryInEnum] = GetDuplicatedEntryInEnumRule()
+	rules[noEvalInMarkdown] = GetNoEvalInMarkdownRule()
+	rules[noScriptTagsInMarkdown] = GetNoScriptTagsInMarkdownRule()
+	rules[descriptionDuplication] = GetDescriptionDuplicationRule()
+	rules[oas3APIServers] = GetAPIServersRule()
+	rules[oas2OperationFormDataConsumeCheck] = GetOAS2FormDataConsumesRule()
+	rules[oas2AnyOf] = GetOAS2PolymorphicAnyOfRule()
+	rules[oas2OneOf] = GetOAS2PolymorphicOneOfRule()
 
-	// add success response
-	rules["operation-success-response"] = GetOperationSuccessResponseRule()
-
-	// add unique operation ID rule
-	rules["operation-operationId-unique"] = GetOperationIdUniqueRule()
-
-	// add operation ID rule
-	rules["operation-operationId"] = GetOperationIdRule()
-
-	// add operation params rule
-	rules["operation-parameters"] = GetOperationParametersRule()
-
-	// add operation single tag rule
-	rules["operation-singular-tag"] = GetOperationSingleTagRule()
-
-	// add operation tag defined rule
-	rules["operation-tag-defined"] = GetGlobalOperationTagsRule()
-
-	// add operation tag defined rule
-	rules["path-params"] = GetPathParamsRule()
-
-	//// contact-properties
-	rules["contact-properties"] = GetContactPropertiesRule()
-
-	// info object: contains contact
-	rules["info-contact"] = GetInfoContactRule()
-
-	// info object: contains description
-	rules["info-description"] = GetInfoDescriptionRule()
-
-	// info object: contains a license
-	rules["info-license"] = GetInfoLicenseRule()
-
-	// info object: contains a license url
-	rules["license-url"] = GetInfoLicenseUrlRule()
-
-	// check tags are in alphabetical order
-	rules["openapi-tags-alphabetical"] = GetOpenApiTagsAlphabeticalRule()
-
-	// check tags exist correctly
-	rules["openapi-tags"] = GetOpenApiTagsRule()
-
-	// check operation tags exist correctly
-	rules["operation-tags"] = GetOperationTagsRule()
-
-	//check all operations have a description, and they match a set length.
-	rules["operation-description"] = GetOperationDescriptionRule()
-
-	// check all components have a description, and they match a set length.
-	rules["component-description"] = GetComponentDescriptionsRule()
-
-	// check operationId does not contain characters that would be invalid in a URL
-	rules["operation-operationId-valid-in-url"] = GetOperationIdValidInUrlRule()
-
-	// check paths don't have any empty declarations
-	rules["path-declarations-must-exist"] = GetPathDeclarationsMustExistRule()
-
-	// check paths don't end with a slash
-	rules["path-keys-no-trailing-slash"] = GetPathNoTrailingSlashRule()
-
-	// check paths don't contain a query string
-	rules["path-not-include-query"] = GetPathNotIncludeQueryRule()
-
-	// check tags have a description defined
-	rules["tag-description"] = GetTagDescriptionRequiredRule()
-
-	//add no $ref siblings
-	rules["no-$ref-siblings"] = GetNoRefSiblingsRule()
-
-	// add unused component rule
-	rules["oas3-unused-component"] = GetOAS3UnusedComponentRule()
-	rules["oas2-unused-definition"] = GetOAS2UnusedComponentRule()
-
-	// oas2 check for host value
-	rules["oas2-api-host"] = GetOAS2APIHostRule()
-
-	// oas2 check for schemes
-	rules["oas2-api-schemes"] = GetOAS2APISchemesRule()
-
-	// oas2 check for discriminator
-	rules["oas2-discriminator"] = GetOAS2DiscriminatorRule()
-
-	// oas2 check for example.com being used
-	rules["oas2-host-not-example"] = GetOAS2HostNotExampleRule()
-
-	// oas3 check for example.com being used
-	rules["oas3-host-not-example.com"] = GetOAS3HostNotExampleRule()
-
-	// oas2 check host does not have a trailing slash
-	rules["oas2-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
-
-	// oas3 check host does not have a trailing slash
-	rules["oas3-host-trailing-slash"] = GetOAS2HostTrailingSlashRule()
-
-	// oas2 parameter description check
-	rules["oas2-parameter-description"] = GetOAS2ParameterDescriptionRule()
-
-	// oas3 parameter description check
-	rules["oas3-parameter-description"] = GetOAS3ParameterDescriptionRule()
-
-	// security for versions 2 and 3.
-	rules["oas3-operation-security-defined"] = GetOAS3SecurityDefinedRule()
-	rules["oas2-operation-security-defined"] = GetOAS2SecurityDefinedRule()
-
-	// check all examples
-	rules["oas3-valid-schema-example"] = GetOAS3ExamplesRule()
-
-	// check all examples
-	rules["oas2-valid-schema-example"] = GetOAS2ExamplesRule()
-
-	// check enums respect specified types
-	rules["typed-enum"] = GetTypedEnumRule()
-
-	// check for duplication in enums
-	rules["duplicated-entry-in-enum"] = GetDuplicatedEntryInEnumRule()
-
-	// check no eval statements in markdown descriptions.
-	rules["no-eval-in-markdown"] = GetNoEvalInMarkdownRule()
-
-	// check no script statements in markdown descriptions.
-	rules["no-script-tags-in-markdown"] = GetNoScriptTagsInMarkdownRule()
-
-	// check for description and summary duplication
-	rules["description-duplication"] = GetDescriptionDuplicationRule()
-
-	// check for valid API server definitions
-	rules["oas3-api-servers"] = GetAPIServersRule()
-
-	// check for correct 'consumes' type used with parameters and in: formData
-	rules["oas2-operation-formData-consume-check"] = GetOAS2FormDataConsumesRule()
-
-	// check that no 'anyOf' polymorphism has been used in 2.0 spec.
-	rules["oas2-anyOf"] = GetOAS2PolymorphicAnyOfRule()
-
-	// check that no 'oneOf' polymorphism has been used in 2.0 spec.
-	rules["oas2-oneOf"] = GetOAS2PolymorphicOneOfRule()
-
-	// TODO: These schema rules are super slow, due to the nature of the library we're using.
-	// so only run these rules on hard mode.
-
-	// check that the schema is even valid if it's a swagger doc
-	//rules["oas2-schema"] = GetOAS2SchemaRule()
-
-	// check that the schema is even valid, if it's an OpenAPI doc.
-	//rules["oas3-schema"] = GetOAS3SchemaRule()
-
-	// TODO: need to map all spectral rules that don't map specifically to vacuum (like examples).
-	//oas2-valid-schema-example
-	//oas2-valid-media-example
+	// TODO: enable for a different ruleset.
+	//rules[oas2Schema] = GetOAS2SchemaRule()
+	//rules[oas3Schema] = GetOAS3SchemaRule()
 
 	set := &model.RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
