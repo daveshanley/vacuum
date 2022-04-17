@@ -124,8 +124,8 @@ func TestRuleResults_GetWarnCount(t *testing.T) {
 
 	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
 
-	assert.Equal(t, 1, results.GetErrorCount())
-	assert.Equal(t, 1, results.GetErrorCount())
+	assert.Equal(t, 1, results.GetWarnCount())
+	assert.Equal(t, 1, results.GetWarnCount())
 
 }
 
@@ -221,4 +221,31 @@ func TestRuleResultSet_CheckCategoryCounts(t *testing.T) {
 	assert.Len(t, results.GetErrorsByRuleCategory(CategoryInfo), 1)
 	assert.Len(t, results.GetWarningsByRuleCategory(CategoryInfo), 1)
 	assert.Len(t, results.GetInfoByRuleCategory(CategoryInfo), 1)
+}
+
+func TestRuleResultSet_GenerateSpectralReport(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityError,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
+	assert.Len(t, results.GenerateSpectralReport("test"), 4)
 }

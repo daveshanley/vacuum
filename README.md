@@ -23,6 +23,7 @@ If you want to try it out in its **earliest stages**
 > Please be warned, this is _early_ code. I am actively working on it.
 >> **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
 
+You can use either **YAML** or **JSON** vacuum supports both.
 
 ## Check out the code
 
@@ -44,7 +45,7 @@ go build vacuum.go
 ## Run the code
 
 ```
-./vacuum <your-openapi3-spec.yaml>
+./vacuum <your-openapi-spec.yaml>
 ```
 ---
 > 👉 **Please note, the flags and commands below will change as the experience is refined.** 👈
@@ -53,26 +54,26 @@ go build vacuum.go
 ## See full linting report details
 
 ```
-./vacuum <your-openapi3-spec.yaml> -d
+./vacuum <your-openapi-spec.yaml> -d
 ```
 
 ## See full linting report with inline code snippets
 
 ```
-./vacuum <your-openapi3-spec.yaml> -d -s
+./vacuum <your-openapi-spec.yaml> -d -s
 ```
 
 ## See just the linting errors
 
 ```
-./vacuum <your-openapi3-spec.yaml> -d -e
+./vacuum <your-openapi-spec.yaml> -d -e
 ```
 
 ## See just a specific category of report
 
 
 ```
-./vacuum <your-openapi3-spec.yaml> -d -c schemas
+./vacuum <your-openapi-spec.yaml> -d -c schemas
 ```
 
 The options here are:
@@ -86,5 +87,14 @@ The options here are:
 - `tags`
 - `validation`
 
+## Generate a Spectral compatible report
+
+If you're already using Spectral JSON reports, and you want to use vacuum instead, use the `report` command
+
+```
+./vacuum report <your-openapi-spec.yaml> <report-output-name.json>
+```
+
+The report file name is _optional_. The default report output name is `vacuum-spectral-report.json`
 
 Let me know what you think.

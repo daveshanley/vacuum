@@ -17,6 +17,7 @@ const (
 	severityError        = "error"
 	severityWarn         = "warn"
 	severityInfo         = "info"
+	severityHint         = "hint"
 	CategoryExamples     = "examples"
 	CategoryOperations   = "operations"
 	CategoryInfo         = "information"
@@ -124,8 +125,27 @@ type RuleFunctionResult struct {
 	Rule      *Rule
 }
 
-// TODO: Start here in the morning, we're going to want to be able to sort, calculate severity and categories.
-// TODO: think about a super structure that contains all the sorting and filtering mechanisms.
+// SpectralReport represents a model that can be deserialized into a spectral compatible output.
+type SpectralReport struct {
+	Code     string        `json:"code" yaml:"code"`         // the rule that was run
+	Path     []string      `json:"path" yaml:"path"`         // the path to the item, broken down into a slice
+	Message  string        `json:"message" yaml:"message"`   // the result message
+	Severity int           `json:"severity" yaml:"severity"` // the severity reported
+	Range    SpectralRange `json:"range" yaml:"range"`       // the location of the issue in the spec.
+	Source   string        `json:"source" yaml:"source"`     // the source of the report.
+}
+
+// SpectralRange indicates the start and end of a report item
+type SpectralRange struct {
+	Start SpectralRangeItem `json:"start" yaml:"start"`
+	End   SpectralRangeItem `json:"end" yaml:"end"`
+}
+
+// SpectralRangeItem indicates the line and character of a range.
+type SpectralRangeItem struct {
+	Line int `json:"line" yaml:"line"`
+	Char int `json:"character" yaml:"character"`
+}
 
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
@@ -152,6 +172,7 @@ type RuleAction struct {
 
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
+	Id                string         `json:"-"`
 	Description       string         `json:"description"`
 	Given             interface{}    `json:"given"`
 	Formats           []string       `json:"formats"`
@@ -261,6 +282,52 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 		Results:     pointerResults,
 		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
 	}
+}
+
+// GenerateSpectralReport will return a Spectral compatible report structure, easily serializable
+func (rr *RuleResultSet) GenerateSpectralReport(source string) []SpectralReport {
+
+	var report []SpectralReport
+	for _, result := range rr.Results {
+
+		sev := 1
+		switch result.Rule.Severity {
+		case "error":
+			sev = 0
+		case "info":
+			sev = 2
+		case "hint":
+			sev = 3
+		}
+
+		resultRange := SpectralRange{
+			Start: SpectralRangeItem{
+				Line: result.StartNode.Line,
+				Char: result.StartNode.Column,
+			},
+			End: SpectralRangeItem{
+				Line: result.EndNode.Line,
+				Char: result.EndNode.Column,
+			},
+		}
+		var path []string
+		pathArr := strings.Split(result.Path, ".")
+		for _, pItem := range pathArr {
+			if pItem != "$" {
+				path = append(path, pItem)
+			}
+		}
+
+		report = append(report, SpectralReport{
+			Code:     result.Rule.Id,
+			Path:     path,
+			Message:  result.Message,
+			Severity: sev,
+			Range:    resultRange,
+			Source:   source,
+		})
+	}
+	return report
 }
 
 // GetErrorCount will return the number of errors returned by the rule results.

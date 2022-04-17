@@ -269,12 +269,13 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-
 	rootCmd.PersistentFlags().BoolP("details", "d", false, "Show full details of linting report")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	rootCmd.PersistentFlags().BoolP("errors", "e", false, "Show errors only")
-	rootCmd.PersistentFlags().StringP("category", "c", "", "Show a single category of results (can be ")
+	rootCmd.PersistentFlags().StringP("category", "c", "", "Show a single category of results")
+
+	rootCmd.AddCommand(GetSpectralReportCommand())
 
 }
 
