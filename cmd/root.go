@@ -276,6 +276,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP("category", "c", "", "Show a single category of results")
 
 	rootCmd.AddCommand(GetSpectralReportCommand())
+	rootCmd.AddCommand(GetDashboardCommand())
 
 }
 

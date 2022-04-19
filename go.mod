@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/ghodss/yaml v1.0.0
+	github.com/gizak/termui/v3 v3.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.3
 	github.com/pterm/pterm v0.12.39
 	github.com/spf13/cobra v1.4.0
