@@ -249,3 +249,74 @@ func TestRuleResultSet_GenerateSpectralReport(t *testing.T) {
 	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
 	assert.Len(t, results.GenerateSpectralReport("test"), 4)
 }
+
+func TestRuleResultSet_CalculateCategoryHealth_Errors(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityError,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
+	assert.Equal(t, 1, results.CalculateCategoryHealth(CategoryInfo))
+
+}
+
+func TestRuleResultSet_CalculateCategoryHealth_Warnings(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
+	assert.Equal(t, 98, results.CalculateCategoryHealth(CategoryInfo))
+
+}
+
+func TestRuleResultSet_CalculateCategoryHealth_Warnings_Lots(t *testing.T) {
+	var r []RuleFunctionResult
+	for i := 0; i < 100; i++ {
+		r = append(r, RuleFunctionResult{Rule: &Rule{
+			Description:  "one",
+			Severity:     severityWarn,
+			RuleCategory: RuleCategories[CategoryInfo],
+		}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}})
+	}
+
+	results := NewRuleResultSet(r)
+	assert.Equal(t, 20, results.CalculateCategoryHealth(CategoryInfo))
+
+}

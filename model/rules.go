@@ -433,6 +433,26 @@ func getCount(rr *RuleResultSet, severity string) int {
 	return c
 }
 
+// CalculateCategoryHealth checks how many errors and warnings a category has generated and determine
+// a value between 0 and 100, 0 being errors fired, 100 being no warnings and no errors.
+func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
+
+	errs := rr.GetErrorsByRuleCategory(category)
+	warnings := rr.GetWarningsByRuleCategory(category)
+
+	errorCount := len(errs)
+	warningCount := len(warnings)
+
+	if errorCount > 0 { // this will be low, so just return this count value.
+		return errorCount
+	}
+
+	if warningCount >= 100 {
+		return 20 // 20% is as low as we want to go for pure warnings
+	}
+	return 100 - (warningCount)
+}
+
 // SortResultsByLineNumber will re-order the results by line number. This is a destructive sort,
 // Once the results are sorted, they are permanently sorted.
 func (rr *RuleResultSet) SortResultsByLineNumber() []*RuleFunctionResult {

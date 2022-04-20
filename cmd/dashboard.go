@@ -3,8 +3,12 @@ package cmd
 import (
 	"errors"
 	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"io/ioutil"
 )
 
 func GetDashboardCommand() *cobra.Command {
@@ -24,7 +28,23 @@ func GetDashboardCommand() *cobra.Command {
 				return errors.New(errText)
 			}
 
-			dash := new(cui.Dashboard)
+			// read file.
+			b, ferr := ioutil.ReadFile(args[0])
+
+			if ferr != nil {
+				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], ferr.Error())
+				pterm.Println()
+				return ferr
+			}
+
+			// read spec and parse to dashboard.
+			rs := rulesets.BuildDefaultRuleSets()
+			results, _ := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
+
+			resultSet := model.NewRuleResultSet(results)
+			resultSet.SortResultsByLineNumber()
+
+			dash := cui.CreateDashboard(resultSet)
 			dash.Render()
 			return nil
 		},
