@@ -5,14 +5,22 @@ import (
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
 	"log"
-	"time"
 )
 
 // Dashboard represents the dashboard controlling container
 type Dashboard struct {
-	C         chan bool
-	run       bool
-	resultSet *model.RuleResultSet
+	C                           chan bool
+	run                         bool
+	grid                        *ui.Grid
+	tabs                        TabbedView
+	healthGaugeItems            []ui.GridItem
+	categoryHealthGauge         []CategoryGauge
+	resultSet                   *model.RuleResultSet
+	selectedTabIndex            int
+	ruleCategories              []*model.RuleCategory
+	selectedCategory            *model.RuleCategory
+	selectedCategoryDescription *ui.GridItem
+	selectedRule                *model.Rule
 }
 
 func CreateDashboard(resultSet *model.RuleResultSet) *Dashboard {
@@ -21,182 +29,65 @@ func CreateDashboard(resultSet *model.RuleResultSet) *Dashboard {
 	return db
 }
 
-// CategoryGauge represents a percent bar visualizing how well spec did in a particular category
-type CategoryGauge struct {
-	g   *widgets.Gauge
-	cat *model.RuleCategory
-}
-
-// CategoryChart represents a stacked barchart with all data per category available
-type CategoryChart struct {
-	c    *widgets.StackedBarChart
-	cats []*model.RuleCategory
-}
-
-// TabbedView represents a tabbed view holding various data views
-type TabbedView struct {
-	tv        *widgets.TabPane
-	renderTab func()
-}
-
-// GenerateTabbedView will return a view with controllable tabs.
-func (d Dashboard) GenerateTabbedView(cats []*model.RuleCategory) TabbedView {
-
+// GenerateTabbedView generates tabs
+func (dash *Dashboard) GenerateTabbedView() {
 	var labels []string
-	for _, cat := range cats {
+	for _, cat := range dash.ruleCategories {
 		labels = append(labels, cat.Name)
 	}
-
 	tv := widgets.NewTabPane(labels...)
 	tv.Border = false
-	return TabbedView{tv: tv}
+	dash.tabs = TabbedView{tv: tv, dashboard: dash}
+	dash.selectedTabIndex = 0
+	dash.selectedCategory = dash.ruleCategories[0]
+	dash.tabs.generateDescriptionGridItem()
+	dash.tabs.generateRulesInCategory()
 }
 
-// GenerateGauge returns a CategoryGauge already populated with the title, color and percent.
-func (d Dashboard) GenerateGauge(title string, percent int, cat *model.RuleCategory) CategoryGauge {
-	g := widgets.NewGauge()
-	g.Title = title
-	g.Percent = percent
-	//g.BorderRight = true
-	//g.BorderLeft = true
-	//g.BorderTop = false
-	//g.BorderBottom = false
-	g.BarColor = getColorForPercentage(percent)
-	return CategoryGauge{g: g, cat: cat}
-}
-
-// ComposeGauges returns an array of ui.GridItem containers, ready to render.
-func (d Dashboard) ComposeGauges(gauges []CategoryGauge) []ui.GridItem {
+// ComposeGauges prepares health gauges for rendering into the main grid.
+func (dash *Dashboard) ComposeGauges() {
 	var gridItems []ui.GridItem
-	for _, gauge := range gauges {
-		numCat := float64(len(gauges))
+	for _, gauge := range dash.categoryHealthGauge {
+		numCat := float64(len(dash.categoryHealthGauge))
 		ratio := 1.0 / numCat
 		gridItems = append(gridItems, ui.NewRow(ratio, gauge.g))
 	}
-	return gridItems
-}
-
-// GenerateStackedBarChart will create a nice rendering of all categories and result counts.
-func (d Dashboard) GenerateStackedBarChart(cats []*model.RuleCategory) CategoryChart {
-	c := widgets.NewStackedBarChart()
-	c.Title = "Linting Results: X-Axis=Category, Y-Axis=Issue Count (Errors, Warnings, Info)"
-
-	var labels []string
-
-	c.Data = make([][]float64, len(cats))
-
-	for x, cat := range cats {
-		labels = append(labels, cat.Name)
-		errors := d.resultSet.GetErrorsByRuleCategory(cat.Id)
-		warn := d.resultSet.GetWarningsByRuleCategory(cat.Id)
-		info := d.resultSet.GetInfoByRuleCategory(cat.Id)
-		c.Data[x] = []float64{float64(len(errors)), float64(len(warn)), float64(len(info))}
-		c.BarWidth = 10
-	}
-
-	c.Labels = labels
-
-	return CategoryChart{c: c, cats: cats}
+	dash.healthGaugeItems = gridItems
 }
 
 // Render will render the dashboard.
-func (d Dashboard) Render() {
+func (dash *Dashboard) Render() {
 
 	if err := ui.Init(); err != nil {
 		log.Fatalf("failed to initialize CUI: %v", err)
 	}
 
-	d.run = true
+	dash.run = true
 	defer ui.Close()
 
 	// extract categories and calculate coverage.
 	var gauges []CategoryGauge
 	var cats []*model.RuleCategory
-	for l, cat := range model.RuleCategories {
-
-		score := d.resultSet.CalculateCategoryHealth(l)
-		gauges = append(gauges, d.GenerateGauge(cat.Name, score, cat))
+	for _, cat := range model.RuleCategoriesOrdered {
+		score := dash.resultSet.CalculateCategoryHealth(cat.Id)
+		gauges = append(gauges, NewCategoryGauge(cat.Name, score, cat))
 		cats = append(cats, cat)
 	}
 
-	gridItems := d.ComposeGauges(gauges)
+	dash.categoryHealthGauge = gauges
+	dash.ruleCategories = cats
 
 	uiEvents := ui.PollEvents()
-	ticker := time.NewTicker(time.Second * 5).C
 
-	grid := ui.NewGrid()
+	dash.grid = ui.NewGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
-	grid.SetRect(0, 0, termWidth, termHeight)
+	dash.grid.SetRect(0, 0, termWidth, termHeight)
 
-	p1 := widgets.NewParagraph()
-	p1.Text = "A lovely dog"
+	dash.GenerateTabbedView()
+	dash.ComposeGauges()
+	dash.setGrid()
 
-	p2 := widgets.NewParagraph()
-	p2.Text = "Nice boots in the winter"
-
-	p3 := widgets.NewParagraph()
-	p3.Text = "Warm apple pie and ice-cream"
-
-	p4 := widgets.NewParagraph()
-	p4.Text = "A lovely cold beer in the summer"
-
-	p5 := widgets.NewParagraph()
-	p5.Text = "Hugs and kisses from the family"
-
-	p6 := widgets.NewParagraph()
-	p6.Text = "A curry and a chat with your friends"
-
-	p7 := widgets.NewParagraph()
-	p7.Text = "A roaring fire in the winter"
-
-	p8 := widgets.NewParagraph()
-	p8.Text = "The goals we no longer seek due to a bigger vision"
-
-	//chart := d.GenerateStackedBarChart(cats)
-	tabs := d.GenerateTabbedView(cats)
-
-	var para interface{}
-	para = p1
-
-	tabs.renderTab = func() {
-		switch tabs.tv.ActiveTabIndex {
-		case 0:
-			para = p1
-		case 1:
-			para = p2
-		case 2:
-			para = p3
-		case 3:
-			para = p4
-		case 4:
-			para = p5
-		case 5:
-			para = p6
-		case 6:
-			para = p7
-		case 7:
-			para = p8
-
-		}
-	}
-
-	var setGrid = func() {
-
-		grid.Set(
-			ui.NewRow(1.0,
-				ui.NewCol(0.2,
-					gridItems[0], gridItems[1], gridItems[2], gridItems[3],
-					gridItems[4], gridItems[5], gridItems[6], gridItems[7],
-				),
-				ui.NewCol(0.8,
-					ui.NewRow(0.1, tabs.tv),
-					ui.NewRow(0.9, para),
-				),
-			),
-		)
-	}
-	setGrid()
-	ui.Render(grid)
+	ui.Render(dash.grid)
 
 	for {
 		select {
@@ -205,24 +96,71 @@ func (d Dashboard) Render() {
 			case "q", "<C-c>":
 				return
 			case "[", "<Left>":
-				tabs.tv.FocusLeft()
-				ui.Clear()
-				tabs.renderTab()
-				setGrid()
-				ui.Render(grid)
+				dash.tabs.tv.FocusLeft()
+				dash.tabs.setActiveIndex(dash.tabs.tv.ActiveTabIndex)
+
 			case "]", "<Right>":
-				tabs.tv.FocusRight()
+				dash.tabs.tv.FocusRight()
+				dash.tabs.setActiveIndex(dash.tabs.tv.ActiveTabIndex)
 				ui.Clear()
-				tabs.renderTab()
-				setGrid()
-				ui.Render(grid)
+				dash.setGrid()
+				ui.Render(dash.grid)
+			case "j", "<Down>":
+				dash.tabs.rulesList.ScrollDown()
+			case "k", "<Up>":
+				dash.tabs.rulesList.ScrollUp()
+			case "<C-d>":
+				dash.tabs.rulesList.ScrollHalfPageDown()
+			case "<C-u>":
+				dash.tabs.rulesList.ScrollHalfPageUp()
+			case "<C-f>":
+				dash.tabs.rulesList.ScrollPageDown()
+			case "<C-b>":
+				dash.tabs.rulesList.ScrollPageUp()
+			case "g":
+				//if previousKey == "g" {
+				//	l.ScrollTop()
+				//}
+			case "<Home>":
+				dash.tabs.rulesList.ScrollTop()
+			case "G", "<End>":
+				dash.tabs.rulesList.ScrollBottom()
 			}
-		case <-ticker:
-			if d.run {
-				ui.Render(grid)
-			}
+			ui.Clear()
+			dash.setGrid()
+			ui.Render(dash.grid)
 		}
+
 	}
+}
+
+func (dash *Dashboard) renderActiveTab() {
+
+}
+
+func (dash *Dashboard) setGrid() {
+
+	p1 := widgets.NewParagraph()
+	p1.Text = "chickie"
+
+	dash.grid.Set(
+		ui.NewRow(1.0,
+			ui.NewCol(0.2,
+				dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
+				dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
+			),
+			ui.NewCol(0.8,
+				ui.NewRow(0.1, dash.tabs.tv),
+				ui.NewRow(0.9,
+					ui.NewCol(0.6,
+						*dash.tabs.descriptionGridItem,
+						*dash.tabs.rulesListGridItem,
+					),
+					ui.NewCol(0.4, p1),
+				),
+			),
+		),
+	)
 }
 
 func getColorForPercentage(percent int) ui.Color {
