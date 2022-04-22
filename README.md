@@ -66,14 +66,14 @@ go build vacuum.go
 ## See just the linting errors
 
 ```
-./vacuum -d -e <your-openapi-spec.yaml>
+./vacuum lint -d -e <your-openapi-spec.yaml>
 ```
 
 ## See just a specific category of report
 
 
 ```
-./vacuum -d -c schemas <your-openapi-spec.yaml>
+./vacuum lint -d -c schemas <your-openapi-spec.yaml>
 ```
 
 The options here are:
