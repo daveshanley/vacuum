@@ -21,6 +21,7 @@ type Dashboard struct {
 	selectedCategory            *model.RuleCategory
 	selectedCategoryDescription *ui.GridItem
 	selectedRule                *model.Rule
+	selectedRuleIndex           int
 }
 
 func CreateDashboard(resultSet *model.RuleResultSet) *Dashboard {
@@ -36,7 +37,11 @@ func (dash *Dashboard) GenerateTabbedView() {
 		labels = append(labels, cat.Name)
 	}
 	tv := widgets.NewTabPane(labels...)
-	tv.Border = false
+	tv.BorderTop = false
+	tv.BorderLeft = false
+	tv.BorderRight = false
+	tv.BorderBottom = true
+
 	dash.tabs = TabbedView{tv: tv, dashboard: dash}
 	dash.selectedTabIndex = 0
 	dash.selectedCategory = dash.ruleCategories[0]
@@ -85,6 +90,7 @@ func (dash *Dashboard) Render() {
 
 	dash.GenerateTabbedView()
 	dash.ComposeGauges()
+
 	dash.setGrid()
 
 	ui.Render(dash.grid)
@@ -106,7 +112,10 @@ func (dash *Dashboard) Render() {
 				dash.setGrid()
 				ui.Render(dash.grid)
 			case "j", "<Down>":
-				dash.tabs.rulesList.ScrollDown()
+				dash.tabs.scrollDown()
+				ui.Clear()
+				dash.setGrid()
+				ui.Render(dash.grid)
 			case "k", "<Up>":
 				dash.tabs.rulesList.ScrollUp()
 			case "<C-d>":
