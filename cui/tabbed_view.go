@@ -35,7 +35,7 @@ func (t *TabbedView) scrollDown() {
 	t.rulesList.ScrollDown()
 	t.dashboard.selectedRuleIndex = t.rulesList.SelectedRow
 	if t.currentRuleResults.Rules != nil && t.currentRuleResults.Rules[t.rulesList.SelectedRow] != nil {
-		t.dashboard.selectedRule = t.currentRuleResults.Rules[t.rulesList.SelectedRow]
+		t.dashboard.selectedRule = t.currentRuleResults.Rules[t.rulesList.SelectedRow].Rule
 	}
 }
 
@@ -57,7 +57,7 @@ func (t *TabbedView) generateRulesInCategory() {
 	t.currentRuleResults = results
 	var rows []string
 	for _, result := range results.Rules {
-		rows = append(rows, fmt.Sprintf("%s (%d)", result.Id, results.Health))
+		rows = append(rows, fmt.Sprintf("%s (%d)", result.Rule.Id, result.Seen))
 	}
 	if len(rows) == 0 {
 		rows = append(rows, "🎉 Nothing in here, all clear, nice job!")

@@ -205,8 +205,14 @@ type RuleFunctionSchema struct {
 // RuleResultsForCategory boils down result statistics for a linting category
 // TODO: this is wrong, after trying the model out, it needs to be changed.
 type RuleResultsForCategory struct {
-	Rules    []*Rule
+	Rules    []*RuleCategoryResult
 	Category *RuleCategory
+}
+
+// RuleCategoryResult contains metrics for a rule scored as part of a category.
+type RuleCategoryResult struct {
+	Rule     *Rule
+	Seen     int
 	Health   int
 	Errors   int
 	Warnings int
@@ -459,26 +465,25 @@ func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResults
 
 	rrfc := RuleResultsForCategory{}
 	catResults := rr.GetResultsByRuleCategory(category)
+	rrfc.Category = cat
 
 	seenRules := make(map[*Rule]bool)
+	seenRuleMap := make(map[string]*RuleCategoryResult)
+
 	for _, res := range catResults {
+		var rcr RuleCategoryResult
 		if !seenRules[res.Rule] {
-			rrfc.Rules = append(rrfc.Rules, res.Rule)
+			rcr = RuleCategoryResult{
+				Rule: res.Rule,
+			}
+			rrfc.Rules = append(rrfc.Rules, &rcr)
+			seenRuleMap[res.Rule.Id] = &rcr
 			seenRules[res.Rule] = true
+		} else {
+			rcr = *seenRuleMap[res.Rule.Id]
 		}
-		sev := res.Rule.GetSeverityAsIntValue()
-		switch sev {
-		case 0:
-			rrfc.Errors++
-		case 1:
-			rrfc.Warnings++
-		case 2:
-			rrfc.Info++
-		case 3:
-			rrfc.Hints++
-		}
+		rcr.Seen++
 	}
-	rrfc.Health = CalculateCategoryHealthScore(rrfc.Errors, rrfc.Warnings, rrfc.Info, rrfc.Hints)
 	return &rrfc
 }
 

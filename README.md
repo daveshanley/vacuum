@@ -45,7 +45,7 @@ go build vacuum.go
 ## Run the code
 
 ```
-./vacuum <your-openapi-spec.yaml>
+./vacuum lint <your-openapi-spec.yaml>
 ```
 ---
 > 👉 **Please note, the flags and commands below will change as the experience is refined.** 👈
@@ -54,26 +54,26 @@ go build vacuum.go
 ## See full linting report details
 
 ```
-./vacuum <your-openapi-spec.yaml> -d
+./vacuum lint -d <your-openapi-spec.yaml>
 ```
 
 ## See full linting report with inline code snippets
 
 ```
-./vacuum <your-openapi-spec.yaml> -d -s
+./vacuum lint -d -s <your-openapi-spec.yaml>
 ```
 
 ## See just the linting errors
 
 ```
-./vacuum <your-openapi-spec.yaml> -d -e
+./vacuum -d -e <your-openapi-spec.yaml>
 ```
 
 ## See just a specific category of report
 
 
 ```
-./vacuum <your-openapi-spec.yaml> -d -c schemas
+./vacuum -d -c schemas <your-openapi-spec.yaml>
 ```
 
 The options here are:
@@ -96,5 +96,17 @@ If you're already using Spectral JSON reports, and you want to use vacuum instea
 ```
 
 The report file name is _optional_. The default report output name is `vacuum-spectral-report.json`
+
+
+## Try out the dashboard
+
+This is a total mess at the moment, but you can see a glimpse of the future.
+Don't rely on this yet, it's not accurate.
+
+```
+./vacuum dashboard <your-openapi-spec.yaml>
+```
+
+
 
 Let me know what you think.
