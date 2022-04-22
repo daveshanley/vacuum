@@ -250,6 +250,7 @@ func GetOAS2APISchemesRule() *model.Rule {
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
+		Id:           oas2APISchemes,
 		Formats:      model.AllFormats,
 		Description:  "OpenAPI host 'schemes' must be present and non-empty array.",
 		Given:        "$",

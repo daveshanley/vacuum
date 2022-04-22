@@ -202,6 +202,40 @@ type RuleFunctionSchema struct {
 	ErrorMessage  string                 `json:"errorMessage,omitempty"`
 }
 
+// RuleResultsForCategory boils down result statistics for a linting category
+// TODO: this is wrong, after trying the model out, it needs to be changed.
+type RuleResultsForCategory struct {
+	Rules    []*RuleCategoryResult
+	Category *RuleCategory
+}
+
+// RuleCategoryResult contains metrics for a rule scored as part of a category.
+type RuleCategoryResult struct {
+	Rule     *Rule
+	Seen     int
+	Health   int
+	Errors   int
+	Warnings int
+	Info     int
+	Hints    int
+}
+
+// GetSeverityAsIntValue will return the severity state of the rule as an integer. If the severity is not known
+// then -1 is returned.
+func (r *Rule) GetSeverityAsIntValue() int {
+	switch r.Severity {
+	case severityError:
+		return 0
+	case severityWarn:
+		return 1
+	case severityInfo:
+		return 2
+	case severityHint:
+		return 3
+	}
+	return -1
+}
+
 // GetPropertyDescription is a shortcut method for extracting the description of a property by its name.
 func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
 	for _, prop := range rfs.Properties {
@@ -421,6 +455,38 @@ func (rr *RuleResultSet) GetInfoByRuleCategory(category string) []*RuleFunctionR
 	return filtered
 }
 
+// GetRuleResultsForCategory will return all rules that returned results during linting, complete with pre
+// compiled statistics for easy indexing.
+func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResultsForCategory {
+	cat := RuleCategories[category]
+	if cat == nil {
+		return nil
+	}
+
+	rrfc := RuleResultsForCategory{}
+	catResults := rr.GetResultsByRuleCategory(category)
+	rrfc.Category = cat
+
+	seenRules := make(map[*Rule]bool)
+	seenRuleMap := make(map[string]*RuleCategoryResult)
+
+	for _, res := range catResults {
+		var rcr RuleCategoryResult
+		if !seenRules[res.Rule] {
+			rcr = RuleCategoryResult{
+				Rule: res.Rule,
+			}
+			rrfc.Rules = append(rrfc.Rules, &rcr)
+			seenRuleMap[res.Rule.Id] = &rcr
+			seenRules[res.Rule] = true
+		} else {
+			rcr = *seenRuleMap[res.Rule.Id]
+		}
+		rcr.Seen++
+	}
+	return &rrfc
+}
+
 func getCount(rr *RuleResultSet, severity string) int {
 	c := 0
 	for _, res := range rr.Results {
@@ -450,7 +516,34 @@ func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
 	if warningCount >= 100 {
 		return 20 // 20% is as low as we want to go for pure warnings
 	}
-	return 100 - (warningCount)
+	height := 100 - (warningCount)
+	if height > 100 {
+		height = 100
+	}
+	if height < 0 {
+		height = 0
+	}
+	return height
+}
+
+// CalculateCategoryHealthScore returns a value between 1-100 based on how many rule severity types tripped.
+func CalculateCategoryHealthScore(errors, warnings, info, hints int) int {
+	if errors > 0 { // this will be low, so just return this count value.
+		return errors
+	}
+
+	if warnings >= 100 {
+		return 20 // 20% is as low as we want to go for pure warnings
+	}
+	height := 100 - (warnings)
+	if height > 100 {
+		height = 100
+	}
+	if height < 0 {
+		height = 0
+	}
+	return height - info
+
 }
 
 // SortResultsByLineNumber will re-order the results by line number. This is a destructive sort,

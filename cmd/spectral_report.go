@@ -9,8 +9,6 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"io/ioutil"
-	"os"
-	"time"
 )
 
 func GetSpectralReportCommand() *cobra.Command {
@@ -31,7 +29,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				return errors.New(errText)
 			}
 
-			timeFlag, _ := cmd.Flags().GetBool("time")
+			//timeFlag, _ := cmd.Flags().GetBool("time")
 
 			reportOutput := "vacuum-spectral-report.json"
 
@@ -39,7 +37,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				reportOutput = args[1]
 			}
 
-			start := time.Now()
+			//start := time.Now()
 
 			// read file.
 			b, ferr := ioutil.ReadFile(args[0])
@@ -56,12 +54,12 @@ func GetSpectralReportCommand() *cobra.Command {
 			rs := rulesets.BuildDefaultRuleSets()
 			results, _ := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
 
-			duration := time.Since(start)
+			//duration := time.Since(start)
 
 			resultSet := model.NewRuleResultSet(results)
 			resultSet.SortResultsByLineNumber()
 
-			fi, _ := os.Stat(args[0])
+			//fi, _ := os.Stat(args[0])
 
 			// serialize
 			spectralReport := resultSet.GenerateSpectralReport(args[0]) // todo: convert to full path.
@@ -84,7 +82,7 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			pterm.Info.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutput)
 
-			renderTime(timeFlag, duration, fi)
+			//renderTime(timeFlag, duration, fi)
 
 			return nil
 		},
