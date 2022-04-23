@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
+	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -183,6 +184,7 @@ type Rule struct {
 	Then              interface{}    `json:"then"`
 	PrecomiledPattern *regexp.Regexp `json:"-"` // regex is slow.
 	RuleCategory      *RuleCategory  `json:"-"`
+	Name              string         `json:"name"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
@@ -212,6 +214,7 @@ type RuleResultsForCategory struct {
 // RuleCategoryResult contains metrics for a rule scored as part of a category.
 type RuleCategoryResult struct {
 	Rule     *Rule
+	Results  []*RuleFunctionResult
 	Seen     int
 	Health   int
 	Errors   int
@@ -471,18 +474,19 @@ func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResults
 	seenRuleMap := make(map[string]*RuleCategoryResult)
 
 	for _, res := range catResults {
-		var rcr RuleCategoryResult
+		var rcr *RuleCategoryResult
 		if !seenRules[res.Rule] {
-			rcr = RuleCategoryResult{
+			rcr = &RuleCategoryResult{
 				Rule: res.Rule,
 			}
-			rrfc.Rules = append(rrfc.Rules, &rcr)
-			seenRuleMap[res.Rule.Id] = &rcr
+			rrfc.Rules = append(rrfc.Rules, rcr)
+			seenRuleMap[res.Rule.Id] = rcr
 			seenRules[res.Rule] = true
 		} else {
-			rcr = *seenRuleMap[res.Rule.Id]
+			rcr = seenRuleMap[res.Rule.Id]
 		}
-		rcr.Seen++
+		rcr.Results = append(rcr.Results, res)
+		rcr.Seen = rcr.Seen + 1
 	}
 	return &rrfc
 }
@@ -505,45 +509,32 @@ func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
 
 	errs := rr.GetErrorsByRuleCategory(category)
 	warnings := rr.GetWarningsByRuleCategory(category)
+	info := rr.GetInfoByRuleCategory(category)
 
 	errorCount := len(errs)
 	warningCount := len(warnings)
+	infoCount := len(info)
 
-	if errorCount > 0 { // this will be low, so just return this count value.
-		return errorCount
-	}
+	totalScore := 0.0
+	totalScore += float64(errorCount) * 10.0
+	totalScore += float64(warningCount) * 0.5
+	totalScore += float64(infoCount) * 0.01
 
-	if warningCount >= 100 {
-		return 20 // 20% is as low as we want to go for pure warnings
-	}
-	height := 100 - (warningCount)
-	if height > 100 {
-		height = 100
-	}
-	if height < 0 {
-		height = 0
-	}
-	return height
-}
-
-// CalculateCategoryHealthScore returns a value between 1-100 based on how many rule severity types tripped.
-func CalculateCategoryHealthScore(errors, warnings, info, hints int) int {
-	if errors > 0 { // this will be low, so just return this count value.
-		return errors
+	health := 100.0
+	if totalScore >= 100 {
+		health = 0
+	} else {
+		health = health - math.RoundToEven(totalScore)
 	}
 
-	if warnings >= 100 {
-		return 20 // 20% is as low as we want to go for pure warnings
+	if health > 100 {
+		health = 100
 	}
-	height := 100 - (warnings)
-	if height > 100 {
-		height = 100
+	if health < 0 {
+		health = 0
 	}
-	if height < 0 {
-		height = 0
-	}
-	return height - info
 
+	return int(health)
 }
 
 // SortResultsByLineNumber will re-order the results by line number. This is a destructive sort,

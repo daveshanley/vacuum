@@ -17,5 +17,10 @@ func NewCategoryGauge(title string, percent int, cat *model.RuleCategory) Catego
 	g.Title = title
 	g.Percent = percent
 	g.BarColor = getColorForPercentage(percent)
+	g.BorderLeft = false
+	g.BorderRight = false
+	g.BorderBottom = false
+	g.BorderTop = true
+
 	return CategoryGauge{g: g, cat: cat}
 }

@@ -39,12 +39,18 @@ func GetDashboardCommand() *cobra.Command {
 
 			// read spec and parse to dashboard.
 			rs := rulesets.BuildDefaultRuleSets()
-			results, _ := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
 
-			resultSet := model.NewRuleResultSet(results)
+			ex := motor.RuleSetExecution{
+				RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
+				Spec:    b,
+			}
+
+			result := motor.ApplyRulesToRuleSet(&ex)
+
+			resultSet := model.NewRuleResultSet(result.Results)
 			resultSet.SortResultsByLineNumber()
 
-			dash := cui.CreateDashboard(resultSet)
+			dash := cui.CreateDashboard(resultSet, result.Index, result.SpecInfo)
 			dash.Render()
 			return nil
 		},

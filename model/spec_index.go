@@ -349,6 +349,11 @@ func (index *SpecIndex) GetAllHeaders() map[string]*Reference {
 	return index.allHeaders
 }
 
+// GetAllExternalDocuments will return all external documents found
+func (index *SpecIndex) GetAllExternalDocuments() map[string]*Reference {
+	return index.allExternalDocuments
+}
+
 // GetAllExamples will return all examples found in the document (under components)
 func (index *SpecIndex) GetAllExamples() map[string]*Reference {
 	return index.allExamples

@@ -274,7 +274,7 @@ func TestRuleResultSet_CalculateCategoryHealth_Errors(t *testing.T) {
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
 	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
-	assert.Equal(t, 1, results.CalculateCategoryHealth(CategoryInfo))
+	assert.Equal(t, 89, results.CalculateCategoryHealth(CategoryInfo))
 
 }
 
@@ -302,7 +302,7 @@ func TestRuleResultSet_CalculateCategoryHealth_Warnings(t *testing.T) {
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
 	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
-	assert.Equal(t, 98, results.CalculateCategoryHealth(CategoryInfo))
+	assert.Equal(t, 99, results.CalculateCategoryHealth(CategoryInfo))
 
 }
 
@@ -317,6 +317,6 @@ func TestRuleResultSet_CalculateCategoryHealth_Warnings_Lots(t *testing.T) {
 	}
 
 	results := NewRuleResultSet(r)
-	assert.Equal(t, 20, results.CalculateCategoryHealth(CategoryInfo))
+	assert.Equal(t, 50, results.CalculateCategoryHealth(CategoryInfo))
 
 }

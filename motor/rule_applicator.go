@@ -21,15 +21,133 @@ type ruleContext struct {
 	specInfo         *model.SpecInfo
 }
 
-// ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
-// TODO: change signature of the error return type, to be an array, this currently returns no errors, with a success.
+// RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
+// of ApplyRules to change, without a huge refactor. The ApplyRules function only returns a single error also.
+type RuleSetExecution struct {
+	RuleSet *model.RuleSet
+	Spec    []byte
+}
+
+// RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
+type RuleSetExecutionResult struct {
+	RuleSetExecution *RuleSetExecution
+	Results          []model.RuleFunctionResult
+	Index            *model.SpecIndex
+	SpecInfo         *model.SpecInfo
+	Errors           []error
+}
+
+// ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
+// vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
+// uses a message structure, to allow the signature to grow, without breaking anything.
+func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
+
+	builtinFunctions := functions.MapBuiltinFunctions()
+	var ruleResults []model.RuleFunctionResult
+	var ruleWaitGroup sync.WaitGroup
+	if execution.RuleSet != nil && execution.RuleSet.Rules != nil {
+		ruleWaitGroup.Add(len(execution.RuleSet.Rules))
+	}
+
+	var specResolved yaml.Node
+	var specUnresolved yaml.Node
+
+	// extract spec info, make this available to rule context.
+	specInfo, err := model.ExtractSpecInfo(execution.Spec)
+	if err != nil || specInfo == nil {
+		if specInfo == nil || specInfo.RootNode == nil {
+			return &RuleSetExecutionResult{Errors: []error{err}}
+		}
+	}
+
+	specUnresolved = *specInfo.RootNode
+	specResolved = specUnresolved
+
+	// create an index
+	index := model.NewSpecIndex(&specResolved)
+
+	// create a resolver
+	resolverInstance := resolver.NewResolver(index)
+
+	// resolve the doc
+	resolverInstance.Resolve()
+
+	// any errors (circular or lookup) from resolving spec.
+	errs := resolverInstance.GetResolvingErrors()
+
+	// create circular rule, it's blank, but we need a rule for a result.
+	circularRule := &model.Rule{
+		Name:         "Check for circular references",
+		Id:           "circular-references",
+		Description:  "Specification schemas contain circular references",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         "validation",
+		Severity:     "error",
+		Then: model.RuleAction{
+			Function: "blank",
+		},
+	}
+
+	// add all circular references to results.
+	for _, er := range errs {
+		res := model.RuleFunctionResult{
+			Rule:      circularRule,
+			StartNode: er.Node,
+			EndNode:   er.Node,
+			Message:   er.Error.Error(),
+			Path:      er.Path,
+		}
+		ruleResults = append(ruleResults, res)
+	}
+
+	// run all rules.
+	var errors []error
+
+	if execution.RuleSet != nil {
+		for _, rule := range execution.RuleSet.Rules {
+			ruleSpec := &specResolved
+			if !rule.Resolved {
+				ruleSpec = &specUnresolved
+			}
+
+			// this list of things is most likely going to grow a bit, so we use a nice clean message design.
+			ctx := ruleContext{
+				rule:             rule,
+				specNode:         ruleSpec,
+				builtinFunctions: builtinFunctions,
+				ruleResults:      &ruleResults,
+				wg:               &ruleWaitGroup,
+				errors:           &errors,
+				index:            index,
+				specInfo:         specInfo,
+			}
+			go runRule(ctx)
+		}
+
+		ruleWaitGroup.Wait()
+	}
+
+	return &RuleSetExecutionResult{
+		RuleSetExecution: execution,
+		Results:          ruleResults,
+		Index:            index,
+		SpecInfo:         specInfo,
+		Errors:           errors,
+	}
+}
+
+// TODO: clean up these two functions.
+
+// Deprecated: ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
+// Please use ApplyRulesToRuleSet instead of this function, the signature needs to change.
 func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
 
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
-
 	var ruleWaitGroup sync.WaitGroup
-
 	if ruleSet != nil && ruleSet.Rules != nil {
 		ruleWaitGroup.Add(len(ruleSet.Rules))
 	}
@@ -62,6 +180,8 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 	// create circular rule, it's blank, but we need a rule for a result.
 	circularRule := &model.Rule{
+		Name:         "Check for circular references",
+		Id:           "circular-references",
 		Description:  "Specification schemas contain circular references",
 		Given:        "$",
 		Resolved:     true,
@@ -112,10 +232,8 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 
 		ruleWaitGroup.Wait()
 	}
-	// TODO: THIS Signature needs to change to return []error and not error. these errors are not
-	// currently being returned as you can see below.
 
-	return ruleResults, nil // <-- change me please!
+	return ruleResults, nil
 }
 
 func runRule(ctx ruleContext) {

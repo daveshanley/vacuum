@@ -14,6 +14,7 @@ import (
 // it uses the in-built 'truthy' function
 func GetContactPropertiesRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check contact properties: name, URL, email",
 		Id:           contactProperties,
 		Formats:      model.AllFormats,
 		Description:  "Contact details are incomplete",
@@ -44,6 +45,7 @@ func GetContactPropertiesRule() *model.Rule {
 // info object contains a contact object
 func GetInfoContactRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for specification contact details",
 		Id:           infoContact,
 		Formats:      model.AllFormats,
 		Description:  "Info section is missing contact details",
@@ -64,6 +66,7 @@ func GetInfoContactRule() *model.Rule {
 // info object contains a description
 func GetInfoDescriptionRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for a specification description",
 		Id:           infoDescription,
 		Formats:      model.AllFormats,
 		Description:  "Info section is missing a description",
@@ -84,6 +87,7 @@ func GetInfoDescriptionRule() *model.Rule {
 // info object contains a license
 func GetInfoLicenseRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for a license definition",
 		Id:           infoLicense,
 		Formats:      model.AllFormats,
 		Description:  "Info section should contain a license",
@@ -104,6 +108,7 @@ func GetInfoLicenseRule() *model.Rule {
 // info object contains a license with an url that is set.
 func GetInfoLicenseUrlRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check if license is missing an URL",
 		Id:           licenseUrl,
 		Formats:      model.AllFormats,
 		Description:  "License should contain an url",
@@ -129,6 +134,7 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
+		Name:         "Check descriptions for  'eval()' statements",
 		Id:           noEvalInMarkdown,
 		Formats:      model.AllFormats,
 		Description:  "Markdown descriptions must not have 'eval()' statements'",
@@ -155,6 +161,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 	comp, _ := regexp.Compile(fo["pattern"])
 
 	return &model.Rule{
+		Name:         "Check descriptions for '<script>' tags",
 		Id:           noScriptTagsInMarkdown,
 		Formats:      model.AllFormats,
 		Description:  "Markdown descriptions must not have '<script>' tags'",
@@ -180,6 +187,7 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 	fo["keyedBy"] = "name"
 
 	return &model.Rule{
+		Name:         "Check tags are ordered alphabetically",
 		Id:           openAPITagsAlphabetical,
 		Formats:      model.AllFormats,
 		Description:  "Tags must be in alphabetical order",
@@ -215,6 +223,7 @@ func GetOpenApiTagsRule() *model.Rule {
 	//opts["unpack"] = true          // unpack will correctly unpack this data so the schema method can use it.
 
 	return &model.Rule{
+		Name:         "Check global tags are defined",
 		Id:           openAPITags,
 		Formats:      model.AllFormats,
 		Description:  "Top level spec 'tags' must not be empty, and must be an array",
@@ -250,6 +259,7 @@ func GetOAS2APISchemesRule() *model.Rule {
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
+		Name:         "Check host schemes are defined",
 		Id:           oas2APISchemes,
 		Formats:      model.AllFormats,
 		Description:  "OpenAPI host 'schemes' must be present and non-empty array.",
@@ -274,6 +284,7 @@ func GetOAS2HostNotExampleRule() *model.Rule {
 	opts["notMatch"] = "example\\.com"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Name:         "Check server URLs for example.com",
 		Id:           oas2HostNotExample,
 		Formats:      model.OAS2Format,
 		Description:  "Host URL should not point at example.com",
@@ -299,6 +310,7 @@ func GetOAS3HostNotExampleRule() *model.Rule {
 	opts["notMatch"] = "example\\.com"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Name:         "Check server URLs for example.com",
 		Id:           oas3HostNotExample,
 		Formats:      model.OAS3AllFormat,
 		Description:  "Server URL should not point at example.com",
@@ -322,6 +334,7 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
 	opts["notMatch"] = "/$"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Name:         "Check host for trailing slash",
 		Id:           oas2HostTrailingSlash,
 		Formats:      model.OAS2Format,
 		Description:  "Host URL should not contain a trailing slash",
@@ -346,6 +359,7 @@ func GetOperationDescriptionRule() *model.Rule {
 	opts := make(map[string]interface{})
 	opts["minWords"] = "1" // there must be at least a single word.
 	return &model.Rule{
+		Name:         "Check operation description",
 		Id:           operationDescription,
 		Formats:      model.AllFormats,
 		Description:  "Operation description checks",
@@ -365,6 +379,7 @@ func GetOperationDescriptionRule() *model.Rule {
 // GetOAS2ParameterDescriptionRule will check specs to make sure parameters have a description.
 func GetOAS2ParameterDescriptionRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check parameter description",
 		Id:           oas2ParameterDescription,
 		Formats:      model.OAS2Format,
 		Description:  "Parameter description checks",
@@ -383,6 +398,7 @@ func GetOAS2ParameterDescriptionRule() *model.Rule {
 // GetOAS3ParameterDescriptionRule will check specs to make sure parameters have a description.
 func GetOAS3ParameterDescriptionRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check parameter description",
 		Id:           oas3ParameterDescription,
 		Formats:      model.OAS3AllFormat,
 		Description:  "Parameter description checks",
@@ -402,6 +418,7 @@ func GetOAS3ParameterDescriptionRule() *model.Rule {
 // all descriptions should be unique, otherwise what is the point?
 func GetDescriptionDuplicationRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check descriptions for duplicates",
 		Id:           descriptionDuplication,
 		Formats:      model.AllFormats,
 		Description:  "Description duplication check",
@@ -420,6 +437,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 // GetComponentDescriptionsRule will check all components for description problems.
 func GetComponentDescriptionsRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check component description",
 		Formats:      model.AllFormats,
 		Description:  "Component description check",
 		Given:        "$",
@@ -437,6 +455,7 @@ func GetComponentDescriptionsRule() *model.Rule {
 // GetAPIServersRule checks to make sure there is a valid 'servers' definition in the document.
 func GetAPIServersRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Validate API server definitions",
 		Id:           oas3APIServers,
 		Formats:      model.OAS3Format,
 		Description:  "Check for valid API servers definition",
@@ -459,6 +478,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 	opts["match"] = "^[A-Za-z0-9-._~:/?#\\[\\]@!\\$&'()*+,;=]*$"
 	comp, _ := regexp.Compile(opts["match"].(string))
 	return &model.Rule{
+		Name:         "Check operationId is URL friendly",
 		Id:           operationOperationIdValidInUrl,
 		Formats:      model.AllFormats,
 		Description:  "OperationId must use URL friendly characters",
@@ -481,6 +501,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 // it's an array with at least one item.
 func GetOperationTagsRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operation tags are used",
 		Id:           operationTags,
 		Formats:      model.AllFormats,
 		Description:  "Operation 'tags' are missing/empty",
@@ -502,6 +523,7 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 	opts["notMatch"] = "{}"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Name:         "Check path parameter declarations",
 		Id:           pathDeclarationsMustExist,
 		Formats:      model.AllFormats,
 		Description:  "Path parameter declarations must not be empty ex. '/api/{}' is invalid",
@@ -525,6 +547,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 	opts["notMatch"] = ".+\\/$"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Name:         "Check path for any trailing slashes",
 		Id:           pathKeysNoTrailingSlash,
 		Formats:      model.AllFormats,
 		Description:  "Path must not end with a slash",
@@ -548,6 +571,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 	opts["notMatch"] = "\\?"
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 	return &model.Rule{
+		Name:         "Check path excludes query string",
 		Id:           pathNotIncludeQuery,
 		Formats:      model.AllFormats,
 		Description:  "Path must not include query string",
@@ -568,6 +592,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 // GetTagDescriptionRequiredRule checks to ensure tags defined have been given a description
 func GetTagDescriptionRequiredRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check tag description",
 		Id:           tagDescription,
 		Formats:      model.AllFormats,
 		Description:  "Tag must have a description defined",
@@ -587,6 +612,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 // GetTypedEnumRule checks to ensure enums are of the specified type
 func GetTypedEnumRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check enum types",
 		Id:           typedEnum,
 		Formats:      model.AllFormats,
 		Description:  "Enum values must respect the specified type",
@@ -606,6 +632,7 @@ func GetTypedEnumRule() *model.Rule {
 func GetPathParamsRule() *model.Rule {
 	// add operation tag defined rule
 	return &model.Rule{
+		Name:         "Check path validity and definition",
 		Id:           pathParamsRule,
 		Formats:      model.AllFormats,
 		Description:  "Path parameters must be defined and valid.",
@@ -624,6 +651,7 @@ func GetPathParamsRule() *model.Rule {
 // GetGlobalOperationTagsRule will check that an operation tag exists in top level tags
 func GetGlobalOperationTagsRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operation tags exist globally",
 		Id:           operationTagDefined,
 		Formats:      model.AllFormats,
 		Description:  "Operation tags must be defined in global tags.",
@@ -642,6 +670,7 @@ func GetGlobalOperationTagsRule() *model.Rule {
 // GetOperationParametersRule will check that an operation has valid parameters defined
 func GetOperationParametersRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operation parameters",
 		Id:           operationParameters,
 		Formats:      model.AllFormats,
 		Description:  "Operation parameters are unique and non-repeating.",
@@ -661,6 +690,7 @@ func GetOperationParametersRule() *model.Rule {
 // is defined in the 'consumes' node for in any parameters that use in formData.
 func GetOAS2FormDataConsumesRule() *model.Rule {
 	return &model.Rule{
+		Name:    "Check operation parameter 'formData' definition",
 		Id:      oas2OperationFormDataConsumeCheck,
 		Formats: model.OAS2Format,
 		Description: "Operations with 'in: formData' parameter must include 'application/x-www-form-urlencoded' or" +
@@ -680,6 +710,7 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
 // GetOAS2PolymorphicAnyOfRule will check that 'anyOf' has not been used in a swagger spec (introduced in 3.0)
 func GetOAS2PolymorphicAnyOfRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for invalid use of 'anyOf'",
 		Id:           oas2AnyOf,
 		Formats:      model.OAS2Format,
 		Description:  "'anyOf' was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
@@ -698,6 +729,7 @@ func GetOAS2PolymorphicAnyOfRule() *model.Rule {
 // GetOAS2PolymorphicOneOfRule will check that 'oneOf' has not been used in a swagger spec (introduced in 3.0)
 func GetOAS2PolymorphicOneOfRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for invalid use of 'oneOf'",
 		Id:           oas2OneOf,
 		Formats:      model.OAS2Format,
 		Description:  "'oneOf' was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
@@ -716,6 +748,7 @@ func GetOAS2PolymorphicOneOfRule() *model.Rule {
 // GetOAS2SchemaRule will check that the schema is valid for swagger docs.
 func GetOAS2SchemaRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check schema is valid OpenAPI 2",
 		Id:           oas2Schema,
 		Formats:      model.OAS2Format,
 		Description:  "OpenAPI 2 specification is invalid",
@@ -734,6 +767,7 @@ func GetOAS2SchemaRule() *model.Rule {
 // GetOAS3SchemaRule will check that the schema is valid for openapi 3+ docs.
 func GetOAS3SchemaRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check spec is valid OpenAPI 3",
 		Id:           oas3Schema,
 		Formats:      model.OAS3Format,
 		Description:  "OpenAPI 3 specification is invalid",
@@ -752,6 +786,7 @@ func GetOAS3SchemaRule() *model.Rule {
 // GetOperationIdUniqueRule will check to make sure that operationIds are all unique and non-repeating
 func GetOperationIdUniqueRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operations for unique operationId",
 		Id:           operationOperationIdUnique,
 		Formats:      model.AllFormats,
 		Description:  "Every operation must have unique \"operationId\".",
@@ -770,6 +805,7 @@ func GetOperationIdUniqueRule() *model.Rule {
 // GetOperationSingleTagRule will check to see if an operation has more than a single tag
 func GetOperationSingleTagRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operations for multiple tags",
 		Id:           operationSingularTag,
 		Formats:      model.AllFormats,
 		Description:  "Operation cannot have more than a single tag defined",
@@ -788,6 +824,7 @@ func GetOperationSingleTagRule() *model.Rule {
 // GetOAS2APIHostRule will check swagger specs for the host property being set.
 func GetOAS2APIHostRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check spec for 'host' value",
 		Id:           oas2APIHost,
 		Formats:      model.OAS2Format,
 		Description:  "OpenAPI 'host' must be present and a non-empty string.",
@@ -807,6 +844,7 @@ func GetOAS2APIHostRule() *model.Rule {
 // GetOperationIdRule will check to make sure that operationIds  exist on all operations
 func GetOperationIdRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operations for an operationId",
 		Id:           operationOperationId,
 		Formats:      model.AllFormats,
 		Description:  "Every operation must contain an \"operationId\".",
@@ -825,6 +863,7 @@ func GetOperationIdRule() *model.Rule {
 // GetOperationSuccessResponseRule will check that every operation has a success response defined.
 func GetOperationSuccessResponseRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operations for success response",
 		Id:           operationSuccessResponse,
 		Formats:      model.AllFormats,
 		Description:  "Operation must have at least one 2xx or a 3xx response.",
@@ -844,6 +883,7 @@ func GetOperationSuccessResponseRule() *model.Rule {
 // GetDuplicatedEntryInEnumRule will check that enums used are not duplicates
 func GetDuplicatedEntryInEnumRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for duplicate enum entries",
 		Id:           duplicatedEntryInEnum,
 		Formats:      model.AllFormats,
 		Description:  "Enum values must not have duplicate entry",
@@ -862,6 +902,7 @@ func GetDuplicatedEntryInEnumRule() *model.Rule {
 // GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
 func GetNoRefSiblingsRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for siblings to $ref values",
 		Id:           noRefSiblings,
 		Formats:      model.AllFormats,
 		Description:  "$ref values cannot be placed next to other properties (like a description)",
@@ -880,6 +921,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 // GetOAS3UnusedComponentRule will check that there aren't any components anywhere that haven't been used.
 func GetOAS3UnusedComponentRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for unused components",
 		Id:           oas3UnusedComponent,
 		Formats:      model.OAS3AllFormat,
 		Description:  "Check for unused components and bad references",
@@ -898,6 +940,7 @@ func GetOAS3UnusedComponentRule() *model.Rule {
 // GetOAS2UnusedComponentRule will check that there aren't any components anywhere that haven't been used.
 func GetOAS2UnusedComponentRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check for unused definitions",
 		Id:           oas2UnusedDefinition,
 		Formats:      model.OAS2Format,
 		Description:  "Check for unused components and bad references",
@@ -919,6 +962,7 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 	oasSecurityPath["schemesPath"] = "$.components.securitySchemes"
 
 	return &model.Rule{
+		Name:         "Check operation security",
 		Id:           oas3OperationSecurityDefined,
 		Formats:      model.OAS3AllFormat,
 		Description:  "'security' values must match a scheme defined in components.securitySchemes",
@@ -938,6 +982,7 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 // GetOAS2SecurityDefinedRule will check that security definitions exist and validate for OpenAPI 2
 func GetOAS2SecurityDefinedRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check operation security",
 		Id:           oas2OperationSecurityDefined,
 		Formats:      model.OAS2Format,
 		Description:  "'security' values must match a scheme defined in securityDefinitions",
@@ -956,6 +1001,7 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 // GetOAS2DiscriminatorRule will check swagger schemas to ensure they are using discriminations correctly.
 func GetOAS2DiscriminatorRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Discriminator check",
 		Id:           oas2Discriminator,
 		Formats:      model.OAS2Format,
 		Description:  "discriminators are used correctly in schemas",
@@ -974,6 +1020,7 @@ func GetOAS2DiscriminatorRule() *model.Rule {
 // GetOAS3ExamplesRule will check the entire spec for correct example use.
 func GetOAS3ExamplesRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check all examples",
 		Id:           oas3ValidSchemaExample,
 		Formats:      model.OAS3AllFormat,
 		Description:  "Examples must be present and valid for operations and components",
@@ -992,6 +1039,7 @@ func GetOAS3ExamplesRule() *model.Rule {
 // GetOAS2ExamplesRule will check the entire spec for correct example use.
 func GetOAS2ExamplesRule() *model.Rule {
 	return &model.Rule{
+		Name:         "Check all examples",
 		Id:           oas2ValidSchemaExample,
 		Formats:      model.OAS2Format,
 		Description:  "Examples must be present and valid for operations and components",

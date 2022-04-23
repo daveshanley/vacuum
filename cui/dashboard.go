@@ -16,17 +16,24 @@ type Dashboard struct {
 	healthGaugeItems            []ui.GridItem
 	categoryHealthGauge         []CategoryGauge
 	resultSet                   *model.RuleResultSet
+	index                       *model.SpecIndex
+	info                        *model.SpecInfo
 	selectedTabIndex            int
 	ruleCategories              []*model.RuleCategory
 	selectedCategory            *model.RuleCategory
 	selectedCategoryDescription *ui.GridItem
 	selectedRule                *model.Rule
 	selectedRuleIndex           int
+	selectedViolationIndex      int
+	selectedViolation           *model.RuleFunctionResult
+	violationViewActive         bool
 }
 
-func CreateDashboard(resultSet *model.RuleResultSet) *Dashboard {
+func CreateDashboard(resultSet *model.RuleResultSet, index *model.SpecIndex, info *model.SpecInfo) *Dashboard {
 	db := new(Dashboard)
 	db.resultSet = resultSet
+	db.index = index
+	db.info = info
 	return db
 }
 
@@ -47,6 +54,13 @@ func (dash *Dashboard) GenerateTabbedView() {
 	dash.selectedCategory = dash.ruleCategories[0]
 	dash.tabs.generateDescriptionGridItem()
 	dash.tabs.generateRulesInCategory()
+	if len(dash.tabs.currentRuleResults.Rules) > 0 {
+		dash.selectedRule = dash.tabs.currentRuleResults.Rules[0].Rule
+	}
+	dash.tabs.generateRuleViolations()
+	dash.tabs.setActiveViolation()
+	dash.tabs.generateRuleViolationView()
+
 }
 
 // ComposeGauges prepares health gauges for rendering into the main grid.
@@ -54,7 +68,7 @@ func (dash *Dashboard) ComposeGauges() {
 	var gridItems []ui.GridItem
 	for _, gauge := range dash.categoryHealthGauge {
 		numCat := float64(len(dash.categoryHealthGauge))
-		ratio := 1.0 / numCat
+		ratio := 0.6 / (numCat)
 		gridItems = append(gridItems, ui.NewRow(ratio, gauge.g))
 	}
 	dash.healthGaugeItems = gridItems
@@ -79,6 +93,9 @@ func (dash *Dashboard) Render() {
 		cats = append(cats, cat)
 	}
 
+	// todo: create a formula for this.
+	gauges = append(gauges, NewCategoryGauge("Overall Health", 12, model.RuleCategoriesOrdered[0]))
+
 	dash.categoryHealthGauge = gauges
 	dash.ruleCategories = cats
 
@@ -92,6 +109,7 @@ func (dash *Dashboard) Render() {
 	dash.ComposeGauges()
 
 	dash.setGrid()
+	//dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
 
 	ui.Render(dash.grid)
 
@@ -103,11 +121,13 @@ func (dash *Dashboard) Render() {
 				return
 			case "[", "<Left>":
 				dash.tabs.tv.FocusLeft()
-				dash.tabs.setActiveIndex(dash.tabs.tv.ActiveTabIndex)
-
+				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
+				ui.Clear()
+				dash.setGrid()
+				ui.Render(dash.grid)
 			case "]", "<Right>":
 				dash.tabs.tv.FocusRight()
-				dash.tabs.setActiveIndex(dash.tabs.tv.ActiveTabIndex)
+				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
 				ui.Clear()
 				dash.setGrid()
 				ui.Render(dash.grid)
@@ -117,7 +137,20 @@ func (dash *Dashboard) Render() {
 				dash.setGrid()
 				ui.Render(dash.grid)
 			case "k", "<Up>":
-				dash.tabs.rulesList.ScrollUp()
+				dash.tabs.scrollUp()
+				ui.Clear()
+				dash.setGrid()
+				ui.Render(dash.grid)
+			case "<Enter>":
+				dash.violationViewActive = true
+				ui.Clear()
+				dash.setGrid()
+				ui.Render(dash.grid)
+			case "<Escape>":
+				dash.violationViewActive = false
+				ui.Clear()
+				dash.setGrid()
+				ui.Render(dash.grid)
 			case "<C-d>":
 				dash.tabs.rulesList.ScrollHalfPageDown()
 			case "<C-u>":
@@ -135,9 +168,9 @@ func (dash *Dashboard) Render() {
 			case "G", "<End>":
 				dash.tabs.rulesList.ScrollBottom()
 			}
-			ui.Clear()
-			dash.setGrid()
-			ui.Render(dash.grid)
+			//ui.Clear()
+			//dash.setGrid()
+			//ui.Render(dash.grid)
 		}
 
 	}
@@ -157,15 +190,19 @@ func (dash *Dashboard) setGrid() {
 			ui.NewCol(0.2,
 				dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
 				dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
+				dash.healthGaugeItems[8],
+				ui.NewRow(0.4, NewStatsChart(dash.index, dash.info).bc),
 			),
-			ui.NewCol(0.8,
+			ui.NewCol(0.01, nil),
+			ui.NewCol(0.99,
 				ui.NewRow(0.1, dash.tabs.tv),
 				ui.NewRow(0.9,
-					ui.NewCol(0.6,
+					ui.NewCol(0.5,
 						*dash.tabs.descriptionGridItem,
 						*dash.tabs.rulesListGridItem,
+						*dash.tabs.violationListGridItem,
 					),
-					ui.NewCol(0.4, p1),
+					ui.NewCol(0.3, *dash.tabs.violationViewGridItem, *dash.tabs.violationSnippetGridItem),
 				),
 			),
 		),
