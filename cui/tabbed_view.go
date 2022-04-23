@@ -219,7 +219,6 @@ func generateConsoleSnippet(r *model.RuleFunctionResult, specData []string, befo
 		endLine = r.StartNode.Line + after
 	}
 
-	fmt.Print(startLine, endLine)
 	firstDelta := r.StartNode.Line - startLine
 	secondDelta := endLine - r.StartNode.Line
 	for i := 0; i < firstDelta; i++ {
