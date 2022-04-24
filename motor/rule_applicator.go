@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/resolver"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
@@ -89,6 +90,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Then: model.RuleAction{
 			Function: "blank",
 		},
+		HowToFix: rulesets.CircularReferencesFix,
 	}
 
 	// add all circular references to results.
@@ -192,6 +194,8 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 		Then: model.RuleAction{
 			Function: "blank",
 		},
+		//HowToFix: rulesets.CircularReferencesFix,
+		HowToFix: "NO WAY MAN",
 	}
 
 	// add all circular references to results.

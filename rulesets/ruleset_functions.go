@@ -336,6 +336,7 @@ func GetOAS3HostNotExampleRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          oas3HostNotExampleFix,
 	}
 }
 
@@ -385,6 +386,7 @@ func GetOperationDescriptionRule() *model.Rule {
 			Function:        "oasDescriptions",
 			FunctionOptions: opts,
 		},
+		HowToFix: operationDescriptionFix,
 	}
 }
 
@@ -404,6 +406,7 @@ func GetOAS2ParameterDescriptionRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasParamDescriptions",
 		},
+		HowToFix: oasParameterDescriptionFix,
 	}
 }
 
@@ -423,6 +426,7 @@ func GetOAS3ParameterDescriptionRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasParamDescriptions",
 		},
+		HowToFix: oasParameterDescriptionFix,
 	}
 }
 
@@ -443,6 +447,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasDescriptionDuplication",
 		},
+		HowToFix: descriptionDuplicationFix,
 	}
 }
 
@@ -480,6 +485,7 @@ func GetAPIServersRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasAPIServers",
 		},
+		HowToFix: componentDescriptionFix,
 	}
 }
 
@@ -506,6 +512,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          operationIdValidInUrlFix,
 	}
 }
 
@@ -526,6 +533,7 @@ func GetOperationTagsRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOperationTags",
 		},
+		HowToFix: operationTagsFix,
 	}
 }
 
@@ -550,6 +558,7 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          pathDeclarationsMustExistFix,
 	}
 }
 
@@ -574,6 +583,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          pathNoTrailingSlashFix,
 	}
 }
 
@@ -598,6 +608,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          pathNotIncludeQueryFix,
 	}
 }
 
@@ -618,6 +629,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 			Field:    "description",
 			Function: "truthy",
 		},
+		HowToFix: tagDescriptionRequiredFix,
 	}
 }
 
@@ -637,6 +649,7 @@ func GetTypedEnumRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "typedEnum",
 		},
+		HowToFix: typedEnumFix,
 	}
 }
 
@@ -657,6 +670,7 @@ func GetPathParamsRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasPathParam",
 		},
+		HowToFix: pathParamsFix,
 	}
 }
 
@@ -676,6 +690,7 @@ func GetGlobalOperationTagsRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasTagDefined",
 		},
+		HowToFix: globalOperationTagsFix,
 	}
 }
 
@@ -695,6 +710,7 @@ func GetOperationParametersRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOpParams",
 		},
+		HowToFix: operationParametersFix,
 	}
 }
 
@@ -716,6 +732,7 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOpFormDataConsumeCheck",
 		},
+		HowToFix: formDataConsumesFix,
 	}
 }
 
@@ -735,6 +752,7 @@ func GetOAS2PolymorphicAnyOfRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasPolymorphicAnyOf",
 		},
+		HowToFix: oas2AnyOfFix,
 	}
 }
 
@@ -754,6 +772,7 @@ func GetOAS2PolymorphicOneOfRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasPolymorphicOneOf",
 		},
+		HowToFix: oas2OneOfFix,
 	}
 }
 
@@ -773,6 +792,7 @@ func GetOAS2SchemaRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasDocumentSchema",
 		},
+		HowToFix: oas2SchemaCheckFix,
 	}
 }
 
@@ -792,6 +812,7 @@ func GetOAS3SchemaRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasDocumentSchema",
 		},
+		HowToFix: oas3SchemaCheckFix,
 	}
 }
 
@@ -811,6 +832,7 @@ func GetOperationIdUniqueRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOpIdUnique",
 		},
+		HowToFix: operationIdUniqueFix,
 	}
 }
 
@@ -830,6 +852,7 @@ func GetOperationSingleTagRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOpSingleTag",
 		},
+		HowToFix: operationSingleTagFix,
 	}
 }
 
@@ -850,6 +873,7 @@ func GetOAS2APIHostRule() *model.Rule {
 			Field:    "host",
 			Function: "truthy",
 		},
+		HowToFix: oas2APIHostFix,
 	}
 }
 
@@ -869,6 +893,7 @@ func GetOperationIdRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOpId",
 		},
+		HowToFix: operationIdExistsFix,
 	}
 }
 
@@ -909,6 +934,7 @@ func GetDuplicatedEntryInEnumRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "duplicatedEnum",
 		},
+		HowToFix: duplicatedEntryInEnumFix,
 	}
 }
 
@@ -928,6 +954,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "refSiblings",
 		},
+		HowToFix: noRefSiblingsFix,
 	}
 }
 
@@ -966,6 +993,7 @@ func GetOAS2UnusedComponentRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasUnusedComponent",
 		},
+		HowToFix: oas3UnusedComponentFix,
 	}
 }
 
@@ -989,6 +1017,7 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 			Function:        "oasOpSecurityDefined",
 			FunctionOptions: oasSecurityPath,
 		},
+		HowToFix: oas3SecurityDefinedFix,
 	}
 }
 
@@ -1008,6 +1037,7 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oas2OpSecurityDefined",
 		},
+		HowToFix: oas2SecurityDefinedFix,
 	}
 }
 
@@ -1027,6 +1057,7 @@ func GetOAS2DiscriminatorRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasDiscriminator",
 		},
+		HowToFix: oas2DiscriminatorFix,
 	}
 }
 
@@ -1046,6 +1077,7 @@ func GetOAS3ExamplesRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasExample",
 		},
+		HowToFix: oas3ExamplesFix,
 	}
 }
 
@@ -1065,5 +1097,6 @@ func GetOAS2ExamplesRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasExample",
 		},
+		HowToFix: oas3ExamplesFix,
 	}
 }
