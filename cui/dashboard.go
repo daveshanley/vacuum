@@ -68,7 +68,7 @@ func (dash *Dashboard) ComposeGauges() {
 	var gridItems []ui.GridItem
 	for _, gauge := range dash.categoryHealthGauge {
 		numCat := float64(len(dash.categoryHealthGauge))
-		ratio := 0.6 / (numCat)
+		ratio := 0.8 / (numCat)
 		gridItems = append(gridItems, ui.NewRow(ratio, gauge.g))
 	}
 	dash.healthGaugeItems = gridItems
@@ -148,6 +148,7 @@ func (dash *Dashboard) Render() {
 				ui.Render(dash.grid)
 			case "<Escape>":
 				dash.violationViewActive = false
+				dash.selectedViolationIndex = 0
 				ui.Clear()
 				dash.setGrid()
 				ui.Render(dash.grid)
@@ -181,17 +182,13 @@ func (dash *Dashboard) renderActiveTab() {
 }
 
 func (dash *Dashboard) setGrid() {
-
-	p1 := widgets.NewParagraph()
-	p1.Text = "chickie"
-
 	dash.grid.Set(
 		ui.NewRow(1.0,
 			ui.NewCol(0.2,
 				dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
 				dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
-				dash.healthGaugeItems[8],
-				ui.NewRow(0.4, NewStatsChart(dash.index, dash.info).bc),
+				//dash.healthGaugeItems[8],
+				ui.NewRow(0.3, NewStatsChart(dash.index, dash.info).bc),
 			),
 			ui.NewCol(0.01, nil),
 			ui.NewCol(0.99,
@@ -202,7 +199,9 @@ func (dash *Dashboard) setGrid() {
 						*dash.tabs.rulesListGridItem,
 						*dash.tabs.violationListGridItem,
 					),
-					ui.NewCol(0.3, *dash.tabs.violationViewGridItem, *dash.tabs.violationSnippetGridItem),
+					ui.NewCol(0.3,
+						*dash.tabs.violationViewGridItem,
+						*dash.tabs.violationSnippetGridItem),
 				),
 			),
 		),

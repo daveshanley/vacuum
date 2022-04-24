@@ -22,20 +22,20 @@ func NewStatsChart(index *model.SpecIndex, info *model.SpecInfo) StatsChart {
 
 	bc.Rows = []string{
 
-		fmt.Sprintf("📏 Filesize: [%dkb](fg:green)", len(*info.SpecBytes)/1024),
-		fmt.Sprintf("🔦 Spec Type: [%s/%s](fg:green)", info.SpecType, info.SpecFormat),
-		fmt.Sprintf("#️⃣ Version: [%s](fg:green)", info.Version),
-		fmt.Sprintf("🚗 References: [%d](fg:green)", len(index.GetMappedReferences())),
-		fmt.Sprintf("📦 External Docs: [%d](fg:green)", len(index.GetAllExternalDocuments())),
-		fmt.Sprintf("📜 Schemas: [%d](fg:green)", len(index.GetAllSchemas())),
-		fmt.Sprintf("\U0001F9FE Parameters: [%d](fg:green)", opPCount+cPCount),
-		fmt.Sprintf("🔗 Links: [%d](fg:green)", len(index.GetAllLinks())),
-		fmt.Sprintf("➡️ Paths: [%d](fg:green)", index.GetPathCount()),
-		fmt.Sprintf("⚡ Operations: [%d](fg:green)", index.GetOperationCount()),
-		fmt.Sprintf("🏷️ Tags: [%d](fg:green)", index.GetTotalTagsCount()),
-		fmt.Sprintf("🗺️ Examples: [%d](fg:green)", len(index.GetAllExamples())),
-		fmt.Sprintf("✒️ Enums: [%d](fg:green)", len(index.GetAllEnums())),
-		fmt.Sprintf("🔒 Security Schemes: [%d](fg:green)", len(index.GetAllSecuritySchemes())),
+		fmt.Sprintf("Filesize: [%dkb](fg:green)", len(*info.SpecBytes)/1024),
+		fmt.Sprintf("Spec Type: [%s/%s](fg:green)", info.SpecType, info.SpecFormat),
+		fmt.Sprintf("Version: [%s](fg:green)", info.Version),
+		fmt.Sprintf("References: [%d](fg:green)", len(index.GetMappedReferences())),
+		fmt.Sprintf("External Docs: [%d](fg:green)", len(index.GetAllExternalDocuments())),
+		fmt.Sprintf("Schemas: [%d](fg:green)", len(index.GetAllSchemas())),
+		fmt.Sprintf("Parameters: [%d](fg:green)", opPCount+cPCount),
+		fmt.Sprintf("Links: [%d](fg:green)", len(index.GetAllLinks())),
+		fmt.Sprintf("Paths: [%d](fg:green)", index.GetPathCount()),
+		fmt.Sprintf("Operations: [%d](fg:green)", index.GetOperationCount()),
+		fmt.Sprintf("Tags: [%d](fg:green)", index.GetTotalTagsCount()),
+		fmt.Sprintf("Examples: [%d](fg:green)", len(index.GetAllExamples())),
+		fmt.Sprintf("Enums: [%d](fg:green)", len(index.GetAllEnums())),
+		fmt.Sprintf("Security Schemes: [%d](fg:green)", len(index.GetAllSecuritySchemes())),
 	}
 	bc.Title = "Spec Statistics"
 	//bc.Labels = []string{"R", "E", "S", "P", "L", "I", "O", "T"}

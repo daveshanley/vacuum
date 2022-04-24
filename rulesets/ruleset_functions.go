@@ -423,7 +423,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 		Formats:      model.AllFormats,
 		Description:  "Description duplication check",
 		Given:        "$",
-		Resolved:     true,
+		Resolved:     false,
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,

@@ -77,6 +77,13 @@ func (t *TabbedView) setActiveRule() {
 
 func (t *TabbedView) setActiveViolation() {
 	t.dashboard.selectedViolationIndex = t.violationList.SelectedRow
+	if t.violationList.SelectedRow > len(t.currentViolationRules)-1 {
+		if len(t.currentViolationRules) <= 0 {
+			return
+		}
+		t.dashboard.selectedViolation = t.currentViolationRules[0]
+		return
+	}
 	if t.currentViolationRules != nil && t.currentViolationRules[t.violationList.SelectedRow] != nil {
 		t.dashboard.selectedViolation = t.currentViolationRules[t.violationList.SelectedRow]
 	}
@@ -106,20 +113,23 @@ func (t *TabbedView) generateRulesInCategory() {
 		ruleName := result.Rule.Name
 		switch sev {
 		case 0:
-			ruleType = "🛑 [err!](fg:white,bg:red)"
+			ruleType = "[err!](fg:white,bg:red)"
 			ruleName = fmt.Sprintf("[%s](fg:red)", result.Rule.Name)
 		case 1:
-			ruleType = "⚠️ [warn](fg:black,bg:yellow)"
+			ruleType = "[warn](fg:black,bg:yellow)"
 		case 2:
-			ruleType = "ℹ️ info"
+			ruleType = "info"
 		case 3:
-			ruleType = "📍 hint"
+			ruleType = "hint"
 		}
 
 		rows = append(rows, fmt.Sprintf("%s: %s (%d)", ruleType, ruleName, result.Seen))
 	}
 	if len(rows) == 0 {
 		rows = append(rows, "🎉 Nothing in here, all clear, nice job!")
+		t.dashboard.selectedViolationIndex = 0
+		t.dashboard.selectedViolation = nil
+
 	}
 
 	if t.rulesList == nil {
@@ -144,8 +154,8 @@ func (t *TabbedView) generateRuleViolations() {
 	for _, result := range results.Rules {
 		for _, violation := range result.Results {
 			if t.dashboard.selectedRule == violation.Rule {
-				rows = append(rows, fmt.Sprintf("%d:%d | %s",
-					violation.StartNode.Line, violation.StartNode.Column, violation.Path))
+				rows = append(rows, fmt.Sprintf("%s", strings.ReplaceAll(violation.Path,
+					"]", "}")))
 				violationRules = append(violationRules, violation)
 			}
 		}
@@ -179,55 +189,80 @@ func (t *TabbedView) generateRuleViolationView() {
 		gi := ui.NewRow(0.3, resultMessage)
 		t.violationViewGridItem = &gi
 	} else {
-		t.violationViewMessage.Text = t.dashboard.selectedViolation.Message
+		if t.dashboard.selectedViolation != nil {
+			t.violationViewMessage.Text = t.dashboard.selectedViolation.Message
+		} else {
+			t.violationViewMessage.Text = ""
+		}
 	}
-
 	if t.violationCodeSnippet == nil {
+		specStringData := strings.Split(string(*t.dashboard.info.SpecBytes), "\n")
+
 		snippet := NewSnippet()
-		snippet.Text = t.dashboard.selectedViolation.Message
+		snippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
+			8, 8)
 		snippet.WrapText = false
 		snippet.BorderTop = false
 		snippet.BorderBottom = false
 		snippet.BorderRight = false
 		snippet.PaddingLeft = 1
 		t.violationCodeSnippet = snippet
-		gi := ui.NewRow(0.3, snippet)
+		gi := ui.NewRow(0.7, snippet)
 		t.violationSnippetGridItem = &gi
 	} else {
-		specStringData := strings.Split(string(*t.dashboard.info.SpecBytes), "\n")
-		t.violationCodeSnippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
-			5, 5)
+
+		if t.dashboard.selectedViolation == nil {
+			t.violationCodeSnippet.Text = ""
+		} else {
+			specStringData := strings.Split(string(*t.dashboard.info.SpecBytes), "\n")
+			t.violationCodeSnippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
+				8, 8)
+		}
 	}
 }
 
 func generateConsoleSnippet(r *model.RuleFunctionResult, specData []string, before, after int) string {
 	// render out code snippet
+	// TODO clean this up, it's a freaking mess.
 
 	buf := new(strings.Builder)
 
-	startLine := r.StartNode.Line
+	startLine := r.StartNode.Line - 1
 	endLine := r.StartNode.Line
-	if r.StartNode.Line-before < 0 {
-		startLine = before - ((r.StartNode.Line - before) * -1)
+	if startLine-before < 0 {
+		startLine = before - ((startLine - before) * -1)
 	} else {
-		startLine = r.StartNode.Line - before
+		startLine = startLine - before
 	}
 
 	if r.StartNode.Line+after >= len(specData)-1 {
 		endLine = len(specData) - 1
 	} else {
-		endLine = r.StartNode.Line + after
+		endLine = r.StartNode.Line - 1 + after
 	}
 
-	firstDelta := r.StartNode.Line - startLine
+	firstDelta := (r.StartNode.Line - 1) - startLine
 	secondDelta := endLine - r.StartNode.Line
 	for i := 0; i < firstDelta; i++ {
-		buf.WriteString(fmt.Sprintf("%d %s+ %s\n", startLine+i, "|", specData[startLine+i]))
+		line := strings.ReplaceAll(specData[startLine+i], "[", "{")
+		line = strings.ReplaceAll(line, "]", "}")
+
+		buf.WriteString(fmt.Sprintf("%d |  %s\n", startLine+i, line))
 	}
-	buf.WriteString(fmt.Sprintf("%d %s %s", r.StartNode.Line, "|", "<--renderline-->\n"))
+
+	// todo, fix this.
+	line := strings.ReplaceAll(specData[r.StartNode.Line-1], "[", "{")
+	line = strings.ReplaceAll(line, "[", "}")
+
+	affectedLine := fmt.Sprintf("%s  ", line)
+	buf.WriteString(fmt.Sprintf("[%d | %s](fg:white,bg:red) %d:%d\n", r.StartNode.Line-1,
+		affectedLine,
+		startLine, endLine))
 
 	for i := 0; i < secondDelta; i++ {
-		buf.WriteString(fmt.Sprintf("%d %s- %s\n", r.StartNode.Line+i, "|", specData[endLine-i]))
+		line = strings.ReplaceAll(specData[r.StartNode.Line+i], "[", "{")
+		line = strings.ReplaceAll(line, "]", "}")
+		buf.WriteString(fmt.Sprintf("%d %s %s\n", r.StartNode.Line+i, "|", line))
 	}
 
 	return buf.String()

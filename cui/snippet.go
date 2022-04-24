@@ -17,7 +17,7 @@ func NewSnippet() *Snippet {
 	return &Snippet{
 		Block:     *NewBlock(),
 		TextStyle: Theme.Paragraph.Text,
-		WrapText:  true,
+		WrapText:  false,
 	}
 }
 
