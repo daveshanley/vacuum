@@ -1,5 +1,8 @@
 package model
 
+var RuleCategories = make(map[string]*RuleCategory)
+var RuleCategoriesOrdered []*RuleCategory
+
 func init() {
 	RuleCategories[CategoryExamples] = &RuleCategory{
 		Id:   CategoryExamples,
@@ -53,4 +56,15 @@ func init() {
 		Description: "Validation rules make sure that certain characters or patterns have not been used that may cause" +
 			"issues when rendering in different types of applications.",
 	}
+
+	RuleCategoriesOrdered = append(RuleCategoriesOrdered,
+		RuleCategories[CategoryInfo],
+		RuleCategories[CategoryOperations],
+		RuleCategories[CategoryTags],
+		RuleCategories[CategorySchemas],
+		RuleCategories[CategoryValidation],
+		RuleCategories[CategoryDescriptions],
+		RuleCategories[CategorySecurity],
+		RuleCategories[CategoryExamples],
+	)
 }

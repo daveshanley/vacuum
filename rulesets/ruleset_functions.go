@@ -38,6 +38,7 @@ func GetContactPropertiesRule() *model.Rule {
 				Function: "truthy",
 			},
 		},
+		HowToFix: contactPropertiesFix,
 	}
 }
 
@@ -59,6 +60,7 @@ func GetInfoContactRule() *model.Rule {
 			Field:    "contact",
 			Function: "truthy",
 		},
+		HowToFix: contactFix,
 	}
 }
 
@@ -80,6 +82,7 @@ func GetInfoDescriptionRule() *model.Rule {
 			Field:    "description",
 			Function: "truthy",
 		},
+		HowToFix: infoDescriptionFix,
 	}
 }
 
@@ -101,6 +104,7 @@ func GetInfoLicenseRule() *model.Rule {
 			Field:    "license",
 			Function: "truthy",
 		},
+		HowToFix: infoLicenseFix,
 	}
 }
 
@@ -122,6 +126,7 @@ func GetInfoLicenseUrlRule() *model.Rule {
 			Field:    "url",
 			Function: "truthy",
 		},
+		HowToFix: infoLicenseUrlFix,
 	}
 }
 
@@ -149,6 +154,7 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 			FunctionOptions: fo,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          noEvalInMarkDownFix,
 	}
 }
 
@@ -176,6 +182,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 			FunctionOptions: fo,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          noScriptTagsInMarkdown,
 	}
 }
 
@@ -201,6 +208,7 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 			Function:        "alphabetical",
 			FunctionOptions: fo,
 		},
+		HowToFix: openAPITagsAlphabeticalFix,
 	}
 }
 
@@ -238,6 +246,7 @@ func GetOpenApiTagsRule() *model.Rule {
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: openAPITagsFix,
 	}
 }
 
@@ -274,6 +283,7 @@ func GetOAS2APISchemesRule() *model.Rule {
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: oas2APISchemesFix,
 	}
 }
 
@@ -300,6 +310,7 @@ func GetOAS2HostNotExampleRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          oas2HostNotExampleFix,
 	}
 }
 
@@ -350,6 +361,7 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecomiledPattern: comp,
+		HowToFix:          oas2HostTrailingSlashFix,
 	}
 }
 
@@ -877,6 +889,7 @@ func GetOperationSuccessResponseRule() *model.Rule {
 			Field:    "responses",
 			Function: "oasOpSuccessResponse",
 		},
+		HowToFix: operationSuccessResponseFix,
 	}
 }
 

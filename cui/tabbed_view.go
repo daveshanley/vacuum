@@ -5,6 +5,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
+	"sort"
 	"strings"
 )
 
@@ -20,7 +21,9 @@ type TabbedView struct {
 	violationListGridItem    *ui.GridItem
 	violationViewGridItem    *ui.GridItem
 	violationSnippetGridItem *ui.GridItem
+	violationFixGridItem     *ui.GridItem
 	violationViewMessage     *widgets.Paragraph
+	violationFixMessage      *widgets.Paragraph
 	violationCodeSnippet     *Snippet
 	currentRuleResults       *model.RuleResultsForCategory
 	currentViolationRules    []*model.RuleFunctionResult
@@ -106,6 +109,9 @@ func (t *TabbedView) generateRulesInCategory() {
 	results := t.dashboard.resultSet.GetRuleResultsForCategory(t.dashboard.selectedCategory.Id)
 	t.currentRuleResults = results
 	var rows []string
+	// sort results
+	sort.Sort(results)
+
 	for _, result := range results.Rules {
 
 		sev := result.Rule.GetSeverityAsIntValue()
@@ -113,17 +119,18 @@ func (t *TabbedView) generateRulesInCategory() {
 		ruleName := result.Rule.Name
 		switch sev {
 		case 0:
-			ruleType = "[err!](fg:white,bg:red)"
-			ruleName = fmt.Sprintf("[%s](fg:red)", result.Rule.Name)
+			ruleType = "🔺"
+			ruleName = fmt.Sprintf("[%s](fg:red,mod:bold)", ruleName)
 		case 1:
-			ruleType = "[warn](fg:black,bg:yellow)"
+			ruleType = "🔸"
+			ruleName = fmt.Sprintf("[%s](fg:yellow)", ruleName)
 		case 2:
-			ruleType = "info"
+			ruleType = "🔹"
 		case 3:
-			ruleType = "hint"
+			ruleType = "🔹"
 		}
 
-		rows = append(rows, fmt.Sprintf("%s: %s (%d)", ruleType, ruleName, result.Seen))
+		rows = append(rows, fmt.Sprintf("%s %s (%d)", ruleType, ruleName, result.Seen))
 	}
 	if len(rows) == 0 {
 		rows = append(rows, "🎉 Nothing in here, all clear, nice job!")
@@ -134,7 +141,6 @@ func (t *TabbedView) generateRulesInCategory() {
 
 	if t.rulesList == nil {
 		t.rulesList = widgets.NewList()
-		t.rulesList.Title = "Category Rules"
 		t.rulesList.SelectedRowStyle = ui.NewStyle(ui.ColorBlack, ui.ColorWhite, ui.ModifierBold)
 		rl := ui.NewRow(0.3, t.rulesList)
 		t.rulesList.BorderBottom = false
@@ -144,6 +150,8 @@ func (t *TabbedView) generateRulesInCategory() {
 		t.rulesListGridItem = &rl
 	}
 	t.rulesList.Rows = rows
+	t.rulesList.Title = fmt.Sprintf("Category Rules Broken (%d)", len(rows))
+
 }
 
 func (t *TabbedView) generateRuleViolations() {
@@ -163,7 +171,6 @@ func (t *TabbedView) generateRuleViolations() {
 
 	if t.violationList == nil {
 		t.violationList = widgets.NewList()
-		t.violationList.Title = "Violations"
 		t.violationList.SelectedRowStyle = ui.NewStyle(ui.ColorBlack, ui.ColorWhite, ui.ModifierBold)
 		vl := ui.NewRow(0.4, t.violationList)
 		t.violationList.BorderBottom = false
@@ -174,6 +181,8 @@ func (t *TabbedView) generateRuleViolations() {
 	}
 	t.violationList.Rows = rows
 	t.currentViolationRules = violationRules
+	t.violationList.Title = fmt.Sprintf("Rule Violations (%d)", len(rows))
+
 }
 
 func (t *TabbedView) generateRuleViolationView() {
@@ -183,16 +192,22 @@ func (t *TabbedView) generateRuleViolationView() {
 		resultMessage.WrapText = true
 		resultMessage.BorderTop = false
 		resultMessage.BorderBottom = false
+		resultMessage.Title = "Violation Details"
 		resultMessage.BorderRight = false
 		resultMessage.PaddingLeft = 1
+		resultMessage.TextStyle = ui.NewStyle(ui.ColorMagenta, ui.ColorClear, ui.ModifierBold)
+		resultMessage.TitleStyle = ui.NewStyle(ui.ColorMagenta, ui.ColorClear, ui.ModifierUnderline)
+		resultMessage.PaddingTop = 1
 		t.violationViewMessage = resultMessage
-		gi := ui.NewRow(0.3, resultMessage)
+		gi := ui.NewRow(0.2, resultMessage)
 		t.violationViewGridItem = &gi
 	} else {
 		if t.dashboard.selectedViolation != nil {
+			t.violationViewMessage.Title = "Violation Details"
 			t.violationViewMessage.Text = t.dashboard.selectedViolation.Message
 		} else {
 			t.violationViewMessage.Text = ""
+			t.violationViewMessage.Title = ""
 		}
 	}
 	if t.violationCodeSnippet == nil {
@@ -207,7 +222,7 @@ func (t *TabbedView) generateRuleViolationView() {
 		snippet.BorderRight = false
 		snippet.PaddingLeft = 1
 		t.violationCodeSnippet = snippet
-		gi := ui.NewRow(0.7, snippet)
+		gi := ui.NewRow(0.5, snippet)
 		t.violationSnippetGridItem = &gi
 	} else {
 
@@ -216,9 +231,35 @@ func (t *TabbedView) generateRuleViolationView() {
 		} else {
 			specStringData := strings.Split(string(*t.dashboard.info.SpecBytes), "\n")
 			t.violationCodeSnippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
-				8, 8)
+				10, 10)
 		}
 	}
+
+	if t.violationFixMessage == nil {
+		resultMessage := widgets.NewParagraph()
+		resultMessage.Text = t.dashboard.selectedViolation.Rule.HowToFix
+		resultMessage.WrapText = true
+		resultMessage.BorderTop = false
+		resultMessage.BorderBottom = false
+		resultMessage.BorderRight = false
+		resultMessage.PaddingLeft = 1
+		resultMessage.TextStyle = ui.NewStyle(ui.ColorCyan, ui.ColorClear, ui.ModifierBold)
+		resultMessage.Title = "How to fix violation"
+		resultMessage.TitleStyle = ui.NewStyle(ui.ColorCyan, ui.ColorClear, ui.ModifierUnderline)
+		resultMessage.PaddingTop = 1
+		t.violationFixMessage = resultMessage
+		gi := ui.NewRow(0.3, resultMessage)
+		t.violationFixGridItem = &gi
+	} else {
+		if t.dashboard.selectedViolation != nil {
+			t.violationFixMessage.Text = t.dashboard.selectedViolation.Rule.HowToFix
+			t.violationFixMessage.Title = "How to fix violation"
+		} else {
+			t.violationFixMessage.Text = ""
+			t.violationFixMessage.Title = ""
+		}
+	}
+
 }
 
 func generateConsoleSnippet(r *model.RuleFunctionResult, specData []string, before, after int) string {
@@ -254,10 +295,8 @@ func generateConsoleSnippet(r *model.RuleFunctionResult, specData []string, befo
 	line := strings.ReplaceAll(specData[r.StartNode.Line-1], "[", "{")
 	line = strings.ReplaceAll(line, "[", "}")
 
-	affectedLine := fmt.Sprintf("%s  ", line)
-	buf.WriteString(fmt.Sprintf("[%d | %s](fg:white,bg:red) %d:%d\n", r.StartNode.Line-1,
-		affectedLine,
-		startLine, endLine))
+	affectedLine := fmt.Sprintf("%s                                                        ", line)
+	buf.WriteString(fmt.Sprintf("[%d | %s](fg:white,bg:red)\n", r.StartNode.Line-1, affectedLine))
 
 	for i := 0; i < secondDelta; i++ {
 		line = strings.ReplaceAll(specData[r.StartNode.Line+i], "[", "{")
