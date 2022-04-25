@@ -48,23 +48,29 @@ func (t *TabbedView) setActiveRuleCategoryIndex(index int) {
 	t.generateDescriptionGridItem()
 }
 
-func (t *TabbedView) scrollDown() {
-	if !t.dashboard.violationViewActive {
-		t.rulesList.ScrollDown()
-	} else {
-		t.violationList.ScrollDown()
-	}
+func (t *TabbedView) scrollRulesDown() {
+	t.rulesList.ScrollDown()
 	t.setActiveRule()
 	t.setActiveViolation()
 	t.generateRuleViolationView()
 }
 
-func (t *TabbedView) scrollUp() {
-	if !t.dashboard.violationViewActive {
-		t.rulesList.ScrollUp()
-	} else {
-		t.violationList.ScrollUp()
-	}
+func (t *TabbedView) scrollViolationsDown() {
+	t.violationList.ScrollDown()
+	t.setActiveRule()
+	t.setActiveViolation()
+	t.generateRuleViolationView()
+}
+
+func (t *TabbedView) scrollRulesUp() {
+	t.rulesList.ScrollUp()
+	t.setActiveRule()
+	t.setActiveViolation()
+	t.generateRuleViolationView()
+}
+
+func (t *TabbedView) scrollViolationsUp() {
+	t.violationList.ScrollUp()
 	t.setActiveRule()
 	t.setActiveViolation()
 	t.generateRuleViolationView()
@@ -97,7 +103,7 @@ func (t *TabbedView) generateDescriptionGridItem() {
 		t.descriptionParagraph = widgets.NewParagraph()
 		t.descriptionParagraph.Border = false
 		t.descriptionParagraph.Text = t.dashboard.selectedCategory.Description
-		desc := ui.NewRow(0.3, t.descriptionParagraph)
+		desc := ui.NewRow(0.2, t.descriptionParagraph)
 		t.descriptionGridItem = &desc
 	} else {
 		t.descriptionParagraph.Text = t.dashboard.selectedCategory.Description
@@ -172,7 +178,7 @@ func (t *TabbedView) generateRuleViolations() {
 	if t.violationList == nil {
 		t.violationList = widgets.NewList()
 		t.violationList.SelectedRowStyle = ui.NewStyle(ui.ColorBlack, ui.ColorWhite, ui.ModifierBold)
-		vl := ui.NewRow(0.4, t.violationList)
+		vl := ui.NewRow(0.5, t.violationList)
 		t.violationList.BorderBottom = false
 		t.violationList.BorderRight = false
 		t.violationList.BorderLeft = false

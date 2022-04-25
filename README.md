@@ -16,9 +16,18 @@ when used as an API and does not scale for enterprise applications.
 
 Vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
 
-Vacuum will work at scale and is designed as a CLI and a library to be consumed in other applications.
+Vacuum will work at scale and is designed as a CLI (with a UI) and a library to be consumed in other applications.
 
-If you want to try it out in its **earliest stages**
+### Dashboard
+
+vacuum comes with an interactive dashboard (`vacuum dashboard <your-openapi-spec.yaml>`) allowing you to explore
+rules and violations in a console, without having to scroll through thousands of results.
+
+![vacuum dashboard](dashboard-screenshot.png)
+
+---
+
+If you want to try out vacuum in its **earliest stages**
 
 > Please be warned, this is _early_ code. I am actively working on it.
 >> **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
@@ -100,8 +109,8 @@ The report file name is _optional_. The default report output name is `vacuum-sp
 
 ## Try out the dashboard
 
-This is a total mess at the moment, but you can see a glimpse of the future.
-Don't rely on this yet, it's not accurate.
+This is an early, but working console UI for vacuum. The code isn't great, it needs a lot of clean up, but
+if you're interested in seeing how things are progressing, it's available.
 
 ```
 ./vacuum dashboard <your-openapi-spec.yaml>

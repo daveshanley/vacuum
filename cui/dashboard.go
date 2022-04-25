@@ -12,6 +12,7 @@ type Dashboard struct {
 	C                           chan bool
 	run                         bool
 	grid                        *ui.Grid
+	title                       *widgets.Paragraph
 	tabs                        TabbedView
 	healthGaugeItems            []ui.GridItem
 	categoryHealthGauge         []CategoryGauge
@@ -111,7 +112,7 @@ func (dash *Dashboard) Render() {
 	dash.setGrid()
 	//dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
 
-	ui.Render(dash.grid)
+	ui.Render(dash.grid, dash.title)
 
 	for {
 		select {
@@ -119,59 +120,26 @@ func (dash *Dashboard) Render() {
 			switch e.ID {
 			case "q", "<C-c>":
 				return
-			case "[", "<Left>":
-				dash.tabs.tv.FocusLeft()
+			case "<Tab>":
+				if dash.tabs.tv.ActiveTabIndex == len(cats)-1 { // loop around and around.
+					dash.tabs.tv.ActiveTabIndex = 0
+				} else {
+					dash.tabs.tv.FocusRight()
+				}
 				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-				ui.Clear()
-				dash.setGrid()
-				ui.Render(dash.grid)
-			case "]", "<Right>":
-				dash.tabs.tv.FocusRight()
-				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-				ui.Clear()
-				dash.setGrid()
-				ui.Render(dash.grid)
-			case "j", "<Down>":
-				dash.tabs.scrollDown()
-				ui.Clear()
-				dash.setGrid()
-				ui.Render(dash.grid)
-			case "k", "<Up>":
-				dash.tabs.scrollUp()
-				ui.Clear()
-				dash.setGrid()
-				ui.Render(dash.grid)
-			case "<Enter>":
-				dash.violationViewActive = true
-				ui.Clear()
-				dash.setGrid()
-				ui.Render(dash.grid)
-			case "<Escape>":
-				dash.violationViewActive = false
-				dash.selectedViolationIndex = 0
-				ui.Clear()
-				dash.setGrid()
-				ui.Render(dash.grid)
-			case "<C-d>":
-				dash.tabs.rulesList.ScrollHalfPageDown()
-			case "<C-u>":
-				dash.tabs.rulesList.ScrollHalfPageUp()
-			case "<C-f>":
-				dash.tabs.rulesList.ScrollPageDown()
-			case "<C-b>":
-				dash.tabs.rulesList.ScrollPageUp()
-			case "g":
-				//if previousKey == "g" {
-				//	l.ScrollTop()
-				//}
-			case "<Home>":
-				dash.tabs.rulesList.ScrollTop()
-			case "G", "<End>":
-				dash.tabs.rulesList.ScrollBottom()
+
+			case "x", "<Right>":
+				dash.tabs.scrollViolationsDown()
+			case "s", "<Left>":
+				dash.tabs.scrollViolationsUp()
+			case "z", "<Down>":
+				dash.tabs.scrollRulesDown()
+			case "a", "<Up>":
+				dash.tabs.scrollRulesUp()
 			}
-			//ui.Clear()
-			//dash.setGrid()
-			//ui.Render(dash.grid)
+			ui.Clear()
+			dash.setGrid()
+			ui.Render(dash.grid, dash.title)
 		}
 
 	}
@@ -182,8 +150,25 @@ func (dash *Dashboard) renderActiveTab() {
 }
 
 func (dash *Dashboard) setGrid() {
+
+	p := widgets.NewParagraph()
+	// todo: bring in correct versioning.
+
+	p.Text = "vacuum version 0.0.1: Select Category = <Tab> | Select Rules = <Up>,<Down>/A,Z | Select Violation = <Left>,<Right>/S,X"
+	p.TextStyle = ui.NewStyle(ui.ColorCyan, ui.ColorClear, ui.ModifierBold)
+	p.Border = true
+	p.BorderStyle = ui.NewStyle(ui.ColorCyan)
+	p.PaddingLeft = 0
+	p.PaddingTop = 0
+	p.PaddingBottom = 0
+	p.PaddingRight = 0
+	//p.SetRect(0, 0, 800, 3)
+
+	dash.title = p
+
 	dash.grid.Set(
-		ui.NewRow(1.0,
+		ui.NewRow(0.07, p),
+		ui.NewRow(0.93,
 			ui.NewCol(0.2,
 				dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
 				dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
