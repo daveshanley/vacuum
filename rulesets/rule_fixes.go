@@ -129,8 +129,4 @@ const (
 	oas3ExamplesFix string = "Examples are critical for consumers to be able to understand schemas and models defined by the spec. " +
 		"Without examples, developers can't understand the type of data the API will return in real life. Examples are turned into mocks " +
 		"and can provide a rich testing capability for APIs. Add detailed examples everywhere!"
-
-	CircularReferencesFix string = "Circular references are created by schemas that reference back to themselves somewhere " +
-		"in the chain. The link could be very deep, or it could be super shallow. Sometimes it's hard to know what is looping " +
-		"without resolving the references. This model is looping, Remove the looping link in the chain."
 )
