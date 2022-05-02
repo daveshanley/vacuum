@@ -39,7 +39,7 @@ func (t *TabbedView) setActiveCategoryIndex(index int) {
 	t.violationList.SelectedRow = 0
 	t.setActiveRule()
 	t.setActiveViolation()
-	t.generateRuleViolationView()
+	//t.generateRuleViolationView()
 }
 
 func (t *TabbedView) setActiveRuleCategoryIndex(index int) {
@@ -51,8 +51,6 @@ func (t *TabbedView) setActiveRuleCategoryIndex(index int) {
 func (t *TabbedView) scrollRulesDown() {
 	t.rulesList.ScrollDown()
 	t.setActiveRule()
-	t.setActiveViolation()
-	t.generateRuleViolationView()
 }
 
 func (t *TabbedView) scrollViolationsDown() {
@@ -65,8 +63,6 @@ func (t *TabbedView) scrollViolationsDown() {
 func (t *TabbedView) scrollRulesUp() {
 	t.rulesList.ScrollUp()
 	t.setActiveRule()
-	t.setActiveViolation()
-	t.generateRuleViolationView()
 }
 
 func (t *TabbedView) scrollViolationsUp() {
@@ -81,7 +77,7 @@ func (t *TabbedView) setActiveRule() {
 	if t.currentRuleResults.Rules != nil && t.currentRuleResults.Rules[t.rulesList.SelectedRow] != nil {
 		t.dashboard.selectedRule = t.currentRuleResults.Rules[t.rulesList.SelectedRow].Rule
 	}
-	t.generateRuleViolations()
+	//t.generateRuleViolations()
 }
 
 func (t *TabbedView) setActiveViolation() {
@@ -155,6 +151,7 @@ func (t *TabbedView) generateRulesInCategory() {
 		t.rulesList.PaddingTop = 1
 		t.rulesListGridItem = &rl
 	}
+
 	t.rulesList.Rows = rows
 	t.rulesList.Title = fmt.Sprintf("Category Rules Broken (%d)", len(rows))
 
@@ -185,16 +182,26 @@ func (t *TabbedView) generateRuleViolations() {
 		t.violationList.PaddingTop = 1
 		t.violationListGridItem = &vl
 	}
-	t.violationList.Rows = rows
+
+	if t.dashboard.violationViewActive {
+		t.violationList.Rows = rows
+		t.violationList.Title = fmt.Sprintf("Rule Violations (%d)", len(rows))
+	} else {
+		t.violationList.Title = fmt.Sprint("Select rule to see violations")
+		t.violationList.Rows = nil
+	}
 	t.currentViolationRules = violationRules
-	t.violationList.Title = fmt.Sprintf("Rule Violations (%d)", len(rows))
 
 }
 
 func (t *TabbedView) generateRuleViolationView() {
 	if t.violationViewMessage == nil {
 		resultMessage := widgets.NewParagraph()
-		resultMessage.Text = t.dashboard.selectedViolation.Message
+		if t.dashboard.violationViewActive {
+			resultMessage.Text = t.dashboard.selectedViolation.Message
+		} else {
+			resultMessage.Text = "Select rule to see violations"
+		}
 		resultMessage.WrapText = true
 		resultMessage.BorderTop = false
 		resultMessage.BorderBottom = false
@@ -216,12 +223,24 @@ func (t *TabbedView) generateRuleViolationView() {
 			t.violationViewMessage.Title = ""
 		}
 	}
+
+	// clear everything if violation view is not active
+	if !t.dashboard.violationViewActive {
+		t.violationViewMessage.Text = ""
+		t.violationViewMessage.Title = ""
+	}
+
 	if t.violationCodeSnippet == nil {
 		specStringData := strings.Split(string(*t.dashboard.info.SpecBytes), "\n")
 
 		snippet := NewSnippet()
-		snippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
-			8, 8)
+		if t.dashboard.violationViewActive {
+			snippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
+				8, 8)
+		} else {
+			snippet.Text = ""
+		}
+
 		snippet.WrapText = false
 		snippet.BorderTop = false
 		snippet.BorderBottom = false
@@ -231,19 +250,32 @@ func (t *TabbedView) generateRuleViolationView() {
 		gi := ui.NewRow(0.5, snippet)
 		t.violationSnippetGridItem = &gi
 	} else {
-
 		if t.dashboard.selectedViolation == nil {
 			t.violationCodeSnippet.Text = ""
 		} else {
 			specStringData := strings.Split(string(*t.dashboard.info.SpecBytes), "\n")
-			t.violationCodeSnippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
-				10, 10)
+
+			if t.dashboard.violationViewActive {
+				t.violationCodeSnippet.Text = generateConsoleSnippet(t.dashboard.selectedViolation, specStringData,
+					10, 10)
+			} else {
+				t.violationCodeSnippet.Text = ""
+			}
 		}
+	}
+
+	// clear everything if violation view is not active
+	if !t.dashboard.violationViewActive {
+		t.violationCodeSnippet.Text = ""
 	}
 
 	if t.violationFixMessage == nil {
 		resultMessage := widgets.NewParagraph()
-		resultMessage.Text = t.dashboard.selectedViolation.Rule.HowToFix
+		if t.dashboard.violationViewActive {
+			resultMessage.Text = t.dashboard.selectedViolation.Rule.HowToFix
+		} else {
+			resultMessage.Text = ""
+		}
 		resultMessage.WrapText = true
 		resultMessage.BorderTop = false
 		resultMessage.BorderBottom = false
@@ -256,6 +288,7 @@ func (t *TabbedView) generateRuleViolationView() {
 		t.violationFixMessage = resultMessage
 		gi := ui.NewRow(0.3, resultMessage)
 		t.violationFixGridItem = &gi
+
 	} else {
 		if t.dashboard.selectedViolation != nil {
 			t.violationFixMessage.Text = t.dashboard.selectedViolation.Rule.HowToFix
@@ -264,6 +297,12 @@ func (t *TabbedView) generateRuleViolationView() {
 			t.violationFixMessage.Text = ""
 			t.violationFixMessage.Title = ""
 		}
+	}
+
+	// clear everything if violation view is not active
+	if !t.dashboard.violationViewActive {
+		t.violationFixMessage.Text = ""
+		t.violationFixMessage.Title = ""
 	}
 
 }

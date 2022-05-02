@@ -12,6 +12,7 @@ type Dashboard struct {
 	C                           chan bool
 	run                         bool
 	grid                        *ui.Grid
+	helpGrid                    *ui.Grid
 	title                       *widgets.Paragraph
 	tabs                        TabbedView
 	healthGaugeItems            []ui.GridItem
@@ -28,6 +29,7 @@ type Dashboard struct {
 	selectedViolationIndex      int
 	selectedViolation           *model.RuleFunctionResult
 	violationViewActive         bool
+	helpViewActive              bool
 }
 
 func CreateDashboard(resultSet *model.RuleResultSet, index *model.SpecIndex, info *model.SpecInfo) *Dashboard {
@@ -59,7 +61,7 @@ func (dash *Dashboard) GenerateTabbedView() {
 		dash.selectedRule = dash.tabs.currentRuleResults.Rules[0].Rule
 	}
 	dash.tabs.generateRuleViolations()
-	dash.tabs.setActiveViolation()
+	//dash.tabs.setActiveViolation()
 	dash.tabs.generateRuleViolationView()
 
 }
@@ -106,6 +108,9 @@ func (dash *Dashboard) Render() {
 	termWidth, termHeight := ui.TerminalDimensions()
 	dash.grid.SetRect(0, 0, termWidth, termHeight)
 
+	dash.helpGrid = ui.NewGrid()
+	dash.helpGrid.SetRect(0, 0, termWidth, termHeight)
+
 	dash.GenerateTabbedView()
 	dash.ComposeGauges()
 
@@ -114,13 +119,17 @@ func (dash *Dashboard) Render() {
 
 	ui.Render(dash.grid, dash.title)
 
+	// TODO: clean this damn mess up.
 	for {
 		select {
 		case e := <-uiEvents:
 			switch e.ID {
 			case "q", "<C-c>":
 				return
+			case "h":
+				dash.helpViewActive = true
 			case "<Tab>":
+				dash.violationViewActive = false
 				if dash.tabs.tv.ActiveTabIndex == len(cats)-1 { // loop around and around.
 					dash.tabs.tv.ActiveTabIndex = 0
 				} else {
@@ -128,20 +137,63 @@ func (dash *Dashboard) Render() {
 				}
 				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
 
+				dash.tabs.generateRuleViolations()
+				dash.tabs.setActiveViolation()
+				dash.tabs.generateRuleViolationView()
+
+			case "<Enter>":
+				dash.violationViewActive = true
+				dash.tabs.generateRuleViolations()
+				dash.tabs.setActiveViolation()
+				dash.tabs.generateRuleViolationView()
+
+			case "<Escape>":
+				dash.violationViewActive = false
+				dash.helpViewActive = false
+				dash.tabs.generateRuleViolations()
+				dash.tabs.setActiveViolation()
+				dash.tabs.generateRuleViolationView()
+
 			case "x", "<Right>":
-				dash.tabs.scrollViolationsDown()
+				dash.violationViewActive = false
+				dash.tabs.tv.FocusRight()
+				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
+
+				dash.tabs.generateRuleViolations()
+				dash.tabs.setActiveViolation()
+				dash.tabs.generateRuleViolationView()
+
 			case "s", "<Left>":
-				dash.tabs.scrollViolationsUp()
+				dash.violationViewActive = false
+				dash.tabs.tv.FocusLeft()
+				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
+
+				dash.tabs.generateRuleViolations()
+				dash.tabs.setActiveViolation()
+				dash.tabs.generateRuleViolationView()
+
 			case "z", "<Down>":
-				dash.tabs.scrollRulesDown()
+				if dash.violationViewActive {
+					dash.tabs.scrollViolationsDown()
+				} else {
+					dash.tabs.scrollRulesDown()
+				}
 			case "a", "<Up>":
-				dash.tabs.scrollRulesUp()
+				if dash.violationViewActive {
+					dash.tabs.scrollViolationsUp()
+				} else {
+					dash.tabs.scrollRulesUp()
+				}
 			}
 			ui.Clear()
-			dash.setGrid()
-			ui.Render(dash.grid, dash.title)
-		}
+			//dash.setGrid()
+			if dash.helpViewActive {
+				ui.Render(dash.helpGrid)
+			} else {
+				ui.Render(dash.grid, dash.title)
+			}
 
+		}
 	}
 }
 
@@ -154,8 +206,11 @@ func (dash *Dashboard) setGrid() {
 	p := widgets.NewParagraph()
 	// todo: bring in correct versioning.
 
-	p.Text = "vacuum version 0.0.1: Select Category = <Tab> | Select Rules = <Up>,<Down>/A,Z | Select Violation = <Left>,<Right>/S,X"
-	p.TextStyle = ui.NewStyle(ui.ColorCyan, ui.ColorClear, ui.ModifierBold)
+	p.Text = "vacuum v0.0.1: " +
+		"[Select Category](fg:white,bg:clear,md:bold) = <Tab>,\u2B05\uFE0F\u27A1\uFE0F/S,X | " +
+		"[Change Rule](fg:white,bg:clear,md:bold) = \u2B06\u2B07/A,Z | " +
+		"[Select / Leave Rule](fg:white,bg:clear,md:bold) = <Enter> / <Esc>"
+	p.TextStyle = ui.NewStyle(ui.ColorCyan, ui.ColorClear)
 	p.Border = true
 	p.BorderStyle = ui.NewStyle(ui.ColorCyan)
 	p.PaddingLeft = 0
@@ -166,32 +221,47 @@ func (dash *Dashboard) setGrid() {
 
 	dash.title = p
 
-	dash.grid.Set(
-		ui.NewRow(0.07, p),
-		ui.NewRow(0.93,
-			ui.NewCol(0.2,
-				dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
-				dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
-				//dash.healthGaugeItems[8],
-				ui.NewRow(0.3, NewStatsChart(dash.index, dash.info).bc),
-			),
-			ui.NewCol(0.01, nil),
-			ui.NewCol(0.99,
-				ui.NewRow(0.1, dash.tabs.tv),
-				ui.NewRow(0.9,
-					ui.NewCol(0.5,
-						*dash.tabs.descriptionGridItem,
-						*dash.tabs.rulesListGridItem,
-						*dash.tabs.violationListGridItem,
+	if !dash.helpViewActive {
+
+		dash.grid.Set(
+			ui.NewRow(0.07, p),
+			ui.NewRow(0.93,
+				// TODO: bring statistics back via a shortcut key combo, they take up too much space and don't add
+				// enough value out of the box.
+				//ui.NewCol(0.2,
+				//	dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
+				//	dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
+				//	//dash.healthGaugeItems[8],
+				//	ui.NewRow(0.3, NewStatsChart(dash.index, dash.info).bc),
+				//),
+				//ui.NewCol(0.01, nil),
+				ui.NewCol(1.0,
+					ui.NewRow(0.1, dash.tabs.tv),
+					ui.NewRow(0.9,
+						ui.NewCol(0.6,
+							*dash.tabs.descriptionGridItem,
+							*dash.tabs.rulesListGridItem,
+							*dash.tabs.violationListGridItem,
+						),
+						ui.NewCol(0.4,
+							*dash.tabs.violationViewGridItem,
+							*dash.tabs.violationSnippetGridItem,
+							*dash.tabs.violationFixGridItem),
 					),
-					ui.NewCol(0.3,
-						*dash.tabs.violationViewGridItem,
-						*dash.tabs.violationSnippetGridItem,
-						*dash.tabs.violationFixGridItem),
 				),
 			),
-		),
-	)
+		)
+	}
+
+	h := widgets.NewParagraph()
+	h.Text = "This is the help screen, but it's not ready yet!"
+	h.TextStyle = ui.NewStyle(ui.ColorGreen, ui.ColorYellow)
+	h.BorderStyle = ui.NewStyle(ui.ColorBlack, ui.ColorBlack)
+	dash.helpGrid.Set(
+		ui.NewRow(1,
+			ui.NewCol(1.0, h),
+		))
+
 }
 
 func getColorForPercentage(percent int) ui.Color {
