@@ -563,3 +563,83 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 	assert.NoError(t, err)
 
 }
+
+func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "I AM NOT A PATH",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "required",
+		"functionOptions" : { 
+			"max" : "2"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    burgershop,
+	}
+
+	result := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, result.Errors, 1)
+}
+
+func TestApplyRulesToRuleSet_CircularReferences(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "length-test-description": {
+      "description": "this is a test for checking the length function",
+      "recommended": true,
+      "type": "style",
+      "given": "$",
+      "severity": "error",
+      "then": {
+        "function": "length",
+		"field": "required",
+		"functionOptions" : { 
+			"max" : "2"
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    burgershop,
+	}
+
+	result := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, result.Results, 3)
+	assert.Equal(t, result.Results[0].Rule.Id, "circular-references")
+	assert.Equal(t, result.Results[1].Rule.Id, "circular-references")
+	assert.Equal(t, result.Results[2].Rule.Id, "circular-references")
+
+}

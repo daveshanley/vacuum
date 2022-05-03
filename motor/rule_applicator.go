@@ -145,8 +145,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 }
 
-// TODO: clean up these two functions.
-
 // Deprecated: ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
 // Please use ApplyRulesToRuleSet instead of this function, the signature needs to change.
 func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
@@ -198,8 +196,7 @@ func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult
 		Then: model.RuleAction{
 			Function: "blank",
 		},
-		//HowToFix: rulesets.CircularReferencesFix,
-		HowToFix: "NO WAY MAN",
+		HowToFix: CircularReferencesFix,
 	}
 
 	// add all circular references to results.
@@ -335,8 +332,6 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		} else {
 
 			// iterate through nodes and supply them one at a time so we don't pollute each run
-			// TODO: change this signature to be singular and not an array so this is handled permanently.
-
 			for _, node := range nodes {
 
 				// if this rule is designed for a different version, skip it.
@@ -362,10 +357,6 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 
 		}
-	} else {
-
-		// TODO: Fix this error handling.
-		//fmt.Printf("oooo nice, an error here.")
 	}
 	return ctx.ruleResults
 }
