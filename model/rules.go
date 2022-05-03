@@ -469,13 +469,6 @@ func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
 		health = health - math.RoundToEven(totalScore)
 	}
 
-	if health > 100 {
-		health = 100
-	}
-	if health < 0 {
-		health = 0
-	}
-
 	return int(health)
 }
 

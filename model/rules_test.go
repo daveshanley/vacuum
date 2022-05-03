@@ -1,10 +1,12 @@
 package model
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"sort"
 	"testing"
 )
 
@@ -318,5 +320,124 @@ func TestRuleResultSet_CalculateCategoryHealth_Warnings_Lots(t *testing.T) {
 
 	results := NewRuleResultSet(r)
 	assert.Equal(t, 50, results.CalculateCategoryHealth(CategoryInfo))
+
+}
+
+func TestRuleResultSet_CalculateCategoryHealth_Errors_Lots(t *testing.T) {
+	var r []RuleFunctionResult
+	for i := 0; i < 900; i++ {
+		r = append(r, RuleFunctionResult{Rule: &Rule{
+			Description:  fmt.Sprintf("%d", i),
+			Severity:     severityError,
+			RuleCategory: RuleCategories[CategoryInfo],
+		}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}})
+	}
+
+	results := NewRuleResultSet(r)
+	score := results.CalculateCategoryHealth(CategoryInfo)
+	assert.Equal(t, 0, score)
+
+}
+
+func TestRuleResultSet_GetRuleResultsForCategory(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategorySecurity],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
+	assert.Len(t, results.GetRuleResultsForCategory(CategorySchemas).Rules, 2)
+
+}
+
+func TestRule_GetSeverityAsIntValue(t *testing.T) {
+
+	r1 := &Rule{
+		Description:  "one",
+		Severity:     severityError,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+	assert.Equal(t, 0, r1.GetSeverityAsIntValue())
+
+	r2 := &Rule{
+		Description:  "two",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+	assert.Equal(t, 1, r2.GetSeverityAsIntValue())
+
+	r3 := &Rule{
+		Description:  "three",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+	assert.Equal(t, 2, r3.GetSeverityAsIntValue())
+
+	r4 := &Rule{
+		Description:  "four",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+	assert.Equal(t, 3, r4.GetSeverityAsIntValue())
+
+	r5 := &Rule{
+		Description:  "five",
+		Severity:     "unknown",
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+	assert.Equal(t, -1, r5.GetSeverityAsIntValue())
+
+}
+
+func TestRuleResultsForCategory_Sort(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategorySecurity],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r5 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityError,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4, r5})
+	catResults := results.GetRuleResultsForCategory(CategorySchemas)
+	sort.Sort(catResults)
+
+	assert.Equal(t, "three", catResults.Rules[0].Rule.Description) // first result should be lowest sev.
 
 }
