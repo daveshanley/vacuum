@@ -20,8 +20,8 @@ func TestRuleSchema(t *testing.T) {
 
 	schemaLoader := gojsonschema.NewStringLoader(string(schemaMain))
 	ruleLoader := gojsonschema.NewStringLoader(string(goodRules))
-
 	result, err := gojsonschema.Validate(schemaLoader, ruleLoader)
+
 	assert.NoError(t, err)
 	assert.True(t, result.Valid())
 	assert.Len(t, result.Errors(), 0)
@@ -441,3 +441,18 @@ func TestRuleResultsForCategory_Sort(t *testing.T) {
 	assert.Equal(t, "three", catResults.Rules[0].Rule.Description) // first result should be lowest sev.
 
 }
+
+//func TestRuleSet_GetExtendsValue_Single(t *testing.T) {
+//
+//	yaml := `extends: spectral:oas
+//rules:
+//  fish-cakes:
+//    description: yummy sea food
+//    recommended: true
+//    type: style
+//    given: "$.some.JSON.PATH"
+//    then:
+//      field: nextSteps
+//      function: cookForTenMins`
+//
+//}

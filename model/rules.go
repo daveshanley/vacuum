@@ -202,7 +202,13 @@ type RuleSet struct {
 	DocumentationURI string           `json:"documentationUrl"`
 	Formats          []string         `json:"formats"`
 	Rules            map[string]*Rule `json:"rules"`
+	Extends          interface{}      `json:"extends"` // can be string or tuple
 	schemaLoader     gojsonschema.JSONLoader
+}
+
+func (rs *RuleSet) GetExtendsValue() []map[string]string {
+
+	return nil
 }
 
 // CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
