@@ -44,3 +44,15 @@ func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 		motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)
 	}
 }
+
+func TestRuleSet_GetConfiguredRules_All(t *testing.T) {
+
+	// read spec and parse to dashboard.
+	rs := BuildDefaultRuleSets()
+	ruleSet := rs.GenerateOpenAPIDefaultRuleSet()
+	assert.Len(t, ruleSet.Rules, 46)
+
+	ruleSet = rs.GenerateOpenAPIRecommendedRuleSet()
+	assert.Len(t, ruleSet.Rules, 45)
+
+}

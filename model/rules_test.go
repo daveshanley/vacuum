@@ -506,5 +506,6 @@ rules:
 	assert.Len(t, rs.Rules, 1)
 	assert.NotNil(t, rs.GetExtendsValue())
 	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
+	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"]) // idempotence state check.
 
 }

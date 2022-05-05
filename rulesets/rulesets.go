@@ -79,8 +79,12 @@ type ruleSetsModel struct {
 type RuleSets interface {
 
 	// GenerateOpenAPIDefaultRuleSet generates a ready to run pointer to a model.RuleSet containing all
-	// OpenAPI rules supported by vacuum. Passing all these rules would be considered a good quality specification.
+	// OpenAPI rules supported by vacuum. Passing all these rules would be considered a very good quality specification.
 	GenerateOpenAPIDefaultRuleSet() *model.RuleSet
+
+	// GenerateOpenAPIRecommendedRuleSet generates a ready to run pointer to a model.RuleSet that contains only
+	// recommended rules (not all rules). Passing all these rules would result in a quality specification
+	GenerateOpenAPIRecommendedRuleSet() *model.RuleSet
 }
 
 var rulesetsSingleton *ruleSetsModel
@@ -98,6 +102,22 @@ func BuildDefaultRuleSets() RuleSets {
 
 func (rsm ruleSetsModel) GenerateOpenAPIDefaultRuleSet() *model.RuleSet {
 	return rsm.openAPIRuleSet
+}
+
+func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *model.RuleSet {
+
+	filtered := make(map[string]*model.Rule)
+	for ruleName, rule := range rsm.openAPIRuleSet.Rules {
+		if rule.Recommended {
+			filtered[ruleName] = rule
+		}
+	}
+
+	// copy.
+	modifiedRS := *rsm.openAPIRuleSet
+	modifiedRS.Rules = filtered
+
+	return &modifiedRS
 }
 
 func generateDefaultOpenAPIRuleSet() *model.RuleSet {

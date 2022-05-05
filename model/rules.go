@@ -203,13 +203,16 @@ type RuleSet struct {
 	Formats          []string         `json:"formats"`
 	Rules            map[string]*Rule `json:"rules"`
 	Extends          interface{}      `json:"extends"` // can be string or tuple
+	extendsMeta      map[string]string
 	schemaLoader     gojsonschema.JSONLoader
 }
 
 // GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be
 // a single string or an array of tuples, so this normalizes things into a standard structure.
 func (rs *RuleSet) GetExtendsValue() map[string]string {
-
+	if rs.extendsMeta != nil {
+		return rs.extendsMeta
+	}
 	m := make(map[string]string)
 
 	if rs.Extends != nil {
@@ -229,7 +232,39 @@ func (rs *RuleSet) GetExtendsValue() map[string]string {
 			}
 		}
 	}
+	rs.extendsMeta = m
 	return m
+}
+
+//
+//// GetConfiguredRules will return a subset of the rules based on the ruleset configuration.
+//func (rs *RuleSet) GetConfiguredRules() map[string]*Rule {
+//	extends := rs.GetExtendsValue()
+//
+//	// check for spectral or vacuum config
+//	spectral := extends["spectral:oas"]
+//	if spectral != "" {
+//		switch spectral {
+//		case "recommended":
+//			return rs.getRecommendedRules()
+//		case "all":
+//			return rs.Rules
+//		case "off":
+//			// TODO: enable rules pattern
+//			return rs.Rules
+//		}
+//	}
+//	return rs.Rules
+//}
+
+func (rs *RuleSet) getRecommendedRules() map[string]*Rule {
+	filtered := make(map[string]*Rule)
+	for ruleName, rule := range rs.Rules {
+		if rule.Recommended {
+			filtered[ruleName] = rule
+		}
+	}
+	return filtered
 }
 
 // CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
