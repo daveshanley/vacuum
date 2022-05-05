@@ -206,9 +206,30 @@ type RuleSet struct {
 	schemaLoader     gojsonschema.JSONLoader
 }
 
-func (rs *RuleSet) GetExtendsValue() []map[string]string {
+// GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be
+// a single string or an array of tuples, so this normalizes things into a standard structure.
+func (rs *RuleSet) GetExtendsValue() map[string]string {
 
-	return nil
+	m := make(map[string]string)
+
+	if rs.Extends != nil {
+		if extStr, ok := rs.Extends.(string); ok {
+			m[extStr] = extStr
+		}
+		if extArray, ok := rs.Extends.([]interface{}); ok {
+			for _, arr := range extArray {
+				if castArr, k := arr.([]interface{}); k {
+					if len(castArr) == 2 {
+						m[castArr[0].(string)] = castArr[1].(string)
+					}
+				}
+				if castArr, k := arr.(string); k {
+					m[castArr] = castArr
+				}
+			}
+		}
+	}
+	return m
 }
 
 // CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
@@ -246,6 +267,19 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	// save our loaded schema for later.
 	rs.schemaLoader = schemaLoader
 	return rs, nil
+}
+
+// CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input
+func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
+	d := data
+	if !utils.IsJSON(string(d)) {
+		j, err := utils.ConvertYAMLtoJSON(data)
+		if err != nil {
+			return nil, err
+		}
+		d = j
+	}
+	return CreateRuleSetUsingJSON(d)
 }
 
 // LoadRulesetSchema creates a new JSON Schema loader for the RuleSet schema.
