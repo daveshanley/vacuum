@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/daveshanley/vacuum/main/model/schemas/ruleset.schema.json",
+  "$id": "https://quobix.com/vacuum/schemas/ruleset.schema.json",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -8,6 +8,21 @@
       "type": "string",
       "format": "url",
       "errorMessage": "must be a valid URL"
+    },
+    "description": {
+      "type": "string"
+    },
+    "functions": {
+      "$ref": "#/$defs/Functions"
+    },
+    "functionsDir": {
+      "$ref": "#/$defs/FunctionsDir"
+    },
+    "formats": {
+      "$ref": "#/$defs/Formats"
+    },
+    "extends": {
+      "$ref": "#/$defs/Extends"
     },
     "rules": {
       "type": "object",
@@ -91,9 +106,221 @@
           }
         ]
       }
+    },
+    "parserOptions": {
+      "type": "object",
+      "properties": {
+        "duplicateKeys": {
+          "$ref": "#/$defs/Severity"
+        },
+        "incompatibleValues": {
+          "$ref": "#/$defs/Severity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "overrides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "if": {
+          "type": "object",
+          "properties": {
+            "files": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^#]+#"
+              },
+              "errorMessage": "must be an non-empty array of glob patterns"
+            }
+          },
+          "required": ["files"]
+        },
+        "then": {
+          "type": "object",
+          "properties": {
+            "files": true,
+            "rules": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/Severity"
+              },
+              "errorMessage": {
+                "enum": "must be a valid severity level"
+              }
+            }
+          },
+          "required": ["rules"],
+          "additionalProperties": false,
+          "errorMessage": {
+            "required": "must contain rules when JSON Pointers are defined",
+            "additionalProperties": "must not override any other property than rules when JSON Pointers are defined"
+          }
+        },
+        "else": {
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "files": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "pattern": "[^#]",
+                    "minLength": 1
+                  },
+                  "errorMessage": "must be an non-empty array of glob patterns"
+                }
+              },
+              "required": ["files"],
+              "errorMessage": {
+                "type": "must be a override, i.e. { \"files\": [\"v2/**/*.json\"], \"rules\": {} }"
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "formats": {
+                  "$ref": "#/$defs/Formats"
+                },
+                "extends": {
+                  "$ref": "#/properties/extends"
+                },
+                "rules": {
+                  "$ref": "#/properties/rules"
+                },
+                "parserOptions": {
+                  "$ref": "#/properties/parserOptions"
+                },
+                "aliases": {
+                  "$ref": "#/properties/aliases"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": ["extends"]
+                },
+                {
+                  "required": ["rules"]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "errorMessage": {
+        "minItems": "must not be empty"
+      }
+    },
+    "aliases": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z\\d_-]*$",
+        "errorMessage": {
+          "pattern": "to avoid confusion the name must match /^[A-Za-z][A-Za-z\\d_-]*$/ regular expression",
+          "minLength": "the name of an alias must not be empty"
+        }
+      },
+      "additionalProperties": {
+        "if": {
+          "type": "object"
+        },
+        "then": {
+          "type": "object",
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "targets": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "formats": {
+                    "$ref": "#/$defs/Formats"
+                  },
+                  "given": {
+                    "$ref": "#/$defs/Given"
+                  }
+                },
+                "required": ["formats", "given"],
+                "errorMessage": "a valid target must contain given and non-empty formats"
+              },
+              "errorMessage": {
+                "minItems": "targets must have at least a single alias definition"
+              }
+            }
+          },
+          "required": ["targets"],
+          "errorMessage": {
+            "required": "targets must be present and have at least a single alias definition"
+          }
+        },
+        "else": {
+          "$ref": "#/$defs/Given"
+        }
+      }
     }
   },
   "$defs": {
+    "Functions": {
+      "$anchor": "functions",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "FunctionsDir": {
+      "$anchor": "functionsDir",
+      "type": "string"
+    },
+    "Function": {
+      "$anchor": "function",
+      "type": "object",
+      "properties": {
+        "function": {
+          "type": "string"
+        }
+      },
+      "required": ["function"]
+    },
+    "Extends": {
+      "$anchor": "extends",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "minItems": 2,
+                "additionalItems": false,
+                "items": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "enum": ["all", "recommended", "off"],
+                    "errorMessage": "allowed types are \"off\", \"recommended\" and \"all\""
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
     "Then": {
       "type": "object",
       "allOf": [
@@ -141,6 +368,32 @@
         }
       ],
       "errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
+    },
+    "Given": {
+      "$anchor": "given",
+      "if": {
+        "type": "array"
+      },
+      "then": {
+        "$anchor": "arrayish-given",
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/PathExpression"
+        },
+        "minItems": 1,
+        "errorMessage": {
+          "minItems": "must be a non-empty array of expressions"
+        }
+      },
+      "else": {
+        "$ref": "#/$defs/PathExpression"
+      }
+    },
+    "PathExpression": {
+      "$id": "path-expression",
+      "type": "string",
+      "pattern": "^[$#]",
+      "errorMessage": "must be a valid JSON Path expression or a reference to the existing Alias optionally paired with a JSON Path expression subset"
     }
   }
 }
