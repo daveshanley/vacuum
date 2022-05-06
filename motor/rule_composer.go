@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -18,8 +19,8 @@ func CreateRuleComposer() *RuleComposer {
 }
 
 // ComposeRuleSet compose a byte array ruleset specification into a *model.RuleSet
-func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*model.RuleSet, error) {
-	rs, err := model.CreateRuleSetUsingJSON(ruleset)
+func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*rulesets.RuleSet, error) {
+	rs, err := rulesets.CreateRuleSetUsingJSON(ruleset)
 	if err != nil {
 		return nil, err
 	}

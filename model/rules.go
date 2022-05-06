@@ -3,10 +3,6 @@ package model
 import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
-	"errors"
-	"fmt"
-	"github.com/daveshanley/vacuum/utils"
-	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"math"
 	"regexp"
@@ -28,9 +24,6 @@ const (
 	CategoryTags         = "tags"
 	CategoryValidation   = "validation"
 )
-
-//go:embed schemas/ruleset.schema.json
-var rulesetSchema string
 
 type RuleCategory struct {
 	Id          string
@@ -195,131 +188,6 @@ func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
 func (r Rule) ToJSON() string {
 	d, _ := json.Marshal(r)
 	return string(d)
-}
-
-// RuleSet represents a collection of Rule definitions.
-type RuleSet struct {
-	DocumentationURI string           `json:"documentationUrl"`
-	Formats          []string         `json:"formats"`
-	Rules            map[string]*Rule `json:"rules"`
-	Extends          interface{}      `json:"extends"` // can be string or tuple
-	extendsMeta      map[string]string
-	schemaLoader     gojsonschema.JSONLoader
-}
-
-// GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be
-// a single string or an array of tuples, so this normalizes things into a standard structure.
-func (rs *RuleSet) GetExtendsValue() map[string]string {
-	if rs.extendsMeta != nil {
-		return rs.extendsMeta
-	}
-	m := make(map[string]string)
-
-	if rs.Extends != nil {
-		if extStr, ok := rs.Extends.(string); ok {
-			m[extStr] = extStr
-		}
-		if extArray, ok := rs.Extends.([]interface{}); ok {
-			for _, arr := range extArray {
-				if castArr, k := arr.([]interface{}); k {
-					if len(castArr) == 2 {
-						m[castArr[0].(string)] = castArr[1].(string)
-					}
-				}
-				if castArr, k := arr.(string); k {
-					m[castArr] = castArr
-				}
-			}
-		}
-	}
-	rs.extendsMeta = m
-	return m
-}
-
-//
-//// GetConfiguredRules will return a subset of the rules based on the ruleset configuration.
-//func (rs *RuleSet) GetConfiguredRules() map[string]*Rule {
-//	extends := rs.GetExtendsValue()
-//
-//	// check for spectral or vacuum config
-//	spectral := extends["spectral:oas"]
-//	if spectral != "" {
-//		switch spectral {
-//		case "recommended":
-//			return rs.getRecommendedRules()
-//		case "all":
-//			return rs.Rules
-//		case "off":
-//			// TODO: enable rules pattern
-//			return rs.Rules
-//		}
-//	}
-//	return rs.Rules
-//}
-
-func (rs *RuleSet) getRecommendedRules() map[string]*Rule {
-	filtered := make(map[string]*Rule)
-	for ruleName, rule := range rs.Rules {
-		if rule.Recommended {
-			filtered[ruleName] = rule
-		}
-	}
-	return filtered
-}
-
-// CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
-func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
-	jsonString := string(jsonData)
-	if !utils.IsJSON(jsonString) {
-		return nil, errors.New("data is not JSON")
-	}
-
-	jsonLoader := gojsonschema.NewStringLoader(jsonString)
-	schemaLoader := LoadRulesetSchema()
-
-	// check blob is a valid contract, before creating ruleset.
-	res, err := gojsonschema.Validate(schemaLoader, jsonLoader)
-	if err != nil {
-		return nil, err
-	}
-
-	if !res.Valid() {
-		var buf strings.Builder
-		for _, e := range res.Errors() {
-			buf.WriteString(fmt.Sprintf("%s (line),", e.Description()))
-		}
-
-		return nil, fmt.Errorf("rules not valid: %s", buf.String())
-	}
-
-	// unmarshal JSON into new RuleSet
-	rs := &RuleSet{}
-	err = json.Unmarshal(jsonData, rs)
-	if err != nil {
-		return nil, err
-	}
-
-	// save our loaded schema for later.
-	rs.schemaLoader = schemaLoader
-	return rs, nil
-}
-
-// CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input
-func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
-	d := data
-	if !utils.IsJSON(string(d)) {
-		j, err := utils.ConvertYAMLtoJSON(data)
-		if err != nil {
-			return nil, err
-		}
-		d = j
-	}
-	return CreateRuleSetUsingJSON(d)
-}
-
-// LoadRulesetSchema creates a new JSON Schema loader for the RuleSet schema.
-func LoadRulesetSchema() gojsonschema.JSONLoader {
-	return gojsonschema.NewStringLoader(rulesetSchema)
 }
 
 // NewRuleResultSet will encapsulate a set of results into a set, that can then be queried.

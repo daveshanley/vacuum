@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/resolver"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
@@ -24,7 +25,7 @@ type ruleContext struct {
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRules to change, without a huge refactor. The ApplyRules function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet *model.RuleSet
+	RuleSet *rulesets.RuleSet
 	Spec    []byte
 }
 
@@ -147,7 +148,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 // Deprecated: ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
 // Please use ApplyRulesToRuleSet instead of this function, the signature needs to change.
-func ApplyRules(ruleSet *model.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
+func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
 
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult

@@ -4,10 +4,20 @@
 package rulesets
 
 import (
+	_ "embed"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
+	"github.com/mitchellh/mapstructure"
+	"github.com/xeipuuv/gojsonschema"
+	"strings"
 	"sync"
 )
+
+//go:embed schemas/ruleset.schema.json
+var rulesetSchema string
 
 const (
 	warn          = "warn"
@@ -67,12 +77,16 @@ const (
 	oas2OneOf                         = "oas2-oneOf"
 	oas2Schema                        = "oas2-schema"
 	oas3Schema                        = "oas3-schema"
+	SpectralOpenAPI                   = "spectral:oas"
+	SpectralRecommended               = "recommended"
+	SpectralAll                       = "all"
+	SpectralOff                       = "off"
 )
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
 
 type ruleSetsModel struct {
-	openAPIRuleSet *model.RuleSet
+	openAPIRuleSet *RuleSet
 }
 
 // RuleSets is used to generate default RuleSets built into vacuum
@@ -80,11 +94,15 @@ type RuleSets interface {
 
 	// GenerateOpenAPIDefaultRuleSet generates a ready to run pointer to a model.RuleSet containing all
 	// OpenAPI rules supported by vacuum. Passing all these rules would be considered a very good quality specification.
-	GenerateOpenAPIDefaultRuleSet() *model.RuleSet
+	GenerateOpenAPIDefaultRuleSet() *RuleSet
 
 	// GenerateOpenAPIRecommendedRuleSet generates a ready to run pointer to a model.RuleSet that contains only
 	// recommended rules (not all rules). Passing all these rules would result in a quality specification
-	GenerateOpenAPIRecommendedRuleSet() *model.RuleSet
+	GenerateOpenAPIRecommendedRuleSet() *RuleSet
+
+	// GenerateRuleSetFromConfig will generate a ready to run ruleset based on a supplied configuration. This
+	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
+	GenerateRuleSetFromConfig(config *RuleSet) *RuleSet
 }
 
 var rulesetsSingleton *ruleSetsModel
@@ -100,11 +118,11 @@ func BuildDefaultRuleSets() RuleSets {
 	return rulesetsSingleton
 }
 
-func (rsm ruleSetsModel) GenerateOpenAPIDefaultRuleSet() *model.RuleSet {
+func (rsm ruleSetsModel) GenerateOpenAPIDefaultRuleSet() *RuleSet {
 	return rsm.openAPIRuleSet
 }
 
-func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *model.RuleSet {
+func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 
 	filtered := make(map[string]*model.Rule)
 	for ruleName, rule := range rsm.openAPIRuleSet.Rules {
@@ -120,7 +138,62 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *model.RuleSet {
 	return &modifiedRS
 }
 
-func generateDefaultOpenAPIRuleSet() *model.RuleSet {
+func (rsm ruleSetsModel) GenerateRuleSetFromConfig(ruleset *RuleSet) *RuleSet {
+
+	extends := ruleset.GetExtendsValue()
+
+	var rs *RuleSet
+
+	// default and explicitly recommended
+	if extends[SpectralOpenAPI] == SpectralRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
+		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
+	}
+
+	// all rules
+	if extends[SpectralOpenAPI] == SpectralAll {
+		rs = rsm.openAPIRuleSet
+	}
+
+	// no rules
+	if extends[SpectralOpenAPI] == SpectralOff {
+		rs = &RuleSet{
+			DocumentationURI: "https://quobix.com/vacuum/rulesets/off",
+			Formats:          ruleset.Formats,
+			RuleDefinitions:  ruleset.RuleDefinitions,
+			Extends:          ruleset.Extends,
+		}
+	}
+
+	// now all the base rules are in, let's run through the raw definitions and decide
+	// what we need to add, enable, disable, replace or change severity on.
+	for k, v := range rs.RuleDefinitions {
+
+		// let's try to cast to a string first (enable/disable/severity)
+		if evalStr, ok := v.(string); ok {
+
+			// let's check to see if this rule exists
+			if rs.Rules[k] == nil {
+
+				// we don't know anything about this rule, so skip it.
+				continue
+
+			}
+
+			switch evalStr {
+			case err, warn, info, hint:
+
+			}
+		}
+	}
+
+	return rs
+}
+
+//func (rsm ruleSetsModel) {
+//
+//}
+
+func generateDefaultOpenAPIRuleSet() *RuleSet {
 
 	rules := make(map[string]*model.Rule)
 	rules[operationSuccessResponse] = GetOperationSuccessResponseRule()
@@ -174,11 +247,153 @@ func generateDefaultOpenAPIRuleSet() *model.RuleSet {
 	//rules[oas2Schema] = GetOAS2SchemaRule()
 	//rules[oas3Schema] = GetOAS3SchemaRule()
 
-	set := &model.RuleSet{
+	set := &RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
 		Rules:            rules,
 	}
 
 	return set
 
+}
+
+// RuleSet represents a collection of Rule definitions.
+type RuleSet struct {
+	DocumentationURI string                 `json:"documentationUrl"`
+	Formats          []string               `json:"formats"`
+	RuleDefinitions  map[string]interface{} `json:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
+	Rules            map[string]*model.Rule `json:"-"`
+	Extends          interface{}            `json:"extends"` // can be string or tuple (again... why stoplight?)
+	extendsMeta      map[string]string
+	schemaLoader     gojsonschema.JSONLoader
+}
+
+// GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be
+// a single string or an array of tuples, so this normalizes things into a standard structure.
+func (rs *RuleSet) GetExtendsValue() map[string]string {
+	if rs.extendsMeta != nil {
+		return rs.extendsMeta
+	}
+	m := make(map[string]string)
+
+	if rs.Extends != nil {
+		if extStr, ok := rs.Extends.(string); ok {
+			m[extStr] = extStr
+		}
+		if extArray, ok := rs.Extends.([]interface{}); ok {
+			for _, arr := range extArray {
+				if castArr, k := arr.([]interface{}); k {
+					if len(castArr) == 2 {
+						m[castArr[0].(string)] = castArr[1].(string)
+					}
+				}
+				if castArr, k := arr.(string); k {
+					m[castArr] = castArr
+				}
+			}
+		}
+	}
+	rs.extendsMeta = m
+	return m
+}
+
+//
+//// GetConfiguredRules will return a subset of the rules based on the ruleset configuration.
+//func (rs *RuleSet) GetConfiguredRules() map[string]*Rule {
+//	extends := rs.GetExtendsValue()
+//
+//	// check for spectral or vacuum config
+//	spectral := extends["spectral:oas"]
+//	if spectral != "" {
+//		switch spectral {
+//		case "recommended":
+//			return rs.getRecommendedRules()
+//		case "all":
+//			return rs.Rules
+//		case "off":
+//			// TODO: enable rules pattern
+//			return rs.Rules
+//		}
+//	}
+//	return rs.Rules
+//}
+
+func (rs *RuleSet) getRecommendedRules() map[string]*model.Rule {
+	filtered := make(map[string]*model.Rule)
+	for ruleName, rule := range rs.Rules {
+		if rule.Recommended {
+			filtered[ruleName] = rule
+		}
+	}
+	return filtered
+}
+
+// CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
+func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
+	jsonString := string(jsonData)
+	if !utils.IsJSON(jsonString) {
+		return nil, errors.New("data is not JSON")
+	}
+
+	jsonLoader := gojsonschema.NewStringLoader(jsonString)
+	schemaLoader := LoadRulesetSchema()
+
+	// check blob is a valid contract, before creating ruleset.
+	res, err := gojsonschema.Validate(schemaLoader, jsonLoader)
+	if err != nil {
+		return nil, err
+	}
+
+	if !res.Valid() {
+		var buf strings.Builder
+		for _, e := range res.Errors() {
+			buf.WriteString(fmt.Sprintf("%s (line),", e.Description()))
+		}
+
+		return nil, fmt.Errorf("rules not valid: %s", buf.String())
+	}
+
+	// unmarshal JSON into new RuleSet
+	rs := &RuleSet{}
+	err = json.Unmarshal(jsonData, rs)
+
+	// raw rules are unpacked, lets copy them over
+
+	rs.Rules = make(map[string]*model.Rule)
+	for k, v := range rs.RuleDefinitions {
+		if b, ok := v.(map[string]interface{}); ok {
+			var rule model.Rule
+			mapstructure.Decode(b, &rule)
+			rs.Rules[k] = &rule
+		}
+
+		if b, ok := v.(model.Rule); ok {
+			rs.Rules[k] = &b
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// save our loaded schema for later.
+	rs.schemaLoader = schemaLoader
+	return rs, nil
+}
+
+// LoadRulesetSchema creates a new JSON Schema loader for the RuleSet schema.
+func LoadRulesetSchema() gojsonschema.JSONLoader {
+	return gojsonschema.NewStringLoader(rulesetSchema)
+}
+
+// CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input
+func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
+	d := data
+	if !utils.IsJSON(string(d)) {
+		j, err := utils.ConvertYAMLtoJSON(data)
+		if err != nil {
+			return nil, err
+		}
+		d = j
+	}
+	return CreateRuleSetUsingJSON(d)
 }

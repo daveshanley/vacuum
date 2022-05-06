@@ -12,7 +12,7 @@ import (
 
 func TestRuleSchema(t *testing.T) {
 
-	schemaMain, err := ioutil.ReadFile("schemas/ruleset.schema.json")
+	schemaMain, err := ioutil.ReadFile("../rulesets/schemas/ruleset.schema.json")
 	assert.NoError(t, err)
 
 	goodRules, err := ioutil.ReadFile("test_files/rules.json")
@@ -25,16 +25,6 @@ func TestRuleSchema(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, result.Valid())
 	assert.Len(t, result.Errors(), 0)
-
-}
-
-func TestCreateRuleSetUsingJSON_Fail(t *testing.T) {
-
-	// this is not going to work.
-	json := `{ "pizza" : "cake" }`
-
-	_, err := CreateRuleSetUsingJSON([]byte(json))
-	assert.Error(t, err)
 
 }
 
@@ -51,31 +41,6 @@ func TestRuleFunctionSchema_GetPropertyDescription_Fail(t *testing.T) {
 func TestRule_ToJSON(t *testing.T) {
 	r := Rule{}
 	assert.NotEmpty(t, r.ToJSON())
-
-}
-
-func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
-
-	// this should work.
-	json := `{
-  "documentationUrl": "quobix.com",
-  "rules": {
-    "fish-cakes": {
-      "description": "yummy sea food",
-      "recommended": true,
-      "type": "style",
-      "given": "$.some.JSON.PATH",
-      "then": {
-        "field": "nextSteps",
-        "function": "cookForTenMins"
-      }
-    }
-  }
-}
-`
-	rs, err := CreateRuleSetUsingJSON([]byte(json))
-	assert.NoError(t, err)
-	assert.Len(t, rs.Rules, 1)
 
 }
 
@@ -439,73 +404,5 @@ func TestRuleResultsForCategory_Sort(t *testing.T) {
 	sort.Sort(catResults)
 
 	assert.Equal(t, "three", catResults.Rules[0].Rule.Description) // first result should be lowest sev.
-
-}
-
-func TestRuleSet_GetExtendsValue_Single(t *testing.T) {
-
-	yaml := `extends: spectral:oas
-rules:
- fish-cakes:
-   description: yummy sea food
-   recommended: true
-   type: style
-   given: "$.some.JSON.PATH"
-   then:
-     field: nextSteps
-     function: cookForTenMins`
-
-	rs, err := CreateRuleSetFromData([]byte(yaml))
-	assert.NoError(t, err)
-	assert.Len(t, rs.Rules, 1)
-	assert.NotNil(t, rs.GetExtendsValue())
-	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
-
-}
-
-func TestRuleSet_GetExtendsValue_Multi(t *testing.T) {
-
-	yaml := `extends:
-  -
-    - spectral:oas
-    - recommended
-rules:
- fish-cakes:
-   description: yummy sea food
-   recommended: true
-   type: style
-   given: "$.some.JSON.PATH"
-   then:
-     field: nextSteps
-     function: cookForTenMins`
-
-	rs, err := CreateRuleSetFromData([]byte(yaml))
-	assert.NoError(t, err)
-	assert.Len(t, rs.Rules, 1)
-	assert.NotNil(t, rs.GetExtendsValue())
-	assert.Equal(t, "recommended", rs.GetExtendsValue()["spectral:oas"])
-
-}
-
-func TestRuleSet_GetExtendsValue_Multi_Noflag(t *testing.T) {
-
-	yaml := `extends:
-  - spectral:oas
-rules:
- fish-cakes:
-   description: yummy sea food
-   recommended: true
-   type: style
-   given: "$.some.JSON.PATH"
-   then:
-     field: nextSteps
-     function: cookForTenMins`
-
-	rs, err := CreateRuleSetFromData([]byte(yaml))
-	assert.NoError(t, err)
-	assert.Len(t, rs.Rules, 1)
-	assert.NotNil(t, rs.GetExtendsValue())
-	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
-	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"]) // idempotence state check.
 
 }

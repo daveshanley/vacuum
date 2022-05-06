@@ -1,9 +1,7 @@
 package rulesets
 
 import (
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"testing"
 )
 
@@ -15,34 +13,107 @@ func TestBuildDefaultRuleSets(t *testing.T) {
 
 }
 
-func TestPetstoreSpecAgainstDefaultRuleSet(t *testing.T) {
+func TestCreateRuleSetUsingJSON_Fail(t *testing.T) {
 
-	b, _ := ioutil.ReadFile("../model/test_files/petstorev3.json")
-	rs := BuildDefaultRuleSets()
-	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
+	// this is not going to work.
+	json := `{ "pizza" : "cake" }`
 
-	assert.NoError(t, err)
-	assert.NotNil(t, results)
-
-}
-
-func TestStripeSpecAgainstDefaultRuleSet(t *testing.T) {
-
-	b, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
-	rs := BuildDefaultRuleSets()
-	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, results)
+	_, err := CreateRuleSetUsingJSON([]byte(json))
+	assert.Error(t, err)
 
 }
 
-func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
-	m, _ := ioutil.ReadFile("../model/test_files/k8s.json")
-	rs := BuildDefaultRuleSets()
-	for n := 0; n < b.N; n++ {
-		motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)
-	}
+func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
+
+	// this should work.
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "fish-cakes": {
+      "description": "yummy sea food",
+      "recommended": true,
+      "type": "style",
+      "given": "$.some.JSON.PATH",
+      "then": {
+        "field": "nextSteps",
+        "function": "cookForTenMins"
+      }
+    }
+  }
+}
+`
+	rs, err := CreateRuleSetUsingJSON([]byte(json))
+	assert.NoError(t, err)
+	assert.Len(t, rs.Rules, 1)
+
+}
+
+func TestRuleSet_GetExtendsValue_Single(t *testing.T) {
+
+	yaml := `extends: spectral:oas
+rules:
+ fish-cakes:
+   description: yummy sea food
+   recommended: true
+   type: style
+   given: "$.some.JSON.PATH"
+   then:
+     field: nextSteps
+     function: cookForTenMins`
+
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	assert.Len(t, rs.Rules, 1)
+	assert.NotNil(t, rs.GetExtendsValue())
+	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
+
+}
+
+func TestRuleSet_GetExtendsValue_Multi(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - recommended
+rules:
+ fish-cakes:
+   description: yummy sea food
+   recommended: true
+   type: style
+   given: "$.some.JSON.PATH"
+   then:
+     field: nextSteps
+     function: cookForTenMins`
+
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	assert.Len(t, rs.Rules, 1)
+	assert.NotNil(t, rs.GetExtendsValue())
+	assert.Equal(t, "recommended", rs.GetExtendsValue()["spectral:oas"])
+
+}
+
+func TestRuleSet_GetExtendsValue_Multi_Noflag(t *testing.T) {
+
+	yaml := `extends:
+  - spectral:oas
+rules:
+ fish-cakes:
+   description: yummy sea food
+   recommended: true
+   type: style
+   given: "$.some.JSON.PATH"
+   then:
+     field: nextSteps
+     function: cookForTenMins`
+
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	assert.Len(t, rs.Rules, 1)
+	assert.NotNil(t, rs.GetExtendsValue())
+	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
+	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"]) // idempotence state check.
+
 }
 
 func TestRuleSet_GetConfiguredRules_All(t *testing.T) {
@@ -53,6 +124,20 @@ func TestRuleSet_GetConfiguredRules_All(t *testing.T) {
 	assert.Len(t, ruleSet.Rules, 46)
 
 	ruleSet = rs.GenerateOpenAPIRecommendedRuleSet()
-	assert.Len(t, ruleSet.Rules, 45)
+	assert.Len(t, ruleSet.Rules, 36)
+
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_OverrideFail(t *testing.T) {
+
+	//rs := &RuleSet{}
+
+	// read spec and parse to dashboard.
+	rs := BuildDefaultRuleSets()
+	ruleSet := rs.GenerateOpenAPIDefaultRuleSet()
+	assert.Len(t, ruleSet.Rules, 46)
+
+	ruleSet = rs.GenerateOpenAPIRecommendedRuleSet()
+	assert.Len(t, ruleSet.Rules, 36)
 
 }
