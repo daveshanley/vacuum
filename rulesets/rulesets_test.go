@@ -128,16 +128,82 @@ func TestRuleSet_GetConfiguredRules_All(t *testing.T) {
 
 }
 
-func TestRuleSetsModel_GenerateRuleSetFromConfig_OverrideFail(t *testing.T) {
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_OverrideNotFound(t *testing.T) {
 
-	//rs := &RuleSet{}
+	yaml := `extends:
+  -
+    - spectral:oas
+    - recommended
+rules:
+ soda-pop: "off"`
 
-	// read spec and parse to dashboard.
-	rs := BuildDefaultRuleSets()
-	ruleSet := rs.GenerateOpenAPIDefaultRuleSet()
-	assert.Len(t, ruleSet.Rules, 46)
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 36)
+	assert.Len(t, override.RuleDefinitions, 1)
+}
 
-	ruleSet = rs.GenerateOpenAPIRecommendedRuleSet()
-	assert.Len(t, ruleSet.Rules, 36)
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_OverrideNotFound(t *testing.T) {
 
+	yaml := `extends:
+  -
+    - spectral:oas
+    - off
+rules:
+ soda-pop: "warn"`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 0)
+	assert.Len(t, override.RuleDefinitions, 1)
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_All_OverrideNotFound(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - all
+rules:
+ soda-pop: "warn"`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 46)
+	assert.Len(t, override.RuleDefinitions, 1)
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_RemoveRule(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - recommended
+rules:
+ operation-success-response: "off"`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 35)
+	assert.Len(t, override.RuleDefinitions, 1)
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_SeverityInfo(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - recommended
+rules:
+ operation-success-response: "hint"`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 36)
+	assert.Equal(t, "hint", override.Rules["operation-success-response"].Severity)
 }

@@ -100,9 +100,9 @@ type RuleSets interface {
 	// recommended rules (not all rules). Passing all these rules would result in a quality specification
 	GenerateOpenAPIRecommendedRuleSet() *RuleSet
 
-	// GenerateRuleSetFromConfig will generate a ready to run ruleset based on a supplied configuration. This
+	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
-	GenerateRuleSetFromConfig(config *RuleSet) *RuleSet
+	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
 }
 
 var rulesetsSingleton *ruleSetsModel
@@ -138,31 +138,36 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 	return &modifiedRS
 }
 
-func (rsm ruleSetsModel) GenerateRuleSetFromConfig(ruleset *RuleSet) *RuleSet {
+func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
 
 	extends := ruleset.GetExtendsValue()
 
-	var rs *RuleSet
+	rs := &RuleSet{
+		DocumentationURI: "https://quobix.com/vacuum/rulesets",
+		Formats:          ruleset.Formats,
+		Extends:          ruleset.Extends,
+		RuleDefinitions:  ruleset.RuleDefinitions,
+	}
 
 	// default and explicitly recommended
 	if extends[SpectralOpenAPI] == SpectralRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
+		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/recommended"
 	}
 
 	// all rules
 	if extends[SpectralOpenAPI] == SpectralAll {
 		rs = rsm.openAPIRuleSet
+		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/all"
 	}
 
-	// no rules
+	// all rules
 	if extends[SpectralOpenAPI] == SpectralOff {
-		rs = &RuleSet{
-			DocumentationURI: "https://quobix.com/vacuum/rulesets/off",
-			Formats:          ruleset.Formats,
-			RuleDefinitions:  ruleset.RuleDefinitions,
-			Extends:          ruleset.Extends,
-		}
+		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/off"
 	}
+
+	// add definitions.
+	rs.RuleDefinitions = ruleset.RuleDefinitions
 
 	// now all the base rules are in, let's run through the raw definitions and decide
 	// what we need to add, enable, disable, replace or change severity on.
@@ -181,17 +186,15 @@ func (rsm ruleSetsModel) GenerateRuleSetFromConfig(ruleset *RuleSet) *RuleSet {
 
 			switch evalStr {
 			case err, warn, info, hint:
-
+				rs.Rules[k].Severity = evalStr
+			case SpectralOff:
+				delete(rs.Rules, k) // remove it completely
 			}
 		}
 	}
 
 	return rs
 }
-
-//func (rsm ruleSetsModel) {
-//
-//}
 
 func generateDefaultOpenAPIRuleSet() *RuleSet {
 
@@ -294,37 +297,6 @@ func (rs *RuleSet) GetExtendsValue() map[string]string {
 	}
 	rs.extendsMeta = m
 	return m
-}
-
-//
-//// GetConfiguredRules will return a subset of the rules based on the ruleset configuration.
-//func (rs *RuleSet) GetConfiguredRules() map[string]*Rule {
-//	extends := rs.GetExtendsValue()
-//
-//	// check for spectral or vacuum config
-//	spectral := extends["spectral:oas"]
-//	if spectral != "" {
-//		switch spectral {
-//		case "recommended":
-//			return rs.getRecommendedRules()
-//		case "all":
-//			return rs.Rules
-//		case "off":
-//			// TODO: enable rules pattern
-//			return rs.Rules
-//		}
-//	}
-//	return rs.Rules
-//}
-
-func (rs *RuleSet) getRecommendedRules() map[string]*model.Rule {
-	filtered := make(map[string]*model.Rule)
-	for ruleName, rule := range rs.Rules {
-		if rule.Recommended {
-			filtered[ruleName] = rule
-		}
-	}
-	return filtered
 }
 
 // CreateRuleSetUsingJSON will create a new RuleSet instance from a JSON byte array
