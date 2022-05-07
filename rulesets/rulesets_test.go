@@ -207,3 +207,90 @@ rules:
 	assert.Len(t, override.Rules, 36)
 	assert.Equal(t, "hint", override.Rules["operation-success-response"].Severity)
 }
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRules(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - off
+rules:
+ operation-success-response: true
+ info-contact: true
+ `
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 2)
+	assert.Equal(t, "warn", override.Rules["operation-success-response"].Severity)
+	assert.Equal(t, "warn", override.Rules["info-contact"].Severity)
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRulesNotFound(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - off
+rules:
+ chewy-dinner: true
+ burpy-baby: true
+ `
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 0)
+
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRule(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - all
+rules:
+ fish-cakes:
+   description: yummy sea food
+   recommended: true
+   type: style
+   given: "$.some.JSON.PATH"
+   then:
+     field: nextSteps
+     function: cookForTenMin`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	newrs := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, newrs.Rules, 47)
+	assert.Equal(t, true, newrs.Rules["fish-cakes"].Recommended)
+	assert.Equal(t, "yummy sea food", newrs.Rules["fish-cakes"].Description)
+
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRuleReplace(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - all
+rules:
+ info-contact:
+   description: yummy sea food
+   recommended: true
+   type: style
+   given: "$.some.JSON.PATH"
+   then:
+     field: nextSteps
+     function: cookForTenMin`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, repl.Rules, 46)
+	assert.Equal(t, true, repl.Rules["info-contact"].Recommended)
+	assert.Equal(t, "yummy sea food", repl.Rules["info-contact"].Description)
+
+}

@@ -12,8 +12,8 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/xeipuuv/gojsonschema"
+	"go.uber.org/zap"
 	"strings"
-	"sync"
 )
 
 //go:embed schemas/ruleset.schema.json
@@ -85,6 +85,8 @@ const (
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
 
+var log *zap.SugaredLogger
+
 type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
 }
@@ -106,15 +108,12 @@ type RuleSets interface {
 }
 
 var rulesetsSingleton *ruleSetsModel
-var openAPIRulesGrab sync.Once
 
 func BuildDefaultRuleSets() RuleSets {
-	openAPIRulesGrab.Do(func() {
-		rulesetsSingleton = &ruleSetsModel{
-			openAPIRuleSet: generateDefaultOpenAPIRuleSet(),
-		}
-	})
-
+	log = zap.NewExample().Sugar()
+	rulesetsSingleton = &ruleSetsModel{
+		openAPIRuleSet: generateDefaultOpenAPIRuleSet(),
+	}
 	return rulesetsSingleton
 }
 
@@ -139,7 +138,7 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
-
+	defer log.Sync()
 	extends := ruleset.GetExtendsValue()
 
 	rs := &RuleSet{
@@ -161,9 +160,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/all"
 	}
 
-	// all rules
+	// no rules!
 	if extends[SpectralOpenAPI] == SpectralOff {
 		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/off"
+		rs.Rules = make(map[string]*model.Rule)
 	}
 
 	// add definitions.
@@ -179,9 +179,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			// let's check to see if this rule exists
 			if rs.Rules[k] == nil {
 
+				log.Warnf("Rule '%s' does not exist, ignoring it", k)
+
 				// we don't know anything about this rule, so skip it.
 				continue
-
 			}
 
 			switch evalStr {
@@ -191,8 +192,28 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 				delete(rs.Rules, k) // remove it completely
 			}
 		}
-	}
 
+		// let's try to cast to a bool, this means we want to enable a rule.
+		if eval, ok := v.(bool); ok {
+			if eval {
+				if rsm.openAPIRuleSet.Rules[k] == nil {
+					log.Warnf("Rule '%s' does not exist, ignoring it", k)
+					continue
+				}
+				rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
+			}
+		}
+
+		// let's try to cast to a model.Rule, this means we want to add a new rule.
+		if newRule, ok := v.(map[string]interface{}); ok {
+
+			// decode into a rule, we don't need to check for an error here, if the supplied rule
+			// breaks the schema, it will have already failed, and we will have caught that message.
+			var nr model.Rule
+			mapstructure.Decode(newRule, &nr)
+			rs.Rules[k] = &nr
+		}
+	}
 	return rs
 }
 
