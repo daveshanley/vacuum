@@ -26,9 +26,9 @@ const (
 )
 
 type RuleCategory struct {
-	Id          string
-	Name        string
-	Description string
+	Id          string `json:"id" yaml:"id"`
+	Name        string `json:"name" yaml:"name"`
+	Description string `json:"description" yaml:"description"`
 }
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
@@ -107,7 +107,7 @@ type Rule struct {
 	Severity          string         `json:"severity"`
 	Then              interface{}    `json:"then"`
 	PrecomiledPattern *regexp.Regexp `json:"-"` // regex is slow.
-	RuleCategory      *RuleCategory  `json:"-"`
+	RuleCategory      *RuleCategory  `json:"category"`
 	Name              string         `json:"name"`
 	HowToFix          string         `json:"howToFix"`
 }

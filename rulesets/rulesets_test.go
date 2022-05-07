@@ -294,3 +294,55 @@ rules:
 	assert.Equal(t, "yummy sea food", repl.Rules["info-contact"].Description)
 
 }
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_CustomRule(t *testing.T) {
+
+	yaml := `extends:
+  -
+    - spectral:oas
+    - all
+rules:
+ info-contact:
+   description: yummy sea food
+   recommended: true
+   type: style
+   given: "$.some.JSON.PATH"
+   then:
+     field: nextSteps
+     function: cookForTenMin`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, repl.Rules, 46)
+	assert.Equal(t, true, repl.Rules["info-contact"].Recommended)
+	assert.Equal(t, "yummy sea food", repl.Rules["info-contact"].Description)
+
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_RuleCategory(t *testing.T) {
+
+	yaml := `extends: [[spectral:oas, off]]
+rules:
+  check-title-is-exactly-this:
+    description: Check the title of the spec is exactly, 'this specific thing'
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info.title
+    then:
+      field: title
+      function: pattern
+      functionOptions:
+        match: 'this specific thing'
+    howToFix: Make sure the title matches 'this specific thing'
+    category:
+      id: schemas`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, repl.Rules, 1)
+	assert.Equal(t, "schemas", repl.Rules["check-title-is-exactly-this"].RuleCategory.Id)
+
+}

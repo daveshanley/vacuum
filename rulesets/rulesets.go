@@ -85,7 +85,9 @@ const (
 
 var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
 
-var log *zap.SugaredLogger
+var log *zap.Logger
+
+//var log *zap.SugaredLogger
 
 type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
@@ -110,7 +112,8 @@ type RuleSets interface {
 var rulesetsSingleton *ruleSetsModel
 
 func BuildDefaultRuleSets() RuleSets {
-	log = zap.NewExample().Sugar()
+	log = zap.NewExample()
+
 	rulesetsSingleton = &ruleSetsModel{
 		openAPIRuleSet: generateDefaultOpenAPIRuleSet(),
 	}
@@ -133,7 +136,7 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 	// copy.
 	modifiedRS := *rsm.openAPIRuleSet
 	modifiedRS.Rules = filtered
-
+	modifiedRS.Description = "Recommended rules that should always be run on a specification."
 	return &modifiedRS
 }
 
@@ -145,6 +148,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		DocumentationURI: "https://quobix.com/vacuum/rulesets",
 		Formats:          ruleset.Formats,
 		Extends:          ruleset.Extends,
+		Description:      ruleset.Description,
 		RuleDefinitions:  ruleset.RuleDefinitions,
 	}
 
@@ -164,6 +168,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	if extends[SpectralOpenAPI] == SpectralOff {
 		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/off"
 		rs.Rules = make(map[string]*model.Rule)
+		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
 	// add definitions.
@@ -179,7 +184,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			// let's check to see if this rule exists
 			if rs.Rules[k] == nil {
 
-				log.Warnf("Rule '%s' does not exist, ignoring it", k)
+				log.Warn("Rule does not exist, ignoring it", zap.String("rule", k))
 
 				// we don't know anything about this rule, so skip it.
 				continue
@@ -197,7 +202,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		if eval, ok := v.(bool); ok {
 			if eval {
 				if rsm.openAPIRuleSet.Rules[k] == nil {
-					log.Warnf("Rule '%s' does not exist, ignoring it", k)
+					log.Warn("Rule does not exist, ignoring it", zap.String("rule", k))
 					continue
 				}
 				rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
@@ -210,7 +215,19 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			// decode into a rule, we don't need to check for an error here, if the supplied rule
 			// breaks the schema, it will have already failed, and we will have caught that message.
 			var nr model.Rule
+			var rc model.RuleCategory
+
 			mapstructure.Decode(newRule, &nr)
+			mapstructure.Decode(newRule["category"], &rc)
+
+			// add to validation category if it's not supplied
+			if rc.Id == "" {
+				nr.RuleCategory = model.RuleCategories[model.CategoryValidation]
+			} else {
+				if model.RuleCategories[rc.Id] != nil {
+					nr.RuleCategory = model.RuleCategories[rc.Id]
+				}
+			}
 			rs.Rules[k] = &nr
 		}
 	}
@@ -272,8 +289,9 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	//rules[oas3Schema] = GetOAS3SchemaRule()
 
 	set := &RuleSet{
-		DocumentationURI: "https://quobix.com/vacuum/rules/openapi",
+		DocumentationURI: "https://quobix.com/vacuum/rulesets/all",
 		Rules:            rules,
+		Description:      "Every single rule that is built-in to vacuum. The full monty",
 	}
 
 	return set
@@ -282,6 +300,7 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 
 // RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
+	Description      string                 `json:"description"`
 	DocumentationURI string                 `json:"documentationUrl"`
 	Formats          []string               `json:"formats"`
 	RuleDefinitions  map[string]interface{} `json:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).

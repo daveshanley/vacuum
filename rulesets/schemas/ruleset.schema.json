@@ -33,6 +33,30 @@
               "description": {
                 "type": "string"
               },
+              "howToFix": {
+                "type": "string"
+              },
+              "category": {
+                "oneOf": [
+                  {
+                  "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                  ]
+              },
               "documentationUrl": {
                 "type": "string",
                 "format": "url",
