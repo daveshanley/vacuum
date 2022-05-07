@@ -45,6 +45,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	rootCmd.PersistentFlags().BoolP("errors", "e", false, "Show errors only")
 	rootCmd.PersistentFlags().StringP("category", "c", "", "Show a single category of results")
+	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	rootCmd.AddCommand(cui.GetLintCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
