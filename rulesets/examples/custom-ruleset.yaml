@@ -1,0 +1,14 @@
+extends: [[spectral:oas, off]]
+rules:
+  check-title-is-exactly-this:
+    description: Check the title of the spec is exactly, 'this specific thing'
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info.title
+    then:
+      field: title
+      function: pattern
+      functionOptions:
+        match: 'this specific thing'
+    howToFix: Make sure the title matches 'this specific thing'
