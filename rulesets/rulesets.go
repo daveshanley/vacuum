@@ -171,6 +171,11 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
+	// make sure the map is never nil.
+	if rs.Rules == nil {
+		rs.Rules = make(map[string]*model.Rule)
+	}
+
 	// add definitions.
 	rs.RuleDefinitions = ruleset.RuleDefinitions
 

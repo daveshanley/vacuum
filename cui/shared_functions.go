@@ -4,27 +4,18 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
-	"io/ioutil"
 	"os"
 	"time"
 )
 
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
-func BuildRuleSetFromUserSuppliedSet(rulesetFilePath string, rs rulesets.RuleSets) (*rulesets.RuleSet, error) {
-	rsBytes, rsErr := ioutil.ReadFile(rulesetFilePath)
-
-	if rsErr != nil {
-
-		pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFilePath, rsErr.Error())
-		pterm.Println()
-		return nil, rsErr
-	}
+func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rulesets.RuleSet, error) {
 
 	// load in our user supplied ruleset and try to validate it.
 	userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
 	if userErr != nil {
-		pterm.Error.Printf("Unable to parse ruleset file '%s': %s\n", rulesetFilePath, userErr.Error())
+		pterm.Error.Printf("Unable to parse ruleset file: %s\n", userErr.Error())
 		pterm.Println()
 		return nil, userErr
 

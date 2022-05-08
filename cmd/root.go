@@ -47,10 +47,6 @@ func init() {
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 
 	lintCommand := cui.GetLintCommand()
-	lintCommand.Flags().BoolP("details", "d", false, "Show full details of linting report")
-	lintCommand.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
-	lintCommand.Flags().BoolP("errors", "e", false, "Show errors only")
-	lintCommand.Flags().StringP("category", "c", "", "Show a single category of results")
 
 	rootCmd.AddCommand(lintCommand)
 	rootCmd.AddCommand(GetSpectralReportCommand())

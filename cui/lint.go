@@ -16,7 +16,7 @@ import (
 
 func GetLintCommand() *cobra.Command {
 
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "lint",
 		Short: "vacuum is a very, very fast OpenAPI linter",
 		Long:  `vacuum is a very, very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
@@ -28,14 +28,15 @@ func GetLintCommand() *cobra.Command {
 			errorsFlag, _ := cmd.Flags().GetBool("errors")
 			categoryFlag, _ := cmd.Flags().GetString("category")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+			silent, _ := cmd.Flags().GetBool("silent")
 
 			pterm.Println()
 
-			pterm.DefaultBigText.WithLetters(
-				pterm.NewLettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).
-				Render()
-
-			pterm.Println()
+			if !silent {
+				_ = pterm.DefaultBigText.WithLetters(
+					pterm.NewLettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
+				pterm.Println()
+			}
 
 			// check for file args
 			if len(args) != 1 {
@@ -68,16 +69,24 @@ func GetLintCommand() *cobra.Command {
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
-				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rulesetFlag, defaultRuleSets)
+
+				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+				if rsErr != nil {
+					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
+					pterm.Println()
+					return ferr
+				}
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
 				if rsErr != nil {
 					return rsErr
 				}
 			}
 
-			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
-				len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
-			pterm.Println()
+			if !silent {
+				pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
+					len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
+				pterm.Println()
+			}
 
 			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet: selectedRS,
@@ -94,7 +103,9 @@ func GetLintCommand() *cobra.Command {
 				return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 			}
 
-			pterm.Println() // Blank line
+			if !silent {
+				pterm.Println()
+			} // Blank line
 
 			resultSet := model.NewRuleResultSet(results)
 			resultSet.SortResultsByLineNumber()
@@ -102,7 +113,7 @@ func GetLintCommand() *cobra.Command {
 			duration := time.Since(start)
 
 			if !detailsFlag {
-				RenderSummary(resultSet, args)
+				RenderSummary(resultSet, args, silent)
 				RenderTime(timeFlag, duration, fi)
 				return nil
 			}
@@ -140,23 +151,36 @@ func GetLintCommand() *cobra.Command {
 				categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
 
 				if len(categoryResults) > 0 {
-					pterm.DefaultSection.Printf("%s Issues\n", val.Name)
-					processResults(categoryResults, specStringData, snippetsFlag, errorsFlag, val.Name)
+					if !silent {
+						pterm.DefaultSection.Printf("%s Issues\n", val.Name)
+					}
+					processResults(categoryResults, specStringData, snippetsFlag, errorsFlag, silent)
 
 				}
 
 			}
 
-			pterm.Println() // Blank line
+			if !silent {
+				pterm.Println()
+			} // Blank line
 
 			RenderTime(timeFlag, duration, fi)
 
 			return nil
 		},
 	}
+
+	cmd.Flags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
+	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
+	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
+	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
+	cmd.Flags().StringP("category", "c", "", "Show a single category of results")
+	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result.")
+
+	return cmd
 }
 
-func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, cat string) {
+func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool) {
 
 	// if snippets are being used, we render a single table for a result and then a snippet, if not
 	// we just render the entire table, all rows.
@@ -201,14 +225,14 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 
 		tableData = append(tableData, []string{start, sev, m, p})
 
-		if snippets {
-			pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+		if snippets && !silent {
+			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 			renderCodeSnippet(r, specData)
 		}
 	}
 
-	if !snippets {
-		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+	if !snippets && !silent {
+		_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 	}
 
 }
@@ -236,7 +260,7 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, args []string) {
+func RenderSummary(rs *model.RuleResultSet, args []string, silent bool) {
 
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
@@ -255,11 +279,13 @@ func RenderSummary(rs *model.RuleResultSet, args []string) {
 	}
 
 	if len(rs.Results) > 0 {
-		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-		pterm.Println()
-		pterm.Printf(">> run 'vacuum %s -d' to see full details", args[0])
-		pterm.Println()
-		pterm.Println()
+		if !silent {
+			pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+			pterm.Println()
+			pterm.Printf(">> run 'vacuum %s -d' to see full details", args[0])
+			pterm.Println()
+			pterm.Println()
+		}
 	}
 
 	if rs.GetErrorCount() > 0 {

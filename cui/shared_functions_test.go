@@ -6,6 +6,7 @@ package cui
 import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -13,8 +14,9 @@ import (
 
 func TestBuildRuleSetFromUserSuppliedSet_All(t *testing.T) {
 	rsFile := "../rulesets/examples/all-ruleset.yaml"
+	rsBytes, _ := ioutil.ReadFile(rsFile)
 	rsets := rulesets.BuildDefaultRuleSets()
-	rs, err := BuildRuleSetFromUserSuppliedSet(rsFile, rsets)
+	rs, err := BuildRuleSetFromUserSuppliedSet(rsBytes, rsets)
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 46)
 }
@@ -22,7 +24,8 @@ func TestBuildRuleSetFromUserSuppliedSet_All(t *testing.T) {
 func TestBuildRuleSetFromUserSuppliedSet_None(t *testing.T) {
 	rsFile := "../rulesets/examples/norules-ruleset.yaml"
 	rsets := rulesets.BuildDefaultRuleSets()
-	rs, err := BuildRuleSetFromUserSuppliedSet(rsFile, rsets)
+	rsBytes, _ := ioutil.ReadFile(rsFile)
+	rs, err := BuildRuleSetFromUserSuppliedSet(rsBytes, rsets)
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 0)
 }
@@ -30,7 +33,8 @@ func TestBuildRuleSetFromUserSuppliedSet_None(t *testing.T) {
 func TestBuildRuleSetFromUserSuppliedSet_BadFile(t *testing.T) {
 	rsFile := "../rulesets/examples/don't-exist.yaml"
 	rsets := rulesets.BuildDefaultRuleSets()
-	rs, err := BuildRuleSetFromUserSuppliedSet(rsFile, rsets)
+	rsBytes, _ := ioutil.ReadFile(rsFile)
+	rs, err := BuildRuleSetFromUserSuppliedSet(rsBytes, rsets)
 	assert.Error(t, err)
 	assert.Nil(t, rs)
 }
@@ -38,7 +42,8 @@ func TestBuildRuleSetFromUserSuppliedSet_BadFile(t *testing.T) {
 func TestBuildRuleSetFromUserSuppliedSet_BadRuleset(t *testing.T) {
 	rsFile := "../rulesets/schemas/ruleset.schema.json" // not a ruleset!
 	rsets := rulesets.BuildDefaultRuleSets()
-	rs, err := BuildRuleSetFromUserSuppliedSet(rsFile, rsets)
+	rsBytes, _ := ioutil.ReadFile(rsFile)
+	rs, err := BuildRuleSetFromUserSuppliedSet(rsBytes, rsets)
 	assert.Error(t, err)
 	assert.Nil(t, rs)
 }
