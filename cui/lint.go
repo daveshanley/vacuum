@@ -68,28 +68,11 @@ func GetLintCommand() *cobra.Command {
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
-
-				// read spec
-				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
-
+				var rsErr error
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rulesetFlag, defaultRuleSets)
 				if rsErr != nil {
-
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
-					return ferr
+					return rsErr
 				}
-
-				// load in our user supplied ruleset and try to validate it.
-				userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
-				if userErr != nil {
-
-					pterm.Error.Printf("Unable to parse ruleset file '%s': %s\n", rulesetFlag, userErr.Error())
-					pterm.Println()
-					return ferr
-
-				}
-				selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
-
 			}
 
 			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
@@ -120,7 +103,7 @@ func GetLintCommand() *cobra.Command {
 
 			if !detailsFlag {
 				RenderSummary(resultSet, args)
-				renderTime(timeFlag, duration, fi)
+				RenderTime(timeFlag, duration, fi)
 				return nil
 			}
 
@@ -166,18 +149,10 @@ func GetLintCommand() *cobra.Command {
 
 			pterm.Println() // Blank line
 
-			renderTime(timeFlag, duration, fi)
+			RenderTime(timeFlag, duration, fi)
 
 			return nil
 		},
-	}
-}
-
-func renderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
-	if timeFlag {
-		pterm.Println()
-		pterm.Info.Println(fmt.Sprintf("Vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi.Size()/1000))
-		pterm.Println()
 	}
 }
 

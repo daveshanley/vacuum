@@ -106,6 +106,7 @@ If you're already using Spectral JSON reports, and you want to use vacuum instea
 
 The report file name is _optional_. The default report output name is `vacuum-spectral-report.json`
 
+---
 
 ## Try out the dashboard
 
@@ -116,6 +117,41 @@ if you're interested in seeing how things are progressing, it's available.
 ./vacuum dashboard <your-openapi-spec.yaml>
 ```
 
+---
+## Supply your own Spectral ruleset
 
+If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
+then you can use it with Vacuum! 
+
+The `lint`, `dashboard` and `report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
+
+### Here are some examples you can try
+
+**_All rules turned off_**
+```
+./vacuum lint -r rulesets/examples/norules-ruleset.yaml <your-openapi-spec.yaml>
+```
+
+**_Only recommended rules_**
+```
+./vacuum lint -r rulesets/examples/recommended-ruleset.yaml <your-openapi-spec.yaml>
+```
+
+**_Enable specific rules only_**
+```
+./vacuum lint -r rulesets/examples/specific-ruleset.yaml <your-openapi-spec.yaml>
+```
+
+**_Custom rules_**
+```
+./vacuum lint -r rulesets/examples/custom-ruleset.yaml <your-openapi-spec.yaml>
+```
+
+**_All rules, all of them!**
+```
+./vacuum lint -r rulesets/examples/all-ruleset.yaml <your-openapi-spec.yaml>
+```
+
+---
 
 Let me know what you think.

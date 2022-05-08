@@ -1,3 +1,6 @@
+// Copyright 2020-2022 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package cmd
 
 import (
@@ -40,13 +43,16 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().BoolP("details", "d", false, "Show full details of linting report")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
-	rootCmd.PersistentFlags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
-	rootCmd.PersistentFlags().BoolP("errors", "e", false, "Show errors only")
-	rootCmd.PersistentFlags().StringP("category", "c", "", "Show a single category of results")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
-	rootCmd.AddCommand(cui.GetLintCommand())
+
+	lintCommand := cui.GetLintCommand()
+	lintCommand.Flags().BoolP("details", "d", false, "Show full details of linting report")
+	lintCommand.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
+	lintCommand.Flags().BoolP("errors", "e", false, "Show errors only")
+	lintCommand.Flags().StringP("category", "c", "", "Show a single category of results")
+
+	rootCmd.AddCommand(lintCommand)
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
 

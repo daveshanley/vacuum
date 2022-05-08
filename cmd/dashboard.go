@@ -1,3 +1,6 @@
+// Copyright 2020-2022 Dave Shanley / Quobix
+// SPDX-License-Identifier: MIT
+
 package cmd
 
 import (
@@ -29,23 +32,40 @@ func GetDashboardCommand() *cobra.Command {
 			}
 
 			// read file.
-			b, ferr := ioutil.ReadFile(args[0])
+			specBytes, fileError := ioutil.ReadFile(args[0])
 
-			if ferr != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], ferr.Error())
+			if fileError != nil {
+				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
 				pterm.Println()
-				return ferr
+				return fileError
 			}
+
+			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 
 			// read spec and parse to dashboard.
-			rs := rulesets.BuildDefaultRuleSets()
+			defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
-			ex := motor.RuleSetExecution{
-				RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
-				Spec:    b,
+			// default is recommended rules, based on spectral (for now anyway)
+			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+			// if ruleset has been supplied, lets make sure it exists, then load it in
+			// and see if it's valid. If so - let's go!
+			if rulesetFlag != "" {
+				var rsErr error
+				selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rulesetFlag, defaultRuleSets)
+				if rsErr != nil {
+					return rsErr
+				}
 			}
 
-			result := motor.ApplyRulesToRuleSet(&ex)
+			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
+				len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
+			pterm.Println()
+
+			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+				RuleSet: selectedRS,
+				Spec:    specBytes,
+			})
 
 			resultSet := model.NewRuleResultSet(result.Results)
 			resultSet.SortResultsByLineNumber()
@@ -55,5 +75,4 @@ func GetDashboardCommand() *cobra.Command {
 			return nil
 		},
 	}
-
 }
