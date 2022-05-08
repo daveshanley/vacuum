@@ -51,8 +51,14 @@ func GetDashboardCommand() *cobra.Command {
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
-				var rsErr error
-				selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rulesetFlag, defaultRuleSets)
+
+				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+				if rsErr != nil {
+					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
+					pterm.Println()
+					return rsErr
+				}
+				selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
 				if rsErr != nil {
 					return rsErr
 				}

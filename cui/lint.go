@@ -74,7 +74,7 @@ func GetLintCommand() *cobra.Command {
 				if rsErr != nil {
 					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()
-					return ferr
+					return rsErr
 				}
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
 				if rsErr != nil {

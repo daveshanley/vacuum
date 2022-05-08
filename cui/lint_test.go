@@ -49,7 +49,7 @@ func TestGetLintCommand_RulesetMissing(t *testing.T) {
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := ioutil.ReadAll(b)
-	assert.NoError(t, cmdErr)
+	assert.Error(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
 }
@@ -415,6 +415,7 @@ func TestGetLintCommand_Details_NoCat_Snippets(t *testing.T) {
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"-x",
 		"-d",
 		"-s",
 		"-r",
