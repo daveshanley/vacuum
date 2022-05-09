@@ -38,7 +38,6 @@ func NewStatsChart(index *model.SpecIndex, info *model.SpecInfo) StatsChart {
 		fmt.Sprintf("Security Schemes: [%d](fg:green)", len(index.GetAllSecuritySchemes())),
 	}
 	bc.Title = "Spec Statistics"
-	//bc.Labels = []string{"R", "E", "S", "P", "L", "I", "O", "T"}
 	bc.SelectedRowStyle = ui.NewStyle(ui.ColorGreen)
 	bc.BorderBottom = false
 	bc.BorderLeft = false

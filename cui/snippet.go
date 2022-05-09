@@ -21,24 +21,23 @@ func NewSnippet() *Snippet {
 	}
 }
 
-func (self *Snippet) Draw(buf *Buffer) {
-	self.Block.Draw(buf)
+func (snip *Snippet) Draw(buf *Buffer) {
+	snip.Block.Draw(buf)
 
-	cells := ParseStyles(self.Text, self.TextStyle)
-	if self.WrapText {
-		cells = WrapCells(cells, uint(self.Inner.Dx()))
+	cells := ParseStyles(snip.Text, snip.TextStyle)
+	if snip.WrapText {
+		cells = WrapCells(cells, uint(snip.Inner.Dx()))
 	}
 
 	rows := SplitCells(cells, '\n')
-
 	for y, row := range rows {
-		if y+self.Inner.Min.Y >= self.Inner.Max.Y {
+		if y+snip.Inner.Min.Y >= snip.Inner.Max.Y {
 			break
 		}
-		row = TrimCells(row, self.Inner.Dx())
+		row = TrimCells(row, snip.Inner.Dx())
 		for _, cx := range BuildCellWithXArray(row) {
 			x, cell := cx.X, cx.Cell
-			buf.SetCell(cell, image.Pt(x, y).Add(self.Inner.Min))
+			buf.SetCell(cell, image.Pt(x, y).Add(snip.Inner.Min))
 		}
 	}
 }

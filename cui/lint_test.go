@@ -457,3 +457,31 @@ rules:
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
 }
+
+func TestGetLintCommand_Details_Snippets(t *testing.T) {
+
+	yaml := `extends: [[spectral:oas, off]]
+rules:
+  oas3-valid-schema-example: true`
+
+	tmp, _ := ioutil.TempFile("", "")
+	defer tmp.Close()
+	_, _ = io.WriteString(tmp, yaml)
+
+	cmd := GetLintCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"-s",
+		"-d",
+		"-r",
+		tmp.Name(),
+		"../model/test_files/burgershop.openapi.yaml",
+	})
+	cmdErr := cmd.Execute()
+	outBytes, err := ioutil.ReadAll(b)
+
+	assert.NoError(t, cmdErr)
+	assert.NoError(t, err)
+	assert.NotNil(t, outBytes)
+}
