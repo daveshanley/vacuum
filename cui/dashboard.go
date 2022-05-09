@@ -4,7 +4,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
-	"log"
 )
 
 // Dashboard represents the dashboard controlling container
@@ -79,11 +78,14 @@ func (dash *Dashboard) ComposeGauges() {
 }
 
 // Render will render the dashboard.
-func (dash *Dashboard) Render() {
+func (dash *Dashboard) Render() error {
 
-	if err := ui.Init(); err != nil {
-		log.Fatalf("failed to initialize CUI: %v", err)
-	}
+	ui.Init() // do we care?
+
+	//if err := ui.Init(); err != nil {
+	//	return err
+	//	log.Fatalf("failed to initialize CUI: %v", err)
+	//}
 
 	dash.run = true
 	defer ui.Close()
