@@ -81,6 +81,9 @@ func (t *TabbedView) setActiveRule() {
 }
 
 func (t *TabbedView) setActiveViolation() {
+	if t.violationList == nil {
+		return
+	}
 	t.dashboard.selectedViolationIndex = t.violationList.SelectedRow
 	if t.violationList.SelectedRow > len(t.currentViolationRules)-1 {
 		if len(t.currentViolationRules) <= 0 {
