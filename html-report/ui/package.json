@@ -9,8 +9,8 @@
   "scripts": {
     "start": "webpack --mode=development --watch",
     "build": "webpack --mode=production",
-    "lint": "eslint --ext .ts,.html . --ignore-path .gitignore && prettier \"**/*.ts\" --check --ignore-path .gitignore",
-    "format": "eslint --ext .ts,.html . --fix --ignore-path .gitignore && prettier \"**/*.ts\" --write --ignore-path .gitignore",
+    "lint": "eslint --ext .ts,.html . --ignore-path .eslintignore && prettier \"**/*.ts\" --check --ignore-path .eslintignore",
+    "format": "eslint --ext .ts,.html . --fix --ignore-path .eslintignore && prettier \"**/*.ts\" --write --ignore-path .eslintignore",
     "test": "tsc && wtr --coverage",
     "test:watch": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wtr --watch\""
   },
