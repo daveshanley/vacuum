@@ -218,35 +218,36 @@ func (dash *Dashboard) setGrid() {
 	dash.title = p
 
 	if !dash.helpViewActive {
-
-		dash.grid.Set(
-			ui.NewRow(0.07, p),
-			ui.NewRow(0.93,
-				// TODO: bring statistics back via a shortcut key combo, they take up too much space and don't add
-				// enough value out of the box.
-				//ui.NewCol(0.2,
-				//	dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
-				//	dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
-				//	//dash.healthGaugeItems[8],
-				//	ui.NewRow(0.3, NewStatsChart(dash.index, dash.info).bc),
-				//),
-				//ui.NewCol(0.01, nil),
-				ui.NewCol(1.0,
-					ui.NewRow(0.1, dash.tabs.tv),
-					ui.NewRow(0.9,
-						ui.NewCol(0.6,
-							*dash.tabs.descriptionGridItem,
-							*dash.tabs.rulesListGridItem,
-							*dash.tabs.violationListGridItem,
+		if dash.tabs.descriptionGridItem != nil {
+			dash.grid.Set(
+				ui.NewRow(0.07, p),
+				ui.NewRow(0.93,
+					// TODO: bring statistics back via a shortcut key combo, they take up too much space and don't add
+					// enough value out of the box.
+					//ui.NewCol(0.2,
+					//	dash.healthGaugeItems[0], dash.healthGaugeItems[1], dash.healthGaugeItems[2], dash.healthGaugeItems[3],
+					//	dash.healthGaugeItems[4], dash.healthGaugeItems[5], dash.healthGaugeItems[6], dash.healthGaugeItems[7],
+					//	//dash.healthGaugeItems[8],
+					//	ui.NewRow(0.3, NewStatsChart(dash.index, dash.info).bc),
+					//),
+					//ui.NewCol(0.01, nil),
+					ui.NewCol(1.0,
+						ui.NewRow(0.1, dash.tabs.tv),
+						ui.NewRow(0.9,
+							ui.NewCol(0.6,
+								*dash.tabs.descriptionGridItem,
+								*dash.tabs.rulesListGridItem,
+								*dash.tabs.violationListGridItem,
+							),
+							ui.NewCol(0.4,
+								*dash.tabs.violationViewGridItem,
+								*dash.tabs.violationSnippetGridItem,
+								*dash.tabs.violationFixGridItem),
 						),
-						ui.NewCol(0.4,
-							*dash.tabs.violationViewGridItem,
-							*dash.tabs.violationSnippetGridItem,
-							*dash.tabs.violationFixGridItem),
 					),
 				),
-			),
-		)
+			)
+		}
 	}
 
 	h := widgets.NewParagraph()
