@@ -39,9 +39,23 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         name: Checkout repository
-        
+
+      - name: Change directory into report UI
+        run: cd html-report/ui
+
       - name: Set up Node.js ⚙️
         uses: actions/setup-node@v2
 
       - name: Install dependencies 📦
         run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
+
+      - name: Lint
+        run: yarn lint
+
+
