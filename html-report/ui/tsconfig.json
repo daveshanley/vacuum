@@ -9,5 +9,8 @@
     "allowJs": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true
-  }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "./build",
+    "web-test-runner.config.mjs", "webpack.config.js"]
 }

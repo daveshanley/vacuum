@@ -1,3 +1,5 @@
-import 'terminal.css'
+import 'terminal.css';
+import '../css/report.css';
 
-console.log('wow, it actually works!')
+// import components
+import '../components/rule-category-navigation/rule-category-navigation.init';
