@@ -102,6 +102,11 @@ func TestDashboard_Render(t *testing.T) {
 	renderError := dash.Render()
 	if renderError == nil {
 		assert.Len(t, dash.categoryHealthGauge, 9)
+	} else {
+
+		// figure out what to do here once we have decoupled logic from rendering.
+		dash.generateViewsAfterEvent()
+		dash.setGrid()
 	}
 }
 
