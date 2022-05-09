@@ -100,7 +100,7 @@ func TestDashboard_Render(t *testing.T) {
 	// pipeline. This will result in a significant reduction in code being called during the
 	// test.
 	renderError := dash.Render()
-	if renderError != nil {
+	if renderError == nil {
 		assert.Len(t, dash.categoryHealthGauge, 9)
 	}
 }
