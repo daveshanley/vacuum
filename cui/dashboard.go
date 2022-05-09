@@ -254,10 +254,14 @@ func (dash *Dashboard) setGrid() {
 	h.Text = "This is the help screen, but it's not ready yet!"
 	h.TextStyle = ui.NewStyle(ui.ColorGreen, ui.ColorYellow)
 	h.BorderStyle = ui.NewStyle(ui.ColorBlack, ui.ColorBlack)
-	dash.helpGrid.Set(
-		ui.NewRow(1,
-			ui.NewCol(1.0, h),
-		))
+
+	// only render, if we can render.
+	if dash.tabs.descriptionGridItem != nil {
+		dash.helpGrid.Set(
+			ui.NewRow(1,
+				ui.NewCol(1.0, h),
+			))
+	}
 
 }
 
