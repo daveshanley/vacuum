@@ -80,12 +80,9 @@ func (dash *Dashboard) ComposeGauges() {
 // Render will render the dashboard.
 func (dash *Dashboard) Render() error {
 
-	ui.Init() // do we care?
-
-	//if err := ui.Init(); err != nil {
-	//	return err
-	//	log.Fatalf("failed to initialize CUI: %v", err)
-	//}
+	if err := ui.Init(); err != nil {
+		return err
+	}
 
 	dash.run = true
 	defer ui.Close()
