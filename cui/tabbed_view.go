@@ -110,7 +110,9 @@ func (t *TabbedView) generateDescriptionGridItem() {
 }
 
 func (t *TabbedView) generateRulesInCategory() {
-
+	if t.dashboard == nil {
+		return
+	}
 	results := t.dashboard.resultSet.GetRuleResultsForCategory(t.dashboard.selectedCategory.Id)
 	t.currentRuleResults = results
 	var rows []string
@@ -200,6 +202,9 @@ func (t *TabbedView) generateRuleViolations() {
 }
 
 func (t *TabbedView) generateRuleViolationView() {
+	if t.dashboard == nil {
+		return
+	}
 	if t.violationViewMessage == nil {
 		resultMessage := widgets.NewParagraph()
 		if t.dashboard.violationViewActive {
