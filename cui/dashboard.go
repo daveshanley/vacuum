@@ -30,6 +30,7 @@ type Dashboard struct {
 	selectedViolation           *model.RuleFunctionResult
 	violationViewActive         bool
 	helpViewActive              bool
+	uiEvents                    <-chan ui.Event
 }
 
 func CreateDashboard(resultSet *model.RuleResultSet, index *model.SpecIndex, info *model.SpecInfo) *Dashboard {
@@ -102,8 +103,6 @@ func (dash *Dashboard) Render() {
 	dash.categoryHealthGauge = gauges
 	dash.ruleCategories = cats
 
-	uiEvents := ui.PollEvents()
-
 	dash.grid = ui.NewGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
 	dash.grid.SetRect(0, 0, termWidth, termHeight)
@@ -118,7 +117,17 @@ func (dash *Dashboard) Render() {
 	//dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
 
 	ui.Render(dash.grid, dash.title)
+	dash.eventLoop(cats)
+}
 
+func (dash *Dashboard) eventLoop(cats []*model.RuleCategory) {
+	var uiEvents <-chan ui.Event
+	if dash.uiEvents == nil {
+		uiEvents = ui.PollEvents()
+		dash.uiEvents = uiEvents
+	} else {
+		uiEvents = dash.uiEvents
+	}
 	// TODO: clean this damn mess up.
 	for {
 		select {
@@ -136,41 +145,28 @@ func (dash *Dashboard) Render() {
 					dash.tabs.tv.FocusRight()
 				}
 				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-
-				dash.tabs.generateRuleViolations()
-				dash.tabs.setActiveViolation()
-				dash.tabs.generateRuleViolationView()
+				dash.generateViewsAfterEvent()
 
 			case "<Enter>":
 				dash.violationViewActive = true
-				dash.tabs.generateRuleViolations()
-				dash.tabs.setActiveViolation()
-				dash.tabs.generateRuleViolationView()
+				dash.generateViewsAfterEvent()
 
 			case "<Escape>":
 				dash.violationViewActive = false
 				dash.helpViewActive = false
-				dash.tabs.generateRuleViolations()
-				dash.tabs.setActiveViolation()
-				dash.tabs.generateRuleViolationView()
+				dash.generateViewsAfterEvent()
 
 			case "x", "<Right>":
 				dash.violationViewActive = false
 				dash.tabs.tv.FocusRight()
 				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-
-				dash.tabs.generateRuleViolations()
-				dash.tabs.setActiveViolation()
-				dash.tabs.generateRuleViolationView()
+				dash.generateViewsAfterEvent()
 
 			case "s", "<Left>":
 				dash.violationViewActive = false
 				dash.tabs.tv.FocusLeft()
 				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-
-				dash.tabs.generateRuleViolations()
-				dash.tabs.setActiveViolation()
-				dash.tabs.generateRuleViolationView()
+				dash.generateViewsAfterEvent()
 
 			case "z", "<Down>":
 				if dash.violationViewActive {
@@ -186,19 +182,19 @@ func (dash *Dashboard) Render() {
 				}
 			}
 			ui.Clear()
-			//dash.setGrid()
 			if dash.helpViewActive {
 				ui.Render(dash.helpGrid)
 			} else {
 				ui.Render(dash.grid, dash.title)
 			}
-
 		}
 	}
 }
 
-func (dash *Dashboard) renderActiveTab() {
-
+func (dash *Dashboard) generateViewsAfterEvent() {
+	dash.tabs.generateRuleViolations()
+	dash.tabs.setActiveViolation()
+	dash.tabs.generateRuleViolationView()
 }
 
 func (dash *Dashboard) setGrid() {
