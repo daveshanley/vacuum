@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Set up repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - uses: actions/setup-go@v2
         with:
           go-version: '^1.16'
@@ -37,20 +37,15 @@ jobs:
       matrix:
         node-version: [ 16.x, 18.x ]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         name: Checkout repository
 
-      - uses: borales/actions-yarn@v2.3.0
+      - name: setup node ${{matrix.node-version}}
+        uses: actions/setup-node@v3
         with:
-          cmd: cwd html-report/ui install # will run `yarn install` command
-      - uses: borales/actions-yarn@v2.3.0
-        with:
-          cmd: build
-      - uses: borales/actions-yarn@v2.3.0
-        with:
-          cmd: test
-      - uses: borales/actions-yarn@v2.3.0
-        with:
-          cmd: lint
+          node-version: ${{matrix.node-version}}
 
+      - name: Install yarn
+        run: yarn install
+        working-directory: html-report/ui
 
