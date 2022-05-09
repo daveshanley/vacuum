@@ -49,3 +49,15 @@ jobs:
         run: yarn install
         working-directory: html-report/ui
 
+      - name: Build
+        run: yarn build
+        working-directory: html-report/ui
+
+      - name: Test
+        run: yarn test
+        working-directory: html-report/ui
+
+      - name: Lint
+        run: yarn lint
+        working-directory: html-report/ui
+
