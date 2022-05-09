@@ -120,6 +120,7 @@ func (dash *Dashboard) Render() error {
 
 	ui.Render(dash.grid, dash.title)
 	dash.eventLoop(cats)
+	return nil
 }
 
 func (dash *Dashboard) eventLoop(cats []*model.RuleCategory) {
