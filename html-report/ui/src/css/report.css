@@ -1,0 +1,11 @@
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    word-spacing: -0.1rem;
+}
+
+hr.header {
+    margin: 10px 0 0;
+}

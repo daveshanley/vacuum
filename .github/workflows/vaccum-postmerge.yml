@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
 jobs:
   test:
     runs-on: ubuntu-20.04
@@ -30,3 +29,19 @@ jobs:
           flags: unittests
           fail_ci_if_error: true
           verbose: true
+
+
+  build-report-ui:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        node-version: [ 16.x, 18.x ]
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout repository
+        
+      - name: Set up Node.js ⚙️
+        uses: actions/setup-node@v2
+
+      - name: Install dependencies 📦
+        run: yarn install --frozen-lockfile
