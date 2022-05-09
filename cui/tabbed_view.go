@@ -158,7 +158,9 @@ func (t *TabbedView) generateRulesInCategory() {
 }
 
 func (t *TabbedView) generateRuleViolations() {
-
+	if t.currentRuleResults == nil {
+		return
+	}
 	results := t.currentRuleResults
 	var rows []string
 	var violationRules []*model.RuleFunctionResult
