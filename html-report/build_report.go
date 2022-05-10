@@ -21,11 +21,12 @@ var footer string
 var bundledJS string
 
 type HTMLReport interface {
-	GenerateReport() []byte
+	GenerateReport(testMode bool) []byte
 }
 
 type ReportData struct {
 	BundledJS string `json:"bundledJS"`
+	TestMode  bool   `json:"test"`
 }
 
 func NewHTMLReport() HTMLReport {
@@ -35,15 +36,13 @@ func NewHTMLReport() HTMLReport {
 type htmlReport struct {
 }
 
-func (html htmlReport) GenerateReport() []byte {
+func (html htmlReport) GenerateReport(test bool) []byte {
 
 	var byteBuf bytes.Buffer
 	t, _ := template.New("header").Parse(header)
 	t.New("footer").Parse(footer)
 	t.New("report").Parse(reportTemplate)
-
-	reportData := &ReportData{bundledJS}
-
+	reportData := &ReportData{BundledJS: bundledJS, TestMode: test}
 	t.ExecuteTemplate(&byteBuf, "report", reportData)
 
 	return byteBuf.Bytes()

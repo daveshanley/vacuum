@@ -9,13 +9,14 @@ import (
 func TestHtmlReport_GenerateReport(t *testing.T) {
 
 	report := NewHTMLReport()
-	assert.NotEmpty(t, report.GenerateReport())
+	assert.NotEmpty(t, report.GenerateReport(true))
 
 }
 
 func TestHtmlReport_GenerateReport_File(t *testing.T) {
 
 	report := NewHTMLReport()
-	ioutil.WriteFile("report.html", report.GenerateReport(), 0664)
+	generated := report.GenerateReport(false)
+	ioutil.WriteFile("report.html", generated, 0664)
 
 }

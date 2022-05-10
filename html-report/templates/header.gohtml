@@ -1,9 +1,13 @@
 {{ define "header"}}
     <head>
         <title>vacuum HTML Report"</title>
+        {{- if not .TestMode -}}
         <script>
             {{ .BundledJS }}
         </script>
+        {{- else -}}
+        <script src="http://localhost:8080/js/vacuum-report.js"></script>
+        {{- end -}}
         <style>
             :root {
                 --global-font-size: 17px;
