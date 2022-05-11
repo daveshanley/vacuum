@@ -18,11 +18,11 @@
 <hr class="header"/>
 <div class="container">
     <rule-category-navigation  id='rule-category-nav'>
-        {{ with .RuleCategories }}
-            {{ range .}}
-                <rule-category-button name='{{ .Id }}'>{{ .Name }}</rule-category-button>
-            {{ end}}
-        {{end}}
+    {{- with .RuleCategories -}}
+        {{- range . }}
+        <rule-category-button name='{{ .Id }}'>{{ .Name }}</rule-category-button>
+        {{- end }}
+    {{- end }}
     </rule-category-navigation>
 </div>
 
