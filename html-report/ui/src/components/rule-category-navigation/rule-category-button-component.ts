@@ -3,9 +3,7 @@ import { html } from 'lit';
 import { BaseCSS } from '../../ts/base.css';
 import { property } from 'lit/decorators.js';
 
-
 export class RuleCategoryButtonComponent extends BaseComponent {
-
   static get styles() {
     return [BaseCSS];
   }
@@ -16,10 +14,9 @@ export class RuleCategoryButtonComponent extends BaseComponent {
   name: string;
 
   disableCategory() {
-    this.active = false
-    this.requestUpdate()
+    this.active = false;
+    this.requestUpdate();
   }
-
 
   toggleCategory(fireEvent = true) {
     this.active = !this.active;
@@ -27,7 +24,7 @@ export class RuleCategoryButtonComponent extends BaseComponent {
       const options = {
         detail: this.name,
         bubbles: true,
-        composed: true
+        composed: true,
       };
       this.dispatchEvent(new CustomEvent('categoryActive', options));
     }
@@ -37,8 +34,9 @@ export class RuleCategoryButtonComponent extends BaseComponent {
   render() {
     return html`
       <button
-        class='${this.active ? 'btn btn-primary' : 'btn btn-default btn-ghost'}'
-        @click='${this.toggleCategory}'>
+        class="${this.active ? 'btn btn-primary' : 'btn btn-default btn-ghost'}"
+        @click="${this.toggleCategory}"
+      >
         <slot></slot>
       </button>
     `;

@@ -5,8 +5,6 @@ import { BaseComponent } from '../../ts/base-component';
 import { BaseCSS } from '../../ts/base.css';
 import { RuleCategoryButtonComponent } from './rule-category-button-component';
 
-
-
 export class RuleCategoryNavigationComponent extends BaseComponent {
   static get styles() {
     const rulesCss = css`
@@ -21,7 +19,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
 
   public setCategories(categories: Array<Category>) {
     this._listItems = categories;
-    this.requestUpdate()
+    this.requestUpdate();
   }
 
   toggleCompleted(item: Category) {
@@ -49,16 +47,16 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
 
   get _slottedChildren() {
     const slot = this.shadowRoot.querySelector('slot');
-    return slot.assignedElements({flatten: true});
+    return slot.assignedElements({ flatten: true });
   }
 
   _categoryActivatedListener(e: CustomEvent) {
     for (let x = 0; x < this._slottedChildren.length; x++) {
-      const child = this._slottedChildren[x] as RuleCategoryButtonComponent
-      if (child.name != e.detail){
-        child.disableCategory()
+      const child = this._slottedChildren[x] as RuleCategoryButtonComponent;
+      if (child.name != e.detail) {
+        child.disableCategory();
       }
     }
-    this.requestUpdate()
+    this.requestUpdate();
   }
 }
