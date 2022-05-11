@@ -16,7 +16,7 @@ func TestHtmlReport_GenerateReport(t *testing.T) {
 func TestHtmlReport_GenerateReport_File(t *testing.T) {
 
 	report := NewHTMLReport()
-	generated := report.GenerateReport(false)
+	generated := report.GenerateReport(true)
 	ioutil.WriteFile("report.html", generated, 0664)
 
 }

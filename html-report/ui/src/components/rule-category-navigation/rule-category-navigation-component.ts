@@ -1,11 +1,11 @@
 import { html, css } from 'lit';
 import { state } from 'lit/decorators.js';
+import { Category } from '../../model/rule-category';
 import { BaseComponent } from '../../ts/base-component';
+import { BaseCSS } from '../../ts/base.css';
+import { RuleCategoryButtonComponent } from './rule-category-button-component';
 
-export interface Category {
-  text: string;
-  active: boolean;
-}
+
 
 export class RuleCategoryNavigationComponent extends BaseComponent {
   static get styles() {
@@ -16,17 +16,12 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
         justify-content: center;
       }
     `;
-    if (document.styleSheets.length > 0) {
-      const { cssRules } = document.styleSheets[0];
-      // @ts-ignore
-      const globalStyle = css([
-        Object.values(cssRules)
-          .map(rule => rule.cssText)
-          .join('\n'),
-      ]);
-      return [globalStyle, rulesCss];
-    }
-    return [rulesCss];
+    return [BaseCSS, rulesCss];
+  }
+
+  public setCategories(categories: Array<Category>) {
+    this._listItems = categories;
+    this.requestUpdate()
   }
 
   toggleCompleted(item: Category) {
@@ -38,30 +33,32 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   }
 
   @state()
-  private _listItems: Array<Category> = [
-    { text: 'Category 1', active: true },
-    { text: 'Category 2', active: false },
-    { text: 'Category 3', active: false },
-  ];
+  private _listItems: Array<Category> = [];
 
   render() {
     return html`
       <div class="terminal-nav">
         <nav class="terminal-menu">
-          <ul>
-            ${this._listItems.map(
-              item => html` <li>
-                <button
-                  class=${item.active ? 'menu-item active' : 'menu-item'}
-                  @click=${() => this.toggleCompleted(item)}
-                >
-                  ${item.text}
-                </button>
-              </li>`
-            )}
+          <ul @categoryActive=${this._categoryActivatedListener}>
+            <slot></slot>
           </ul>
         </nav>
       </div>
     `;
+  }
+
+  get _slottedChildren() {
+    const slot = this.shadowRoot.querySelector('slot');
+    return slot.assignedElements({flatten: true});
+  }
+
+  _categoryActivatedListener(e: CustomEvent) {
+    for (let x = 0; x < this._slottedChildren.length; x++) {
+      const child = this._slottedChildren[x] as RuleCategoryButtonComponent
+      if (child.name != e.detail){
+        child.disableCategory()
+      }
+    }
+    this.requestUpdate()
   }
 }

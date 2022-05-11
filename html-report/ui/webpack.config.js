@@ -2,7 +2,10 @@
 const path = require('path');
 
 module.exports = {
-  entry: './src/ts/vacuum-report.ts',
+  entry: {
+    vacuumReport: './src/ts/vacuum-report.ts',
+    hydrate: './src/ts/hydrate.ts'
+  },
   devServer: {
     static: './build/static'
   },
@@ -30,6 +33,6 @@ module.exports = {
   // },
   output: {
     path: path.resolve('build', 'static', 'js'),
-    filename: 'vacuum-report.js',
+    filename: '[name].js',
   }
 };
