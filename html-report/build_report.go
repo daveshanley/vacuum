@@ -48,10 +48,22 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	t, _ := template.New("header").Parse(header)
 	t.New("footer").Parse(footer)
 	t.New("report").Parse(reportTemplate)
+
+	// we need a new category here 'all'
+	cats := model.RuleCategoriesOrdered
+	allCat := model.RuleCategory{
+		Id:          "all",
+		Name:        "All Categories",
+		Description: "View everything from all categories",
+	}
+
+	n := []*model.RuleCategory{&allCat}
+	cats = append(n, cats...)
+
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
-		RuleCategories: model.RuleCategoriesOrdered,
+		RuleCategories: cats,
 		TestMode:       test,
 	}
 	t.ExecuteTemplate(&byteBuf, "report", reportData)

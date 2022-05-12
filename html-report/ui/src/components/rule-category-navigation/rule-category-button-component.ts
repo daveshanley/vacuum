@@ -13,8 +13,16 @@ export class RuleCategoryButtonComponent extends BaseComponent {
   @property()
   name: string;
 
+  @property()
+  default: boolean;
+
   disableCategory() {
     this.active = false;
+    this.requestUpdate();
+  }
+
+  enableCategory() {
+    this.active = true;
     this.requestUpdate();
   }
 

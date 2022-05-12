@@ -8,19 +8,14 @@
                 <a href="https://quobix.com/vacuum" class="no-style">vacuum</a>
             </div>
         </header>
-        <nav class="terminal-menu">
-            <ul vocab="https://schema.org/" typeof="BreadcrumbList">
-                <li property="itemListElement" typeof="ListItem">The world's fastest OpenAPI parser</li>
-            </ul>
-        </nav>
     </section>
 </div>
 <hr class="header"/>
 <div class="container">
-    <rule-category-navigation  id='rule-category-nav'>
+    <rule-category-navigation  id='rule-category-nav' default='all'>
     {{- with .RuleCategories -}}
         {{- range . }}
-        <rule-category-button name='{{ .Id }}'>{{ .Name }}</rule-category-button>
+        <rule-category-button name="{{ .Id }}">{{ .Name }}</rule-category-button>
         {{- end }}
     {{- end }}
     </rule-category-navigation>
@@ -34,6 +29,9 @@
 <script src="http://localhost:8080/js/hydrate.js"></script>
 {{- end -}}
 </body>
+<div class="container">
 {{- template "footer" . -}}
+</div>
 </html>
+
 

@@ -12,8 +12,8 @@ describe('RuleCategoryNavigationComponent', () => {
     );
   });
 
-  it('renders a h1', () => {
-    const ul = element.shadowRoot!.querySelector('ul')!;
+  it('renders nav', () => {
+    const ul = element.shadowRoot!.querySelector('nav')!;
     expect(ul).to.exist;
   });
 

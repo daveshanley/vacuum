@@ -1,5 +1,5 @@
 import { html, css } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { Category } from '../../model/rule-category';
 import { BaseComponent } from '../../ts/base-component';
 import { BaseCSS } from '../../ts/base.css';
@@ -7,54 +7,70 @@ import { RuleCategoryButtonComponent } from './rule-category-button-component';
 
 export class RuleCategoryNavigationComponent extends BaseComponent {
   static get styles() {
-    const rulesCss = css`
-      .terminal-menu ul {
+    const buttonCss = css`
+      .category-buttons {
+        margin-top: 20px;
+        display: flex;
         flex-direction: row;
+        flex-wrap: wrap;
         place-items: center stretch;
         justify-content: center;
       }
     `;
-    return [BaseCSS, rulesCss];
+
+    return [BaseCSS, buttonCss];
   }
 
-  public setCategories(categories: Array<Category>) {
-    this._listItems = categories;
-    this.requestUpdate();
-  }
+  private _currentlySelected: string;
 
-  toggleCompleted(item: Category) {
-    for (let x = 0; x < this._listItems.length; x++) {
-      this._listItems[x].active = false;
-    }
-    item.active = !item.active;
-    this.requestUpdate();
-  }
+  @property()
+  default: string;
 
   @state()
   private _listItems: Array<Category> = [];
 
   render() {
+    setTimeout(() => this._checkForDefault());
     return html`
-      <div class="terminal-nav">
-        <nav class="terminal-menu">
-          <ul @categoryActive=${this._categoryActivatedListener}>
-            <slot></slot>
-          </ul>
-        </nav>
-      </div>
+      <nav
+        class="category-buttons"
+        @categoryActive=${this._categoryActivatedListener}
+      >
+        <slot></slot>
+      </nav>
     `;
+  }
+
+  _checkForDefault() {
+    if (!this._currentlySelected) {
+      const options = {
+        detail: this.default,
+      };
+      this._categoryActivatedListener(
+        new CustomEvent('categoryActive', options)
+      );
+    }
   }
 
   get _slottedChildren() {
     const slot = this.shadowRoot.querySelector('slot');
-    return slot.assignedElements({ flatten: true });
+    if (slot) {
+      return slot.assignedElements({ flatten: true });
+    }
+    return;
   }
 
   _categoryActivatedListener(e: CustomEvent) {
+    this._currentlySelected = e.detail;
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryButtonComponent;
       if (child.name != e.detail) {
         child.disableCategory();
+      } else {
+        // if it's not already been set, set it (in case of default).
+        if (!child.active) {
+          child.enableCategory();
+        }
       }
     }
     this.requestUpdate();
