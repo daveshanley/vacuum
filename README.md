@@ -56,6 +56,28 @@ go build vacuum.go
 ```
 ./vacuum lint <your-openapi-spec.yaml>
 ```
+
+## Running vacuum via Docker
+
+vacuum is available as a container, you can pull the image from
+[Docker Hub](https://hub.docker.com/repository/docker/dshanley/vacuum/general)
+
+```
+docker pull dshanley/vacuum
+```
+
+or you can pull it from [Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
+
+```
+docker pull ghcr.io/daveshanley/vacuum:latest
+```
+
+To run, just add `docker dshanley/vacuum` as your command, like so
+
+```
+docker dshanley/vacuum lint <your-openapi-spec.yaml>
+```
+
 ---
 > 👉 **Please note, the flags and commands below will change as the experience is refined.** 👈
 ---

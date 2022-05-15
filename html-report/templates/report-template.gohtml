@@ -12,13 +12,22 @@
 </div>
 <hr class="header"/>
 <div class="container">
-    <rule-category-navigation  id='rule-category-nav' default='all'>
-    {{- with .RuleCategories -}}
-        {{- range . }}
-        <rule-category-button name="{{ .Id }}">{{ .Name }}</rule-category-button>
+    <html-report>
+        <rule-category-navigation slot="navigation" id='rule-category-nav' default="all">
+        {{- with .RuleCategories -}}
+            {{- range . }}
+            <rule-category-button name="{{ .Id }}">{{ .Name }}</rule-category-button>
+            {{- end }}
         {{- end }}
-    {{- end }}
-    </rule-category-navigation>
+        </rule-category-navigation>
+        {{- with .RuleCategories -}}
+        {{- range . }}
+        <category-report slot="reports" id="{{ .Id }}">
+            {{ .Description }}
+        </category-report>
+        {{- end }}
+        {{- end }}
+    </html-report>
 </div>
 
 {{- if not .TestMode -}}

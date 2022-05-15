@@ -1,6 +1,5 @@
 import { html, css } from 'lit';
-import { property, state } from 'lit/decorators.js';
-import { Category } from '../../model/rule-category';
+import { property } from 'lit/decorators.js';
 import { BaseComponent } from '../../ts/base-component';
 import { BaseCSS } from '../../ts/base.css';
 import { RuleCategoryButtonComponent } from './rule-category-button-component';
@@ -26,9 +25,6 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   @property()
   default: string;
 
-  @state()
-  private _listItems: Array<Category> = [];
-
   render() {
     setTimeout(() => this._checkForDefault());
     return html`
@@ -52,14 +48,6 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
     }
   }
 
-  get _slottedChildren() {
-    const slot = this.shadowRoot.querySelector('slot');
-    if (slot) {
-      return slot.assignedElements({ flatten: true });
-    }
-    return;
-  }
-
   _categoryActivatedListener(e: CustomEvent) {
     this._currentlySelected = e.detail;
     for (let x = 0; x < this._slottedChildren.length; x++) {
@@ -73,6 +61,14 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
         }
       }
     }
-    this.requestUpdate();
+
+    // options to pass up to html-report.
+    const options = {
+      detail: e.detail,
+      bubbles: true,
+      composed: true,
+    };
+    // fire a category changed event up to our html-report component.
+    this.dispatchEvent(new CustomEvent('categoryActivated', options));
   }
 }
