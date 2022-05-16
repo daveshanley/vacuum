@@ -20,5 +20,9 @@ hr.header {
 
 category-report {
     display: none;
-    margin-top: 20px;
+}
+
+.category-description {
+    min-height: 200px;
+
 }

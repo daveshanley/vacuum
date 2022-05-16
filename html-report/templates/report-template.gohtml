@@ -1,4 +1,5 @@
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="sl-theme-dark">
 {{- template "header" . -}}
 <body class="terminal">
 <div class="container">
@@ -11,8 +12,30 @@
     </section>
 </div>
 <hr class="header"/>
+
+
 <div class="container">
+
+
+    <sl-tab-group>
+        <sl-tab slot="nav" panel="general">General</sl-tab>
+        <sl-tab slot="nav" panel="custom">Custom</sl-tab>
+        <sl-tab slot="nav" panel="advanced">Advanced</sl-tab>
+        <sl-tab slot="nav" panel="disabled" disabled>Disabled</sl-tab>
+
+        <sl-tab-panel name="general">This is the general tab panel.</sl-tab-panel>
+        <sl-tab-panel name="custom">This is the custom tab panel.</sl-tab-panel>
+        <sl-tab-panel name="advanced">This is the advanced tab panel.</sl-tab-panel>
+        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>
+    </sl-tab-group>
+
+    <category-piechart>
+        nice.
+    </category-piechart>
+
     <html-report>
+
+
         <rule-category-navigation slot="navigation" id='rule-category-nav' default="all">
         {{- with .RuleCategories -}}
             {{- range . }}
@@ -23,7 +46,10 @@
         {{- with .RuleCategories -}}
         {{- range . }}
         <category-report slot="reports" id="{{ .Id }}">
-            {{ .Description }}
+            <section class="category-description">
+            <h2>{{ .Name }} Description</h2>
+                {{ .Description }}
+            </section>
         </category-report>
         {{- end }}
         {{- end }}

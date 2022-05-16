@@ -24,6 +24,9 @@ var bundledJS string
 //go:embed ui/build/static/js/hydrate.js
 var hydrateJS string
 
+//go:embed ui/build/static/js/shoelace.js
+var shoelaceJS string
+
 type HTMLReport interface {
 	GenerateReport(testMode bool) []byte
 }
@@ -31,6 +34,7 @@ type HTMLReport interface {
 type ReportData struct {
 	BundledJS      string                `json:"bundledJS"`
 	HydrateJS      string                `json:"hydrateJS"`
+	ShoelaceJS     string                `json:"shoelaceJS"`
 	TestMode       bool                  `json:"test"`
 	RuleCategories []*model.RuleCategory `json:"ruleCategories"`
 }
@@ -63,6 +67,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
+		ShoelaceJS:     shoelaceJS,
 		RuleCategories: cats,
 		TestMode:       test,
 	}
