@@ -6,6 +6,7 @@ import (
 	"bytes"
 	_ "embed"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
 	"text/template"
 )
 
@@ -39,11 +40,19 @@ type ReportData struct {
 	RuleCategories []*model.RuleCategory `json:"ruleCategories"`
 }
 
-func NewHTMLReport() HTMLReport {
-	return &htmlReport{}
+func NewHTMLReport(
+	index *model.SpecIndex,
+	info *model.SpecInfo,
+	results *model.RuleResultSet,
+	stats *reports.ReportStatistics) HTMLReport {
+	return &htmlReport{index, info, results, stats}
 }
 
 type htmlReport struct {
+	index   *model.SpecIndex
+	info    *model.SpecInfo
+	results *model.RuleResultSet
+	stats   *reports.ReportStatistics
 }
 
 func (html htmlReport) GenerateReport(test bool) []byte {

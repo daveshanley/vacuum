@@ -50,6 +50,7 @@ func init() {
 
 	rootCmd.AddCommand(lintCommand)
 	rootCmd.AddCommand(GetSpectralReportCommand())
+	rootCmd.AddCommand(GetHTMLReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
 
 }
