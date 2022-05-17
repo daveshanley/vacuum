@@ -2,6 +2,7 @@ package model
 
 // Report is a Spectral compatible Report structure.
 type Report struct {
+	// TODO: rename this to something specific to Spectral, this will change over time.
 	Code     string   `json:"code,omitempty"`
 	Path     []string `json:"path,omitempty"`
 	Message  string   `json:"message,omitempty"`

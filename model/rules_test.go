@@ -183,11 +183,18 @@ func TestRuleResultSet_CheckCategoryCounts(t *testing.T) {
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 3}}
 
-	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3})
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 3}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
 
 	assert.Len(t, results.GetErrorsByRuleCategory(CategoryInfo), 1)
 	assert.Len(t, results.GetWarningsByRuleCategory(CategoryInfo), 1)
 	assert.Len(t, results.GetInfoByRuleCategory(CategoryInfo), 1)
+	assert.Len(t, results.GetHintByRuleCategory(CategoryInfo), 1)
 }
 
 func TestRuleResultSet_GenerateSpectralReport(t *testing.T) {

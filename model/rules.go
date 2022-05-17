@@ -330,13 +330,26 @@ func (rr *RuleResultSet) GetWarningsByRuleCategory(category string) []*RuleFunct
 	return filtered
 }
 
-// GetInfoByRuleCategory will return all results with a warning level severity from rule category.
+// GetInfoByRuleCategory will return all results with an info level severity from rule category.
 func (rr *RuleResultSet) GetInfoByRuleCategory(category string) []*RuleFunctionResult {
 	var filtered []*RuleFunctionResult
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
 		switch cat.Rule.Severity {
 		case severityInfo:
+			filtered = append(filtered, cat)
+		}
+	}
+	return filtered
+}
+
+// GetHintByRuleCategory will return all results with hint level severity from rule category.
+func (rr *RuleResultSet) GetHintByRuleCategory(category string) []*RuleFunctionResult {
+	var filtered []*RuleFunctionResult
+	allCats := rr.GetResultsByRuleCategory(category)
+	for _, cat := range allCats {
+		switch cat.Rule.Severity {
+		case severityHint:
 			filtered = append(filtered, cat)
 		}
 	}
