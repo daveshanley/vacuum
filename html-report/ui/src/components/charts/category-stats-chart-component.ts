@@ -76,7 +76,6 @@ export class CategoryStatsChartComponent extends LitElement {
   }
 
   public setChartData(data: ReportStatistics) {
-
     const chartData = this._buildChartDataFromReport(data);
 
     if (!this.chart) {
