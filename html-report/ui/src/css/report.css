@@ -22,6 +22,15 @@ category-report {
     display: none;
 }
 
+category-piechart {
+    height: 300px;
+    width: 300px;
+}
+
+sl-tab-group {
+    min-height: 100px;
+}
+
 .category-description {
     min-height: 200px;
 

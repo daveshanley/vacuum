@@ -5,6 +5,7 @@ package html_report
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"text/template"
@@ -33,11 +34,12 @@ type HTMLReport interface {
 }
 
 type ReportData struct {
-	BundledJS      string                `json:"bundledJS"`
-	HydrateJS      string                `json:"hydrateJS"`
-	ShoelaceJS     string                `json:"shoelaceJS"`
-	TestMode       bool                  `json:"test"`
-	RuleCategories []*model.RuleCategory `json:"ruleCategories"`
+	BundledJS      string                    `json:"bundledJS"`
+	HydrateJS      string                    `json:"hydrateJS"`
+	ShoelaceJS     string                    `json:"shoelaceJS"`
+	Statistics     *reports.ReportStatistics `json:"reportStatistics"`
+	TestMode       bool                      `json:"test"`
+	RuleCategories []*model.RuleCategory     `json:"ruleCategories"`
 }
 
 func NewHTMLReport(
@@ -57,8 +59,17 @@ type htmlReport struct {
 
 func (html htmlReport) GenerateReport(test bool) []byte {
 
+	tmpl := template.New("header")
+	templateFuncs := template.FuncMap{
+		"renderJSON": func(data interface{}) string {
+			b, _ := json.Marshal(data)
+			return string(b)
+		},
+	}
+	tmpl.Funcs(templateFuncs)
+
 	var byteBuf bytes.Buffer
-	t, _ := template.New("header").Parse(header)
+	t, _ := tmpl.Parse(header)
 	t.New("footer").Parse(footer)
 	t.New("report").Parse(reportTemplate)
 
@@ -77,6 +88,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
 		ShoelaceJS:     shoelaceJS,
+		Statistics:     html.stats,
 		RuleCategories: cats,
 		TestMode:       test,
 	}

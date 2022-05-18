@@ -1,3 +1,3 @@
-import { CategoryPiechartComponent } from './category-piechart-component';
+import { CategoryStatsChartComponent } from './category-stats-chart-component';
 
-customElements.define('category-piechart', CategoryPiechartComponent);
+customElements.define('category-piechart', CategoryStatsChartComponent);

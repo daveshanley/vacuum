@@ -23,10 +23,11 @@ type ReportStatistics struct {
 
 // CategoryStatistic represents the number of issues for a particular category
 type CategoryStatistic struct {
-	CategoryId string `json:"categoryId"`
-	NumIssues  int    `json:"numIssues"`
-	Warnings   int    `json:"warnings"`
-	Errors     int    `json:"errors"`
-	Info       int    `json:"info"`
-	Hints      int    `json:"hints"`
+	CategoryName string `json:"categoryName"`
+	CategoryId   string `json:"categoryId"`
+	NumIssues    int    `json:"numIssues"`
+	Warnings     int    `json:"warnings"`
+	Errors       int    `json:"errors"`
+	Info         int    `json:"info"`
+	Hints        int    `json:"hints"`
 }

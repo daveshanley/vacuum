@@ -41,12 +41,9 @@
                 --terminal-green: #00FF00FF;
                 --hrcolor: #3d3d3d;
                 --code-border: #525252;
-
-
                 --sl-font-sans: var(--font-stack);
                 --sl-font-mono: var(--font-stack);
                 --sl-font-size-small: 16px;
-
                 --sl-color-primary-50: rgb(243 251 255);
                 --sl-color-primary-100: rgb(215 240 255);
                 --sl-color-primary-200: rgb(184 228 255);
@@ -58,8 +55,11 @@
                 --sl-color-primary-800: rgb(47 94 122);
                 --sl-color-primary-900: rgb(33 67 87);
                 --sl-color-primary-950: rgb(20 41 53);
-
             }
         </style>
+        <script>
+            // statistics
+            const statisticsData = {{ renderJSON .Statistics }}
+        </script>
     </head>
 {{ end}}

@@ -17,21 +17,31 @@
 <div class="container">
 
 
-    <sl-tab-group>
-        <sl-tab slot="nav" panel="general">General</sl-tab>
-        <sl-tab slot="nav" panel="custom">Custom</sl-tab>
-        <sl-tab slot="nav" panel="advanced">Advanced</sl-tab>
-        <sl-tab slot="nav" panel="disabled" disabled>Disabled</sl-tab>
-
-        <sl-tab-panel name="general">This is the general tab panel.</sl-tab-panel>
-        <sl-tab-panel name="custom">This is the custom tab panel.</sl-tab-panel>
-        <sl-tab-panel name="advanced">This is the advanced tab panel.</sl-tab-panel>
-        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>
-    </sl-tab-group>
+{{/*    <sl-tab-group>*/}}
+{{/*        <sl-tab slot="nav" panel="general">General</sl-tab>*/}}
+{{/*        <sl-tab slot="nav" panel="custom">Custom</sl-tab>*/}}
+{{/*        <sl-tab slot="nav" panel="advanced">Advanced</sl-tab>*/}}
+{{/*        <sl-tab slot="nav" panel="disabled" disabled>Disabled</sl-tab>*/}}
+{{/*        <sl-tab-panel name="general">This is the general tab panel.</sl-tab-panel>*/}}
+{{/*        <sl-tab-panel name="custom">This is the custom tab panel.</sl-tab-panel>*/}}
+{{/*        <sl-tab-panel name="advanced">This is the advanced tab panel.</sl-tab-panel>*/}}
+{{/*        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>*/}}
+{{/*    </sl-tab-group>*/}}
 
     <category-piechart>
         nice.
     </category-piechart>
+    <script>
+        // chart needs data
+        const catChart = document.querySelector('category-piechart')
+        if (catChart) {
+          catChart.setChartData(statisticsData);
+        } else {
+          alert('Something went really wrong.');
+        }
+    </script>
+
+
 
     <html-report>
 

@@ -16,12 +16,13 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 	for _, cat := range model.RuleCategoriesOrdered {
 
 		catStats = append(catStats, &reports.CategoryStatistic{
-			CategoryId: cat.Id,
-			NumIssues:  len(results.GetResultsByRuleCategory(cat.Id)),
-			Warnings:   len(results.GetWarningsByRuleCategory(cat.Id)),
-			Errors:     len(results.GetErrorsByRuleCategory(cat.Id)),
-			Info:       len(results.GetInfoByRuleCategory(cat.Id)),
-			Hints:      len(results.GetHintByRuleCategory(cat.Id)),
+			CategoryName: cat.Name,
+			CategoryId:   cat.Id,
+			NumIssues:    len(results.GetResultsByRuleCategory(cat.Id)),
+			Warnings:     len(results.GetWarningsByRuleCategory(cat.Id)),
+			Errors:       len(results.GetErrorsByRuleCategory(cat.Id)),
+			Info:         len(results.GetInfoByRuleCategory(cat.Id)),
+			Hints:        len(results.GetHintByRuleCategory(cat.Id)),
 		})
 	}
 

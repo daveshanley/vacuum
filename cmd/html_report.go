@@ -103,6 +103,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// generate html report
 			report := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats)
 			generatedBytes := report.GenerateReport(false)
+			//generatedBytes := report.GenerateReport(true)
 
 			err := ioutil.WriteFile(reportOutput, generatedBytes, 0664)
 
