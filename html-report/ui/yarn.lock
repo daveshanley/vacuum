@@ -3417,10 +3417,10 @@ lit-html@^2.0.0, lit-html@^2.2.0:
   dependencies:
     "@types/trusted-types" "^2.0.2"
 
-lit@^2.0.0, lit@^2.1.4, lit@^2.2.3:
-  version "2.2.3"
-  resolved "https://registry.yarnpkg.com/lit/-/lit-2.2.3.tgz#77203d8f247de7c0d4955817f89e40c927349b9c"
-  integrity sha512-5/v+r9dH3Pw/o0rhp/qYk3ERvOUclNF31bWb0FiW6MPgwdQIr+/KCt/p3zcd8aPl8lIGnxdGrVcZA+gWS6oFOQ==
+lit@^2.0.0, lit@^2.1.4, lit@^2.2.4:
+  version "2.2.4"
+  resolved "https://registry.yarnpkg.com/lit/-/lit-2.2.4.tgz#4907d071a427620b83653e39a1664dbdacbfb982"
+  integrity sha512-O7t+uizo1/Br0y+5RaWRzPkd4MsoL4XY2eq7n2wrESyCCjeagq4ERZKsyKX40jbmsz4bAAs7/0qNRX11TuXzoA==
   dependencies:
     "@lit/reactive-element" "^1.3.0"
     lit-element "^3.2.0"
