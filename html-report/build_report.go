@@ -29,6 +29,9 @@ var hydrateJS string
 //go:embed ui/build/static/js/shoelace.js
 var shoelaceJS string
 
+//go:embed ui/src/css/report.css
+var reportCSS string
+
 type HTMLReport interface {
 	GenerateReport(testMode bool) []byte
 }
@@ -37,6 +40,7 @@ type ReportData struct {
 	BundledJS      string                    `json:"bundledJS"`
 	HydrateJS      string                    `json:"hydrateJS"`
 	ShoelaceJS     string                    `json:"shoelaceJS"`
+	ReportCSS      string                    `json:"reportCSS"`
 	Statistics     *reports.ReportStatistics `json:"reportStatistics"`
 	TestMode       bool                      `json:"test"`
 	RuleCategories []*model.RuleCategory     `json:"ruleCategories"`
@@ -88,6 +92,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
 		ShoelaceJS:     shoelaceJS,
+		ReportCSS:      reportCSS,
 		Statistics:     html.stats,
 		RuleCategories: cats,
 		TestMode:       test,

@@ -22,16 +22,79 @@ category-report {
     display: none;
 }
 
-category-piechart {
-    height: 300px;
-    width: 300px;
-}
 
 sl-tab-group {
     min-height: 100px;
+}
+
+category-piechart {
+    margin-right: 20px;
 }
 
 .category-description {
     min-height: 200px;
 
 }
+
+.report-statistics {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 40px;
+}
+
+.report-statistics sl-card {
+    max-width: 300px;
+}
+
+.report-statistics table td, table th {
+    vertical-align: top;
+    border: none;
+    line-height: var(--global-line-height);
+    padding: calc(var(--global-space)/ 2);
+    font-size: 0.9em;
+}
+
+
+
+.report-statistics table {
+
+    display: table;
+    border-collapse: collapse !important;
+    box-sizing: border-box;
+    text-indent: initial;
+    border-spacing: 0;
+    border-color: transparent!important;
+
+
+
+
+
+    max-width: 200px;
+    width: fit-content;
+    margin: 0 0 0 10px;
+    font-size: var(--sl-font-size-small);
+}
+
+.report-statistics table,tbody,td,tr {
+
+}
+
+.report-statistics table td {
+    font-size: var(--sl-font-size-x-small);
+}
+
+
+.report-statistics table tbody td:first-child {
+    text-align: right;
+}
+
+.quality {
+    color: var(--sl-color-success-500);
+    font-size: var(--sl-font-size-2x-large);
+    text-align: center;
+    padding: 20px;
+}
+
+
+

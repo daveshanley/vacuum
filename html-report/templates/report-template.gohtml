@@ -28,9 +28,92 @@
 {{/*        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>*/}}
 {{/*    </sl-tab-group>*/}}
 
-    <category-piechart>
-        nice.
-    </category-piechart>
+
+
+    <section class="report-statistics">
+        <sl-card class="card-header">
+            <div slot="header">
+                Report Quality
+            </div>
+
+            <div class="quality">
+                88%
+            </div>
+        </sl-card>
+
+        <category-piechart>
+            nice.
+        </category-piechart>
+
+        <table>
+            <tr>
+                <td>Filesize:</td>
+                <td>{{ .Statistics.FilesizeKB }}KB</td>
+            </tr>
+            <tr>
+                <td>Type:</td>
+                <td>{{ .Statistics.SpecType }}</td>
+            </tr>
+            <tr>
+                <td>Format:</td>
+                <td>{{ .Statistics.SpecFormat }}</td>
+            </tr>
+            <tr>
+                <td>Version:</td>
+                <td>{{ .Statistics.Version }}</td>
+            </tr>
+            <tr>
+                <td>References:</td>
+                <td>{{ .Statistics.References }}</td>
+            </tr>
+            <tr>
+                <td>External Docs:</td>
+                <td>{{ .Statistics.ExternalDocs }}</td>
+            </tr>
+            <tr>
+                <td>Parameters:</td>
+                <td>{{ .Statistics.Parameters }}</td>
+            </tr>
+        </table>
+
+        <table>
+            <tr>
+                <td>Links:</td>
+                <td>{{ .Statistics.Links }}</td>
+            </tr>
+            <tr>
+                <td>Paths:</td>
+                <td>{{ .Statistics.Paths }}</td>
+            </tr>
+            <tr>
+                <td>Operations:</td>
+                <td>{{ .Statistics.Operations }}</td>
+            </tr>
+            <tr>
+                <td>Tags:</td>
+                <td>{{ .Statistics.Tags }}</td>
+            </tr>
+            <tr>
+                <td>Examples:</td>
+                <td>{{ .Statistics.Examples }}</td>
+            </tr>
+            <tr>
+                <td>Enums:</td>
+                <td>{{ .Statistics.Enums }}</td>
+            </tr>
+            <tr>
+                <td>Security Defs:</td>
+                <td>{{ .Statistics.Security }}</td>
+            </tr>
+        </table>
+
+    </section>
+
+
+
+
+
+
     <script>
         // chart needs data
         const catChart = document.querySelector('category-piechart')

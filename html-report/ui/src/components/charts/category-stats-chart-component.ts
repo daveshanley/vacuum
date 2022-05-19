@@ -116,12 +116,7 @@ export class CategoryStatsChartComponent extends LitElement {
       <style>
         .chart-size {
           position: relative;
-          width: 100%;
-          height: 300px;
-        }
-        canvas {
-          width: 100%;
-          height: 200px;
+          width: 450px;
         }
       </style>
       <div class="chart-size">
