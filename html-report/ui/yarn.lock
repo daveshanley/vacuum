@@ -215,17 +215,17 @@
     lit "^2.0.0"
     lit-html "^2.0.0"
 
-"@open-wc/testing@^3.1.4":
-  version "3.1.4"
-  resolved "https://registry.yarnpkg.com/@open-wc/testing/-/testing-3.1.4.tgz#990d15686ead49ce7349ea0ebbf17a81e6452609"
-  integrity sha512-z2iuPmcSq1du5ufZ7uDkNp56fVi0iFeCrWOi7EAf7Xd7iUXhfzQ56qoVYhnaeqxLws96bEvd/c6wX0AoGja9PA==
+"@open-wc/testing@^3.1.5":
+  version "3.1.5"
+  resolved "https://registry.yarnpkg.com/@open-wc/testing/-/testing-3.1.5.tgz#40cad80a9a165495aecc05428ab2955a3d2c1ca0"
+  integrity sha512-EiIt/x7rrEs6tQiMcUMjypBNEbu+SVMOOh/s3AIaYisJuBwx9mpRM6Q0OV9tRiaLmgmnQk6Op2yXopjua2HF1g==
   dependencies:
     "@esm-bundle/chai" "^4.3.4-fix.0"
     "@open-wc/chai-dom-equals" "^0.12.36"
     "@open-wc/semantic-dom-diff" "^0.19.6"
     "@open-wc/testing-helpers" "^2.1.2"
     "@types/chai" "^4.2.11"
-    "@types/chai-dom" "^0.0.9"
+    "@types/chai-dom" "^0.0.12"
     "@types/sinon-chai" "^3.2.3"
     chai-a11y-axe "^1.3.2"
 
@@ -300,10 +300,10 @@
   dependencies:
     "@types/node" "*"
 
-"@types/chai-dom@^0.0.9":
-  version "0.0.9"
-  resolved "https://registry.yarnpkg.com/@types/chai-dom/-/chai-dom-0.0.9.tgz#77379354efec2568284ca355fff6a4f85f5a66f4"
-  integrity sha512-jj4F2NJog2/GBYsyJ8+NvhnWUBbPY4MUAKLdPJE6+568rw12GGXvj0ycUuP5nndVrnJgozmJAoMTvxvjJATXWw==
+"@types/chai-dom@^0.0.12":
+  version "0.0.12"
+  resolved "https://registry.yarnpkg.com/@types/chai-dom/-/chai-dom-0.0.12.tgz#fdd7a52bed4dd235ed1c94d3d2d31d4e7db1d03a"
+  integrity sha512-4rE7sDw713cV61TYzQbMrPjC4DjNk3x4vk9nAVRNXcSD4p0/5lEEfm0OgoCz5eNuWUXNKA0YiKiH/JDTuKivkA==
   dependencies:
     "@types/chai" "*"
 
@@ -312,7 +312,7 @@
   resolved "https://registry.yarnpkg.com/@types/chai/-/chai-4.3.1.tgz#e2c6e73e0bdeb2521d00756d099218e9f5d90a04"
   integrity sha512-/zPMqDkzSZ8t3VtxOa4KPq7uzzW978M9Tvh+j7GHKuo6k6GTLxPJ4J5gE5cjfJ26pnXst0N5Hax8Sr0T2Mi9zQ==
 
-"@types/chart.js@^3.7.1":
+"@types/chart.js@^2.9.37":
   version "2.9.37"
   resolved "https://registry.yarnpkg.com/@types/chart.js/-/chart.js-2.9.37.tgz#8af70862b154fedf938b5b87debdb3a70f6e3208"
   integrity sha512-9bosRfHhkXxKYfrw94EmyDQcdjMaQPkU1fH2tDxu8DWXxf1mjzWQAV4laJF51ZbC2ycYwNDvIm1rGez8Bug0vg==

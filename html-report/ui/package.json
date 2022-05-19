@@ -35,7 +35,7 @@
     "webpack-dev-server": "^4.9.0"
   },
   "dependencies": {
-    "@open-wc/testing": "^3.1.4",
+    "@open-wc/testing": "^3.1.5",
     "@shoelace-style/shoelace": "^2.0.0-beta.73",
     "chart.js": "^3.7.1",
     "css-loader": "^6.7.1",
