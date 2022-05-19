@@ -19,7 +19,7 @@
     "@open-wc/eslint-config": "^7.0.0",
     "@types/chart.js": "^2.9.37",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
-    "@typescript-eslint/parser": "^5.23.0",
+    "@typescript-eslint/parser": "^5.25.0",
     "@web/test-runner": "^0.13.27",
     "copy-webpack-plugin": "^10.2.4",
     "eslint": "^8.15.0",
