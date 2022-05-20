@@ -8,9 +8,8 @@ export class CategoryRuleResultComponent extends BaseComponent {
   }
 
   render() {
-    return html`
-      <div>
-        <slot></slot>
-      </div>`
+    return html` <div>
+      <slot></slot>
+    </div>`;
   }
 }
