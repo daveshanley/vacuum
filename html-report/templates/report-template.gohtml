@@ -136,16 +136,50 @@
             {{- end }}
         {{- end }}
         </rule-category-navigation>
+        {{- $allResults := .RuleResults -}}
         {{- with .RuleCategories -}}
         {{- range . }}
         <category-report slot="reports" id="{{ .Id }}">
+
+            {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
+
+            <section class="category-broken-rules">
+                <ul>
+                {{- with $ruleResults.Rules -}}
+                {{- range . }}
+                    <li>{{- .Rule.Description -}}</li>
+                {{- end -}}
+                {{- end -}}
+                </ul>
+            </section>
+
             <section class="category-description">
-            <h2>{{ .Name }} Description</h2>
                 {{ .Description }}
             </section>
+
+            {{- with $ruleResults.Rules -}}
+            {{- range . }}
+            <category-rule-result id="">
+                <hr/>
+                <ul>
+                {{- with .Results -}}
+                {{- range . }}
+                    <li>{{ .Message }}</li>
+                {{- end -}}
+                {{- end -}}
+                </ul>
+            </category-rule-result>
+            {{- end -}}
+            {{- end -}}
+
         </category-report>
         {{- end }}
         {{- end }}
+
+
+
+
+
     </html-report>
 </div>
 

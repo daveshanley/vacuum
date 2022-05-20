@@ -20,6 +20,7 @@ hr.header {
 
 category-report {
     display: none;
+    justify-content: space-between;
 }
 
 
@@ -27,13 +28,33 @@ sl-tab-group {
     min-height: 100px;
 }
 
+category-report {
+    display: none;
+    flex-wrap: wrap;
+}
+
 category-piechart {
     margin-right: 20px;
 }
 
+category-rule-result {
+    width: 100vw
+}
+
 .category-description {
     min-height: 200px;
+    width: 25vw;
+    padding-left: 20px;
+    border-left: dashed 1px var(--secondary-color)
 
+}
+
+.category-broken-rules {
+    flex-grow: 2;
+    min-height: 300px;
+    max-height: 300px;
+    height: 300px;
+    overflow-y: auto;
 }
 
 .report-statistics {

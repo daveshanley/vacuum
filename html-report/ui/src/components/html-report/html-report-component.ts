@@ -28,7 +28,7 @@ export class HtmlReportComponent extends BaseComponent {
     const elements = document.querySelectorAll('category-report');
     elements.forEach((element: HTMLElement) => {
       if (element.id == e.detail) {
-        element.style.display = 'block';
+        element.style.display = 'flex';
       } else {
         element.style.display = 'none';
       }

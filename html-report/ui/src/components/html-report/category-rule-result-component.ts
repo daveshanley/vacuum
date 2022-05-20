@@ -2,7 +2,7 @@ import { BaseComponent } from '../../ts/base-component';
 import { html } from 'lit';
 import { BaseCSS } from '../../ts/base.css';
 
-export class CategoryReportComponent extends BaseComponent {
+export class CategoryRuleResultComponent extends BaseComponent {
   static get styles() {
     return [BaseCSS];
   }
@@ -11,7 +11,6 @@ export class CategoryReportComponent extends BaseComponent {
     return html`
       <div>
         <slot></slot>
-      </div>
-    `;
+      </div>`
   }
 }

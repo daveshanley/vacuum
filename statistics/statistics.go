@@ -14,7 +14,6 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 
 	var catStats []*reports.CategoryStatistic
 	for _, cat := range model.RuleCategoriesOrdered {
-
 		catStats = append(catStats, &reports.CategoryStatistic{
 			CategoryName: cat.Name,
 			CategoryId:   cat.Id,

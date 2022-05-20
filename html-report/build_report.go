@@ -44,6 +44,7 @@ type ReportData struct {
 	Statistics     *reports.ReportStatistics `json:"reportStatistics"`
 	TestMode       bool                      `json:"test"`
 	RuleCategories []*model.RuleCategory     `json:"ruleCategories"`
+	RuleResults    *model.RuleResultSet      `json:"ruleResults"`
 }
 
 func NewHTMLReport(
@@ -68,6 +69,13 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		"renderJSON": func(data interface{}) string {
 			b, _ := json.Marshal(data)
 			return string(b)
+		},
+		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
+			if cat == "all" {
+				// todo, replace this with something not wrong.
+				return results.GetRuleResultsForCategory("schemas")
+			}
+			return results.GetRuleResultsForCategory(cat)
 		},
 	}
 	tmpl.Funcs(templateFuncs)
@@ -96,6 +104,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		Statistics:     html.stats,
 		RuleCategories: cats,
 		TestMode:       test,
+		RuleResults:    html.results,
 	}
 	t.ExecuteTemplate(&byteBuf, "report", reportData)
 
