@@ -2,7 +2,7 @@ import { BaseComponent } from '../../ts/base-component';
 import { html, css } from 'lit';
 import { BaseCSS } from '../../ts/base.css';
 import { property } from 'lit/decorators.js';
-import {CategoryActivated, CategoryActivatedEvent} from "../../model/events";
+import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
 
 export class RuleCategoryLinkComponent extends BaseComponent {
   static get styles() {
@@ -41,9 +41,6 @@ export class RuleCategoryLinkComponent extends BaseComponent {
   }
 
   toggleCategory(fireEvent = true) {
-
-
-
     this.active = !this.active;
     if (fireEvent) {
       const options = {
@@ -51,7 +48,9 @@ export class RuleCategoryLinkComponent extends BaseComponent {
         bubbles: true,
         composed: true,
       };
-      this.dispatchEvent(new CustomEvent<CategoryActivatedEvent>(CategoryActivated, options));
+      this.dispatchEvent(
+        new CustomEvent<CategoryActivatedEvent>(CategoryActivated, options)
+      );
     }
     this.requestUpdate();
   }

@@ -1,9 +1,8 @@
 import { BaseComponent } from '../../ts/base-component';
 import { html } from 'lit';
-import {CategoryActivatedEvent} from "../../model/events";
+import { CategoryActivatedEvent } from '../../model/events';
 
 export class HtmlReportComponent extends BaseComponent {
-
   render() {
     return html`
       <div @categoryActivated=${this._categoryActivatedListener}>
