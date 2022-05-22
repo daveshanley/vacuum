@@ -15,8 +15,7 @@ export class CategoryReportComponent extends BaseComponent {
     `;
   }
 
-  private _ruleSelected(evt: CustomEvent) {
-    console.log('event is here', evt);
+  private _ruleSelected() {
     // for (let x = 0; x < this._slottedChildren.length; x++) {
     //     const items = this._slottedChildren[x].getElementsByTagName("li")
     //     for (let y = 0; y < items.length; y++) {

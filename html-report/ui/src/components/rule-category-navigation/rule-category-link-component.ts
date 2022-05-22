@@ -26,6 +26,9 @@ export class RuleCategoryLinkComponent extends BaseComponent {
   @property()
   default: boolean;
 
+  @property()
+  description: string;
+
   disableCategory() {
     this.active = false;
     this.requestUpdate();
@@ -40,7 +43,7 @@ export class RuleCategoryLinkComponent extends BaseComponent {
     this.active = !this.active;
     if (fireEvent) {
       const options = {
-        detail: this.name,
+        detail: { name: this.name, desc: this.description },
         bubbles: true,
         composed: true,
       };
@@ -56,9 +59,8 @@ export class RuleCategoryLinkComponent extends BaseComponent {
           href="#"
           class="${this.active ? 'active' : ''}"
           @click=${this.toggleCategory}
-        >
-          <slot></slot>
-        </a>
+          ><slot></slot
+        ></a>
       </li>
     `;
   }

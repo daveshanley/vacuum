@@ -20,6 +20,24 @@ export class CategoryRuleComponent extends BaseComponent {
       li::after {
         content: '';
       }
+
+      .rule-details::part(header) {
+        margin: 0;
+        padding: 3px;
+      }
+
+      .rule-details::part(summary) {
+        font-family: Arial;
+        padding: 2px;
+      }
+      .rule-details::part(base) {
+        max-height: 500px;
+        overflow-y: auto;
+      }
+      .rule-details::part(content) {
+        margin: 0;
+        padding: 0;
+      }
     `;
 
     return [BaseCSS, iconCss];
@@ -39,13 +57,13 @@ export class CategoryRuleComponent extends BaseComponent {
 
   render() {
     return html`
-      <li>
-        <span class="rule-icon">${this.ruleIcon}</span>
-        <span class="rule-description">
-          <a @click="${this._ruleClick}">${this.description}</a>
-          <sl-badge>${this.numResults}</sl-badge>
-        </span>
-      </li>
+
+      <sl-details
+          @click="${this._ruleClick}"
+          summary="${this.ruleIcon} ${this.description} (${this.numResults})" 
+          class="rule-details"> 
+        <slot name="results">
+      </sl-details>
     `;
   }
 

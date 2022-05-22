@@ -1,6 +1,7 @@
 import { BaseComponent } from '../../ts/base-component';
 import { css, html } from 'lit';
 import { BaseCSS } from '../../ts/base.css';
+import { queryAssignedElements } from 'lit/decorators.js';
 
 export class HtmlReportComponent extends BaseComponent {
   static get styles() {
@@ -10,6 +11,17 @@ export class HtmlReportComponent extends BaseComponent {
       }
     `;
     return [BaseCSS, navCss];
+  }
+
+  @queryAssignedElements({
+    slot: 'navigation',
+    selector: '.category-description',
+  })
+  _description!: Array<HTMLElement>;
+
+  get _cakes() {
+    const slot = this.shadowRoot.querySelector('slot[name=navigation]');
+    return slot.getElementsByTagName('section');
   }
 
   render() {
@@ -23,8 +35,18 @@ export class HtmlReportComponent extends BaseComponent {
 
   _categoryActivatedListener(e: CustomEvent) {
     const elements = document.querySelectorAll('category-report');
+    const slot = this.shadowRoot
+      .querySelector('slot')
+      .assignedElements({ flatten: true });
+
+    const description = slot[0]
+      .querySelector('nav')
+      .querySelector('#category-description');
+    if (description) {
+      description.innerHTML = e.detail.desc;
+    }
     elements.forEach((element: HTMLElement) => {
-      if (element.id == e.detail) {
+      if (element.id == e.detail.id) {
         element.style.display = 'block';
       } else {
         element.style.display = 'none';

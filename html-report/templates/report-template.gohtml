@@ -130,13 +130,14 @@
                 <rule-category-navigation default="all">
                 {{- with .RuleCategories -}}
                 {{- range . }}
-                    <rule-category-link name="{{ .Id }}">{{ .Name }}</rule-category-link>
+                    <rule-category-link name="{{ .Id }}" description="{{ .Description }}">{{ .Name }}</rule-category-link>
                 {{- end }}
                 {{- end }}
                 </rule-category-navigation>
+                <section id="category-description">
+                </section>
             </nav>
         <main class="category-result-grid">
-
 
         {{- $allResults := .RuleResults -}}
         {{- with .RuleCategories -}}
@@ -161,32 +162,32 @@
                                     ruleId="{{ .Rule.Id }}"
                                     description="{{ .Rule.Description }}"
                                     numResults={{ .Seen }}>
+
+
+                                    {{- with $ruleResults.Rules -}}
+                                        {{- range . }}
+                                            <category-rule-result id="" slot="results">
+                                            {{- with .Results -}}
+                                                {{- range . }}
+                                                    <li class="rule-violation">{{ .Message }}</li>
+                                                {{- end -}}
+                                            {{- end -}}
+                                            </category-rule-result>
+                                        {{- end -}}
+                                    {{- end -}}
+
+
                             </category-rule>
                     {{- end -}}
                 {{- end -}}
                 </category-rules>
 
 
-                <section class="category-description">
-                    {{ .Description }}
-                </section>
+
                 </div>
 
 
-{{/*                {{- with $ruleResults.Rules -}}*/}}
-{{/*                    {{- range . }}*/}}
-{{/*                        <category-rule-result id="">*/}}
-{{/*                            <hr/>*/}}
-{{/*                            <ul>*/}}
-{{/*                                {{- with .Results -}}*/}}
-{{/*                                    {{- range . }}*/}}
-{{/*                                        <li>{{ .Message }}</li>*/}}
-{{/*                                    {{- end -}}*/}}
-{{/*                                {{- end -}}*/}}
-{{/*                            </ul>*/}}
-{{/*                        </category-rule-result>*/}}
-{{/*                    {{- end -}}*/}}
-{{/*                {{- end -}}*/}}
+
 
             </category-report>
         {{- end }}

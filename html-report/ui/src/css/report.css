@@ -18,15 +18,24 @@ hr.header {
     padding: 10px 0 0 0;
 }
 
+.rule-details::part(base) {
+    background: var(--sl-color-neutral-0);
+    border: solid 1px tomato;
+    max-height: 200px;
+}
+
 .report-grid {
     display: grid;
     grid-column-gap: 1.4em;
     grid-template-columns: 2fr 10fr;
     grid-template-rows: auto;
+
+    height: 65vh;
 }
 
 .category-result-grid {
     border-left: dashed 1px var(--secondary-color);
+    margin-left: 20px;
 }
 
 category-report {
@@ -42,7 +51,7 @@ category-report {
 
 .wrapper {
     display: grid;
-    grid-template-columns: 8fr 2fr;
+    grid-template-columns: 1fr;
     gap: 10px;
     grid-auto-rows: minmax(100px, auto);
 }
@@ -55,9 +64,11 @@ category-rules {
     grid-row: 1;
 }
 
-.category-description {
-    grid-column: 2;
-    grid-row: 1;
+#category-description {
+    border-top: dashed 1px var(--secondary-color);
+    margin-top: 20px;
+    padding-top: 20px;
+    font-size: var(--sl-font-size-x-small);
 }
 
 sl-tab-group {
@@ -91,6 +102,10 @@ category-piechart {
 /*    max-width: 65vw;*/
 /*}*/
 
+.rule-violation {
+    font-size: var(--sl-font-size-x-small);
+    padding-left: 0;
+}
 .report-statistics {
     display: flex;
     flex-direction: row;

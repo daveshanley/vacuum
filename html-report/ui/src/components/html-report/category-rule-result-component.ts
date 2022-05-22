@@ -1,15 +1,17 @@
 import { BaseComponent } from '../../ts/base-component';
-import { html } from 'lit';
+import { css, html } from 'lit';
 import { BaseCSS } from '../../ts/base.css';
 
 export class CategoryRuleResultComponent extends BaseComponent {
   static get styles() {
-    return [BaseCSS];
+    const listCss = css``;
+
+    return [BaseCSS, listCss];
   }
 
   render() {
-    return html` <div>
+    return html` <ul>
       <slot></slot>
-    </div>`;
+    </ul>`;
   }
 }

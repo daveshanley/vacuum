@@ -33,7 +33,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   _checkForDefault() {
     if (!this._currentlySelected) {
       const options = {
-        detail: this.default,
+        detail: { name: this.default, desc: '' },
       };
       this._categoryActivatedListener(
         new CustomEvent('categoryActive', options)
@@ -45,7 +45,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
     this._currentlySelected = e.detail;
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
-      if (child.name != e.detail) {
+      if (child.name != e.detail.name) {
         child.disableCategory();
       } else {
         // if it's not already been set, set it (in case of default).
@@ -57,10 +57,11 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
 
     // options to pass up to html-report.
     const options = {
-      detail: e.detail,
+      detail: { id: e.detail.name, desc: e.detail.desc },
       bubbles: true,
       composed: true,
     };
+
     // fire a category changed event up to our html-report component.
     this.dispatchEvent(new CustomEvent('categoryActivated', options));
   }
