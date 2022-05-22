@@ -14,6 +14,10 @@ hr.header {
     font-size: 1.5rem;
 }
 
+.standard-margin-bt {
+    margin-bottom: var(--global-margin);
+}
+
 .logo {
     padding: 10px 0 0 0;
 }
@@ -26,16 +30,15 @@ hr.header {
 
 .report-grid {
     display: grid;
-    grid-column-gap: 1.4em;
     grid-template-columns: 2fr 10fr;
     grid-template-rows: auto;
-
     height: 65vh;
 }
 
 .category-result-grid {
     border-left: dashed 1px var(--secondary-color);
-    margin-left: 20px;
+    margin-left: var(--global-margin);
+    padding-left: var(--global-padding);
 }
 
 category-report {

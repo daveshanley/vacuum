@@ -1,28 +1,8 @@
 import { BaseComponent } from '../../ts/base-component';
-import { css, html } from 'lit';
-import { BaseCSS } from '../../ts/base.css';
-import { queryAssignedElements } from 'lit/decorators.js';
+import { html } from 'lit';
+import {CategoryActivatedEvent} from "../../model/events";
 
 export class HtmlReportComponent extends BaseComponent {
-  static get styles() {
-    const navCss = css`
-      .nav-section {
-        margin-top: 40px;
-      }
-    `;
-    return [BaseCSS, navCss];
-  }
-
-  @queryAssignedElements({
-    slot: 'navigation',
-    selector: '.category-description',
-  })
-  _description!: Array<HTMLElement>;
-
-  get _cakes() {
-    const slot = this.shadowRoot.querySelector('slot[name=navigation]');
-    return slot.getElementsByTagName('section');
-  }
 
   render() {
     return html`
@@ -33,7 +13,7 @@ export class HtmlReportComponent extends BaseComponent {
     `;
   }
 
-  _categoryActivatedListener(e: CustomEvent) {
+  _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
     const elements = document.querySelectorAll('category-report');
     const slot = this.shadowRoot
       .querySelector('slot')
@@ -43,8 +23,9 @@ export class HtmlReportComponent extends BaseComponent {
       .querySelector('nav')
       .querySelector('#category-description');
     if (description) {
-      description.innerHTML = e.detail.desc;
+      description.innerHTML = e.detail.description;
     }
+
     elements.forEach((element: HTMLElement) => {
       if (element.id == e.detail.id) {
         element.style.display = 'block';

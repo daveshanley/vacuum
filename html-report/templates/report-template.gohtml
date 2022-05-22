@@ -109,11 +109,6 @@
 
     </section>
 
-
-
-
-
-
     <script>
         // chart needs data
         const catChart = document.querySelector('category-piechart')
@@ -123,7 +118,7 @@
           alert('Something went really wrong.');
         }
     </script>
-    <hr/>
+    <hr class="standard-margin-bt"/>
     <html-report>
         <section class="report-grid" slot="navigation">
             <nav>
@@ -137,6 +132,7 @@
                 <section id="category-description">
                 </section>
             </nav>
+
         <main class="category-result-grid">
 
         {{- $allResults := .RuleResults -}}
@@ -144,70 +140,38 @@
         {{- range . }}
             <category-report slot="reports" id="{{ .Id }}">
 
-
-                <div class="wrapper">
-
-
-
                 {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
                 <category-rules>
-
-
-
-
                 {{- with $ruleResults.Rules -}}
-                    {{- range . }}
-                            <category-rule
-                                    ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}"
-                                    ruleId="{{ .Rule.Id }}"
-                                    description="{{ .Rule.Description }}"
-                                    numResults={{ .Seen }}>
+                {{- range . }}
+                    <category-rule
+                        ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}"
+                        ruleId="{{ .Rule.Id }}"
+                        description="{{ .Rule.Description }}"
+                        numResults={{ .Seen }}>
 
-
-                                    {{- with $ruleResults.Rules -}}
-                                        {{- range . }}
-                                            <category-rule-result id="" slot="results">
-                                            {{- with .Results -}}
-                                                {{- range . }}
-                                                    <li class="rule-violation">{{ .Message }}</li>
-                                                {{- end -}}
-                                            {{- end -}}
-                                            </category-rule-result>
-                                        {{- end -}}
+                        {{- with $ruleResults.Rules -}}
+                            {{- range . }}
+                                <category-rule-result id="" slot="results">
+                                {{- with .Results -}}
+                                    {{- range . }}
+                                        <li class="rule-violation">{{ .Message }}</li>
                                     {{- end -}}
-
-
-                            </category-rule>
-                    {{- end -}}
+                                {{- end -}}
+                                </category-rule-result>
+                            {{- end -}}
+                        {{- end -}}
+                    </category-rule>
+                {{- end -}}
                 {{- end -}}
                 </category-rules>
-
-
-
-                </div>
-
-
-
-
             </category-report>
         {{- end }}
         {{- end }}
 
-
-
-
-
-
-
-
         </main>
     </section>
-
-
     </html-report>
-
-
-
 </div>
 
 {{- if not .TestMode -}}

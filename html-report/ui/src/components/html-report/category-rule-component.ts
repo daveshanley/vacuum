@@ -1,5 +1,4 @@
 import { BaseComponent } from '../../ts/base-component';
-import { BaseCSS } from '../../ts/base.css';
 import { html, css } from 'lit';
 import { property } from 'lit/decorators.js';
 
@@ -40,7 +39,7 @@ export class CategoryRuleComponent extends BaseComponent {
       }
     `;
 
-    return [BaseCSS, iconCss];
+    return [iconCss];
   }
 
   @property()

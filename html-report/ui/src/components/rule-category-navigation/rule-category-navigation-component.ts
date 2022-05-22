@@ -22,9 +22,9 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   default: string;
 
   render() {
-    setTimeout(() => this._checkForDefault());
+    //setTimeout(() => this._checkForDefault());
     return html`
-      <ul @categoryActive=${this._categoryActivatedListener}>
+      <ul @categoryActivated=${this._categoryActivatedListener}>
         <slot></slot>
       </ul>
     `;
@@ -36,7 +36,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
         detail: { name: this.default, desc: '' },
       };
       this._categoryActivatedListener(
-        new CustomEvent('categoryActive', options)
+        new CustomEvent('categoryActiv', options)
       );
     }
   }
@@ -55,14 +55,14 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
       }
     }
 
-    // options to pass up to html-report.
-    const options = {
-      detail: { id: e.detail.name, desc: e.detail.desc },
-      bubbles: true,
-      composed: true,
-    };
-
-    // fire a category changed event up to our html-report component.
-    this.dispatchEvent(new CustomEvent('categoryActivated', options));
+    // // options to pass up to html-report.
+    // const options = {
+    //   detail: { id: e.detail.name, desc: e.detail.desc },
+    //   bubbles: true,
+    //   composed: true,
+    // };
+    //
+    // // fire a category changed event up to our html-report component.
+    // this.dispatchEvent(new CustomEvent<>('categoryActivated', options));
   }
 }
