@@ -13,7 +13,7 @@ describe('RuleCategoryNavigationComponent', () => {
   });
 
   it('renders nav', () => {
-    const ul = element.shadowRoot!.querySelector('nav')!;
+    const ul = element.shadowRoot!.querySelector('ul')!;
     expect(ul).to.exist;
   });
 

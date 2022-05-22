@@ -5,8 +5,4 @@ import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@shoelace-style/shoelace/dist/components/card/card.js';
 import '@shoelace-style/shoelace/dist/components/card/card.styles.js';
-
-// import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path.js';
-//
-// // Set the base path to the folder you copied Shoelace's assets to
-// setBasePath('build/dist/static/shoelace');
+import '@shoelace-style/shoelace/dist/components/badge/badge.js';

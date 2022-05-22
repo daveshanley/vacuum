@@ -77,6 +77,19 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			}
 			return results.GetRuleResultsForCategory(cat)
 		},
+		"ruleSeverityIcon": func(sev string) string {
+			switch sev {
+			case "error":
+				return "❌"
+			case "warn":
+				return "⚠️"
+			case "info":
+				return "🔵"
+			case "hint":
+				return "💠"
+			}
+			return ""
+		},
 	}
 	tmpl.Funcs(templateFuncs)
 

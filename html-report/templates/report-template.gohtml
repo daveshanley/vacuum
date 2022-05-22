@@ -123,64 +123,90 @@
           alert('Something went really wrong.');
         }
     </script>
-
-
-
+    <hr/>
     <html-report>
+        <section class="report-grid" slot="navigation">
+            <nav>
+                <rule-category-navigation default="all">
+                {{- with .RuleCategories -}}
+                {{- range . }}
+                    <rule-category-link name="{{ .Id }}">{{ .Name }}</rule-category-link>
+                {{- end }}
+                {{- end }}
+                </rule-category-navigation>
+            </nav>
+        <main class="category-result-grid">
 
 
-        <rule-category-navigation slot="navigation" id='rule-category-nav' default="all">
-        {{- with .RuleCategories -}}
-            {{- range . }}
-            <rule-category-button name="{{ .Id }}">{{ .Name }}</rule-category-button>
-            {{- end }}
-        {{- end }}
-        </rule-category-navigation>
         {{- $allResults := .RuleResults -}}
         {{- with .RuleCategories -}}
         {{- range . }}
-        <category-report slot="reports" id="{{ .Id }}">
+            <category-report slot="reports" id="{{ .Id }}">
 
-            {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
 
-            <section class="category-broken-rules">
-                <ul>
+                <div class="wrapper">
+
+
+
+                {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
+                <category-rules>
+
+
+
+
                 {{- with $ruleResults.Rules -}}
-                {{- range . }}
-                    <li>{{- .Rule.Description -}}</li>
+                    {{- range . }}
+                            <category-rule
+                                    ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}"
+                                    ruleId="{{ .Rule.Id }}"
+                                    description="{{ .Rule.Description }}"
+                                    numResults={{ .Seen }}>
+                            </category-rule>
+                    {{- end -}}
                 {{- end -}}
-                {{- end -}}
-                </ul>
-            </section>
+                </category-rules>
 
-            <section class="category-description">
-                {{ .Description }}
-            </section>
 
-            {{- with $ruleResults.Rules -}}
-            {{- range . }}
-            <category-rule-result id="">
-                <hr/>
-                <ul>
-                {{- with .Results -}}
-                {{- range . }}
-                    <li>{{ .Message }}</li>
-                {{- end -}}
-                {{- end -}}
-                </ul>
-            </category-rule-result>
-            {{- end -}}
-            {{- end -}}
+                <section class="category-description">
+                    {{ .Description }}
+                </section>
+                </div>
 
-        </category-report>
+
+{{/*                {{- with $ruleResults.Rules -}}*/}}
+{{/*                    {{- range . }}*/}}
+{{/*                        <category-rule-result id="">*/}}
+{{/*                            <hr/>*/}}
+{{/*                            <ul>*/}}
+{{/*                                {{- with .Results -}}*/}}
+{{/*                                    {{- range . }}*/}}
+{{/*                                        <li>{{ .Message }}</li>*/}}
+{{/*                                    {{- end -}}*/}}
+{{/*                                {{- end -}}*/}}
+{{/*                            </ul>*/}}
+{{/*                        </category-rule-result>*/}}
+{{/*                    {{- end -}}*/}}
+{{/*                {{- end -}}*/}}
+
+            </category-report>
         {{- end }}
         {{- end }}
 
 
 
+
+
+
+
+
+        </main>
+    </section>
 
 
     </html-report>
+
+
+
 </div>
 
 {{- if not .TestMode -}}

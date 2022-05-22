@@ -1,3 +1,3 @@
-import { RuleCategoryButtonComponent } from './rule-category-button-component';
+import { RuleCategoryLinkComponent } from './rule-category-link-component';
 
-customElements.define('rule-category-button', RuleCategoryButtonComponent);
+customElements.define('rule-category-link', RuleCategoryLinkComponent);

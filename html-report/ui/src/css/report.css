@@ -18,50 +18,85 @@ hr.header {
     padding: 10px 0 0 0;
 }
 
-category-report {
-    display: none;
-    justify-content: space-between;
+.report-grid {
+    display: grid;
+    grid-column-gap: 1.4em;
+    grid-template-columns: 2fr 10fr;
+    grid-template-rows: auto;
 }
 
+.category-result-grid {
+    border-left: dashed 1px var(--secondary-color);
+}
+
+category-report {
+    /*grid-column-gap: 1.4em;*/
+    /*grid-template-columns: 9fr 3fr;*/
+    /*grid-template-rows: 5fr 5fr;*/
+    display: none;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    grid-auto-rows: minmax(100px, auto);
+}
+
+
+.wrapper {
+    display: grid;
+    grid-template-columns: 8fr 2fr;
+    gap: 10px;
+    grid-auto-rows: minmax(100px, auto);
+}
+
+
+
+
+category-rules {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.category-description {
+    grid-column: 2;
+    grid-row: 1;
+}
 
 sl-tab-group {
     min-height: 100px;
 }
 
-category-report {
-    display: none;
-    flex-wrap: wrap;
-}
 
 category-piechart {
     margin-right: 20px;
 }
 
-category-rule-result {
-    width: 100vw
-}
+/*category-rule-result {*/
+/*    width: 100vw*/
+/*}*/
 
-.category-description {
-    min-height: 200px;
-    width: 25vw;
-    padding-left: 20px;
-    border-left: dashed 1px var(--secondary-color)
+/*.category-description {
+    /*min-height: 200px;*/
+    /*width: 20vw;*/
+    /*padding-left: 20px;*/
+    /*border-left: dashed 1px var(--secondary-color);*/
+    /*font-size: var(--sl-font-size-small);*/
 
-}
+/*}*/
 
-.category-broken-rules {
-    flex-grow: 2;
-    min-height: 300px;
-    max-height: 300px;
-    height: 300px;
-    overflow-y: auto;
-}
+/*category-rules {*/
+/*    flex-grow: 2;*/
+/*    min-height: 300px;*/
+/*    max-height: 300px;*/
+/*    height: 300px;*/
+/*    overflow-y: auto;*/
+/*    max-width: 65vw;*/
+/*}*/
 
 .report-statistics {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
     margin-top: 40px;
+    justify-content: space-between;
 }
 
 .report-statistics sl-card {
@@ -86,10 +121,6 @@ category-rule-result {
     text-indent: initial;
     border-spacing: 0;
     border-color: transparent!important;
-
-
-
-
 
     max-width: 200px;
     width: fit-content;

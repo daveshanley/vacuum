@@ -2,18 +2,14 @@ import { html, css } from 'lit';
 import { property } from 'lit/decorators.js';
 import { BaseComponent } from '../../ts/base-component';
 import { BaseCSS } from '../../ts/base.css';
-import { RuleCategoryButtonComponent } from './rule-category-button-component';
+import { RuleCategoryLinkComponent } from './rule-category-link-component';
 
 export class RuleCategoryNavigationComponent extends BaseComponent {
   static get styles() {
     const buttonCss = css`
-      .category-buttons {
-        margin-top: 20px;
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        place-items: center stretch;
-        justify-content: center;
+      ul {
+        margin: 0;
+        padding: 0;
       }
     `;
 
@@ -28,12 +24,9 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   render() {
     setTimeout(() => this._checkForDefault());
     return html`
-      <nav
-        class="category-buttons"
-        @categoryActive=${this._categoryActivatedListener}
-      >
+      <ul @categoryActive=${this._categoryActivatedListener}>
         <slot></slot>
-      </nav>
+      </ul>
     `;
   }
 
@@ -51,7 +44,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   _categoryActivatedListener(e: CustomEvent) {
     this._currentlySelected = e.detail;
     for (let x = 0; x < this._slottedChildren.length; x++) {
-      const child = this._slottedChildren[x] as RuleCategoryButtonComponent;
+      const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
       if (child.name != e.detail) {
         child.disableCategory();
       } else {

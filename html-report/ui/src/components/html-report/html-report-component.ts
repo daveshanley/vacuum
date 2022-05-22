@@ -15,10 +15,7 @@ export class HtmlReportComponent extends BaseComponent {
   render() {
     return html`
       <div @categoryActivated=${this._categoryActivatedListener}>
-        <div class="nav-section">
-          <slot name="navigation"></slot>
-          <hr />
-        </div>
+        <slot name="navigation"></slot>
         <slot name="reports"></slot>
       </div>
     `;
@@ -28,7 +25,7 @@ export class HtmlReportComponent extends BaseComponent {
     const elements = document.querySelectorAll('category-report');
     elements.forEach((element: HTMLElement) => {
       if (element.id == e.detail) {
-        element.style.display = 'flex';
+        element.style.display = 'block';
       } else {
         element.style.display = 'none';
       }

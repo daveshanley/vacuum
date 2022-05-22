@@ -1,11 +1,21 @@
 import { BaseComponent } from '../../ts/base-component';
-import { html } from 'lit';
+import { html, css } from 'lit';
 import { BaseCSS } from '../../ts/base.css';
 import { property } from 'lit/decorators.js';
 
-export class RuleCategoryButtonComponent extends BaseComponent {
+export class RuleCategoryLinkComponent extends BaseComponent {
   static get styles() {
-    return [BaseCSS];
+    const linkItemCss = css`
+      li {
+        padding-left: 0;
+      }
+
+      .active {
+        background-color: var(--primary-color);
+        color: var(--invert-font-color);
+      }
+    `;
+    return [BaseCSS, linkItemCss];
   }
 
   active: boolean;
@@ -41,12 +51,15 @@ export class RuleCategoryButtonComponent extends BaseComponent {
 
   render() {
     return html`
-      <button
-        class="${this.active ? 'btn btn-primary' : 'btn btn-default btn-ghost'}"
-        @click="${this.toggleCategory}"
-      >
-        <slot></slot>
-      </button>
+      <li>
+        <a
+          href="#"
+          class="${this.active ? 'active' : ''}"
+          @click=${this.toggleCategory}
+        >
+          <slot></slot>
+        </a>
+      </li>
     `;
   }
 }
