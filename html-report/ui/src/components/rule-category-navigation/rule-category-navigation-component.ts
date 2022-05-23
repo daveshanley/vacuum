@@ -3,6 +3,7 @@ import { property } from 'lit/decorators.js';
 import { BaseComponent } from '../../ts/base-component';
 import { BaseCSS } from '../../ts/base.css';
 import { RuleCategoryLinkComponent } from './rule-category-link-component';
+import { CategoryActivatedEvent } from '../../model/events';
 
 export class RuleCategoryNavigationComponent extends BaseComponent {
   static get styles() {
@@ -22,7 +23,6 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   default: string;
 
   render() {
-    //setTimeout(() => this._checkForDefault());
     return html`
       <ul @categoryActivated=${this._categoryActivatedListener}>
         <slot></slot>
@@ -30,22 +30,10 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
     `;
   }
 
-  _checkForDefault() {
-    if (!this._currentlySelected) {
-      const options = {
-        detail: { name: this.default, desc: '' },
-      };
-      this._categoryActivatedListener(
-        new CustomEvent('categoryActiv', options)
-      );
-    }
-  }
-
-  _categoryActivatedListener(e: CustomEvent) {
-    this._currentlySelected = e.detail;
+  _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
-      if (child.name != e.detail.name) {
+      if (child.name != e.detail.id) {
         child.disableCategory();
       } else {
         // if it's not already been set, set it (in case of default).
@@ -54,15 +42,5 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
         }
       }
     }
-
-    // // options to pass up to html-report.
-    // const options = {
-    //   detail: { id: e.detail.name, desc: e.detail.desc },
-    //   bubbles: true,
-    //   composed: true,
-    // };
-    //
-    // // fire a category changed event up to our html-report component.
-    // this.dispatchEvent(new CustomEvent<>('categoryActivated', options));
   }
 }

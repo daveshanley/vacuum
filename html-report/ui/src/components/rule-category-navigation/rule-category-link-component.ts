@@ -62,8 +62,9 @@ export class RuleCategoryLinkComponent extends BaseComponent {
           href="#"
           class="${this.active ? 'active' : ''}"
           @click=${this.toggleCategory}
-          ><slot></slot
-        ></a>
+        >
+          <slot></slot>
+        </a>
       </li>
     `;
   }

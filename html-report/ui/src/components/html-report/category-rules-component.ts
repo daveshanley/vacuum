@@ -1,6 +1,8 @@
 import { BaseComponent } from '../../ts/base-component';
 import { BaseCSS } from '../../ts/base.css';
 import { html, css } from 'lit';
+import { RuleSelectedEvent } from '../../model/events';
+import { CategoryRuleComponent } from './category-rule-component';
 
 export class CategoryRulesComponent extends BaseComponent {
   static get styles() {
@@ -23,7 +25,13 @@ export class CategoryRulesComponent extends BaseComponent {
     `;
   }
 
-  private _ruleSelected() {
-    // ignore for now.
+  private _ruleSelected(evt: CustomEvent<RuleSelectedEvent>) {
+    const rules = this.shadowRoot
+      .querySelector('slot')
+      .assignedElements({ flatten: true });
+
+    rules.forEach((catRule: CategoryRuleComponent) => {
+      catRule.ruleSelected(evt.detail.id);
+    });
   }
 }

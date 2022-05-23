@@ -4,7 +4,11 @@ import { BaseCSS } from '../../ts/base.css';
 
 export class CategoryRuleResultComponent extends BaseComponent {
   static get styles() {
-    const listCss = css``;
+    const listCss = css`
+      ul {
+        margin-top: 0;
+      }
+    `;
 
     return [BaseCSS, listCss];
   }

@@ -1,6 +1,7 @@
 import { BaseComponent } from '../../ts/base-component';
 import { html, css } from 'lit';
 import { property } from 'lit/decorators.js';
+import { RuleSelected, RuleSelectedEvent } from '../../model/events';
 
 export class CategoryRuleComponent extends BaseComponent {
   static get styles() {
@@ -18,6 +19,39 @@ export class CategoryRuleComponent extends BaseComponent {
       }
       li::after {
         content: '';
+      }
+
+      details {
+        margin-bottom: calc(var(--global-margin) / 2);
+      }
+
+      details > summary {
+        background-color: var(--card-bgcolor);
+        border: 1px solid var(--card-bordercolor);
+        padding: 5px;
+        border-radius: 3px;
+      }
+
+      details > div.violations {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--card-bordercolor);
+        padding: 5px;
+      }
+
+      details > summary::marker {
+        color: var(--secondary-color);
+      }
+
+      details[open] summary span.rule-description {
+        background-color: var(--primary-color);
+        color: var(--invert-font-color);
+      }
+
+      summary span.rule-description:hover {
+        cursor: pointer;
+        background-color: var(--primary-color);
+        color: var(--invert-font-color);
       }
 
       .rule-details::part(header) {
@@ -54,24 +88,42 @@ export class CategoryRuleComponent extends BaseComponent {
   @property()
   ruleIcon: number;
 
+  ruleSelected(id: string) {
+    [...this.shadowRoot.querySelectorAll('details')].map(details => {
+      if (id != this.ruleId) {
+        details.open = false;
+      }
+    });
+    this.requestUpdate();
+  }
+
   render() {
     return html`
-
-      <sl-details
-          @click="${this._ruleClick}"
-          summary="${this.ruleIcon} ${this.description} (${this.numResults})" 
-          class="rule-details"> 
-        <slot name="results">
-      </sl-details>
+      <details @violationSelected="${this._violationSelected}" >
+        <summary @click=${this._ruleSelected}>
+          <span class="rule-icon">${this.ruleIcon}</span> 
+          <span class="rule-description">${this.description}</span> (${this.numResults})
+        </summary>
+        <div class="violations">
+          <slot name="results">  
+        </div>
+      </details>
     `;
   }
 
-  private _ruleClick() {
+  private _violationSelected() {
+    console.log('merrrrrrry christmas');
+  }
+
+  private _ruleSelected() {
+    //console.log('jackers')
     const options = {
-      detail: this.ruleId,
+      detail: { id: this.ruleId },
       bubbles: true,
       composed: true,
     };
-    this.dispatchEvent(new CustomEvent('ruleSelected', options));
+    this.dispatchEvent(
+      new CustomEvent<RuleSelectedEvent>(RuleSelected, options)
+    );
   }
 }
