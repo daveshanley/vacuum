@@ -105,10 +105,9 @@ category-piechart {
 /*    max-width: 65vw;*/
 /*}*/
 
-.rule-violation {
-    font-size: var(--sl-font-size-x-small);
-    padding-left: 0;
-}
+
+
+
 .report-statistics {
     display: flex;
     flex-direction: row;

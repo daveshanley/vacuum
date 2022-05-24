@@ -99,7 +99,7 @@ export class CategoryRuleComponent extends BaseComponent {
 
   render() {
     return html`
-      <details @violationSelected="${this._violationSelected}" >
+      <details>
         <summary @click=${this._ruleSelected}>
           <span class="rule-icon">${this.ruleIcon}</span> 
           <span class="rule-description">${this.description}</span> (${this.numResults})
@@ -111,12 +111,7 @@ export class CategoryRuleComponent extends BaseComponent {
     `;
   }
 
-  private _violationSelected() {
-    console.log('merrrrrrry christmas');
-  }
-
   private _ruleSelected() {
-    //console.log('jackers')
     const options = {
       detail: { id: this.ruleId },
       bubbles: true,

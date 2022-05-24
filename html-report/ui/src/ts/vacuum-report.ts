@@ -7,3 +7,5 @@ import '../components/html-report/category-report-component.init';
 import '../components/html-report/category-rule-result-component.init';
 import '../components/html-report/category-rule-component.init';
 import '../components/html-report/category-rules-component.init';
+import '../components/violation-drawer/violation-drawer-component.init';
+

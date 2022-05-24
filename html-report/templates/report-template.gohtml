@@ -125,7 +125,9 @@
                 <rule-category-navigation default="all">
                 {{- with .RuleCategories -}}
                 {{- range . }}
-                    <rule-category-link name="{{ .Id }}" description="{{ .Description }}">{{ .Name }}</rule-category-link>
+                    <rule-category-link name="{{ .Id }}" description="{{ .Description }}">
+                        {{ .Name }}
+                    </rule-category-link>
                 {{- end }}
                 {{- end }}
                 </rule-category-navigation>
@@ -133,44 +135,36 @@
                 </section>
             </nav>
 
-        <main class="category-result-grid">
-
-        {{- $allResults := .RuleResults -}}
-        {{- with .RuleCategories -}}
-        {{- range . }}
-            <category-report slot="reports" id="{{ .Id }}">
-
-                {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
-                <category-rules>
-                {{- with $ruleResults.Rules -}}
-                {{- range . }}
-                    <category-rule
-                        ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}"
-                        ruleId="{{ .Rule.Id }}"
-                        description="{{ .Rule.Description }}"
-                        numResults={{ .Seen }}>
-
-                        {{- with $ruleResults.Rules -}}
+            <main class="category-result-grid">
+            {{- $allResults := .RuleResults -}}
+            {{- with .RuleCategories -}}
+            {{- range . }}
+                <category-report slot="reports" id="{{ .Id }}">
+                    {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
+                    <category-rules>
+                    {{- with $ruleResults.Rules -}}
+                    {{- range . }}
+                        <category-rule ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }}>
+                            {{- with $ruleResults.Rules -}}
                             {{- range . }}
-                                <category-rule-result id="" slot="results">
                                 {{- with .Results -}}
-                                    {{- range . }}
-                                        <li class="rule-violation">{{ .Message }}</li>
-                                    {{- end -}}
-                                {{- end -}}
+                                {{- range . }}
+                                <category-rule-result slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
                                 </category-rule-result>
+                                {{- end -}}
+                                {{- end -}}
                             {{- end -}}
-                        {{- end -}}
-                    </category-rule>
-                {{- end -}}
-                {{- end -}}
-                </category-rules>
-            </category-report>
-        {{- end }}
-        {{- end }}
-
-        </main>
-    </section>
+                            {{- end -}}
+                        </category-rule>
+                    {{- end -}}
+                    {{- end -}}
+                    </category-rules>
+                </category-report>
+            {{- end }}
+            {{- end }}
+            </main>
+        </section>
+        <violation-drawer slot="drawer"></violation-drawer>
     </html-report>
 </div>
 
