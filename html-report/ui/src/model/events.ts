@@ -4,7 +4,6 @@ export const ViolationSelected = 'violationSelected';
 
 export type RuleSelectedEvent = VacuumEvent;
 
-
 export interface VacuumEvent {
   id: string;
 }

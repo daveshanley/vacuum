@@ -1,8 +1,7 @@
 import { BaseComponent } from '../../ts/base-component';
 import { css, html } from 'lit';
-import { BaseCSS } from '../../ts/base.css';
-import {property} from "lit/decorators.js";
-import {ViolationSelected, ViolationSelectedEvent} from "../../model/events";
+import { property } from 'lit/decorators.js';
+import { ViolationSelected, ViolationSelectedEvent } from '../../model/events';
 
 export class CategoryRuleResultComponent extends BaseComponent {
   static get styles() {
@@ -10,7 +9,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       ul {
         margin-top: 0;
       }
-      
+
       .violation a {
         font-size: var(--sl-font-size-small);
         color: var(--font-color);
@@ -20,10 +19,8 @@ export class CategoryRuleResultComponent extends BaseComponent {
         cursor: pointer;
         color: var(--invert-font-color);
       }
-      
     `;
-
-    return [BaseCSS, listCss];
+    return [listCss];
   }
 
   @property()
@@ -48,12 +45,11 @@ export class CategoryRuleResultComponent extends BaseComponent {
   path: string;
 
   render() {
-    return html`
-      <div>
-        <span class="violation">
-          <a @click=${this._violationClicked}>${this.message}</a>
-        </span>
-      </div>`;
+    return html` <div>
+      <span class="violation">
+        <a @click=${this._violationClicked}>${this.message}</a>
+      </span>
+    </div>`;
   }
 
   private _violationClicked() {
@@ -65,7 +61,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       endLine: this.endLine,
       endCol: this.endCol,
       path: this.path,
-    }
+    };
 
     const options = {
       detail: violationDetails,
@@ -73,9 +69,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       composed: true,
     };
     this.dispatchEvent(
-        new CustomEvent<ViolationSelectedEvent>(ViolationSelected, options)
+      new CustomEvent<ViolationSelectedEvent>(ViolationSelected, options)
     );
-
   }
-
 }

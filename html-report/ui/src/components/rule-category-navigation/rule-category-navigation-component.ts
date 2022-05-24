@@ -1,7 +1,6 @@
 import { html, css } from 'lit';
 import { property } from 'lit/decorators.js';
 import { BaseComponent } from '../../ts/base-component';
-import { BaseCSS } from '../../ts/base.css';
 import { RuleCategoryLinkComponent } from './rule-category-link-component';
 import { CategoryActivatedEvent } from '../../model/events';
 
@@ -11,10 +10,15 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
       ul {
         margin: 0;
         padding: 0;
+        list-style: none;
+      }
+
+      li {
+        padding-left: 0;
       }
     `;
 
-    return [BaseCSS, buttonCss];
+    return [buttonCss];
   }
 
   private _currentlySelected: string;

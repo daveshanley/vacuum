@@ -1,6 +1,5 @@
 import { BaseComponent } from '../../ts/base-component';
 import { html, css } from 'lit';
-import { BaseCSS } from '../../ts/base.css';
 import { property } from 'lit/decorators.js';
 import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
 
@@ -15,8 +14,16 @@ export class RuleCategoryLinkComponent extends BaseComponent {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
       }
+      a {
+        color: var(--primary-color);
+        text-decoration: none;
+      }
+      a:hover {
+        background-color: var(--primary-color);
+        color: var(--invert-font-color);
+      }
     `;
-    return [BaseCSS, linkItemCss];
+    return [linkItemCss];
   }
 
   active: boolean;

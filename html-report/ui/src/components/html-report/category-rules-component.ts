@@ -1,5 +1,4 @@
 import { BaseComponent } from '../../ts/base-component';
-import { BaseCSS } from '../../ts/base.css';
 import { html, css } from 'lit';
 import { RuleSelectedEvent } from '../../model/events';
 import { CategoryRuleComponent } from './category-rule-component';
@@ -9,10 +8,11 @@ export class CategoryRulesComponent extends BaseComponent {
     const rulesCss = css`
       ul.rule {
         margin: 0;
+        padding: 0;
       }
     `;
 
-    return [BaseCSS, rulesCss];
+    return [rulesCss];
   }
 
   render() {

@@ -1,25 +1,69 @@
-import {BaseComponent} from "../../ts/base-component";
-import {html} from "lit";
+import { BaseComponent } from '../../ts/base-component';
+import { css, html } from 'lit';
+import { property } from 'lit/decorators.js';
 
 export class ViolationDrawerComponent extends BaseComponent {
-    render() {
-        return html`
-            <sl-drawer label="Drawer" placement="bottom" class="drawer-placement-bottom">
-                This drawer slides in from the bottom.
-                <sl-button slot="footer" variant="primary" @click=${this.hide}>Close</sl-button>
-            </sl-drawer>
-        `;
-    }
+  static get styles() {
+    const listCss = css`
+      ul {
+        margin-top: 0;
+      }
+      .violation a {
+        font-size: var(--sl-font-size-small);
+        color: var(--font-color);
+      }
 
-    get drawer() {
-        return this.shadowRoot.querySelector('sl-drawer')
-    }
+      .violation a:hover {
+        background-color: var(--secondary-color);
+        cursor: pointer;
+        color: var(--invert-font-color);
+      }
+      sl-drawer {
+        --size: 80vh;
+        backdrop-filter: blur(2px);
+      }
 
-    public show() {
-        this.drawer.show();
-    }
+      sl-drawer::part(panel) {
+        background: var(--background-color-with-opacity);
+        backdrop-filter: blur(3px);
+      }
+    `;
+    return [listCss];
+  }
 
-    public hide() {
-        this.drawer.hide();
-    }
+  @property()
+  message: string;
+
+  @property()
+  path: string;
+
+  @property()
+  ruleId: string;
+
+  render() {
+    return html`
+      <sl-drawer
+        label="Violation: '${this.ruleId}'"
+        placement="bottom"
+        class="drawer-placement-bottom"
+      >
+        ${this.message}
+        <sl-button slot="footer" variant="primary" @click=${this.hide}
+          >Close</sl-button
+        >
+      </sl-drawer>
+    `;
+  }
+
+  get drawer() {
+    return this.shadowRoot.querySelector('sl-drawer');
+  }
+
+  public show() {
+    this.drawer.show();
+  }
+
+  public hide() {
+    this.drawer.hide();
+  }
 }

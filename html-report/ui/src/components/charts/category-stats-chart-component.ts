@@ -1,5 +1,4 @@
 import { html, LitElement } from 'lit';
-import { BaseCSS } from '../../ts/base.css';
 import {
   BarController,
   BarElement,
@@ -27,10 +26,6 @@ Chart.register(
 
 export class CategoryStatsChartComponent extends LitElement {
   public chart: Chart;
-
-  static get styles() {
-    return [BaseCSS];
-  }
 
   private _buildChartDataFromReport(data: ReportStatistics): ChartData {
     const chartData: ChartData = { labels: [], datasets: [] };
