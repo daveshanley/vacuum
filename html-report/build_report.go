@@ -144,7 +144,11 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	n := []*model.RuleCategory{&allCat}
 	cats = append(n, cats...)
 
-	specStringData := strings.Split(string(*html.info.SpecBytes), "\n")
+	var specStringData []string
+
+	if html.info != nil {
+		specStringData = strings.Split(string(*html.info.SpecBytes), "\n")
+	}
 
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
