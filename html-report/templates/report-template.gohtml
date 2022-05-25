@@ -28,8 +28,6 @@
 {{/*        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>*/}}
 {{/*    </sl-tab-group>*/}}
 
-
-
     <section class="report-statistics">
         <sl-card class="card-header">
             <div slot="header">
@@ -137,6 +135,7 @@
 
             <main class="category-result-grid">
             {{- $allResults := .RuleResults -}}
+            {{- $specString := .SpecString -}}
             {{- with .RuleCategories -}}
             {{- range . }}
                 <category-report slot="reports" id="{{ .Id }}">
@@ -150,6 +149,7 @@
                                 {{- with .Results -}}
                                 {{- range . }}
                                 <category-rule-result slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
+                                    {{ renderSource . $specString }}
                                 </category-rule-result>
                                 {{- end -}}
                                 {{- end -}}

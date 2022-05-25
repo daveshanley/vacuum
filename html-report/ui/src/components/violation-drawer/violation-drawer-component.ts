@@ -1,6 +1,7 @@
 import { BaseComponent } from '../../ts/base-component';
 import { css, html } from 'lit';
 import { property } from 'lit/decorators.js';
+import { SyntaxCSS } from '../../model/syntax';
 
 export class ViolationDrawerComponent extends BaseComponent {
   static get styles() {
@@ -28,8 +29,11 @@ export class ViolationDrawerComponent extends BaseComponent {
         backdrop-filter: blur(3px);
       }
     `;
-    return [listCss];
+    return [SyntaxCSS, listCss];
   }
+
+  @property()
+  code: Element;
 
   @property()
   message: string;
@@ -47,7 +51,8 @@ export class ViolationDrawerComponent extends BaseComponent {
         placement="bottom"
         class="drawer-placement-bottom"
       >
-        ${this.message}
+        ${this.message} ${this.code}
+
         <sl-button slot="footer" variant="primary" @click=${this.hide}
           >Close</sl-button
         >

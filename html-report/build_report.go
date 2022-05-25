@@ -6,8 +6,14 @@ import (
 	"bytes"
 	_ "embed"
 	"encoding/json"
+	"fmt"
+	"github.com/alecthomas/chroma"
+	html_format "github.com/alecthomas/chroma/formatters/html"
+	"github.com/alecthomas/chroma/lexers"
+	"github.com/alecthomas/chroma/styles"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
+	"strings"
 	"text/template"
 )
 
@@ -45,6 +51,7 @@ type ReportData struct {
 	TestMode       bool                      `json:"test"`
 	RuleCategories []*model.RuleCategory     `json:"ruleCategories"`
 	RuleResults    *model.RuleResultSet      `json:"ruleResults"`
+	SpecString     []string                  `json:"-"`
 }
 
 func NewHTMLReport(
@@ -90,6 +97,34 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			}
 			return ""
 		},
+		"renderSource": func(r *model.RuleFunctionResult, specData []string) string {
+
+			// let's go chroma!
+			lexer := lexers.Get("yaml")
+			lexer = chroma.Coalesce(lexer)
+
+			style := styles.Get("swapoff")
+			if style == nil {
+				style = styles.Fallback
+			}
+
+			iterator, _ := lexer.Tokenise(nil, html.renderCodeSnippetForResult(r, specData, 8, 8))
+			b := new(strings.Builder)
+
+			lineRange := [][2]int{[2]int{r.StartNode.Line, r.EndNode.Line}}
+
+			formatter := html_format.New(
+				html_format.WithClasses(true),
+				html_format.WithLineNumbers(true),
+				html_format.BaseLineNumber(r.StartNode.Line-8),
+				html_format.HighlightLines(lineRange))
+			err := formatter.Format(b, style, iterator)
+
+			if err != nil {
+				return fmt.Sprintf("OH MY STARS: %v", err.Error())
+			}
+			return b.String()
+		},
 	}
 	tmpl.Funcs(templateFuncs)
 
@@ -109,6 +144,8 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	n := []*model.RuleCategory{&allCat}
 	cats = append(n, cats...)
 
+	specStringData := strings.Split(string(*html.info.SpecBytes), "\n")
+
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
@@ -118,8 +155,51 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		RuleCategories: cats,
 		TestMode:       test,
 		RuleResults:    html.results,
+		SpecString:     specStringData,
 	}
-	t.ExecuteTemplate(&byteBuf, "report", reportData)
+	err := t.ExecuteTemplate(&byteBuf, "report", reportData)
+
+	if err != nil {
+		return []byte(fmt.Sprintf("failed to render: %v", err.Error()))
+	}
 
 	return byteBuf.Bytes()
+}
+
+func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, specData []string, before, after int) string {
+
+	buf := new(strings.Builder)
+
+	startLine := r.StartNode.Line - 1
+	endLine := r.StartNode.Line
+
+	if startLine-before < 0 {
+		startLine = before - ((startLine - before) * -1)
+	} else {
+		startLine = startLine - before
+	}
+
+	if r.StartNode.Line+after >= len(specData)-1 {
+		endLine = len(specData) - 1
+	} else {
+		endLine = r.StartNode.Line - 1 + after
+	}
+
+	firstDelta := (r.StartNode.Line - 1) - startLine
+	secondDelta := endLine - r.StartNode.Line
+	for i := 0; i < firstDelta; i++ {
+		line := specData[startLine+i]
+		buf.WriteString(fmt.Sprintf("%s\n", line))
+	}
+
+	// todo, fix this.
+	line := specData[r.StartNode.Line-1]
+	buf.WriteString(fmt.Sprintf("%s\n", line))
+
+	for i := 0; i < secondDelta; i++ {
+		line = specData[r.StartNode.Line+i]
+		buf.WriteString(fmt.Sprintf("%s\n", line))
+	}
+
+	return buf.String()
 }

@@ -21,8 +21,6 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
     return [buttonCss];
   }
 
-  private _currentlySelected: string;
-
   @property()
   default: string;
 

@@ -19,6 +19,10 @@ export class CategoryRuleResultComponent extends BaseComponent {
         cursor: pointer;
         color: var(--invert-font-color);
       }
+
+      .code-render {
+        display: none;
+      }
     `;
     return [listCss];
   }
@@ -49,10 +53,13 @@ export class CategoryRuleResultComponent extends BaseComponent {
       <span class="violation">
         <a @click=${this._violationClicked}>${this.message}</a>
       </span>
+      <div class="code-render"><slot></slot></div>
     </div>`;
   }
 
   private _violationClicked() {
+    const renderedCode: Element = this._slottedChildren[0];
+
     const violationDetails: ViolationSelectedEvent = {
       message: this.message,
       id: this.ruleId,
@@ -61,6 +68,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       endLine: this.endLine,
       endCol: this.endCol,
       path: this.path,
+      renderedCode: renderedCode,
     };
 
     const options = {

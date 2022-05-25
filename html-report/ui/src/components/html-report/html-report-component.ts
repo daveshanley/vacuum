@@ -49,6 +49,7 @@ export class HtmlReportComponent extends BaseComponent {
     })[0] as ViolationDrawerComponent;
     drawer.ruleId = e.detail.id;
     drawer.message = e.detail.message;
+    drawer.code = e.detail.renderedCode;
     drawer.show();
   }
 }

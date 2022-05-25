@@ -1,4 +1,6 @@
 import 'terminal.css';
+import '../css/syntax.css';
+
 import '../components/charts/category-piechart-component.init';
 import '../components/rule-category-navigation/rule-category-navigation.init';
 import '../components/rule-category-navigation/rule-category-button.init';

@@ -8,12 +8,4 @@ export class BaseComponent extends LitElement {
     }
     return;
   }
-
-  protected get _allSlottedChildren() {
-    const slot = this.shadowRoot.querySelectorAll('slot');
-    if (slot) {
-      return slot;
-    }
-    return;
-  }
 }
