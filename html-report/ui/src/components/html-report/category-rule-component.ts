@@ -1,5 +1,5 @@
 import { BaseComponent } from '../../ts/base-component';
-import { html, css } from 'lit';
+import { html, css, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { RuleSelected, RuleSelectedEvent } from '../../model/events';
 
@@ -77,6 +77,9 @@ export class CategoryRuleComponent extends BaseComponent {
   }
 
   @property()
+  truncated: boolean;
+
+  @property()
   ruleId: string;
 
   @property()
@@ -98,14 +101,26 @@ export class CategoryRuleComponent extends BaseComponent {
   }
 
   render() {
+    let truncatedAlert: TemplateResult;
+    if (this.truncated) {
+      // todo: make this into something good.
+      truncatedAlert = html`
+        <div style="background-color: red; color: white">
+          Too many results...
+        </div>
+      `;
+    }
+
     return html`
       <details>
         <summary @click=${this._ruleSelected}>
-          <span class="rule-icon">${this.ruleIcon}</span> 
-          <span class="rule-description">${this.description}</span> (${this.numResults})
+          <span class="rule-icon">${this.ruleIcon}</span>
+          <span class="rule-description">${this.description}</span> (${this
+            .numResults})
         </summary>
         <div class="violations">
-          <slot name="results">  
+          <slot name="results"></slot>
+          ${truncatedAlert}
         </div>
       </details>
     `;

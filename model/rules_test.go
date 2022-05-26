@@ -138,6 +138,45 @@ func TestRuleResultSet_GetResultsByRuleCategory(t *testing.T) {
 
 }
 
+func TestRuleResultSet_GetResultsByRuleCategoryWithLimit(t *testing.T) {
+
+	rule1 := &Rule{
+		Id:           "one",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+
+	rule2 := &Rule{
+		Id:           "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}
+
+	var r []RuleFunctionResult
+	for i := 0; i < 5000; i++ {
+		var rule *Rule
+		if i%2 == 0 {
+			rule = rule1
+		} else {
+			rule = rule2
+		}
+
+		r = append(r, RuleFunctionResult{Rule: rule,
+			StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}})
+	}
+	results := NewRuleResultSet(r)
+
+	limitedResults := results.GetResultsForCategoryWithLimit(CategoryInfo, 50)
+
+	assert.Len(t, limitedResults.Rules, 2)
+	assert.True(t, limitedResults.Truncated)
+
+	for _, rule := range limitedResults.Rules {
+		assert.Len(t, rule.Results, 50)
+	}
+
+}
+
 func TestRuleResultSet_SortResultsByLineNumber(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{

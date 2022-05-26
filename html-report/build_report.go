@@ -78,11 +78,17 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			return string(b)
 		},
 		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
+			var r *model.RuleResultsForCategory
+			// todo: make this configurable.
+			limit := 200
+
 			if cat == "all" {
 				// todo, replace this with something not wrong.
-				return results.GetRuleResultsForCategory("schemas")
+				r = results.GetResultsForCategoryWithLimit("schemas", limit)
+				return r
 			}
-			return results.GetRuleResultsForCategory(cat)
+			r = results.GetResultsForCategoryWithLimit(cat, limit)
+			return r
 		},
 		"ruleSeverityIcon": func(sev string) string {
 			switch sev {
@@ -121,7 +127,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			err := formatter.Format(b, style, iterator)
 
 			if err != nil {
-				return fmt.Sprintf("OH MY STARS: %v", err.Error())
+				return fmt.Sprintf("Oh My Stars! I cannot render the code: %v", err.Error())
 			}
 			return b.String()
 		},

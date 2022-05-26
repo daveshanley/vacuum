@@ -131,8 +131,9 @@ type RuleFunctionSchema struct {
 
 // RuleResultsForCategory boils down result statistics for a linting category
 type RuleResultsForCategory struct {
-	Rules    []*RuleCategoryResult
-	Category *RuleCategory
+	Rules     []*RuleCategoryResult
+	Category  *RuleCategory
+	Truncated bool
 }
 
 // RuleCategoryResult contains metrics for a rule scored as part of a category.
@@ -387,6 +388,20 @@ func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResults
 		rcr.Seen = rcr.Seen + 1
 	}
 	return &rrfc
+}
+
+// GetResultsForCategoryWithLimit is identical to GetRuleResultsForCategory, except for the fact that there
+// will be a limit on the number of results returned, defined by the limit arg. This is used by the HTML report
+// to stop gigantic files from being created, iterating through all the results.
+func (rr *RuleResultSet) GetResultsForCategoryWithLimit(category string, limit int) *RuleResultsForCategory {
+	rrfc := rr.GetRuleResultsForCategory(category)
+	for x, catResult := range rrfc.Rules {
+		if len(catResult.Results) > limit {
+			rrfc.Rules[x].Results = rrfc.Rules[x].Results[:limit]
+			rrfc.Truncated = true
+		}
+	}
+	return rrfc
 }
 
 func getCount(rr *RuleResultSet, severity string) int {
