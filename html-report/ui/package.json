@@ -37,7 +37,7 @@
   "dependencies": {
     "@open-wc/testing": "^3.1.5",
     "@shoelace-style/shoelace": "^2.0.0-beta.73",
-    "chart.js": "^3.7.1",
+    "chart.js": "^3.8.0",
     "css-loader": "^6.7.1",
     "lit": "^2.2.4",
     "style-loader": "^3.3.1",
