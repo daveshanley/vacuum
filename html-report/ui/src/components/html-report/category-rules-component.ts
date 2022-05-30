@@ -10,6 +10,11 @@ export class CategoryRulesComponent extends BaseComponent {
         margin: 0;
         padding: 0;
       }
+
+      section {
+        max-height: 350px;
+        overflow-y: hidden;
+      }
     `;
 
     return [rulesCss];
@@ -31,7 +36,9 @@ export class CategoryRulesComponent extends BaseComponent {
       .assignedElements({ flatten: true });
 
     rules.forEach((catRule: CategoryRuleComponent) => {
-      catRule.ruleSelected(evt.detail.id);
+      if (catRule.ruleId != evt.detail.id) {
+        catRule.otherRuleSelected();
+      }
     });
   }
 }

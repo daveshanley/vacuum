@@ -1,6 +1,6 @@
 import { BaseComponent } from '../../ts/base-component';
 import { html, css, TemplateResult } from 'lit';
-import { property } from 'lit/decorators.js';
+import { property, query } from 'lit/decorators.js';
 import { RuleSelected, RuleSelectedEvent } from '../../model/events';
 
 export class CategoryRuleComponent extends BaseComponent {
@@ -21,34 +21,35 @@ export class CategoryRuleComponent extends BaseComponent {
         content: '';
       }
 
-      details {
+      .details {
         margin-bottom: calc(var(--global-margin) / 2);
       }
 
-      details > summary {
+      .details > .summary {
         background-color: var(--card-bgcolor);
         border: 1px solid var(--card-bordercolor);
         padding: 5px;
         border-radius: 3px;
       }
 
-      details > div.violations {
-        max-height: 300px;
+      .details > div.violations {
+        max-height: 200px;
+        font-size: var(--sl-font-size-x-small);
         overflow-y: auto;
         border: 1px solid var(--card-bordercolor);
         padding: 5px;
       }
 
-      details > summary::marker {
+      .details > .summary::marker {
         color: var(--secondary-color);
       }
 
-      details[open] summary span.rule-description {
+      .details[open] .summary span.rule-description {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
       }
 
-      summary span.rule-description:hover {
+      .summary span.rule-description:hover {
         cursor: pointer;
         background-color: var(--primary-color);
         color: var(--invert-font-color);
@@ -71,6 +72,22 @@ export class CategoryRuleComponent extends BaseComponent {
         margin: 0;
         padding: 0;
       }
+
+      .violations {
+        display: none;
+      }
+
+      .expand-state {
+        color: var(--font-color);
+        vertical-align: sub;
+        height: 20px;
+        width: 20px;
+        display: inline-block;
+      }
+      .expand-state:hover {
+        cursor: pointer;
+        color: var(--primary-color);
+      }
     `;
 
     return [iconCss];
@@ -91,12 +108,18 @@ export class CategoryRuleComponent extends BaseComponent {
   @property()
   ruleIcon: number;
 
-  ruleSelected(id: string) {
-    [...this.shadowRoot.querySelectorAll('details')].map(details => {
-      if (id != this.ruleId) {
-        details.open = false;
-      }
-    });
+  @property()
+  open: boolean;
+
+  @query('.violations')
+  _violations: HTMLElement;
+
+  private _expandState: boolean;
+
+  otherRuleSelected() {
+    this.open = false;
+    this._violations.style.display = 'none';
+    this._expandState = false;
     this.requestUpdate();
   }
 
@@ -111,29 +134,76 @@ export class CategoryRuleComponent extends BaseComponent {
       `;
     }
 
+    const expandIcon = html`
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        fill="currentColor"
+        class="bi bi-plus-square"
+        viewBox="0 0 16 16"
+      >
+        <path
+          d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
+        />
+        <path
+          d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"
+        />
+      </svg>
+    `;
+
+    const contractIcon = html`
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        fill="currentColor"
+        class="bi bi-dash-square"
+        viewBox="0 0 16 16"
+      >
+        <path
+          d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"
+        />
+        <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z" />
+      </svg>
+    `;
+
+    const expanded = this._expandState ? contractIcon : expandIcon;
+
     return html`
-      <details>
-        <summary @click=${this._ruleSelected}>
+      <div class="details" data-open=${this.open}>
+        <div class="summary" @click=${this._ruleSelected}>
+          <span class="expand-state">${expanded}</span>
           <span class="rule-icon">${this.ruleIcon}</span>
           <span class="rule-description">${this.description}</span> (${this
             .numResults})
-        </summary>
+        </div>
         <div class="violations">
           <slot name="results"></slot>
           ${truncatedAlert}
         </div>
-      </details>
+      </div>
     `;
   }
 
   private _ruleSelected() {
-    const options = {
-      detail: { id: this.ruleId },
-      bubbles: true,
-      composed: true,
-    };
+    if (!this.open) {
+      this._violations.style.display = 'block';
+      this._expandState = true;
+    } else {
+      this._violations.style.display = 'none';
+      this._expandState = false;
+    }
+
+    this.open = !this.open;
     this.dispatchEvent(
-      new CustomEvent<RuleSelectedEvent>(RuleSelected, options)
+      new CustomEvent<RuleSelectedEvent>(RuleSelected, {
+        bubbles: true,
+        composed: true,
+        detail: { id: this.ruleId },
+      })
     );
+
+    this.requestUpdate();
   }
 }

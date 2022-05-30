@@ -133,18 +133,18 @@
                 </section>
             </nav>
 
-            <main class="category-result-grid">
-            {{- $allResults := .RuleResults -}}
-            {{- $specString := .SpecString -}}
-            {{- with .RuleCategories -}}
-            {{- range . }}
-                <category-report slot="reports" id="{{ .Id }}">
-                    {{-  $ruleResults := extractResultsForCategory .Id $allResults -}}
+            <result-grid slot="reports">
+                {{- $allResults := .RuleResults -}}
+                {{- $specString := .SpecString -}}
+                {{- with .RuleCategories -}}
+                {{- range . }}
+                <category-report slot="violation" id="{{ .Id }}">
+                    {{- $ruleResults := extractResultsForCategory .Id $allResults -}}
                     {{- $truncated := $ruleResults.Truncated -}}
                     <category-rules>
                     {{- with $ruleResults.Rules -}}
                     {{- range . }}
-                        <category-rule ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} truncated={{ $truncated }}>
+                        <category-rule ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if $truncated }}truncated=true{{end}}>
                                 {{- with .Results -}}
                                 {{- range . }}
                                 <category-rule-result slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
@@ -158,11 +158,11 @@
                     {{- end -}}
                     </category-rules>
                 </category-report>
-            {{- end }}
-            {{- end }}
-            </main>
+                {{- end }}
+                {{- end }}
+                <violation-drawer slot="details"></violation-drawer>
+            </result-grid>
         </section>
-        <violation-drawer slot="drawer"></violation-drawer>
     </html-report>
 </div>
 

@@ -11,7 +11,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       }
 
       .violation a {
-        font-size: var(--sl-font-size-small);
+        font-size: var(--sl-font-size-x-small);
         color: var(--font-color);
       }
       .violation a:hover {

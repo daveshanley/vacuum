@@ -35,10 +35,13 @@ hr.header {
     height: 65vh;
 }
 
-.category-result-grid {
+result-grid {
     border-left: dashed 1px var(--secondary-color);
     margin-left: var(--global-margin);
     padding-left: var(--global-padding);
+    display: grid;
+    grid-template-columns: auto;
+    grid-template-rows: 50% 50%;
 }
 
 category-report {
@@ -46,11 +49,20 @@ category-report {
     /*grid-template-columns: 9fr 3fr;*/
     /*grid-template-rows: 5fr 5fr;*/
     display: none;
-    grid-template-columns: repeat(2, 1fr);
+    //grid-template-columns: repeat(2, 1fr);
     gap: 10px;
-    grid-auto-rows: minmax(100px, auto);
+    //grid-auto-rows: minmax(100px, auto);
+
+
 }
 
+category-rules {
+    max-height: 200px;
+}
+
+violation-drawer {
+    border-top: dashed 1px var(--secondary-color);
+}
 
 .wrapper {
     display: grid;

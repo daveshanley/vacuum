@@ -46,17 +46,9 @@ export class ViolationDrawerComponent extends BaseComponent {
 
   render() {
     return html`
-      <sl-drawer
-        label="Violation: '${this.ruleId}'"
-        placement="bottom"
-        class="drawer-placement-bottom"
-      >
-        ${this.message} ${this.code}
+      <h2>${this.ruleId}</h2>
 
-        <sl-button slot="footer" variant="primary" @click=${this.hide}
-          >Close</sl-button
-        >
-      </sl-drawer>
+      ${this.message} ${this.code}
     `;
   }
 
@@ -65,10 +57,10 @@ export class ViolationDrawerComponent extends BaseComponent {
   }
 
   public show() {
-    this.drawer.show();
+    //this.drawer.show();
   }
 
   public hide() {
-    this.drawer.hide();
+    //this.drawer.hide();
   }
 }

@@ -80,7 +80,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
 			var r *model.RuleResultsForCategory
 			// todo: make this configurable.
-			limit := 200
+			limit := 100
 
 			if cat == "all" {
 				// todo, replace this with something not wrong.
