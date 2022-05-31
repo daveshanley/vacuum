@@ -12,7 +12,7 @@ export class CategoryRulesComponent extends BaseComponent {
       }
 
       section {
-        max-height: 350px;
+        //max-height: 35vh;
         overflow-y: hidden;
       }
     `;

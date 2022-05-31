@@ -28,6 +28,5 @@ export class ResultGridComponent extends BaseComponent {
     drawer.ruleId = e.detail.id;
     drawer.message = e.detail.message;
     drawer.code = e.detail.renderedCode;
-    drawer.show();
   }
 }

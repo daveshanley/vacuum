@@ -2,6 +2,7 @@ import { BaseComponent } from '../../ts/base-component';
 import { html } from 'lit';
 import { CategoryActivatedEvent } from '../../model/events';
 import { CategoryRuleComponent } from './category-rule-component';
+import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
 
 export class HtmlReportComponent extends BaseComponent {
   render() {
@@ -16,6 +17,10 @@ export class HtmlReportComponent extends BaseComponent {
   _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
     const categoryReports = document.querySelectorAll('category-report');
     const categoryRules = document.querySelectorAll('category-rule');
+    const violationDrawer = document.querySelector(
+      'violation-drawer'
+    ) as ViolationDrawerComponent;
+
     const slot = this.shadowRoot
       .querySelector('slot')
       .assignedElements({ flatten: true });
@@ -38,16 +43,14 @@ export class HtmlReportComponent extends BaseComponent {
     categoryRules.forEach((rule: CategoryRuleComponent) => {
       rule.open = false;
     });
+
+    violationDrawer.hide();
   }
 
-  // _violationSelectedListener(e: CustomEvent<ViolationSelectedEvent>) {
-  //   const slots = this.shadowRoot.querySelectorAll('slot');
-  //   const drawer: ViolationDrawerComponent = slots[2].assignedElements({
-  //     flatten: true,
-  //   })[0] as ViolationDrawerComponent;
-  //   drawer.ruleId = e.detail.id;
-  //   drawer.message = e.detail.message;
-  //   drawer.code = e.detail.renderedCode;
-  //   drawer.show();
-  // }
+  _violationSelectedListener() {
+    const violationDrawer = document.querySelector(
+      'violation-drawer'
+    ) as ViolationDrawerComponent;
+    violationDrawer.show();
+  }
 }

@@ -6,6 +6,7 @@ body {
     word-spacing: -0.1rem;
 }
 
+
 hr.header {
     margin: 10px 0 0;
 }
@@ -40,8 +41,8 @@ result-grid {
     margin-left: var(--global-margin);
     padding-left: var(--global-padding);
     display: grid;
-    grid-template-columns: auto;
-    grid-template-rows: 50% 50%;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
 }
 
 category-report {
@@ -56,14 +57,6 @@ category-report {
 
 }
 
-category-rules {
-    max-height: 200px;
-}
-
-violation-drawer {
-    border-top: dashed 1px var(--secondary-color);
-}
-
 .wrapper {
     display: grid;
     grid-template-columns: 1fr;
@@ -71,13 +64,6 @@ violation-drawer {
     grid-auto-rows: minmax(100px, auto);
 }
 
-
-
-
-category-rules {
-    grid-column: 1;
-    grid-row: 1;
-}
 
 #category-description {
     border-top: dashed 1px var(--secondary-color);
@@ -94,30 +80,6 @@ sl-tab-group {
 category-piechart {
     margin-right: 20px;
 }
-
-/*category-rule-result {*/
-/*    width: 100vw*/
-/*}*/
-
-/*.category-description {
-    /*min-height: 200px;*/
-    /*width: 20vw;*/
-    /*padding-left: 20px;*/
-    /*border-left: dashed 1px var(--secondary-color);*/
-    /*font-size: var(--sl-font-size-small);*/
-
-/*}*/
-
-/*category-rules {*/
-/*    flex-grow: 2;*/
-/*    min-height: 300px;*/
-/*    max-height: 300px;*/
-/*    height: 300px;*/
-/*    overflow-y: auto;*/
-/*    max-width: 65vw;*/
-/*}*/
-
-
 
 
 .report-statistics {
@@ -174,8 +136,40 @@ category-piechart {
     color: var(--sl-color-success-500);
     font-size: var(--sl-font-size-2x-large);
     text-align: center;
-    padding: 20px;
+    padding: var(--global-padding);
 }
+
+
+violation-drawer {
+    border-left: dashed 1px var(--secondary-color);
+    margin-left: var(--global-margin);
+    padding-left: var(--global-padding);
+}
+
+/* cater to large screens */
+@media only screen and (max-width: 1200px) {
+
+    result-grid {
+        border-left: dashed 1px var(--secondary-color);
+        margin-left: var(--global-margin);
+        padding-left: var(--global-padding);
+        display: grid;
+        grid-template-columns: auto;
+        grid-template-rows: 50% 50%;
+
+    }
+
+    violation-drawer {
+        border-top: dashed 1px var(--secondary-color);
+        border-left: none;
+        margin-left: 0;
+        padding-left: 0;
+    }
+
+
+}
+
+
 
 
 

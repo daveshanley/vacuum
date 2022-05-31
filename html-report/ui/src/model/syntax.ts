@@ -4,7 +4,7 @@ export const SyntaxCSS = css`
   /* Background */
   .chroma {
     color: #f8f8f2;
-    background-color: #282a36;
+    background-color: var(--code-bg-color);
   }
   /* Other */
   .chroma .x {
@@ -33,7 +33,7 @@ export const SyntaxCSS = css`
   .chroma .hl {
     display: block;
     width: 100%;
-    background-color: #ffffcc;
+    background-color: #62c4ff14;
   }
   /* LineNumbersTable */
   .chroma .lnt {

@@ -6,6 +6,19 @@ import { SyntaxCSS } from '../../model/syntax';
 export class ViolationDrawerComponent extends BaseComponent {
   static get styles() {
     const listCss = css`
+      pre {
+        //max-width: 100vw;
+        overflow-x: auto;
+      }
+
+      p {
+        font-size: var(--sl-font-size-x-small);
+      }
+
+      pre {
+        font-size: var(--sl-font-size-x-small);
+      }
+
       ul {
         margin-top: 0;
       }
@@ -44,23 +57,33 @@ export class ViolationDrawerComponent extends BaseComponent {
   @property()
   ruleId: string;
 
+  private _visible: boolean;
+
   render() {
+    if (this.code) {
+      const c = this.code as HTMLElement;
+      c.style.maxWidth = this.offsetWidth + 'px';
+    }
     return html`
       <h2>${this.ruleId}</h2>
 
-      ${this.message} ${this.code}
+      <p>${this.message}</p>
+
+      ${this.code}
     `;
+  }
+
+  public show() {
+    this._visible = true;
+    this.requestUpdate();
+  }
+
+  public hide() {
+    this._visible = false;
+    this.requestUpdate();
   }
 
   get drawer() {
     return this.shadowRoot.querySelector('sl-drawer');
-  }
-
-  public show() {
-    //this.drawer.show();
-  }
-
-  public hide() {
-    //this.drawer.hide();
   }
 }

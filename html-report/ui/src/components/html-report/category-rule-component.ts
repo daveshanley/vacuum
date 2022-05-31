@@ -7,9 +7,9 @@ export class CategoryRuleComponent extends BaseComponent {
   static get styles() {
     const iconCss = css`
       .rule-icon {
-        font-family: Arial;
+        font-family: 'Arial';
         font-size: var(--sl-font-size-small);
-        with: 20px;
+        width: 20px;
         display: inline-block;
       }
 
@@ -33,11 +33,16 @@ export class CategoryRuleComponent extends BaseComponent {
       }
 
       .details > div.violations {
-        max-height: 200px;
+        max-height: 35vh;
         font-size: var(--sl-font-size-x-small);
         overflow-y: auto;
         border: 1px solid var(--card-bordercolor);
-        padding: 5px;
+      }
+
+      @media only screen and (max-width: 1200px) {
+        .details > div.violations {
+          max-height: 230px;
+        }
       }
 
       .details > .summary::marker {

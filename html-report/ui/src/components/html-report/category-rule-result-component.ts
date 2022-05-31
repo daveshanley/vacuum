@@ -10,11 +10,26 @@ export class CategoryRuleResultComponent extends BaseComponent {
         margin-top: 0;
       }
 
-      .violation a {
+      .line {
+        text-align: center;
+        border-radius: 5px;
+        min-width: 35px;
+        max-width: 35px;
+        background-color: var(--card-bgcolor);
+        color: var(--tertiary-color);
+        font-size: var(--sl-font-size-xx-small);
+      }
+
+      .violation {
+        display: flex;
+
+        border-top: 1px solid var(--card-bgcolor);
+        border-bottom: 1px solid var(--card-bgcolor);
         font-size: var(--sl-font-size-x-small);
         color: var(--font-color);
       }
-      .violation a:hover {
+
+      .violation:hover {
         background-color: var(--secondary-color);
         cursor: pointer;
         color: var(--invert-font-color);
@@ -22,6 +37,10 @@ export class CategoryRuleResultComponent extends BaseComponent {
 
       .code-render {
         display: none;
+      }
+
+      .message {
+        margin-left: 5px;
       }
     `;
     return [listCss];
@@ -48,17 +67,24 @@ export class CategoryRuleResultComponent extends BaseComponent {
   @property()
   path: string;
 
+  private _renderedCode: Element;
+
   render() {
-    return html` <div>
-      <span class="violation">
-        <a @click=${this._violationClicked}>${this.message}</a>
-      </span>
-      <div class="code-render"><slot></slot></div>
-    </div>`;
+    return html` <div class="violation" @click=${this._violationClicked}>
+        <div class="line">${this.startLine}</div>
+        <div class="message">${this.message}</div>
+      </div>
+      <div class="code-render"><slot></slot></div>`;
   }
 
   private _violationClicked() {
-    const renderedCode: Element = this._slottedChildren[0];
+    let renderedCode: Element;
+    if (this._renderedCode) {
+      renderedCode = this._renderedCode;
+    } else {
+      renderedCode = this._slottedChildren[0];
+      this._renderedCode = renderedCode;
+    }
 
     const violationDetails: ViolationSelectedEvent = {
       message: this.message,
