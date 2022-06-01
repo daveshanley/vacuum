@@ -1,7 +1,8 @@
 import { BaseComponent } from '../../ts/base-component';
 import { html, css, TemplateResult } from 'lit';
 import { property, query } from 'lit/decorators.js';
-import { RuleSelected, RuleSelectedEvent } from '../../model/events';
+import { RuleSelected, RuleSelectedEvent, ViolationSelectedEvent } from '../../model/events';
+import { CategoryRuleResultComponent } from './category-rule-result-component';
 
 export class CategoryRuleComponent extends BaseComponent {
   static get styles() {
@@ -31,8 +32,32 @@ export class CategoryRuleComponent extends BaseComponent {
         padding: 5px;
         border-radius: 3px;
       }
+      
+      .rule-violation-count {
+        font-size: var(--sl-font-size-x-small);
+        background-color: var(--progress-bar-background);
+        padding: 2px;
+        border-radius: 2px;
+      }
 
-      .details > div.violations {
+      .details.open .summary {
+
+        background-color: var(--primary-color);
+        color: var(--invert-font-color);
+      }
+
+      .details.open .rule-violation-count {
+
+        background-color: var(--primary-color);
+        color: var(--invert-font-color);
+        border: 1px solid var(--invert-font-color)
+      }
+
+      .details.open .expand-state {
+        color: var(--invert-font-color);
+      }
+
+        .details > div.violations {
         max-height: 35vh;
         font-size: var(--sl-font-size-x-small);
         overflow-y: auto;
@@ -49,6 +74,10 @@ export class CategoryRuleComponent extends BaseComponent {
         color: var(--secondary-color);
       }
 
+      .rule-description {
+        font-size: var(--rule-font-size);
+      }
+      
       .details[open] .summary span.rule-description {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
@@ -59,7 +88,9 @@ export class CategoryRuleComponent extends BaseComponent {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
       }
-
+      
+      
+      
       .rule-details::part(header) {
         margin: 0;
         padding: 3px;
@@ -93,7 +124,7 @@ export class CategoryRuleComponent extends BaseComponent {
         cursor: pointer;
         color: var(--primary-color);
       }
-    `;
+          `;
 
     return [iconCss];
   }
@@ -176,14 +207,14 @@ export class CategoryRuleComponent extends BaseComponent {
     const expanded = this._expandState ? contractIcon : expandIcon;
 
     return html`
-      <div class="details" data-open=${this.open}>
+      <div class="details ${this._expandState ? 'open' : ''}">
         <div class="summary" @click=${this._ruleSelected}>
           <span class="expand-state">${expanded}</span>
           <span class="rule-icon">${this.ruleIcon}</span>
-          <span class="rule-description">${this.description}</span> (${this
-            .numResults})
+          <span class="rule-description">${this.description}</span>
+          <span class="rule-violation-count">${this.numResults}</span>
         </div>
-        <div class="violations">
+        <div class="violations" @violationSelected=${this._violationSelected}>
           <slot name="results"></slot>
           ${truncatedAlert}
         </div>
@@ -211,4 +242,11 @@ export class CategoryRuleComponent extends BaseComponent {
 
     this.requestUpdate();
   }
+
+  private _violationSelected(evt: CustomEvent<ViolationSelectedEvent>) {
+    this._slottedChildren.forEach((result: CategoryRuleResultComponent) => {
+      result.selected = evt.detail.violationId == result.violationId;
+    });
+  }
+
 }

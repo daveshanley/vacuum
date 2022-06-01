@@ -19,6 +19,10 @@ export class CategoryRuleResultComponent extends BaseComponent {
         color: var(--tertiary-color);
         font-size: var(--sl-font-size-xx-small);
       }
+      
+      .violation:hover .line {
+        color: var(--invert-font-color);
+      }
 
       .violation {
         display: flex;
@@ -41,6 +45,19 @@ export class CategoryRuleResultComponent extends BaseComponent {
 
       .message {
         margin-left: 5px;
+      }
+      
+      .selected {
+        background-color: var(--secondary-color);
+        color: var(--invert-font-color);
+      }
+
+      .selected .line {
+        color: var(--invert-font-color);
+      }
+      
+      .selected .message {
+        font-weight: bold;
       }
     `;
     return [listCss];
@@ -67,10 +84,26 @@ export class CategoryRuleResultComponent extends BaseComponent {
   @property()
   path: string;
 
+  @property()
+  selected: boolean;
+
   private _renderedCode: Element;
 
+  private _violationId: string;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._violationId = (Math.random()).toString(20).substring(2);
+  }
+
+  get violationId(): string {
+    return this._violationId;
+  }
+
   render() {
-    return html` <div class="violation" @click=${this._violationClicked}>
+    return html`
+      <div class="violation ${this.selected ? 'selected' : ''}" 
+           @click=${this._violationClicked}>
         <div class="line">${this.startLine}</div>
         <div class="message">${this.message}</div>
       </div>
@@ -94,6 +127,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       endLine: this.endLine,
       endCol: this.endCol,
       path: this.path,
+      violationId: this.violationId,
       renderedCode: renderedCode,
     };
 

@@ -60,10 +60,6 @@ export class ViolationDrawerComponent extends BaseComponent {
   private _visible: boolean;
 
   render() {
-    if (this.code) {
-      const c = this.code as HTMLElement;
-      c.style.maxWidth = this.offsetWidth + 'px';
-    }
     return html`
       <h2>${this.ruleId}</h2>
 
