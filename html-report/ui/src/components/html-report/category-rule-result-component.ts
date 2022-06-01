@@ -19,7 +19,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
         color: var(--tertiary-color);
         font-size: var(--sl-font-size-xx-small);
       }
-      
+
       .violation:hover .line {
         color: var(--invert-font-color);
       }
@@ -46,7 +46,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       .message {
         margin-left: 5px;
       }
-      
+
       .selected {
         background-color: var(--secondary-color);
         color: var(--invert-font-color);
@@ -55,7 +55,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       .selected .line {
         color: var(--invert-font-color);
       }
-      
+
       .selected .message {
         font-weight: bold;
       }
@@ -93,7 +93,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
 
   connectedCallback() {
     super.connectedCallback();
-    this._violationId = (Math.random()).toString(20).substring(2);
+    this._violationId = Math.random().toString(20).substring(2);
   }
 
   get violationId(): string {
@@ -101,9 +101,10 @@ export class CategoryRuleResultComponent extends BaseComponent {
   }
 
   render() {
-    return html`
-      <div class="violation ${this.selected ? 'selected' : ''}" 
-           @click=${this._violationClicked}>
+    return html` <div
+        class="violation ${this.selected ? 'selected' : ''}"
+        @click=${this._violationClicked}
+      >
         <div class="line">${this.startLine}</div>
         <div class="message">${this.message}</div>
       </div>

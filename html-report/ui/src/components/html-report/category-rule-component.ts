@@ -1,7 +1,11 @@
 import { BaseComponent } from '../../ts/base-component';
 import { html, css, TemplateResult } from 'lit';
 import { property, query } from 'lit/decorators.js';
-import { RuleSelected, RuleSelectedEvent, ViolationSelectedEvent } from '../../model/events';
+import {
+  RuleSelected,
+  RuleSelectedEvent,
+  ViolationSelectedEvent,
+} from '../../model/events';
 import { CategoryRuleResultComponent } from './category-rule-result-component';
 
 export class CategoryRuleComponent extends BaseComponent {
@@ -32,7 +36,7 @@ export class CategoryRuleComponent extends BaseComponent {
         padding: 5px;
         border-radius: 3px;
       }
-      
+
       .rule-violation-count {
         font-size: var(--sl-font-size-x-small);
         background-color: var(--progress-bar-background);
@@ -41,23 +45,21 @@ export class CategoryRuleComponent extends BaseComponent {
       }
 
       .details.open .summary {
-
         background-color: var(--primary-color);
         color: var(--invert-font-color);
       }
 
       .details.open .rule-violation-count {
-
         background-color: var(--primary-color);
         color: var(--invert-font-color);
-        border: 1px solid var(--invert-font-color)
+        border: 1px solid var(--invert-font-color);
       }
 
       .details.open .expand-state {
         color: var(--invert-font-color);
       }
 
-        .details > div.violations {
+      .details > div.violations {
         max-height: 35vh;
         font-size: var(--sl-font-size-x-small);
         overflow-y: auto;
@@ -77,7 +79,7 @@ export class CategoryRuleComponent extends BaseComponent {
       .rule-description {
         font-size: var(--rule-font-size);
       }
-      
+
       .details[open] .summary span.rule-description {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
@@ -88,9 +90,7 @@ export class CategoryRuleComponent extends BaseComponent {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
       }
-      
-      
-      
+
       .rule-details::part(header) {
         margin: 0;
         padding: 3px;
@@ -124,7 +124,7 @@ export class CategoryRuleComponent extends BaseComponent {
         cursor: pointer;
         color: var(--primary-color);
       }
-          `;
+    `;
 
     return [iconCss];
   }
@@ -248,5 +248,4 @@ export class CategoryRuleComponent extends BaseComponent {
       result.selected = evt.detail.violationId == result.violationId;
     });
   }
-
 }

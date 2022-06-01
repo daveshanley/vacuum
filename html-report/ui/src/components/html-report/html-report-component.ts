@@ -7,7 +7,10 @@ import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-c
 export class HtmlReportComponent extends BaseComponent {
   render() {
     return html`
-      <div @categoryActivated=${this._categoryActivatedListener}>
+      <div
+        @categoryActivated=${this._categoryActivatedListener}
+        @violationSelected=${this._violationSelectedListener}
+      >
         <slot name="navigation"></slot>
         <slot name="reports"></slot>
       </div>
@@ -28,6 +31,7 @@ export class HtmlReportComponent extends BaseComponent {
     const description = slot[0]
       .querySelector('nav')
       .querySelector('#category-description');
+
     if (description) {
       description.innerHTML = e.detail.description;
     }

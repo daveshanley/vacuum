@@ -1,5 +1,5 @@
 import { BaseComponent } from '../../ts/base-component';
-import { css, html } from 'lit';
+import { css, html, TemplateResult } from 'lit';
 import { property } from 'lit/decorators.js';
 import { SyntaxCSS } from '../../model/syntax';
 
@@ -19,27 +19,27 @@ export class ViolationDrawerComponent extends BaseComponent {
         font-size: var(--sl-font-size-x-small);
       }
 
-      ul {
-        margin-top: 0;
+      a {
+        font-size: var(--sl-font-size-x-small);
+        color: var(--primary-color);
       }
-      .violation a {
-        font-size: var(--sl-font-size-small);
-        color: var(--font-color);
-      }
-
-      .violation a:hover {
+      a:hover {
         background-color: var(--secondary-color);
         cursor: pointer;
         color: var(--invert-font-color);
       }
-      sl-drawer {
-        --size: 80vh;
-        backdrop-filter: blur(2px);
+      h2 {
+        margin-top: 0;
+        line-height: 2.3rem;
+        font-size: 1.4rem;
       }
 
-      sl-drawer::part(panel) {
-        background: var(--background-color-with-opacity);
-        backdrop-filter: blur(3px);
+      .backtick-element {
+        background-color: black;
+        color: var(--secondary-color);
+        border: 1px solid var(--secondary-color-lowalpha);
+        border-radius: 5px;
+        padding: 2px;
       }
     `;
     return [SyntaxCSS, listCss];
@@ -60,13 +60,20 @@ export class ViolationDrawerComponent extends BaseComponent {
   private _visible: boolean;
 
   render() {
-    return html`
-      <h2>${this.ruleId}</h2>
-
-      <p>${this.message}</p>
-
-      ${this.code}
-    `;
+    if (this._visible) {
+      return html`
+        <h2>${ViolationDrawerComponent.replaceTicks(this.message)}</h2>
+        <p>
+          Rule Violated:
+          <a href="https://quobix.com/vacuum/rules/${this.ruleId}"
+            >${this.ruleId}</a
+          >
+        </p>
+        ${this.code}
+      `;
+    } else {
+      return null;
+    }
   }
 
   public show() {
@@ -79,7 +86,26 @@ export class ViolationDrawerComponent extends BaseComponent {
     this.requestUpdate();
   }
 
-  get drawer() {
-    return this.shadowRoot.querySelector('sl-drawer');
+  private static replaceTicks(message: string): TemplateResult[] {
+    const rx = /(`[^`]*`)/g;
+
+    const sections = message.split(rx);
+    console.log('sections', sections);
+
+    const renders: Array<TemplateResult> = new Array<TemplateResult>();
+
+    sections.forEach((section: string) => {
+      if (section.match(rx)) {
+        renders.push(html`
+          <span class="backtick-element">${section.replace(/`/g, '')}</span>
+        `);
+      } else {
+        console.log('section:', section);
+        if (section != '') {
+          renders.push(html`${section}`);
+        }
+      }
+    });
+    return renders;
   }
 }

@@ -41,7 +41,7 @@ result-grid {
     margin-left: var(--global-margin);
     padding-left: var(--global-padding);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 1fr;
+    grid-template-columns: minmax(0, 2fr) 3fr;
     grid-template-rows: 1fr;
     min-height: 0;
     min-width: 0;
