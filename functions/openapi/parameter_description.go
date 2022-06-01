@@ -33,7 +33,7 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 	params := context.Index.GetAllParameters()
 	opParams := context.Index.GetAllParametersFromOperations()
 
-	msg := "the parameter '%s' does not contain a description"
+	msg := "the parameter `%s` does not contain a description"
 
 	// look through top level params first.
 	for id, param := range params {

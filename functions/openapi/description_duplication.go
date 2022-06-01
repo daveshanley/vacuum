@@ -78,7 +78,7 @@ func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summa
 	results *[]model.RuleFunctionResult, cp copyPasta, path string, context model.RuleFunctionContext) {
 	if seenSummaries[md5String] != nil {
 		// duplicate
-		res := model.BuildFunctionResultString(fmt.Sprintf("Summary at line '%d' is a duplicate of line '%d'",
+		res := model.BuildFunctionResultString(fmt.Sprintf("Summary at line `%d` is a duplicate of line `%d`",
 			summary.Line, seenSummaries[md5String].node.Line))
 		res.StartNode = summary
 		res.EndNode = summary
@@ -96,7 +96,7 @@ func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string,
 
 	if seenDescriptions[md5String] != nil {
 		// duplicate
-		res := model.BuildFunctionResultString(fmt.Sprintf("Description at line '%d' is a duplicate of line '%d'",
+		res := model.BuildFunctionResultString(fmt.Sprintf("Description at line `%d` is a duplicate of line `%d`",
 			description.Line, seenDescriptions[md5String].node.Line))
 		res.StartNode = description
 		res.EndNode = description

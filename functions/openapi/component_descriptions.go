@@ -57,7 +57,7 @@ func (cd ComponentDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 			if descNode == nil {
 
-				res := createDescriptionResult(fmt.Sprintf("Component '%s' of type '%s' is missing a description",
+				res := createDescriptionResult(fmt.Sprintf("Component `%s` of type `%s` is missing a description",
 					componentName, componentType), basePath, nameNode, nameNode)
 				res.Rule = context.Rule
 				results = append(results, res)
@@ -67,8 +67,10 @@ func (cd ComponentDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				words := strings.Split(descNode.Value, " ")
 				if len(words) < minWords {
 
-					res := createDescriptionResult(fmt.Sprintf("Component '%s' of type '%s' description must be "+
-						"at least %d words long, (%d is not enough)", componentName, componentType, minWords, len(words)), basePath, descKey, descNode)
+					res := createDescriptionResult(fmt.Sprintf("Component `%s` of type `%s` description must be "+
+						"at least %d words long, (%d is not enough)", componentName, componentType,
+						minWords, len(words)), basePath, descKey, descNode)
+
 					res.Rule = context.Rule
 					results = append(results, res)
 				}

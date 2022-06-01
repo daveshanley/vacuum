@@ -112,7 +112,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation requestBody 'post' at path '/fish/paste' is missing a description", res[0].Message)
+	assert.Equal(t, "Operation requestBody `post` at path `/fish/paste` is missing a description", res[0].Message)
 
 }
 
@@ -147,7 +147,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionMeetsLength(t *testing.
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation 'post' requestBody description at path '/fish/paste' must be at least 5 words "+
+	assert.Equal(t, "Operation `post` requestBody description at path `/fish/paste` must be at least 5 words "+
 		"long, (4 is not enough)", res[0].Message)
 
 }
@@ -186,7 +186,7 @@ func TestOperationDescription_CheckResponsesDescriptionExist(t *testing.T) {
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation 'post' response '200' at path '/fish/paste' is missing a description",
+	assert.Equal(t, "Operation `post` response `200` at path `/fish/paste` is missing a description",
 		res[0].Message)
 
 }
@@ -226,7 +226,7 @@ func TestOperationDescription_CheckResponsesDescriptionLongEnough(t *testing.T) 
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation 'post' response '200' description at path '/fish/paste' must be at least 2 "+
+	assert.Equal(t, "Operation `post` response `200` description at path `/fish/paste` must be at least 2 "+
 		"words long, (1 is not enough)", res[0].Message)
 
 }
