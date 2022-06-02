@@ -3,6 +3,9 @@ import { html } from 'lit';
 import { CategoryActivatedEvent } from '../../model/events';
 import { CategoryRuleComponent } from './category-rule-component';
 import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
+import { ResultGridComponent } from './result-grid-component';
+import { CategoryRulesComponent } from './category-rules-component';
+import { CategoryReportComponent } from './category-report-component';
 
 export class HtmlReportComponent extends BaseComponent {
   render() {
@@ -20,6 +23,11 @@ export class HtmlReportComponent extends BaseComponent {
   _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
     const categoryReports = document.querySelectorAll('category-report');
     const categoryRules = document.querySelectorAll('category-rule');
+    const categoryRuleGroup = document.querySelectorAll('category-rules');
+    const resultGrid = document.querySelector(
+      'result-grid'
+    ) as ResultGridComponent;
+
     const violationDrawer = document.querySelector(
       'violation-drawer'
     ) as ViolationDrawerComponent;
@@ -36,7 +44,7 @@ export class HtmlReportComponent extends BaseComponent {
       description.innerHTML = e.detail.description;
     }
 
-    categoryReports.forEach((element: HTMLElement) => {
+    categoryReports.forEach((element: CategoryReportComponent) => {
       if (element.id == e.detail.id) {
         element.style.display = 'block';
       } else {
@@ -46,9 +54,24 @@ export class HtmlReportComponent extends BaseComponent {
 
     categoryRules.forEach((rule: CategoryRuleComponent) => {
       rule.open = false;
+      //  console.log('do we hide?', rule.numResults)
     });
 
-    violationDrawer.hide();
+    categoryRuleGroup.forEach((rules: CategoryRulesComponent) => {
+      if (rules.id == e.detail.id) {
+        if (rules.rules && rules.rules.length <= 0) {
+          rules.isEmpty = true;
+        }
+        //        console.log('this rule has ', rules.rules.length)
+      }
+    });
+
+    if (violationDrawer) {
+      violationDrawer.hide();
+    }
+    if (resultGrid) {
+      //resultGrid.requestUpdate();
+    }
   }
 
   _violationSelectedListener() {

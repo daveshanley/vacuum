@@ -39,7 +39,8 @@ export class CategoryRuleComponent extends BaseComponent {
 
       .rule-violation-count {
         font-size: var(--sl-font-size-x-small);
-        background-color: var(--progress-bar-background);
+        border: 1px solid var(--card-bordercolor);
+        color: var(--tertiary-color);
         padding: 2px;
         border-radius: 2px;
       }

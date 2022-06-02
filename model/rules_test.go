@@ -378,6 +378,34 @@ func TestRuleResultSet_GetRuleResultsForCategory(t *testing.T) {
 
 }
 
+func TestRuleResultSet_GetRuleResultsForCategoryAll(t *testing.T) {
+
+	r1 := RuleFunctionResult{Rule: &Rule{
+		Description:  "one",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategoryInfo],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r2 := RuleFunctionResult{Rule: &Rule{
+		Description:  "two",
+		Severity:     severityInfo,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r3 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityWarn,
+		RuleCategory: RuleCategories[CategorySecurity],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+	r4 := RuleFunctionResult{Rule: &Rule{
+		Description:  "three",
+		Severity:     severityHint,
+		RuleCategory: RuleCategories[CategorySchemas],
+	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
+
+	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
+	assert.Len(t, results.GetRuleResultsForCategory(CategoryAll).Rules, 4)
+
+}
+
 func TestRule_GetSeverityAsIntValue(t *testing.T) {
 
 	r1 := &Rule{

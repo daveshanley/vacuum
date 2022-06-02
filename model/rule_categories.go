@@ -59,6 +59,11 @@ func init() {
 		Description: "Validation rules make sure that certain characters or patterns have not been used that may cause" +
 			"issues when rendering in different types of applications.",
 	}
+	RuleCategories[CategoryAll] = &RuleCategory{
+		Id:          CategoryAll,
+		Name:        "All Categories",
+		Description: "All the categories, for those who like a party.",
+	}
 
 	RuleCategoriesOrdered = append(RuleCategoriesOrdered,
 		RuleCategories[CategoryInfo],

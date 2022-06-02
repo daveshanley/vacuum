@@ -2,7 +2,7 @@ import { html, css } from 'lit';
 import { property } from 'lit/decorators.js';
 import { BaseComponent } from '../../ts/base-component';
 import { RuleCategoryLinkComponent } from './rule-category-link-component';
-import { CategoryActivatedEvent } from '../../model/events';
+import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
 
 export class RuleCategoryNavigationComponent extends BaseComponent {
   static get styles() {
@@ -32,7 +32,23 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
     `;
   }
 
+  protected firstUpdated() {
+    setTimeout(() => {
+      this.dispatchEvent(
+        new CustomEvent<CategoryActivatedEvent>(CategoryActivated, {
+          bubbles: true,
+          composed: true,
+          detail: {
+            id: this.default,
+            description: 'All the categories, for those who like a party.',
+          },
+        })
+      );
+    });
+  }
+
   _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
+    console.log('activated!', this._slottedChildren);
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
       if (child.name != e.detail.id) {

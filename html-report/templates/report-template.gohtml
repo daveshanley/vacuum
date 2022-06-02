@@ -141,7 +141,7 @@
                 <category-report slot="violation" id="{{ .Id }}">
                     {{- $ruleResults := extractResultsForCategory .Id $allResults -}}
                     {{- $truncated := $ruleResults.Truncated -}}
-                    <category-rules>
+                    <category-rules id="{{ .Id }}">
                     {{- with $ruleResults.Rules -}}
                     {{- range . }}
                         <category-rule ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if $truncated }}truncated=true{{end}}>

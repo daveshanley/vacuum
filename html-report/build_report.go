@@ -82,11 +82,6 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			// todo: make this configurable.
 			limit := 100
 
-			if cat == "all" {
-				// todo, replace this with something not wrong.
-				r = results.GetResultsForCategoryWithLimit("schemas", limit)
-				return r
-			}
 			r = results.GetResultsForCategoryWithLimit(cat, limit)
 			return r
 		},
@@ -141,13 +136,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 
 	// we need a new category here 'all'
 	cats := model.RuleCategoriesOrdered
-	allCat := model.RuleCategory{
-		Id:          "all",
-		Name:        "All Categories",
-		Description: "View everything from all categories",
-	}
-
-	n := []*model.RuleCategory{&allCat}
+	n := []*model.RuleCategory{model.RuleCategories[model.CategoryAll]}
 	cats = append(n, cats...)
 
 	var specStringData []string

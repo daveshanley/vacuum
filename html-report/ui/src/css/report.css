@@ -34,6 +34,7 @@ hr.header {
     grid-template-columns: 2fr 10fr;
     grid-template-rows: 1fr;
     height: 65vh;
+
 }
 
 result-grid {
@@ -139,15 +140,20 @@ category-piechart {
 
 
 violation-drawer {
-    border-left: dashed 1px var(--secondary-color);
+    border-left: dashed 1px var(--secondary-color-x-lowalpha);
     margin-left: var(--global-margin);
     padding-left: var(--global-padding);
-
     grid-area: 1 / 2 / 2 / 3;
     min-height: 0;
     min-width: 0;
 
 }
+
+.drawer-active {
+    border-left: dashed 1px var(--secondary-color);
+}
+
+
 
 /* cater to large screens */
 @media only screen and (max-width: 1200px) {

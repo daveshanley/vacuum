@@ -41,6 +41,14 @@ export class ViolationDrawerComponent extends BaseComponent {
         border-radius: 5px;
         padding: 2px;
       }
+
+      section.select-violation {
+        width: 100%;
+        text-align: center;
+      }
+      section.select-violation p {
+        color: var(--secondary-color-lowalpha);
+      }
     `;
     return [SyntaxCSS, listCss];
   }
@@ -72,17 +80,27 @@ export class ViolationDrawerComponent extends BaseComponent {
         ${this.code}
       `;
     } else {
-      return null;
+      return html`
+        <section class="select-violation">
+          <p>Please select a rule violation from a category.</p>
+        </section>
+      `;
     }
+  }
+
+  get drawer(): HTMLElement {
+    return document.querySelector('violation-drawer') as HTMLElement;
   }
 
   public show() {
     this._visible = true;
+    this.drawer.classList.add('drawer-active');
     this.requestUpdate();
   }
 
   public hide() {
     this._visible = false;
+    this.drawer.classList.remove('drawer-active');
     this.requestUpdate();
   }
 

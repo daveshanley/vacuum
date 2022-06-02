@@ -23,6 +23,7 @@ const (
 	CategorySecurity     = "security"
 	CategoryTags         = "tags"
 	CategoryValidation   = "validation"
+	CategoryAll          = "all"
 )
 
 type RuleCategory struct {
@@ -294,6 +295,13 @@ func (rr *RuleResultSet) GetResultsByRuleCategory(category string) []*RuleFuncti
 	var results []*RuleFunctionResult
 	for _, result := range rr.Results {
 		if result.Rule != nil && result.Rule.RuleCategory != nil {
+
+			// if the category is 'all' then, dump in the lot, regardless.
+			if category == CategoryAll {
+				results = append(results, result)
+				continue
+			}
+
 			if result.Rule.RuleCategory.Id == category {
 				results = append(results, result)
 			}
