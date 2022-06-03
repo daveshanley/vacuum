@@ -169,7 +169,6 @@ func TestRuleResultSet_GetResultsByRuleCategoryWithLimit(t *testing.T) {
 	limitedResults := results.GetResultsForCategoryWithLimit(CategoryInfo, 50)
 
 	assert.Len(t, limitedResults.RuleResults, 2)
-	assert.True(t, limitedResults.Truncated)
 
 	for _, rule := range limitedResults.RuleResults {
 		assert.Len(t, rule.Results, 50)
