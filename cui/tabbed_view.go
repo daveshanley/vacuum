@@ -74,8 +74,8 @@ func (t *TabbedView) scrollViolationsUp() {
 
 func (t *TabbedView) setActiveRule() {
 	t.dashboard.selectedRuleIndex = t.rulesList.SelectedRow
-	if t.currentRuleResults.Rules != nil && t.currentRuleResults.Rules[t.rulesList.SelectedRow] != nil {
-		t.dashboard.selectedRule = t.currentRuleResults.Rules[t.rulesList.SelectedRow].Rule
+	if t.currentRuleResults.RuleResults != nil && t.currentRuleResults.RuleResults[t.rulesList.SelectedRow] != nil {
+		t.dashboard.selectedRule = t.currentRuleResults.RuleResults[t.rulesList.SelectedRow].Rule
 	}
 	//t.generateRuleViolations()
 }
@@ -119,7 +119,7 @@ func (t *TabbedView) generateRulesInCategory() {
 	// sort results
 	sort.Sort(results)
 
-	for _, result := range results.Rules {
+	for _, result := range results.RuleResults {
 
 		sev := result.Rule.GetSeverityAsIntValue()
 		ruleType := ""
@@ -169,7 +169,7 @@ func (t *TabbedView) generateRuleViolations() {
 	results := t.currentRuleResults
 	var rows []string
 	var violationRules []*model.RuleFunctionResult
-	for _, result := range results.Rules {
+	for _, result := range results.RuleResults {
 		for _, violation := range result.Results {
 			if t.dashboard.selectedRule == violation.Rule {
 				rows = append(rows, fmt.Sprintf("%s", strings.ReplaceAll(violation.Path,

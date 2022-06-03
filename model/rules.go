@@ -132,33 +132,35 @@ type RuleFunctionSchema struct {
 
 // RuleResultsForCategory boils down result statistics for a linting category
 type RuleResultsForCategory struct {
-	Rules     []*RuleCategoryResult
-	Category  *RuleCategory
-	Truncated bool
+	RuleResults []*RuleCategoryResult
+	Category    *RuleCategory
 }
 
 // RuleCategoryResult contains metrics for a rule scored as part of a category.
 type RuleCategoryResult struct {
-	Rule     *Rule
-	Results  []*RuleFunctionResult
-	Seen     int
-	Health   int
-	Errors   int
-	Warnings int
-	Info     int
-	Hints    int
+	Rule      *Rule
+	Results   []*RuleFunctionResult
+	Seen      int
+	Health    int
+	Errors    int
+	Warnings  int
+	Info      int
+	Hints     int
+	Truncated bool
 }
 
 // Len returns the length of the results
-func (rr *RuleResultsForCategory) Len() int { return len(rr.Rules) }
+func (rr *RuleResultsForCategory) Len() int { return len(rr.RuleResults) }
 
 // Less determines which result has the lower severity (errors bubble to top)
 func (rr *RuleResultsForCategory) Less(i, j int) bool {
-	return rr.Rules[i].Rule.GetSeverityAsIntValue() < rr.Rules[j].Rule.GetSeverityAsIntValue()
+	return rr.RuleResults[i].Rule.GetSeverityAsIntValue() < rr.RuleResults[j].Rule.GetSeverityAsIntValue()
 }
 
 // Swap will re-sort a result if it's in the wrong order.
-func (rr *RuleResultsForCategory) Swap(i, j int) { rr.Rules[i], rr.Rules[j] = rr.Rules[j], rr.Rules[i] }
+func (rr *RuleResultsForCategory) Swap(i, j int) {
+	rr.RuleResults[i], rr.RuleResults[j] = rr.RuleResults[j], rr.RuleResults[i]
+}
 
 // GetSeverityAsIntValue will return the severity state of the rule as an integer. If the severity is not known
 // then -1 is returned.
@@ -386,7 +388,7 @@ func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResults
 			rcr = &RuleCategoryResult{
 				Rule: res.Rule,
 			}
-			rrfc.Rules = append(rrfc.Rules, rcr)
+			rrfc.RuleResults = append(rrfc.RuleResults, rcr)
 			seenRuleMap[res.Rule.Id] = rcr
 			seenRules[res.Rule] = true
 		} else {
@@ -403,10 +405,10 @@ func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResults
 // to stop gigantic files from being created, iterating through all the results.
 func (rr *RuleResultSet) GetResultsForCategoryWithLimit(category string, limit int) *RuleResultsForCategory {
 	rrfc := rr.GetRuleResultsForCategory(category)
-	for x, catResult := range rrfc.Rules {
+	for x, catResult := range rrfc.RuleResults {
 		if len(catResult.Results) > limit {
-			rrfc.Rules[x].Results = rrfc.Rules[x].Results[:limit]
-			rrfc.Truncated = true
+			rrfc.RuleResults[x].Results = rrfc.RuleResults[x].Results[:limit]
+			rrfc.RuleResults[x].Truncated = true
 		}
 	}
 	return rrfc

@@ -57,8 +57,8 @@ func (dash *Dashboard) GenerateTabbedView() {
 	dash.selectedCategory = dash.ruleCategories[0]
 	dash.tabs.generateDescriptionGridItem()
 	dash.tabs.generateRulesInCategory()
-	if len(dash.tabs.currentRuleResults.Rules) > 0 {
-		dash.selectedRule = dash.tabs.currentRuleResults.Rules[0].Rule
+	if len(dash.tabs.currentRuleResults.RuleResults) > 0 {
+		dash.selectedRule = dash.tabs.currentRuleResults.RuleResults[0].Rule
 	}
 	dash.tabs.generateRuleViolations()
 	//dash.tabs.setActiveViolation()

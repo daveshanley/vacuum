@@ -168,10 +168,10 @@ func TestRuleResultSet_GetResultsByRuleCategoryWithLimit(t *testing.T) {
 
 	limitedResults := results.GetResultsForCategoryWithLimit(CategoryInfo, 50)
 
-	assert.Len(t, limitedResults.Rules, 2)
+	assert.Len(t, limitedResults.RuleResults, 2)
 	assert.True(t, limitedResults.Truncated)
 
-	for _, rule := range limitedResults.Rules {
+	for _, rule := range limitedResults.RuleResults {
 		assert.Len(t, rule.Results, 50)
 	}
 
@@ -374,7 +374,7 @@ func TestRuleResultSet_GetRuleResultsForCategory(t *testing.T) {
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
 	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
-	assert.Len(t, results.GetRuleResultsForCategory(CategorySchemas).Rules, 2)
+	assert.Len(t, results.GetRuleResultsForCategory(CategorySchemas).RuleResults, 2)
 
 }
 
@@ -402,7 +402,7 @@ func TestRuleResultSet_GetRuleResultsForCategoryAll(t *testing.T) {
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
 	results := NewRuleResultSet([]RuleFunctionResult{r1, r2, r3, r4})
-	assert.Len(t, results.GetRuleResultsForCategory(CategoryAll).Rules, 4)
+	assert.Len(t, results.GetRuleResultsForCategory(CategoryAll).RuleResults, 4)
 
 }
 
@@ -477,6 +477,6 @@ func TestRuleResultsForCategory_Sort(t *testing.T) {
 	catResults := results.GetRuleResultsForCategory(CategorySchemas)
 	sort.Sort(catResults)
 
-	assert.Equal(t, "three", catResults.Rules[0].Rule.Description) // first result should be lowest sev.
+	assert.Equal(t, "three", catResults.RuleResults[0].Rule.Description) // first result should be lowest sev.
 
 }

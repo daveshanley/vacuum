@@ -2,7 +2,7 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "outDir": "./build/dist/",
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "module": "es6",
     "target": "es6",
     "jsx": "react",
