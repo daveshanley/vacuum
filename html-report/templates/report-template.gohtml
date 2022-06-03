@@ -2,7 +2,7 @@
 <html lang="en" class="sl-theme-dark">
 {{- template "header" . -}}
 <body class="terminal">
-<div class="container">
+<div class="container vacuum-container">
     <section class="terminal-nav">
         <header class="terminal-logo">
             <div class="logo">
@@ -10,12 +10,8 @@
             </div>
         </header>
     </section>
-</div>
-<hr class="header"/>
-
-
-<div class="container">
-
+{{/*</div>*/}}
+{{/*<div class="container vacuum-container">*/}}
 
 {{/*    <sl-tab-group>*/}}
 {{/*        <sl-tab slot="nav" panel="general">General</sl-tab>*/}}
@@ -28,95 +24,86 @@
 {{/*        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>*/}}
 {{/*    </sl-tab-group>*/}}
 
-    <section class="report-statistics">
-        <sl-card class="card-header">
-            <div slot="header">
-                Report Quality
-            </div>
+{{/*    <section class="report-statistics">*/}}
+{{/*        <sl-card class="card-header">*/}}
+{{/*            <div slot="header">*/}}
+{{/*                Report Quality*/}}
+{{/*            </div>*/}}
 
-            <div class="quality">
-                88%
-            </div>
-        </sl-card>
+{{/*            <div class="quality">*/}}
+{{/*                88%*/}}
+{{/*            </div>*/}}
+{{/*        </sl-card>*/}}
 
-        <category-piechart>
-            nice.
-        </category-piechart>
+{{/*        <category-piechart>*/}}
+{{/*            nice.*/}}
+{{/*        </category-piechart>*/}}
 
-        <table>
-            <tr>
-                <td>Filesize:</td>
-                <td>{{ .Statistics.FilesizeKB }}KB</td>
-            </tr>
-            <tr>
-                <td>Type:</td>
-                <td>{{ .Statistics.SpecType }}</td>
-            </tr>
-            <tr>
-                <td>Format:</td>
-                <td>{{ .Statistics.SpecFormat }}</td>
-            </tr>
-            <tr>
-                <td>Version:</td>
-                <td>{{ .Statistics.Version }}</td>
-            </tr>
-            <tr>
-                <td>References:</td>
-                <td>{{ .Statistics.References }}</td>
-            </tr>
-            <tr>
-                <td>External Docs:</td>
-                <td>{{ .Statistics.ExternalDocs }}</td>
-            </tr>
-            <tr>
-                <td>Parameters:</td>
-                <td>{{ .Statistics.Parameters }}</td>
-            </tr>
-        </table>
+{{/*        <table>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Filesize:</td>*/}}
+{{/*                <td>{{ .Statistics.FilesizeKB }}KB</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Type:</td>*/}}
+{{/*                <td>{{ .Statistics.SpecType }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Format:</td>*/}}
+{{/*                <td>{{ .Statistics.SpecFormat }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Version:</td>*/}}
+{{/*                <td>{{ .Statistics.Version }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>References:</td>*/}}
+{{/*                <td>{{ .Statistics.References }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>External Docs:</td>*/}}
+{{/*                <td>{{ .Statistics.ExternalDocs }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Parameters:</td>*/}}
+{{/*                <td>{{ .Statistics.Parameters }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*        </table>*/}}
 
-        <table>
-            <tr>
-                <td>Links:</td>
-                <td>{{ .Statistics.Links }}</td>
-            </tr>
-            <tr>
-                <td>Paths:</td>
-                <td>{{ .Statistics.Paths }}</td>
-            </tr>
-            <tr>
-                <td>Operations:</td>
-                <td>{{ .Statistics.Operations }}</td>
-            </tr>
-            <tr>
-                <td>Tags:</td>
-                <td>{{ .Statistics.Tags }}</td>
-            </tr>
-            <tr>
-                <td>Examples:</td>
-                <td>{{ .Statistics.Examples }}</td>
-            </tr>
-            <tr>
-                <td>Enums:</td>
-                <td>{{ .Statistics.Enums }}</td>
-            </tr>
-            <tr>
-                <td>Security Defs:</td>
-                <td>{{ .Statistics.Security }}</td>
-            </tr>
-        </table>
+{{/*        <table>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Links:</td>*/}}
+{{/*                <td>{{ .Statistics.Links }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Paths:</td>*/}}
+{{/*                <td>{{ .Statistics.Paths }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Operations:</td>*/}}
+{{/*                <td>{{ .Statistics.Operations }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Tags:</td>*/}}
+{{/*                <td>{{ .Statistics.Tags }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Examples:</td>*/}}
+{{/*                <td>{{ .Statistics.Examples }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Enums:</td>*/}}
+{{/*                <td>{{ .Statistics.Enums }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*            <tr>*/}}
+{{/*                <td>Security Defs:</td>*/}}
+{{/*                <td>{{ .Statistics.Security }}</td>*/}}
+{{/*            </tr>*/}}
+{{/*        </table>*/}}
 
-    </section>
+{{/*    </section>*/}}
 
-    <script>
-        // chart needs data
-        const catChart = document.querySelector('category-piechart')
-        if (catChart) {
-          catChart.setChartData(statisticsData);
-        } else {
-          alert('Something went really wrong.');
-        }
-    </script>
-    <hr class="standard-margin-bt"/>
+    <hr class="header-divider"/>
     <html-report>
         <section class="report-grid" slot="navigation">
             <nav>
@@ -140,11 +127,10 @@
                 {{- range . }}
                 <category-report slot="violation" id="{{ .Id }}">
                     {{- $ruleResults := extractResultsForCategory .Id $allResults -}}
-                    {{- $truncated := $ruleResults.Truncated -}}
                     <category-rules id="{{ .Id }}">
-                    {{- with $ruleResults.Rules -}}
+                    {{- with $ruleResults.RuleResults -}}
                     {{- range . }}
-                        <category-rule ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if $truncated }}truncated=true{{end}}>
+                        <category-rule totalRulesViolated={{ len $ruleResults.RuleResults }} ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
                                 {{- with .Results -}}
                                 {{- range . }}
                                 <category-rule-result slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
@@ -152,7 +138,6 @@
                                 </category-rule-result>
                                 {{- end -}}
                                 {{- end -}}
-
                         </category-rule>
                     {{- end -}}
                     {{- end -}}
@@ -165,18 +150,10 @@
         </section>
     </html-report>
 </div>
-
-{{- if not .TestMode -}}
-<script>
-    {{ .HydrateJS }}
-</script>
-{{- else -}}
-<script src="http://localhost:8080/js/hydrate.js"></script>
-{{- end -}}
-</body>
 <div class="container">
 {{- template "footer" . -}}
 </div>
+</body>
 </html>
 
 

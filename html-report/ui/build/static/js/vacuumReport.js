@@ -50,8 +50,13 @@
           <slot></slot>
         </a>
       </li>
-    `}}Qr([Xr()],ta.prototype,"name",void 0),Qr([Xr()],ta.prototype,"default",void 0),Qr([Xr()],ta.prototype,"description",void 0),customElements.define("rule-category-link",ta),customElements.define("html-report",class extends Gr{render(){return q`
+    `}}Qr([Xr()],ta.prototype,"name",void 0),Qr([Xr()],ta.prototype,"default",void 0),Qr([Xr()],ta.prototype,"description",void 0),customElements.define("rule-category-link",ta),customElements.define("html-report",class extends Gr{static get styles(){return[v`
+      .html-report {
+        height: 100%;
+      }
+    `]}render(){return q`
       <div
+        class="html-report"
         @categoryActivated=${this._categoryActivatedListener}
         @violationSelected=${this._violationSelectedListener}
       >
@@ -119,7 +124,7 @@
         @click=${this._violationClicked}
       >
         <div class="line">${this.startLine}</div>
-        <div class="message">${this.message}</div>
+        <div class="message">${this.path}</div>
       </div>
       <div class="code-render"><slot></slot></div>`}_violationClicked(){let t;this._renderedCode?t=this._renderedCode:(t=this._slottedChildren[0],this._renderedCode=t);const e={detail:{message:this.message,id:this.ruleId,startLine:this.startLine,startCol:this.startCol,endLine:this.endLine,endCol:this.endCol,path:this.path,violationId:this.violationId,renderedCode:t},bubbles:!0,composed:!0};this.dispatchEvent(new CustomEvent("violationSelected",e))}}ia([Xr()],oa.prototype,"message",void 0),ia([Xr()],oa.prototype,"ruleId",void 0),ia([Xr()],oa.prototype,"startLine",void 0),ia([Xr()],oa.prototype,"startCol",void 0),ia([Xr()],oa.prototype,"endLine",void 0),ia([Xr()],oa.prototype,"endCol",void 0),ia([Xr()],oa.prototype,"path",void 0),ia([Xr()],oa.prototype,"selected",void 0),customElements.define("category-rule-result",oa);var sa,na=function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);return n>3&&r&&Object.defineProperty(e,i,r),r};class ra extends Gr{static get styles(){return[v`
       .rule-icon {
@@ -172,9 +177,9 @@
       }
 
       .details > div.violations {
-        max-height: 35vh;
         font-size: var(--sl-font-size-x-small);
         overflow-y: auto;
+        overflow-x: hidden;
         border: 1px solid var(--card-bordercolor);
       }
 
@@ -223,6 +228,20 @@
 
       .violations {
         display: none;
+        scrollbar-width: thin;
+      }
+
+      .violations::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      .violations::-webkit-scrollbar-track {
+        background-color: var(--card-bgcolor);
+      }
+
+      .violations::-webkit-scrollbar-thumb {
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+        background: var(--primary-color);
       }
 
       .expand-state {
@@ -283,7 +302,7 @@
           ${t}
         </div>
       </div>
-    `}_ruleSelected(){this.open?(this._violations.style.display="none",this._expandState=!1):(this._violations.style.display="block",this._expandState=!0),this.open=!this.open,this.dispatchEvent(new CustomEvent("ruleSelected",{bubbles:!0,composed:!0,detail:{id:this.ruleId}})),this.requestUpdate()}_violationSelected(t){this._slottedChildren.forEach((e=>{e.selected=t.detail.violationId==e.violationId}))}}na([Xr()],ra.prototype,"truncated",void 0),na([Xr()],ra.prototype,"ruleId",void 0),na([Xr()],ra.prototype,"description",void 0),na([Xr()],ra.prototype,"numResults",void 0),na([Xr()],ra.prototype,"ruleIcon",void 0),na([Xr()],ra.prototype,"open",void 0),na([(sa=".violations",(({finisher:t,descriptor:e})=>(i,o)=>{var s;if(void 0===o){const o=null!==(s=i.originalKey)&&void 0!==s?s:i.key,n=null!=e?{kind:"method",placement:"prototype",key:o,descriptor:e(i.key)}:{...i,key:o};return null!=t&&(n.finisher=function(e){t(e,o)}),n}{const s=i.constructor;void 0!==e&&Object.defineProperty(i,o,e(o)),null==t||t(s,o)}})({descriptor:t=>{const e={get(){var t,e;return null!==(e=null===(t=this.renderRoot)||void 0===t?void 0:t.querySelector(sa))&&void 0!==e?e:null},enumerable:!0,configurable:!0};return e}}))],ra.prototype,"_violations",void 0),customElements.define("category-rule",ra);var aa=function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);return n>3&&r&&Object.defineProperty(e,i,r),r};class la extends Gr{static get styles(){return[v`
+    `}_ruleSelected(){if(this.open)this._violations.style.display="none",this._expandState=!1;else{this._violations.style.display="block";const t=this.parentElement.parentElement.offsetHeight-60*this.totalRulesViolated;this._violations.style.maxHeight=t+"px",this._expandState=!0}this.open=!this.open,this.dispatchEvent(new CustomEvent("ruleSelected",{bubbles:!0,composed:!0,detail:{id:this.ruleId}})),this.requestUpdate()}_violationSelected(t){this._slottedChildren.forEach((e=>{e.selected=t.detail.violationId==e.violationId}))}}na([Xr()],ra.prototype,"totalRulesViolated",void 0),na([Xr()],ra.prototype,"truncated",void 0),na([Xr()],ra.prototype,"ruleId",void 0),na([Xr()],ra.prototype,"description",void 0),na([Xr()],ra.prototype,"numResults",void 0),na([Xr()],ra.prototype,"ruleIcon",void 0),na([Xr()],ra.prototype,"open",void 0),na([(sa=".violations",(({finisher:t,descriptor:e})=>(i,o)=>{var s;if(void 0===o){const o=null!==(s=i.originalKey)&&void 0!==s?s:i.key,n=null!=e?{kind:"method",placement:"prototype",key:o,descriptor:e(i.key)}:{...i,key:o};return null!=t&&(n.finisher=function(e){t(e,o)}),n}{const s=i.constructor;void 0!==e&&Object.defineProperty(i,o,e(o)),null==t||t(s,o)}})({descriptor:t=>{const e={get(){var t,e;return null!==(e=null===(t=this.renderRoot)||void 0===t?void 0:t.querySelector(sa))&&void 0!==e?e:null},enumerable:!0,configurable:!0};return e}}))],ra.prototype,"_violations",void 0),customElements.define("category-rule",ra);var aa=function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);return n>3&&r&&Object.defineProperty(e,i,r),r};class la extends Gr{static get styles(){return[v`
       ul.rule {
         margin: 0;
         padding: 0;

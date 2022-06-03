@@ -1,5 +1,5 @@
 import { BaseComponent } from '../../ts/base-component';
-import { html } from 'lit';
+import { css, html } from 'lit';
 import { CategoryActivatedEvent } from '../../model/events';
 import { CategoryRuleComponent } from './category-rule-component';
 import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
@@ -8,9 +8,20 @@ import { CategoryRulesComponent } from './category-rules-component';
 import { CategoryReportComponent } from './category-report-component';
 
 export class HtmlReportComponent extends BaseComponent {
+  static get styles() {
+    const report = css`
+      .html-report {
+        height: 100%;
+      }
+    `;
+
+    return [report];
+  }
+
   render() {
     return html`
       <div
+        class="html-report"
         @categoryActivated=${this._categoryActivatedListener}
         @violationSelected=${this._violationSelectedListener}
       >

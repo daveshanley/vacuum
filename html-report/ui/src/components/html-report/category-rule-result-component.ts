@@ -106,7 +106,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
         @click=${this._violationClicked}
       >
         <div class="line">${this.startLine}</div>
-        <div class="message">${this.message}</div>
+        <div class="message">${this.path}</div>
       </div>
       <div class="code-render"><slot></slot></div>`;
   }

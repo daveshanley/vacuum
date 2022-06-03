@@ -61,9 +61,9 @@ export class CategoryRuleComponent extends BaseComponent {
       }
 
       .details > div.violations {
-        max-height: 35vh;
         font-size: var(--sl-font-size-x-small);
         overflow-y: auto;
+        overflow-x: hidden;
         border: 1px solid var(--card-bordercolor);
       }
 
@@ -112,6 +112,20 @@ export class CategoryRuleComponent extends BaseComponent {
 
       .violations {
         display: none;
+        scrollbar-width: thin;
+      }
+
+      .violations::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      .violations::-webkit-scrollbar-track {
+        background-color: var(--card-bgcolor);
+      }
+
+      .violations::-webkit-scrollbar-thumb {
+        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+        background: var(--primary-color);
       }
 
       .expand-state {
@@ -129,6 +143,9 @@ export class CategoryRuleComponent extends BaseComponent {
 
     return [iconCss];
   }
+
+  @property()
+  totalRulesViolated: number;
 
   @property()
   truncated: boolean;
@@ -226,6 +243,11 @@ export class CategoryRuleComponent extends BaseComponent {
   private _ruleSelected() {
     if (!this.open) {
       this._violations.style.display = 'block';
+      // use some intelligence to resize this in a responsive way.
+      const heightCalc =
+        this.parentElement.parentElement.offsetHeight -
+        this.totalRulesViolated * 60;
+      this._violations.style.maxHeight = heightCalc + 'px';
       this._expandState = true;
     } else {
       this._violations.style.display = 'none';
@@ -233,6 +255,7 @@ export class CategoryRuleComponent extends BaseComponent {
     }
 
     this.open = !this.open;
+
     this.dispatchEvent(
       new CustomEvent<RuleSelectedEvent>(RuleSelected, {
         bubbles: true,
