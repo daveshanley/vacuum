@@ -15,6 +15,7 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"strings"
 	"text/template"
+	"time"
 )
 
 //go:embed templates/report-template.gohtml
@@ -78,6 +79,10 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 
 	tmpl := template.New("header")
 	templateFuncs := template.FuncMap{
+		"timeGenerated": func() string {
+			return time.Now().Format("02 Jan 2006 15:04:05 EST")
+		},
+
 		"renderJSON": func(data interface{}) string {
 			b, _ := json.Marshal(data)
 			return string(b)

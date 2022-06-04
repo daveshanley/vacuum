@@ -33,10 +33,8 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   }
 
   protected firstUpdated() {
-
     // default
     setTimeout(() => {
-
       const evt = new CustomEvent<CategoryActivatedEvent>(CategoryActivated, {
         bubbles: true,
         composed: true,
@@ -44,7 +42,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
           id: this.default,
           description: 'All the categories, for those who like a party.',
         },
-      })
+      });
 
       // act like we just clicked all categories.
       this.dispatchEvent(evt);

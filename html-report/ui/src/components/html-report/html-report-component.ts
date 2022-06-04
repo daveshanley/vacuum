@@ -3,7 +3,6 @@ import { css, html } from 'lit';
 import { CategoryActivatedEvent } from '../../model/events';
 import { CategoryRuleComponent } from './category-rule-component';
 import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
-import { ResultGridComponent } from './result-grid-component';
 import { CategoryRulesComponent } from './category-rules-component';
 import { CategoryReportComponent } from './category-report-component';
 
@@ -62,7 +61,7 @@ export class HtmlReportComponent extends BaseComponent {
 
     // close every expanded rule back to closed.
     categoryRules.forEach((rule: CategoryRuleComponent) => {
-      rule.otherRuleSelected()
+      rule.otherRuleSelected();
     });
 
     categoryRuleGroup.forEach((rules: CategoryRulesComponent) => {
@@ -70,7 +69,6 @@ export class HtmlReportComponent extends BaseComponent {
         if (rules.rules && rules.rules.length <= 0) {
           rules.isEmpty = true;
         }
-
       }
     });
 

@@ -19,7 +19,6 @@ export class CategoryRuleResultComponent extends BaseComponent {
         color: var(--tertiary-color);
         font-size: var(--sl-font-size-xx-small);
       }
-      
 
       .violation {
         display: flex;
@@ -103,7 +102,8 @@ export class CategoryRuleResultComponent extends BaseComponent {
   }
 
   render() {
-    return html` <nav aria-label="Violation Navigation"
+    return html` <nav
+        aria-label="Violation Navigation"
         class="violation ${this.selected ? 'selected' : ''}"
         @click=${this._violationClicked}
       >

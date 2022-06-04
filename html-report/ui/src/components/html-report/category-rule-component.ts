@@ -82,7 +82,7 @@ export class CategoryRuleComponent extends BaseComponent {
       .rule-description {
         font-size: var(--rule-font-size);
       }
-      
+
       .summary:hover {
         cursor: pointer;
         background-color: var(--primary-color-lowalpha);
@@ -97,7 +97,6 @@ export class CategoryRuleComponent extends BaseComponent {
         color: var(--invert-font-color);
         border: 1px solid var(--invert-font-color);
       }
-      
 
       .violations {
         display: none;
@@ -128,7 +127,7 @@ export class CategoryRuleComponent extends BaseComponent {
         cursor: pointer;
         color: var(--primary-color);
       }
-      
+
       .truncated {
         text-align: center;
         color: var(--error-color);
@@ -184,10 +183,10 @@ export class CategoryRuleComponent extends BaseComponent {
   render() {
     let truncatedAlert: TemplateResult;
     if (this.truncated) {
-
       truncatedAlert = html`
         <div class="truncated">
-          <strong>${this.numResults - this.maxViolations}</strong> more violations not rendered, There are just too many!
+          <strong>${this.numResults - this.maxViolations}</strong> more
+          violations not rendered, There are just too many!
         </div>
       `;
     }
@@ -229,7 +228,10 @@ export class CategoryRuleComponent extends BaseComponent {
     const expanded = this._expandState ? contractIcon : expandIcon;
 
     return html`
-      <nav aria-label="Rules and Violations" class="details ${this._expandState ? 'open' : ''}">
+      <nav
+        aria-label="Rules and Violations"
+        class="details ${this._expandState ? 'open' : ''}"
+      >
         <div class="summary" @click=${this._ruleSelected}>
           <span class="expand-state">${expanded}</span>
           <span class="rule-icon">${this.ruleIcon}</span>

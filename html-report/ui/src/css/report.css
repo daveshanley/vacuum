@@ -9,6 +9,11 @@ body {
     word-spacing: -0.1rem;
 }
 
+.generated {
+    padding: var(--global-padding) 0 0 var(--global-padding);
+    font-size: 0.80rem;
+    color: var(--secondary-color);
+}
 
 .vacuum-container {
     padding-bottom: 0;

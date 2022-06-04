@@ -6,14 +6,13 @@ import { SyntaxCSS } from '../../model/syntax';
 export class ViolationDrawerComponent extends BaseComponent {
   static get styles() {
     const listCss = css`
-      
       hr {
         border: 0;
         border-top: 1px dashed var(--secondary-color-lowalpha);
         margin-top: var(--global-margin);
         margin-bottom: var(--global-margin);
       }
-      
+
       pre {
         overflow-x: auto;
       }
@@ -69,15 +68,14 @@ export class ViolationDrawerComponent extends BaseComponent {
         color: var(--secondary-color-lowalpha);
         font-size: var(--sl-font-size-x-small);
       }
-      
+
       section.how-to-fix p {
         font-size: var(--sl-font-size-x-small);
       }
-      
+
       p.path {
         color: var(--secondary-color);
       }
-      
     `;
     return [SyntaxCSS, listCss];
   }
