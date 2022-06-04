@@ -84,6 +84,9 @@ export class CategoryRuleResultComponent extends BaseComponent {
   path: string;
 
   @property()
+  howToFix: string;
+
+  @property()
   selected: boolean;
 
   private _renderedCode: Element;
@@ -127,6 +130,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       endLine: this.endLine,
       endCol: this.endCol,
       path: this.path,
+      howToFix: this.howToFix,
       violationId: this.violationId,
       renderedCode: renderedCode,
     };

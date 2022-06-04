@@ -131,10 +131,11 @@
                     <category-rules id="{{ .Id }}">
                     {{- with $ruleResults.RuleResults -}}
                     {{- range . }}
+                        {{- $howToFixRule := .Rule.HowToFix -}}
                         <category-rule maxViolations={{ $maxViolations }} totalRulesViolated={{ len $ruleResults.RuleResults }} ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
                                 {{- with .Results -}}
                                 {{- range . }}
-                                <category-rule-result slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
+                                <category-rule-result howToFix="{{ $howToFixRule }}" slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
                                     {{ renderSource . $specString }}
                                 </category-rule-result>
                                 {{- end -}}

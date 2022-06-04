@@ -11,13 +11,6 @@ export class ResultGridComponent extends BaseComponent {
   }
 
   render() {
-    const slots = this.shadowRoot.querySelectorAll('slot')[0];
-
-    if (slots) {
-      console.log('NICE SPICE', slots.assignedElements());
-      console.log('NICE RICE', slots.assignedNodes());
-    }
-
     return html`
       <slot
         @violationSelected=${this._violationSelectedListener}
@@ -35,5 +28,7 @@ export class ResultGridComponent extends BaseComponent {
     drawer.ruleId = e.detail.id;
     drawer.message = e.detail.message;
     drawer.code = e.detail.renderedCode;
+    drawer.howToFix = e.detail.howToFix;
+    drawer.path = e.detail.path;
   }
 }
