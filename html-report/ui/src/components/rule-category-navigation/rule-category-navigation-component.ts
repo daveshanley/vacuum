@@ -33,17 +33,24 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   }
 
   protected firstUpdated() {
+
+    // default
     setTimeout(() => {
-      this.dispatchEvent(
-        new CustomEvent<CategoryActivatedEvent>(CategoryActivated, {
-          bubbles: true,
-          composed: true,
-          detail: {
-            id: this.default,
-            description: 'All the categories, for those who like a party.',
-          },
-        })
-      );
+
+      const evt = new CustomEvent<CategoryActivatedEvent>(CategoryActivated, {
+        bubbles: true,
+        composed: true,
+        detail: {
+          id: this.default,
+          description: 'All the categories, for those who like a party.',
+        },
+      })
+
+      // act like we just clicked all categories.
+      this.dispatchEvent(evt);
+
+      // now trigger our own listener.
+      this._categoryActivatedListener(evt);
     });
   }
 

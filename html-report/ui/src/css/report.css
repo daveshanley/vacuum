@@ -15,7 +15,7 @@ body {
 }
 
 hr.header {
-    margin: 10px 0 0;
+    margin: var(--global-margin) px 0 0;
 }
 
 .terminal .logo {
@@ -27,7 +27,7 @@ hr.header {
 }
 
 .logo {
-    padding: 10px 0 0 0;
+    padding: var(--global-padding) 0 0 0;
 }
 
 .rule-details::part(base) {

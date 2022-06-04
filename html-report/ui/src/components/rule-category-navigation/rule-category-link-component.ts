@@ -12,7 +12,8 @@ export class RuleCategoryLinkComponent extends BaseComponent {
 
       .active {
         background-color: var(--primary-color);
-        color: var(--invert-font-color);
+        color: var(--invert-font-color);\
+        font-weight: bold;
       }
       a {
         color: var(--primary-color);

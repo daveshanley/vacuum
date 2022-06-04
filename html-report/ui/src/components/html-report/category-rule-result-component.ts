@@ -19,10 +19,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
         color: var(--tertiary-color);
         font-size: var(--sl-font-size-xx-small);
       }
-
-      .violation:hover .line {
-        color: var(--invert-font-color);
-      }
+      
 
       .violation {
         display: flex;
@@ -34,9 +31,12 @@ export class CategoryRuleResultComponent extends BaseComponent {
       }
 
       .violation:hover {
-        background-color: var(--secondary-color);
+        background-color: var(--secondary-color-x-lowalpha);
         cursor: pointer;
-        color: var(--invert-font-color);
+      }
+
+      .violation.selected:hover {
+        background-color: var(--secondary-color-lowalpha);
       }
 
       .code-render {
@@ -48,12 +48,11 @@ export class CategoryRuleResultComponent extends BaseComponent {
       }
 
       .selected {
-        background-color: var(--secondary-color);
-        color: var(--invert-font-color);
+        background-color: var(--secondary-color-lowalpha);
       }
 
       .selected .line {
-        color: var(--invert-font-color);
+        color: var(--font-color);
       }
 
       .selected .message {
@@ -101,13 +100,13 @@ export class CategoryRuleResultComponent extends BaseComponent {
   }
 
   render() {
-    return html` <div
+    return html` <nav aria-label="Violation Navigation"
         class="violation ${this.selected ? 'selected' : ''}"
         @click=${this._violationClicked}
       >
         <div class="line">${this.startLine}</div>
         <div class="message">${this.path}</div>
-      </div>
+      </nav>
       <div class="code-render"><slot></slot></div>`;
   }
 

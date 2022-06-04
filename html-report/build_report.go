@@ -42,6 +42,10 @@ type HTMLReport interface {
 	GenerateReport(testMode bool) []byte
 }
 
+// MaxViolations the maximum number of violations the report will render per broken rule.
+// TODO: make this configurable
+const MaxViolations = 100
+
 type ReportData struct {
 	BundledJS      string                    `json:"bundledJS"`
 	HydrateJS      string                    `json:"hydrateJS"`
@@ -51,6 +55,7 @@ type ReportData struct {
 	TestMode       bool                      `json:"test"`
 	RuleCategories []*model.RuleCategory     `json:"ruleCategories"`
 	RuleResults    *model.RuleResultSet      `json:"ruleResults"`
+	MaxViolations  int                       `json:"maxViolations"`
 	SpecString     []string                  `json:"-"`
 }
 
@@ -79,8 +84,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		},
 		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
 			var r *model.RuleResultsForCategory
-			// todo: make this configurable.
-			limit := 100
+			limit := MaxViolations
 
 			r = results.GetResultsForCategoryWithLimit(cat, limit)
 			return r
@@ -154,6 +158,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		RuleCategories: cats,
 		TestMode:       test,
 		RuleResults:    html.results,
+		MaxViolations:  MaxViolations,
 		SpecString:     specStringData,
 	}
 	err := t.ExecuteTemplate(&byteBuf, "report", reportData)

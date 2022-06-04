@@ -48,12 +48,14 @@ export class CategoryRuleComponent extends BaseComponent {
       .details.open .summary {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
+        font-weight: bold;
       }
 
       .details.open .rule-violation-count {
         background-color: var(--primary-color);
         color: var(--invert-font-color);
         border: 1px solid var(--invert-font-color);
+        font-weight: normal;
       }
 
       .details.open .expand-state {
@@ -80,35 +82,22 @@ export class CategoryRuleComponent extends BaseComponent {
       .rule-description {
         font-size: var(--rule-font-size);
       }
-
-      .details[open] .summary span.rule-description {
-        background-color: var(--primary-color);
-        color: var(--invert-font-color);
-      }
-
-      .summary span.rule-description:hover {
+      
+      .summary:hover {
         cursor: pointer;
-        background-color: var(--primary-color);
+        background-color: var(--primary-color-lowalpha);
         color: var(--invert-font-color);
       }
 
-      .rule-details::part(header) {
-        margin: 0;
-        padding: 3px;
+      .summary:hover .expand-state {
+        color: var(--invert-font-color);
       }
 
-      .rule-details::part(summary) {
-        font-family: Arial;
-        padding: 2px;
+      .summary:hover .rule-violation-count {
+        color: var(--invert-font-color);
+        border: 1px solid var(--invert-font-color);
       }
-      .rule-details::part(base) {
-        max-height: 500px;
-        overflow-y: auto;
-      }
-      .rule-details::part(content) {
-        margin: 0;
-        padding: 0;
-      }
+      
 
       .violations {
         display: none;
@@ -116,7 +105,7 @@ export class CategoryRuleComponent extends BaseComponent {
       }
 
       .violations::-webkit-scrollbar {
-        width: 10px;
+        width: 8px;
       }
 
       .violations::-webkit-scrollbar-track {
@@ -125,7 +114,7 @@ export class CategoryRuleComponent extends BaseComponent {
 
       .violations::-webkit-scrollbar-thumb {
         box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-        background: var(--primary-color);
+        background: var(--primary-color-lowalpha);
       }
 
       .expand-state {
@@ -139,6 +128,15 @@ export class CategoryRuleComponent extends BaseComponent {
         cursor: pointer;
         color: var(--primary-color);
       }
+      
+      .truncated {
+        text-align: center;
+        color: var(--error-color);
+        border: 1px solid var(--error-color);
+        padding: var(--global-padding);
+        margin-bottom: 1px;
+        margin-right: 1px;
+      }
     `;
 
     return [iconCss];
@@ -146,6 +144,9 @@ export class CategoryRuleComponent extends BaseComponent {
 
   @property()
   totalRulesViolated: number;
+
+  @property()
+  maxViolations: number;
 
   @property()
   truncated: boolean;
@@ -180,10 +181,10 @@ export class CategoryRuleComponent extends BaseComponent {
   render() {
     let truncatedAlert: TemplateResult;
     if (this.truncated) {
-      // todo: make this into something good.
+
       truncatedAlert = html`
-        <div style="background-color: red; color: white">
-          Too many results...
+        <div class="truncated">
+          <strong>${this.numResults - this.maxViolations}</strong> more violations not rendered, There are just too many!
         </div>
       `;
     }
@@ -225,7 +226,7 @@ export class CategoryRuleComponent extends BaseComponent {
     const expanded = this._expandState ? contractIcon : expandIcon;
 
     return html`
-      <div class="details ${this._expandState ? 'open' : ''}">
+      <nav aria-label="Rules and Violations" class="details ${this._expandState ? 'open' : ''}">
         <div class="summary" @click=${this._ruleSelected}>
           <span class="expand-state">${expanded}</span>
           <span class="rule-icon">${this.ruleIcon}</span>
@@ -236,11 +237,13 @@ export class CategoryRuleComponent extends BaseComponent {
           <slot name="results"></slot>
           ${truncatedAlert}
         </div>
-      </div>
+      </nav>
     `;
   }
 
   private _ruleSelected() {
+    //evt.preventDefault();
+
     if (!this.open) {
       this._violations.style.display = 'block';
       // use some intelligence to resize this in a responsive way.
