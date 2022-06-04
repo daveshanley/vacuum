@@ -175,6 +175,9 @@ export class CategoryRuleComponent extends BaseComponent {
     this.open = false;
     this._violations.style.display = 'none';
     this._expandState = false;
+    this._slottedChildren.forEach((result: CategoryRuleResultComponent) => {
+      result.selected = false;
+    });
     this.requestUpdate();
   }
 

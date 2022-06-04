@@ -35,9 +35,6 @@ export class HtmlReportComponent extends BaseComponent {
     const categoryReports = document.querySelectorAll('category-report');
     const categoryRules = document.querySelectorAll('category-rule');
     const categoryRuleGroup = document.querySelectorAll('category-rules');
-    const resultGrid = document.querySelector(
-      'result-grid'
-    ) as ResultGridComponent;
 
     const violationDrawer = document.querySelector(
       'violation-drawer'
@@ -63,9 +60,9 @@ export class HtmlReportComponent extends BaseComponent {
       }
     });
 
+    // close every expanded rule back to closed.
     categoryRules.forEach((rule: CategoryRuleComponent) => {
-      rule.open = false;
-      //  console.log('do we hide?', rule.numResults)
+      rule.otherRuleSelected()
     });
 
     categoryRuleGroup.forEach((rules: CategoryRulesComponent) => {
@@ -73,15 +70,12 @@ export class HtmlReportComponent extends BaseComponent {
         if (rules.rules && rules.rules.length <= 0) {
           rules.isEmpty = true;
         }
-        //        console.log('this rule has ', rules.rules.length)
+
       }
     });
 
     if (violationDrawer) {
       violationDrawer.hide();
-    }
-    if (resultGrid) {
-      //resultGrid.requestUpdate();
     }
   }
 
