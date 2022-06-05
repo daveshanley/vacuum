@@ -194,6 +194,13 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					skip = true
 				}
 
+				// check to see if this is a reference
+				for _, j := range context.Index.GetAllRawSequencedReferences() {
+					if j.Node.Line == prop.Line {
+						skip = true
+					}
+				}
+
 				if exKey == nil && exValue == nil && !skip {
 
 					res := model.BuildFunctionResultString(fmt.Sprintf("Missing example for `%s` on component `%s`",
