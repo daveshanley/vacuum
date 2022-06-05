@@ -129,4 +129,8 @@ const (
 	oas3ExamplesFix string = "Examples are critical for consumers to be able to understand schemas and models defined by the spec. " +
 		"Without examples, developers can't understand the type of data the API will return in real life. Examples are turned into mocks " +
 		"and can provide a rich testing capability for APIs. Add detailed examples everywhere!"
+
+	unusedComponentFix string = "Unused components / definitions are generally the result of the OpenAPI contract being updated without " +
+		"considering references. Another reference could have been updated, or an operation changed that no longer references this component. " +
+		"Remove this component from the spec, or re-link to it from another component or operation to fix the problem."
 )

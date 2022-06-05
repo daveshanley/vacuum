@@ -270,7 +270,7 @@ func GetOAS2APISchemesRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check host schemes are defined",
 		Id:           oas2APISchemes,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS2Format,
 		Description:  "OpenAPI host 'schemes' must be present and non-empty array.",
 		Given:        "$",
 		Resolved:     false,
@@ -974,6 +974,7 @@ func GetOAS3UnusedComponentRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasUnusedComponent",
 		},
+		HowToFix: unusedComponentFix,
 	}
 }
 

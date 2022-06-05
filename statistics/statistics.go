@@ -20,7 +20,13 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 		numErrors = len(results.GetErrorsByRuleCategory(cat.Id))
 		numInfo = len(results.GetInfoByRuleCategory(cat.Id))
 		numHints = len(results.GetHintByRuleCategory(cat.Id))
-		score := numIssues / len(results.Results) * 100
+		numResults := len(results.Results)
+		var score int
+		if numResults == 0 && numIssues == 0 {
+			score = 100 // perfect
+		} else {
+			score = numIssues / numResults * 100
+		}
 		catStats = append(catStats, &reports.CategoryStatistic{
 			CategoryName: cat.Name,
 			CategoryId:   cat.Id,

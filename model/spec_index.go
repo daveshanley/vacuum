@@ -288,6 +288,11 @@ func (index *SpecIndex) GetPolyReferences() map[string]*Reference {
 	return index.polymorphicRefs
 }
 
+// GetAllRawSequencedReferences will return all references as they were found in the spec.
+func (index *SpecIndex) GetAllRawSequencedReferences() []*Reference {
+	return index.rawSequencedRefs
+}
+
 // GetPolyAllOfReferences will return every 'allOf' polymorphic reference in the doc
 func (index *SpecIndex) GetPolyAllOfReferences() []*Reference {
 	return index.polymorphicAllOfRefs

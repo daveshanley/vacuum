@@ -10,8 +10,8 @@ info:
     name: Quobix
   version: "1.2"
 tags:
-  - name: "pizza"
-    description: "Pizza?"
+  - name: "Burgers"
+    description: "All kinds of yummy burgers."
     externalDocs:
       description: "Find out more"
       url: "https://quobix.com/"
@@ -27,7 +27,7 @@ paths:
     post:
       operationId: createBurger
       tags:
-        - "Meat"
+        - "Burgers"
       summary:  Create a new burger
       description: A new burger for our menu, yummy yum yum.
       requestBody:
@@ -56,12 +56,12 @@ paths:
                 $ref: '#/components/schemas/Burger'
               examples:
                 quarterPounder:
-                  summary: A juicy two handler sammich
+                  summary: a yummy tasty two patty burger, filled with beefy goodness.
                   value:
                     name: Quarter Pounder with Cheese
                     numPatties: 1
                 filetOFish:
-                  summary: A tasty treat from the sea
+                  summary: a cripsy fish sammich filled with ocean goodness.
                   value:
                     name: Filet-O-Fish
                     numPatties: 1
@@ -102,7 +102,7 @@ paths:
     get:
       operationId: locateBurger
       tags:
-        - "Meat"
+        - "Burgers"
       summary: Search a burger by ID - returns the burger with that identifier
       description: Look up a tasty burger take it and enjoy it
       parameters:
@@ -176,7 +176,7 @@ paths:
           required: true
       responses:
         "200":
-          description: an array of
+          description: all the dressings for a burger.
           content:
             application/json:
               schema:
@@ -192,13 +192,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "There is no burger here"
+                message: There is no burger here
         "500":
           description: Unexpected error listing dressings for burger. Sorry.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                message: computer says no dressings for this burger.
   /dressings/{dressingId}:
     get:
       operationId: getDressing
@@ -215,18 +217,30 @@ paths:
           description: This is the unique identifier for the dressing items.
           required: true
       responses:
+        "200":
+          description: a dressing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dressing'
+              example:
+                name: Butter Sauce
         "404":
           description: Cannot find your dressing, sorry.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                message: No such dressing as 'Pizza'
         "500":
           description: Unexpected error getting a dressing. Sorry.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                message: failed looking up dressing by ID, our server borked.
   /dressings:
     get:
       operationId: getAllDressings
@@ -243,12 +257,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Dressing'
+              example:
+                - name: Burger Sauce
         "500":
-          description: Unexpected error. Sorry.
+          description: Unexpected error thrown when looking up dressing. Sorry.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              example:
+                message: "failed looking up all dressings, something went wrong."
 components:
   schemas:
     Error:
@@ -278,12 +296,13 @@ components:
           type: integer
           description: how many slices of orange goodness would you like?
           example: 1
+        fries:
+          $ref: '#/components/schemas/Fries'
     Fries:
       type: object
       description: golden slices of happy fun joy
       required:
         - potatoShape
-        - favoriteDressings
         - favoriteDrink
       properties:
         seasoning:
@@ -297,12 +316,6 @@ components:
           type: string
           description: what type of potato shape? wedges? shoestring?
           example: Crispy Shoestring
-        favoriteDressings:
-          type: array
-          items:
-            $ref: '#/components/schemas/Dressing'
-        favoriteBurger:
-          $ref: '#/components/schemas/Burger'
         favoriteDrink:
           $ref: '#/components/schemas/Drink'
     Dressing:

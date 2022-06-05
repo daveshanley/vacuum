@@ -121,7 +121,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			iterator, _ := lexer.Tokenise(nil, html.renderCodeSnippetForResult(r, specData, 8, 8))
 			b := new(strings.Builder)
 
-			lineRange := [][2]int{[2]int{r.StartNode.Line, r.EndNode.Line}}
+			lineRange := [][2]int{[2]int{r.StartNode.Line - 1, r.EndNode.Line}}
 
 			formatter := html_format.New(
 				html_format.WithClasses(true),
@@ -179,35 +179,25 @@ func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, s
 
 	buf := new(strings.Builder)
 
-	startLine := r.StartNode.Line - 1
-	endLine := r.StartNode.Line
+	startLine := r.StartNode.Line - before
+	endLine := r.EndNode.Line + after
 
-	if startLine-before < 0 {
-		startLine = before - ((startLine - before) * -1)
-	} else {
-		startLine = startLine - before
+	if startLine < 0 {
+		startLine = 0
 	}
 
-	if r.StartNode.Line+after >= len(specData)-1 {
+	if endLine >= len(specData) {
 		endLine = len(specData) - 1
-	} else {
-		endLine = r.StartNode.Line - 1 + after
 	}
 
-	firstDelta := (r.StartNode.Line - 1) - startLine
-	secondDelta := endLine - r.StartNode.Line
-	for i := 0; i < firstDelta; i++ {
-		line := specData[startLine+i]
-		buf.WriteString(fmt.Sprintf("%s\n", line))
-	}
+	delta := endLine - startLine
 
-	// todo, fix this.
-	line := specData[r.StartNode.Line-1]
-	buf.WriteString(fmt.Sprintf("%s\n", line))
-
-	for i := 0; i < secondDelta; i++ {
-		line = specData[r.StartNode.Line+i]
-		buf.WriteString(fmt.Sprintf("%s\n", line))
+	for i := 0; i < delta; i++ {
+		l := startLine + i
+		if l < len(specData) {
+			line := specData[l]
+			buf.WriteString(fmt.Sprintf("%s\n", line))
+		}
 	}
 
 	return buf.String()
