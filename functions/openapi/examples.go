@@ -196,7 +196,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 				if exKey == nil && exValue == nil && !skip {
 
-					res := model.BuildFunctionResultString(fmt.Sprintf("Missing example for '%s' on component '%s'",
+					res := model.BuildFunctionResultString(fmt.Sprintf("Missing example for `%s` on component `%s`",
 						pName, compName))
 
 					res.StartNode = prop
@@ -235,8 +235,8 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 							// TODO: Diagnose examples of arrays of enums.
 
-							z := model.BuildFunctionResultString(fmt.Sprintf("Example for property '%s' is not valid: '%s'. "+
-								"Value '%s' is not compatible",
+							z := model.BuildFunctionResultString(fmt.Sprintf("Example for property `%s` is not valid: `%s`. "+
+								"Value `%s` is not compatible",
 								pName, resError.Description(), resError.Value()))
 							z.StartNode = exKey
 							z.EndNode = exValue
@@ -270,8 +270,8 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 			// extract all validation errors.
 			for _, resError := range errorResults {
 
-				z := model.BuildFunctionResultString(fmt.Sprintf("Example for component '%s' is not valid: '%s'. "+
-					"Value '%s' is not compatible", compName, resError.Description(), resError.Value()))
+				z := model.BuildFunctionResultString(fmt.Sprintf("Example for component `%s` is not valid: `%s`. "+
+					"Value `%s` is not compatible", compName, resError.Description(), resError.Value()))
 				z.StartNode = topExKey
 				z.EndNode = topExValue.Content[len(topExValue.Content)-1]
 				z.Rule = context.Rule
@@ -318,7 +318,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 	// if there are no examples, anywhere then add a result.
 	if sValue != nil && (esValue == nil && eValue == nil) {
-		res := model.BuildFunctionResultString(fmt.Sprintf("Schema for '%s' does not "+
+		res := model.BuildFunctionResultString(fmt.Sprintf("Schema for `%s` does not "+
 			"contain any examples or example data", nameNodeValue))
 
 		res.StartNode = mediaTypeNode
@@ -358,7 +358,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					// extract all validation errors.
 					for _, resError := range res.Errors() {
 
-						z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' is not valid: '%s'",
+						z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
 							exampleName, resError.Description()))
 						z.StartNode = esValue
 						z.EndNode = valueNode
@@ -371,7 +371,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				// check if the example contains a summary
 				_, summaryNode := utils.FindKeyNode("summary", []*yaml.Node{multiExampleNode})
 				if summaryNode == nil {
-					z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' missing a 'summary', "+
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` missing a `summary`, "+
 						"examples need explaining", exampleName))
 					z.StartNode = esValue
 					z.EndNode = valueNode
@@ -380,10 +380,10 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					*results = append(*results, z)
 				}
 
-				// can't both have a value and an external value set!
+				// can`t both have a value and an external value set!
 				if valueNode != nil && externalValueNode != nil {
-					z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' is not valid: cannot use"+
-						" both 'value' and 'externalValue', choose one or the other",
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: cannot use"+
+						" both `value` and `externalValue`, choose one or the other",
 						exampleName))
 					z.StartNode = esValue
 					z.EndNode = valueNode
@@ -410,7 +410,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 		// extract all validation errors.
 		for _, resError := range res.Errors() {
 
-			z := model.BuildFunctionResultString(fmt.Sprintf("Example for '%s' is not valid: '%s'",
+			z := model.BuildFunctionResultString(fmt.Sprintf("Example for `%s` is not valid: `%s`",
 				nameNodeValue, resError.Description()))
 			z.StartNode = eValue
 			if len(eValue.Content) > 0 {

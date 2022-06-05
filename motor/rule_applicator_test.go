@@ -75,36 +75,6 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
 
 }
 
-func TestApplyRules_TruthyTest(t *testing.T) {
-
-	json := `{
-  "documentationUrl": "quobix.com",
-  "rules": {
-    "truthy-test": {
-      "description": "this is a test for checking truthy",
-      "recommended": true,
-      "type": "style",
-      "given": "$.tags[*]",
-      "severity": "error",
-      "then": {
-        "function": "truthy",
-		"field": "description"
-      }
-    }
-  }
-}
-`
-	rc := CreateRuleComposer()
-	rs, _ := rc.ComposeRuleSet([]byte(json))
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
-
-	results, err := ApplyRules(rs, burgershop)
-	assert.NoError(t, err)
-	assert.Len(t, results, 1)
-	assert.Equal(t, "this is a test for checking truthy: 'description' must be set", results[0].Message)
-
-}
-
 func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
 
 	json := `{

@@ -65,7 +65,7 @@ components:
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 2)
-	assert.Equal(t, "Missing example for 'id' on component 'Pizza'", res[0].Message)
+	assert.Equal(t, "Missing example for `id` on component `Pizza`", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 
 }
@@ -240,8 +240,8 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
                   type: integer
               examples:
                 lemon:
+                  summary: this is an example of a lemon.	
                   value:
-                    summary: this is an example of a lemon.
                     id: 1
                 lime:
                   value: 
@@ -264,7 +264,7 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example 'lime' missing a 'summary', examples need explaining", res[0].Message)
+	assert.Equal(t, "Example `lime` missing a `summary`, examples need explaining", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -302,7 +302,7 @@ func TestExamples_RunRule_Fail_Single_Example_Not_An_Object(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: object, given: string'", res[0].Message)
+	assert.Equal(t, "Example for `application/json` is not valid: `Invalid type. Expected: object, given: string`", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -341,8 +341,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. Expected: "+
-		"integer, given: string'", res[0].Message)
+	assert.Equal(t, "Example for `application/json` is not valid: `Invalid type. Expected: "+
+		"integer, given: string`", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -381,8 +381,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for 'application/json' is not valid: 'Invalid type. "+
-		"Expected: integer, given: string'", res[0].Message)
+	assert.Equal(t, "Example for `application/json` is not valid: `Invalid type. "+
+		"Expected: integer, given: string`", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -457,7 +457,7 @@ func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Schema for 'nuggets' does not contain any examples or example data", res[0].Message)
+	assert.Equal(t, "Schema for `nuggets` does not contain any examples or example data", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -487,7 +487,7 @@ func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Schema for 'icypop' does not contain any examples or example data", res[0].Message)
+	assert.Equal(t, "Schema for `icypop` does not contain any examples or example data", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -521,7 +521,7 @@ func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Missing example for 'id' on component 'Chickens'", res[0].Message)
+	assert.Equal(t, "Missing example for `id` on component `Chickens`", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -555,8 +555,8 @@ func TestExamples_RunRule_Fail_Component_Invalid_Inline_Example(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for property 'id' is not valid: 'Invalid type. Expected: integer, "+
-		"given: string'. Value 'burgers' is not compatible", res[0].Message)
+	assert.Equal(t, "Example for property `id` is not valid: `Invalid type. Expected: integer, "+
+		"given: string`. Value `burgers` is not compatible", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -591,8 +591,8 @@ func TestExamples_RunRule_Fail_Component_Invalid_ObjectLevel_Example(t *testing.
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
-		"given: string'. Value 'cake' is not compatible", res[0].Message)
+	assert.Equal(t, "Example for component `Lemons` is not valid: `Invalid type. Expected: integer, "+
+		"given: string`. Value `cake` is not compatible", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -627,8 +627,8 @@ func TestExamples_RunRule_Fail_Parameters_Invalid_ObjectLevel_Example(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example for component 'Lemons' is not valid: 'Invalid type. Expected: integer, "+
-		"given: string'. Value 'cake' is not compatible", res[0].Message)
+	assert.Equal(t, "Example for component `Lemons` is not valid: `Invalid type. Expected: integer, "+
+		"given: string`. Value `cake` is not compatible", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 
 }
@@ -651,12 +651,12 @@ func TestExamples_RunRule_Fail_ExternalAndValue(t *testing.T) {
               examples:
                 lemon:
                   externalValue: https://quobix.com
+                  summary: this is an example of a lemon.                  
                   value:
-                    summary: this is an example of a lemon.
                     id: 1
                 lime:
-                  value:
-                    summary: nice chickens 
+                  summary: nice chickens
+                  value: 
                     id: 2`
 
 	path := "$"
@@ -676,6 +676,6 @@ func TestExamples_RunRule_Fail_ExternalAndValue(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example 'lemon' is not valid: cannot use both 'value' and 'externalValue', choose one or the other", res[0].Message)
+	assert.Equal(t, "Example `lemon` is not valid: cannot use both `value` and `externalValue`, choose one or the other", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
