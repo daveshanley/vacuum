@@ -369,7 +369,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				}
 
 				// check if the example contains a summary
-				_, summaryNode := utils.FindKeyNode("summary", []*yaml.Node{valueNode})
+				_, summaryNode := utils.FindKeyNode("summary", []*yaml.Node{multiExampleNode})
 				if summaryNode == nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example '%s' missing a 'summary', "+
 						"examples need explaining", exampleName))
