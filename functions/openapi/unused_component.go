@@ -80,9 +80,9 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	for key, ref := range notUsed {
 		_, path := utils.ConvertComponentIdIntoPath(ref.Definition)
 		results = append(results, model.RuleFunctionResult{
-			Message:   fmt.Sprintf("the definition '%s' is potentially unused or has been orphaned", key),
+			Message:   fmt.Sprintf("`%s` is potentially unused or has been orphaned", key),
 			StartNode: ref.Node,
-			EndNode:   ref.Node,
+			EndNode:   utils.FindLastChildNode(ref.Node),
 			Path:      path,
 			Rule:      context.Rule,
 		})
