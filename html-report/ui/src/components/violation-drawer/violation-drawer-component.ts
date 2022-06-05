@@ -153,8 +153,6 @@ export class ViolationDrawerComponent extends BaseComponent {
     const rx = /(`[^`]*`)/g;
 
     const sections = message.split(rx);
-    console.log('sections', sections);
-
     const renders: Array<TemplateResult> = new Array<TemplateResult>();
 
     sections.forEach((section: string) => {
@@ -163,7 +161,6 @@ export class ViolationDrawerComponent extends BaseComponent {
           <span class="backtick-element">${section.replace(/`/g, '')}</span>
         `);
       } else {
-        console.log('section:', section);
         if (section != '') {
           renders.push(html`${section}`);
         }

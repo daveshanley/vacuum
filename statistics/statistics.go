@@ -14,15 +14,37 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 
 	var catStats []*reports.CategoryStatistic
 	for _, cat := range model.RuleCategoriesOrdered {
+		var numIssues, numWarnings, numErrors, numInfo, numHints int
+		numIssues = len(results.GetResultsByRuleCategory(cat.Id))
+		numWarnings = len(results.GetWarningsByRuleCategory(cat.Id))
+		numErrors = len(results.GetErrorsByRuleCategory(cat.Id))
+		numInfo = len(results.GetInfoByRuleCategory(cat.Id))
+		numHints = len(results.GetHintByRuleCategory(cat.Id))
+		score := numIssues / len(results.Results) * 100
 		catStats = append(catStats, &reports.CategoryStatistic{
 			CategoryName: cat.Name,
 			CategoryId:   cat.Id,
-			NumIssues:    len(results.GetResultsByRuleCategory(cat.Id)),
-			Warnings:     len(results.GetWarningsByRuleCategory(cat.Id)),
-			Errors:       len(results.GetErrorsByRuleCategory(cat.Id)),
-			Info:         len(results.GetInfoByRuleCategory(cat.Id)),
-			Hints:        len(results.GetHintByRuleCategory(cat.Id)),
+			NumIssues:    numIssues,
+			Warnings:     numWarnings,
+			Errors:       numErrors,
+			Info:         numInfo,
+			Hints:        numHints,
+			Score:        score,
 		})
+	}
+
+	total := 100.0
+	score := total - float64(results.GetInfoCount())*0.1
+	score = score - (0.4 * float64(results.GetWarnCount()))
+	score = score - (2.0 * float64(results.GetErrorCount()))
+
+	if results.GetErrorCount() <= 0 && score < 0 {
+		// floor at 25% if there are no errors, but a ton of warnings lowering the score
+		score = 25.0
+	}
+
+	if score < 0 {
+		score = 0.0
 	}
 
 	stats := &reports.ReportStatistics{
@@ -42,8 +64,11 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 		Examples:           len(index.GetAllExamples()),
 		Enums:              len(index.GetAllEnums()),
 		Security:           len(index.GetAllSecuritySchemes()),
+		OverallScore:       int(score),
+		TotalErrors:        results.GetErrorCount(),
+		TotalWarnings:      results.GetWarnCount(),
+		TotalInfo:          results.GetInfoCount(),
 		CategoryStatistics: catStats,
 	}
-
 	return stats
 }

@@ -10,14 +10,21 @@ body {
 }
 
 .generated {
-    padding: var(--global-padding) 0 0 var(--global-padding);
+    padding: var(--global-padding);
     font-size: 0.80rem;
     color: var(--secondary-color);
+    border-right: 1px dashed var(--secondary-color-lowalpha);
+    margin-bottom: calc(var(--global-margin)*-1);
 }
 
 .vacuum-container {
     padding-bottom: 0;
     height: calc(100% - 100px);
+}
+
+header-statistic {
+    display: inline-block;
+    margin: 0 0 calc(var(--global-margin)*-1) var(--global-margin);
 }
 
 hr.header {

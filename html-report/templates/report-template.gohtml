@@ -10,6 +10,16 @@
             </div>
         </header>
         <div class="generated">Report Generated: {{ timeGenerated }}</div>
+        {{- if gt .Statistics.TotalErrors 0 -}}
+        <header-statistic value='{{ .Statistics.TotalErrors }}' label='Errors' preset='error-count'></header-statistic>
+        {{- end -}}
+        {{- if gt .Statistics.TotalWarnings 0 -}}
+        <header-statistic value='{{ .Statistics.TotalWarnings }}' label='Warnings' preset='warning-count'></header-statistic>
+        {{- end -}}
+        {{- if gt .Statistics.TotalInfo 0 -}}
+            <header-statistic value='{{ .Statistics.TotalInfo }}' label='Informs' preset='info-count'></header-statistic>
+        {{- end -}}
+        <header-statistic value='{{ .Statistics.OverallScore }}' percentage=true label='Quality Grade'></header-statistic>
     </section>
 {{/*</div>*/}}
 {{/*<div class="container vacuum-container">*/}}

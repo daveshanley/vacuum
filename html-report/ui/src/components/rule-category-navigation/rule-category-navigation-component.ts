@@ -53,7 +53,6 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   }
 
   _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
-    console.log('activated!', this._slottedChildren);
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
       if (child.name != e.detail.id) {

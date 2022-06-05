@@ -23,7 +23,7 @@
       <ul @categoryActivated=${this._categoryActivatedListener}>
         <slot></slot>
       </ul>
-    `}firstUpdated(){setTimeout((()=>{const t=new CustomEvent(Zr,{bubbles:!0,composed:!0,detail:{id:this.default,description:"All the categories, for those who like a party."}});this.dispatchEvent(t),this._categoryActivatedListener(t)}))}_categoryActivatedListener(t){console.log("activated!",this._slottedChildren);for(let e=0;e<this._slottedChildren.length;e++){const i=this._slottedChildren[e];i.name!=t.detail.id?i.disableCategory():i.active||i.enableCategory()}}}(function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);n>3&&r&&Object.defineProperty(e,i,r)})([Xr()],Jr.prototype,"default",void 0),customElements.define("rule-category-navigation",Jr);var Qr=function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);return n>3&&r&&Object.defineProperty(e,i,r),r};class ta extends Gr{static get styles(){return[v`
+    `}firstUpdated(){setTimeout((()=>{const t=new CustomEvent(Zr,{bubbles:!0,composed:!0,detail:{id:this.default,description:"All the categories, for those who like a party."}});this.dispatchEvent(t),this._categoryActivatedListener(t)}))}_categoryActivatedListener(t){for(let e=0;e<this._slottedChildren.length;e++){const i=this._slottedChildren[e];i.name!=t.detail.id?i.disableCategory():i.active||i.enableCategory()}}}(function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);n>3&&r&&Object.defineProperty(e,i,r)})([Xr()],Jr.prototype,"default",void 0),customElements.define("rule-category-navigation",Jr);var Qr=function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);return n>3&&r&&Object.defineProperty(e,i,r),r};class ta extends Gr{static get styles(){return[v`
       li {
         padding-left: 0;
       }
@@ -938,6 +938,99 @@
         <section class="select-violation">
           <p>Please select a rule violation from a category.</p>
         </section>
-      `}get drawer(){return document.querySelector("violation-drawer")}show(){this._visible=!0,this.drawer.classList.add("drawer-active"),this.requestUpdate()}hide(){this._visible=!1,this.drawer.classList.remove("drawer-active"),this.requestUpdate()}static replaceTicks(t){const e=/(`[^`]*`)/g,i=t.split(e);console.log("sections",i);const o=new Array;return i.forEach((t=>{t.match(e)?o.push(q`
+      `}get drawer(){return document.querySelector("violation-drawer")}show(){this._visible=!0,this.drawer.classList.add("drawer-active"),this.requestUpdate()}hide(){this._visible=!1,this.drawer.classList.remove("drawer-active"),this.requestUpdate()}static replaceTicks(t){const e=/(`[^`]*`)/g,i=t.split(e),o=new Array;return i.forEach((t=>{t.match(e)?o.push(q`
           <span class="backtick-element">${t.replace(/`/g,"")}</span>
-        `):(console.log("section:",t),""!=t&&o.push(q`${t}`))})),o}}ca([Xr()],da.prototype,"code",void 0),ca([Xr()],da.prototype,"message",void 0),ca([Xr()],da.prototype,"path",void 0),ca([Xr()],da.prototype,"ruleId",void 0),ca([Xr()],da.prototype,"howToFix",void 0),customElements.define("violation-drawer",da)})()})();
+        `):""!=t&&o.push(q`${t}`)})),o}}ca([Xr()],da.prototype,"code",void 0),ca([Xr()],da.prototype,"message",void 0),ca([Xr()],da.prototype,"path",void 0),ca([Xr()],da.prototype,"ruleId",void 0),ca([Xr()],da.prototype,"howToFix",void 0),customElements.define("violation-drawer",da);var ua=function(t,e,i,o){var s,n=arguments.length,r=n<3?e:null===o?o=Object.getOwnPropertyDescriptor(e,i):o;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(t,e,i,o);else for(var a=t.length-1;a>=0;a--)(s=t[a])&&(r=(n<3?s(r):n>3?s(e,i,r):s(e,i))||r);return n>3&&r&&Object.defineProperty(e,i,r),r};let pa=class extends Gr{static get styles(){return[v`
+      span {
+        display: block;
+      }
+
+      div {
+        padding: 5px;
+        min-width: 80px;
+      }
+
+      span.grade {
+        font-size: 1.3rem;
+        font-weight: bold;
+      }
+
+      span.label {
+        font-size: var(--sl-font-size-xx-small);
+        color: var(--font-color);
+      }
+
+      .error {
+        background-color: var(--error-color-lowalpha);
+        border: 1px solid var(--error-color);
+        color: var(--error-color);
+      }
+
+      .warn-400 {
+        background-color: var(--warn-400-lowalpha);
+        border: 1px solid var(--warn-400);
+        color: var(--warn-400);
+      }
+
+      .warn-300 {
+        background-color: var(--warn-300-lowalpha);
+        border: 1px solid var(--warn-300);
+        color: var(--warn-300);
+      }
+
+      .warn-200 {
+        background-color: var(--warn-200-lowalpha);
+        border: 1px solid var(--warn-200);
+        color: var(--warn-200);
+      }
+
+      .warn {
+        background-color: var(--warn-color-lowalpha);
+        border: 1px solid var(--warn-color);
+        color: var(--warn-color);
+      }
+
+      .ok-400 {
+        background-color: var(--ok-400-lowalpha);
+        border: 1px solid var(--ok-400);
+        color: var(--ok-400);
+      }
+
+      .ok-300 {
+        background-color: var(--ok-300-lowalpha);
+        border: 1px solid var(--ok-300);
+        color: var(--ok-300);
+      }
+
+      .ok-200 {
+        background-color: var(--ok-200-lowalpha);
+        border: 1px solid var(--ok-200);
+        color: var(--ok-200);
+      }
+
+      .ok {
+        background-color: var(--ok-color-lowalpha);
+        border: 1px solid var(--ok-color);
+        color: var(--ok-color);
+      }
+
+      .warning-count {
+        background: none;
+        color: var(--primary-color);
+      }
+
+      .error-count {
+        background: none;
+        color: var(--primary-color);
+      }
+
+      .info-count {
+        background: none;
+        color: var(--primary-color);
+      }
+    `]}render(){return q`
+      <div class=${this.colorForScore()}>
+        <span class="grade">${this.value}${this.percentage?"%":""}</span>
+        <span class="label"> ${this.label} </span>
+      </div>
+    `}colorForScore(){if(this.preset)return this.preset;switch(!0){case this.value<=10:return"error";case this.value>10&&this.value<20:return"warn-400";case this.value>=20&&this.value<30:return"warn-300";case this.value>=30&&this.value<40:return"warn-200";case this.value>=40&&this.value<50:return"warn";case this.value>=50&&this.value<65:return"ok-400";case this.value>=65&&this.value<75:return"ok-300";case this.value>=75&&this.value<95:return"ok-200";case this.value>=95:default:return"ok"}}};ua([Xr()],pa.prototype,"value",void 0),ua([Xr()],pa.prototype,"preset",void 0),ua([Xr()],pa.prototype,"percentage",void 0),ua([Xr()],pa.prototype,"label",void 0),pa=ua([t=>"function"==typeof t?((t,e)=>(window.customElements.define("header-statistic",e),e))(0,t):((t,e)=>{const{kind:i,elements:o}=e;return{kind:i,elements:o,finisher(t){window.customElements.define("header-statistic",t)}}})(0,t)],pa)})()})();

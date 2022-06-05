@@ -18,6 +18,11 @@ type ReportStatistics struct {
 	Examples           int                  `json:"examples"`
 	Enums              int                  `json:"enums"`
 	Security           int                  `json:"security"`
+	OverallScore       int                  `json:"overallScore"`
+	TotalErrors        int                  `json:"totalErrors"`
+	TotalWarnings      int                  `json:"totalWarnings"`
+	TotalInfo          int                  `json:"totalInfo"`
+	TotalHints         int                  `json:"totalHints"`
 	CategoryStatistics []*CategoryStatistic `json:"categoryStatistics"`
 }
 
@@ -26,6 +31,7 @@ type CategoryStatistic struct {
 	CategoryName string `json:"categoryName"`
 	CategoryId   string `json:"categoryId"`
 	NumIssues    int    `json:"numIssues"`
+	Score        int    `json:"score"`
 	Warnings     int    `json:"warnings"`
 	Errors       int    `json:"errors"`
 	Info         int    `json:"info"`

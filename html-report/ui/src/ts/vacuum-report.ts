@@ -9,3 +9,4 @@ import '../components/html-report/category-rule-component.init';
 import '../components/html-report/category-rules-component.init';
 import '../components/html-report/result-grid-component.init';
 import '../components/violation-drawer/violation-drawer-component.init';
+import '../components/header/header-statistic-component';
