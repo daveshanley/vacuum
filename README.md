@@ -25,6 +25,15 @@ rules and violations in a console, without having to scroll through thousands of
 
 ![vacuum dashboard](dashboard-screenshot.png)
 
+### HTML Report
+
+vacuum can generate an easy to navigate and understand HTML report. Like the dashboard
+you can explore broken rules and violations, but in your browser.
+
+No external dependencies, the HTML report will run completely offline.
+
+![vacuum html-report](html-report-screenshot.png)
+
 ---
 
 If you want to try out vacuum in its **earliest stages**
@@ -83,6 +92,7 @@ docker dshanley/vacuum lint <your-openapi-spec.yaml>
 ---
 
 ## Build an interactive HTML report 
+
 ```
 ./vacuum html-report <your-openapi-spec.yaml> <report-name.html>
 ```
