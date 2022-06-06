@@ -82,6 +82,15 @@ docker dshanley/vacuum lint <your-openapi-spec.yaml>
 > 👉 **Please note, the flags and commands below will change as the experience is refined.** 👈
 ---
 
+## Build an interactive HTML report 
+```
+./vacuum html-report <your-openapi-spec.yaml> <report-name.html>
+```
+
+You can replace `report-name.html` with your own choice of filename. Open the report
+in your favorite browser and explore the results. 
+
+
 ## See full linting report details
 
 ```
