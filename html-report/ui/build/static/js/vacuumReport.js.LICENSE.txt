@@ -1,17 +1,3 @@
-/*!
- * @kurkle/color v0.2.1
- * https://github.com/kurkle/color#readme
- * (c) 2022 Jukka Kurkela
- * Released under the MIT License
- */
-
-/*!
- * Chart.js v3.8.0
- * https://www.chartjs.org
- * (c) 2022 Chart.js Contributors
- * Released under the MIT License
- */
-
 /**
  * @license
  * Copyright 2017 Google LLC
