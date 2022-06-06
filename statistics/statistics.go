@@ -50,7 +50,7 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 	}
 
 	if score < 0 {
-		score = 0.0
+		score = 10 // the lowest score we want to present can't be 0, there has to be some hope!
 	}
 
 	stats := &reports.ReportStatistics{

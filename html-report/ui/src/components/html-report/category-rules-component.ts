@@ -25,6 +25,13 @@ export class CategoryRulesComponent extends BaseComponent {
       .symbol {
         font-family: Arial;
       }
+
+      section.no-violations {
+        border: 1px solid var(--terminal-green);
+        padding: 20px;
+        color: var(--terminal-green);
+        text-align: center;
+      }
     `;
 
     return [rulesCss];
@@ -47,10 +54,8 @@ export class CategoryRulesComponent extends BaseComponent {
       `;
     } else {
       return html`
-        <section>
-          <p>
-            <span class="symbol">✅</span> All good in here, no rules broken!
-          </p>
+        <section class="no-violations">
+          <p>All good in here, no rules broken!</p>
         </section>
       `;
     }

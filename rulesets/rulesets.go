@@ -277,8 +277,6 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	rules[oas3ParameterDescription] = GetOAS3ParameterDescriptionRule()
 	rules[oas3OperationSecurityDefined] = GetOAS3SecurityDefinedRule()
 	rules[oas2OperationSecurityDefined] = GetOAS2SecurityDefinedRule()
-	rules[oas3ValidSchemaExample] = GetOAS3ExamplesRule()
-	rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
 	rules[typedEnum] = GetTypedEnumRule()
 	rules[duplicatedEntryInEnum] = GetDuplicatedEntryInEnumRule()
 	rules[noEvalInMarkdown] = GetNoEvalInMarkdownRule()
@@ -288,6 +286,8 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	rules[oas2OperationFormDataConsumeCheck] = GetOAS2FormDataConsumesRule()
 	rules[oas2AnyOf] = GetOAS2PolymorphicAnyOfRule()
 	rules[oas2OneOf] = GetOAS2PolymorphicOneOfRule()
+	rules[oas3ValidSchemaExample] = GetOAS3ExamplesRule()
+	rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
 
 	// TODO: enable for a different ruleset.
 	//rules[oas2Schema] = GetOAS2SchemaRule()

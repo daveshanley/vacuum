@@ -322,11 +322,16 @@
       .symbol {
         font-family: Arial;
       }
+
+      section.no-violations {
+        border: 1px solid var(--terminal-green);
+        padding: 20px;
+        color: var(--terminal-green);
+        text-align: center;
+      }
     `]}render(){return this.isEmpty?q`
-        <section>
-          <p>
-            <span class="symbol">✅</span> All good in here, no rules broken!
-          </p>
+        <section class="no-violations">
+          <p>All good in here, no rules broken!</p>
         </section>
       `:q`
         <section @ruleSelected=${this._ruleSelected}>

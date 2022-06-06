@@ -31,7 +31,7 @@ func TestSuccessResponse_RunRule_Success(t *testing.T) {
 	def := SuccessResponse{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 1)
+	assert.Len(t, res, 0)
 }
 
 func TestSuccessResponse_RunRule_NoNodes(t *testing.T) {

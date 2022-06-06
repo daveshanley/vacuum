@@ -170,10 +170,10 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 
 	index := NewSpecIndex(&rootNode)
 
-	assert.Len(t, index.allRefs, 4)
-	assert.Len(t, index.allMappedRefs, 4)
-	assert.Equal(t, 4, len(index.GetMappedReferences()))
-	assert.Equal(t, 4, len(index.GetMappedReferencesSequenced()))
+	assert.Len(t, index.allRefs, 5)
+	assert.Len(t, index.allMappedRefs, 5)
+	assert.Equal(t, 5, len(index.GetMappedReferences()))
+	assert.Equal(t, 5, len(index.GetMappedReferencesSequenced()))
 
 	assert.Equal(t, 5, index.pathCount)
 	assert.Equal(t, 5, index.GetPathCount())
@@ -192,7 +192,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 
 	assert.Equal(t, 2, index.globalTagsCount)
 	assert.Equal(t, 2, index.GetGlobalTagsCount())
-	assert.Equal(t, 3, index.GetTotalTagsCount())
+	assert.Equal(t, 2, index.GetTotalTagsCount())
 
 	assert.Equal(t, 2, index.operationTagsCount)
 	assert.Equal(t, 2, index.GetOperationTagsCount())
@@ -224,7 +224,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 	assert.Equal(t, 0, len(index.GetAllResponses()))
 	assert.Equal(t, 2, len(index.GetInlineOperationDuplicateParameters()))
 	assert.Equal(t, 0, len(index.GetReferencesWithSiblings()))
-	assert.Equal(t, 4, len(index.GetAllReferences()))
+	assert.Equal(t, 5, len(index.GetAllReferences()))
 	assert.Equal(t, 0, len(index.GetOperationParametersIndexErrors()))
 	assert.Equal(t, 5, len(index.GetAllPaths()))
 	assert.Equal(t, 5, len(index.GetOperationTags()))
@@ -292,7 +292,7 @@ func TestSpecIndex_NoNameParam(t *testing.T) {
 func TestSpecIndex_NoRoot(t *testing.T) {
 
 	index := NewSpecIndex(nil)
-	refs := index.ExtractRefs(nil, nil, 0, false, "")
+	refs := index.ExtractRefs(nil, nil, nil, 0, false, "")
 	docs := index.ExtractExternalDocuments(nil)
 	assert.Nil(t, docs)
 	assert.Nil(t, refs)

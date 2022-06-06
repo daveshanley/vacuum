@@ -118,15 +118,16 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 				style = styles.Fallback
 			}
 
-			iterator, _ := lexer.Tokenise(nil, html.renderCodeSnippetForResult(r, specData, 8, 8))
+			iterator, _ := lexer.Tokenise(nil, html.renderCodeSnippetForResult(r, specData, 3, 3))
 			b := new(strings.Builder)
 
-			lineRange := [][2]int{[2]int{r.StartNode.Line - 1, r.EndNode.Line}}
+			l := r.StartNode.Line
+			lineRange := [][2]int{[2]int{l, l}}
 
 			formatter := html_format.New(
 				html_format.WithClasses(true),
 				html_format.WithLineNumbers(true),
-				html_format.BaseLineNumber(r.StartNode.Line-8),
+				html_format.BaseLineNumber(r.StartNode.Line-2),
 				html_format.HighlightLines(lineRange))
 			err := formatter.Format(b, style, iterator)
 
@@ -180,7 +181,7 @@ func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, s
 	buf := new(strings.Builder)
 
 	startLine := r.StartNode.Line - before
-	endLine := r.EndNode.Line + after
+	endLine := r.StartNode.Line + after
 
 	if startLine < 0 {
 		startLine = 0
@@ -200,5 +201,6 @@ func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, s
 		}
 	}
 
+	//return "cack"
 	return buf.String()
 }

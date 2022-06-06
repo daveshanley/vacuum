@@ -21,5 +21,5 @@ func TestNewStatsChart(t *testing.T) {
 
 	chart := NewStatsChart(index, info)
 
-	assert.Equal(t, "Filesize: [10kb](fg:green)", chart.bc.Rows[0])
+	assert.Equal(t, "Filesize: [11kb](fg:green)", chart.bc.Rows[0])
 }

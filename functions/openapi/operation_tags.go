@@ -51,10 +51,10 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 					endNode := utils.FindLastChildNode(verbNode)
 					var msg string
 					if opTagsNode == nil {
-						msg = fmt.Sprintf("Tags for '%s' operation at path '%s' are missing",
+						msg = fmt.Sprintf("Tags for `%s` operation at path `%s` are missing",
 							currentVerb, currentPath)
 					} else {
-						msg = fmt.Sprintf("Tags for '%s' operation at path '%s' are empty",
+						msg = fmt.Sprintf("Tags for `%s` operation at path `%s` are empty",
 							currentVerb, currentPath)
 					}
 

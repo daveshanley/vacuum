@@ -28,6 +28,7 @@ func TestDashboard_GenerateTabbedView(t *testing.T) {
 	dash.ruleCategories = model.RuleCategoriesOrdered
 	dash.GenerateTabbedView()
 	assert.Equal(t, "information", dash.selectedCategory.Id)
+
 }
 
 func TestDashboard_Render(t *testing.T) {

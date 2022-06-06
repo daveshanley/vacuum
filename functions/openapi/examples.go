@@ -92,7 +92,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		}
 	}
 
-	// check components.
+	//check components.
 	objNode := context.Index.GetSchemasNode()
 
 	if context.SpecInfo.SpecFormat == model.OAS3 {
@@ -131,6 +131,9 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 func checkAllDefinitionsForExamples(objNode []*yaml.Node,
 	results *[]model.RuleFunctionResult, path string, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
+
+	lineRefs := context.Index.GetLinesWithReferences()
+
 	if len(objNode) > 0 {
 		if objNode[0] != nil {
 			compNode := objNode[0]
@@ -140,7 +143,7 @@ func checkAllDefinitionsForExamples(objNode []*yaml.Node,
 					compName = schemaNode.Value
 					continue
 				}
-				results = checkDefinitionForExample(schemaNode, compName, results, path, context)
+				results = checkDefinitionForExample(schemaNode, compName, results, path, context, lineRefs)
 			}
 		}
 	}
@@ -162,7 +165,7 @@ func miniCircCheck(node *yaml.Node, seen map[*yaml.Node]bool) bool {
 }
 
 func checkDefinitionForExample(componentNode *yaml.Node, compName string,
-	results *[]model.RuleFunctionResult, path string, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
+	results *[]model.RuleFunctionResult, path string, context model.RuleFunctionContext, lineRefs map[int]bool) *[]model.RuleFunctionResult {
 
 	// extract properties and a top level example, if it exists.
 	topExKey, topExValue := utils.FindKeyNode("example", []*yaml.Node{componentNode})
@@ -194,11 +197,8 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					skip = true
 				}
 
-				// check to see if this is a reference
-				for _, j := range context.Index.GetAllRawSequencedReferences() {
-					if j.Node.Line == prop.Line {
-						skip = true
-					}
+				if lineRefs[prop.Line] {
+					continue
 				}
 
 				if exKey == nil && exValue == nil && !skip {
@@ -206,7 +206,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					res := model.BuildFunctionResultString(fmt.Sprintf("Missing example for `%s` on component `%s`",
 						pName, compName))
 
-					res.StartNode = prop
+					res.StartNode = pValue.Content[n-1]
 					res.EndNode = prop.Content[len(prop.Content)-1]
 					res.Path = utils.BuildPath(path, []string{compName, pName})
 					res.Rule = context.Rule

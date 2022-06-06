@@ -244,7 +244,7 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
-	assert.Len(t, results, 1)
+	assert.Len(t, results, 0)
 }
 
 func TestApplyRules_LengthFail_Tags(t *testing.T) {

@@ -27,6 +27,7 @@ type Reference struct {
 	Definition string
 	Name       string
 	Node       *yaml.Node
+	ParentNode *yaml.Node
 	Resolved   bool
 	Circular   bool
 	Seen       bool
@@ -54,8 +55,10 @@ type ReferenceMapped struct {
 type SpecIndex struct {
 	allRefs                             map[string]*Reference                       // all (deduplicated) refs
 	rawSequencedRefs                    []*Reference                                // all raw references in sequence as they are scanned, not deduped.
+	linesWithRefs                       map[int]bool                                // lines that link to references.
 	allMappedRefs                       map[string]*Reference                       // these are the located mapped refs
 	allMappedRefsSequenced              []*ReferenceMapped                          // sequenced mapped refs
+	refsByLine                          map[string]map[int]bool                     // every reference and the lines it's referenced from
 	pathRefs                            map[string]map[string]*Reference            // all path references
 	paramOpRefs                         map[string]map[string]map[string]*Reference // params in operations.
 	paramCompRefs                       map[string]*Reference                       // params in components
@@ -186,6 +189,8 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	index.root = rootNode
 	index.allRefs = make(map[string]*Reference)
 	index.allMappedRefs = make(map[string]*Reference)
+	index.refsByLine = make(map[string]map[int]bool)
+	index.linesWithRefs = make(map[int]bool)
 	index.pathRefs = make(map[string]map[string]*Reference)
 	index.paramOpRefs = make(map[string]map[string]map[string]*Reference)
 	index.operationTagsRefs = make(map[string]map[string][]*Reference)
@@ -224,7 +229,7 @@ func NewSpecIndex(rootNode *yaml.Node) *SpecIndex {
 	}
 
 	// boot index.
-	results := index.ExtractRefs(index.root.Content[0], []string{}, 0, false, "")
+	results := index.ExtractRefs(index.root.Content[0], index.root, []string{}, 0, false, "")
 
 	// pull out references
 	index.ExtractComponentsFromRefs(results)
@@ -288,11 +293,6 @@ func (index *SpecIndex) GetPolyReferences() map[string]*Reference {
 	return index.polymorphicRefs
 }
 
-// GetAllRawSequencedReferences will return all references as they were found in the spec.
-func (index *SpecIndex) GetAllRawSequencedReferences() []*Reference {
-	return index.rawSequencedRefs
-}
-
 // GetPolyAllOfReferences will return every 'allOf' polymorphic reference in the doc
 func (index *SpecIndex) GetPolyAllOfReferences() []*Reference {
 	return index.polymorphicAllOfRefs
@@ -318,6 +318,16 @@ func (index *SpecIndex) GetAllCombinedReferences() map[string]*Reference {
 		combined[k] = ref
 	}
 	return combined
+}
+
+// GetRefsByLine will return all references and the lines at which they were found.
+func (index *SpecIndex) GetRefsByLine() map[string]map[int]bool {
+	return index.refsByLine
+}
+
+// GetLinesWithReferences will return a map of lines that have a $ref
+func (index *SpecIndex) GetLinesWithReferences() map[int]bool {
+	return index.linesWithRefs
 }
 
 // GetMappedReferences will return all references that were mapped successfully to actual property nodes.
@@ -493,7 +503,7 @@ func (index *SpecIndex) checkPolymorphicNode(name string) (bool, string) {
 
 // ExtractRefs will return a deduplicated slice of references for every unique ref found in the document.
 // The total number of refs, will generally be much higher, you can extract those from GetRawReferenceCount()
-func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level int, poly bool, pName string) []*Reference {
+func (index *SpecIndex) ExtractRefs(node, parent *yaml.Node, seenPath []string, level int, poly bool, pName string) []*Reference {
 	if node == nil {
 		return nil
 	}
@@ -514,7 +524,7 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 						polyName = prev
 					}
 				}
-				found = append(found, index.ExtractRefs(n, seenPath, level, poly, polyName)...)
+				found = append(found, index.ExtractRefs(n, node, seenPath, level, poly, polyName)...)
 			}
 
 			if i%2 == 0 && n.Value == "$ref" {
@@ -523,6 +533,8 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 				if !utils.IsNodeStringValue(node.Content[i+1]) {
 					continue
 				}
+
+				index.linesWithRefs[n.Line] = true
 
 				fp := make([]string, len(seenPath))
 				for x, foundPathNode := range seenPath {
@@ -542,6 +554,17 @@ func (index *SpecIndex) ExtractRefs(node *yaml.Node, seenPath []string, level in
 
 				// add to raw sequenced refs
 				index.rawSequencedRefs = append(index.rawSequencedRefs, ref)
+
+				// add ref by line number
+				refNameIndex := strings.LastIndex(value, "/")
+				refName := value[refNameIndex+1:]
+				if len(index.refsByLine[refName]) > 0 {
+					index.refsByLine[refName][n.Line] = true
+				} else {
+					v := make(map[int]bool)
+					v[n.Line] = true
+					index.refsByLine[refName] = v
+				}
 
 				// if this ref value has any siblings (node.Content is larger than two elements)
 				// then add to refs with siblings
