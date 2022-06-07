@@ -3,6 +3,7 @@ package model
 import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
+	"github.com/daveshanley/vacuum/model/reports"
 	"gopkg.in/yaml.v3"
 	"math"
 	"regexp"
@@ -44,43 +45,22 @@ type RuleFunctionContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message   string
-	StartNode *yaml.Node
-	EndNode   *yaml.Node
-	Path      string
-	Rule      *Rule
-}
-
-// SpectralReport represents a model that can be deserialized into a spectral compatible output.
-type SpectralReport struct {
-	Code     string        `json:"code" yaml:"code"`         // the rule that was run
-	Path     []string      `json:"path" yaml:"path"`         // the path to the item, broken down into a slice
-	Message  string        `json:"message" yaml:"message"`   // the result message
-	Severity int           `json:"severity" yaml:"severity"` // the severity reported
-	Range    SpectralRange `json:"range" yaml:"range"`       // the location of the issue in the spec.
-	Source   string        `json:"source" yaml:"source"`     // the source of the report.
-}
-
-// SpectralRange indicates the start and end of a report item
-type SpectralRange struct {
-	Start SpectralRangeItem `json:"start" yaml:"start"`
-	End   SpectralRangeItem `json:"end" yaml:"end"`
-}
-
-// SpectralRangeItem indicates the line and character of a range.
-type SpectralRangeItem struct {
-	Line int `json:"line" yaml:"line"`
-	Char int `json:"character" yaml:"character"`
+	Message   string        `json:"message" yaml:"message"`
+	Range     reports.Range `json:"range" yaml:"range"`
+	Path      string        `json:"path" yaml:"path"`
+	Rule      *Rule         `json:"rule" yaml:"rule"`
+	StartNode *yaml.Node    `json:"-" yaml:"-"`
+	EndNode   *yaml.Node    `json:"-" yaml:"-"`
 }
 
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results     []*RuleFunctionResult
-	warnCount   int
-	errorCount  int
-	infoCount   int
-	categoryMap map[*RuleCategory][]*RuleFunctionResult
+	Results     []*RuleFunctionResult                   `json:"results" yaml:"results"`
+	warnCount   int                                     `json:"warningCount" yaml:"warningCount"`
+	errorCount  int                                     `json:"errorCount" yaml:"errorCount"`
+	infoCount   int                                     `json:"infoCount" yaml:"infoCount"`
+	categoryMap map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
@@ -98,19 +78,19 @@ type RuleAction struct {
 
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
-	Id                string         `json:"-"`
-	Description       string         `json:"description"`
-	Given             interface{}    `json:"given"`
-	Formats           []string       `json:"formats"`
-	Resolved          bool           `json:"resolved"`
-	Recommended       bool           `json:"recommended"`
-	Type              string         `json:"type"`
-	Severity          string         `json:"severity"`
-	Then              interface{}    `json:"then"`
-	PrecomiledPattern *regexp.Regexp `json:"-"` // regex is slow.
-	RuleCategory      *RuleCategory  `json:"category"`
-	Name              string         `json:"name"`
-	HowToFix          string         `json:"howToFix"`
+	Id                 string         `json:"id,omitempty" yaml:"id,omitempty"`
+	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
+	Given              interface{}    `json:"given,omitempty" yaml:"given,omitempty"`
+	Formats            []string       `json:"formats,omitempty" yaml:"formats,omitempty"`
+	Resolved           bool           `json:"resolved,omitempty" yaml:"resolved,omitempty"`
+	Recommended        bool           `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+	Type               string         `json:"type,omitempty" yaml:"type,omitempty"`
+	Severity           string         `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Then               interface{}    `json:"then,omitempty" yaml:"then,omitempty"`
+	PrecompiledPattern *regexp.Regexp `json:"-"` // regex is slow.
+	RuleCategory       *RuleCategory  `json:"-"`
+	Name               string         `json:"-"`
+	HowToFix           string         `json:"-"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
@@ -211,9 +191,9 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 }
 
 // GenerateSpectralReport will return a Spectral compatible report structure, easily serializable
-func (rr *RuleResultSet) GenerateSpectralReport(source string) []SpectralReport {
+func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.SpectralReport {
 
-	var report []SpectralReport
+	var report []reports.SpectralReport
 	for _, result := range rr.Results {
 
 		sev := 1
@@ -226,12 +206,12 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []SpectralReport 
 			sev = 3
 		}
 
-		resultRange := SpectralRange{
-			Start: SpectralRangeItem{
+		resultRange := reports.Range{
+			Start: reports.RangeItem{
 				Line: result.StartNode.Line,
 				Char: result.StartNode.Column,
 			},
-			End: SpectralRangeItem{
+			End: reports.RangeItem{
 				Line: result.EndNode.Line,
 				Char: result.EndNode.Column,
 			},
@@ -244,7 +224,7 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []SpectralReport 
 			}
 		}
 
-		report = append(report, SpectralReport{
+		report = append(report, reports.SpectralReport{
 			Code:     result.Rule.Id,
 			Path:     path,
 			Message:  result.Message,

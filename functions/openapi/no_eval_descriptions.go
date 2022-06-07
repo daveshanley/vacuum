@@ -34,7 +34,7 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 	pattern := props["pattern"]
 
 	descriptions := context.Index.GetAllDescriptions()
-	compiledRegex := context.Rule.PrecomiledPattern
+	compiledRegex := context.Rule.PrecompiledPattern
 
 	for _, desc := range descriptions {
 
