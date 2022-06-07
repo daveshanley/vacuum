@@ -15,5 +15,4 @@ describe('RuleCategoryNavigationComponent', () => {
     const ul = element.shadowRoot!.querySelector('ul')!;
     expect(ul).to.exist;
   });
-
 });
