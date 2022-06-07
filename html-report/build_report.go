@@ -5,7 +5,6 @@ package html_report
 import (
 	"bytes"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"github.com/alecthomas/chroma"
 	html_format "github.com/alecthomas/chroma/formatters/html"
@@ -82,11 +81,6 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		"timeGenerated": func() string {
 			return time.Now().Format("02 Jan 2006 15:04:05 EST")
 		},
-
-		"renderJSON": func(data interface{}) string {
-			b, _ := json.Marshal(data)
-			return string(b)
-		},
 		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
 			var r *model.RuleResultsForCategory
 			limit := MaxViolations
@@ -114,10 +108,6 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			lexer = chroma.Coalesce(lexer)
 
 			style := styles.Get("swapoff")
-			if style == nil {
-				style = styles.Fallback
-			}
-
 			iterator, _ := lexer.Tokenise(nil, html.renderCodeSnippetForResult(r, specData, 3, 3))
 			b := new(strings.Builder)
 
@@ -201,6 +191,5 @@ func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, s
 		}
 	}
 
-	//return "cack"
 	return buf.String()
 }

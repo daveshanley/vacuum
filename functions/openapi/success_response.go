@@ -84,7 +84,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 							}
 
 							results = append(results, model.RuleFunctionResult{
-								Message:   fmt.Sprintf("Operation '%s' must define at least a single 2xx or 3xx response", name),
+								Message:   fmt.Sprintf("Operation `%s` must define at least a single 2xx or 3xx response", name),
 								StartNode: fieldNode,
 								EndNode:   endNode,
 								Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),

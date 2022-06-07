@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"testing"
 )
@@ -26,12 +27,69 @@ func TestSuccessResponse_RunRule_Success(t *testing.T) {
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
+
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := SuccessResponse{}
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 0)
+}
+
+func TestSuccessResponse_TriggerFailure(t *testing.T) {
+
+	yml := `swagger: 2.0
+paths:
+  /melody:
+    post:
+      operationId: fresh
+      responses:
+        "500":
+          description: hello`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := SuccessResponse{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "Operation `fresh` must define at least a single 2xx or 3xx response", res[0].Message)
+
+}
+
+func TestSuccessResponse_TriggerFailure_NoId(t *testing.T) {
+
+	yml := `swagger: 2.0
+paths:
+  /melody:
+    post:
+      responses:
+        "500":
+          description: hello`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	yaml.Unmarshal([]byte(yml), &rootNode)
+
+	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = model.NewSpecIndex(&rootNode)
+
+	def := SuccessResponse{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "Operation `undefined operation (no operationId)` must define at least a"+
+		" single 2xx or 3xx response", res[0].Message)
+
 }
 
 func TestSuccessResponse_RunRule_NoNodes(t *testing.T) {
