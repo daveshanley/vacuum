@@ -1,41 +1,22 @@
 import { BaseComponent } from '../../ts/base-component';
-import { html, css } from 'lit';
-import { property } from 'lit/decorators.js';
+import { html } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
+import ruleCategoryLinkStyles from './rule-category-link.styles';
 
+@customElement('rule-category-link')
 export class RuleCategoryLinkComponent extends BaseComponent {
-  static get styles() {
-    const linkItemCss = css`
-      li {
-        padding-left: 0;
-      }
-
-      .active {
-        background-color: var(--primary-color);
-        color: var(--invert-font-color);\
-        font-weight: bold;
-      }
-      a {
-        color: var(--primary-color);
-        text-decoration: none;
-      }
-      a:hover {
-        background-color: var(--primary-color);
-        color: var(--invert-font-color);
-      }
-    `;
-    return [linkItemCss];
-  }
+  static styles = ruleCategoryLinkStyles;
 
   active: boolean;
 
-  @property()
+  @property({ type: String })
   name: string;
 
-  @property()
+  @property({ type: Boolean })
   default: boolean;
 
-  @property()
+  @property({ type: String })
   description: string;
 
   disableCategory() {

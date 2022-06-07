@@ -3,7 +3,9 @@ import { css, html } from 'lit';
 import { SyntaxCSS } from '../../model/syntax';
 import { ViolationSelectedEvent } from '../../model/events';
 import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
+import { customElement } from 'lit/decorators.js';
 
+@customElement('result-grid')
 export class ResultGridComponent extends BaseComponent {
   static get styles() {
     const listCss = css``;

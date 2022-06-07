@@ -1,25 +1,13 @@
-import { html, css } from 'lit';
-import { property } from 'lit/decorators.js';
+import { html } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 import { BaseComponent } from '../../ts/base-component';
 import { RuleCategoryLinkComponent } from './rule-category-link-component';
 import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
+import ruleCategoryNavigationStyles from './rule-category-navigation.styles';
 
+@customElement('rule-category-navigation')
 export class RuleCategoryNavigationComponent extends BaseComponent {
-  static get styles() {
-    const buttonCss = css`
-      ul {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-
-      li {
-        padding-left: 0;
-      }
-    `;
-
-    return [buttonCss];
-  }
+  static styles = ruleCategoryNavigationStyles;
 
   @property()
   default: string;
@@ -33,7 +21,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   }
 
   protected firstUpdated() {
-    // default
+    // trigger default
     setTimeout(() => {
       const evt = new CustomEvent<CategoryActivatedEvent>(CategoryActivated, {
         bubbles: true,
@@ -56,7 +44,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
       if (child.name != e.detail.id) {
-        child.disableCategory();
+        if (child.hasAttribute('disableCategory')) child.disableCategory();
       } else {
         // if it's not already been set, set it (in case of default).
         if (!child.active) {

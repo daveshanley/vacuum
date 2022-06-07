@@ -1,41 +1,13 @@
-import { BaseComponent } from '../../ts/base-component';
-import { html, css } from 'lit';
-import { RuleSelectedEvent } from '../../model/events';
+import { BaseComponent } from '../../../ts/base-component';
+import { html } from 'lit';
+import { RuleSelectedEvent } from '../../../model/events';
 import { CategoryRuleComponent } from './category-rule-component';
-import { property } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
+import categoryRulesStyles from './category-rules.styles';
 
+@customElement('category-rules')
 export class CategoryRulesComponent extends BaseComponent {
-  static get styles() {
-    const rulesCss = css`
-      ul.rule {
-        margin: 0;
-        padding: 0;
-      }
-
-      section {
-        //max-height: 35vh;
-        overflow-y: hidden;
-      }
-
-      p {
-        font-size: var(--sl-font-size-small);
-        margin: 0;
-      }
-
-      .symbol {
-        font-family: Arial;
-      }
-
-      section.no-violations {
-        border: 1px solid var(--terminal-green);
-        padding: 20px;
-        color: var(--terminal-green);
-        text-align: center;
-      }
-    `;
-
-    return [rulesCss];
-  }
+  static styles = categoryRulesStyles;
 
   @property()
   id: string;

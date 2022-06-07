@@ -21,99 +21,6 @@
         {{- end -}}
         <header-statistic value='{{ .Statistics.OverallScore }}' percentage=true label='Quality Grade'></header-statistic>
     </section>
-{{/*</div>*/}}
-{{/*<div class="container vacuum-container">*/}}
-
-{{/*    <sl-tab-group>*/}}
-{{/*        <sl-tab slot="nav" panel="general">General</sl-tab>*/}}
-{{/*        <sl-tab slot="nav" panel="custom">Custom</sl-tab>*/}}
-{{/*        <sl-tab slot="nav" panel="advanced">Advanced</sl-tab>*/}}
-{{/*        <sl-tab slot="nav" panel="disabled" disabled>Disabled</sl-tab>*/}}
-{{/*        <sl-tab-panel name="general">This is the general tab panel.</sl-tab-panel>*/}}
-{{/*        <sl-tab-panel name="custom">This is the custom tab panel.</sl-tab-panel>*/}}
-{{/*        <sl-tab-panel name="advanced">This is the advanced tab panel.</sl-tab-panel>*/}}
-{{/*        <sl-tab-panel name="disabled">This is a disabled tab panel.</sl-tab-panel>*/}}
-{{/*    </sl-tab-group>*/}}
-
-{{/*    <section class="report-statistics">*/}}
-{{/*        <sl-card class="card-header">*/}}
-{{/*            <div slot="header">*/}}
-{{/*                Report Quality*/}}
-{{/*            </div>*/}}
-
-{{/*            <div class="quality">*/}}
-{{/*                88%*/}}
-{{/*            </div>*/}}
-{{/*        </sl-card>*/}}
-
-{{/*        <category-piechart>*/}}
-{{/*            nice.*/}}
-{{/*        </category-piechart>*/}}
-
-{{/*        <table>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Filesize:</td>*/}}
-{{/*                <td>{{ .Statistics.FilesizeKB }}KB</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Type:</td>*/}}
-{{/*                <td>{{ .Statistics.SpecType }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Format:</td>*/}}
-{{/*                <td>{{ .Statistics.SpecFormat }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Version:</td>*/}}
-{{/*                <td>{{ .Statistics.Version }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>References:</td>*/}}
-{{/*                <td>{{ .Statistics.References }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>External Docs:</td>*/}}
-{{/*                <td>{{ .Statistics.ExternalDocs }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Parameters:</td>*/}}
-{{/*                <td>{{ .Statistics.Parameters }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*        </table>*/}}
-
-{{/*        <table>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Links:</td>*/}}
-{{/*                <td>{{ .Statistics.Links }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Paths:</td>*/}}
-{{/*                <td>{{ .Statistics.Paths }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Operations:</td>*/}}
-{{/*                <td>{{ .Statistics.Operations }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Tags:</td>*/}}
-{{/*                <td>{{ .Statistics.Tags }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Examples:</td>*/}}
-{{/*                <td>{{ .Statistics.Examples }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Enums:</td>*/}}
-{{/*                <td>{{ .Statistics.Enums }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*            <tr>*/}}
-{{/*                <td>Security Defs:</td>*/}}
-{{/*                <td>{{ .Statistics.Security }}</td>*/}}
-{{/*            </tr>*/}}
-{{/*        </table>*/}}
-
-{{/*    </section>*/}}
-
     <hr class="header-divider"/>
     <html-report>
         <section class="report-grid" slot="navigation">
@@ -130,7 +37,6 @@
                 <section id="category-description">
                 </section>
             </nav>
-
             <result-grid slot="reports">
                 {{- $allResults := .RuleResults -}}
                 {{- $specString := .SpecString -}}
@@ -143,14 +49,17 @@
                     {{- with $ruleResults.RuleResults -}}
                     {{- range . }}
                         {{- $howToFixRule := .Rule.HowToFix -}}
-                        <category-rule maxViolations={{ $maxViolations }} totalRulesViolated={{ len $ruleResults.RuleResults }} ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}" description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
-                                {{- with .Results -}}
-                                {{- range . }}
-                                <category-rule-result howToFix="{{ $howToFixRule }}" slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
-                                    {{ renderSource . $specString }}
-                                </category-rule-result>
-                                {{- end -}}
-                                {{- end -}}
+                        <category-rule maxViolations="{{ $maxViolations }}"
+                                       totalRulesViolated="{{ len $ruleResults.RuleResults }}"
+                                       ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}"
+                                       description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
+                            {{- with .Results -}}
+                            {{- range . }}
+                            <category-rule-result howToFix="{{ $howToFixRule }}" slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
+                                {{- renderSource . $specString -}}
+                            </category-rule-result>
+                            {{- end -}}
+                            {{- end -}}
                         </category-rule>
                     {{- end -}}
                     {{- end -}}
@@ -168,5 +77,3 @@
 </div>
 </body>
 </html>
-
-

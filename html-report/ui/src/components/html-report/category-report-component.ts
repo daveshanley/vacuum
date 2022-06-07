@@ -1,16 +1,9 @@
 import { BaseComponent } from '../../ts/base-component';
-import { css, html } from 'lit';
-import { property } from 'lit/decorators.js';
+import { html } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
+@customElement('category-report')
 export class CategoryReportComponent extends BaseComponent {
-  static get styles() {
-    const reportCss = css`
-      /* something in here */
-    `;
-
-    return [reportCss];
-  }
-
   @property()
   id: string;
 
