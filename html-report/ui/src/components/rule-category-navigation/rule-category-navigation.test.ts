@@ -4,9 +4,10 @@ import { RuleCategoryNavigationComponent } from './rule-category-navigation-comp
 
 describe('RuleCategoryNavigationComponent', () => {
   let element: RuleCategoryNavigationComponent;
-  beforeEach(async () => {
-    element = await fixture(
-      html`<rule-category-navigation></rule-category-navigation>`
+
+  before(async () => {
+    element = await fixture<RuleCategoryNavigationComponent>(
+      html`<rule-category-navigation>oh</rule-category-navigation>`
     );
   });
 
@@ -15,7 +16,4 @@ describe('RuleCategoryNavigationComponent', () => {
     expect(ul).to.exist;
   });
 
-  it('passes the a11y audit', async () => {
-    await expect(element).shadowDom.to.be.accessible();
-  });
 });
