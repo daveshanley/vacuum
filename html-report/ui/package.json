@@ -20,7 +20,7 @@
     "@types/chart.js": "^2.9.37",
     "@typescript-eslint/eslint-plugin": "^5.27.0",
     "@typescript-eslint/parser": "^5.27.0",
-    "@web/test-runner": "^0.13.29",
+    "@web/test-runner": "^0.13.30",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.16.0",
     "eslint-config-prettier": "^8.5.0",

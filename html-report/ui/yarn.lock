@@ -832,10 +832,10 @@
     "@types/mocha" "^8.2.0"
     "@web/test-runner-core" "^0.10.20"
 
-"@web/test-runner@^0.13.29":
-  version "0.13.29"
-  resolved "https://registry.yarnpkg.com/@web/test-runner/-/test-runner-0.13.29.tgz#d8ed706631dfe6d59ce4d44efdf8c507300d6064"
-  integrity sha512-mwoYIPh+o+YpG5XbR7iDJajUYsWVuYONHOACo7WLK1Yo27UAfpQDxdVHcQ6W8CP84KDnw5JuXznSoTUey9ZHrw==
+"@web/test-runner@^0.13.30":
+  version "0.13.30"
+  resolved "https://registry.yarnpkg.com/@web/test-runner/-/test-runner-0.13.30.tgz#28ff3680492e105a814d55f61560dc015381b02e"
+  integrity sha512-bMrrpenmPf/NrYUxEWcEx5zWvKBp6EwqnYc451Yl4OLyWSEC4VubwP0TFkNano5o57ADpaRZkTqB0BNb9IGHFw==
   dependencies:
     "@web/browser-logs" "^0.2.2"
     "@web/config-loader" "^0.1.3"
