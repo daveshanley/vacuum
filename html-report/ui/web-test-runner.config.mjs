@@ -1,5 +1,4 @@
 import { esbuildPlugin } from '@web/dev-server-esbuild';
-import { playwrightLauncher } from '@web/test-runner-playwright';
 
 export default {
     rootDir: '.',
@@ -11,11 +10,6 @@ export default {
             ts: true,
             target: 'auto'
         })
-    ],
-    browsers: [
-        playwrightLauncher({ product: 'chromium' }),
-        playwrightLauncher({ product: 'firefox' }),
-        playwrightLauncher({ product: 'webkit' })
     ],
     testRunnerHtml: testFramework => `
     <html lang="en-US">
