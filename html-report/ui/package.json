@@ -22,7 +22,7 @@
     "@typescript-eslint/parser": "^5.27.0",
     "@web/test-runner": "^0.13.30",
     "copy-webpack-plugin": "^11.0.0",
-    "eslint": "^8.16.0",
+    "eslint": "^8.17.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-lit-a11y": "^2.2.0",
