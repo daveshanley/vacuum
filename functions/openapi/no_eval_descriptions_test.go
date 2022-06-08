@@ -43,7 +43,7 @@ components:
 	fo := make(map[string]string)
 	fo["pattern"] = "eval\\("
 	comp, _ := regexp.Compile(fo["pattern"])
-	rule.PrecomiledPattern = comp
+	rule.PrecompiledPattern = comp
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
 	ctx.Rule = &rule
 	ctx.Index = model.NewSpecIndex(&rootNode)
@@ -77,7 +77,7 @@ components:
 	fo := make(map[string]string)
 	fo["pattern"] = "eval\\("
 	comp, _ := regexp.Compile(fo["pattern"])
-	rule.PrecomiledPattern = comp
+	rule.PrecompiledPattern = comp
 
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
 	ctx.Index = model.NewSpecIndex(&rootNode)
@@ -113,7 +113,7 @@ components:
 	fo := make(map[string]string)
 	fo["pattern"] = "<script"
 	comp, _ := regexp.Compile(fo["pattern"])
-	rule.PrecomiledPattern = comp
+	rule.PrecompiledPattern = comp
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
 	ctx.Index = model.NewSpecIndex(&rootNode)
 	ctx.Rule = &rule

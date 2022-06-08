@@ -153,8 +153,8 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 			Function:        "noEvalDescription",
 			FunctionOptions: fo,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          noEvalInMarkDownFix,
+		PrecompiledPattern: comp,
+		HowToFix:           noEvalInMarkDownFix,
 	}
 }
 
@@ -181,8 +181,8 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 			Function:        "noEvalDescription",
 			FunctionOptions: fo,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          noScriptTagsInMarkdown,
+		PrecompiledPattern: comp,
+		HowToFix:           noScriptTagsInMarkdown,
 	}
 }
 
@@ -309,8 +309,8 @@ func GetOAS2HostNotExampleRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          oas2HostNotExampleFix,
+		PrecompiledPattern: comp,
+		HowToFix:           oas2HostNotExampleFix,
 	}
 }
 
@@ -335,8 +335,8 @@ func GetOAS3HostNotExampleRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          oas3HostNotExampleFix,
+		PrecompiledPattern: comp,
+		HowToFix:           oas3HostNotExampleFix,
 	}
 }
 
@@ -361,8 +361,8 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          oas2HostTrailingSlashFix,
+		PrecompiledPattern: comp,
+		HowToFix:           oas2HostTrailingSlashFix,
 	}
 }
 
@@ -511,8 +511,8 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          operationIdValidInUrlFix,
+		PrecompiledPattern: comp,
+		HowToFix:           operationIdValidInUrlFix,
 	}
 }
 
@@ -557,8 +557,8 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          pathDeclarationsMustExistFix,
+		PrecompiledPattern: comp,
+		HowToFix:           pathDeclarationsMustExistFix,
 	}
 }
 
@@ -582,8 +582,8 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          pathNoTrailingSlashFix,
+		PrecompiledPattern: comp,
+		HowToFix:           pathNoTrailingSlashFix,
 	}
 }
 
@@ -607,8 +607,8 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
-		PrecomiledPattern: comp,
-		HowToFix:          pathNotIncludeQueryFix,
+		PrecompiledPattern: comp,
+		HowToFix:           pathNotIncludeQueryFix,
 	}
 }
 

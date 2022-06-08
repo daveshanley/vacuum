@@ -495,6 +495,34 @@ func ConvertComponentIdIntoPath(id string) (string, string) {
 		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
 }
 
+func RenderCodeSnippet(startNode *yaml.Node, specData []string, before, after int) string {
+
+	buf := new(strings.Builder)
+
+	startLine := startNode.Line - before
+	endLine := startNode.Line + after
+
+	if startLine < 0 {
+		startLine = 0
+	}
+
+	if endLine >= len(specData) {
+		endLine = len(specData) - 1
+	}
+
+	delta := endLine - startLine
+
+	for i := 0; i < delta; i++ {
+		l := startLine + i
+		if l < len(specData) {
+			line := specData[l]
+			buf.WriteString(fmt.Sprintf("%s\n", line))
+		}
+	}
+
+	return buf.String()
+}
+
 //func parseVersionTypeData(d interface{}) string {
 //	switch d.(type) {
 //	case int:

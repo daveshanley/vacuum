@@ -49,6 +49,7 @@ func init() {
 	lintCommand := cui.GetLintCommand()
 
 	rootCmd.AddCommand(lintCommand)
+	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
