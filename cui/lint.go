@@ -21,8 +21,8 @@ func GetLintCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "lint",
-		Short: "vacuum is a very, very fast OpenAPI linter",
-		Long:  `vacuum is a very, very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
+		Short: "lint an OpenAPI specification",
+		Long:  `lint an OpenAPI specification, the output of the response will be in the terminal`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			detailsFlag, _ := cmd.Flags().GetBool("details")

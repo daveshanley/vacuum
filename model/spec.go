@@ -11,12 +11,12 @@ type SpecInfo struct {
 	Version            string                  `json:"version"`
 	SpecFormat         string                  `json:"format"`
 	SpecFileType       string                  `json:"fileType"`
-	RootNode           *yaml.Node              `json:"-"` // reference to the root node of the spec.
-	SpecBytes          *[]byte                 `json:"-"` // the original bytes
-	SpecJSONBytes      *[]byte                 `json:"-"` // original bytes converted to JSON
-	SpecJSON           *map[string]interface{} `json:"-"` // standard JSON map of original bytes
-	Error              error                   `json:"-"` // something go wrong?
-	APISchema          gojsonschema.JSONLoader `json:"-"` // API Schema for supplied spec type (2 or 3)
+	RootNode           *yaml.Node              `json:"-"`     // reference to the root node of the spec.
+	SpecBytes          *[]byte                 `json:"bytes"` // the original bytes
+	SpecJSONBytes      *[]byte                 `json:"-"`     // original bytes converted to JSON
+	SpecJSON           *map[string]interface{} `json:"-"`     // standard JSON map of original bytes
+	Error              error                   `json:"-"`     // something go wrong?
+	APISchema          gojsonschema.JSONLoader `json:"-"`     // API Schema for supplied spec type (2 or 3)
 	jsonParsingChannel chan bool
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/alecthomas/chroma/styles"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/utils"
 	"strings"
 	"text/template"
 	"time"
@@ -167,29 +168,5 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 }
 
 func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, specData []string, before, after int) string {
-
-	buf := new(strings.Builder)
-
-	startLine := r.StartNode.Line - before
-	endLine := r.StartNode.Line + after
-
-	if startLine < 0 {
-		startLine = 0
-	}
-
-	if endLine >= len(specData) {
-		endLine = len(specData) - 1
-	}
-
-	delta := endLine - startLine
-
-	for i := 0; i < delta; i++ {
-		l := startLine + i
-		if l < len(specData) {
-			line := specData[l]
-			buf.WriteString(fmt.Sprintf("%s\n", line))
-		}
-	}
-
-	return buf.String()
+	return utils.RenderCodeSnippet(r.StartNode, specData, before, after)
 }
