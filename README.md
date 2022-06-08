@@ -142,7 +142,7 @@ The options here are:
 If you're already using Spectral JSON reports, and you want to use vacuum instead, use the `report` command
 
 ```
-./vacuum report <your-openapi-spec.yaml> <report-output-name.json>
+./vacuum spectral-report <your-openapi-spec.yaml> <report-output-name.json>
 ```
 
 The report file name is _optional_. The default report output name is `vacuum-spectral-report.json`
@@ -164,7 +164,7 @@ if you're interested in seeing how things are progressing, it's available.
 If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
 then you can use it with Vacuum! 
 
-The `lint`, `dashboard` and `report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
+The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
 
 ### Here are some examples you can try
 
