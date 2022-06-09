@@ -92,7 +92,7 @@
   resolved "https://registry.yarnpkg.com/@floating-ui/core/-/core-0.7.2.tgz#f7af9613d080dc29360e77c970965b79b524d45a"
   integrity sha512-FRVAkSNU/vGXLIsgbggcs70GkXKEOXgBBbNpYPNHSaKsCAMMd00NrjbtKTesxkdv9xm9N3+XiDlcFGY6WnatBg==
 
-"@floating-ui/dom@^0.5.1":
+"@floating-ui/dom@^0.5.2":
   version "0.5.2"
   resolved "https://registry.yarnpkg.com/@floating-ui/dom/-/dom-0.5.2.tgz#908f3febbfc0d6696d70921616ec194fe07af183"
   integrity sha512-z1DnEa7F3d8Fm/eXSbii8UEGpcjZGkQaYYUI0WpEVgD3vBfebDW8j/3ysusxonuMexoigA+A3b/fYH7sEqiwyg==
@@ -260,20 +260,20 @@
   resolved "https://registry.yarnpkg.com/@shoelace-style/animations/-/animations-1.1.0.tgz#17539abafd6dcbf2a79e089e1593175e9f7835b5"
   integrity sha512-Be+cahtZyI2dPKRm8EZSx3YJQ+jLvEcn3xzRP7tM4tqBnvd/eW/64Xh0iOf0t2w5P8iJKfdBbpVNE9naCaOf2g==
 
-"@shoelace-style/localize@^2.1.3":
-  version "2.1.3"
-  resolved "https://registry.yarnpkg.com/@shoelace-style/localize/-/localize-2.1.3.tgz#20c8d8d9ac6259764b2a502cdcde39304b594543"
-  integrity sha512-AY3uF1Dzg3sBK4nKxvZ2KAjsdFxhLfHVWUpXXjIPaR+rPp8fxBWoNVvnLiROOV/cLg/zdLcU+Nn/xJdqcbEuDw==
+"@shoelace-style/localize@^2.2.1":
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/@shoelace-style/localize/-/localize-2.2.1.tgz#f3c7a81662091e9a3a96298765037f933a75a577"
+  integrity sha512-bzKaqla+yF4qQhgZAaURq1HKtTP8fwIvIxcDw9JqHjophuMR1MI2xl1SnhFTYJhlQRctdKs2imZvFVtg5WERjQ==
 
-"@shoelace-style/shoelace@^2.0.0-beta.74":
-  version "2.0.0-beta.74"
-  resolved "https://registry.yarnpkg.com/@shoelace-style/shoelace/-/shoelace-2.0.0-beta.74.tgz#f855ccb0d1c4a3c12835b11a99d7ca8410c6380a"
-  integrity sha512-uenSeK2tYpKwQkAw/ZqZY7O66wMW7W5YgaxKcJ2CQQ19Ur2w3sgMGwUhmgTcMW6DotqrAw6zVLyEOrQDX0bQeA==
+"@shoelace-style/shoelace@^2.0.0-beta.75":
+  version "2.0.0-beta.75"
+  resolved "https://registry.yarnpkg.com/@shoelace-style/shoelace/-/shoelace-2.0.0-beta.75.tgz#01592031d6abd537fd7b92e2ffcc41a5ed62cd06"
+  integrity sha512-WavVn/A6VsSZB2XqUy0k8O5oimaBqzYbq5+DZ6bJpd7+JAt1JGETcn9mtOoSI5Hww6TVuhnqcBhQkk1s5iGzNA==
   dependencies:
-    "@floating-ui/dom" "^0.5.1"
+    "@floating-ui/dom" "^0.5.2"
     "@lit-labs/react" "^1.0.4"
     "@shoelace-style/animations" "^1.1.0"
-    "@shoelace-style/localize" "^2.1.3"
+    "@shoelace-style/localize" "^2.2.1"
     color "4.2"
     lit "^2.2.5"
     qr-creator "^1.0.0"
