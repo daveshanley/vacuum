@@ -163,7 +163,9 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		RuleResults:    html.results,
 		MaxViolations:  MaxViolations,
 		SpecString:     specStringData,
-		Generated:      html.info.Generated,
+	}
+	if html.info != nil {
+		reportData.Generated = html.info.Generated
 	}
 	err := t.ExecuteTemplate(&byteBuf, "report", reportData)
 

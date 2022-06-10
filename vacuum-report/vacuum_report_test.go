@@ -118,7 +118,7 @@ func testhelp_generateReport() *VacuumReport {
 	vr := new(VacuumReport)
 	si := new(model.SpecInfo)
 
-	bytes, _ := ioutil.ReadFile("test_files/burgershop.openapi.yaml")
+	bytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
 	si.SpecBytes = &bytes
 
 	vr.Generated = time.Now()
