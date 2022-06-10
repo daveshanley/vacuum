@@ -15,7 +15,6 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"time"
@@ -116,14 +115,10 @@ func GetVacuumReportCommand() *cobra.Command {
 				ResultSet: resultSet,
 			}
 
-			if !useYaml {
-				if noPretty || compress {
-					data, err = json.Marshal(vr)
-				} else {
-					data, err = json.MarshalIndent(vr, "", "    ")
-				}
+			if noPretty || compress {
+				data, err = json.Marshal(vr)
 			} else {
-				data, err = yaml.Marshal(vr)
+				data, err = json.MarshalIndent(vr, "", "    ")
 			}
 
 			if err != nil {
@@ -173,7 +168,6 @@ func GetVacuumReportCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolP("compress", "c", false, "Compress results using gzip")
-	cmd.Flags().BoolP("yaml", "y", false, "Render using YAML instead of JSON")
-	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no indenting (not available for YAML)")
+	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	return cmd
 }
