@@ -5,6 +5,7 @@ package html_report
 import (
 	"bytes"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"github.com/alecthomas/chroma"
 	html_format "github.com/alecthomas/chroma/formatters/html"
@@ -79,6 +80,10 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 
 	tmpl := template.New("header")
 	templateFuncs := template.FuncMap{
+		"renderJSON": func(data interface{}) string {
+			b, _ := json.Marshal(data)
+			return string(b)
+		},
 		"timeGenerated": func() string {
 			return time.Now().Format("02 Jan 2006 15:04:05 EST")
 		},
