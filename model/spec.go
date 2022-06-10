@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
+	"time"
 )
 
 // SpecInfo represents information about a supplied specification.
@@ -17,6 +18,7 @@ type SpecInfo struct {
 	SpecJSON           *map[string]interface{} `json:"-"`     // standard JSON map of original bytes
 	Error              error                   `json:"-"`     // something go wrong?
 	APISchema          gojsonschema.JSONLoader `json:"-"`     // API Schema for supplied spec type (2 or 3)
+	Generated          time.Time               `json:"-"`
 	jsonParsingChannel chan bool
 }
 

@@ -58,6 +58,7 @@ type ReportData struct {
 	RuleCategories []*model.RuleCategory     `json:"ruleCategories"`
 	RuleResults    *model.RuleResultSet      `json:"ruleResults"`
 	MaxViolations  int                       `json:"maxViolations"`
+	Generated      time.Time                 `json:"generated"`
 	SpecString     []string                  `json:"-"`
 }
 
@@ -78,14 +79,13 @@ type htmlReport struct {
 
 func (html htmlReport) GenerateReport(test bool) []byte {
 
-	tmpl := template.New("header")
 	templateFuncs := template.FuncMap{
 		"renderJSON": func(data interface{}) string {
 			b, _ := json.Marshal(data)
 			return string(b)
 		},
-		"timeGenerated": func() string {
-			return time.Now().Format("02 Jan 2006 15:04:05 EST")
+		"timeGenerated": func(t time.Time) string {
+			return t.Format("02 Jan 2006 15:04:05 EST")
 		},
 		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
 			var r *model.RuleResultsForCategory
@@ -133,12 +133,13 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			return b.String()
 		},
 	}
+	tmpl := template.New("header")
 	tmpl.Funcs(templateFuncs)
-
-	var byteBuf bytes.Buffer
 	t, _ := tmpl.Parse(header)
 	t.New("footer").Parse(footer)
 	t.New("report").Parse(reportTemplate)
+
+	var byteBuf bytes.Buffer
 
 	// we need a new category here 'all'
 	cats := model.RuleCategoriesOrdered
@@ -162,6 +163,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		RuleResults:    html.results,
 		MaxViolations:  MaxViolations,
 		SpecString:     specStringData,
+		Generated:      html.info.Generated,
 	}
 	err := t.ExecuteTemplate(&byteBuf, "report", reportData)
 

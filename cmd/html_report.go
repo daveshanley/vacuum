@@ -8,11 +8,14 @@ import (
 	"github.com/daveshanley/vacuum/cui"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
+	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"time"
@@ -49,66 +52,55 @@ func GetHTMLReportCommand() *cobra.Command {
 			}
 
 			start := time.Now()
+			var err error
+			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 
-			// read file.
-			specBytes, fileError := ioutil.ReadFile(args[0])
+			var resultSet *model.RuleResultSet
+			var ruleset *motor.RuleSetExecutionResult
+			var specIndex *model.SpecIndex
+			var specInfo *model.SpecInfo
+			var stats *reports.ReportStatistics
 
-			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
-				return fileError
-			}
+			// if we have a pre-compiled report, jump straight to the end and collect $500
+			if vacuumReport == nil {
+				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+				resultSet, ruleset, err = buildResults(rulesetFlag, specBytes)
+				specIndex = ruleset.Index
+				specInfo = ruleset.SpecInfo
+				specInfo.Generated = time.Now()
+				stats = statistics.CreateReportStatistics(specIndex, specInfo, resultSet)
 
-			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+			} else {
 
-			// read spec and parse
-			defaultRuleSets := rulesets.BuildDefaultRuleSets()
+				resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
 
-			// default is recommended rules, based on spectral (for now anyway)
-			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-
-			// if ruleset has been supplied, lets make sure it exists, then load it in
-			// and see if it's valid. If so - let's go!
-			if rulesetFlag != "" {
-
-				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
-				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
+				// now we need to re-index everything, but we don't run any rules.
+				var rootNode yaml.Node
+				err = yaml.Unmarshal(*vacuumReport.SpecInfo.SpecBytes, &rootNode)
+				if err != nil {
+					pterm.Error.Printf("Unable to read spec bytes from report file '%s': %s\n", args[0], err.Error())
 					pterm.Println()
-					return rsErr
+					return err
 				}
-				selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-				if rsErr != nil {
-					return rsErr
-				}
+
+				specIndex = model.NewSpecIndex(&rootNode)
+				specInfo = vacuumReport.SpecInfo
+				stats = vacuumReport.Statistics
+				specInfo.Generated = vacuumReport.Generated
 			}
-
-			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
-				len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
-			pterm.Println()
-
-			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet: selectedRS,
-				Spec:    specBytes,
-			})
-
-			resultSet := model.NewRuleResultSet(ruleset.Results)
-			resultSet.SortResultsByLineNumber()
 
 			duration := time.Since(start)
 
-			// generate statistics
-			stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
-
 			// generate html report
-			report := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats)
+			report := html_report.NewHTMLReport(specIndex, specInfo, resultSet, stats)
+
 			generatedBytes := report.GenerateReport(false)
 			//generatedBytes := report.GenerateReport(true)
 
-			err := ioutil.WriteFile(reportOutput, generatedBytes, 0664)
+			err = ioutil.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, fileError.Error())
+				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, err.Error())
 				pterm.Println()
 				return err
 			}
@@ -122,5 +114,36 @@ func GetHTMLReportCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
 
+func buildResults(rulesetFlag string, specBytes []byte) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+
+	// read spec and parse
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+
+	// default is recommended rules, based on spectral (for now anyway)
+	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+	// if ruleset has been supplied, lets make sure it exists, then load it in
+	// and see if it's valid. If so - let's go!
+	if rulesetFlag != "" {
+
+		rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+		if rsErr != nil {
+			return nil, nil, rsErr
+		}
+		selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
+		if rsErr != nil {
+			return nil, nil, rsErr
+		}
+	}
+
+	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		RuleSet: selectedRS,
+		Spec:    specBytes,
+	})
+
+	resultSet := model.NewRuleResultSet(ruleset.Results)
+	resultSet.SortResultsByLineNumber()
+	return resultSet, ruleset, nil
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/statistics"
+	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"io/ioutil"
@@ -27,7 +29,7 @@ func GetVacuumReportCommand() *cobra.Command {
 		Short: "Generate a vacuum report",
 		Long: "Generate a full report of a linting run. This can be used as a result set, or can be used to replay a linting run. " +
 			"the default filename is 'vacuum-report-MM-DD-YY-HH_MM_SS.json' located in the working directory.",
-		Example: "vacuum report my-awesome-spec.yaml <vacuum-spectral-report.json>",
+		Example: "vacuum report <my-awesome-spec.yaml> <report-prefix>",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// check for file args
@@ -39,16 +41,12 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			timeFlag, _ := cmd.Flags().GetBool("time")
-			useYaml, _ := cmd.Flags().GetBool("yaml")
 			noPretty, _ := cmd.Flags().GetBool("no-pretty")
 			compress, _ := cmd.Flags().GetBool("compress")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 
 			extension := ".json"
 
-			if useYaml {
-				extension = ".yaml"
-			}
 			reportOutput := "vacuum-report"
 
 			if len(args) > 1 {
@@ -108,11 +106,15 @@ func GetVacuumReportCommand() *cobra.Command {
 			var data []byte
 			var err error
 
+			// generate statistics
+			stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+
 			// create vacuum report
-			vr := model.VacuumReport{
-				Generated: time.Now(),
-				SpecInfo:  ruleset.SpecInfo,
-				ResultSet: resultSet,
+			vr := vacuum_report.VacuumReport{
+				Generated:  time.Now(),
+				SpecInfo:   ruleset.SpecInfo,
+				ResultSet:  resultSet,
+				Statistics: stats,
 			}
 
 			if noPretty || compress {
@@ -144,7 +146,7 @@ func GetVacuumReportCommand() *cobra.Command {
 					return err
 				}
 				reportData = b.Bytes()
-				extension = ".gz"
+				extension = ".json.gz"
 			}
 
 			reportOutputName := fmt.Sprintf("%s-%s%s",

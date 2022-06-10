@@ -9,7 +9,7 @@
                 <a href="https://quobix.com/vacuum" class="no-style">vacuum</a>
             </div>
         </header>
-        <div class="generated">Report Generated: {{ timeGenerated }}</div>
+        <div class="generated">Report Generated: {{ timeGenerated .Generated }}</div>
         {{- if gt .Statistics.TotalErrors 0 -}}
         <header-statistic value='{{ .Statistics.TotalErrors }}' label='Errors' preset='error-count'></header-statistic>
         {{- end -}}

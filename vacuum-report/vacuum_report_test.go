@@ -1,8 +1,9 @@
-package model
+package vacuum_report
 
 import (
 	"bytes"
 	"compress/gzip"
+	"github.com/daveshanley/vacuum/model"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -34,7 +35,9 @@ func TestBuildVacuumReport_Valid_Compressed(t *testing.T) {
 	defer os.Remove(tmp.Name())
 	tmp.Write(j)
 
-	assert.NotNil(t, BuildVacuumReportFromFile(tmp.Name()))
+	r, _, err := BuildVacuumReportFromFile(tmp.Name())
+	assert.NotNil(t, r)
+	assert.NoError(t, err)
 }
 
 func TestBuildVacuumReport_Invalid_Compressed(t *testing.T) {
@@ -43,7 +46,9 @@ func TestBuildVacuumReport_Invalid_Compressed(t *testing.T) {
 	defer os.Remove(tmp.Name())
 	tmp.Write(testhelp_compress(j))
 
-	assert.Nil(t, BuildVacuumReportFromFile(tmp.Name()))
+	r, _, err := BuildVacuumReportFromFile(tmp.Name())
+	assert.Nil(t, r)
+	assert.Error(t, err)
 }
 
 func TestBuildVacuumReport_Valid_Uncompressed(t *testing.T) {
@@ -52,7 +57,9 @@ func TestBuildVacuumReport_Valid_Uncompressed(t *testing.T) {
 	defer os.Remove(tmp.Name())
 	tmp.Write(j)
 
-	assert.NotNil(t, BuildVacuumReportFromFile(tmp.Name()))
+	r, _, err := BuildVacuumReportFromFile(tmp.Name())
+	assert.NotNil(t, r)
+	assert.NoError(t, err)
 }
 
 func TestBuildVacuumReport_Invalid_Uncompressed(t *testing.T) {
@@ -61,11 +68,15 @@ func TestBuildVacuumReport_Invalid_Uncompressed(t *testing.T) {
 	defer os.Remove(tmp.Name())
 	tmp.Write(j)
 
-	assert.Nil(t, BuildVacuumReportFromFile(tmp.Name()))
+	r, _, err := BuildVacuumReportFromFile(tmp.Name())
+	assert.Nil(t, r)
+	assert.Error(t, err)
 }
 
 func TestBuildVacuumReport_Fail(t *testing.T) {
-	assert.Nil(t, BuildVacuumReportFromFile("I do not exist"))
+	r, _, err := BuildVacuumReportFromFile("I am not a real thing")
+	assert.Nil(t, r)
+	assert.Error(t, err)
 }
 
 func TestCheckFileForVacuumReport_CompressedJSON(t *testing.T) {
@@ -105,7 +116,7 @@ func TestCheckFileForVacuumReport_BadJSON_Compressed(t *testing.T) {
 func testhelp_generateReport() *VacuumReport {
 
 	vr := new(VacuumReport)
-	si := new(SpecInfo)
+	si := new(model.SpecInfo)
 
 	bytes, _ := ioutil.ReadFile("test_files/burgershop.openapi.yaml")
 	si.SpecBytes = &bytes
@@ -113,13 +124,13 @@ func testhelp_generateReport() *VacuumReport {
 	vr.Generated = time.Now()
 	vr.SpecInfo = si
 
-	r1 := RuleFunctionResult{Rule: &Rule{
+	r1 := model.RuleFunctionResult{Rule: &model.Rule{
 		Description:  "one",
-		Severity:     severityError,
-		RuleCategory: RuleCategories[CategoryInfo],
+		Severity:     "error",
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 1, Column: 10}, EndNode: &yaml.Node{Line: 20, Column: 20}}
 
-	vr.ResultSet = NewRuleResultSet([]RuleFunctionResult{r1})
+	vr.ResultSet = model.NewRuleResultSet([]model.RuleFunctionResult{r1})
 	vr.ResultSet.PrepareForSerialization(si)
 
 	return vr

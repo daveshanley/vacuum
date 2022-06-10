@@ -56,6 +56,22 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 	}
 }
 
+// NewRuleResultSetPointer will encapsulate a set of results into a set, that can then be queried.
+// the function will create pointers to results, instead of copying them again.
+func NewRuleResultSetPointer(results []*RuleFunctionResult) *RuleResultSet {
+	// use pointers for speed down the road, we don't need to keep copying this data.
+	var pointerResults []*RuleFunctionResult
+	for _, res := range results {
+		n := res
+		pointerResults = append(pointerResults, n)
+
+	}
+	return &RuleResultSet{
+		Results:     pointerResults,
+		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
+	}
+}
+
 // GenerateSpectralReport will return a Spectral compatible report structure, easily serializable
 func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.SpectralReport {
 
