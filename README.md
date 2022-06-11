@@ -94,14 +94,14 @@ docker dshanley/vacuum lint <your-openapi-spec.yaml>
 ## Build an interactive HTML report 
 
 ```
-./vacuum html-report <your-openapi-spec.yaml> <report-name.html>
+./vacuum html-report <your-openapi-spec.yaml | vacuum-report.json.gz> <report-name.html>
 ```
 
 You can replace `report-name.html` with your own choice of filename. Open the report
 in your favorite browser and explore the results. 
 
 
-## See full linting report details
+## See full linting report 
 
 ```
 ./vacuum lint -d <your-openapi-spec.yaml>
@@ -139,13 +139,32 @@ The options here are:
 
 ## Generate a Spectral compatible report
 
-If you're already using Spectral JSON reports, and you want to use vacuum instead, use the `report` command
+If you're already using Spectral JSON reports, and you want to use vacuum instead, use the `spectral-report` command
 
 ```
 ./vacuum spectral-report <your-openapi-spec.yaml> <report-output-name.json>
 ```
 
 The report file name is _optional_. The default report output name is `vacuum-spectral-report.json`
+
+
+## Generate a `vacuum report`
+
+Vacuum reports are complete snapshots in time of a linting report for a specification. These reports can be 'replayed' 
+back through vacuum. Use the `dashboard` or the `html-report` commands to 'replay' the report and explore the results
+as they were when the report was generated.
+
+```
+./vacuum report -c <your-openapi-spec.yaml> <report-prefix>
+```
+
+The default name of the report will be `vacuum-report-MM-DD-YY-HH_MM_SS.json`. You can change the prefix by supplying
+it as the second argument to the `report` command. 
+
+Ideally, **you should compress the report using `-c`**. This shrinks down the size significantly. vacuum automatically
+recognizes a compressed report file and will deal with it automatically when reading.
+
+> When using compression, the file name will be `vacuum-report-MM-DD-YY-HH_MM_SS.json.gz`. vacuum uses gzip internally.
 
 ---
 
@@ -155,7 +174,7 @@ This is an early, but working console UI for vacuum. The code isn't great, it ne
 if you're interested in seeing how things are progressing, it's available.
 
 ```
-./vacuum dashboard <your-openapi-spec.yaml>
+./vacuum dashboard <your-openapi-spec.yaml | vacuum-report.json.gz>
 ```
 
 ---
