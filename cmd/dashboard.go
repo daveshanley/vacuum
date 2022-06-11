@@ -8,10 +8,11 @@ import (
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
-	"github.com/daveshanley/vacuum/rulesets"
+	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"io/ioutil"
+	"gopkg.in/yaml.v3"
+	"time"
 )
 
 func GetDashboardCommand() *cobra.Command {
@@ -31,52 +32,42 @@ func GetDashboardCommand() *cobra.Command {
 				return errors.New(errText)
 			}
 
-			// read file.
-			specBytes, fileError := ioutil.ReadFile(args[0])
+			var err error
+			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 
-			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
-				return fileError
-			}
+			var resultSet *model.RuleResultSet
+			var ruleset *motor.RuleSetExecutionResult
+			var specIndex *model.SpecIndex
+			var specInfo *model.SpecInfo
 
-			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+			// if we have a pre-compiled report, jump straight to the end and collect $500
+			if vacuumReport == nil {
 
-			// read spec and parse to dashboard.
-			defaultRuleSets := rulesets.BuildDefaultRuleSets()
+				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+				resultSet, ruleset, err = BuildResults(rulesetFlag, specBytes)
+				specIndex = ruleset.Index
+				specInfo = ruleset.SpecInfo
+				specInfo.Generated = time.Now()
 
-			// default is recommended rules, based on spectral (for now anyway)
-			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+			} else {
 
-			// if ruleset has been supplied, lets make sure it exists, then load it in
-			// and see if it's valid. If so - let's go!
-			if rulesetFlag != "" {
+				resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
 
-				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
-				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
+				// TODO: refactor dashboard to hold state and rendering as separate entities.
+				// dashboard will be slower because it needs an index
+				var rootNode yaml.Node
+				err = yaml.Unmarshal(*vacuumReport.SpecInfo.SpecBytes, &rootNode)
+				if err != nil {
+					pterm.Error.Printf("Unable to read spec bytes from report file '%s': %s\n", args[0], err.Error())
 					pterm.Println()
-					return rsErr
+					return err
 				}
-				selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-				if rsErr != nil {
-					return rsErr
-				}
+				specIndex = model.NewSpecIndex(&rootNode)
+				specInfo = vacuumReport.SpecInfo
+				specInfo.Generated = vacuumReport.Generated
 			}
 
-			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
-				len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
-			pterm.Println()
-
-			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet: selectedRS,
-				Spec:    specBytes,
-			})
-
-			resultSet := model.NewRuleResultSet(result.Results)
-			resultSet.SortResultsByLineNumber()
-
-			dash := cui.CreateDashboard(resultSet, result.Index, result.SpecInfo)
+			dash := cui.CreateDashboard(resultSet, specIndex, specInfo)
 			dash.Render()
 			return nil
 		},
