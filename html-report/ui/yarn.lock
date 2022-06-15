@@ -260,20 +260,20 @@
   resolved "https://registry.yarnpkg.com/@shoelace-style/animations/-/animations-1.1.0.tgz#17539abafd6dcbf2a79e089e1593175e9f7835b5"
   integrity sha512-Be+cahtZyI2dPKRm8EZSx3YJQ+jLvEcn3xzRP7tM4tqBnvd/eW/64Xh0iOf0t2w5P8iJKfdBbpVNE9naCaOf2g==
 
-"@shoelace-style/localize@^2.2.1":
-  version "2.2.1"
-  resolved "https://registry.yarnpkg.com/@shoelace-style/localize/-/localize-2.2.1.tgz#f3c7a81662091e9a3a96298765037f933a75a577"
-  integrity sha512-bzKaqla+yF4qQhgZAaURq1HKtTP8fwIvIxcDw9JqHjophuMR1MI2xl1SnhFTYJhlQRctdKs2imZvFVtg5WERjQ==
+"@shoelace-style/localize@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@shoelace-style/localize/-/localize-3.0.0.tgz#830ded93ccc3a319797cdffda27fa5b70854e933"
+  integrity sha512-V+MWxPcTouKBK84t49v8+XE2AAffEIly7chn4md2i7+5wRqrk1uDBjkt8zxKXUx7CWeHT/i/oftjvWVhHRmC1A==
 
-"@shoelace-style/shoelace@^2.0.0-beta.75":
-  version "2.0.0-beta.75"
-  resolved "https://registry.yarnpkg.com/@shoelace-style/shoelace/-/shoelace-2.0.0-beta.75.tgz#01592031d6abd537fd7b92e2ffcc41a5ed62cd06"
-  integrity sha512-WavVn/A6VsSZB2XqUy0k8O5oimaBqzYbq5+DZ6bJpd7+JAt1JGETcn9mtOoSI5Hww6TVuhnqcBhQkk1s5iGzNA==
+"@shoelace-style/shoelace@^2.0.0-beta.76":
+  version "2.0.0-beta.76"
+  resolved "https://registry.yarnpkg.com/@shoelace-style/shoelace/-/shoelace-2.0.0-beta.76.tgz#e9041f6e443dd4597021688a9b7d7f5088a878c2"
+  integrity sha512-1S629sRcs8l8DhznqbTKVZXJ5pj6gFm4IQTYoSuHb0bs2VHtm0x+Y9t+IfyRfLEdfdK3e+wLB6ceGp/bSHlLFA==
   dependencies:
     "@floating-ui/dom" "^0.5.2"
     "@lit-labs/react" "^1.0.4"
     "@shoelace-style/animations" "^1.1.0"
-    "@shoelace-style/localize" "^2.2.1"
+    "@shoelace-style/localize" "^3.0.0"
     color "4.2"
     lit "^2.2.5"
     qr-creator "^1.0.0"
