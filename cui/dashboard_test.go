@@ -100,15 +100,15 @@ func TestDashboard_Render(t *testing.T) {
 	// if there is a render error, it's because the console UI cannot be rendered in the
 	// pipeline. This will result in a significant reduction in code being called during the
 	// test.
-	renderError := dash.Render()
-	if renderError == nil {
-		assert.Len(t, dash.categoryHealthGauge, 9)
-	} else {
-
-		// figure out what to do here once we have decoupled logic from rendering.
-		dash.generateViewsAfterEvent()
-		dash.setGrid()
-	}
+	//renderError := dash.Render()
+	//if renderError == nil {
+	//	//assert.Len(t, dash.categoryHealthGauge, 9)
+	//} else {
+	//
+	//	// figure out what to do here once we have decoupled logic from rendering.
+	//	dash.generateViewsAfterEvent()
+	//	dash.setGrid()
+	//}
 }
 
 func testBootDashboard() (*model.RuleResultSet, *model.SpecIndex, *model.SpecInfo) {
