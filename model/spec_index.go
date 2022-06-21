@@ -621,6 +621,12 @@ func (index *SpecIndex) ExtractRefs(node, parent *yaml.Node, seenPath []string, 
 
 				// capture descriptions and summaries
 				if n.Value == "description" {
+
+					// if the parent is a sequence, ignore.
+					if utils.IsNodeArray(node) {
+						continue
+					}
+
 					ref := &DescriptionReference{
 						Content:   node.Content[i+1].Value,
 						Path:      nodePath,
