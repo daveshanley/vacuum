@@ -22,7 +22,7 @@
     "@typescript-eslint/parser": "^5.28.0",
     "@web/test-runner": "^0.13.30",
     "@web/dev-server-esbuild": "^0.3.0",
-    "@web/test-runner-commands": "^0.6.1",
+    "@web/test-runner-commands": "^0.6.3",
     "@web/test-runner-playwright": "^0.8.8",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.17.0",
