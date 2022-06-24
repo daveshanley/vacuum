@@ -25,7 +25,7 @@
     "@web/test-runner-commands": "^0.6.3",
     "@web/test-runner-playwright": "^0.8.8",
     "copy-webpack-plugin": "^11.0.0",
-    "eslint": "^8.17.0",
+    "eslint": "^8.18.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-lit-a11y": "^2.2.0",
