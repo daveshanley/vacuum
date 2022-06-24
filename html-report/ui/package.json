@@ -18,7 +18,7 @@
   "devDependencies": {
     "@open-wc/eslint-config": "^7.0.0",
     "@types/chart.js": "^2.9.37",
-    "@typescript-eslint/eslint-plugin": "^5.28.0",
+    "@typescript-eslint/eslint-plugin": "^5.29.0",
     "@typescript-eslint/parser": "^5.28.0",
     "@web/test-runner": "^0.13.30",
     "@web/dev-server-esbuild": "^0.3.0",
@@ -30,7 +30,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-lit-a11y": "^2.2.0",
     "eslint-plugin-wc": "^1.3.2",
-    "lint-staged": "^13.0.2",
+    "lint-staged": "^13.0.3",
     "mini-css-extract-plugin": "^2.6.1",
     "prettier": "^2.7.1",
     "webpack": "^5.73.0",
