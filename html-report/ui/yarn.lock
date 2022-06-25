@@ -705,31 +705,7 @@
   dependencies:
     semver "^7.3.4"
 
-"@web/dev-server-core@^0.3.17":
-  version "0.3.17"
-  resolved "https://registry.yarnpkg.com/@web/dev-server-core/-/dev-server-core-0.3.17.tgz#95e87681b63644a955e29e13ffc6b48fd2c51264"
-  integrity sha512-vN1dwQ8yDHGiAvCeUo9xFfjo+pFl8TW+pON7k9kfhbegrrB8CKhJDUxmHbZsyQUmjf/iX57/LhuWj1xGhRL8AA==
-  dependencies:
-    "@types/koa" "^2.11.6"
-    "@types/ws" "^7.4.0"
-    "@web/parse5-utils" "^1.2.0"
-    chokidar "^3.4.3"
-    clone "^2.1.2"
-    es-module-lexer "^0.9.0"
-    get-stream "^6.0.0"
-    is-stream "^2.0.0"
-    isbinaryfile "^4.0.6"
-    koa "^2.13.0"
-    koa-etag "^4.0.0"
-    koa-send "^5.0.1"
-    koa-static "^5.0.0"
-    lru-cache "^6.0.0"
-    mime-types "^2.1.27"
-    parse5 "^6.0.1"
-    picomatch "^2.2.2"
-    ws "^7.4.2"
-
-"@web/dev-server-core@^0.3.18":
+"@web/dev-server-core@^0.3.17", "@web/dev-server-core@^0.3.18":
   version "0.3.18"
   resolved "https://registry.yarnpkg.com/@web/dev-server-core/-/dev-server-core-0.3.18.tgz#3a5d8497ece5947bb01cea5cc1488dfe7fbe6878"
   integrity sha512-o8EBGKXlBjAaQZiYNE1RZsNZJFQHjjr9FwuJyP2fsN+dkdZRhOjp4/E46hl2rB17Qgq4AizFmds8enmF/hU5dw==
@@ -753,10 +729,10 @@
     picomatch "^2.2.2"
     ws "^7.4.2"
 
-"@web/dev-server-esbuild@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@web/dev-server-esbuild/-/dev-server-esbuild-0.3.0.tgz#419e65771c78ccc489c28ee00a900f82dab24b59"
-  integrity sha512-tzkeSwY/VT1/V+ALEwAfeFgx3d1leckKgKGoZn1oPnU1TsBzGUW0czaz7PF3MI96kG+2F2sGp6tchjBm37/70A==
+"@web/dev-server-esbuild@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@web/dev-server-esbuild/-/dev-server-esbuild-0.3.1.tgz#c75ef61b925fa23f73f2f015c629ec4574418c8c"
+  integrity sha512-ZVQwCQye9BMqEWdAeNREJJ78y2N6PwV21UcgObfGWdMcBPhX9KzACI4X+HMEWheFK0+le5IWsUhYagnYTp9NHw==
   dependencies:
     "@mdn/browser-compat-data" "^4.0.0"
     "@web/dev-server-core" "^0.3.17"
