@@ -739,7 +739,7 @@
   dependencies:
     semver "^7.3.4"
 
-"@web/dev-server-core@^0.3.16", "@web/dev-server-core@^0.3.17":
+"@web/dev-server-core@^0.3.17":
   version "0.3.17"
   resolved "https://registry.yarnpkg.com/@web/dev-server-core/-/dev-server-core-0.3.17.tgz#95e87681b63644a955e29e13ffc6b48fd2c51264"
   integrity sha512-vN1dwQ8yDHGiAvCeUo9xFfjo+pFl8TW+pON7k9kfhbegrrB8CKhJDUxmHbZsyQUmjf/iX57/LhuWj1xGhRL8AA==
@@ -798,28 +798,28 @@
     parse5 "^6.0.1"
     ua-parser-js "^1.0.2"
 
-"@web/dev-server-rollup@^0.3.16":
-  version "0.3.17"
-  resolved "https://registry.yarnpkg.com/@web/dev-server-rollup/-/dev-server-rollup-0.3.17.tgz#d64249ca3ac8c71b04a716546f547067b4f5bc02"
-  integrity sha512-Fp8d3QmOi6ctJGAndf93pmcyPBEE7TmsIJ9xd+W+LjXzTVmH4YyOOjZAIXqf9GWjXd0CwquL/OddTZvMzC8jiQ==
+"@web/dev-server-rollup@^0.3.18":
+  version "0.3.18"
+  resolved "https://registry.yarnpkg.com/@web/dev-server-rollup/-/dev-server-rollup-0.3.18.tgz#16cf4e63101db25eee1994dfcdfc1f9d03ced706"
+  integrity sha512-NrZnrYw0IsnLFtTIynOrUsYpcFYV0wdy6Co8TrUIlcdtgAAjcRX9/0nJeWhm6NDjcSZMZM9NT6UhqFduq7196Q==
   dependencies:
     "@rollup/plugin-node-resolve" "^13.0.4"
-    "@web/dev-server-core" "^0.3.16"
+    "@web/dev-server-core" "^0.3.18"
     nanocolors "^0.2.1"
     parse5 "^6.0.1"
-    rollup "^2.66.1"
+    rollup "^2.67.0"
     whatwg-url "^11.0.0"
 
-"@web/dev-server@^0.1.24":
-  version "0.1.31"
-  resolved "https://registry.yarnpkg.com/@web/dev-server/-/dev-server-0.1.31.tgz#b1cc316b64fcd061a8badf06281b7ea1fa26dba2"
-  integrity sha512-FGrnVwnL/pIxak1VZgOgnwcxvP90gx2LmXeU56nvZQ3CWNMAdS1rnQI3jMjMk6FwUt/wnlLk7pl6xGkm6iNwHA==
+"@web/dev-server@^0.1.32":
+  version "0.1.32"
+  resolved "https://registry.yarnpkg.com/@web/dev-server/-/dev-server-0.1.32.tgz#d2c963a43d2107cd4dca7067f343fd9b5e1f2f80"
+  integrity sha512-XcM3XPlGEPHx5pKcQ+pG7Lhw84sRV8BNpBxsAN6z9VkvSIVkJscFmLnmjqO5z85/m8uPMfm/gHimOsRVS8MFpg==
   dependencies:
     "@babel/code-frame" "^7.12.11"
     "@types/command-line-args" "^5.0.0"
     "@web/config-loader" "^0.1.3"
-    "@web/dev-server-core" "^0.3.17"
-    "@web/dev-server-rollup" "^0.3.16"
+    "@web/dev-server-core" "^0.3.18"
+    "@web/dev-server-rollup" "^0.3.18"
     camelcase "^6.2.0"
     command-line-args "^5.1.1"
     command-line-usage "^6.1.1"
@@ -848,7 +848,7 @@
     chrome-launcher "^0.15.0"
     puppeteer-core "^13.1.3"
 
-"@web/test-runner-commands@^0.6.1", "@web/test-runner-commands@^0.6.2", "@web/test-runner-commands@^0.6.3":
+"@web/test-runner-commands@^0.6.1", "@web/test-runner-commands@^0.6.3":
   version "0.6.3"
   resolved "https://registry.yarnpkg.com/@web/test-runner-commands/-/test-runner-commands-0.6.3.tgz#a34689c519a9b5bc57cfba54d32328385f4ff4d4"
   integrity sha512-+tMjOgBh1z77rM3Kt3rUrl+gzyUOdcHr2EbAWeMVU2v0AV/c+DTFQNZTi7iw8j5v/bVSlR8p4lFR6xe5mGVYvw==
@@ -856,7 +856,7 @@
     "@web/test-runner-core" "^0.10.27"
     mkdirp "^1.0.4"
 
-"@web/test-runner-core@^0.10.20", "@web/test-runner-core@^0.10.26", "@web/test-runner-core@^0.10.27":
+"@web/test-runner-core@^0.10.20", "@web/test-runner-core@^0.10.27":
   version "0.10.27"
   resolved "https://registry.yarnpkg.com/@web/test-runner-core/-/test-runner-core-0.10.27.tgz#8d1430f2364fb36b3ac15b9b43034fae9d94e177"
   integrity sha512-ClV/hSxs4wDm/ANFfQOdRRFb/c0sYywC1QfUXG/nS4vTp3nnt7x7mjydtMGGLmvK9f6Zkubkc1aa+7ryfmVwNA==
@@ -915,17 +915,17 @@
     "@web/test-runner-coverage-v8" "^0.4.8"
     playwright "^1.22.2"
 
-"@web/test-runner@^0.13.30":
-  version "0.13.30"
-  resolved "https://registry.yarnpkg.com/@web/test-runner/-/test-runner-0.13.30.tgz#28ff3680492e105a814d55f61560dc015381b02e"
-  integrity sha512-bMrrpenmPf/NrYUxEWcEx5zWvKBp6EwqnYc451Yl4OLyWSEC4VubwP0TFkNano5o57ADpaRZkTqB0BNb9IGHFw==
+"@web/test-runner@^0.13.31":
+  version "0.13.31"
+  resolved "https://registry.yarnpkg.com/@web/test-runner/-/test-runner-0.13.31.tgz#bbc7536eb080088f97edcd4db7b335e754da7bbf"
+  integrity sha512-QMj/25U25AkhN4ffBoMMPdpQLNojL8cAzlyIh/oyVp385Cjmd4Hz8S0u4PvWJmDRmPerbJRNtsWafB8/EcQ1rA==
   dependencies:
     "@web/browser-logs" "^0.2.2"
     "@web/config-loader" "^0.1.3"
-    "@web/dev-server" "^0.1.24"
+    "@web/dev-server" "^0.1.32"
     "@web/test-runner-chrome" "^0.10.7"
-    "@web/test-runner-commands" "^0.6.2"
-    "@web/test-runner-core" "^0.10.26"
+    "@web/test-runner-commands" "^0.6.3"
+    "@web/test-runner-core" "^0.10.27"
     "@web/test-runner-mocha" "^0.7.5"
     camelcase "^6.2.0"
     command-line-args "^5.1.1"
@@ -4483,10 +4483,10 @@ rimraf@3.0.2, rimraf@^3.0.2:
   dependencies:
     glob "^7.1.3"
 
-rollup@^2.66.1:
-  version "2.72.1"
-  resolved "https://registry.yarnpkg.com/rollup/-/rollup-2.72.1.tgz#861c94790537b10008f0ca0fbc60e631aabdd045"
-  integrity sha512-NTc5UGy/NWFGpSqF1lFY8z9Adri6uhyMLI6LvPAXdBKoPRFhIIiBUpt+Qg2awixqO3xvzSijjhnb4+QEZwJmxA==
+rollup@^2.67.0:
+  version "2.75.7"
+  resolved "https://registry.yarnpkg.com/rollup/-/rollup-2.75.7.tgz#221ff11887ae271e37dcc649ba32ce1590aaa0b9"
+  integrity sha512-VSE1iy0eaAYNCxEXaleThdFXqZJ42qDBatAwrfnPlENEZ8erQ+0LYX4JXOLPceWfZpV1VtZwZ3dFCuOZiSyFtQ==
   optionalDependencies:
     fsevents "~2.3.2"
 
