@@ -124,7 +124,7 @@ func TestRuleSet_GetConfiguredRules_All(t *testing.T) {
 	assert.Len(t, ruleSet.Rules, 46)
 
 	ruleSet = rs.GenerateOpenAPIRecommendedRuleSet()
-	assert.Len(t, ruleSet.Rules, 36)
+	assert.Len(t, ruleSet.Rules, 35)
 
 }
 
@@ -140,7 +140,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 36)
+	assert.Len(t, override.Rules, 35)
 	assert.Len(t, override.RuleDefinitions, 1)
 }
 
@@ -188,7 +188,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 35)
+	assert.Len(t, override.Rules, 34)
 	assert.Len(t, override.RuleDefinitions, 1)
 }
 
@@ -204,7 +204,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 36)
+	assert.Len(t, override.Rules, 35)
 	assert.Equal(t, "hint", override.Rules["operation-success-response"].Severity)
 }
 

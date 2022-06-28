@@ -200,7 +200,7 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 		Description:  "Tags must be in alphabetical order",
 		Given:        "$.tags",
 		Resolved:     true,
-		Recommended:  true,
+		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         style,
 		Severity:     info,
@@ -455,7 +455,8 @@ func GetDescriptionDuplicationRule() *model.Rule {
 func GetComponentDescriptionsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check component description",
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
+		Id:           componentDescription,
 		Description:  "Component description check",
 		Given:        "$",
 		Resolved:     true,
@@ -466,6 +467,7 @@ func GetComponentDescriptionsRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasComponentDescriptions",
 		},
+		HowToFix: componentDescriptionFix,
 	}
 }
 

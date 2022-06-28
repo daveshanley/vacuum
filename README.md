@@ -1,9 +1,12 @@
+![vacuum logo](logo.png)
+
 # vacuum - The world's fastest OpenAPI & Swagger linter.
+
 ![Pipeline](https://github.com/daveshanley/vacuum/workflows/vaccum%20pipeline/badge.svg)
 [![codecov](https://codecov.io/gh/daveshanley/vacuum/branch/main/graph/badge.svg?)](https://codecov.io/gh/daveshanley/vacuum)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 
-An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, inspired by [Spectral](https://github.com/stoplightio/spectral).
+An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
 
 It's also compatible with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
@@ -215,3 +218,5 @@ The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--r
 ---
 
 Let me know what you think.
+
+> Logo gopher is modified, originally from [egonelbre](https://github.com/egonelbre/gophers)

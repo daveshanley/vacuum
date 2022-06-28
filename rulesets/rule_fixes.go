@@ -54,6 +54,8 @@ const (
 	componentDescriptionFix string = "Components are the inputs and outputs of a specification. A user needs to be able to " +
 		"understand each component and what id does. Descriptions are critical to understanding components. Add a description!"
 
+	oasServersFix string = "Ensure server URIs are correct and valid, check the schemes, ensure descriptions are complete."
+
 	operationIdValidInUrlFix string = "An operationId is critical to correct code generation and operation identification. The operationId " +
 		"should really be designed in a way to make it friendly when used as part of an URL. Remove non-standard URL characters."
 
