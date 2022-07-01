@@ -41,6 +41,9 @@ const (
 	oas2HostTrailingSlashFix string = "Remove the trailing slash from the host URL. This may cause some tools to incorrectly " +
 		"add a double slash to paths."
 
+	oas3HostTrailingSlashFix string = "Remove the trailing slash from the server URL. This may cause some tools to incorrectly " +
+		"add a double slash to paths."
+
 	operationDescriptionFix string = "All operations must have a description. Descriptions explain how the operation " +
 		"works, and how users should use it and what to expect. Operation descriptions make up the bulk of API documentation." +
 		" so please, add a description!"

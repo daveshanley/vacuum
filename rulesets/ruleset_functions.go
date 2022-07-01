@@ -366,6 +366,32 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
 	}
 }
 
+// GetOAS3HostTrailingSlashRule checks to make sure there is no trailing slash on the host
+func GetOAS3HostTrailingSlashRule() *model.Rule {
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "/$"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+	return &model.Rule{
+		Name:         "Check server url for trailing slash",
+		Id:           oas3HostTrailingSlash,
+		Formats:      model.OAS3Format,
+		Description:  "server URL should not contain a trailing slash",
+		Given:        "$.servers[*]",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  false,
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Field:           "url",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           oas3HostTrailingSlashFix,
+	}
+}
+
 // GetOperationDescriptionRule will return a rule that uses the truthy function to check if an operation
 // has defined a description or not, or does not meet the required length
 func GetOperationDescriptionRule() *model.Rule {

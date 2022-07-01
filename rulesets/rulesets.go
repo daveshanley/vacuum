@@ -60,6 +60,7 @@ const (
 	oas2HostNotExample                = "oas2-host-not-example"
 	oas3HostNotExample                = "oas3-host-not-example.com"
 	oas2HostTrailingSlash             = "oas2-host-trailing-slash"
+	oas3HostTrailingSlash             = "oas3-host-trailing-slash"
 	oas2ParameterDescription          = "oas2-parameter-description"
 	oas3ParameterDescription          = "oas3-parameter-description"
 	oas3OperationSecurityDefined      = "oas3-operation-security-defined"
@@ -273,6 +274,7 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	rules[oas2HostNotExample] = GetOAS2HostNotExampleRule()
 	rules[oas3HostNotExample] = GetOAS3HostNotExampleRule()
 	rules[oas2HostTrailingSlash] = GetOAS2HostTrailingSlashRule()
+	rules[oas3HostTrailingSlash] = GetOAS3HostTrailingSlashRule()
 	rules[oas2ParameterDescription] = GetOAS2ParameterDescriptionRule()
 	rules[oas3ParameterDescription] = GetOAS3ParameterDescriptionRule()
 	rules[oas3OperationSecurityDefined] = GetOAS3SecurityDefinedRule()

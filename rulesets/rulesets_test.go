@@ -9,7 +9,7 @@ func TestBuildDefaultRuleSets(t *testing.T) {
 
 	rs := BuildDefaultRuleSets()
 	assert.NotNil(t, rs.GenerateOpenAPIDefaultRuleSet())
-	assert.Len(t, rs.GenerateOpenAPIDefaultRuleSet().Rules, 46)
+	assert.Len(t, rs.GenerateOpenAPIDefaultRuleSet().Rules, 47)
 
 }
 
@@ -121,7 +121,7 @@ func TestRuleSet_GetConfiguredRules_All(t *testing.T) {
 	// read spec and parse to dashboard.
 	rs := BuildDefaultRuleSets()
 	ruleSet := rs.GenerateOpenAPIDefaultRuleSet()
-	assert.Len(t, ruleSet.Rules, 46)
+	assert.Len(t, ruleSet.Rules, 47)
 
 	ruleSet = rs.GenerateOpenAPIRecommendedRuleSet()
 	assert.Len(t, ruleSet.Rules, 35)
@@ -172,7 +172,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 46)
+	assert.Len(t, override.Rules, 47)
 	assert.Len(t, override.RuleDefinitions, 1)
 }
 
@@ -264,7 +264,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	newrs := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, newrs.Rules, 47)
+	assert.Len(t, newrs.Rules, 48)
 	assert.Equal(t, true, newrs.Rules["fish-cakes"].Recommended)
 	assert.Equal(t, "yummy sea food", newrs.Rules["fish-cakes"].Description)
 
@@ -289,7 +289,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, repl.Rules, 46)
+	assert.Len(t, repl.Rules, 47)
 	assert.Equal(t, true, repl.Rules["info-contact"].Recommended)
 	assert.Equal(t, "yummy sea food", repl.Rules["info-contact"].Description)
 
@@ -314,7 +314,7 @@ rules:
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, repl.Rules, 46)
+	assert.Len(t, repl.Rules, 47)
 	assert.Equal(t, true, repl.Rules["info-contact"].Recommended)
 	assert.Equal(t, "yummy sea food", repl.Rules["info-contact"].Description)
 

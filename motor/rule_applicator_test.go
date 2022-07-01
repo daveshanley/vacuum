@@ -1218,6 +1218,56 @@ host: https://quobix.com`
 
 }
 
+func TestRuleOAS3HostTrailingSlashRule(t *testing.T) {
+
+	yml := `servers:
+ - url: https://quobix.com
+ - url: https://pb33f.io
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas3-host-trailing-slash"] = rulesets.GetOAS3HostTrailingSlashRule()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+
+	results := ApplyRulesToRuleSet(rse)
+	assert.NotNil(t, results)
+	assert.Len(t, results.Results, 0)
+
+}
+
+func TestRuleOAS3HostTrailingSlashRule_Fail(t *testing.T) {
+
+	yml := `servers:
+ - url: https://quobix.com/
+ - url: https://pb33f.io/
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas3-host-trailing-slash"] = rulesets.GetOAS3HostTrailingSlashRule()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+
+	results := ApplyRulesToRuleSet(rse)
+	assert.NotNil(t, results)
+	assert.Len(t, results.Results, 2)
+
+}
+
 func TestRuleOAS3HostNotExampleRule_Fail(t *testing.T) {
 
 	yml := `openapi: 3.0

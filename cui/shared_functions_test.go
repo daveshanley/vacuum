@@ -18,7 +18,7 @@ func TestBuildRuleSetFromUserSuppliedSet_All(t *testing.T) {
 	rsets := rulesets.BuildDefaultRuleSets()
 	rs, err := BuildRuleSetFromUserSuppliedSet(rsBytes, rsets)
 	assert.NoError(t, err)
-	assert.Len(t, rs.Rules, 46)
+	assert.Len(t, rs.Rules, 47)
 }
 
 func TestBuildRuleSetFromUserSuppliedSet_None(t *testing.T) {
