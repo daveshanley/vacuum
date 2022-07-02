@@ -307,12 +307,12 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 
 // RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
-	Description      string                 `json:"description"`
-	DocumentationURI string                 `json:"documentationUrl"`
-	Formats          []string               `json:"formats"`
-	RuleDefinitions  map[string]interface{} `json:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
-	Rules            map[string]*model.Rule `json:"-"`
-	Extends          interface{}            `json:"extends"` // can be string or tuple (again... why stoplight?)
+	Description      string                 `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURI string                 `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Formats          []string               `json:"formats,omitempty" yaml:"formats,omitempty"`
+	RuleDefinitions  map[string]interface{} `json:"-" yaml:"-"` // this can be either a string, or an entire rule (super annoying, stoplight).
+	Rules            map[string]*model.Rule `json:"rules" yaml:"rules"`
+	Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	extendsMeta      map[string]string
 	schemaLoader     gojsonschema.JSONLoader
 }

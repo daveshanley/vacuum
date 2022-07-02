@@ -64,7 +64,7 @@ func (c Casing) GetSchema() model.RuleFunctionSchema {
 				Description: "Allow a leading separator or not",
 			},
 		},
-		ErrorMessage: "'alphabetical' function has invalid options supplied. Example valid options are 'type' = 'camel'" +
+		ErrorMessage: "'casing' function has invalid options supplied. Example valid options are 'type' = 'camel'" +
 			" or 'disallowDigits' = true",
 	}
 }

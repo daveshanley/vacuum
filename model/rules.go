@@ -70,9 +70,9 @@ type RuleFunction interface {
 
 // RuleAction is what to do, on what field, and what options are to be used.
 type RuleAction struct {
-	Field           string      `json:"field"`
-	Function        string      `json:"function"`
-	FunctionOptions interface{} `json:"functionOptions"`
+	Field           string      `json:"field,omitempty" yaml:"field,omitempty"`
+	Function        string      `json:"function,omitempty" yaml:"function,omitempty"`
+	FunctionOptions interface{} `json:"functionOptions,omitempty" yaml:"functionOptions,omitempty"`
 }
 
 // Rule is a structure that represents a rule as part of a ruleset.
@@ -86,27 +86,27 @@ type Rule struct {
 	Type               string         `json:"type,omitempty" yaml:"type,omitempty"`
 	Severity           string         `json:"severity,omitempty" yaml:"severity,omitempty"`
 	Then               interface{}    `json:"then,omitempty" yaml:"then,omitempty"`
-	PrecompiledPattern *regexp.Regexp `json:"-"` // regex is slow.
-	RuleCategory       *RuleCategory  `json:"-"`
-	Name               string         `json:"-"`
-	HowToFix           string         `json:"-"`
+	PrecompiledPattern *regexp.Regexp `json:"-" yaml:"-"` // regex is slow.
+	RuleCategory       *RuleCategory  `json:"-" yaml:"-"`
+	Name               string         `json:"-" yaml:"-"`
+	HowToFix           string         `json:"-" yaml:"-"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
 type RuleFunctionProperty struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
+	Name        string `json:"name" yaml:"name"`
+	Description string `json:"description" yaml:"description"`
 }
 
 // RuleFunctionSchema describes the name, required properties and a slice of RuleFunctionProperty properties.
 type RuleFunctionSchema struct {
-	Name          string                 `json:"name,omitempty"`
-	Required      []string               `json:"required,omitempty"`
-	RequiresField bool                   `json:"requiresField,omitempty"`
-	Properties    []RuleFunctionProperty `json:"properties"`
-	MinProperties int                    `json:"minProperties,omitempty"`
-	MaxProperties int                    `json:"maxProperties,omitempty"`
-	ErrorMessage  string                 `json:"errorMessage,omitempty"`
+	Name          string                 `json:"name,omitempty" yaml:"name,omitempty"`
+	Required      []string               `json:"required,omitempty" yaml:"required,omitempty"`
+	RequiresField bool                   `json:"requiresField,omitempty" yaml:"requiresField,omitempty"`
+	Properties    []RuleFunctionProperty `json:"properties,omitempty" yaml:"properties,omitempty"`
+	MinProperties int                    `json:"minProperties,omitempty" yaml:"minProperties,omitempty"`
+	MaxProperties int                    `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"`
+	ErrorMessage  string                 `json:"errorMessage,omitempty" yaml:"errorMessage,omitempty"`
 }
 
 // GetSeverityAsIntValue will return the severity state of the rule as an integer. If the severity is not known

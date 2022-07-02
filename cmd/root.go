@@ -53,6 +53,7 @@ func init() {
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
+	rootCmd.AddCommand(GetGenerateRulesetCommand())
 
 }
 
