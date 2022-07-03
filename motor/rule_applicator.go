@@ -28,17 +28,19 @@ type ruleContext struct {
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRules to change, without a huge refactor. The ApplyRules function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet *rulesets.RuleSet
-	Spec    []byte
+	RuleSet *rulesets.RuleSet // The RuleSet in which to apply
+	Spec    []byte            // The raw bytes of the OpenAPI specification.
+
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
 type RuleSetExecutionResult struct {
-	RuleSetExecution *RuleSetExecution
-	Results          []model.RuleFunctionResult
-	Index            *model.SpecIndex
-	SpecInfo         *model.SpecInfo
-	Errors           []error
+	RuleSetExecution *RuleSetExecution          // The execution struct that was used invoking the result.
+	Results          []model.RuleFunctionResult // The results of the execution.
+	Index            *model.SpecIndex           // The index that was created from the specification, used by the rules.
+	SpecInfo         *model.SpecInfo            // A reference to the SpecInfo object, used by all the rules.
+	Errors           []error                    // Any errors that were returned.
+
 }
 
 // todo: move copy into virtual file system or some kind of map.

@@ -10,6 +10,36 @@ An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, w
 
 It's also compatible with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
+## Documentation
+
+See all the documentation at https://quobix.com/vacuum
+
+- [Installing vacuum](https://quobix.com/vacuum/installing)
+- [About vacuum](https://quobix.com/vacuum/about)
+- [Why should you care?](https://quobix.com/vacuum/why)
+- [Concepts](https://quobix.com/vacuum/concepts)
+- [Developer API](https://quobix.com/vacuum/api/getting-started)
+  - [Using The Index](https://quobix.com/vacuum/api/spec-index)
+  - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset)
+- [Rules](https://quobix.com/vacuum/rules)
+  - [Examples](https://quobix.com/vacuum/rules/examples)
+  - [Tags](https://quobix.com/vacuum/rules/tags)
+  - [Descriptions](https://quobix.com/vacuum/rules/descriptions)
+  - [Schemas](https://quobix.com/vacuum/rules/schemas)
+  - [Spec Information](https://quobix.com/vacuum/rules/information)
+  - [Operations & Paths](https://quobix.com/vacuum/rules/operations)
+  - [Validation](https://quobix.com/vacuum/rules/validation)
+  - [Security](https://quobix.com/vacuum/rules/security)
+- [Functions](https://quobix.com/vacuum/functions)
+  - [Core Functions](https://quobix.com/vacuum/functions/core) 
+  - [OpenAPI Functions](https://quobix.com/vacuum/functions/openapi)
+- [Understanding RuleSets](https://quobix.com/vacuum/rulesets/understanding)
+  - [All Rules](https://quobix.com/vacuum/rulesets/all)
+  - [No Rules](https://quobix.com/vacuum/rulesets/no-rules)
+  - [Recommended Rules](https://quobix.com/vacuum/rulesets/recommended)
+  - [Custom Rules](https://quobix.com/vacuum/rulesets/custom-rulesets)
+
+
 ---
 
 > **vacuum can suck all the lint of a 5mb OpenAPI spec in about 250ms.**
