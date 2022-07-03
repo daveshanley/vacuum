@@ -36,6 +36,9 @@
               "howToFix": {
                 "type": "string"
               },
+              "id": {
+                "type": "string"
+              },
               "category": {
                 "oneOf": [
                   {

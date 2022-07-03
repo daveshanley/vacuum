@@ -87,9 +87,9 @@ type Rule struct {
 	Severity           string         `json:"severity,omitempty" yaml:"severity,omitempty"`
 	Then               interface{}    `json:"then,omitempty" yaml:"then,omitempty"`
 	PrecompiledPattern *regexp.Regexp `json:"-" yaml:"-"` // regex is slow.
-	RuleCategory       *RuleCategory  `json:"-" yaml:"-"`
+	RuleCategory       *RuleCategory  `json:"category,omitempty" yaml:"category,omitempty"`
 	Name               string         `json:"-" yaml:"-"`
-	HowToFix           string         `json:"-" yaml:"-"`
+	HowToFix           string         `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts

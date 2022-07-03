@@ -151,6 +151,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		Extends:          ruleset.Extends,
 		Description:      ruleset.Description,
 		RuleDefinitions:  ruleset.RuleDefinitions,
+		Rules:            ruleset.Rules,
 	}
 
 	// default and explicitly recommended
@@ -310,8 +311,8 @@ type RuleSet struct {
 	Description      string                 `json:"description,omitempty" yaml:"description,omitempty"`
 	DocumentationURI string                 `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
 	Formats          []string               `json:"formats,omitempty" yaml:"formats,omitempty"`
-	RuleDefinitions  map[string]interface{} `json:"-" yaml:"-"` // this can be either a string, or an entire rule (super annoying, stoplight).
-	Rules            map[string]*model.Rule `json:"rules" yaml:"rules"`
+	RuleDefinitions  map[string]interface{} `json:"rules" yaml:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
+	Rules            map[string]*model.Rule `json:"-" yaml:"-"`
 	Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	extendsMeta      map[string]string
 	schemaLoader     gojsonschema.JSONLoader

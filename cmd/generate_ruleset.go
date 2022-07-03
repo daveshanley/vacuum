@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -55,6 +56,14 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			if args[0] == "all" {
 				selectedRuleSet = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
 			}
+
+			// this bit needs a re-think, but it works for now.
+			// because Spectral has an ass backwards schema design, this disco dance here
+			// is to re-encode from rules to ruleDefinitions (which is a proxy property)
+			encoded, _ := json.Marshal(selectedRuleSet.Rules)
+			encodedMap := make(map[string]interface{})
+			json.Unmarshal(encoded, &encodedMap)
+			selectedRuleSet.RuleDefinitions = encodedMap
 
 			pterm.Info.Printf("Generating RuleSet rules: %s\n\n%s\n", args[0], selectedRuleSet.Description)
 			pterm.Println()
