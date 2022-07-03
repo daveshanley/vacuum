@@ -42,7 +42,7 @@
     "@shoelace-style/shoelace": "^2.0.0-beta.77",
     "chart.js": "^3.8.0",
     "css-loader": "^6.7.1",
-    "lit": "^2.2.6",
+    "lit": "^2.2.7",
     "style-loader": "^3.3.1",
     "terminal.css": "^0.7.2",
     "ts-loader": "^9.3.1",
