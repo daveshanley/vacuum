@@ -35,6 +35,10 @@ func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
 		return nil, bytes, err
 	}
 
+	if vr == nil {
+		return nil, bytes, nil
+	}
+
 	// ok so far, so good. next we have to convert each range into a *yaml.Node again. This is so the rest of the
 	// application has no idea that we're replaying and will perform normally. We want to go as fast as possible here,
 	// so for each result, run each re-build in a new thread.
@@ -87,6 +91,9 @@ func CheckFileForVacuumReport(data []byte) (*VacuumReport, error) {
 			return nil, jerr
 		}
 
+	}
+	if vr.ResultSet == nil {
+		return nil, nil
 	}
 	return &vr, nil
 }
