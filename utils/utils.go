@@ -31,10 +31,7 @@ func FindNodes(yamlData []byte, jsonPath string) ([]*yaml.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	results, err := path.Find(&node)
-	if err != nil {
-		return nil, err
-	}
+	results, _ := path.Find(&node)
 	return results, nil
 }
 
@@ -73,32 +70,9 @@ func FindNodesWithoutDeserializing(node *yaml.Node, jsonPath string) ([]*yaml.No
 	if err != nil {
 		return nil, err
 	}
-	results, err := path.Find(node)
-	if err != nil {
-		return nil, err
-	}
+	results, _ := path.Find(node)
 	return results, nil
 }
-
-// ConvertInterfaceIntoIntMap will convert an unknown input into a integer map.
-//func ConvertInterfaceIntoIntMap(context interface{}) map[string]int {
-//	converted := make(map[string]int)
-//	if context != nil {
-//		if v, ok := context.(map[string]interface{}); ok {
-//			for k, n := range v {
-//				if s, okB := n.(int); okB {
-//					converted[k] = s
-//				}
-//			}
-//		}
-//		if v, ok := context.(map[string]int); ok {
-//			for k, n := range v {
-//				converted[k] = n
-//			}
-//		}
-//	}
-//	return converted
-//}
 
 // ConvertInterfaceIntoStringMap will convert an unknown input into a string map.
 func ConvertInterfaceIntoStringMap(context interface{}) map[string]string {
@@ -219,67 +193,69 @@ type KeyNodeSearch struct {
 	AllowExtensions bool
 }
 
+// This function has been disabled, because it encourages slow behavior. If we ever need it again, it's here
+// but, this only comes back to life, if we absolutely need it.
 // FindAllKeyNodesWithPath This function will search for a key node recursively. Once it finds the node, it will
 // then update the KeyNodeSearch struct
-func FindAllKeyNodesWithPath(search *KeyNodeSearch, parent *yaml.Node, searchNodes []*yaml.Node, foundPath []yaml.Node, depth int) {
-	if depth > 100 {
-		return
-	}
-	for i, v := range searchNodes {
-
-		if v.Kind == yaml.MappingNode || v.Kind == yaml.SequenceNode {
-			depth++
-			FindAllKeyNodesWithPath(search, v, v.Content, foundPath, depth)
-
-		}
-
-		if v.Kind == yaml.ScalarNode {
-			readMe := false
-
-			if parent.Kind == yaml.MappingNode && i%2 == 0 {
-				readMe = true
-			}
-			if parent.Kind == yaml.SequenceNode {
-				readMe = true
-			}
-
-			if readMe && search.Key != "" && search.Key == v.Value {
-
-				// we need to copy found path, it keeps messing up our results
-				fp := make([]yaml.Node, len(foundPath))
-				for x, foundPathNode := range foundPath {
-					fp[x] = foundPathNode
-				}
-
-				for _, ignore := range search.Ignore {
-					if len(foundPath) > 0 && foundPath[len(foundPath)-1].Value == ignore {
-						continue
-					}
-				}
-				res := KeyNodeResult{
-					KeyNode:   searchNodes[i],
-					ValueNode: searchNodes[i+1],
-					Parent:    parent,
-					Path:      fp,
-				}
-				search.Results = append(search.Results, &res)
-				continue
-			}
-
-			if readMe && search.Key != "" && search.Key != v.Value {
-				foundPath = append(foundPath, *v)
-				continue
-
-			}
-		}
-		if len(foundPath) > 0 {
-			foundPath = foundPath[:len(foundPath)-1]
-		}
-	}
-	if len(foundPath) > 0 {
-		foundPath = foundPath[:len(foundPath)-1]
-	}
-}
+//func FindAllKeyNodesWithPath(search *KeyNodeSearch, parent *yaml.Node, searchNodes []*yaml.Node, foundPath []yaml.Node, depth int) {
+//	if depth > 100 {
+//		return
+//	}
+//	for i, v := range searchNodes {
+//
+//		if v.Kind == yaml.MappingNode || v.Kind == yaml.SequenceNode {
+//			depth++
+//			FindAllKeyNodesWithPath(search, v, v.Content, foundPath, depth)
+//
+//		}
+//
+//		if v.Kind == yaml.ScalarNode {
+//			readMe := false
+//
+//			if parent.Kind == yaml.MappingNode && i%2 == 0 {
+//				readMe = true
+//			}
+//			if parent.Kind == yaml.SequenceNode {
+//				readMe = true
+//			}
+//
+//			if readMe && search.Key != "" && search.Key == v.Value {
+//
+//				// we need to copy found path, it keeps messing up our results
+//				fp := make([]yaml.Node, len(foundPath))
+//				for x, foundPathNode := range foundPath {
+//					fp[x] = foundPathNode
+//				}
+//
+//				for _, ignore := range search.Ignore {
+//					if len(foundPath) > 0 && foundPath[len(foundPath)-1].Value == ignore {
+//						continue
+//					}
+//				}
+//				res := KeyNodeResult{
+//					KeyNode:   searchNodes[i],
+//					ValueNode: searchNodes[i+1],
+//					Parent:    parent,
+//					Path:      fp,
+//				}
+//				search.Results = append(search.Results, &res)
+//				continue
+//			}
+//
+//			if readMe && search.Key != "" && search.Key != v.Value {
+//				foundPath = append(foundPath, *v)
+//				continue
+//
+//			}
+//		}
+//		if len(foundPath) > 0 {
+//			foundPath = foundPath[:len(foundPath)-1]
+//		}
+//	}
+//	if len(foundPath) > 0 {
+//		foundPath = foundPath[:len(foundPath)-1]
+//	}
+//}
 
 // FindKeyNodeTop is a non-recursive search of top level nodes for a key, will not look at content.
 // Returns the key and value
