@@ -12,15 +12,24 @@ It's also compatible with existing [Spectral](https://github.com/stoplightio/spe
 
 ## Documentation
 
+### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
+
 See all the documentation at https://quobix.com/vacuum
 
 - [Installing vacuum](https://quobix.com/vacuum/installing/)
 - [About vacuum](https://quobix.com/vacuum/about/)
 - [Why should you care?](https://quobix.com/vacuum/why/)
 - [Concepts](https://quobix.com/vacuum/concepts/)
+- [CLI Commands](https://quobix.com/vacuum/cli/)
+  - [lint](https://quobix.com/vacuum/cli/lint) 
+  - [vacuum report](https://quobix.com/vacuum/cli/report)
+  - [dashboard](https://quobix.com/vacuum/cli/dashboard)
+  - [html-report](https://quobix.com/vacuum/cli/html-report)
+  - [spectral-report](https://quobix.com/vacuum/cli/spectral-report)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)
+  - [Loading a RuleSet](https://quobix.com/vacuum/api/loading-ruleset/)
 - [Rules](https://quobix.com/vacuum/rules/)
   - [Examples](https://quobix.com/vacuum/rules/examples/)
   - [Tags](https://quobix.com/vacuum/rules/tags/)
@@ -47,9 +56,9 @@ See all the documentation at https://quobix.com/vacuum
 Designed to reliably lint OpenAPI specifications, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
 
-Vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
+vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
 
-Vacuum will work at scale and is designed as a CLI (with a UI) and a library to be consumed in other applications.
+vacuum will work at scale and is designed as a CLI (with a UI) and a library to be consumed in other applications.
 
 ### Dashboard
 
@@ -69,7 +78,7 @@ No external dependencies, the HTML report will run completely offline.
 
 ---
 
-If you want to try out vacuum in its **earliest stages**
+If you want to try out vacuum:
 
 > Please be warned, this is _early_ code. I am actively working on it.
 >> **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
