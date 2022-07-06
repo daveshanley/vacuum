@@ -23,6 +23,8 @@ func GetGenerateRulesetCommand() *cobra.Command {
 		Example: "vacuum generate-ruleset recommended | all <ruleset-output-name>",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			PrintBanner()
+
 			// check for file args
 			if len(args) < 1 {
 				errText := "please supply 'recommended' or 'all' and a file path to output the ruleset."

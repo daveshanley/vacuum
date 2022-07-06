@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"github.com/pterm/pterm"
-	"github.com/pterm/pterm/putils"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -24,11 +23,7 @@ var (
 		Long:  `vacuum is a very, very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			pterm.Println()
-
-			pterm.DefaultBigText.WithLetters(
-				putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
-			pterm.Printf("version: %s\n\n", Version)
+			PrintBanner()
 
 			pterm.Println("To see something useful, try 'vacuum lint <my-openapi-spec.yaml>'")
 

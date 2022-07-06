@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
+	"github.com/pterm/pterm/putils"
 	"os"
 	"time"
 )
@@ -33,4 +34,12 @@ func RenderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
 		pterm.Info.Println(fmt.Sprintf("Vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi.Size()/1000))
 		pterm.Println()
 	}
+}
+
+func PrintBanner() {
+	pterm.Println()
+	_ = pterm.DefaultBigText.WithLetters(
+		putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
+	pterm.Printf("version: %s | compiled: %s\n\n", Version, Date)
+	pterm.Println()
 }

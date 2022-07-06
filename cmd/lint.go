@@ -9,7 +9,6 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
-	"github.com/pterm/pterm/putils"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
@@ -34,18 +33,13 @@ func GetLintCommand() *cobra.Command {
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 			silent, _ := cmd.Flags().GetBool("silent")
 
-			pterm.Println()
-
 			if !silent {
-				_ = pterm.DefaultBigText.WithLetters(
-					putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
-				pterm.Printf("version: %s\n\n", Version)
-				pterm.Println()
+				PrintBanner()
 			}
 
 			// check for file args
 			if len(args) != 1 {
-				pterm.Error.Println("please supply OpenAPI specification(s) to lint")
+				pterm.Error.Println("Please supply OpenAPI specification(s) to lint")
 				pterm.Println()
 				return fmt.Errorf("no files supplied")
 			}

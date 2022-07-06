@@ -29,6 +29,8 @@ func GetHTMLReportCommand() *cobra.Command {
 		Example: "vacuum html-report <my-awesome-spec.yaml> <report.html>",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			PrintBanner()
+
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"

@@ -31,6 +31,8 @@ func GetVacuumReportCommand() *cobra.Command {
 		Example: "vacuum report <my-awesome-spec.yaml> <report-prefix>",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			PrintBanner()
+
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report"
