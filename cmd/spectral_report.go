@@ -96,18 +96,12 @@ func GetSpectralReportCommand() *cobra.Command {
 			// serialize
 			spectralReport := resultSet.GenerateSpectralReport(args[0]) // todo: convert to full path.
 
-			data, err := json.MarshalIndent(spectralReport, "", "    ")
+			data, _ := json.MarshalIndent(spectralReport, "", "    ")
+
+			err := ioutil.WriteFile(reportOutput, data, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to read marshal report into JSON '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
-				return err
-			}
-
-			err = ioutil.WriteFile(reportOutput, data, 0664)
-
-			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutput, fileError.Error())
+				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutput, err.Error())
 				pterm.Println()
 				return err
 			}

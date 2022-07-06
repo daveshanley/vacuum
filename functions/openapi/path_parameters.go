@@ -53,6 +53,9 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	pathElements := make(map[string]bool)
 	topLevelParams := make(map[string]map[string][]string)
 
+	if opNodes == nil {
+		return results
+	}
 	for j, operationNode := range opNodes.Content {
 
 		if utils.IsNodeStringValue(operationNode) {

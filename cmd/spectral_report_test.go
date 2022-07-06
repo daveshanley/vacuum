@@ -80,6 +80,47 @@ func TestGetSpectralReportCommand_BadRuleset(t *testing.T) {
 	assert.Error(t, cmdErr)
 }
 
+func TestGetSpectralReportCommand_BadWrite(t *testing.T) {
+	cmd := GetSpectralReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"../model/test_files/petstorev3.json",
+		"/cant-write-here/ok/no.json",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+}
+
+func TestGetSpectralReportCommand_WrongFile(t *testing.T) {
+	cmd := GetSpectralReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"../rulesets/examples/all-ruleset.yaml",
+	})
+	cmdErr := cmd.Execute()
+	assert.NoError(t, cmdErr)
+	defer os.Remove("vacuum-spectral-report.json")
+}
+
+func TestGetSpectralReportCommand_BadRuleset_WrongFile(t *testing.T) {
+	cmd := GetSpectralReportCommand()
+	// global flag exists on root only.
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"-r",
+		"../model/test_files/petstorev3.json",
+		"../model/test_files/petstorev3.json",
+		"blue-shoes.json",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+}
+
 func TestGetSpectralReportCommand_BadInput(t *testing.T) {
 	cmd := GetSpectralReportCommand()
 	// global flag exists on root only.

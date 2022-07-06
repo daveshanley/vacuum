@@ -30,6 +30,10 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	var results []model.RuleFunctionResult
 	pathsNode := context.Index.GetPathsNode()
 
+	if pathsNode == nil {
+		return results
+	}
+
 	for x, operationNode := range pathsNode.Content {
 		var currentPath string
 		var currentVerb string

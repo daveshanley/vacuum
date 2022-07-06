@@ -119,15 +119,9 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			if noPretty || compress {
-				data, err = json.Marshal(vr)
+				data, _ = json.Marshal(vr)
 			} else {
-				data, err = json.MarshalIndent(vr, "", "    ")
-			}
-
-			if err != nil {
-				pterm.Error.Printf("Unable to marshal report '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
-				return err
+				data, _ = json.MarshalIndent(vr, "", "    ")
 			}
 
 			reportData := data
@@ -136,16 +130,8 @@ func GetVacuumReportCommand() *cobra.Command {
 
 				var b bytes.Buffer
 				gz := gzip.NewWriter(&b)
-				if _, err = gz.Write(data); err != nil {
-					pterm.Error.Printf("Unable to compress report '%s': %s\n", args[0], err.Error())
-					pterm.Println()
-					return err
-				}
-				if err = gz.Close(); err != nil {
-					pterm.Error.Printf("Unable to close compressed report '%s': %s\n", args[0], err.Error())
-					pterm.Println()
-					return err
-				}
+				gz.Write(data)
+				gz.Close()
 				reportData = b.Bytes()
 				extension = ".json.gz"
 			}
@@ -156,7 +142,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			err = ioutil.WriteFile(reportOutputName, reportData, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, fileError.Error())
+				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, err.Error())
 				pterm.Println()
 				return err
 			}

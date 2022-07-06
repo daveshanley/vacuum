@@ -42,6 +42,10 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 
+	if pathsNode == nil {
+		return results
+	}
+
 	for x, operationNode := range pathsNode.Content {
 		var currentPath string
 		var currentVerb string

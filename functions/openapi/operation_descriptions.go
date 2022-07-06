@@ -36,6 +36,9 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 	minWordsString := props["minWords"]
 	minWords, _ := strconv.Atoi(minWordsString)
 
+	if context.Index.GetPathsNode() == nil {
+		return results
+	}
 	ops := context.Index.GetPathsNode().Content
 
 	var opPath, opMethod string

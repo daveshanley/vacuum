@@ -62,3 +62,16 @@ func TestGenerateRulesetCommand_NoArgs(t *testing.T) {
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
 }
+
+func TestGenerateRulesetCommand_BadWrite(t *testing.T) {
+	cmd := GetGenerateRulesetCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"recommended",
+		"/no/no/no-stop-/",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+
+}

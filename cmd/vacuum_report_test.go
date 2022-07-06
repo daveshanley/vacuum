@@ -109,6 +109,37 @@ func TestGetVacuumReportCommand_WithBadRuleset(t *testing.T) {
 	assert.Error(t, cmdErr)
 }
 
+func TestGetVacuumReportCommand_WithBadRuleset_WrongFile(t *testing.T) {
+	cmd := GetVacuumReportCommand()
+	// global flag exists on root only.
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"-r",
+		"../model/test_files/petstorev3.json",
+		"../model/test_files/petstorev3.json",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+}
+
+func TestGetVacuumReportCommand_BadWrite(t *testing.T) {
+	cmd := GetVacuumReportCommand()
+	// global flag exists on root only.
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"../model/test_files/petstorev3.json",
+		"/cant-write-here/oh-noes.json",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+}
+
 func TestGetVacuumReportCommand_NoArgs(t *testing.T) {
 	cmd := GetVacuumReportCommand()
 	b := bytes.NewBufferString("")

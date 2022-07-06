@@ -72,3 +72,16 @@ func TestGetHTMLReportCommand_NoArgs(t *testing.T) {
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
 }
+
+func TestGetHTMLReportCommand_BadWrite(t *testing.T) {
+	cmd := GetHTMLReportCommand()
+
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"../model/test_files/burgershop-report.json.gz",
+		"/cant-write-here/no/stop.html",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+}
