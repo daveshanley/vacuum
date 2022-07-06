@@ -1,4 +1,5 @@
 extends: [[spectral:oas, off]]
+documentationUrl: https://quobix.com/vacuum/rulesets/custom-rulesets
 rules:
   check-title-is-exactly-this:
     description: Check the title of the spec is exactly, 'this specific thing'

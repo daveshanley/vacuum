@@ -24,8 +24,10 @@ import (
 func GetVacuumReportCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "report",
-		Short: "Generate a vacuum report",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "report",
+		Short:         "Generate a vacuum sealed, replayable report",
 		Long: "Generate a full report of a linting run. This can be used as a result set, or can be used to replay a linting run. " +
 			"the default filename is 'vacuum-report-MM-DD-YY-HH_MM_SS.json' located in the working directory.",
 		Example: "vacuum report <my-awesome-spec.yaml> <report-prefix>",
@@ -87,9 +89,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				}
 			}
 
-			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
-				len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
-			pterm.Println()
+			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet: selectedRS,
@@ -147,7 +147,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				return err
 			}
 
-			pterm.Info.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
 			pterm.Println()
 
 			fi, _ := os.Stat(args[0])

@@ -137,7 +137,8 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 	// copy.
 	modifiedRS := *rsm.openAPIRuleSet
 	modifiedRS.Rules = filtered
-	modifiedRS.Description = "Recommended rules that should always be run on a specification."
+	modifiedRS.DocumentationURI = "https://quobix.com/vacuum/rulesets/recommended"
+	modifiedRS.Description = "Recommended rules for a high quality specification."
 	return &modifiedRS
 }
 
@@ -146,7 +147,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	extends := ruleset.GetExtendsValue()
 
 	rs := &RuleSet{
-		DocumentationURI: "https://quobix.com/vacuum/rulesets",
+		DocumentationURI: ruleset.DocumentationURI,
 		Formats:          ruleset.Formats,
 		Extends:          ruleset.Extends,
 		Description:      ruleset.Description,
@@ -157,20 +158,24 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	// default and explicitly recommended
 	if extends[SpectralOpenAPI] == SpectralRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
-		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/recommended"
 	}
 
 	// all rules
 	if extends[SpectralOpenAPI] == SpectralAll {
 		rs = rsm.openAPIRuleSet
-		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/all"
 	}
 
 	// no rules!
 	if extends[SpectralOpenAPI] == SpectralOff {
-		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/off"
+		if rs.DocumentationURI == "" {
+			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
+		}
 		rs.Rules = make(map[string]*model.Rule)
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
+	}
+
+	if ruleset.DocumentationURI == "" {
+		ruleset.DocumentationURI = "https://quobix.com/vacuum/rulesets/understanding"
 	}
 
 	// make sure the map is never nil.

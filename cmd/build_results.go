@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pterm/pterm"
 	"io/ioutil"
 )
 
@@ -28,6 +29,8 @@ func BuildResults(rulesetFlag string, specBytes []byte) (*model.RuleResultSet, *
 			return nil, nil, rsErr
 		}
 	}
+
+	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet: selectedRS,

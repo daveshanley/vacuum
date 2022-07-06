@@ -19,8 +19,10 @@ import (
 func GetSpectralReportCommand() *cobra.Command {
 
 	return &cobra.Command{
-		Use:   "spectral-report",
-		Short: "Generate a Spectral compatible JSON report",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "spectral-report",
+		Short:         "Generate a Spectral compatible JSON report",
 		Long: "Generate a JSON report using the same model as Spectral. Default output " +
 			"filename is 'vacuum-spectral-report.json' located in the working directory.",
 		Example: "vacuum report my-awesome-spec.yaml <vacuum-spectral-report.json>",
@@ -79,9 +81,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				}
 			}
 
-			pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
-				len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
-			pterm.Println()
+			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet: selectedRS,
@@ -106,7 +106,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				return err
 			}
 
-			pterm.Info.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutput)
+			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutput)
 			pterm.Println()
 
 			fi, _ := os.Stat(args[0])

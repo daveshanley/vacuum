@@ -17,10 +17,12 @@ import (
 func GetGenerateRulesetCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:     "generate-ruleset",
-		Short:   "Generate a vacuum RuleSet",
-		Long:    "Generate a YAML ruleset containing 'all', or 'recommended' rules",
-		Example: "vacuum generate-ruleset recommended | all <ruleset-output-name>",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "generate-ruleset",
+		Short:         "Generate a vacuum RuleSet",
+		Long:          "Generate a YAML ruleset containing 'all', or 'recommended' rules",
+		Example:       "vacuum generate-ruleset recommended | all <ruleset-output-name>",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			PrintBanner()
@@ -67,7 +69,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			json.Unmarshal(encoded, &encodedMap)
 			selectedRuleSet.RuleDefinitions = encodedMap
 
-			pterm.Info.Printf("Generating RuleSet rules: %s\n\n%s\n", args[0], selectedRuleSet.Description)
+			pterm.Info.Printf("Generating RuleSet rules: %s", selectedRuleSet.DocumentationURI)
 			pterm.Println()
 
 			yamlBytes, _ := yaml.Marshal(selectedRuleSet)
@@ -82,7 +84,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 				return err
 			}
 
-			pterm.Info.Printf("RuleSet generated for '%s', written to '%s'\n", args[0], reportOutputName)
+			pterm.Success.Printf("RuleSet generated for '%s', written to '%s'\n", args[0], reportOutputName)
 			pterm.Println()
 
 			return nil

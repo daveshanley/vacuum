@@ -22,9 +22,11 @@ import (
 func GetHTMLReportCommand() *cobra.Command {
 
 	return &cobra.Command{
-		Use:   "html-report",
-		Short: "Generate an HTML report (Work In Progress)",
-		Long: "Generate an interactive and useful HTML report (this is not ready yet). Default output " +
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "html-report",
+		Short:         "Generate an HTML report of a linting run",
+		Long: "Generate an interactive and useful HTML report. Default output " +
 			"filename is 'report.html' located in the working directory.",
 		Example: "vacuum html-report <my-awesome-spec.yaml> <report.html>",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -91,7 +93,7 @@ func GetHTMLReportCommand() *cobra.Command {
 				return err
 			}
 
-			pterm.Info.Printf("HTML Report generated for '%s', written to '%s'\n", args[0], reportOutput)
+			pterm.Success.Printf("HTML Report generated for '%s', written to '%s'\n", args[0], reportOutput)
 			pterm.Println()
 
 			fi, _ := os.Stat(args[0])

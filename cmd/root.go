@@ -18,14 +18,16 @@ var (
 	Date    string
 
 	rootCmd = &cobra.Command{
-		Use:   "vacuum lint <your-openapi-file.yaml>",
-		Short: "vacuum is a very, very fast OpenAPI linter",
-		Long:  `vacuum is a very, very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "vacuum lint <your-openapi-file.yaml>",
+		Short:         "vacuum is a very fast OpenAPI linter",
+		Long:          `vacuum is a very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			PrintBanner()
 
-			pterm.Println("To see something useful, try 'vacuum lint <my-openapi-spec.yaml>'")
+			pterm.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
 
 			pterm.Println()
 

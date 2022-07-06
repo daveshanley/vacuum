@@ -20,9 +20,11 @@ import (
 func GetLintCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:   "lint",
-		Short: "lint an OpenAPI specification",
-		Long:  `lint an OpenAPI specification, the output of the response will be in the terminal`,
+		SilenceErrors: true,
+		SilenceUsage:  true,
+		Use:           "lint",
+		Short:         "Lint an OpenAPI specification",
+		Long:          `Lint an OpenAPI specification, the output of the response will be in the terminal`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			detailsFlag, _ := cmd.Flags().GetBool("details")
@@ -81,11 +83,7 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
-			if !silent {
-				pterm.Info.Printf("Running vacuum against spec '%s' against %d rules: %s\n\n%s\n", args[0],
-					len(selectedRS.Rules), selectedRS.DocumentationURI, selectedRS.Description)
-				pterm.Println()
-			}
+			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet: selectedRS,
