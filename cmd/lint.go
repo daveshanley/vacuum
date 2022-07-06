@@ -1,7 +1,7 @@
 // Copyright 2022 Dave Shanley / Quobix
 // SPDX-License-Identifier: MIT
 
-package cui
+package cmd
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
+	"github.com/pterm/pterm/putils"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
@@ -37,7 +38,8 @@ func GetLintCommand() *cobra.Command {
 
 			if !silent {
 				_ = pterm.DefaultBigText.WithLetters(
-					pterm.NewLettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
+					putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
+				pterm.Printf("version: %s\n\n", Version)
 				pterm.Println()
 			}
 

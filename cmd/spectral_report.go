@@ -6,7 +6,6 @@ package cmd
 import (
 	"encoding/json"
 	"errors"
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -72,7 +71,7 @@ func GetSpectralReportCommand() *cobra.Command {
 					pterm.Println()
 					return rsErr
 				}
-				selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
 				if rsErr != nil {
 					return rsErr
 				}
@@ -115,7 +114,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			pterm.Println()
 
 			fi, _ := os.Stat(args[0])
-			cui.RenderTime(timeFlag, duration, fi)
+			RenderTime(timeFlag, duration, fi)
 
 			return nil
 		},

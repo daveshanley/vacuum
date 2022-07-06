@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"errors"
-	"github.com/daveshanley/vacuum/cui"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -94,7 +93,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			pterm.Println()
 
 			fi, _ := os.Stat(args[0])
-			cui.RenderTime(timeFlag, duration, fi)
+			RenderTime(timeFlag, duration, fi)
 
 			return nil
 		},

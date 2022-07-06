@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -24,7 +23,7 @@ func BuildResults(rulesetFlag string, specBytes []byte) (*model.RuleResultSet, *
 		if rsErr != nil {
 			return nil, nil, rsErr
 		}
-		selectedRS, rsErr = cui.BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
+		selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
 		if rsErr != nil {
 			return nil, nil, rsErr
 		}

@@ -1,7 +1,7 @@
 // Copyright 2022 Dave Shanley / Quobix
 // SPDX-License-Identifier: MIT
 
-package cui
+package cmd
 
 import (
 	"github.com/daveshanley/vacuum/rulesets"

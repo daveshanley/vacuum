@@ -4,8 +4,8 @@
 package cmd
 
 import (
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/pterm/pterm"
+	"github.com/pterm/pterm/putils"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -14,6 +14,10 @@ import (
 // of vacuum. It's going to change around a good bit, so don't get too comfy with it :)
 
 var (
+	Version string
+	Commit  string
+	Date    string
+
 	rootCmd = &cobra.Command{
 		Use:   "vacuum lint <your-openapi-file.yaml>",
 		Short: "vacuum is a very, very fast OpenAPI linter",
@@ -23,8 +27,8 @@ var (
 			pterm.Println()
 
 			pterm.DefaultBigText.WithLetters(
-				pterm.NewLettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).
-				Render()
+				putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
+			pterm.Printf("version: %s\n\n", Version)
 
 			pterm.Println("To see something useful, try 'vacuum lint <my-openapi-spec.yaml>'")
 
@@ -35,7 +39,11 @@ var (
 	}
 )
 
-func Execute() {
+func Execute(version, commit, date string) {
+	Version = version
+	Commit = commit
+	Date = date
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -46,9 +54,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 
-	lintCommand := cui.GetLintCommand()
-
-	rootCmd.AddCommand(lintCommand)
+	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
