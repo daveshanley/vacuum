@@ -436,12 +436,9 @@ func ConvertYAMLtoJSON(yamlData []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	jsonData, err := json.Marshal(decodedYaml)
-	if err != nil {
-		return nil, err
-	}
+	// if the data can be decoded, it can be encoded (that's my view anyway). no need for an error check.
+	jsonData, _ := json.Marshal(decodedYaml)
 	return jsonData, nil
-
 }
 
 // IsHttpVerb will check if an operation is valid or not.

@@ -377,3 +377,46 @@ func TestFixContext(t *testing.T) {
 func TestFixContext_HttpCode(t *testing.T) {
 	assert.Equal(t, "$.nuggets.404.name", FixContext("(root).nuggets.404.name"))
 }
+
+func TestIsJSON(t *testing.T) {
+	assert.True(t, IsJSON("{'hello':'there'}"))
+	assert.False(t, IsJSON("potato shoes"))
+	assert.False(t, IsJSON(""))
+}
+
+func TestIsYAML(t *testing.T) {
+	assert.True(t, IsYAML("hello:\n  there:\n    my-name: is quobix"))
+	assert.True(t, IsYAML("potato shoes"))
+	assert.False(t, IsYAML("{'hello':'there'}"))
+	assert.False(t, IsYAML(""))
+	assert.False(t, IsYAML("8908: hello: yeah: \n12309812: :123"))
+}
+
+func TestConvertYAMLtoJSON(t *testing.T) {
+	str, err := ConvertYAMLtoJSON([]byte("hello: there"))
+	assert.NoError(t, err)
+	assert.NotNil(t, str)
+	assert.Equal(t, "{\"hello\":\"there\"}", string(str))
+
+	str, err = ConvertYAMLtoJSON([]byte("gonna: break: you:\nyeah:yeah:yeah"))
+	assert.Error(t, err)
+	assert.Nil(t, str)
+}
+
+func TestIsHttpVerb(t *testing.T) {
+	assert.True(t, IsHttpVerb("get"))
+	assert.True(t, IsHttpVerb("post"))
+	assert.False(t, IsHttpVerb("nuggets"))
+}
+
+func TestConvertComponentIdIntoFriendlyPathSearch(t *testing.T) {
+	segment, path := ConvertComponentIdIntoFriendlyPathSearch("#/chicken/chips/pizza/cake")
+	assert.Equal(t, "$.chicken.chips.pizza['cake']", path)
+	assert.Equal(t, "cake", segment)
+}
+
+func TestConvertComponentIdIntoPath(t *testing.T) {
+	segment, path := ConvertComponentIdIntoPath("#/chicken/chips/pizza/cake")
+	assert.Equal(t, "$.chicken.chips.pizza.cake", path)
+	assert.Equal(t, "cake", segment)
+}
