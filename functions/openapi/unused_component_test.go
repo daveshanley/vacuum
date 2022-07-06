@@ -153,7 +153,7 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = model.NewSpecIndex(&rootNode)
-	
+
 	def := UnusedComponent{}
 	res := def.RunRule(nodes, ctx)
 

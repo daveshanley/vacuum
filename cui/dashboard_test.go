@@ -41,8 +41,8 @@ func TestDashboard_Render(t *testing.T) {
 	eventChan := make(chan ui.Event)
 	dash.uiEvents = eventChan
 	sequence := []string{
-		"h",
-		"<Escape>",
+		//"h",
+		//"<Escape>",
 		"<Tab>",
 		"<Tab>",
 		"<Enter>",
@@ -102,7 +102,7 @@ func TestDashboard_Render(t *testing.T) {
 	// test.
 	//renderError := dash.Render()
 	//if renderError == nil {
-	//	//assert.Len(t, dash.categoryHealthGauge, 9)
+	//	assert.Len(t, dash.categoryHealthGauge, 9)
 	//} else {
 	//
 	//	// figure out what to do here once we have decoupled logic from rendering.

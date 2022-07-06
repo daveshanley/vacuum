@@ -32,7 +32,7 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	var results []model.RuleFunctionResult
 
 	enums := context.Index.GetAllEnums()
-	
+
 	for _, enum := range enums {
 
 		enumType := enum.Type.Value
