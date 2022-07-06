@@ -45,7 +45,7 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
 
       if (child.name != e.detail.id) {
-          child.disableCategory();
+        child.disableCategory();
       } else {
         // if it's not already been set, set it (in case of default).
         if (!child.active) {
