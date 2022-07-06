@@ -17,6 +17,9 @@ export class ViolationDrawerComponent extends BaseComponent {
   path: string;
 
   @property({ type: String })
+  category: string;
+
+  @property({ type: String })
   ruleId: string;
 
   @property({ type: String })
@@ -47,14 +50,7 @@ export class ViolationDrawerComponent extends BaseComponent {
     if (this._visible) {
       return html`
         <h2>${ViolationDrawerComponent.replaceTicks(this.message)}</h2>
-        <p class="violated">
-          Rule Violated:
-          <a href="https://quobix.com/vacuum/rules/${this.ruleId}"
-            >${this.ruleId}</a
-          >
-        </p>
         ${this.code}
-
         <h3>JSON Path</h3>
         <p class="path">${this.path}</p>
         <hr />
@@ -62,6 +58,12 @@ export class ViolationDrawerComponent extends BaseComponent {
           <h3>How to fix violation</h3>
           <p>${this.howToFix}</p>
         </section>
+        <hr />
+        <p class="violated">
+          Learn more about:
+          <a href="https://quobix.com/vacuum/rules/${this.category}/${this.ruleId}">${this.ruleId}</a
+          >
+        </p>
       `;
     } else {
       return html`

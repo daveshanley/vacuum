@@ -48,6 +48,7 @@
                     <category-rules id="{{ .Id }}">
                     {{- with $ruleResults.RuleResults -}}
                     {{- range . }}
+                        {{- $currentCat := .Rule.RuleCategory.Id -}}
                         {{- $howToFixRule := .Rule.HowToFix -}}
                         <category-rule maxViolations="{{ $maxViolations }}"
                                        totalRulesViolated="{{ len $ruleResults.RuleResults }}"
@@ -55,7 +56,7 @@
                                        description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
                             {{- with .Results -}}
                             {{- range . }}
-                            <category-rule-result howToFix="{{ $howToFixRule }}" slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
+                            <category-rule-result category="{{ $currentCat }}" howToFix="{{ $howToFixRule }}" slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
                                 {{- renderSource . $specString -}}
                             </category-rule-result>
                             {{- end -}}

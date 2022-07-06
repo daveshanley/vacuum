@@ -15,6 +15,9 @@ export class CategoryRuleResultComponent extends BaseComponent {
   message: string;
 
   @property({ type: String })
+  category: string;
+
+  @property({ type: String })
   ruleId: string;
 
   @property({ type: Number })
@@ -82,6 +85,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       endLine: this.endLine,
       endCol: this.endCol,
       path: this.path,
+      category: this.category,
       howToFix: this.howToFix,
       violationId: this.violationId,
       renderedCode: renderedCode,

@@ -43,8 +43,9 @@ export class RuleCategoryNavigationComponent extends BaseComponent {
   _categoryActivatedListener(e: CustomEvent<CategoryActivatedEvent>) {
     for (let x = 0; x < this._slottedChildren.length; x++) {
       const child = this._slottedChildren[x] as RuleCategoryLinkComponent;
+
       if (child.name != e.detail.id) {
-        if (child.hasAttribute('disableCategory')) child.disableCategory();
+          child.disableCategory();
       } else {
         // if it's not already been set, set it (in case of default).
         if (!child.active) {

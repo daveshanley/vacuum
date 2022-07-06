@@ -28,7 +28,7 @@ export default [
     }
 
     p.violated {
-      font-size: var(--sl-font-size-x-small);
+      font-size: var(--sl-font-size-small);
     }
 
     pre {
@@ -36,7 +36,7 @@ export default [
     }
 
     a {
-      font-size: var(--sl-font-size-x-small);
+      font-size: var(--sl-font-size-small);
       color: var(--primary-color);
     }
     a:hover {

@@ -85,7 +85,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			return string(b)
 		},
 		"timeGenerated": func(t time.Time) string {
-			return t.Format("02 Jan 2006 15:04:05 EST")
+			return t.Format("02 Jan 2006 15:04:05 MST")
 		},
 		"extractResultsForCategory": func(cat string, results *model.RuleResultSet) *model.RuleResultsForCategory {
 			var r *model.RuleResultsForCategory
