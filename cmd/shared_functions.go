@@ -31,7 +31,7 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 func RenderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
 	if timeFlag {
 		pterm.Println()
-		pterm.Info.Println(fmt.Sprintf("Vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi.Size()/1000))
+		pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi.Size()/1000))
 		pterm.Println()
 	}
 }

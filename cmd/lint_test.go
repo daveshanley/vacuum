@@ -22,6 +22,7 @@ func TestGetLintCommand(t *testing.T) {
 
 func TestGetLintCommand_Ruleset(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -39,6 +40,7 @@ func TestGetLintCommand_Ruleset(t *testing.T) {
 
 func TestGetLintCommand_RulesetMissing(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -56,6 +58,7 @@ func TestGetLintCommand_RulesetMissing(t *testing.T) {
 
 func TestGetLintCommand_NoRules(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -73,6 +76,7 @@ func TestGetLintCommand_NoRules(t *testing.T) {
 
 func TestGetLintCommand_NoSpec(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -90,6 +94,7 @@ func TestGetLintCommand_NoSpec(t *testing.T) {
 
 func TestGetLintCommand_BadSpec(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -108,6 +113,7 @@ func TestGetLintCommand_BadSpec(t *testing.T) {
 
 func TestGetLintCommand_BadRuleset(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -151,6 +157,7 @@ func TestGetLintCommand_InvalidRuleset(t *testing.T) {
 	_, _ = io.WriteString(tmp, json)
 
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -169,6 +176,7 @@ func TestGetLintCommand_InvalidRuleset(t *testing.T) {
 
 func TestGetLintCommand_SpecificRules(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -186,6 +194,7 @@ func TestGetLintCommand_SpecificRules(t *testing.T) {
 
 func TestGetLintCommand_Category_Examples(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -207,6 +216,7 @@ func TestGetLintCommand_Category_Examples(t *testing.T) {
 
 func TestGetLintCommand_Category_Descriptions(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -228,6 +238,7 @@ func TestGetLintCommand_Category_Descriptions(t *testing.T) {
 
 func TestGetLintCommand_Category_Info(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -249,6 +260,7 @@ func TestGetLintCommand_Category_Info(t *testing.T) {
 
 func TestGetLintCommand_Category_Schemas(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -270,6 +282,7 @@ func TestGetLintCommand_Category_Schemas(t *testing.T) {
 
 func TestGetLintCommand_Category_Security(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -291,6 +304,7 @@ func TestGetLintCommand_Category_Security(t *testing.T) {
 
 func TestGetLintCommand_Category_Validation(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -312,6 +326,7 @@ func TestGetLintCommand_Category_Validation(t *testing.T) {
 
 func TestGetLintCommand_Category_Operations(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -333,6 +348,7 @@ func TestGetLintCommand_Category_Operations(t *testing.T) {
 
 func TestGetLintCommand_Category_Tags(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -354,6 +370,7 @@ func TestGetLintCommand_Category_Tags(t *testing.T) {
 
 func TestGetLintCommand_Category_Default(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -375,6 +392,7 @@ func TestGetLintCommand_Category_Default(t *testing.T) {
 
 func TestGetLintCommand_Details_NoCat(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -394,6 +412,7 @@ func TestGetLintCommand_Details_NoCat(t *testing.T) {
 
 func TestGetLintCommand_Details_NoCat_NotSilent(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -412,6 +431,7 @@ func TestGetLintCommand_Details_NoCat_NotSilent(t *testing.T) {
 
 func TestGetLintCommand_Details_NoCat_Snippets(t *testing.T) {
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -441,6 +461,7 @@ rules:
 	_, _ = io.WriteString(tmp, yaml)
 
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -469,6 +490,7 @@ rules:
 	_, _ = io.WriteString(tmp, yaml)
 
 	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -476,7 +498,7 @@ rules:
 		"-d",
 		"-r",
 		tmp.Name(),
-		"../model/test_files/burgershop.openapi.yaml",
+		"../model/test_files/petstorev3.json",
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := ioutil.ReadAll(b)

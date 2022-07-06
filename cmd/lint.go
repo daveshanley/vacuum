@@ -169,7 +169,6 @@ func GetLintCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")

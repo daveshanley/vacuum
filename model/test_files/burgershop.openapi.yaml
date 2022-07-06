@@ -260,7 +260,7 @@ paths:
               example:
                 - name: Burger Sauce
         "500":
-          description: Get all dressings and choose from them
+          description: Something went wrong with getting dressings.
           content:
             application/json:
               schema:
