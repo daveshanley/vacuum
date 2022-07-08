@@ -8,7 +8,6 @@ module.exports = {
   entry: {
     vacuumReport: './src/ts/vacuum-report.ts',
     hydrate: './src/ts/hydrate.ts',
-    shoelace: './src/ts/shoelace.ts',
   },
   devServer: {
     static: './build/static'

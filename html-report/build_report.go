@@ -34,9 +34,6 @@ var bundledJS string
 //go:embed ui/build/static/js/hydrate.js
 var hydrateJS string
 
-//go:embed ui/build/static/js/shoelace.js
-var shoelaceJS string
-
 //go:embed ui/src/css/report.css
 var reportCSS string
 
@@ -155,7 +152,6 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
-		ShoelaceJS:     shoelaceJS,
 		ReportCSS:      reportCSS,
 		Statistics:     html.stats,
 		RuleCategories: cats,

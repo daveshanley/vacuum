@@ -10,4 +10,14 @@ export default css`
   li {
     padding-left: 0;
   }
+
+  @media only screen and (max-width: 600px) {
+    ul {
+      margin-block-start: 0;
+      margin-block-end: 0;
+      margin-inline-start: 0;
+      margin-inline-end: 0;
+      padding-inline-start: 0;
+    }
+  }
 `;

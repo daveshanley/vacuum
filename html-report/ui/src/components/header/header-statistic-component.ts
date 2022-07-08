@@ -93,6 +93,13 @@ export class HeaderStatisticComponent extends BaseComponent {
         background: none;
         color: var(--primary-color);
       }
+
+      @media only screen and (max-width: 600px) {
+        div {
+          padding: 5px;
+          min-width: 60px;
+        }
+      }
     `;
     return [staticCss];
   }

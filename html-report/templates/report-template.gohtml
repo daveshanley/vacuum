@@ -6,20 +6,25 @@
     <section class="terminal-nav">
         <header class="terminal-logo">
             <div class="logo">
-                <a href="https://quobix.com/vacuum" class="no-style">vacuum</a>
+                <a href="https://quobix.com/vacuum" class="no-style">vacuum report</a>
             </div>
         </header>
-        <div class="generated">Report Generated: {{ timeGenerated .Generated }}</div>
-        {{- if gt .Statistics.TotalErrors 0 -}}
-        <header-statistic value='{{ .Statistics.TotalErrors }}' label='Errors' preset='error-count'></header-statistic>
-        {{- end -}}
-        {{- if gt .Statistics.TotalWarnings 0 -}}
-        <header-statistic value='{{ .Statistics.TotalWarnings }}' label='Warnings' preset='warning-count'></header-statistic>
-        {{- end -}}
-        {{- if gt .Statistics.TotalInfo 0 -}}
-            <header-statistic value='{{ .Statistics.TotalInfo }}' label='Informs' preset='info-count'></header-statistic>
-        {{- end -}}
-        <header-statistic value='{{ .Statistics.OverallScore }}' percentage=true label='Quality Grade'></header-statistic>
+        <div class="generated">Generated: {{ timeGenerated .Generated }}</div>
+        <div class="mobile-warning">
+            The mobile experience is still being developed. This may look/feel a bit odd for now.
+        </div>
+        <div class="header-statistics">
+            {{- if gt .Statistics.TotalErrors 0 -}}
+            <header-statistic value='{{ .Statistics.TotalErrors }}' label='Errors' preset='error-count'></header-statistic>
+            {{- end -}}
+            {{- if gt .Statistics.TotalWarnings 0 -}}
+            <header-statistic value='{{ .Statistics.TotalWarnings }}' label='Warnings' preset='warning-count'></header-statistic>
+            {{- end -}}
+            {{- if gt .Statistics.TotalInfo 0 -}}
+                <header-statistic value='{{ .Statistics.TotalInfo }}' label='Informs' preset='info-count'></header-statistic>
+            {{- end -}}
+            <header-statistic value='{{ .Statistics.OverallScore }}' percentage=true label='Quality Grade'></header-statistic>
+        </div>
     </section>
     <hr class="header-divider"/>
     <html-report>

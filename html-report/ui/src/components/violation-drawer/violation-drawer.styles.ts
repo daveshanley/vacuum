@@ -74,5 +74,11 @@ export default [
     p.path {
       color: var(--secondary-color);
     }
+
+    @media only screen and (max-width: 600px) {
+      h2 {
+        font-size: 1rem;
+      }
+    }
   `,
 ];

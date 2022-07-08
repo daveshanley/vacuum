@@ -128,4 +128,11 @@ export default css`
     margin-bottom: 1px;
     margin-right: 1px;
   }
+
+  @media only screen and (max-width: 600px) {
+    .details {
+      max-height: 300px;
+      overflow-y: hidden;
+    }
+  }
 `;

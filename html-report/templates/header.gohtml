@@ -8,11 +8,9 @@
         {{- if not .TestMode -}}
         <script>
             {{ .BundledJS }}
-            {{ .ShoelaceJS }}
         </script>
         {{- else -}}
         <script src="http://localhost:8080/js/vacuumReport.js"></script>
-        <script src="http://localhost:8080/js/shoelace.js"></script>
         {{- end -}}
         <style>
             :root {
@@ -54,7 +52,6 @@
                 --ok-200-lowalpha: rgba(170, 255, 0, 0.15);
                 --ok-color: #1aff00;
                 --ok-color-lowalpha: rgba(170, 255, 0, 0.15);
-
                 --progress-bar-background: #3f3f44;
                 --progress-bar-fill: #62c4ff;
                 --code-bg-color: rgb(28 33 40);
@@ -64,17 +61,14 @@
                 --terminal-green: #00FF00FF;
                 --hrcolor: #3d3d3d;
                 --code-border: #525252;
-
                 --card-bgcolor: rgba(83, 83, 83, 0.1);
                 --card-bordercolor: rgba(83, 83, 83, 0.3);
-
                 --sl-font-sans: var(--font-stack);
                 --sl-font-mono: var(--font-stack);
                 --sl-font-size-small: 16px;
                 --sl-font-size-xx-small: 10px;
+                --sl-font-size-x-small: 12px;
                 --rule-font-size: 0.8rem;
-
-
                 --sl-color-primary-50: rgb(243 251 255);
                 --sl-color-primary-100: rgb(215 240 255);
                 --sl-color-primary-200: rgb(184 228 255);
@@ -104,8 +98,6 @@
                 box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
                 background: var(--primary-color-lowalpha);
             }
-
-
 
             {{- .ReportCSS -}}
         </style>

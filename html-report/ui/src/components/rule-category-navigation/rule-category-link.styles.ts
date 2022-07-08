@@ -20,4 +20,14 @@ export default css`
     background-color: var(--primary-color);
     color: var(--invert-font-color);
   }
+
+  @media only screen and (max-width: 600px) {
+    a {
+      font-size: 0.7rem;
+    }
+    li {
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+  }
 `;
