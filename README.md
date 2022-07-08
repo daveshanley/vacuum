@@ -85,6 +85,14 @@ If you want to try out vacuum:
 
 You can use either **YAML** or **JSON** vacuum supports both.
 
+## Install using [homebrew](https://brew.sh) tap
+
+```
+brew install daveshanley/vacuum/vacuum
+```
+
+> This is the _recommended_ way to consume the binary version of vacuum.
+
 ## Check out the code
 
 ```
