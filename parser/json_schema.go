@@ -5,11 +5,13 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
 	yamlAlt "github.com/ghodss/yaml"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
+	"time"
 )
 
 type Schema struct {
@@ -117,28 +119,44 @@ func ValidateExample(jc *Schema) []*ExampleValidation {
 }
 
 // ConvertNodeDefinitionIntoSchema will convert any definition node (components, params, etc.) into a standard
-// Schema that can be used with JSONSchema.
+// Schema that can be used with JSONSchema. This will auto-timeout of th
 func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
-	dat, err := yaml.Marshal(node)
-	if err != nil {
-		return nil, err
-	}
+
+	schChan := make(chan Schema, 1)
+	errChan := make(chan error, 1)
+
+	go func() {
+
+		dat, err := yaml.Marshal(node)
+		if err != nil {
+			errChan <- err
+		}
+		var schema Schema
+		err = yaml.Unmarshal(dat, &schema)
+		if err != nil {
+			errChan <- err
+		}
+		schChan <- schema
+	}()
+
 	var schema Schema
-	err = yaml.Unmarshal(dat, &schema)
-
-	schema.Schema = &utils.SchemaSource
-	schema.Id = &utils.SchemaId
-
-	if err != nil {
+	select {
+	case err := <-errChan:
 		return nil, err
+	case schema = <-schChan:
+		schema.Schema = &utils.SchemaSource
+		schema.Id = &utils.SchemaId
+
+		return &schema, nil
+	case <-time.After(40 * time.Millisecond): // even this seems long to me.
+		return nil, errors.New("schema failed to unpack in a reasonable timeframe, killing process")
 	}
-	return &schema, nil
 }
 
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
 func ValidateNodeAgainstSchema(schema *Schema, node *yaml.Node, isArray bool) (*gojsonschema.Result, error) {
 
-	// convert node to raw yaml first, then convert to json to be used in schema validation
+	//convert node to raw yaml first, then convert to json to be used in schema validation
 	var d []byte
 	var e error
 	if !isArray {
@@ -163,7 +181,7 @@ func ValidateNodeAgainstSchema(schema *Schema, node *yaml.Node, isArray bool) (*
 	rawObject := gojsonschema.NewStringLoader(string(n))
 	schemaToCheck := gojsonschema.NewStringLoader(string(sJson))
 
-	// validate
+	//validate
 	return gojsonschema.Validate(schemaToCheck, rawObject)
 
 }

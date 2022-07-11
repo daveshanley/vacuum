@@ -67,6 +67,17 @@ func (fd FormDataConsumeCheck) paramCheck(paramMap map[string]*model.Reference, 
 
 	for paramName, paramNode := range paramMap {
 
+		if paramNode == nil {
+			results = append(results, model.RuleFunctionResult{
+				Message:   fmt.Sprintf("paramter value for '%s' is empty / missing", paramName),
+				StartNode: consumesNode,
+				EndNode:   consumesNode,
+				Path:      fmt.Sprintf("$.%s.%s.parameters", path, method),
+				Rule:      context.Rule,
+			})
+			continue
+		}
+
 		inNodeStart, inNode := utils.FindKeyNode("in", paramNode.Node.Content)
 		if inNode != nil && inNode.Value == "formData" {
 

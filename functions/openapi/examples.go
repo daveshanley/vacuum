@@ -50,12 +50,14 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				}
 
 				basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
+				fmt.Sprintf(basePath)
 
 				// check requests.
 				_, rbNode := utils.FindKeyNode("requestBody", method.Content)
 
-				// check responses
+				//check responses
 				_, respNode := utils.FindKeyNode("responses", method.Content)
+				//fmt.Sprintf("%v", respNode)
 
 				if rbNode != nil {
 					results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results, context)
@@ -76,7 +78,6 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 					}
 				}
 
-				// for each response code, check examples.
 				if respNode != nil {
 					var code string
 					for x, respCodeNode := range respNode.Content {
@@ -88,6 +89,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 							"responses", code)}), results, context)
 					}
 				}
+
 			}
 		}
 	}
@@ -151,14 +153,18 @@ func checkAllDefinitionsForExamples(objNode []*yaml.Node,
 }
 
 // super lean DFS to check if example is circular.
-func miniCircCheck(node *yaml.Node, seen map[*yaml.Node]bool) bool {
+func miniCircCheck(node *yaml.Node, seen map[*yaml.Node]bool, depth int) bool {
+	if depth > 40 {
+		return false // too deep, this is insane.
+	}
 	if seen[node] {
 		return true
 	}
 	seen[node] = true
 	circ := false
 	for _, child := range node.Content {
-		circ = miniCircCheck(child, seen)
+		depth++
+		circ = miniCircCheck(child, seen, depth)
 	}
 	return circ
 
@@ -207,7 +213,11 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 						pName, compName))
 
 					res.StartNode = pValue.Content[n-1]
-					res.EndNode = prop.Content[len(prop.Content)-1]
+					if len(prop.Content) > 0 {
+						res.EndNode = prop.Content[len(prop.Content)-1]
+					} else {
+						res.EndNode = res.StartNode
+					}
 					res.Path = utils.BuildPath(path, []string{compName, pName})
 					res.Rule = context.Rule
 					*results = append(*results, res)
@@ -215,11 +225,16 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 				} else {
 
+					// no point going forward here.
+					if exKey == nil && exValue == nil {
+						continue
+					}
+
 					// so there is an example, lets validate it.
 					var schema *parser.Schema
 
 					// if this node is somehow circular, we won't be able to convert it into a schema.
-					if !miniCircCheck(prop, make(map[*yaml.Node]bool)) {
+					if !miniCircCheck(prop, make(map[*yaml.Node]bool), 0) {
 						schema, _ = parser.ConvertNodeDefinitionIntoSchema(prop)
 					} else {
 						continue // no point moving on past here.
@@ -280,7 +295,12 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 				z := model.BuildFunctionResultString(fmt.Sprintf("Example for component `%s` is not valid: `%s`. "+
 					"Value `%s` is not compatible", compName, resError.Description(), resError.Value()))
 				z.StartNode = topExKey
-				z.EndNode = topExValue.Content[len(topExValue.Content)-1]
+
+				if len(topExValue.Content) > 0 {
+					z.EndNode = topExValue.Content[len(topExValue.Content)-1]
+				} else {
+					z.EndNode = topExKey
+				}
 				z.Rule = context.Rule
 				*results = append(*results, z)
 			}
@@ -333,7 +353,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 		res.Path = basePath
 		res.Rule = context.Rule
 		*results = append(*results, res)
-
+		return results
 	}
 
 	var schema *parser.Schema
@@ -356,11 +376,25 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 			if valueNode != nil {
 				// check if the example validates against the schema
-
 				// extract the schema
 				schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
 
+				if schema == nil {
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
+						exampleName, "no schema can be extracted, invalid schema"))
+					z.StartNode = esValue
+					z.EndNode = valueNode
+					z.Path = nodePath
+					z.Rule = context.Rule
+					*results = append(*results, z)
+					continue
+				}
+
 				res, _ := parser.ValidateNodeAgainstSchema(schema, valueNode, false)
+				if res == nil {
+					continue
+				}
+
 				if !res.Valid() {
 					// extract all validation errors.
 					for _, resError := range res.Errors() {
@@ -412,13 +446,15 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 		if schema == nil {
 			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
 		}
-		res, _ := parser.ValidateNodeAgainstSchema(schema, eValue, false)
 
-		// extract all validation errors.
-		for _, resError := range res.Errors() {
+		//return results
+
+		res, validateError := parser.ValidateNodeAgainstSchema(schema, eValue, false)
+
+		if validateError != nil {
 
 			z := model.BuildFunctionResultString(fmt.Sprintf("Example for `%s` is not valid: `%s`",
-				nameNodeValue, resError.Description()))
+				nameNodeValue, validateError.Error()))
 			z.StartNode = eValue
 			if len(eValue.Content) > 0 {
 				z.EndNode = eValue.Content[len(eValue.Content)-1]
@@ -428,8 +464,27 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			z.Rule = context.Rule
 			z.Path = basePath
 			*results = append(*results, z)
+			return results
 		}
 
+		if res != nil {
+			// extract all validation errors.
+			for _, resError := range res.Errors() {
+
+				z := model.BuildFunctionResultString(fmt.Sprintf("Example for `%s` is not valid: `%s`",
+					nameNodeValue, resError.Description()))
+				z.StartNode = eValue
+				if len(eValue.Content) > 0 {
+					z.EndNode = eValue.Content[len(eValue.Content)-1]
+				} else {
+					z.EndNode = eValue
+				}
+				z.Rule = context.Rule
+				z.Path = basePath
+				*results = append(*results, z)
+			}
+			return results
+		}
 	}
 
 	ex := false
@@ -448,10 +503,12 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			}
 		}
 	}
-	//fmt.Println(ex)
 	if ex {
 		if schema == nil && !utils.IsNodePolyMorphic(sValue) {
 			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+		}
+		if schema == nil {
+			return results
 		}
 		exampleValidation := parser.ValidateExample(schema)
 		if len(exampleValidation) > 0 {

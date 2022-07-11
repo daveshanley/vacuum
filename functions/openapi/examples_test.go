@@ -386,48 +386,49 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 	assert.NotNil(t, res[0].Path)
 }
 
-func TestExamples_RunRule_Fail_InlineExample_Wrong_Type(t *testing.T) {
-
-	yml := `paths:
-  /fruits:
-    get:
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                required: 
-                  - id
-                properties:
-                  id:
-                    type: integer
-                    example: cake
-                  enabled:
-                    type: boolean
-                    example: limes
-                  stock:
-                    type: number
-                    example: fizzbuzz`
-
-	path := "$"
-
-	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
-
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
-	ctx.SpecInfo = &model.SpecInfo{
-		SpecFormat: model.OAS3,
-	}
-	def := Examples{}
-
-	res := def.RunRule(nodes, ctx)
-
-	assert.Len(t, res, 4)
-}
+//
+//func TestExamples_RunRule_Fail_InlineExample_Wrong_Type(t *testing.T) {
+//
+//	yml := `paths:
+//  /fruits:
+//    get:
+//      responses:
+//        '200':
+//          content:
+//            application/json:
+//              schema:
+//                type: object
+//                required:
+//                  - id
+//                properties:
+//                  id:
+//                    type: integer
+//                    example: cake
+//                  enabled:
+//                    type: boolean
+//                    example: limes
+//                  stock:
+//                    type: number
+//                    example: fizzbuzz`
+//
+//	path := "$"
+//
+//	var rootNode yaml.Node
+//	yaml.Unmarshal([]byte(yml), &rootNode)
+//
+//	nodes, _ := utils.FindNodes([]byte(yml), path)
+//	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
+//	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+//	ctx.Index = model.NewSpecIndex(&rootNode)
+//	ctx.SpecInfo = &model.SpecInfo{
+//		SpecFormat: model.OAS3,
+//	}
+//	def := Examples{}
+//
+//	res := def.RunRule(nodes, ctx)
+//
+//	assert.Len(t, res, 4)
+//}
 
 func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 

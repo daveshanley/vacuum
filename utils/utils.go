@@ -156,7 +156,7 @@ func ExtractValueFromInterfaceMap(name string, raw interface{}) interface{} {
 
 // FindFirstKeyNode will locate the first key and value yaml.Node based on a key.
 func FindFirstKeyNode(key string, nodes []*yaml.Node, depth int) (keyNode *yaml.Node, valueNode *yaml.Node) {
-	if depth > 100 {
+	if depth > 40 {
 		return nil, nil
 	}
 	for i, v := range nodes {
@@ -280,7 +280,16 @@ func FindKeyNode(key string, nodes []*yaml.Node) (keyNode *yaml.Node, valueNode 
 		}
 		for x, j := range v.Content {
 			if key == j.Value {
-				return v, v.Content[x+1] // next node is what we need.
+				if IsNodeMap(v) {
+					if x+1 == len(v.Content) {
+						return v, v.Content[x]
+					}
+					return v, v.Content[x+1] // next node is what we need.
+
+				}
+				if IsNodeArray(v) {
+					return v, v.Content[x]
+				}
 			}
 		}
 	}
@@ -456,8 +465,13 @@ func ConvertComponentIdIntoFriendlyPathSearch(id string) (string, string) {
 	segs := strings.Split(id, "/")
 	name := segs[len(segs)-1]
 
-	return name, strings.ReplaceAll(fmt.Sprintf("%s['%s']",
+	replaced := strings.ReplaceAll(fmt.Sprintf("%s['%s']",
 		strings.Join(segs[:len(segs)-1], "."), name), "#", "$")
+
+	if replaced[0] != '$' {
+		replaced = fmt.Sprintf("$%s", replaced)
+	}
+	return name, replaced
 }
 
 func ConvertComponentIdIntoPath(id string) (string, string) {

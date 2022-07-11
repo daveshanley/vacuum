@@ -149,6 +149,9 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				if verbParametersNode != nil {
 					for _, verbParam := range verbParametersNode {
 
+						if verbParam == nil {
+							continue
+						}
 						_, paramInNode := utils.FindKeyNode("in", verbParam.Node.Content)
 						_, paramRequiredNode := utils.FindKeyNode("required", verbParam.Node.Content)
 						_, paramNameNode := utils.FindKeyNode("name", verbParam.Node.Content)

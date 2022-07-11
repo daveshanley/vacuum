@@ -543,6 +543,16 @@ func (index *SpecIndex) ExtractRefs(node, parent *yaml.Node, seenPath []string, 
 
 				value := node.Content[i+1].Value
 
+				if strings.Contains(value, "~1") {
+					indexError := &IndexingError{
+						Error: errors.New("schema reference is contains '~1' win32 truncation and cannot be processed"),
+						Node:  node.Content[i+1],
+						Path:  fmt.Sprintf("$.%s", strings.Join(fp, ".")),
+					}
+					index.refErrors = append(index.refErrors, indexError)
+					continue
+				}
+
 				segs := strings.Split(value, "/")
 				name := segs[len(segs)-1]
 				ref := &Reference{
@@ -639,10 +649,19 @@ func (index *SpecIndex) ExtractRefs(node, parent *yaml.Node, seenPath []string, 
 				}
 
 				if n.Value == "summary" {
+
+					var b *yaml.Node
+
+					if len(node.Content) == i+1 {
+						b = node.Content[i]
+					} else {
+						b = node.Content[i+1]
+					}
+
 					ref := &DescriptionReference{
-						Content:   node.Content[i+1].Value,
+						Content:   b.Value,
 						Path:      nodePath,
-						Node:      node.Content[i+1],
+						Node:      b,
 						IsSummary: true,
 					}
 
@@ -939,14 +958,16 @@ func (index *SpecIndex) GetComponentSchemaCount() int {
 				if i+1 < len(index.root.Content[0].Content) {
 					securityDefinitions := index.root.Content[0].Content[i+1]
 					for x, def := range securityDefinitions.Content {
-						name := def.Content[0]
-						ref := &Reference{
-							Definition: name.Value,
-							Name:       name.Value,
-							Node:       def,
-							Path:       fmt.Sprintf("$.security[%d]", x),
+						if len(def.Content) > 0 {
+							name := def.Content[0]
+							ref := &Reference{
+								Definition: name.Value,
+								Name:       name.Value,
+								Node:       def,
+								Path:       fmt.Sprintf("$.security[%d]", x),
+							}
+							index.rootSecurity = append(index.rootSecurity, ref)
 						}
-						index.rootSecurity = append(index.rootSecurity, ref)
 					}
 				}
 			}
@@ -1348,6 +1369,31 @@ func (index *SpecIndex) GetInlineUniqueParamCount() int {
 func (index *SpecIndex) ExtractComponentsFromRefs(refs []*Reference) []*Reference {
 	var found []*Reference
 	for _, ref := range refs {
+
+		// so, some really strange shit showed up when linting api.guru
+		if strings.Contains(ref.Definition, "~1") { // this was from azure! jesus guys, win32? wtf.
+			_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(ref.Definition)
+			indexError := &IndexingError{
+				Error: fmt.Errorf("component '%s' contains freaky win32 '~1' file truncation, can't be used.", ref.Definition),
+				Node:  ref.Node,
+				Path:  path,
+			}
+			index.refErrors = append(index.refErrors, indexError)
+			continue
+		}
+
+		// check reference for back slashes (hah yeah seen this too!)
+		if strings.Contains(ref.Definition, "\\") { // this was from blazemeter.com haha!
+			_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(ref.Definition)
+			indexError := &IndexingError{
+				Error: fmt.Errorf("component '%s' contains a backslash '\\'. It's not valid.", ref.Definition),
+				Node:  ref.Node,
+				Path:  path,
+			}
+			index.refErrors = append(index.refErrors, indexError)
+			continue
+		}
+
 		located := index.FindComponent(ref.Definition, ref.Node)
 		if located != nil {
 			found = append(found, located)
@@ -1588,9 +1634,9 @@ func (index *SpecIndex) extractComponentSecuritySchemes(securitySchemesNode *yam
 func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 	lookupFunction ExternalLookupFunction, parent *yaml.Node) *Reference {
 
-	externalSpec := index.externalSpecIndex[uri[0]]
+	externalSpecIndex := index.externalSpecIndex[uri[0]]
 	var foundNode *yaml.Node
-	if externalSpec == nil {
+	if externalSpecIndex == nil {
 
 		n, newRoot, err := lookupFunction(componentId)
 
@@ -1601,6 +1647,7 @@ func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 				Path:  componentId,
 			}
 			index.refErrors = append(index.refErrors, indexError)
+			return nil
 		}
 
 		if n != nil {
@@ -1614,7 +1661,7 @@ func (index *SpecIndex) performExternalLookup(uri []string, componentId string,
 
 	} else {
 
-		foundRef := externalSpec.findComponentInRoot(uri[1])
+		foundRef := externalSpecIndex.findComponentInRoot(uri[1])
 		if foundRef != nil {
 			foundNode = foundRef.Node
 		}

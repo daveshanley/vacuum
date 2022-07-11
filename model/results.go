@@ -360,7 +360,10 @@ func (rr *RuleResultSet) Len() int { return len(rr.Results) }
 
 // Less determines which result has the lower line number
 func (rr *RuleResultSet) Less(i, j int) bool {
-	return rr.Results[i].StartNode.Line < rr.Results[j].StartNode.Line
+	if rr.Results != nil && rr.Results[i].StartNode != nil && rr.Results[j].StartNode != nil {
+		return rr.Results[i].StartNode.Line < rr.Results[j].StartNode.Line
+	}
+	return false
 }
 
 // Swap will re-sort a result if it's in the wrong order.

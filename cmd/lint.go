@@ -46,8 +46,6 @@ func GetLintCommand() *cobra.Command {
 				return fmt.Errorf("no files supplied")
 			}
 
-			start := time.Now()
-
 			// read file.
 			specBytes, ferr := ioutil.ReadFile(args[0])
 
@@ -84,7 +82,7 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
-
+			start := time.Now()
 			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet: selectedRS,
 				Spec:    specBytes,

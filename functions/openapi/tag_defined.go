@@ -51,7 +51,12 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		var currentVerb string
 		if operationNode.Tag == "!!str" {
 			currentPath = operationNode.Value
-			verbNode := pathsNode.Content[x+1]
+			var verbNode *yaml.Node
+			if x+1 == len(pathsNode.Content) {
+				verbNode = pathsNode.Content[x]
+			} else {
+				verbNode = pathsNode.Content[x+1]
+			}
 			for y, verbMapNode := range verbNode.Content {
 
 				if verbMapNode.Tag == "!!str" {
@@ -60,9 +65,14 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 					continue
 				}
 
-				verbDataNode := verbNode.Content[y+1]
-				_, opTagsNode := utils.FindKeyNode("tags", verbDataNode.Content)
-
+				var opTagsNode *yaml.Node
+				if y+1 < len(verbNode.Content) {
+					verbDataNode := verbNode.Content[y+1]
+					_, opTagsNode = utils.FindKeyNode("tags", verbDataNode.Content)
+				} else {
+					verbDataNode := verbNode.Content[y]
+					_, opTagsNode = utils.FindKeyNode("tags", verbDataNode.Content)
+				}
 				if opTagsNode != nil {
 
 					tagIndex := 0

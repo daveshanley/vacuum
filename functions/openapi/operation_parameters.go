@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OperationParameters is a rule that checks for valid parameters and parameters combinations
@@ -47,17 +48,45 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 			seenParamInLocations := make(map[string]bool)
 
-			for _, param := range methodNode {
+			currentVerb := method
+			currentPath := path
 
+			resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", path, currentVerb)
+
+			for key, param := range methodNode {
+
+				if strings.Contains(key, "~1") {
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("There is a '~1' character in this '%s' operation at '%s",
+							currentVerb, currentPath),
+						StartNode: nil,
+						EndNode:   nil,
+						Path:      resultPath,
+						Rule:      context.Rule,
+					})
+					continue
+				}
+
+				// check for crazy
+
+				if param == nil {
+					startNode := param.Node
+					endNode := utils.FindLastChildNode(startNode)
+
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("the '%s' operation at path '%s' contains an "+
+							"empty parameter", currentVerb, currentPath),
+						StartNode: startNode,
+						EndNode:   endNode,
+						Path:      resultPath,
+						Rule:      context.Rule,
+					})
+					continue
+				}
 				_, paramInNode := utils.FindKeyNode("in", param.Node.Content)
-
-				currentVerb := method
-				currentPath := path
 
 				startNode := param.Node
 				endNode := utils.FindLastChildNode(startNode)
-
-				resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", path, currentVerb)
 
 				if paramInNode != nil {
 					if seenParamInLocations[paramInNode.Value] {
@@ -88,14 +117,15 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 						seenParamInLocations[paramInNode.Value] = true
 					}
 				} else {
-					results = append(results, model.RuleFunctionResult{
+					rfr := model.RuleFunctionResult{
 						Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 							"parameter with no 'in' value", currentVerb, currentPath),
 						StartNode: startNode,
 						EndNode:   endNode,
 						Path:      resultPath,
 						Rule:      context.Rule,
-					})
+					}
+					results = append(results, rfr)
 
 				}
 			}

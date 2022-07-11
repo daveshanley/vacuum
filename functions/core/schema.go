@@ -76,6 +76,10 @@ func validateNodeAgainstSchema(schema parser.Schema, field *yaml.Node,
 	// validate using schema provided.
 	res, _ := parser.ValidateNodeAgainstSchema(&schema, field, false)
 
+	if res == nil {
+		return results
+	}
+
 	for _, resError := range res.Errors() {
 
 		r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", context.Rule.Description,

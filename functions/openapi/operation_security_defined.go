@@ -79,23 +79,24 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 
 	// look through each security item and check it exists in the global security index.
 	for i, securityItem := range securityNode.Content {
+		if len(securityItem.Content) > 0 {
+			// name is key and role scope an array value.
+			name := securityItem.Content[0]
+			if name != nil {
 
-		// name is key and role scope an array value.
-		name := securityItem.Content[0]
-		if name != nil {
+				// lookup in security definitions
+				lookup := fmt.Sprintf("#/components/securitySchemes/%s", name.Value)
+				if securityDefinitions[lookup] == nil {
 
-			// lookup in security definitions
-			lookup := fmt.Sprintf("#/components/securitySchemes/%s", name.Value)
-			if securityDefinitions[lookup] == nil {
-
-				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("Security definition points a non-existent "+
-						"securityScheme '%s'", name.Value),
-					StartNode: startNode,
-					EndNode:   endNode,
-					Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
-					Rule:      context.Rule,
-				})
+					results = append(results, model.RuleFunctionResult{
+						Message: fmt.Sprintf("Security definition points a non-existent "+
+							"securityScheme '%s'", name.Value),
+						StartNode: startNode,
+						EndNode:   endNode,
+						Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
+						Rule:      context.Rule,
+					})
+				}
 			}
 		}
 	}
