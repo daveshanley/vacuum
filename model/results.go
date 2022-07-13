@@ -326,15 +326,25 @@ func (rr *RuleResultSet) PrepareForSerialization(info *SpecInfo) {
 	data := strings.Split(string(*info.SpecBytes), "\n")
 
 	var prep = func(result *RuleFunctionResult, wg *sync.WaitGroup, data []string) {
-		result.Range = reports.Range{
-			Start: reports.RangeItem{
+
+		var start, end reports.RangeItem
+
+		if result.StartNode != nil {
+			start = reports.RangeItem{
 				Line: result.StartNode.Line,
 				Char: result.StartNode.Column,
-			},
-			End: reports.RangeItem{
+			}
+		}
+		if result.EndNode != nil {
+			end = reports.RangeItem{
 				Line: result.EndNode.Line,
 				Char: result.EndNode.Column,
-			},
+			}
+		}
+
+		result.Range = reports.Range{
+			Start: start,
+			End:   end,
 		}
 		result.RuleId = result.Rule.Id
 		result.RuleSeverity = result.Rule.Severity
