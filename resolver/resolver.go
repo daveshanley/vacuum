@@ -191,8 +191,8 @@ func (resolver *Resolver) extractRelatives(node *yaml.Node,
 					// TODO handle error, missing ref, can't resolve.
 					_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(value)
 					err := &ResolvingError{
-						Error: fmt.Errorf("cannot resolve reference '%s', it's missing", value),
-						Node:  nil,
+						Error: fmt.Errorf("cannot resolve reference `%s`, it's missing", value),
+						Node:  n,
 						Path:  path,
 					}
 					resolver.resolvingErrors = append(resolver.resolvingErrors, err)

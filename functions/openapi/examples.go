@@ -375,13 +375,13 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			_, externalValueNode := utils.FindKeyNode("externalValue", []*yaml.Node{multiExampleNode})
 
 			if valueNode != nil {
-				// check if the example validates against the schema
-				// extract the schema
-				schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+				// check if the example validates against the convertedSchema
+				// extract the convertedSchema
+				convertedSchema, err := parser.ConvertNodeDefinitionIntoSchema(sValue)
 
-				if schema == nil {
+				if err != nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
-						exampleName, "no schema can be extracted, invalid schema"))
+						exampleName, err.Error()))
 					z.StartNode = esValue
 					z.EndNode = valueNode
 					z.Path = nodePath
@@ -390,7 +390,18 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					continue
 				}
 
-				res, _ := parser.ValidateNodeAgainstSchema(schema, valueNode, false)
+				if convertedSchema == nil {
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
+						exampleName, "no convertedSchema can be extracted, invalid convertedSchema"))
+					z.StartNode = esValue
+					z.EndNode = valueNode
+					z.Path = nodePath
+					z.Rule = context.Rule
+					*results = append(*results, z)
+					continue
+				}
+
+				res, _ := parser.ValidateNodeAgainstSchema(convertedSchema, valueNode, false)
 				if res == nil {
 					continue
 				}
@@ -443,8 +454,24 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 		// ok, so let's check the object is valid against the schema.
 		// extract the schema
+		var err error
 		if schema == nil {
-			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+			schema, err = parser.ConvertNodeDefinitionIntoSchema(sValue)
+			if err != nil {
+				z := model.BuildFunctionResultString(fmt.Sprintf("Example for `%s` is not valid: `%s`",
+					nameNodeValue, err.Error()))
+				z.StartNode = eValue
+				if len(eValue.Content) > 0 {
+					z.EndNode = eValue.Content[len(eValue.Content)-1]
+				} else {
+					z.EndNode = eValue
+				}
+				z.Rule = context.Rule
+				z.Path = basePath
+				*results = append(*results, z)
+				return results
+			}
+
 		}
 
 		//return results
@@ -505,7 +532,17 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 	}
 	if ex {
 		if schema == nil && !utils.IsNodePolyMorphic(sValue) {
-			schema, _ = parser.ConvertNodeDefinitionIntoSchema(sValue)
+			var err error
+			schema, err = parser.ConvertNodeDefinitionIntoSchema(sValue)
+
+			if err != nil {
+				z := model.BuildFunctionResultString(err.Error())
+				z.StartNode = sValue
+				z.EndNode = sValue
+				z.Rule = context.Rule
+				*results = append(*results, z)
+			}
+			
 		}
 		if schema == nil {
 			return results

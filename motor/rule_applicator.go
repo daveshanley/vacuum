@@ -46,7 +46,8 @@ type RuleSetExecutionResult struct {
 // todo: move copy into virtual file system or some kind of map.
 const CircularReferencesFix string = "Circular references are created by schemas that reference back to themselves somewhere " +
 	"in the chain. The link could be very deep, or it could be super shallow. Sometimes it's hard to know what is looping " +
-	"without resolving the references. This model is looping, Remove the looping link in the chain."
+	"without resolving the references. This model is looping, Remove the looping link in the chain. This can also appear with missing or " +
+	"references that cannot be located or resolved correctly."
 
 // ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
@@ -88,9 +89,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// create circular rule, it's blank, but we need a rule for a result.
 	circularRule := &model.Rule{
-		Name:         "Check for circular references",
+		Name:         "Check for circular or missing references",
 		Id:           "circular-references",
-		Description:  "Specification schemas contain circular references",
+		Description:  "Specification schemas contain circular or missing references",
 		Given:        "$",
 		Resolved:     true,
 		Recommended:  true,

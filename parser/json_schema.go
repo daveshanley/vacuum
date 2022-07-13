@@ -149,7 +149,7 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 
 		return &schema, nil
 	case <-time.After(40 * time.Millisecond): // even this seems long to me.
-		return nil, errors.New("schema failed to unpack in a reasonable timeframe, killing process")
+		return nil, errors.New("schema failed to unpack in a reasonable timeframe")
 	}
 }
 
