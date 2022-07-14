@@ -7,11 +7,18 @@ import (
 	"github.com/daveshanley/vacuum/functions/core"
 	openapi_functions "github.com/daveshanley/vacuum/functions/openapi"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin"
 	"sync"
 )
 
+type customFunction struct {
+	functionHook plugin.FunctionHook
+	schemaHook   plugin.FunctionSchema
+}
+
 type functionsModel struct {
-	functions map[string]model.RuleFunction
+	functions       map[string]model.RuleFunction
+	customFunctions map[string]customFunction
 }
 
 // Functions is used to Query available functions loaded into vacuum
@@ -32,13 +39,17 @@ func MapBuiltinFunctions() Functions {
 
 	coreFunctionGrab.Do(func() {
 		var funcs map[string]model.RuleFunction
+		var customFuncs map[string]customFunction
 
 		if functionsSingleton != nil {
 			funcs = functionsSingleton.functions
+			customFuncs = functionsSingleton.customFunctions
 		} else {
 			funcs = make(map[string]model.RuleFunction)
+			customFuncs = make(map[string]customFunction)
 			functionsSingleton = &functionsModel{
-				functions: funcs,
+				functions:       funcs,
+				customFunctions: customFuncs,
 			}
 		}
 
@@ -88,6 +99,10 @@ func MapBuiltinFunctions() Functions {
 	})
 
 	return functionsSingleton
+}
+
+func (fm functionsModel) RegisterCustomFunction(name string, function plugin.FunctionHook, schema plugin.FunctionSchema) {
+	fm.customFunctions[name] = customFunction{functionHook: function, schemaHook: schema}
 }
 
 func (fm functionsModel) GetAllFunctions() map[string]model.RuleFunction {

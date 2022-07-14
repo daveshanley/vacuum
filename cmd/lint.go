@@ -35,6 +35,8 @@ func GetLintCommand() *cobra.Command {
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 			silent, _ := cmd.Flags().GetBool("silent")
 
+			functionsFlag, _ := cmd.Flags().GetString("functions")
+
 			if !silent {
 				PrintBanner()
 			}
@@ -65,6 +67,8 @@ func GetLintCommand() *cobra.Command {
 			// default is recommended rules, based on spectral (for now anyway)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 
+			customFunctions, _ := LoadCustomFunctions(functionsFlag)
+
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
@@ -75,6 +79,7 @@ func GetLintCommand() *cobra.Command {
 					pterm.Println()
 					return rsErr
 				}
+
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
 				if rsErr != nil {
 					return rsErr
@@ -84,8 +89,9 @@ func GetLintCommand() *cobra.Command {
 			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			start := time.Now()
 			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet: selectedRS,
-				Spec:    specBytes,
+				RuleSet:         selectedRS,
+				Spec:            specBytes,
+				CustomFunctions: customFunctions,
 			})
 
 			results := result.Results
