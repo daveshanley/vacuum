@@ -1,0 +1,21 @@
+extends: [[spectral:oas, off]]
+documentationUrl: https://quobix.com/vacuum/rulesets/custom-rulesets
+rules:
+  sample-plugin-rule:
+    description: Load a custom function that does nothing useful
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $
+    then:
+      function: uselessFunc
+    howToFix: You can't, it's just an example.
+  sample-paths-rule:
+    description: Load a custom function that checks for a single path
+    severity: error
+    recommended: true
+    formats: [ oas2, oas3 ]
+    given: $
+    then:
+      function: checkSinglePathExists
+    howToFix: use a spec with only a single path defined.

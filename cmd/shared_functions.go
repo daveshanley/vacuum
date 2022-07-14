@@ -5,6 +5,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
@@ -42,4 +44,20 @@ func PrintBanner() {
 		putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
 	pterm.Printf("version: %s | compiled: %s\n\n", Version, Date)
 	pterm.Println()
+}
+
+// LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
+func LoadCustomFunctions(functionsFlag string) (map[string]model.RuleFunction, error) {
+	// check custom functions
+	if functionsFlag != "" {
+		pm, err := plugin.LoadFunctions(functionsFlag)
+		if err != nil {
+			pterm.Error.Printf("Unable to open custom functions: %v\n", err)
+			pterm.Println()
+			return nil, err
+		}
+		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
+		return pm.GetCustomFunctions(), nil
+	}
+	return nil, nil
 }

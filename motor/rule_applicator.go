@@ -23,14 +23,15 @@ type ruleContext struct {
 	errors           *[]error
 	index            *model.SpecIndex
 	specInfo         *model.SpecInfo
+	customFunctions  map[string]model.RuleFunction
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRules to change, without a huge refactor. The ApplyRules function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet *rulesets.RuleSet // The RuleSet in which to apply
-	Spec    []byte            // The raw bytes of the OpenAPI specification.
-
+	RuleSet         *rulesets.RuleSet             // The RuleSet in which to apply
+	Spec            []byte                        // The raw bytes of the OpenAPI specification.
+	CustomFunctions map[string]model.RuleFunction // custom functions loaded from plugin.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -136,6 +137,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				errors:           &errors,
 				index:            index,
 				specInfo:         specInfo,
+				customFunctions:  execution.CustomFunctions,
 			}
 			go runRule(ctx)
 		}
@@ -316,6 +318,14 @@ var lock sync.Mutex
 func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.Node) *[]model.RuleFunctionResult {
 
 	ruleFunction := ctx.builtinFunctions.FindFunction(ruleAction.Function)
+	// not found, check if it's been registered as a custom function
+	if ruleFunction == nil {
+		if ctx.customFunctions != nil {
+			if ctx.customFunctions[ruleAction.Function] != nil {
+				ruleFunction = ctx.customFunctions[ruleAction.Function]
+			}
+		}
+	}
 
 	if ruleFunction != nil {
 

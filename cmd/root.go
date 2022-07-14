@@ -50,6 +50,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
+	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
 
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
