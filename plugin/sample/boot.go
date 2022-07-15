@@ -6,10 +6,10 @@ import "github.com/daveshanley/vacuum/plugin"
 // all custom functions should be registered here.
 func Boot(pm *plugin.Manager) {
 
-	sampleA := SampleRuleFunction_A{}
-	sampleB := SampleRuleFunction_B{}
+	useless := uselessFunc{}
+	checkSinglePath := checkSinglePathExists{}
 
 	// register custom functions with vacuum plugin manager.
-	pm.RegisterFunction(sampleA.GetSchema().Name, sampleA)
-	pm.RegisterFunction(sampleB.GetSchema().Name, sampleB)
+	pm.RegisterFunction(useless.GetSchema().Name, useless)
+	pm.RegisterFunction(checkSinglePath.GetSchema().Name, checkSinglePath)
 }

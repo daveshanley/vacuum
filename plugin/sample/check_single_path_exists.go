@@ -6,19 +6,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// SampleRuleFunction_B is an example custom rule that checks only a single path exists.
-type SampleRuleFunction_B struct {
+// checkSinglePathExists is an example custom rule that checks only a single path exists.
+type checkSinglePathExists struct {
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the Defined rule.
-func (s SampleRuleFunction_B) GetSchema() model.RuleFunctionSchema {
+func (s checkSinglePathExists) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "checkSinglePathExists",
 	}
 }
 
 // RunRule will execute the Sample rule, based on supplied context and a supplied []*yaml.Node slice.
-func (s SampleRuleFunction_B) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (s checkSinglePathExists) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	// get the index https://quobix.com/vacuum/api/spec-index/
 	index := context.Index

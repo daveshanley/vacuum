@@ -5,19 +5,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// SampleRuleFunction_A is an example custom rule that does nothing.
-type SampleRuleFunction_A struct {
+// uselessFunc is an example custom rule that does nothing.
+type uselessFunc struct {
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the Defined rule.
-func (s SampleRuleFunction_A) GetSchema() model.RuleFunctionSchema {
+func (s uselessFunc) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "uselessFunc",
 	}
 }
 
 // RunRule will execute the Sample rule, based on supplied context and a supplied []*yaml.Node slice.
-func (s SampleRuleFunction_A) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (s uselessFunc) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	// return a single result, for a made up linting failure.
 	return []model.RuleFunctionResult{
