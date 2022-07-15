@@ -25,47 +25,47 @@ const (
 )
 
 type RuleCategory struct {
-	Id          string `json:"id" yaml:"id"`
-	Name        string `json:"name" yaml:"name"`
-	Description string `json:"description" yaml:"description"`
+	Id          string `json:"id" yaml:"id"`                   // The category ID
+	Name        string `json:"name" yaml:"name"`               // The name of the category
+	Description string `json:"description" yaml:"description"` // What is the category all about?
 }
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
-	RuleAction *RuleAction
-	Rule       *Rule
-	Given      interface{} // path/s being used by rule.
-	Options    interface{}
-	Index      *SpecIndex
-	SpecInfo   *SpecInfo
+	RuleAction *RuleAction // A reference to the action defined configured by the rule
+	Rule       *Rule       // A reference to the Rule being used for the function
+	Given      interface{} // Path/s being used by rule, multiple paths can be used
+	Options    interface{} // Function options
+	Index      *SpecIndex  // A reference to the index created for the spec being parsed
+	SpecInfo   *SpecInfo   // A reference to all specification information for the spec being parsed.
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message      string        `json:"message" yaml:"message"`
-	Range        reports.Range `json:"range" yaml:"range"`
-	Path         string        `json:"path" yaml:"path"`
-	RuleId       string        `json:"ruleId" yaml:"ruleId"`
-	RuleSeverity string        `json:"ruleSeverity" yaml:"ruleSeverity"`
-	Rule         *Rule         `json:"-" yaml:"-"`
-	StartNode    *yaml.Node    `json:"-" yaml:"-"`
-	EndNode      *yaml.Node    `json:"-" yaml:"-"`
+	Message      string        `json:"message" yaml:"message"`           // What failed and why?
+	Range        reports.Range `json:"range" yaml:"range"`               // Where did it happen?
+	Path         string        `json:"path" yaml:"path"`                 // the JSONPath to where it can be found
+	RuleId       string        `json:"ruleId" yaml:"ruleId"`             // The ID of the rule
+	RuleSeverity string        `json:"ruleSeverity" yaml:"ruleSeverity"` // the severity of the rule used
+	Rule         *Rule         `json:"-" yaml:"-"`                       // The rule used
+	StartNode    *yaml.Node    `json:"-" yaml:"-"`                       // Start of the violation
+	EndNode      *yaml.Node    `json:"-" yaml:"-"`                       // end of the violation
 }
 
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results     []*RuleFunctionResult                   `json:"results" yaml:"results"`
-	warnCount   int                                     `json:"warningCount" yaml:"warningCount"`
-	errorCount  int                                     `json:"errorCount" yaml:"errorCount"`
-	infoCount   int                                     `json:"infoCount" yaml:"infoCount"`
+	Results     []*RuleFunctionResult                   `json:"results" yaml:"results"`           // All the results!
+	warnCount   int                                     `json:"warningCount" yaml:"warningCount"` // Total warnings
+	errorCount  int                                     `json:"errorCount" yaml:"errorCount"`     // Total errors
+	infoCount   int                                     `json:"infoCount" yaml:"infoCount"`       // Total info
 	categoryMap map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
 type RuleFunction interface {
-	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult
-	GetSchema() RuleFunctionSchema
+	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult // The place where logic is run
+	GetSchema() RuleFunctionSchema                                                // How to use the function and its details.
 }
 
 // RuleAction is what to do, on what field, and what options are to be used.
@@ -100,13 +100,13 @@ type RuleFunctionProperty struct {
 
 // RuleFunctionSchema describes the name, required properties and a slice of RuleFunctionProperty properties.
 type RuleFunctionSchema struct {
-	Name          string                 `json:"name,omitempty" yaml:"name,omitempty"`
-	Required      []string               `json:"required,omitempty" yaml:"required,omitempty"`
-	RequiresField bool                   `json:"requiresField,omitempty" yaml:"requiresField,omitempty"`
-	Properties    []RuleFunctionProperty `json:"properties,omitempty" yaml:"properties,omitempty"`
-	MinProperties int                    `json:"minProperties,omitempty" yaml:"minProperties,omitempty"`
-	MaxProperties int                    `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"`
-	ErrorMessage  string                 `json:"errorMessage,omitempty" yaml:"errorMessage,omitempty"`
+	Name          string                 `json:"name,omitempty" yaml:"name,omitempty"`                   // The name of this function **important**
+	Required      []string               `json:"required,omitempty" yaml:"required,omitempty"`           // List of all required properties to be set
+	RequiresField bool                   `json:"requiresField,omitempty" yaml:"requiresField,omitempty"` // 'field' must be used with this function
+	Properties    []RuleFunctionProperty `json:"properties,omitempty" yaml:"properties,omitempty"`       // all properties to be passed to the function
+	MinProperties int                    `json:"minProperties,omitempty" yaml:"minProperties,omitempty"` // Minimum number of properties
+	MaxProperties int                    `json:"maxProperties,omitempty" yaml:"maxProperties,omitempty"` // Maximum number of properties
+	ErrorMessage  string                 `json:"errorMessage,omitempty" yaml:"errorMessage,omitempty"`   // Error message to be used in case of failed validartion.
 }
 
 // GetSeverityAsIntValue will return the severity state of the rule as an integer. If the severity is not known
