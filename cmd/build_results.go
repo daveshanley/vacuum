@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 )
 
-func BuildResults(rulesetFlag string, specBytes []byte) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+func BuildResults(rulesetFlag string, specBytes []byte, customFunctions map[string]model.RuleFunction) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -33,8 +33,9 @@ func BuildResults(rulesetFlag string, specBytes []byte) (*model.RuleResultSet, *
 	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet: selectedRS,
-		Spec:    specBytes,
+		RuleSet:         selectedRS,
+		Spec:            specBytes,
+		CustomFunctions: customFunctions,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

@@ -235,6 +235,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			// add to validation category if it's not supplied
 			if rc.Id == "" {
 				nr.RuleCategory = model.RuleCategories[model.CategoryValidation]
+				nr.Id = k
 			} else {
 				if model.RuleCategories[rc.Id] != nil {
 					nr.RuleCategory = model.RuleCategories[rc.Id]

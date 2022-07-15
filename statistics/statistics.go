@@ -42,7 +42,7 @@ func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, result
 	total := 100.0
 	score := total - float64(results.GetInfoCount())*0.1
 	score = score - (0.4 * float64(results.GetWarnCount()))
-	score = score - (2.0 * float64(results.GetErrorCount()))
+	score = score - (15.0 * float64(results.GetErrorCount())) // errors are failures they should be judged harshly.
 
 	if results.GetErrorCount() <= 0 && score < 0 {
 		// floor at 25% if there are no errors, but a ton of warnings lowering the score

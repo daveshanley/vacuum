@@ -124,6 +124,9 @@ func (t *TabbedView) generateRulesInCategory() {
 		sev := result.Rule.GetSeverityAsIntValue()
 		ruleType := ""
 		ruleName := result.Rule.Name
+		if ruleName == "" {
+			ruleName = result.Rule.Id
+		}
 		switch sev {
 		case 0:
 			ruleType = "🔺"

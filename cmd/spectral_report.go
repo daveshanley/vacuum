@@ -65,10 +65,14 @@ func GetSpectralReportCommand() *cobra.Command {
 			// default is recommended rules, based on spectral (for now anyway)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 
+			functionsFlag, _ := cmd.Flags().GetString("functions")
+			var customFunctions map[string]model.RuleFunction
+
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
 
+				customFunctions, _ = LoadCustomFunctions(functionsFlag)
 				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
 				if rsErr != nil {
 					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
@@ -84,8 +88,9 @@ func GetSpectralReportCommand() *cobra.Command {
 			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet: selectedRS,
-				Spec:    specBytes,
+				RuleSet:         selectedRS,
+				Spec:            specBytes,
+				CustomFunctions: customFunctions,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)

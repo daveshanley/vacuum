@@ -43,8 +43,11 @@ func GetDashboardCommand() *cobra.Command {
 			// if we have a pre-compiled report, jump straight to the end and collect $500
 			if vacuumReport == nil {
 
+				functionsFlag, _ := cmd.Flags().GetString("functions")
+				customFunctions, _ := LoadCustomFunctions(functionsFlag)
+
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-				resultSet, ruleset, err = BuildResults(rulesetFlag, specBytes)
+				resultSet, ruleset, err = BuildResults(rulesetFlag, specBytes, customFunctions)
 				specIndex = ruleset.Index
 				specInfo = ruleset.SpecInfo
 				specInfo.Generated = time.Now()

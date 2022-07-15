@@ -34,7 +34,6 @@ func GetLintCommand() *cobra.Command {
 			categoryFlag, _ := cmd.Flags().GetString("category")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 			silent, _ := cmd.Flags().GetBool("silent")
-
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 
 			if !silent {
