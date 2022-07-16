@@ -10,7 +10,7 @@ var openApiWat = `openapi: 3.2
 info:
   title: Test API, valid, but not quite valid 
 servers:
-  - url: http://quobix.com/api`
+  - url: https://quobix.com/vacuum`
 
 func TestCheckSpecIsValidOpenAPI3_Error(t *testing.T) {
 

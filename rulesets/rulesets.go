@@ -29,6 +29,7 @@ const (
 	allPaths      = "$.paths[*]"
 	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head)]"
 
+	noAmbiguousPaths                  = "no-ambiguous-paths"
 	operationSuccessResponse          = "operation-success-response"
 	operationOperationIdUnique        = "operation-operationId-unique"
 	operationOperationId              = "operation-operationId"
@@ -297,10 +298,11 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	rules[oas2OneOf] = GetOAS2PolymorphicOneOfRule()
 	rules[oas3ValidSchemaExample] = GetOAS3ExamplesRule()
 	rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
+	rules[noAmbiguousPaths] = NoAmbiguousPaths()
 
 	// TODO: enable for a different ruleset.
 	//rules[oas2Schema] = GetOAS2SchemaRule()
-	//rules[oas3Schema] = GetOAS3SchemaRule()
+	rules[oas3Schema] = GetOAS3SchemaRule()
 
 	set := &RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rulesets/all",

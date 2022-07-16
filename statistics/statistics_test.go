@@ -27,3 +27,39 @@ func TestCreateReportStatistics(t *testing.T) {
 	assert.Equal(t, 7, stats.References)
 	assert.Equal(t, 9, stats.Parameters)
 }
+
+func TestCreateReportStatistics_Perfect(t *testing.T) {
+
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+	specBytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		RuleSet: selectedRS,
+		Spec:    specBytes,
+	})
+
+	resultSet := model.NewRuleResultSet(ruleset.Results)
+	stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+
+	assert.Equal(t, 100, stats.OverallScore)
+
+}
+
+func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
+
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+	specBytes, _ := ioutil.ReadFile("../model/test_files/api.github.com.yaml")
+
+	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		RuleSet: selectedRS,
+		Spec:    specBytes,
+	})
+
+	resultSet := model.NewRuleResultSet(ruleset.Results)
+	stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+
+	assert.Equal(t, 10, stats.OverallScore)
+
+}

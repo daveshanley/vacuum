@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"time"
 )
@@ -17,7 +16,7 @@ type SpecInfo struct {
 	SpecJSONBytes      *[]byte                 `json:"-"`     // original bytes converted to JSON
 	SpecJSON           *map[string]interface{} `json:"-"`     // standard JSON map of original bytes
 	Error              error                   `json:"-"`     // something go wrong?
-	APISchema          gojsonschema.JSONLoader `json:"-"`     // API Schema for supplied spec type (2 or 3)
+	APISchema          string                  `json:"-"`     // API Schema for supplied spec type (2 or 3)
 	Generated          time.Time               `json:"-"`
 	jsonParsingChannel chan bool
 }

@@ -9,6 +9,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pterm/pterm v0.12.42
+	github.com/santhosh-tekuri/jsonschema/v5 v5.0.0
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
