@@ -60,21 +60,22 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 	for path, methodMap := range opParams {
 		for method, paramMap := range methodMap {
 			for pName, param := range paramMap {
+				if param != nil && param.Node != nil {
+					_, in := utils.FindKeyNode("in", param.Node.Content)
+					_, desc := utils.FindKeyNode("description", param.Node.Content)
+					lastNode := utils.FindLastChildNode(param.Node)
 
-				_, in := utils.FindKeyNode("in", param.Node.Content)
-				_, desc := utils.FindKeyNode("description", param.Node.Content)
-				lastNode := utils.FindLastChildNode(param.Node)
-
-				if in != nil {
-					if desc == nil || desc.Value == "" {
-						pathString := fmt.Sprintf("$.paths.%s.%s.parameters", path, method)
-						results = append(results, model.RuleFunctionResult{
-							Message:   fmt.Sprintf(msg, pName),
-							StartNode: param.Node,
-							EndNode:   lastNode,
-							Path:      pathString,
-							Rule:      context.Rule,
-						})
+					if in != nil {
+						if desc == nil || desc.Value == "" {
+							pathString := fmt.Sprintf("$.paths.%s.%s.parameters", path, method)
+							results = append(results, model.RuleFunctionResult{
+								Message:   fmt.Sprintf(msg, pName),
+								StartNode: param.Node,
+								EndNode:   lastNode,
+								Path:      pathString,
+								Rule:      context.Rule,
+							})
+						}
 					}
 				}
 			}

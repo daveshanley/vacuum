@@ -126,13 +126,15 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 	errChan := make(chan error, 1)
 
 	go func() {
-
-		dat, err := yaml.Marshal(node)
-		if err != nil {
+		var dat []byte
+		var err error
+		dat, err = yaml.Marshal(node)
+		if dat == nil && err != nil {
 			errChan <- err
 		}
 		var schema Schema
 		err = yaml.Unmarshal(dat, &schema)
+
 		if err != nil {
 			errChan <- err
 		}
@@ -146,10 +148,9 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 	case schema = <-schChan:
 		schema.Schema = &utils.SchemaSource
 		schema.Id = &utils.SchemaId
-
 		return &schema, nil
-	case <-time.After(40 * time.Millisecond): // even this seems long to me.
-		return nil, errors.New("schema failed to unpack in a reasonable timeframe")
+	case <-time.After(500 * time.Millisecond): // even this seems long to me.
+		return nil, errors.New("schema is too big! It failed to unpack in a reasonable timeframe")
 	}
 }
 
