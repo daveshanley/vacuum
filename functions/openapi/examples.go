@@ -10,6 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
+	"sync"
 )
 
 // Examples is a rule that checks that examples are being correctly used.
@@ -21,6 +22,22 @@ func (ex Examples) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "examples",
 	}
+}
+
+func checkExampleAsync(wg *sync.WaitGroup, rbNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) {
+	checkExamples(rbNode, basePath, results, context)
+	wg.Done()
+}
+
+func analyzeExampleAsync(wg *sync.WaitGroup, nameNodeValue string, mediaTypeNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) {
+	analyzeExample(nameNodeValue, mediaTypeNode, basePath, results, context)
+	wg.Done()
+}
+
+type opExample struct {
+	path  string
+	node  *yaml.Node
+	param *yaml.Node
 }
 
 // RunRule will execute the Examples rule, based on supplied context and a supplied []*yaml.Node slice.
@@ -35,6 +52,12 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	ops := context.Index.GetPathsNode()
 
 	var opPath, opMethod string
+
+	// collect responses to scan
+	var responseBodyCollection []opExample
+	var requestBodyCollection []opExample
+	var paramCollection []opExample
+
 	if ops != nil {
 		for i, op := range ops.Content {
 			if i%2 == 0 {
@@ -50,17 +73,18 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				}
 
 				basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
-				fmt.Sprintf(basePath)
 
-				// check requests.
+				//check requests.
 				_, rbNode := utils.FindKeyNode("requestBody", method.Content)
 
 				//check responses
 				_, respNode := utils.FindKeyNode("responses", method.Content)
-				//fmt.Sprintf("%v", respNode)
 
 				if rbNode != nil {
-					results = checkExamples(rbNode, utils.BuildPath(basePath, []string{"requestBody"}), results, context)
+					requestBodyCollection = append(requestBodyCollection, opExample{
+						path: utils.BuildPath(basePath, []string{"requestBody"}),
+						node: rbNode,
+					})
 				}
 
 				// check parameters.
@@ -72,27 +96,54 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 						// extract name from param
 						_, nameNode := utils.FindKeyNode("name", []*yaml.Node{param})
 						if nameNode != nil {
-							results = analyzeExample(nameNode.Value, param,
-								utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}), results, context)
+
+							paramCollection = append(paramCollection, opExample{
+								path:  utils.BuildPath(basePath, []string{fmt.Sprintf("%s[%d]", "parameters", y)}),
+								node:  nameNode,
+								param: param,
+							})
 						}
 					}
 				}
 
 				if respNode != nil {
 					var code string
+					//wg.Add()
 					for x, respCodeNode := range respNode.Content {
+
 						if x%2 == 0 {
 							code = respCodeNode.Value
 							continue
 						}
-						results = checkExamples(respCodeNode, utils.BuildPath(basePath, []string{fmt.Sprintf("%s.%s",
-							"responses", code)}), results, context)
+
+						responseBodyCollection = append(
+							responseBodyCollection,
+							opExample{
+								node: respCodeNode,
+								path: utils.BuildPath(basePath, []string{fmt.Sprintf("%s.%s", "responses", code)}),
+							})
 					}
 				}
 
 			}
 		}
 	}
+
+	// scan requests, responses as fast as we can asynchronously.
+	var wg sync.WaitGroup
+	wg.Add(len(responseBodyCollection))
+	wg.Add(len(requestBodyCollection))
+	wg.Add(len(paramCollection))
+	for _, rb := range responseBodyCollection {
+		go checkExampleAsync(&wg, rb.node, rb.path, results, context)
+	}
+	for _, rb := range requestBodyCollection {
+		go checkExampleAsync(&wg, rb.node, rb.path, results, context)
+	}
+	for _, p := range paramCollection {
+		go analyzeExampleAsync(&wg, p.node.Value, p.param, p.path, results, context)
+	}
+	wg.Wait()
 
 	//check components.
 	objNode := context.Index.GetSchemasNode()
@@ -352,7 +403,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 		res.EndNode = sValue
 		res.Path = basePath
 		res.Rule = context.Rule
-		*results = append(*results, res)
+		modifyExampleResults(results, res)
 		return results
 	}
 
@@ -386,7 +437,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					*results = append(*results, z)
+					modifyExampleResults(results, z)
 					continue
 				}
 
@@ -397,7 +448,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					*results = append(*results, z)
+					modifyExampleResults(results, z)
 					continue
 				}
 
@@ -416,7 +467,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 						z.EndNode = valueNode
 						z.Path = nodePath
 						z.Rule = context.Rule
-						*results = append(*results, z)
+						modifyExampleResults(results, z)
 					}
 				}
 
@@ -429,7 +480,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					*results = append(*results, z)
+					modifyExampleResults(results, z)
 				}
 
 				// can`t both have a value and an external value set!
@@ -441,8 +492,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					*results = append(*results, z)
-
+					modifyExampleResults(results, z)
 				}
 
 			}
@@ -468,7 +518,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				}
 				z.Rule = context.Rule
 				z.Path = basePath
-				*results = append(*results, z)
+				modifyExampleResults(results, z)
 				return results
 			}
 
@@ -490,7 +540,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			}
 			z.Rule = context.Rule
 			z.Path = basePath
-			*results = append(*results, z)
+			modifyExampleResults(results, z)
 			return results
 		}
 
@@ -508,7 +558,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				}
 				z.Rule = context.Rule
 				z.Path = basePath
-				*results = append(*results, z)
+				modifyExampleResults(results, z)
 			}
 			return results
 		}
@@ -540,9 +590,9 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				z.StartNode = sValue
 				z.EndNode = sValue
 				z.Rule = context.Rule
-				*results = append(*results, z)
+				modifyExampleResults(results, z)
 			}
-			
+
 		}
 		if schema == nil {
 			return results
@@ -559,10 +609,18 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				z.StartNode = pNode
 				z.EndNode = endNode
 				z.Rule = context.Rule
-				*results = append(*results, z)
+				modifyExampleResults(results, z)
 			}
 		}
 	}
 
 	return results
+}
+
+var exampleLock sync.Mutex
+
+func modifyExampleResults(results *[]model.RuleFunctionResult, result model.RuleFunctionResult) {
+	exampleLock.Lock()
+	*results = append(*results, result)
+	exampleLock.Unlock()
 }
