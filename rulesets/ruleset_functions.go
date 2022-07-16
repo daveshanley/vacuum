@@ -813,7 +813,7 @@ func GetOAS2SchemaRule() *model.Rule {
 		Description:  "OpenAPI 2 specification is invalid",
 		Given:        "$",
 		Resolved:     false,
-		Recommended:  true,
+		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     err,
@@ -833,7 +833,7 @@ func GetOAS3SchemaRule() *model.Rule {
 		Description:  "OpenAPI 3 specification is invalid",
 		Given:        "$",
 		Resolved:     false,
-		Recommended:  true,
+		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     err,
@@ -1127,5 +1127,25 @@ func GetOAS2ExamplesRule() *model.Rule {
 			Function: "oasExample",
 		},
 		HowToFix: oas3ExamplesFix,
+	}
+}
+
+// NoAmbiguousPaths will check for paths that are ambiguous with one another
+func NoAmbiguousPaths() *model.Rule {
+	return &model.Rule{
+		Name:         "No ambiguous paths, each path must resolve unambiguously",
+		Id:           noAmbiguousPaths,
+		Formats:      model.AllFormats,
+		Description:  "Paths need to resolve unambiguously from one another",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     err,
+		Then: model.RuleAction{
+			Function: "ambiguousPaths",
+		},
+		HowToFix: ambiguousPathsFix,
 	}
 }

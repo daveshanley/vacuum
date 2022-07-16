@@ -116,7 +116,7 @@ const (
 	duplicatedEntryInEnumFix string = "Enums need to be unique, you can't duplicate them in the same definition. Please remove" +
 		" the duplicate value."
 
-	noRefSiblingsFix string = "$ref values must not be placed next to sibling nodes, There should only be a single node" +
+	noRefSiblingsFix string = "$ref values must not be placed next to sibling nodes, There should only be a single node " +
 		" when using $ref. A common mistake is adding 'description' next to a $ref. This is wrong. remove all siblings!"
 
 	oas3UnusedComponentFix string = "Orphaned components are not used by anything. You might have plans to use them later, " +
@@ -138,4 +138,8 @@ const (
 	unusedComponentFix string = "Unused components / definitions are generally the result of the OpenAPI contract being updated without " +
 		"considering references. Another reference could have been updated, or an operation changed that no longer references this component. " +
 		"Remove this component from the spec, or re-link to it from another component or operation to fix the problem."
+
+	ambiguousPathsFix string = "Paths must all resolve unambiguously, they can't be confused with one another (/{id}/ambiguous and /ambiguous/{id} " +
+		"are the same thing. Make sure every path and the variables used are unique and do conflict with one another. Check the ordering of variables " +
+		"and the naming of path segments."
 )

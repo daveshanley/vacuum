@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"strings"
 )
@@ -17,10 +16,10 @@ const (
 	OAS31 = "oas3_1"
 )
 
-//go:embed schemas/oas3-schema.yaml
+//go:embed schemas/oas3-schema.json
 var OpenAPI3SchemaData string
 
-//go:embed schemas/swagger2-schema.yaml
+//go:embed schemas/swagger2-schema.json
 var OpenAPI2SchemaData string
 
 var OAS3_1Format = []string{OAS31}
@@ -70,12 +69,10 @@ func ExtractSpecInfo(spec []byte) (*SpecInfo, error) {
 		// run in a separate thread, don't block.
 
 		if spec.SpecType == utils.OpenApi3 {
-			openAPI3JSON, _ := utils.ConvertYAMLtoJSON([]byte(OpenAPI3SchemaData))
-			spec.APISchema = gojsonschema.NewStringLoader(string(openAPI3JSON))
+			spec.APISchema = OpenAPI3SchemaData
 		}
 		if spec.SpecType == utils.OpenApi2 {
-			openAPI2JSON, _ := utils.ConvertYAMLtoJSON([]byte(OpenAPI2SchemaData))
-			spec.APISchema = gojsonschema.NewStringLoader(string(openAPI2JSON))
+			spec.APISchema = OpenAPI2SchemaData
 		}
 
 		if utils.IsYAML(string(bytes)) {

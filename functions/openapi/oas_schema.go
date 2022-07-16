@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -41,29 +42,49 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
-	specBytes := *info.SpecJSONBytes
-
-	// create loader from original bytes.
-	doc := gojsonschema.NewStringLoader(string(specBytes))
-
-	res, err := gojsonschema.Validate(info.APISchema, doc)
-
+	// Swagger specs are not supported with this schema checker (annoying, but you get what you pay for).
+	schema, err := jsonschema.CompileString("schema.json", info.APISchema)
 	if err != nil {
-		results = append(results, model.RuleFunctionResult{
-			Message:   fmt.Sprintf("OpenAPI specification cannot be validated: %s", err.Error()),
-			StartNode: nodes[0],
-			EndNode:   nodes[0],
-			Path:      "$",
-			Rule:      context.Rule,
-		})
-		return results
+
+		// do the swagger thing.
+		swaggerSchema := gojsonschema.NewStringLoader(info.APISchema)
+		spec := gojsonschema.NewStringLoader(string(*info.SpecJSONBytes))
+		res, validateErr := gojsonschema.Validate(swaggerSchema, spec)
+
+		if validateErr != nil {
+			results = append(results, model.RuleFunctionResult{
+				Message:   fmt.Sprintf("OpenAPI specification cannot be validated: %v", validateErr.Error()),
+				StartNode: nodes[0],
+				EndNode:   nodes[0],
+				Path:      "$",
+				Rule:      context.Rule,
+			})
+			return results
+		}
+
+		// if the spec is not valid, run through all the issues and return.
+		if !res.Valid() {
+			for _, resErr := range res.Errors() {
+				results = append(results, model.RuleFunctionResult{
+					Message:   fmt.Sprintf("OpenAPI specification is invalid: %s", resErr.Description()),
+					StartNode: nodes[0],
+					EndNode:   nodes[0],
+					Path:      "$",
+					Rule:      context.Rule,
+				})
+			}
+			return results
+		}
+		return nil
 	}
 
-	// if the spec is not valid, run through all the issues and return.
-	if !res.Valid() {
-		for _, err := range res.Errors() {
+	//validate using faster, more accurate resolver.
+	if validationError := schema.Validate(*info.SpecJSON); validationError != nil {
+		failure := validationError.(*jsonschema.ValidationError)
+		for _, fail := range failure.Causes {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("OpenAPI specification is invalid: %s", err.Description()),
+				Message: fmt.Sprintf("OpenAPI specification is invalid: %s %v", fail.KeywordLocation,
+					fail.Message),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      "$",

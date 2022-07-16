@@ -95,6 +95,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasPolymorphicOneOf"] = openapi_functions.PolymorphicOneOf{}
 		funcs["oasDocumentSchema"] = openapi_functions.OASSchema{}
 		funcs["oasAPIServers"] = openapi_functions.APIServers{}
+		funcs["noAmbiguousPaths"] = openapi_functions.AmbiguousPaths{}
 
 	})
 
