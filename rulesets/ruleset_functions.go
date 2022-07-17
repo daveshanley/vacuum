@@ -813,7 +813,7 @@ func GetOAS2SchemaRule() *model.Rule {
 		Description:  "OpenAPI 2 specification is invalid",
 		Given:        "$",
 		Resolved:     false,
-		Recommended:  false,
+		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
 		Severity:     err,
@@ -833,8 +833,8 @@ func GetOAS3SchemaRule() *model.Rule {
 		Description:  "OpenAPI 3 specification is invalid",
 		Given:        "$",
 		Resolved:     false,
-		Recommended:  false,
-		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
 		Severity:     err,
 		Then: model.RuleAction{
@@ -1147,5 +1147,25 @@ func NoAmbiguousPaths() *model.Rule {
 			Function: "ambiguousPaths",
 		},
 		HowToFix: ambiguousPathsFix,
+	}
+}
+
+// GetOperationErrorResponseRule will return the rule for checking for a 4xx response defined in operations.
+func GetOperationErrorResponseRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Operations must return at least 4xx user error response",
+		Id:           operationErrorResponse,
+		Formats:      model.AllFormats,
+		Description:  "Make sure operations return at least one 4xx error response to help with bad requests",
+		Given:        "$.paths",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "oasOpErrorResponse",
+		},
+		HowToFix: operationsErrorResponseFix,
 	}
 }

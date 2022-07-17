@@ -142,4 +142,8 @@ const (
 	ambiguousPathsFix string = "Paths must all resolve unambiguously, they can't be confused with one another (/{id}/ambiguous and /ambiguous/{id} " +
 		"are the same thing. Make sure every path and the variables used are unique and do conflict with one another. Check the ordering of variables " +
 		"and the naming of path segments."
+
+	operationsErrorResponseFix string = "Make sure each operation defines at least one 4xx error response. 4xx Errors are " +
+		"used to inform clients they are using the API incorrectly, with bad input, or malformed requests. An API with no errors" +
+		"defined is really hard to navigate."
 )

@@ -259,6 +259,14 @@ paths:
                   $ref: '#/components/schemas/Dressing'
               example:
                 - name: Burger Sauce
+        "418":
+          description: I am a teapot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: It's teapot time.
         "500":
           description: Something went wrong with getting dressings.
           content:

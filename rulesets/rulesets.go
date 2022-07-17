@@ -30,6 +30,7 @@ const (
 	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head)]"
 
 	noAmbiguousPaths                  = "no-ambiguous-paths"
+	operationErrorResponse            = "operation-4xx-response"
 	operationSuccessResponse          = "operation-success-response"
 	operationOperationIdUnique        = "operation-operationId-unique"
 	operationOperationId              = "operation-operationId"
@@ -299,9 +300,8 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	rules[oas3ValidSchemaExample] = GetOAS3ExamplesRule()
 	rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
 	rules[noAmbiguousPaths] = NoAmbiguousPaths()
-
-	// TODO: enable for a different ruleset.
-	//rules[oas2Schema] = GetOAS2SchemaRule()
+	rules[operationErrorResponse] = GetOperationErrorResponseRule()
+	rules[oas2Schema] = GetOAS2SchemaRule()
 	rules[oas3Schema] = GetOAS3SchemaRule()
 
 	set := &RuleSet{

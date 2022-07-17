@@ -180,7 +180,7 @@ func TestSpecIndex_BurgerShop(t *testing.T) {
 
 	assert.Equal(t, 5, len(index.GetAllSchemas()))
 
-	assert.Equal(t, 17, len(index.GetAllSequencedReferences()))
+	assert.Equal(t, 18, len(index.GetAllSequencedReferences()))
 	assert.NotNil(t, index.GetSchemasNode())
 	assert.Nil(t, index.GetParametersNode())
 

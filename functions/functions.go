@@ -96,6 +96,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasDocumentSchema"] = openapi_functions.OASSchema{}
 		funcs["oasAPIServers"] = openapi_functions.APIServers{}
 		funcs["noAmbiguousPaths"] = openapi_functions.AmbiguousPaths{}
+		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
 
 	})
 
