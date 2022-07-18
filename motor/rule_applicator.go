@@ -6,10 +6,12 @@ package motor
 import (
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/resolver"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/resolver"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"sync"
 )
@@ -21,8 +23,8 @@ type ruleContext struct {
 	ruleResults      *[]model.RuleFunctionResult
 	wg               *sync.WaitGroup
 	errors           *[]error
-	index            *model.SpecIndex
-	specInfo         *model.SpecInfo
+	index            *index.SpecIndex
+	specInfo         *datamodel.SpecInfo
 	customFunctions  map[string]model.RuleFunction
 }
 
@@ -38,8 +40,8 @@ type RuleSetExecution struct {
 type RuleSetExecutionResult struct {
 	RuleSetExecution *RuleSetExecution          // The execution struct that was used invoking the result.
 	Results          []model.RuleFunctionResult // The results of the execution.
-	Index            *model.SpecIndex           // The index that was created from the specification, used by the rules.
-	SpecInfo         *model.SpecInfo            // A reference to the SpecInfo object, used by all the rules.
+	Index            *index.SpecIndex           // The index that was created from the specification, used by the rules.
+	SpecInfo         *datamodel.SpecInfo        // A reference to the SpecInfo object, used by all the rules.
 	Errors           []error                    // Any errors that were returned.
 
 }
@@ -66,7 +68,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var specUnresolved yaml.Node
 
 	// extract spec info, make this available to rule context.
-	specInfo, err := model.ExtractSpecInfo(execution.Spec)
+	specInfo, err := datamodel.ExtractSpecInfo(execution.Spec)
 	if err != nil || specInfo == nil {
 		if specInfo == nil || specInfo.RootNode == nil {
 			return &RuleSetExecutionResult{Errors: []error{err}}
@@ -77,7 +79,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	specResolved = specUnresolved
 
 	// create an index
-	index := model.NewSpecIndex(&specResolved)
+	index := index.NewSpecIndex(&specResolved)
 
 	// create a resolver
 	resolverInstance := resolver.NewResolver(index)
@@ -169,7 +171,7 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 	var specUnresolved yaml.Node
 
 	// extract spec info, make this available to rule context.
-	specInfo, err := model.ExtractSpecInfo(spec)
+	specInfo, err := datamodel.ExtractSpecInfo(spec)
 	if err != nil || specInfo == nil {
 		if specInfo == nil || specInfo.RootNode == nil {
 			return nil, err
@@ -180,7 +182,7 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 	specResolved = specUnresolved
 
 	// create an index
-	index := model.NewSpecIndex(&specResolved)
+	index := index.NewSpecIndex(&specResolved)
 
 	// create a resolver
 	resolverInstance := resolver.NewResolver(index)

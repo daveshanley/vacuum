@@ -4,8 +4,8 @@ import (
 	_ "embed" // using embed, throws off golint.
 	"encoding/json"
 	"errors"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"sync"
@@ -69,7 +69,7 @@ func processJSONSpec(spec []byte) (*gojsonschema.Result, error) {
 	doc := gojsonschema.NewStringLoader(string(spec))
 
 	// which version is the spec?
-	info, err := model.ExtractSpecInfo(spec)
+	info, err := datamodel.ExtractSpecInfo(spec)
 	if err != nil {
 		return nil, err
 	}

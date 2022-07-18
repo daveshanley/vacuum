@@ -2,9 +2,10 @@ package cui
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 )
 
 // StatsChart represents a bar chart showing statistics of the specification.
@@ -13,7 +14,7 @@ type StatsChart struct {
 }
 
 // NewStatsChart returns a new gauge widget that is ready to render
-func NewStatsChart(index *model.SpecIndex, info *model.SpecInfo) StatsChart {
+func NewStatsChart(index *index.SpecIndex, info *datamodel.SpecInfo) StatsChart {
 	bc := widgets.NewList()
 
 	//paramCount := len(index.GetAllParameters()) index. + len(index.GetAllParametersFromOperations())

@@ -2,7 +2,8 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -51,7 +52,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "tag_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := TagDefined{}
 	res := def.RunRule(nodes, ctx)
@@ -92,7 +93,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "tag_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := TagDefined{}
 	res := def.RunRule(nodes, ctx)

@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -44,7 +45,7 @@ func TestOperationSingleTag_RunRule_Fail(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_single_tag", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSingleTag{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -75,7 +76,7 @@ func TestOperationSingleTag_RunRule_Success(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_single_tag", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSingleTag{}
 	res := def.RunRule(rootNode.Content, ctx)

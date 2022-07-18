@@ -1,12 +1,8 @@
-import { BaseComponent } from '../../../ts/base-component';
-import { html, TemplateResult } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
-import {
-  RuleSelected,
-  RuleSelectedEvent,
-  ViolationSelectedEvent,
-} from '../../../model/events';
-import { CategoryRuleResultComponent } from './category-rule-result-component';
+import {BaseComponent} from '../../../ts/base-component';
+import {html, TemplateResult} from 'lit';
+import {customElement, property, query} from 'lit/decorators.js';
+import {RuleSelected, RuleSelectedEvent, ViolationSelectedEvent,} from '../../../model/events';
+import {CategoryRuleResultComponent} from './category-rule-result-component';
 import categoryRuleStyles from './category-rule.styles';
 import expandIcon from './svg/expand.icon';
 import contractIcon from './svg/contract.icon';

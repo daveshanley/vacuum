@@ -1,6 +1,6 @@
-import { BaseComponent } from '../../ts/base-component';
-import { html, TemplateResult } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import {BaseComponent} from '../../ts/base-component';
+import {html, TemplateResult} from 'lit';
+import {customElement, property} from 'lit/decorators.js';
 import violationDrawerStyles from './violation-drawer.styles';
 
 @customElement('violation-drawer')

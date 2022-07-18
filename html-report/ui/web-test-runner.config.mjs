@@ -1,4 +1,4 @@
-import { esbuildPlugin } from '@web/dev-server-esbuild';
+import {esbuildPlugin} from '@web/dev-server-esbuild';
 
 export default {
     rootDir: '.',

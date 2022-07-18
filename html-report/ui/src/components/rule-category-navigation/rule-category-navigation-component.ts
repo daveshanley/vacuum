@@ -1,8 +1,8 @@
-import { html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-import { BaseComponent } from '../../ts/base-component';
-import { RuleCategoryLinkComponent } from './rule-category-link-component';
-import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
+import {html} from 'lit';
+import {customElement, property} from 'lit/decorators.js';
+import {BaseComponent} from '../../ts/base-component';
+import {RuleCategoryLinkComponent} from './rule-category-link-component';
+import {CategoryActivated, CategoryActivatedEvent} from '../../model/events';
 import ruleCategoryNavigationStyles from './rule-category-navigation.styles';
 
 @customElement('rule-category-navigation')

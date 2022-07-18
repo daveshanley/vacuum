@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -43,7 +44,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -78,7 +79,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -112,7 +113,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -146,7 +147,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -180,7 +181,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -212,7 +213,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)

@@ -6,7 +6,8 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -51,10 +52,10 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	callbacks := context.Index.GetAllCallbacks()
 
 	// if a component does not exist in allRefs, it was not referenced anywhere.
-	notUsed := make(map[string]*model.Reference)
+	notUsed := make(map[string]*index.Reference)
 
 	// make this simple to iterate.
-	mapsToSearch := []map[string]*model.Reference{
+	mapsToSearch := []map[string]*index.Reference{
 		schemas,
 		responses,
 		parameters,

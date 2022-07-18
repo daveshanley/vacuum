@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/resolver"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
@@ -34,7 +34,7 @@ func TestConvertNode_Simple(t *testing.T) {
 	var node yaml.Node
 	yaml.Unmarshal([]byte(yml), &node)
 
-	index := model.NewSpecIndex(&node)
+	index := index.NewSpecIndex(&node)
 
 	resolver := resolver.NewResolver(index)
 	resolver.Resolve()
@@ -87,7 +87,7 @@ func TestValidateExample_AllInvalid(t *testing.T) {
 	var node yaml.Node
 	yaml.Unmarshal([]byte(yml), &node)
 
-	index := model.NewSpecIndex(&node)
+	index := index.NewSpecIndex(&node)
 
 	resolver := resolver.NewResolver(index)
 	resolver.Resolve()

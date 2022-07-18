@@ -2,6 +2,8 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -24,11 +26,11 @@ func TestAPIServers_RunRule_Fail(t *testing.T) {
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -45,11 +47,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -67,11 +69,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -89,11 +91,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -111,11 +113,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -133,11 +135,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -155,11 +157,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -177,11 +179,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -199,11 +201,11 @@ paths:
 
 	path := "$"
 
-	specInfo, _ := model.ExtractSpecInfo([]byte(yml))
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(specInfo.RootNode)
+	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}

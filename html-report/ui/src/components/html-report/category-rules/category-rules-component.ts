@@ -1,8 +1,8 @@
-import { BaseComponent } from '../../../ts/base-component';
-import { html } from 'lit';
-import { RuleSelectedEvent } from '../../../model/events';
-import { CategoryRuleComponent } from './category-rule-component';
-import { customElement, property } from 'lit/decorators.js';
+import {BaseComponent} from '../../../ts/base-component';
+import {html} from 'lit';
+import {RuleSelectedEvent} from '../../../model/events';
+import {CategoryRuleComponent} from './category-rule-component';
+import {customElement, property} from 'lit/decorators.js';
 import categoryRulesStyles from './category-rules.styles';
 
 @customElement('category-rules')

@@ -8,6 +8,8 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	ui "github.com/gizak/termui/v3"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -111,14 +113,14 @@ func TestDashboard_Render(t *testing.T) {
 	//}
 }
 
-func testBootDashboard() (*model.RuleResultSet, *model.SpecIndex, *model.SpecInfo) {
+func testBootDashboard() (*model.RuleResultSet, *index.SpecIndex, *datamodel.SpecInfo) {
 	var rootNode yaml.Node
 	yamlBytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-	info, _ := model.ExtractSpecInfo(yamlBytes)
+	info, _ := datamodel.ExtractSpecInfo(yamlBytes)
 
 	yaml.Unmarshal(yamlBytes, &rootNode)
-	index := model.NewSpecIndex(&rootNode)
+	index := index.NewSpecIndex(&rootNode)
 
 	// let's go ahead and lint the spec and pass the results to the dashboard.
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()

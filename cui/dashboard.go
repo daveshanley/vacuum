@@ -4,6 +4,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 )
 
 // Dashboard represents the dashboard controlling container
@@ -17,8 +19,8 @@ type Dashboard struct {
 	healthGaugeItems            []ui.GridItem
 	categoryHealthGauge         []CategoryGauge
 	resultSet                   *model.RuleResultSet
-	index                       *model.SpecIndex
-	info                        *model.SpecInfo
+	index                       *index.SpecIndex
+	info                        *datamodel.SpecInfo
 	selectedTabIndex            int
 	ruleCategories              []*model.RuleCategory
 	selectedCategory            *model.RuleCategory
@@ -32,7 +34,7 @@ type Dashboard struct {
 	uiEvents                    <-chan ui.Event
 }
 
-func CreateDashboard(resultSet *model.RuleResultSet, index *model.SpecIndex, info *model.SpecInfo) *Dashboard {
+func CreateDashboard(resultSet *model.RuleResultSet, index *index.SpecIndex, info *datamodel.SpecInfo) *Dashboard {
 	db := new(Dashboard)
 	db.resultSet = resultSet
 	db.index = index

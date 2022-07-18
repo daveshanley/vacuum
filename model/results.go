@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/pb33f/libopenapi/datamodel"
 	"math"
 	"sort"
 	"strings"
@@ -318,7 +319,7 @@ func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
 // PrepareForSerialization will create a new Range for start and end nodes as well as pre-render code.
 // When saving a vacuum report, this will be required, so the report can be re-constructed later without
 // the original spec being required.
-func (rr *RuleResultSet) PrepareForSerialization(info *SpecInfo) {
+func (rr *RuleResultSet) PrepareForSerialization(info *datamodel.SpecInfo) {
 
 	var wg sync.WaitGroup
 	wg.Add(len(rr.Results))

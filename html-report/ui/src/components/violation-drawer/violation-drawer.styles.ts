@@ -1,5 +1,5 @@
-import { css } from 'lit';
-import { SyntaxCSS } from '../../model/syntax';
+import {css} from 'lit';
+import {SyntaxCSS} from '../../model/syntax';
 
 export default [
   SyntaxCSS,

@@ -6,7 +6,8 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
 )
@@ -58,7 +59,7 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			}
 		}
 
-		typeResults := model.AreValuesCorrectlyTyped(enumType, typeArray)
+		typeResults := datamodel.AreValuesCorrectlyTyped(enumType, typeArray)
 
 		startNode := enum.Node
 		endNode := enum.Node

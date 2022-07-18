@@ -1,6 +1,6 @@
-import { BaseComponent } from '../../ts/base-component';
-import { html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import {BaseComponent} from '../../ts/base-component';
+import {html} from 'lit';
+import {customElement, property} from 'lit/decorators.js';
 
 @customElement('category-report')
 export class CategoryReportComponent extends BaseComponent {

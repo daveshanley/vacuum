@@ -1,6 +1,6 @@
-import { html } from 'lit';
-import { fixture, expect } from '@open-wc/testing';
-import { RuleCategoryNavigationComponent } from './rule-category-navigation-component';
+import {html} from 'lit';
+import {expect, fixture} from '@open-wc/testing';
+import {RuleCategoryNavigationComponent} from './rule-category-navigation-component';
 
 describe('RuleCategoryNavigationComponent', () => {
   let element: RuleCategoryNavigationComponent;

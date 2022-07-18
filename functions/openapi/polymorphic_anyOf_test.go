@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -39,7 +40,7 @@ func TestPolymorphicAnyOf_RunRule_Fail(t *testing.T) {
 	rule := buildOpenApiTestRuleAction(path, "polymorphic_anyOf", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PolymorphicAnyOf{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -67,7 +68,7 @@ func TestPolymorphicAnyOf_RunRule_Success(t *testing.T) {
 	rule := buildOpenApiTestRuleAction(path, "polymorphic_anyOf", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PolymorphicAnyOf{}
 	res := def.RunRule(rootNode.Content, ctx)
