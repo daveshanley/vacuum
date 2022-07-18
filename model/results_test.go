@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -33,7 +34,7 @@ func TestRuleResultSet_PrepareForSerialization(t *testing.T) {
 
 	d := []byte("what a lovely bucket and spade\nI do love to be beside the seaside.")
 
-	specInfo := SpecInfo{
+	specInfo := datamodel.SpecInfo{
 		SpecBytes: &d,
 	}
 

@@ -6,7 +6,8 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,7 +35,7 @@ func (fd FormDataConsumeCheck) RunRule(nodes []*yaml.Node, context model.RuleFun
 	opParams := context.Index.GetAllParametersFromOperations()
 
 	for path, methodMap := range paths {
-		var topParams map[string]*model.Reference
+		var topParams map[string]*index.Reference
 
 		// check for top params
 		if opParams[path]["top"] != nil {
@@ -62,7 +63,7 @@ func (fd FormDataConsumeCheck) RunRule(nodes []*yaml.Node, context model.RuleFun
 	return results
 }
 
-func (fd FormDataConsumeCheck) paramCheck(paramMap map[string]*model.Reference, consumesNode *yaml.Node,
+func (fd FormDataConsumeCheck) paramCheck(paramMap map[string]*index.Reference, consumesNode *yaml.Node,
 	results []model.RuleFunctionResult, path string, method string, context model.RuleFunctionContext, top bool) []model.RuleFunctionResult {
 
 	for paramName, paramNode := range paramMap {

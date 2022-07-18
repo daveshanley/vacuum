@@ -4,7 +4,8 @@
 package cui
 
 import (
-	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -15,9 +16,9 @@ func TestNewStatsChart(t *testing.T) {
 	var rootNode yaml.Node
 	yamlBytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-	info, _ := model.ExtractSpecInfo(yamlBytes)
+	info, _ := datamodel.ExtractSpecInfo(yamlBytes)
 	yaml.Unmarshal(yamlBytes, &rootNode)
-	index := model.NewSpecIndex(&rootNode)
+	index := index.NewSpecIndex(&rootNode)
 
 	chart := NewStatsChart(index, info)
 

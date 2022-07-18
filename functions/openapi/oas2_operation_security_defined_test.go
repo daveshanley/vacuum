@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -44,7 +45,7 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -77,7 +78,7 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -109,7 +110,7 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -141,7 +142,7 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -175,7 +176,7 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)

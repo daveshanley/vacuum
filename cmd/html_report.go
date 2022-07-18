@@ -11,6 +11,8 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/statistics"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"io/ioutil"
@@ -55,8 +57,8 @@ func GetHTMLReportCommand() *cobra.Command {
 
 			var resultSet *model.RuleResultSet
 			var ruleset *motor.RuleSetExecutionResult
-			var specIndex *model.SpecIndex
-			var specInfo *model.SpecInfo
+			var specIndex *index.SpecIndex
+			var specInfo *datamodel.SpecInfo
 			var stats *reports.ReportStatistics
 
 			// if we have a pre-compiled report, jump straight to the end and collect $500

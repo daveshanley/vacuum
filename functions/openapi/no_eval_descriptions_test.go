@@ -2,7 +2,8 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"regexp"
@@ -46,7 +47,7 @@ components:
 	rule.PrecompiledPattern = comp
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
 	ctx.Rule = &rule
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := NoEvalInDescriptions{}
 	res := def.RunRule(nodes, ctx)
@@ -80,7 +81,7 @@ components:
 	rule.PrecompiledPattern = comp
 
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 	ctx.Rule = &rule
 
 	def := NoEvalInDescriptions{}
@@ -115,7 +116,7 @@ components:
 	comp, _ := regexp.Compile(fo["pattern"])
 	rule.PrecompiledPattern = comp
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 	ctx.Rule = &rule
 
 	def := NoEvalInDescriptions{}

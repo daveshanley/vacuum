@@ -1,17 +1,17 @@
-import { html, LitElement } from 'lit';
+import {html, LitElement} from 'lit';
 import {
-  BarController,
-  BarElement,
-  CategoryScale,
-  Chart,
-  ChartData,
-  Filler,
-  Legend,
-  LinearScale,
-  LogarithmicScale,
-  Tooltip,
+    BarController,
+    BarElement,
+    CategoryScale,
+    Chart,
+    ChartData,
+    Filler,
+    Legend,
+    LinearScale,
+    LogarithmicScale,
+    Tooltip,
 } from 'chart.js';
-import { ReportStatistics } from '../../model/chart-data';
+import {ReportStatistics} from '../../model/chart-data';
 
 Chart.register(
   BarController,

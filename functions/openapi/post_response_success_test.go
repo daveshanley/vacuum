@@ -2,7 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

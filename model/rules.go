@@ -4,6 +4,8 @@ import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
 	"regexp"
 )
@@ -32,12 +34,12 @@ type RuleCategory struct {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
-	RuleAction *RuleAction // A reference to the action defined configured by the rule
-	Rule       *Rule       // A reference to the Rule being used for the function
-	Given      interface{} // Path/s being used by rule, multiple paths can be used
-	Options    interface{} // Function options
-	Index      *SpecIndex  // A reference to the index created for the spec being parsed
-	SpecInfo   *SpecInfo   // A reference to all specification information for the spec being parsed.
+	RuleAction *RuleAction         // A reference to the action defined configured by the rule
+	Rule       *Rule               // A reference to the Rule being used for the function
+	Given      interface{}         // Path/s being used by rule, multiple paths can be used
+	Options    interface{}         // Function options
+	Index      *index.SpecIndex    // A reference to the index created for the spec being parsed
+	SpecInfo   *datamodel.SpecInfo // A reference to all specification information for the spec being parsed.
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule

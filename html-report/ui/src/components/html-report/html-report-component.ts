@@ -1,11 +1,11 @@
-import { BaseComponent } from '../../ts/base-component';
-import { css, html } from 'lit';
-import { CategoryActivatedEvent } from '../../model/events';
-import { CategoryRuleComponent } from './category-rules/category-rule-component';
-import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
-import { CategoryRulesComponent } from './category-rules/category-rules-component';
-import { CategoryReportComponent } from './category-report-component';
-import { customElement } from 'lit/decorators.js';
+import {BaseComponent} from '../../ts/base-component';
+import {css, html} from 'lit';
+import {CategoryActivatedEvent} from '../../model/events';
+import {CategoryRuleComponent} from './category-rules/category-rule-component';
+import {ViolationDrawerComponent} from '../violation-drawer/violation-drawer-component';
+import {CategoryRulesComponent} from './category-rules/category-rules-component';
+import {CategoryReportComponent} from './category-report-component';
+import {customElement} from 'lit/decorators.js';
 
 @customElement('html-report')
 export class HtmlReportComponent extends BaseComponent {

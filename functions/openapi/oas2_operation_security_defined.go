@@ -6,7 +6,8 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -64,7 +65,7 @@ func (sd OAS2OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model
 }
 
 func (sd OAS2OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
-	securityDefinitions map[string]*model.Reference, results []model.RuleFunctionResult,
+	securityDefinitions map[string]*index.Reference, results []model.RuleFunctionResult,
 	basePath string, startNode *yaml.Node, endNode *yaml.Node,
 	context model.RuleFunctionContext) []model.RuleFunctionResult {
 

@@ -2,8 +2,9 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/resolver"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/resolver"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -49,7 +50,7 @@ func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -88,7 +89,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -120,7 +121,7 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) 
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -151,7 +152,7 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -185,7 +186,7 @@ func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -214,7 +215,7 @@ func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -245,7 +246,7 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -294,7 +295,7 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := PathParameters{}
 

@@ -9,6 +9,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -37,8 +39,8 @@ func GetDashboardCommand() *cobra.Command {
 
 			var resultSet *model.RuleResultSet
 			var ruleset *motor.RuleSetExecutionResult
-			var specIndex *model.SpecIndex
-			var specInfo *model.SpecInfo
+			var specIndex *index.SpecIndex
+			var specInfo *datamodel.SpecInfo
 
 			// if we have a pre-compiled report, jump straight to the end and collect $500
 			if vacuumReport == nil {
@@ -65,7 +67,7 @@ func GetDashboardCommand() *cobra.Command {
 					pterm.Println()
 					return err
 				}
-				specIndex = model.NewSpecIndex(&rootNode)
+				specIndex = index.NewSpecIndex(&rootNode)
 				specInfo = vacuumReport.SpecInfo
 				specInfo.Generated = vacuumReport.Generated
 			}

@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -45,7 +46,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -80,7 +81,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -111,7 +112,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -141,7 +142,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -176,7 +177,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)

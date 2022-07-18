@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -41,7 +42,7 @@ parameters:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_parameter_description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -70,7 +71,7 @@ parameters:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_parameter_description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -97,7 +98,7 @@ parameters:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_parameter_description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -128,7 +129,7 @@ parameters:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_parameter_description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -160,7 +161,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "oas3_parameter_description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := ParameterDescription{}
 	res := def.RunRule(rootNode.Content, ctx)

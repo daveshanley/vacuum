@@ -3,11 +3,13 @@ package statistics
 import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
 )
 
 // CreateReportStatistics generates a ready to render breakdown of the document's statistics. A convenience function
 // that reduces churn on building stats over and over for different interfaces.
-func CreateReportStatistics(index *model.SpecIndex, info *model.SpecInfo, results *model.RuleResultSet) *reports.ReportStatistics {
+func CreateReportStatistics(index *index.SpecIndex, info *datamodel.SpecInfo, results *model.RuleResultSet) *reports.ReportStatistics {
 
 	opPCount := index.GetOperationsParameterCount()
 	cPCount := index.GetComponentParameterCount()

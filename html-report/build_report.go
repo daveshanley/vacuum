@@ -13,7 +13,9 @@ import (
 	"github.com/alecthomas/chroma/styles"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"strings"
 	"text/template"
 	"time"
@@ -60,16 +62,16 @@ type ReportData struct {
 }
 
 func NewHTMLReport(
-	index *model.SpecIndex,
-	info *model.SpecInfo,
+	index *index.SpecIndex,
+	info *datamodel.SpecInfo,
 	results *model.RuleResultSet,
 	stats *reports.ReportStatistics) HTMLReport {
 	return &htmlReport{index, info, results, stats}
 }
 
 type htmlReport struct {
-	index   *model.SpecIndex
-	info    *model.SpecInfo
+	index   *index.SpecIndex
+	info    *datamodel.SpecInfo
 	results *model.RuleResultSet
 	stats   *reports.ReportStatistics
 }

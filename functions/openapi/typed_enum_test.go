@@ -2,7 +2,8 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
@@ -51,7 +52,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := TypedEnum{}
 	res := def.RunRule(nodes, ctx)
@@ -91,7 +92,7 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = model.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(&rootNode)
 
 	def := TypedEnum{}
 	res := def.RunRule(nodes, ctx)

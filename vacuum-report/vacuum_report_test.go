@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"github.com/daveshanley/vacuum/model"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -85,7 +86,7 @@ func TestCheckFileForVacuumReport_CompressedJSON(t *testing.T) {
 	vr, err := CheckFileForVacuumReport(j)
 	assert.NoError(t, err)
 	assert.NotNil(t, vr)
-	assert.Len(t, *vr.SpecInfo.SpecBytes, 11730)
+	assert.Len(t, *vr.SpecInfo.SpecBytes, 12085)
 }
 
 func TestCheckFileForVacuumReport_UncompressedJSON(t *testing.T) {
@@ -94,7 +95,7 @@ func TestCheckFileForVacuumReport_UncompressedJSON(t *testing.T) {
 	vr, err := CheckFileForVacuumReport(j)
 	assert.NoError(t, err)
 	assert.NotNil(t, vr)
-	assert.Len(t, *vr.SpecInfo.SpecBytes, 11730)
+	assert.Len(t, *vr.SpecInfo.SpecBytes, 12085)
 }
 
 func TestCheckFileForVacuumReport_BadJSON_Uncompressed(t *testing.T) {
@@ -116,7 +117,7 @@ func TestCheckFileForVacuumReport_BadJSON_Compressed(t *testing.T) {
 func testhelp_generateReport() *VacuumReport {
 
 	vr := new(VacuumReport)
-	si := new(model.SpecInfo)
+	si := new(datamodel.SpecInfo)
 
 	bytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
 	si.SpecBytes = &bytes

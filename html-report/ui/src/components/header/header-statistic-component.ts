@@ -1,6 +1,6 @@
-import { BaseComponent } from '../../ts/base-component';
-import { css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import {BaseComponent} from '../../ts/base-component';
+import {css, html} from 'lit';
+import {customElement, property} from 'lit/decorators.js';
 
 @customElement('header-statistic')
 export class HeaderStatisticComponent extends BaseComponent {

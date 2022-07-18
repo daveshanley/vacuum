@@ -7,6 +7,7 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/rulesets"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/pb33f/libopenapi/datamodel"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"sync"
@@ -17,7 +18,7 @@ import (
 // can be used as a replay model to re-render the report again. Time is now available to vacuum.
 type VacuumReport struct {
 	Generated  time.Time                 `json:"generated" yaml:"generated"`
-	SpecInfo   *model.SpecInfo           `json:"specInfo" yaml:"specInfo"`
+	SpecInfo   *datamodel.SpecInfo       `json:"specInfo" yaml:"specInfo"`
 	Statistics *reports.ReportStatistics `json:"statistics" yaml:"statistics"`
 	ResultSet  *model.RuleResultSet      `json:"resultSet" yaml:"resultSet"`
 }
