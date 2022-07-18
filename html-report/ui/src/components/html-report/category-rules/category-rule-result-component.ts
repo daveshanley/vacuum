@@ -1,7 +1,10 @@
-import {BaseComponent} from '../../../ts/base-component';
-import {html} from 'lit';
-import {customElement, property} from 'lit/decorators.js';
-import {ViolationSelected, ViolationSelectedEvent,} from '../../../model/events';
+import { BaseComponent } from '../../../ts/base-component';
+import { html } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import {
+  ViolationSelected,
+  ViolationSelectedEvent,
+} from '../../../model/events';
 import categoryRuleResultStyles from './category-rule-result.styles';
 
 @customElement('category-rule-result')

@@ -1,9 +1,9 @@
-import {BaseComponent} from '../../ts/base-component';
-import {css, html} from 'lit';
-import {SyntaxCSS} from '../../model/syntax';
-import {ViolationSelectedEvent} from '../../model/events';
-import {ViolationDrawerComponent} from '../violation-drawer/violation-drawer-component';
-import {customElement} from 'lit/decorators.js';
+import { BaseComponent } from '../../ts/base-component';
+import { css, html } from 'lit';
+import { SyntaxCSS } from '../../model/syntax';
+import { ViolationSelectedEvent } from '../../model/events';
+import { ViolationDrawerComponent } from '../violation-drawer/violation-drawer-component';
+import { customElement } from 'lit/decorators.js';
 
 @customElement('result-grid')
 export class ResultGridComponent extends BaseComponent {

@@ -1,4 +1,4 @@
-import {CategoryStatsChartComponent} from '../components/charts/category-stats-chart-component';
+import { CategoryStatsChartComponent } from '../components/charts/category-stats-chart-component';
 
 declare global {
   interface Window {

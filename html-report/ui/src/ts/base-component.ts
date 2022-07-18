@@ -1,4 +1,4 @@
-import {LitElement} from 'lit';
+import { LitElement } from 'lit';
 
 export class BaseComponent extends LitElement {
   protected get _slottedChildren() {

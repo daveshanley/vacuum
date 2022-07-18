@@ -1,7 +1,7 @@
-import {BaseComponent} from '../../ts/base-component';
-import {html} from 'lit';
-import {customElement, property} from 'lit/decorators.js';
-import {CategoryActivated, CategoryActivatedEvent} from '../../model/events';
+import { BaseComponent } from '../../ts/base-component';
+import { html } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import { CategoryActivated, CategoryActivatedEvent } from '../../model/events';
 import ruleCategoryLinkStyles from './rule-category-link.styles';
 
 @customElement('rule-category-link')
