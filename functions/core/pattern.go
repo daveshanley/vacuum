@@ -73,9 +73,21 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		nodes = nodes[0].Content
 	}
 
+	var currentField string
 	for x, node := range nodes {
 		if utils.IsNodeMap(node) {
 			continue
+		}
+		if x%2 == 0 {
+
+			currentField = node.Value
+			if context.RuleAction.Field != "" {
+				continue
+			}
+
+		}
+		if context.RuleAction.Field != "" && currentField != context.RuleAction.Field {
+			continue // not what we're looking for.
 		}
 		if p.match != "" {
 			rx, err := p.getPatternFromCache(p.match, context.Rule)
@@ -89,26 +101,14 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					Rule:      context.Rule,
 				})
 			} else {
-
-				// if a field is supplied, use that, if not then use the raw node value.
-				matchValue := node.Value
-				if context.RuleAction.Field != "" && x+1 <= len(nodes) {
-					if x < len(nodes)-1 {
-						_, fieldValue := utils.FindKeyNode(context.RuleAction.Field, nodes[x+1].Content)
-						if fieldValue != nil {
-							matchValue = fieldValue.Value
-							pathValue = fmt.Sprintf("%s.%s", pathValue, context.RuleAction.Field)
-						}
-					}
-				}
-
-				if !rx.MatchString(matchValue) {
+				pathValue = fmt.Sprintf("%s.%s", pathValue, currentField)
+				if !rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("%s: '%s' does not match the expression '%s'", context.Rule.Description,
-							matchValue, p.match),
+							node.Value, p.match),
 						StartNode: node,
 						EndNode:   node,
-						Path:      utils.BuildPath(pathValue, []string{node.Value}),
+						Path:      pathValue,
 						Rule:      context.Rule,
 					})
 				}
@@ -133,7 +133,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Message:   fmt.Sprintf("%s: matches the expression '%s'", context.Rule.Description, p.notMatch),
 						StartNode: node,
 						EndNode:   node,
-						Path:      utils.BuildPath(pathValue, []string{node.Value}),
+						Path:      pathValue,
 						Rule:      context.Rule,
 					})
 				}

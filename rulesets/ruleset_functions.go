@@ -305,7 +305,6 @@ func GetOAS2HostNotExampleRule() *model.Rule {
 		Type:         style,
 		Severity:     warn,
 		Then: model.RuleAction{
-			Field:           "host",
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
@@ -357,7 +356,6 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
 		Type:         style,
 		Severity:     warn,
 		Then: model.RuleAction{
-			Field:           "host",
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},
@@ -528,7 +526,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 		Id:           operationOperationIdValidInUrl,
 		Formats:      model.AllFormats,
 		Description:  "OperationId must use URL friendly characters",
-		Given:        AllOperationsPath,
+		Given:        "$.paths[*][*]",
 		Resolved:     true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,

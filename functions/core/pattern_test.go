@@ -60,14 +60,14 @@ func TestPattern_RunRule_PatternNothingSupplied(t *testing.T) {
 func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 
 	sampleYaml := `carpet: "nice-rice"`
-	path := "$.carpet"
+	path := "$"
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
 	opts["notMatch"] = "[[abc)"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
+	rule := buildCoreTestRule(path, severityError, "pattern", "carpet", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -81,14 +81,14 @@ func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 
 	sampleYaml := `carpet: "def"`
-	path := "$.carpet"
+	path := "$"
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
 	opts["match"] = "[abc]+"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
+	rule := buildCoreTestRule(path, severityError, "pattern", "carpet", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -102,14 +102,14 @@ func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 
 	sampleYaml := `carpet: "abc"`
-	path := "$.carpet"
+	path := "$"
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
 	opts["match"] = "([abc]"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
+	rule := buildCoreTestRule(path, severityError, "pattern", "carpet", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -123,14 +123,14 @@ func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 func TestPattern_RunRule_PatternNotMatchFail(t *testing.T) {
 
 	sampleYaml := `pizza: "cat1"`
-	path := "$.pizza"
+	path := "$"
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
 	opts := make(map[string]string)
 	opts["notMatch"] = `\w{3}\d`
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
+	rule := buildCoreTestRule(path, severityError, "pattern", "pizza", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -160,7 +160,7 @@ func TestPattern_RunRule_UseFieldName(t *testing.T) {
 	def := &Pattern{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 }
 
 func TestPattern_RunRule_ContainMap(t *testing.T) {
