@@ -1180,7 +1180,7 @@ func GetPathsKebabCaseRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     err,
+		Severity:     warn,
 		Then: model.RuleAction{
 			Function: "pathsKebabCase",
 		},

@@ -40,6 +40,9 @@ func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				continue
 			}
 			path := fmt.Sprintf("$.paths.%s", opPath)
+			if opPath == "/" {
+				continue
+			}
 			notKebab, segments := checkPathCase(opPath)
 			if notKebab {
 				results = append(results, model.RuleFunctionResult{

@@ -474,8 +474,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				// check if the example contains a summary
 				_, summaryNode := utils.FindKeyNode("summary", []*yaml.Node{multiExampleNode})
 				if summaryNode == nil {
-					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` missing a `summary`, "+
-						"examples need explaining", exampleName))
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` missing a `summary` "+
+						"- examples need explaining", exampleName))
 					z.StartNode = esValue
 					z.EndNode = valueNode
 					z.Path = nodePath
@@ -486,7 +486,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				// can`t both have a value and an external value set!
 				if valueNode != nil && externalValueNode != nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: cannot use"+
-						" both `value` and `externalValue`, choose one or the other",
+						" both `value` and `externalValue` - choose one or the other",
 						exampleName))
 					z.StartNode = esValue
 					z.EndNode = valueNode
