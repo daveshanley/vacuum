@@ -32,6 +32,8 @@ async function install() {
     url = url.replace(/{{version}}/g, version);
     url = url.replace(/{{bin_name}}/g, binName);
 
+
+    console.log('fetching from URL', url)
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error("Failed fetching the binary: " + response.statusText);
