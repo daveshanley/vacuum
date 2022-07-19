@@ -17,7 +17,7 @@ type PathsKebabCase struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the VerbsInPath rule.
 func (vp PathsKebabCase) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "noVerbsInPath"}
+	return model.RuleFunctionSchema{Name: "pathsKebabCase"}
 }
 
 // RunRule will execute the PathsKebabCase rule, based on supplied context and a supplied []*yaml.Node slice.

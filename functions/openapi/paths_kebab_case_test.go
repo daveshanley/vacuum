@@ -11,7 +11,7 @@ import (
 
 func TestPathsKebabCase_GetSchema(t *testing.T) {
 	def := PathsKebabCase{}
-	assert.Equal(t, "noVerbsInPath", def.GetSchema().Name)
+	assert.Equal(t, "pathsKebabCase", def.GetSchema().Name)
 }
 
 func TestPathsKebabCase_RunRule(t *testing.T) {
