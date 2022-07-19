@@ -1168,6 +1168,26 @@ func GetNoVerbsInPathRule() *model.Rule {
 	}
 }
 
+// GetPathsKebabCaseRule will check that each path segment is kebab-case
+func GetPathsKebabCaseRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Path segments must be kebab-case only",
+		Id:           pathsKebabCase,
+		Formats:      model.AllFormats,
+		Description:  "Path segments must only use kebab-case (no underscores or uppercase)",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         validation,
+		Severity:     err,
+		Then: model.RuleAction{
+			Function: "pathsKebabCase",
+		},
+		HowToFix: pathsKebabCaseFix,
+	}
+}
+
 // GetOperationErrorResponseRule will return the rule for checking for a 4xx response defined in operations.
 func GetOperationErrorResponseRule() *model.Rule {
 	return &model.Rule{

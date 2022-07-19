@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-var totalRules = 52
-var totalRecommendedRules = 41
+var totalRules = 53
+var totalRecommendedRules = 42
 
 func TestBuildDefaultRuleSets(t *testing.T) {
 

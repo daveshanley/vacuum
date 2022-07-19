@@ -146,6 +146,10 @@ const (
 	noVerbsInPathFix string = "When HTTP verbs (get/post/put etc) are used in path segments, it muddies the semantics of REST and creates a confusing and " +
 		"inconsistent experience. It's highly recommended that verbs are not used in path segments. Replace those HTTP verbs with more meaningful nouns."
 
+	pathsKebabCaseFix string = "Path segments should not contain any uppercase letters, punctuation or underscores. The only valid way to separate words in a " +
+		"segment, is to use a hyphen '-'. The elements that are violating the rule are highlighted in the violation description. These are the elements that need to " +
+		"change."
+
 	operationsErrorResponseFix string = "Make sure each operation defines at least one 4xx error response. 4xx Errors are " +
 		"used to inform clients they are using the API incorrectly, with bad input, or malformed requests. An API with no errors" +
 		"defined is really hard to navigate."

@@ -30,6 +30,7 @@ const (
 	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head)]"
 
 	noVerbsInPath                     = "no-http-verbs-in-path"
+	pathsKebabCase                    = "paths-kebab-case"
 	noAmbiguousPaths                  = "no-ambiguous-paths"
 	operationErrorResponse            = "operation-4xx-response"
 	operationSuccessResponse          = "operation-success-response"
@@ -302,6 +303,7 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
 	rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
 	rules[noAmbiguousPaths] = NoAmbiguousPaths()
 	rules[noVerbsInPath] = GetNoVerbsInPathRule()
+	rules[pathsKebabCase] = GetPathsKebabCaseRule()
 	rules[operationErrorResponse] = GetOperationErrorResponseRule()
 	rules[oas2Schema] = GetOAS2SchemaRule()
 	rules[oas3Schema] = GetOAS3SchemaRule()
