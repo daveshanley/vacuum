@@ -1148,6 +1148,26 @@ func NoAmbiguousPaths() *model.Rule {
 	}
 }
 
+// GetNoVerbsInPathRule will check all paths to make sure not HTTP verbs have been used as a segment.
+func GetNoVerbsInPathRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Paths cannot contain HTTP verbs as segments",
+		Id:           noVerbsInPath,
+		Formats:      model.AllFormats,
+		Description:  "Path segments must not contain an HTTP verb",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         style,
+		Severity:     warn,
+		Then: model.RuleAction{
+			Function: "noVerbsInPath",
+		},
+		HowToFix: noVerbsInPathFix,
+	}
+}
+
 // GetOperationErrorResponseRule will return the rule for checking for a 4xx response defined in operations.
 func GetOperationErrorResponseRule() *model.Rule {
 	return &model.Rule{

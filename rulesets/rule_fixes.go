@@ -143,6 +143,9 @@ const (
 		"are the same thing. Make sure every path and the variables used are unique and do conflict with one another. Check the ordering of variables " +
 		"and the naming of path segments."
 
+	noVerbsInPathFix string = "When HTTP verbs (get/post/put etc) are used in path segments, it muddies the semantics of REST and creates a confusing and " +
+		"inconsistent experience. It's highly recommended that verbs are not used in path segments. Replace those HTTP verbs with more meaningful nouns."
+
 	operationsErrorResponseFix string = "Make sure each operation defines at least one 4xx error response. 4xx Errors are " +
 		"used to inform clients they are using the API incorrectly, with bad input, or malformed requests. An API with no errors" +
 		"defined is really hard to navigate."
