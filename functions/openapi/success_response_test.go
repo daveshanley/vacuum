@@ -61,7 +61,7 @@ paths:
 	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Operation `fresh` must define at least a single 2xx or 3xx response", res[0].Message)
+	assert.Equal(t, "Operation `fresh` must define at least a single `2xx` or `3xx` response", res[0].Message)
 
 }
 
@@ -89,7 +89,7 @@ paths:
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "Operation `undefined operation (no operationId)` must define at least a"+
-		" single 2xx or 3xx response", res[0].Message)
+		" single `2xx` or `3xx` response", res[0].Message)
 
 }
 

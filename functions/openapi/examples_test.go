@@ -266,7 +266,7 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example `lime` missing a `summary`, examples need explaining", res[0].Message)
+	assert.Equal(t, "Example `lime` missing a `summary` - examples need explaining", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -679,6 +679,6 @@ func TestExamples_RunRule_Fail_ExternalAndValue(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example `lemon` is not valid: cannot use both `value` and `externalValue`, choose one or the other", res[0].Message)
+	assert.Equal(t, "Example `lemon` is not valid: cannot use both `value` and `externalValue` - choose one or the other", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
