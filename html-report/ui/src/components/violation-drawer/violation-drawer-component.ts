@@ -34,8 +34,9 @@ export class ViolationDrawerComponent extends BaseComponent {
 
     sections.forEach((section: string) => {
       if (section.match(rx)) {
-        renders.push(html`
-          <span class="backtick-element">${section.replace(/`/g, '')}</span>`);
+        const bt = section.replace(/`/g, '');
+        const dat = html`<span class="backtick-element">${bt}</span>`;
+        renders.push(dat);
       } else {
         if (section != '') {
           renders.push(html`${section}`);
