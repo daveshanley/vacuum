@@ -942,8 +942,7 @@
         font-size: 1rem;
       }
     }
-  `];var Be,Fe=function(e,t,o,r){var i,a=arguments.length,n=a<3?t:null===r?r=Object.getOwnPropertyDescriptor(t,o):r;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)n=Reflect.decorate(e,t,o,r);else for(var l=e.length-1;l>=0;l--)(i=e[l])&&(n=(a<3?i(n):a>3?i(t,o,n):i(t,o))||n);return a>3&&n&&Object.defineProperty(t,o,n),n};let Ge=Be=class extends be{static replaceTicks(e){const t=/(`[^`]*`)/g,o=e.split(t),r=new Array;return o.forEach((e=>{e.match(t)?r.push(K`
-          <span class="backtick-element">${e.replace(/`/g,"")}</span>`):""!=e&&r.push(K`${e}`)})),r}render(){return this._visible?K`
+  `];var Be,Fe=function(e,t,o,r){var i,a=arguments.length,n=a<3?t:null===r?r=Object.getOwnPropertyDescriptor(t,o):r;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)n=Reflect.decorate(e,t,o,r);else for(var l=e.length-1;l>=0;l--)(i=e[l])&&(n=(a<3?i(n):a>3?i(t,o,n):i(t,o))||n);return a>3&&n&&Object.defineProperty(t,o,n),n};let Ge=Be=class extends be{static replaceTicks(e){const t=/(`[^`]*`)/g,o=e.split(t),r=new Array;return o.forEach((e=>{if(e.match(t)){const t=e.replace(/`/g,""),o=K`<span class="backtick-element">${t}</span>`;r.push(o)}else""!=e&&r.push(K`${e}`)})),r}render(){return this._visible?K`
         <h2>${Be.replaceTicks(this.message)}</h2>
         ${this.code}
         <h3>JSON Path</h3>
