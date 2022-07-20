@@ -9,7 +9,7 @@ set -e
 # Designed for quick installs over the network and CI/CD
 #   sh -c "$(curl -sSL https://github.com/daveshanley/vacuum/blob/main/bin/install.sh)"
 
-INSTALL_DIR=${INSTALL_DIR:-"/tmp/hack"}
+INSTALL_DIR=${INSTALL_DIR:-"/usr/local/bin"}
 BINARY_NAME=${BINARY_NAME:-"vacuum"}
 
 REPO_NAME="daveshanley/vacuum"
