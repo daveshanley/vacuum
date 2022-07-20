@@ -1,7 +1,10 @@
 name: "NPM Publish"
 
-on: push
-
+on:
+  push:
+    # run only against tags
+    tags:
+      - '*'
 jobs:
   publish:
     runs-on: ubuntu-latest
