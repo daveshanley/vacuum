@@ -10,6 +10,31 @@ An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, w
 
 It's also compatible with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
+## Install using [homebrew](https://brew.sh) tap
+
+```
+brew install daveshanley/vacuum/vacuum
+```
+
+## Install using [npm](https://npmjs.com)
+
+```
+npm i -g @quobix/vacuum
+```
+
+## Install using [yarn](https://yarnpkg.com/)
+
+```
+yarn global add @quobix/vacuum
+```
+
+## Install using curl
+
+```
+curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+```
+
+
 ## Documentation
 
 ### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
@@ -78,20 +103,13 @@ No external dependencies, the HTML report will run completely offline.
 
 ---
 
-If you want to try out vacuum:
-
-> Please be warned, this is _early_ code. I am actively working on it.
->> **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
+> **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
 
 You can use either **YAML** or **JSON** vacuum supports both.
 
-## Install using [homebrew](https://brew.sh) tap
 
-```
-brew install daveshanley/vacuum/vacuum
-```
 
-> This is the _recommended_ way to consume the binary version of vacuum.
+
 
 ## Check out the code
 
