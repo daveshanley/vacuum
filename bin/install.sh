@@ -35,6 +35,8 @@ get_checksum_url() {
   echo "https://github.com/daveshanley/vacuum/releases/download/v$1/checksums.txt"
 }
 
+# https://github.com/daveshanley/vacuum/releases/download/v0.0.15/vacuum_0.0.15_darwin_x86_64.tar.gz
+
 command_exists() {
   command -v "$@" >/dev/null 2>&1
 }
@@ -88,7 +90,7 @@ get_os() {
 get_machine() {
   case "$(uname -m)" in
     "x86_64"|"amd64"|"x64")
-      echo "amd64" ;;
+      echo "x86_64" ;;
     "i386"|"i86pc"|"x86"|"i686")
       echo "i386" ;;
     "arm64"|"armv6l"|"aarch64")
@@ -149,7 +151,7 @@ do_install_binary() {
 
   # Install binary
   mv "$tmp_dir/$BINARY_NAME" $INSTALL_DIR
-  echo "Installed railway to $INSTALL_DIR"
+  echo "Installed vacuum to $INSTALL_DIR"
 
   # Cleanup
   rm -rf $tmp_dir
