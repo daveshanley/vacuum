@@ -9,7 +9,7 @@ export const ARCH_MAPPING = {
     arm64: "arm64",
 };
 export const PLATFORM_MAPPING = {
-    darwin: "Darwin",
-    linux: "Linux",
-    win32: "Windows",
+    darwin: "darwin",
+    linux: "linux",
+    win32: "windows",
 };
