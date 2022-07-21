@@ -30,7 +30,6 @@ brews:
   - tap:
       owner: daveshanley
       name: homebrew-vacuum
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
 
     commit_author:
       name: goreleaserbot
