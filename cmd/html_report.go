@@ -25,7 +25,7 @@ func GetHTMLReportCommand() *cobra.Command {
 
 	return &cobra.Command{
 		SilenceUsage:  true,
-		SilenceErrors: true,
+		SilenceErrors: false,
 		Use:           "html-report",
 		Short:         "Generate an HTML report of a linting run",
 		Long: "Generate an interactive and useful HTML report. Default output " +

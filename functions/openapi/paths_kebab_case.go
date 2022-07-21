@@ -67,7 +67,6 @@ func checkPathCase(path string) (bool, []string) {
 		if !pathKebabCaseRegex.MatchString(seg) {
 			// check if it's a variable, if so, skip
 			if seg == "" {
-				found = append(found, "!empty segment!")
 				continue
 			}
 			if seg[0] == '{' && seg[len(seg)-1] == '}' {

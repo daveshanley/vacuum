@@ -38,7 +38,7 @@ paths:
       summary: this is also doomed
   '/ok//ok':
     get:
-      summary: should we complain?`
+      summary: should we complain? nah`
 
 	path := "$"
 
@@ -56,6 +56,6 @@ paths:
 	def := PathsKebabCase{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 3)
+	assert.Len(t, res, 2)
 
 }

@@ -61,3 +61,26 @@ func LoadCustomFunctions(functionsFlag string) (map[string]model.RuleFunction, e
 	}
 	return nil, nil
 }
+
+func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int) error {
+	if failSeverityFlag != "error" {
+		switch failSeverityFlag {
+		case "warn":
+			if errors > 0 && warnings > 0 {
+				return fmt.Errorf("failed linting, with %d errors and %d warnings", errors, warnings)
+			}
+			return nil
+		case "info":
+			if errors > 0 && warnings > 0 && informs > 0 {
+				return fmt.Errorf("failed linting, with %d errors, %d warnings and %d informs",
+					errors, warnings, informs)
+			}
+			return nil
+		}
+	} else {
+		if errors > 0 {
+			return fmt.Errorf("failed linting, with %d errors", errors)
+		}
+	}
+	return nil
+}

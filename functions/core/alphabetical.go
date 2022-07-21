@@ -58,7 +58,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 			if keyedBy == "" {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: '%s' is a map/object. %s", context.Rule.Description,
+					Message: fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
 						node.Value, a.GetSchema().ErrorMessage),
 					StartNode: node,
 					EndNode:   node,
@@ -165,7 +165,7 @@ func compareStringArray(strArr []string, context model.RuleFunctionContext) []mo
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: '%s' must be placed before '%s' (alphabetical)",
+					Message: fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
 						context.Rule.Description,
 						strArr[x+1], strArr[x]),
 				})
@@ -191,7 +191,7 @@ func (a Alphabetical) checkNumberArrayIsSorted(arr *yaml.Node, context model.Rul
 		}
 	}
 
-	errmsg := "%s: '%v' is less than '%v', they need to be swapped (numerical ordering)"
+	errmsg := "%s: `%v` is less than `%v`, they need to be swapped (numerical ordering)"
 
 	if len(floatArray) > 0 {
 		if !sort.Float64sAreSorted(floatArray) {

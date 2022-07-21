@@ -4,11 +4,12 @@ go 1.16
 
 require (
 	github.com/alecthomas/chroma v0.10.0
+	github.com/dustin/go-humanize v1.0.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/libopenapi v0.0.1
+	github.com/pb33f/libopenapi v0.0.4
 	github.com/pterm/pterm v0.12.42
 	github.com/santhosh-tekuri/jsonschema/v5 v5.0.0
 	github.com/spf13/cobra v1.5.0

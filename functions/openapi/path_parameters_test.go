@@ -127,7 +127,7 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) 
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza} must have 'required' parameter that is set to 'true'", res[0].Message)
+	assert.Equal(t, "/musical/{melody}/{pizza} must have `required` parameter that is set to `true`", res[0].Message)
 }
 
 func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testing.T) {
@@ -158,7 +158,7 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza} must have 'required' parameter that is set to 'true'", res[0].Message)
+	assert.Equal(t, "/musical/{melody}/{pizza} must have `required` parameter that is set to `true`", res[0].Message)
 }
 
 func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *testing.T) {
@@ -252,7 +252,7 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Operation must define parameter 'cake' as expected by path '/musical/{melody}/{pizza}/{cake}'",
+	assert.Equal(t, "Operation must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
 		res[0].Message)
 }
 
@@ -305,6 +305,6 @@ paths:
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Operation must define parameter 'cake' as expected by path '/musical/{melody}/{pizza}/{cake}'",
+	assert.Equal(t, "Operation must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
 		res[0].Message)
 }

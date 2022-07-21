@@ -57,7 +57,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 				if strings.Contains(key, "~1") {
 					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("There is a '~1' character in this '%s' operation at '%s",
+						Message: fmt.Sprintf("There is a `~1` character in this `%s` operation at '%s",
 							currentVerb, currentPath),
 						StartNode: nil,
 						EndNode:   nil,
@@ -74,7 +74,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					endNode := utils.FindLastChildNode(startNode)
 
 					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("the '%s' operation at path '%s' contains an "+
+						Message: fmt.Sprintf("the `%s` operation at path `%s` contains an "+
 							"empty parameter", currentVerb, currentPath),
 						StartNode: startNode,
 						EndNode:   endNode,
@@ -92,7 +92,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					if seenParamInLocations[paramInNode.Value] {
 						if paramInNode.Value == "body" {
 							results = append(results, model.RuleFunctionResult{
-								Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
+								Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
 									"duplicate param in:body definition", currentVerb, currentPath),
 								StartNode: startNode,
 								EndNode:   endNode,
@@ -104,7 +104,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 						if paramInNode.Value == "body" || paramInNode.Value == "formData" {
 							if seenParamInLocations["formData"] || seenParamInLocations["body"] {
 								results = append(results, model.RuleFunctionResult{
-									Message: fmt.Sprintf("the '%s' operation at path '%s' "+
+									Message: fmt.Sprintf("the `%s` operation at path `%s` "+
 										"contains parameters using both in:body and in:formData",
 										currentVerb, currentPath),
 									StartNode: startNode,
@@ -118,8 +118,8 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					}
 				} else {
 					rfr := model.RuleFunctionResult{
-						Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
-							"parameter with no 'in' value", currentVerb, currentPath),
+						Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
+							"parameter with no `in` value", currentVerb, currentPath),
 						StartNode: startNode,
 						EndNode:   endNode,
 						Path:      resultPath,

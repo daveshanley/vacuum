@@ -54,7 +54,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			if _, ok := forceValidation.(bool); ok {
 
 				r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", context.Rule.Description,
-					fmt.Sprintf("'%s', is missing and is required", context.RuleAction.Field)))
+					fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field)))
 				r.StartNode = node
 				r.EndNode = node.Content[len(node.Content)-1]
 				r.Rule = context.Rule

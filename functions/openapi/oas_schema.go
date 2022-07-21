@@ -80,17 +80,29 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 	//validate using faster, more accurate resolver.
 	if validationError := schema.Validate(*info.SpecJSON); validationError != nil {
-		failure := validationError.(*jsonschema.ValidationError)
-		for _, fail := range failure.Causes {
+
+		if failure, ok := validationError.(*jsonschema.ValidationError); ok {
+			for _, fail := range failure.Causes {
+				results = append(results, model.RuleFunctionResult{
+					Message: fmt.Sprintf("OpenAPI specification is invalid: %s %v", fail.KeywordLocation,
+						fail.Message),
+					StartNode: nodes[0],
+					EndNode:   nodes[0],
+					Path:      "$",
+					Rule:      context.Rule,
+				})
+			}
+		}
+		if failure, ok := validationError.(*jsonschema.InvalidJSONTypeError); ok {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("OpenAPI specification is invalid: %s %v", fail.KeywordLocation,
-					fail.Message),
+				Message:   fmt.Sprintf("OpenAPI specification is invalid: %v", failure.Error()),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      "$",
 				Rule:      context.Rule,
 			})
 		}
+
 	}
 	return results
 }

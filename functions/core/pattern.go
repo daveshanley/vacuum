@@ -93,22 +93,22 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			rx, err := p.getPatternFromCache(p.match, context.Rule)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: '%s' cannot be compiled into a regular expression: %s",
+					Message: fmt.Sprintf("%s: `%s` cannot be compiled into a regular expression: %s",
 						context.Rule.Description, p.match, err.Error()),
 					StartNode: node,
 					EndNode:   node,
-					Path:      pathValue,
+					Path:      fmt.Sprintf("%s.%s", pathValue, currentField),
 					Rule:      context.Rule,
 				})
 			} else {
 				pathValue = fmt.Sprintf("%s.%s", pathValue, currentField)
 				if !rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("%s: '%s' does not match the expression '%s'", context.Rule.Description,
+						Message: fmt.Sprintf("%s: `%s` does not match the expression `%s`", context.Rule.Description,
 							node.Value, p.match),
 						StartNode: node,
 						EndNode:   node,
-						Path:      pathValue,
+						Path:      fmt.Sprintf("%s.%s", pathValue, currentField),
 						Rule:      context.Rule,
 					})
 				}
@@ -124,16 +124,16 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						context.Rule.Description, err.Error()),
 					StartNode: node,
 					EndNode:   node,
-					Path:      pathValue,
+					Path:      fmt.Sprintf("%s.%s", pathValue, currentField),
 					Rule:      context.Rule,
 				})
 			} else {
 				if rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
-						Message:   fmt.Sprintf("%s: matches the expression '%s'", context.Rule.Description, p.notMatch),
+						Message:   fmt.Sprintf("%s: matches the expression `%s`", context.Rule.Description, p.notMatch),
 						StartNode: node,
 						EndNode:   node,
-						Path:      pathValue,
+						Path:      fmt.Sprintf("%s.%s", pathValue, currentField),
 						Rule:      context.Rule,
 					})
 				}

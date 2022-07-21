@@ -194,6 +194,6 @@ func TestOpenAPISchema_MissingFieldForceValidation(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema must be valid: 'lolly', is missing and is required", res[0].Message)
+	assert.Equal(t, "schema must be valid: `lolly`, is missing and is required", res[0].Message)
 
 }

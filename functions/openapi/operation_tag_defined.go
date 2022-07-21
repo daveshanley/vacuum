@@ -84,8 +84,8 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 									endNode = opTagsNode.Content[j+1]
 								}
 								results = append(results, model.RuleFunctionResult{
-									Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
-										"tag '%s', that is not defined in the global document tags",
+									Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
+										"tag `%s`, that is not defined in the global document tags",
 										currentVerb, currentPath, operationTag.Value),
 									StartNode: operationTag,
 									EndNode:   endNode,

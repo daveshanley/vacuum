@@ -51,10 +51,14 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 		pointerResults = append(pointerResults, &n)
 
 	}
-	return &RuleResultSet{
+	rrs := &RuleResultSet{
 		Results:     pointerResults,
 		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
 	}
+	defer rrs.GetErrorCount()
+	defer rrs.GetInfoCount()
+	defer rrs.GetWarnCount()
+	return rrs
 }
 
 // NewRuleResultSetPointer will encapsulate a set of results into a set, that can then be queried.

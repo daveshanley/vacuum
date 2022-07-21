@@ -73,6 +73,7 @@ func GetDashboardCommand() *cobra.Command {
 			}
 
 			dash := cui.CreateDashboard(resultSet, specIndex, specInfo)
+			dash.Version = Version
 			dash.Render()
 			return nil
 		},

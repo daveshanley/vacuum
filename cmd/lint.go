@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/dustin/go-humanize"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"io/ioutil"
@@ -35,6 +36,7 @@ func GetLintCommand() *cobra.Command {
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 			silent, _ := cmd.Flags().GetBool("silent")
 			functionsFlag, _ := cmd.Flags().GetString("functions")
+			failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
 
 			if !silent {
 				PrintBanner()
@@ -112,10 +114,14 @@ func GetLintCommand() *cobra.Command {
 			fi, _ := os.Stat(args[0])
 			duration := time.Since(start)
 
+			warnings := resultSet.GetWarnCount()
+			errors := resultSet.GetErrorCount()
+			informs := resultSet.GetInfoCount()
+
 			if !detailsFlag {
 				RenderSummary(resultSet, args, silent)
 				RenderTime(timeFlag, duration, fi)
-				return nil
+				return CheckFailureSeverity(failSeverityFlag, errors, warnings, informs)
 			}
 
 			var cats []*model.RuleCategory
@@ -164,9 +170,9 @@ func GetLintCommand() *cobra.Command {
 				pterm.Println()
 			} // Blank line
 
+			RenderSummary(resultSet, args, silent)
 			RenderTime(timeFlag, duration, fi)
-
-			return nil
+			return CheckFailureSeverity(failSeverityFlag, errors, warnings, informs)
 		},
 	}
 
@@ -175,6 +181,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
 	cmd.Flags().StringP("category", "c", "", "Show a single category of results")
 	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result.")
+	cmd.Flags().StringP("fail-severity", "n", "error", "Results of this level or above will trigger a failure exit code")
 
 	return cmd
 }
@@ -187,13 +194,25 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 	if !snippets {
 		tableData = [][]string{{"Line / Column", "Severity", "Message", "Path"}}
 	}
-	for _, r := range results {
+	for i, r := range results {
 
+		if i > 200 {
+			tableData = append(tableData, []string{"", "", pterm.LightRed(fmt.Sprintf("...%d "+
+				"more violations not rendered.", len(results)-200)), ""})
+			break
+		}
 		if snippets {
 			tableData = [][]string{{"Line / Column", "Severity", "Message", "Path"}}
 		}
-		start := fmt.Sprintf("(%v:%v)", r.StartNode.Line, r.StartNode.Column)
-
+		startLine := 0
+		startCol := 0
+		if r.StartNode != nil {
+			startLine = r.StartNode.Line
+		}
+		if r.StartNode != nil {
+			startCol = r.StartNode.Column
+		}
+		start := fmt.Sprintf("(%v:%v)", startLine, startCol)
 		m := r.Message
 		p := r.Path
 		if len(r.Path) > 60 {
@@ -228,6 +247,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 			renderCodeSnippet(r, specData)
 		}
+		i++
 	}
 
 	if !snippets && !silent {
@@ -271,8 +291,8 @@ func RenderSummary(rs *model.RuleResultSet, args []string, silent bool) {
 
 		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
 
-			tableData = append(tableData, []string{cat.Name, fmt.Sprintf("%d", len(errors)),
-				fmt.Sprintf("%d", len(warn)), fmt.Sprintf("%d", len(info))})
+			tableData = append(tableData, []string{cat.Name, fmt.Sprintf("%v", humanize.Comma(int64(len(errors)))),
+				fmt.Sprintf("%v", humanize.Comma(int64(len(warn)))), fmt.Sprintf("%v", humanize.Comma(int64(len(info))))})
 		}
 
 	}
@@ -281,24 +301,34 @@ func RenderSummary(rs *model.RuleResultSet, args []string, silent bool) {
 		if !silent {
 			pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 			pterm.Println()
-			pterm.Printf(">> run 'vacuum %s -d' to see full details", args[0])
-			pterm.Println()
 			pterm.Println()
 		}
 	}
 
-	if rs.GetErrorCount() > 0 {
+	errors := rs.GetErrorCount()
+	warnings := rs.GetWarnCount()
+	informs := rs.GetInfoCount()
+	errorsHuman := humanize.Comma(int64(rs.GetErrorCount()))
+	warningsHuman := humanize.Comma(int64(rs.GetWarnCount()))
+	informsHuman := humanize.Comma(int64(rs.GetInfoCount()))
+
+	if errors > 0 {
 		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
-			"Linting failed with %d errors", rs.GetErrorCount())
+			"Linting failed with %v errors, %v warnings and %v informs", errorsHuman, warningsHuman, informsHuman)
 		return
 	}
-	if rs.GetWarnCount() > 0 {
+	if warnings > 0 {
 		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgYellow)).WithMargin(10).Printf(
-			"Linting passed, but with %d warnings", rs.GetWarnCount())
+			"Linting passed, but with %v warnings and %v informs", warningsHuman, informsHuman)
 		return
 	}
 
+	if informs > 0 {
+		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
+			"Linting passed, %v informs reported", informsHuman)
+	}
+
 	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Println(
-		"Linting passed, great job!")
+		"Linting passed, A perfect score! well done!")
 
 }

@@ -44,7 +44,7 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 			endNode := desc.Node
 
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("description contains content with '%s', forbidden", pattern),
+				Message:   fmt.Sprintf("description contains content with `%s`, forbidden", pattern),
 				StartNode: startNode,
 				EndNode:   endNode,
 				Path:      desc.Path,

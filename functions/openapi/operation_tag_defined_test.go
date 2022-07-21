@@ -99,6 +99,6 @@ paths:
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/ember' contains a tag 'such_a_naughty_dog', "+
+	assert.Equal(t, "the `get` operation at path `/ember` contains a tag `such_a_naughty_dog`, "+
 		"that is not defined in the global document tags", res[0].Message)
 }

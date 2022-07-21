@@ -67,7 +67,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			// check if it's been seen
 			if seenPaths[currentPathNormalized] != "" {
 				res := model.BuildFunctionResultString(
-					fmt.Sprintf("Paths '%s' and '%s' must not be equivalent, paths must be unique",
+					fmt.Sprintf("Paths `%s` and `%s` must not be equivalent, paths must be unique",
 						seenPaths[currentPathNormalized], currentPath))
 				res.StartNode = operationNode
 				res.EndNode = operationNode
@@ -85,7 +85,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				param := strRx.ReplaceAllString(pathParam, "")
 				if pathElements[param] {
 					res := model.BuildFunctionResultString(
-						fmt.Sprintf("Path '%s' must not use the parameter '%s' multiple times",
+						fmt.Sprintf("Path `%s` must not use the parameter `%s` multiple times",
 							currentPath, param))
 					res.StartNode = operationNode
 					res.EndNode = operationNode
@@ -236,7 +236,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 				}
 			}
 			if !foundInElements {
-				err := fmt.Sprintf("parameter '%s' must be used in path '%s'", param, path)
+				err := fmt.Sprintf("parameter `%s` must be used in path `%s`", param, path)
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
 				res.EndNode = endNode
@@ -262,7 +262,7 @@ func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, al
 		}
 		for p := range pathElements {
 			if !pp.segmentExistsInPathParams(p, e, top) {
-				err := fmt.Sprintf("Operation must define parameter '%s' as expected by path '%s'", p, path)
+				err := fmt.Sprintf("Operation must define parameter `%s` as expected by path `%s`", p, path)
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
 				res.EndNode = endNode
@@ -309,10 +309,10 @@ func (pp PathParameters) isPathParamNamedAndRequired(in, required, name *yaml.No
 
 		var errMsg string
 		if currentVerb == "top" {
-			errMsg = fmt.Sprintf("%s must have 'required' parameter that is set to 'true'",
+			errMsg = fmt.Sprintf("%s must have `required` parameter that is set to `true`",
 				currentPath)
 		} else {
-			errMsg = fmt.Sprintf("%s %s must have 'required' parameter that is set to 'true'",
+			errMsg = fmt.Sprintf("%s %s must have `required` parameter that is set to `true`",
 				currentPath, currentVerb)
 		}
 

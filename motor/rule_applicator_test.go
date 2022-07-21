@@ -632,7 +632,7 @@ func TestRuleSet_ContactProperties(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Contact details are incomplete: 'url' must be set", results[0].Message)
+	assert.Equal(t, "Contact details are incomplete: `url` must be set", results[0].Message)
 
 }
 
@@ -651,7 +651,7 @@ func TestRuleSet_InfoContact(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Info section is missing contact details: 'contact' must be set", results[0].Message)
+	assert.Equal(t, "Info section is missing contact details: `contact` must be set", results[0].Message)
 
 }
 
@@ -672,7 +672,7 @@ func TestRuleSet_InfoDescription(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Info section is missing a description: 'description' must be set", results[0].Message)
+	assert.Equal(t, "Info section is missing a description: `description` must be set", results[0].Message)
 
 }
 
@@ -694,7 +694,7 @@ func TestRuleSet_InfoLicense(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Info section should contain a license: 'license' must be set", results[0].Message)
+	assert.Equal(t, "Info section should contain a license: `license` must be set", results[0].Message)
 
 }
 
@@ -718,7 +718,7 @@ func TestRuleSet_InfoLicenseUrl(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "License should contain an url: 'url' must be set", results[0].Message)
+	assert.Equal(t, "License should contain an url: `url` must be set", results[0].Message)
 
 }
 
@@ -736,7 +736,7 @@ func TestRuleSet_NoEvalInMarkdown(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "description contains content with 'eval\\(', forbidden", results[0].Message)
+	assert.Equal(t, "description contains content with `eval\\(`, forbidden", results[0].Message)
 
 }
 
@@ -754,7 +754,7 @@ func TestRuleSet_NoScriptInMarkdown(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "description contains content with '<script', forbidden",
+	assert.Equal(t, "description contains content with `<script`, forbidden",
 		results[0].Message)
 
 }
@@ -775,7 +775,7 @@ func TestRuleSet_TagsAlphabetical(t *testing.T) {
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Tags must be in alphabetical order: 'chicken' must be placed before 'zebra' (alphabetical)",
+	assert.Equal(t, "Tags must be in alphabetical order: `chicken` must be placed before `zebra` (alphabetical)",
 		results[0].Message)
 
 }
@@ -803,7 +803,7 @@ components:
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Top level spec 'tags' must not be empty, and must be an array: 'tags', is missing and is required",
+	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: `tags`, is missing and is required",
 		results[0].Message)
 
 }
@@ -832,7 +832,7 @@ components:
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Top level spec 'tags' must not be empty, and must be an array: Invalid type. Expected: array, given: string",
+	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: Invalid type. Expected: array, given: string",
 		results[0].Message)
 
 }
@@ -862,7 +862,7 @@ components:
 
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
-	assert.Equal(t, "Top level spec 'tags' must not be empty, and must be an array: Invalid type. Expected: object, given: string",
+	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: Invalid type. Expected: object, given: string",
 		results[0].Message)
 
 }
@@ -967,8 +967,8 @@ func TestRuleSetGetPathDeclarationsMustExist(t *testing.T) {
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
 	assert.Len(t, results, 1)
-	assert.Equal(t, "Path parameter declarations must not be empty ex. '/api/{}' is invalid:"+
-		" matches the expression '{}'", results[0].Message)
+	assert.Equal(t, "Path parameter declarations must not be empty ex. `/api/{}` is invalid:"+
+		" matches the expression `{}`", results[0].Message)
 
 }
 
@@ -1043,7 +1043,7 @@ func TestRuleTagDescriptionRequiredRule(t *testing.T) {
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.NotNil(t, results)
 	assert.Len(t, results, 1)
-	assert.Equal(t, "Tag must have a description defined: 'description' must be set", results[0].Message)
+	assert.Equal(t, "Tag must have a description defined: `description` must be set", results[0].Message)
 
 }
 

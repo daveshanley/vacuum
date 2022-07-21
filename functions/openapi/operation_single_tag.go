@@ -45,7 +45,7 @@ func (ost OperationSingleTag) RunRule(nodes []*yaml.Node, context model.RuleFunc
 				lastNode := utils.FindLastChildNode(tagsNode)
 
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("the '%s' operation at path '%s' contains more "+
+					Message: fmt.Sprintf("the `%s` operation at path `%s` contains more "+
 						"than one tag (%d is too many)'", method, path, len(tags)),
 					StartNode: tagsNode,
 					EndNode:   lastNode,

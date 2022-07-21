@@ -1,6 +1,7 @@
 package cui
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	ui "github.com/gizak/termui/v3"
 	"github.com/gizak/termui/v3/widgets"
@@ -32,6 +33,7 @@ type Dashboard struct {
 	violationViewActive         bool
 	helpViewActive              bool
 	uiEvents                    <-chan ui.Event
+	Version                     string
 }
 
 func CreateDashboard(resultSet *model.RuleResultSet, index *index.SpecIndex, info *datamodel.SpecInfo) *Dashboard {
@@ -203,8 +205,7 @@ func (dash *Dashboard) setGrid() {
 
 	p := widgets.NewParagraph()
 	// todo: bring in correct versioning.
-
-	p.Text = "vacuum v0.0.1: " +
+	p.Text = fmt.Sprintf("vacuum %v: ", dash.Version) +
 		"[Select Category](fg:white,bg:clear,md:bold) = <Tab>,\u2B05\uFE0F\u27A1\uFE0F/S,X | " +
 		"[Change Rule](fg:white,bg:clear,md:bold) = \u2B06\u2B07/A,Z | " +
 		"[Select / Leave Rule](fg:white,bg:clear,md:bold) = <Enter> / <Esc>"

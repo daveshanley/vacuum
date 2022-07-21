@@ -31,7 +31,7 @@ func (pm PolymorphicOneOf) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 
 	for _, ref := range refs {
 		results = append(results, model.RuleFunctionResult{
-			Message:   fmt.Sprintf("'oneOf' polymorphic reference: %s", context.Rule.Description),
+			Message:   fmt.Sprintf("`oneOf` polymorphic reference: %s", context.Rule.Description),
 			StartNode: ref.Node,
 			EndNode:   ref.Node,
 			Path:      ref.Path,
