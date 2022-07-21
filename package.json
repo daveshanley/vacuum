@@ -1,6 +1,6 @@
 {
   "name": "@quobix/vacuum",
-  "version": "0.0.15",
+  "version": "0.0.17",
   "description": "The world's fastest, most scalable and complete OpenAPI parser",
   "type": "module",
   "author": "Dave Shanley",

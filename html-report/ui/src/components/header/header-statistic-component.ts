@@ -104,7 +104,7 @@ export class HeaderStatisticComponent extends BaseComponent {
     return [staticCss];
   }
 
-  @property( {type: Number})
+  @property({ type: Number })
   value: number;
 
   @property()
@@ -119,7 +119,9 @@ export class HeaderStatisticComponent extends BaseComponent {
   render() {
     return html`
       <div class=${this.colorForScore()}>
-        <span class="grade">${this.value.toLocaleString()}${this.percentage ? '%' : ''}</span>
+        <span class="grade"
+          >${this.value.toLocaleString()}${this.percentage ? '%' : ''}</span
+        >
         <span class="label"> ${this.label} </span>
       </div>
     `;
