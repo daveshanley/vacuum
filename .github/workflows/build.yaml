@@ -36,7 +36,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v2
       - name: Coverage
-        run:
+        run: |
           go get github.com/axw/gocov/gocov
           go get github.com/AlekSi/gocov-xml
           go install github.com/axw/gocov/gocov
