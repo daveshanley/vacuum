@@ -83,7 +83,7 @@ when used as an API and does not scale for enterprise applications.
 
 vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
 
-vacuum will work at scale and is designed as a CLI (with a UI) and a library to be consumed in other applications.
+vacuum will work at scale and is designed as a CLI (with a web or console UI) and a library to be consumed in other applications.
 
 ### Dashboard
 
@@ -152,10 +152,6 @@ To run, just add `docker dshanley/vacuum` as your command, like so
 ```
 docker dshanley/vacuum lint <your-openapi-spec.yaml>
 ```
-
----
-> 👉 **Please note, the flags and commands below will change as the experience is refined.** 👈
----
 
 ## Build an interactive HTML report 
 
