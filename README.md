@@ -76,7 +76,7 @@ See all the documentation at https://quobix.com/vacuum
 
 ---
 
-> **vacuum can suck all the lint of a 5mb OpenAPI spec in about 250ms.**
+> **vacuum can suck all the lint of a 5mb OpenAPI spec in about 230ms.**
 
 Designed to reliably lint OpenAPI specifications, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
