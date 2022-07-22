@@ -105,7 +105,7 @@ No external dependencies, the HTML report will run completely offline.
 
 > **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
 
-You can use either **YAML** or **JSON**, vacuum supports both.
+You can use either **YAML** or **JSON**, vacuum supports both formats.
 
 AsyncAPI support is coming soon!
 
