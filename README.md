@@ -107,9 +107,7 @@ No external dependencies, the HTML report will run completely offline.
 
 You can use either **YAML** or **JSON** vacuum supports both.
 
-
-
-
+AsyncAPI support is coming soon!
 
 ## Check out the code
 
