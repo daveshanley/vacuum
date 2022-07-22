@@ -1,12 +1,12 @@
 name: Build
 
-on: workflow_dispatch
-#  push:
-#    branches:
-#      - main
-#  pull_request:
-#    branches:
-#      - main
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
@@ -31,12 +31,53 @@ jobs:
           fi
       - name: Build
         run: make build
-
-      # REMOVE WHEN RESOLVED
-      # 1) https://github.com/golangci/golangci-lint-action/issues/135
-      # 2) https://github.com/golangci/golangci-lint-action/issues/81
       - name: Clean modcache
         run: go clean -modcache
-
-      - name: Lint Project
+      - name: Lint
         uses: golangci/golangci-lint-action@v2
+      - name: Coverage
+        run: |
+          go get github.com/axw/gocov/gocov
+          go get github.com/AlekSi/gocov-xml
+          go install github.com/axw/gocov/gocov
+          go install github.com/AlekSi/gocov-xml
+          - run: |
+          go test -v -coverprofile cover.out ./...
+          gocov convert cover.out | gocov-xml > coverage.xml
+          - uses: codecov/codecov-action@v1
+          with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: true
+          verbose: true  
+
+  build-report-ui:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        node-version: [ 16.x, 18.x ]
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout repository
+
+      - name: setup node ${{matrix.node-version}}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{matrix.node-version}}
+
+      - name: Install yarn
+        run: yarn install
+        working-directory: html-report/ui
+
+      - name: Build
+        run: yarn build
+        working-directory: html-report/ui
+
+      - name: Test
+        run: yarn test
+        working-directory: html-report/ui
+
+      - name: Lint
+        run: yarn lint
+        working-directory: html-report/ui
