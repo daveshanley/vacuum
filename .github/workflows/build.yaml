@@ -36,27 +36,27 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v2
       - name: Coverage
-        run: |
+        run:
           go get github.com/axw/gocov/gocov
           go get github.com/AlekSi/gocov-xml
           go install github.com/axw/gocov/gocov
           go install github.com/AlekSi/gocov-xml
-          - run: |
+      - run: |
           go test -v -coverprofile cover.out ./...
           gocov convert cover.out | gocov-xml > coverage.xml
-          - uses: codecov/codecov-action@v1
-          with:
+      - uses: codecov/codecov-action@v1
+        with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: unittests
           fail_ci_if_error: true
-          verbose: true  
+          verbose: true
 
   build-report-ui:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        node-version: [ 16.x, 18.x ]
+        node-version: [ 16.x ]
     steps:
       - uses: actions/checkout@v3
         name: Checkout repository
