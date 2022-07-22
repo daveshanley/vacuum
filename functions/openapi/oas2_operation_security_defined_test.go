@@ -41,7 +41,8 @@ securityDefinitions:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -74,7 +75,8 @@ securityDefinitions:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -106,7 +108,8 @@ securityDefinitions:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -138,7 +141,8 @@ securityDefinitions:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -172,7 +176,8 @@ securityDefinitions:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)

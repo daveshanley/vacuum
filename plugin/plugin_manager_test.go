@@ -8,7 +8,7 @@ import (
 
 func TestPluginManager_RegisterFunction(t *testing.T) {
 
-	pm := createPluginManager()
+	pm := CreatePluginManager()
 
 	pm.RegisterFunction("defined", core.Defined{})
 	assert.Len(t, pm.GetCustomFunctions(), 1)

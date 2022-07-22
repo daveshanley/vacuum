@@ -12,7 +12,7 @@ type Manager struct {
 	customFunctions map[string]model.RuleFunction
 }
 
-func createPluginManager() *Manager {
+func CreatePluginManager() *Manager {
 	return &Manager{
 		customFunctions: make(map[string]model.RuleFunction),
 	}

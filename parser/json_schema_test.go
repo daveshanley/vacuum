@@ -32,7 +32,8 @@ func TestConvertNode_Simple(t *testing.T) {
           type: boolean`
 
 	var node yaml.Node
-	yaml.Unmarshal([]byte(yml), &node)
+	mErr := yaml.Unmarshal([]byte(yml), &node)
+	assert.NoError(t, mErr)
 
 	index := index.NewSpecIndex(&node)
 
@@ -85,7 +86,8 @@ func TestValidateExample_AllInvalid(t *testing.T) {
           $ref: '#/components/schemas/Citrus'`
 
 	var node yaml.Node
-	yaml.Unmarshal([]byte(yml), &node)
+	mErr := yaml.Unmarshal([]byte(yml), &node)
+	assert.NoError(t, mErr)
 
 	index := index.NewSpecIndex(&node)
 

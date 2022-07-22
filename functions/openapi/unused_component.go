@@ -15,14 +15,6 @@ import (
 type UnusedComponent struct {
 }
 
-type refResult struct {
-	ref        string
-	refDefName string
-	node       *yaml.Node
-	notFound   bool
-	path       string
-}
-
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the UnusedComponent rule.
 func (uc UnusedComponent) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{

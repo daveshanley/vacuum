@@ -4,7 +4,6 @@ import "github.com/daveshanley/vacuum/model"
 
 const (
 	severityError = "error"
-	severityWarn  = "warn"
 )
 
 func buildCoreTestRule(given, severity, function, field string, functionOptions map[string]string) model.Rule {

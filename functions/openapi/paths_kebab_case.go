@@ -58,7 +58,7 @@ func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	return results
 }
 
-var pathKebabCaseRegex, _ = regexp.Compile("^[{}a-z\\d-.]+$")
+var pathKebabCaseRegex, _ = regexp.Compile(`^[{}a-z\d-.]+$`)
 
 func checkPathCase(path string) (bool, []string) {
 	segs := strings.Split(path, "/")[1:]

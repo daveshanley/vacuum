@@ -1334,6 +1334,9 @@ func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 	m, _ := ioutil.ReadFile("../model/test_files/k8s.json")
 	rs := rulesets.BuildDefaultRuleSets()
 	for n := 0; n < b.N; n++ {
-		ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)
+		_, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)
+		if err != nil {
+			continue // we don't care, but the linter does.
+		}
 	}
 }

@@ -17,10 +17,11 @@ func TestNewStatsChart(t *testing.T) {
 	yamlBytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	info, _ := datamodel.ExtractSpecInfo(yamlBytes)
-	yaml.Unmarshal(yamlBytes, &rootNode)
-	index := index.NewSpecIndex(&rootNode)
+	mErr := yaml.Unmarshal(yamlBytes, &rootNode)
+	assert.NoError(t, mErr)
+	idx := index.NewSpecIndex(&rootNode)
 
-	chart := NewStatsChart(index, info)
+	chart := NewStatsChart(idx, info)
 
 	assert.Equal(t, "Filesize: [11kb](fg:green)", chart.bc.Rows[0])
 }

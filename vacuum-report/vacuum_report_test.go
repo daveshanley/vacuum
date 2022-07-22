@@ -19,14 +19,20 @@ var jsonParse = jsoniter.ConfigCompatibleWithStandardLibrary
 func BenchmarkCheckFileForVacuumReport_Compressed(b *testing.B) {
 	j := testhelp_compressedJSON()
 	for n := 0; n < b.N; n++ {
-		CheckFileForVacuumReport(j)
+		rpt, _ := CheckFileForVacuumReport(j)
+		if rpt == nil {
+			continue
+		}
 	}
 }
 
 func BenchmarkCheckFileForVacuumReport_Uncompressed(b *testing.B) {
 	j := testhelp_uncompressedJSON()
 	for n := 0; n < b.N; n++ {
-		CheckFileForVacuumReport(j)
+		rpt, _ := CheckFileForVacuumReport(j)
+		if rpt == nil {
+			continue
+		}
 	}
 }
 
@@ -34,7 +40,8 @@ func TestBuildVacuumReport_Valid_Compressed(t *testing.T) {
 	j := testhelp_compressedJSON()
 	tmp, _ := ioutil.TempFile("", "")
 	defer os.Remove(tmp.Name())
-	tmp.Write(j)
+	_, wErr := tmp.Write(j)
+	assert.NoError(t, wErr)
 
 	r, _, err := BuildVacuumReportFromFile(tmp.Name())
 	assert.NotNil(t, r)
@@ -45,7 +52,8 @@ func TestBuildVacuumReport_Invalid_Compressed(t *testing.T) {
 	j := []byte("melody and pumpkin go on an adventure")
 	tmp, _ := ioutil.TempFile("", "")
 	defer os.Remove(tmp.Name())
-	tmp.Write(testhelp_compress(j))
+	_, wErr := tmp.Write(testhelp_compress(j))
+	assert.NoError(t, wErr)
 
 	r, _, err := BuildVacuumReportFromFile(tmp.Name())
 	assert.Nil(t, r)
@@ -56,7 +64,8 @@ func TestBuildVacuumReport_Valid_Uncompressed(t *testing.T) {
 	j := testhelp_uncompressedJSON()
 	tmp, _ := ioutil.TempFile("", "")
 	defer os.Remove(tmp.Name())
-	tmp.Write(j)
+	_, wErr := tmp.Write(j)
+	assert.NoError(t, wErr)
 
 	r, _, err := BuildVacuumReportFromFile(tmp.Name())
 	assert.NotNil(t, r)
@@ -67,7 +76,8 @@ func TestBuildVacuumReport_Invalid_Uncompressed(t *testing.T) {
 	j := []byte("melody and pumpkin discover a secret castle in the shanley woods")
 	tmp, _ := ioutil.TempFile("", "")
 	defer os.Remove(tmp.Name())
-	tmp.Write(j)
+	_, wErr := tmp.Write(j)
+	assert.NoError(t, wErr)
 
 	r, _, err := BuildVacuumReportFromFile(tmp.Name())
 	assert.Nil(t, r)
@@ -152,7 +162,13 @@ func testhelp_uncompressedJSON() []byte {
 func testhelp_compress(in []byte) []byte {
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
-	gz.Write(in)
-	gz.Close()
+	_, err := gz.Write(in)
+	if err != nil {
+		return nil
+	}
+	err = gz.Close()
+	if err != nil {
+		return nil
+	}
 	return b.Bytes()
 }

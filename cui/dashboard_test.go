@@ -18,15 +18,15 @@ import (
 )
 
 func TestCreateDashboard(t *testing.T) {
-	resultSet, index, info := testBootDashboard()
-	dash := CreateDashboard(resultSet, index, info)
+	resultSet, idx, info := testBootDashboard()
+	dash := CreateDashboard(resultSet, idx, info)
 	assert.Equal(t, "openapi", dash.info.SpecType)
 }
 
 func TestDashboard_GenerateTabbedView(t *testing.T) {
 
-	resultSet, index, info := testBootDashboard()
-	dash := CreateDashboard(resultSet, index, info)
+	resultSet, idx, info := testBootDashboard()
+	dash := CreateDashboard(resultSet, idx, info)
 	dash.ruleCategories = model.RuleCategoriesOrdered
 	dash.GenerateTabbedView()
 	assert.Equal(t, "information", dash.selectedCategory.Id)
@@ -35,8 +35,8 @@ func TestDashboard_GenerateTabbedView(t *testing.T) {
 
 func TestDashboard_Render(t *testing.T) {
 
-	resultSet, index, info := testBootDashboard()
-	dash := CreateDashboard(resultSet, index, info)
+	resultSet, idx, info := testBootDashboard()
+	dash := CreateDashboard(resultSet, idx, info)
 	dash.ruleCategories = model.RuleCategoriesOrdered
 
 	// define our own events channel, so we can trigger the UI in any sequence we want.
@@ -119,7 +119,11 @@ func testBootDashboard() (*model.RuleResultSet, *index.SpecIndex, *datamodel.Spe
 
 	info, _ := datamodel.ExtractSpecInfo(yamlBytes)
 
-	yaml.Unmarshal(yamlBytes, &rootNode)
+	mErr := yaml.Unmarshal(yamlBytes, &rootNode)
+	if mErr != nil {
+		return nil, nil, nil
+	}
+
 	index := index.NewSpecIndex(&rootNode)
 
 	// let's go ahead and lint the spec and pass the results to the dashboard.

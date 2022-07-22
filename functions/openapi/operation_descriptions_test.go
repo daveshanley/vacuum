@@ -35,7 +35,8 @@ func TestOperationDescription_CheckDescriptionMissing(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -63,7 +64,8 @@ func TestOperationDescription_CheckDescriptionTooShort(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -97,7 +99,8 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -132,7 +135,8 @@ func TestOperationDescription_CheckRequestBodyDescriptionMeetsLength(t *testing.
 
 	path := "$"
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -171,7 +175,8 @@ func TestOperationDescription_CheckResponsesDescriptionExist(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -211,7 +216,8 @@ func TestOperationDescription_CheckResponsesDescriptionLongEnough(t *testing.T) 
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 

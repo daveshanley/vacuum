@@ -102,35 +102,33 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		if utils.IsNodeMap(operationNode) {
 
 			topLevelParametersNode := context.Index.GetOperationParameterReferences()[currentPath]["top"]
-
 			//_, topLevelParametersNode := utils.FindKeyNodeTop("parameters", operationNode.Content)
-
 			// look for top level params
-			if topLevelParametersNode != nil {
-				for x, topLevelParam := range topLevelParametersNode {
-					_, paramInNode := utils.FindKeyNode("in", topLevelParam.Node.Content)
-					_, paramRequiredNode := utils.FindKeyNode("required", topLevelParam.Node.Content)
-					_, paramNameNode := utils.FindKeyNode("name", topLevelParam.Node.Content)
+			//if topLevelParametersNode != nil {
+			for x, topLevelParam := range topLevelParametersNode {
+				_, paramInNode := utils.FindKeyNode("in", topLevelParam.Node.Content)
+				_, paramRequiredNode := utils.FindKeyNode("required", topLevelParam.Node.Content)
+				_, paramNameNode := utils.FindKeyNode("name", topLevelParam.Node.Content)
 
-					if currentVerb == "" {
-						currentVerb = "top"
+				if currentVerb == "" {
+					currentVerb = "top"
+				}
+
+				if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
+					currentPath, currentVerb, &topLevelParams, nil, &results, context) {
+
+					var paramData map[string][]string
+					if topLevelParams["top"] != nil {
+						paramData = topLevelParams["top"]
+					} else {
+						paramData = make(map[string][]string)
 					}
-
-					if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
-						currentPath, currentVerb, &topLevelParams, nil, &results, context) {
-
-						var paramData map[string][]string
-						if topLevelParams["top"] != nil {
-							paramData = topLevelParams["top"]
-						} else {
-							paramData = make(map[string][]string)
-						}
-						path := []string{"paths", currentPath, "parameters", fmt.Sprintf("%v", x)}
-						paramData[paramNameNode.Value] = path
-						topLevelParams["top"] = paramData
-					}
+					path := []string{"paths", currentPath, "parameters", fmt.Sprintf("%v", x)}
+					paramData[paramNameNode.Value] = path
+					topLevelParams["top"] = paramData
 				}
 			}
+			//}
 
 			// look for verb level params.
 			c := 0
@@ -146,33 +144,33 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				// use index to locate params.
 				verbParametersNode := context.Index.GetOperationParameterReferences()[currentPath][currentVerb]
 
-				if verbParametersNode != nil {
-					for _, verbParam := range verbParametersNode {
+				//if verbParametersNode != nil {
+				for _, verbParam := range verbParametersNode {
 
-						if verbParam == nil {
-							continue
-						}
-						_, paramInNode := utils.FindKeyNode("in", verbParam.Node.Content)
-						_, paramRequiredNode := utils.FindKeyNode("required", verbParam.Node.Content)
-						_, paramNameNode := utils.FindKeyNode("name", verbParam.Node.Content)
-
-						if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
-							currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results, context) {
-
-							path := []string{"paths", currentPath, currentVerb, "parameters",
-								fmt.Sprintf("%v", c)}
-							var paramData map[string][]string
-							if verbLevelParams[currentVerb] != nil {
-								paramData = verbLevelParams[currentVerb]
-							} else {
-								paramData = make(map[string][]string)
-							}
-							paramData[paramNameNode.Value] = path
-							verbLevelParams[currentVerb] = paramData
-						}
-						c++
+					if verbParam == nil {
+						continue
 					}
+					_, paramInNode := utils.FindKeyNode("in", verbParam.Node.Content)
+					_, paramRequiredNode := utils.FindKeyNode("required", verbParam.Node.Content)
+					_, paramNameNode := utils.FindKeyNode("name", verbParam.Node.Content)
+
+					if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
+						currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results, context) {
+
+						path := []string{"paths", currentPath, currentVerb, "parameters",
+							fmt.Sprintf("%v", c)}
+						var paramData map[string][]string
+						if verbLevelParams[currentVerb] != nil {
+							paramData = verbLevelParams[currentVerb]
+						} else {
+							paramData = make(map[string][]string)
+						}
+						paramData[paramNameNode.Value] = path
+						verbLevelParams[currentVerb] = paramData
+					}
+					c++
 				}
+				//}
 			}
 
 			// blend together all our params and check they all match up!
@@ -275,12 +273,12 @@ func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, al
 }
 
 func (pp PathParameters) segmentExistsInPathParams(segment string, params, top map[string][]string) bool {
-	for k, _ := range params {
+	for k := range params {
 		if k == segment {
 			return true
 		}
 	}
-	for k, _ := range top {
+	for k := range top {
 		if k == segment {
 			return true
 		}

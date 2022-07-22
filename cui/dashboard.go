@@ -11,29 +11,28 @@ import (
 
 // Dashboard represents the dashboard controlling container
 type Dashboard struct {
-	C                           chan bool
-	run                         bool
-	grid                        *ui.Grid
-	helpGrid                    *ui.Grid
-	title                       *widgets.Paragraph
-	tabs                        TabbedView
-	healthGaugeItems            []ui.GridItem
-	categoryHealthGauge         []CategoryGauge
-	resultSet                   *model.RuleResultSet
-	index                       *index.SpecIndex
-	info                        *datamodel.SpecInfo
-	selectedTabIndex            int
-	ruleCategories              []*model.RuleCategory
-	selectedCategory            *model.RuleCategory
-	selectedCategoryDescription *ui.GridItem
-	selectedRule                *model.Rule
-	selectedRuleIndex           int
-	selectedViolationIndex      int
-	selectedViolation           *model.RuleFunctionResult
-	violationViewActive         bool
-	helpViewActive              bool
-	uiEvents                    <-chan ui.Event
-	Version                     string
+	C                      chan bool
+	run                    bool
+	grid                   *ui.Grid
+	helpGrid               *ui.Grid
+	title                  *widgets.Paragraph
+	tabs                   TabbedView
+	healthGaugeItems       []ui.GridItem
+	categoryHealthGauge    []CategoryGauge
+	resultSet              *model.RuleResultSet
+	index                  *index.SpecIndex
+	info                   *datamodel.SpecInfo
+	selectedTabIndex       int
+	ruleCategories         []*model.RuleCategory
+	selectedCategory       *model.RuleCategory
+	selectedRule           *model.Rule
+	selectedRuleIndex      int
+	selectedViolationIndex int
+	selectedViolation      *model.RuleFunctionResult
+	violationViewActive    bool
+	helpViewActive         bool
+	uiEvents               <-chan ui.Event
+	Version                string
 }
 
 func CreateDashboard(resultSet *model.RuleResultSet, index *index.SpecIndex, info *datamodel.SpecInfo) *Dashboard {
@@ -134,63 +133,61 @@ func (dash *Dashboard) eventLoop(cats []*model.RuleCategory) {
 	}
 	// TODO: clean this damn mess up.
 	for {
-		select {
-		case e := <-uiEvents:
-			switch e.ID {
-			case "q", "<C-c>":
-				return
-			case "h":
-				dash.helpViewActive = true
-			case "<Tab>":
-				dash.violationViewActive = false
-				if dash.tabs.tv.ActiveTabIndex == len(cats)-1 { // loop around and around.
-					dash.tabs.tv.ActiveTabIndex = 0
-				} else {
-					dash.tabs.tv.FocusRight()
-				}
-				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-				dash.generateViewsAfterEvent()
-
-			case "<Enter>":
-				dash.violationViewActive = true
-				dash.generateViewsAfterEvent()
-
-			case "<Escape>":
-				dash.violationViewActive = false
-				dash.helpViewActive = false
-				dash.generateViewsAfterEvent()
-
-			case "x", "<Right>":
-				dash.violationViewActive = false
-				dash.tabs.tv.FocusRight()
-				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-				dash.generateViewsAfterEvent()
-
-			case "s", "<Left>":
-				dash.violationViewActive = false
-				dash.tabs.tv.FocusLeft()
-				dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
-				dash.generateViewsAfterEvent()
-
-			case "z", "<Down>":
-				if dash.violationViewActive {
-					dash.tabs.scrollViolationsDown()
-				} else {
-					dash.tabs.scrollRulesDown()
-				}
-			case "a", "<Up>":
-				if dash.violationViewActive {
-					dash.tabs.scrollViolationsUp()
-				} else {
-					dash.tabs.scrollRulesUp()
-				}
-			}
-			ui.Clear()
-			if dash.helpViewActive {
-				ui.Render(dash.helpGrid)
+		e := <-uiEvents
+		switch e.ID {
+		case "q", "<C-c>":
+			return
+		case "h":
+			dash.helpViewActive = true
+		case "<Tab>":
+			dash.violationViewActive = false
+			if dash.tabs.tv.ActiveTabIndex == len(cats)-1 { // loop around and around.
+				dash.tabs.tv.ActiveTabIndex = 0
 			} else {
-				ui.Render(dash.grid, dash.title)
+				dash.tabs.tv.FocusRight()
 			}
+			dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
+			dash.generateViewsAfterEvent()
+
+		case "<Enter>":
+			dash.violationViewActive = true
+			dash.generateViewsAfterEvent()
+
+		case "<Escape>":
+			dash.violationViewActive = false
+			dash.helpViewActive = false
+			dash.generateViewsAfterEvent()
+
+		case "x", "<Right>":
+			dash.violationViewActive = false
+			dash.tabs.tv.FocusRight()
+			dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
+			dash.generateViewsAfterEvent()
+
+		case "s", "<Left>":
+			dash.violationViewActive = false
+			dash.tabs.tv.FocusLeft()
+			dash.tabs.setActiveCategoryIndex(dash.tabs.tv.ActiveTabIndex)
+			dash.generateViewsAfterEvent()
+
+		case "z", "<Down>":
+			if dash.violationViewActive {
+				dash.tabs.scrollViolationsDown()
+			} else {
+				dash.tabs.scrollRulesDown()
+			}
+		case "a", "<Up>":
+			if dash.violationViewActive {
+				dash.tabs.scrollViolationsUp()
+			} else {
+				dash.tabs.scrollRulesUp()
+			}
+		}
+		ui.Clear()
+		if dash.helpViewActive {
+			ui.Render(dash.helpGrid)
+		} else {
+			ui.Render(dash.grid, dash.title)
 		}
 	}
 }

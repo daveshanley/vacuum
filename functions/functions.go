@@ -38,19 +38,11 @@ var coreFunctionGrab sync.Once
 func MapBuiltinFunctions() Functions {
 
 	coreFunctionGrab.Do(func() {
-		var funcs map[string]model.RuleFunction
-		var customFuncs map[string]customFunction
-
-		if functionsSingleton != nil {
-			funcs = functionsSingleton.functions
-			customFuncs = functionsSingleton.customFunctions
-		} else {
-			funcs = make(map[string]model.RuleFunction)
-			customFuncs = make(map[string]customFunction)
-			functionsSingleton = &functionsModel{
-				functions:       funcs,
-				customFunctions: customFuncs,
-			}
+		funcs := make(map[string]model.RuleFunction)
+		customFuncs := make(map[string]customFunction)
+		functionsSingleton = &functionsModel{
+			functions:       funcs,
+			customFunctions: customFuncs,
 		}
 
 		// add known rules

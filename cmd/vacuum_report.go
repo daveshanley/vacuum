@@ -136,8 +136,14 @@ func GetVacuumReportCommand() *cobra.Command {
 
 				var b bytes.Buffer
 				gz := gzip.NewWriter(&b)
-				gz.Write(data)
-				gz.Close()
+				_, wErr := gz.Write(data)
+				if wErr != nil {
+					return wErr
+				}
+				wErr = gz.Close()
+				if wErr != nil {
+					return wErr
+				}
 				reportData = b.Bytes()
 				extension = ".json.gz"
 			}

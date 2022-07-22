@@ -13,7 +13,8 @@ func TestGetLintCommand(t *testing.T) {
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{"../model/test_files/burgershop.openapi.yaml"})
-	cmd.Execute()
+	exErr := cmd.Execute()
+	assert.NoError(t, exErr)
 	outBytes, err := ioutil.ReadAll(b)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
@@ -153,7 +154,6 @@ func TestGetLintCommand_InvalidRuleset(t *testing.T) {
 }`
 
 	tmp, _ := ioutil.TempFile("", "")
-	defer tmp.Close()
 	_, _ = io.WriteString(tmp, json)
 
 	cmd := GetLintCommand()
@@ -457,7 +457,6 @@ rules:
   oas3-valid-schema-example: error`
 
 	tmp, _ := ioutil.TempFile("", "")
-	defer tmp.Close()
 	_, _ = io.WriteString(tmp, yaml)
 
 	cmd := GetLintCommand()
@@ -486,7 +485,6 @@ rules:
   oas3-valid-schema-example: true`
 
 	tmp, _ := ioutil.TempFile("", "")
-	defer tmp.Close()
 	_, _ = io.WriteString(tmp, yaml)
 
 	cmd := GetLintCommand()

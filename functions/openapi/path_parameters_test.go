@@ -44,7 +44,8 @@ func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -83,7 +84,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -115,7 +117,8 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) 
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -148,7 +151,8 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -182,7 +186,8 @@ func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -209,7 +214,8 @@ func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -240,7 +246,8 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -291,7 +298,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -300,8 +308,8 @@ paths:
 	def := PathParameters{}
 
 	// we need to resolve this
-	resolver := resolver.NewResolver(ctx.Index)
-	resolver.Resolve()
+	r := resolver.NewResolver(ctx.Index)
+	r.Resolve()
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 1)

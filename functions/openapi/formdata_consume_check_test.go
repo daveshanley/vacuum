@@ -40,7 +40,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -75,7 +76,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -109,7 +111,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -143,7 +146,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -177,7 +181,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -209,7 +214,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)

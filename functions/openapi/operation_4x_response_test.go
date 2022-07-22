@@ -26,7 +26,8 @@ func TestOperation4xResponse_RunRule_Success(t *testing.T) {
 	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/burgershop.openapi.yaml")
 
 	var rootNode yaml.Node
-	yaml.Unmarshal(sampleYaml, &rootNode)
+	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
+	assert.NoError(t, mErr)
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -43,7 +44,8 @@ func TestOperation4xResponse_RunRule_ExitEarly(t *testing.T) {
 	sampleYaml := []byte("hi: there")
 
 	var rootNode yaml.Node
-	yaml.Unmarshal(sampleYaml, &rootNode)
+	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
+	assert.NoError(t, mErr)
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -60,7 +62,8 @@ func TestOperation4xResponse_RunRule_Fail(t *testing.T) {
 	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/stripe.yaml")
 
 	var rootNode yaml.Node
-	yaml.Unmarshal(sampleYaml, &rootNode)
+	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
+	assert.NoError(t, mErr)
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)

@@ -50,6 +50,9 @@ func GetDashboardCommand() *cobra.Command {
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 				resultSet, ruleset, err = BuildResults(rulesetFlag, specBytes, customFunctions)
+				if err != nil {
+					return err
+				}
 				specIndex = ruleset.Index
 				specInfo = ruleset.SpecInfo
 				specInfo.Generated = time.Now()
@@ -74,8 +77,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			dash := cui.CreateDashboard(resultSet, specIndex, specInfo)
 			dash.Version = Version
-			dash.Render()
-			return nil
+			return dash.Render()
 		},
 	}
 }

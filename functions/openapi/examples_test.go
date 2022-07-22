@@ -50,7 +50,8 @@ components:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -97,7 +98,8 @@ components:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
@@ -151,7 +153,8 @@ components:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	//nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -206,7 +209,8 @@ func TestExamples_RunRule_Fail_Inline_Schema_Multi_Examples(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -252,7 +256,8 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -290,7 +295,8 @@ func TestExamples_RunRule_Fail_Single_Example_Not_An_Object(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -329,7 +335,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -370,7 +377,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -446,7 +454,8 @@ func TestExamples_RunRule_Fail_Single_Example_Param_No_Example(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -476,7 +485,8 @@ func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -510,7 +520,8 @@ func TestExamples_RunRule_Fail_Component_No_Example(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -544,7 +555,8 @@ func TestExamples_RunRule_Fail_Component_Invalid_Inline_Example(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -580,7 +592,8 @@ func TestExamples_RunRule_Fail_Component_Invalid_ObjectLevel_Example(t *testing.
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -616,7 +629,8 @@ func TestExamples_RunRule_Fail_Parameters_Invalid_ObjectLevel_Example(t *testing
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)
@@ -665,7 +679,8 @@ func TestExamples_RunRule_Fail_ExternalAndValue(t *testing.T) {
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 	rule := buildOpenApiTestRuleAction(path, "examples", "", nil)

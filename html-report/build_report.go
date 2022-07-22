@@ -117,7 +117,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 			b := new(strings.Builder)
 
 			l := r.StartNode.Line
-			lineRange := [][2]int{[2]int{l, l}}
+			lineRange := [][2]int{{l, l}}
 
 			formatter := html_format.New(
 				html_format.WithClasses(true),
@@ -135,8 +135,14 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	tmpl := template.New("header")
 	tmpl.Funcs(templateFuncs)
 	t, _ := tmpl.Parse(header)
-	t.New("footer").Parse(footer)
-	t.New("report").Parse(reportTemplate)
+	_, err := t.New("footer").Parse(footer)
+	if err != nil {
+		return nil
+	}
+	_, err = t.New("report").Parse(reportTemplate)
+	if err != nil {
+		return nil
+	}
 
 	var byteBuf bytes.Buffer
 
@@ -165,8 +171,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 	if html.info != nil {
 		reportData.Generated = html.info.Generated
 	}
-	err := t.ExecuteTemplate(&byteBuf, "report", reportData)
-
+	err = t.ExecuteTemplate(&byteBuf, "report", reportData)
 	if err != nil {
 		return []byte(fmt.Sprintf("failed to render: %v", err.Error()))
 	}

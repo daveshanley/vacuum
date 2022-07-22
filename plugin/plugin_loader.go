@@ -16,7 +16,7 @@ func LoadFunctions(path string) (*Manager, error) {
 		return nil, err
 	}
 
-	pm := createPluginManager()
+	pm := CreatePluginManager()
 
 	for _, entry := range dirEntries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".so") {
@@ -33,7 +33,7 @@ func LoadFunctions(path string) (*Manager, error) {
 
 			// look up the Boot function and store as a Symbol
 			var bootFunc plugin.Symbol
-			bootFunc, e = p.Lookup("Boot")
+			bootFunc, err = p.Lookup("Boot")
 			if err != nil {
 				return nil, err
 			}

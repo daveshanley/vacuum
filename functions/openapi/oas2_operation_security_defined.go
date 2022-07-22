@@ -75,7 +75,7 @@ func (sd OAS2OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node
 		// name is key and role scope an array value.
 		if len(securityItem.Content) == 0 {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Security definition is empty, no reference found"),
+				Message:   "Security definition is empty, no reference found",
 				StartNode: startNode,
 				EndNode:   endNode,
 				Path:      fmt.Sprintf("%s.security[%d]", basePath, i),

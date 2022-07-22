@@ -45,7 +45,8 @@ paths:
 	path := "$"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 

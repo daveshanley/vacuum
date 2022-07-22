@@ -40,7 +40,8 @@ func TestOperationParameters_RunRule_Success(t *testing.T) {
 	path := "$.paths"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -68,7 +69,8 @@ func TestOperationParameters_RunRule_MissingName(t *testing.T) {
 	path := "$.paths"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -98,7 +100,8 @@ func TestOperationParameters_RunRule_DuplicateId(t *testing.T) {
 	path := "$.paths"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -133,7 +136,8 @@ func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
 	path := "$.paths"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -162,7 +166,8 @@ func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {
 	path := "$.paths"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -191,7 +196,8 @@ func TestOperationParameters_RunRule_FormDataAndBody(t *testing.T) {
 	path := "$.paths"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 

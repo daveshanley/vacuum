@@ -58,9 +58,9 @@ type RuleFunctionResult struct {
 // filter, sort and calculate counts.
 type RuleResultSet struct {
 	Results     []*RuleFunctionResult                   `json:"results" yaml:"results"`           // All the results!
-	warnCount   int                                     `json:"warningCount" yaml:"warningCount"` // Total warnings
-	errorCount  int                                     `json:"errorCount" yaml:"errorCount"`     // Total errors
-	infoCount   int                                     `json:"infoCount" yaml:"infoCount"`       // Total info
+	WarnCount   int                                     `json:"warningCount" yaml:"warningCount"` // Total warnings
+	ErrorCount  int                                     `json:"errorCount" yaml:"errorCount"`     // Total errors
+	InfoCount   int                                     `json:"infoCount" yaml:"infoCount"`       // Total info
 	categoryMap map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 }
 

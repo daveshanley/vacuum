@@ -66,7 +66,11 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			// is to re-encode from rules to ruleDefinitions (which is a proxy property)
 			encoded, _ := json.Marshal(selectedRuleSet.Rules)
 			encodedMap := make(map[string]interface{})
-			json.Unmarshal(encoded, &encodedMap)
+			err := json.Unmarshal(encoded, &encodedMap)
+			if err != nil {
+				return err
+			}
+
 			selectedRuleSet.RuleDefinitions = encodedMap
 
 			pterm.Info.Printf("Generating RuleSet rules: %s", selectedRuleSet.DocumentationURI)
@@ -76,7 +80,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			reportOutputName := fmt.Sprintf("%s-%s%s", reportOutput, args[0], extension)
 
-			err := ioutil.WriteFile(reportOutputName, yamlBytes, 0664)
+			err = ioutil.WriteFile(reportOutputName, yamlBytes, 0664)
 
 			if err != nil {
 				pterm.Error.Printf("Unable to write RuleSet file: '%s': %s\n", reportOutputName, err.Error())

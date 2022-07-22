@@ -42,12 +42,6 @@ func (t *TabbedView) setActiveCategoryIndex(index int) {
 	//t.generateRuleViolationView()
 }
 
-func (t *TabbedView) setActiveRuleCategoryIndex(index int) {
-	t.dashboard.selectedTabIndex = index
-	t.dashboard.selectedCategory = t.dashboard.ruleCategories[index]
-	t.generateDescriptionGridItem()
-}
-
 func (t *TabbedView) scrollRulesDown() {
 	t.rulesList.ScrollDown()
 	t.setActiveRule()
@@ -175,8 +169,7 @@ func (t *TabbedView) generateRuleViolations() {
 	for _, result := range results.RuleResults {
 		for _, violation := range result.Results {
 			if t.dashboard.selectedRule == violation.Rule {
-				rows = append(rows, fmt.Sprintf("%s", strings.ReplaceAll(violation.Path,
-					"]", "}")))
+				rows = append(rows, strings.ReplaceAll(violation.Path, "]", "}"))
 				violationRules = append(violationRules, violation)
 			}
 		}
@@ -197,7 +190,7 @@ func (t *TabbedView) generateRuleViolations() {
 		t.violationList.Rows = rows
 		t.violationList.Title = fmt.Sprintf("Rule Violations (%d)", len(rows))
 	} else {
-		t.violationList.Title = fmt.Sprint("Select rule to see violations")
+		t.violationList.Title = "Select rule to see violations"
 		t.violationList.Rows = nil
 	}
 	t.currentViolationRules = violationRules
@@ -327,7 +320,7 @@ func generateConsoleSnippet(r *model.RuleFunctionResult, specData []string, befo
 	buf := new(strings.Builder)
 
 	startLine := r.StartNode.Line - 1
-	endLine := r.StartNode.Line
+	var endLine int
 	if startLine-before < 0 {
 		startLine = before - ((startLine - before) * -1)
 	} else {

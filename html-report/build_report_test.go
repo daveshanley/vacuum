@@ -24,7 +24,8 @@ func TestHtmlReport_GenerateReport_File(t *testing.T) {
 	generated := report.GenerateReport(false)
 
 	tmp, _ := ioutil.TempFile("", "")
-	ioutil.WriteFile(tmp.Name(), generated, 0664)
+	err := ioutil.WriteFile(tmp.Name(), generated, 0664)
+	assert.NoError(t, err)
 	stat, _ := os.Stat(tmp.Name())
 
 	assert.Greater(t, int(stat.Size()), 0)

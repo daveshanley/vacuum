@@ -119,7 +119,7 @@ func GetLintCommand() *cobra.Command {
 			informs := resultSet.GetInfoCount()
 
 			if !detailsFlag {
-				RenderSummary(resultSet, args, silent)
+				RenderSummary(resultSet, silent)
 				RenderTime(timeFlag, duration, fi)
 				return CheckFailureSeverity(failSeverityFlag, errors, warnings, informs)
 			}
@@ -170,7 +170,7 @@ func GetLintCommand() *cobra.Command {
 				pterm.Println()
 			} // Blank line
 
-			RenderSummary(resultSet, args, silent)
+			RenderSummary(resultSet, silent)
 			RenderTime(timeFlag, duration, fi)
 			return CheckFailureSeverity(failSeverityFlag, errors, warnings, informs)
 		},
@@ -247,7 +247,6 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 			renderCodeSnippet(r, specData)
 		}
-		i++
 	}
 
 	if !snippets && !silent {
@@ -279,7 +278,7 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, args []string, silent bool) {
+func RenderSummary(rs *model.RuleResultSet, silent bool) {
 
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
@@ -299,7 +298,10 @@ func RenderSummary(rs *model.RuleResultSet, args []string, silent bool) {
 
 	if len(rs.Results) > 0 {
 		if !silent {
-			pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+			err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
+			if err != nil {
+				pterm.Error.Printf("error rendering table '%v'", err.Error())
+			}
 			pterm.Println()
 			pterm.Println()
 		}

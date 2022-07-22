@@ -20,15 +20,12 @@ import (
 var rulesetSchema string
 
 const (
-	warn          = "warn"
-	err           = "error"
-	info          = "info"
-	hint          = "hint"
-	style         = "style"
-	validation    = "validation"
-	allPaths      = "$.paths[*]"
-	allOperations = "[?(@.get || @.post || @.put || @.patch || @.delete || @.trace || @.options || @.head)]"
-
+	warn                              = "warn"
+	err                               = "error"
+	info                              = "info"
+	hint                              = "hint"
+	style                             = "style"
+	validation                        = "validation"
 	noVerbsInPath                     = "no-http-verbs-in-path"
 	pathsKebabCase                    = "paths-kebab-case"
 	noAmbiguousPaths                  = "no-ambiguous-paths"
@@ -88,8 +85,6 @@ const (
 	SpectralOff                       = "off"
 )
 
-var AllOperationsPath = fmt.Sprintf("%s%s", allPaths, allOperations)
-
 var log *zap.Logger
 
 //var log *zap.SugaredLogger
@@ -147,7 +142,7 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
-	defer log.Sync()
+
 	extends := ruleset.GetExtendsValue()
 
 	rs := &RuleSet{
@@ -233,8 +228,14 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			var nr model.Rule
 			var rc model.RuleCategory
 
-			mapstructure.Decode(newRule, &nr)
-			mapstructure.Decode(newRule["category"], &rc)
+			dErr := mapstructure.Decode(newRule, &nr)
+			if dErr != nil {
+				log.Error("Unable to decode rule", zap.String("error", dErr.Error()))
+			}
+			dErr = mapstructure.Decode(newRule["category"], &rc)
+			if dErr != nil {
+				log.Error("Unable to decode rule category", zap.String("error", dErr.Error()))
+			}
 
 			// add to validation category if it's not supplied
 			if rc.Id == "" {
@@ -370,9 +371,9 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	schemaLoader := LoadRulesetSchema()
 
 	// check blob is a valid contract, before creating ruleset.
-	res, err := gojsonschema.Validate(schemaLoader, jsonLoader)
-	if err != nil {
-		return nil, err
+	res, uErr := gojsonschema.Validate(schemaLoader, jsonLoader)
+	if uErr != nil {
+		return nil, uErr
 	}
 
 	if !res.Valid() {
@@ -386,25 +387,26 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 
 	// unmarshal JSON into new RuleSet
 	rs := &RuleSet{}
-	err = json.Unmarshal(jsonData, rs)
+	uErr = json.Unmarshal(jsonData, rs)
+	if uErr != nil {
+		return nil, uErr
+	}
 
 	// raw rules are unpacked, lets copy them over
-
 	rs.Rules = make(map[string]*model.Rule)
 	for k, v := range rs.RuleDefinitions {
 		if b, ok := v.(map[string]interface{}); ok {
 			var rule model.Rule
-			mapstructure.Decode(b, &rule)
+			dErr := mapstructure.Decode(b, &rule)
+			if dErr != nil {
+				return nil, dErr
+			}
 			rs.Rules[k] = &rule
 		}
 
 		if b, ok := v.(model.Rule); ok {
 			rs.Rules[k] = &b
 		}
-	}
-
-	if err != nil {
-		return nil, err
 	}
 
 	// save our loaded schema for later.

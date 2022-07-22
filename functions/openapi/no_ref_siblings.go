@@ -4,7 +4,6 @@
 package openapi
 
 import (
-	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -35,7 +34,7 @@ func (nrs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 		key, val := utils.FindKeyNode("$ref", ref.Node.Content)
 		results = append(results, model.RuleFunctionResult{
-			Message:   fmt.Sprintf("a `$ref` cannot be placed next to any other properties"),
+			Message:   "a `$ref` cannot be placed next to any other properties",
 			StartNode: key,
 			EndNode:   val,
 			Path:      ref.Path,

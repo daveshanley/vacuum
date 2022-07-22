@@ -267,8 +267,8 @@ func TestMapPathAndNodesToResults(t *testing.T) {
 	yml := "cake: bake"
 
 	var rootNode yaml.Node
-	yaml.Unmarshal([]byte(yml), &rootNode)
-
+	err := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, err)
 	mapped := MapPathAndNodesToResults(path, &rootNode, &rootNode, results)
 
 	for _, mappedValue := range mapped {

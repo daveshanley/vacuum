@@ -125,31 +125,31 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 
 // GetErrorCount will return the number of errors returned by the rule results.
 func (rr *RuleResultSet) GetErrorCount() int {
-	if rr.errorCount > 0 {
-		return rr.errorCount
+	if rr.ErrorCount > 0 {
+		return rr.ErrorCount
 	} else {
-		rr.errorCount = getCount(rr, severityError)
-		return rr.errorCount
+		rr.ErrorCount = getCount(rr, severityError)
+		return rr.ErrorCount
 	}
 }
 
 // GetWarnCount will return the number of warnings returned by the rule results.
 func (rr *RuleResultSet) GetWarnCount() int {
-	if rr.warnCount > 0 {
-		return rr.warnCount
+	if rr.WarnCount > 0 {
+		return rr.WarnCount
 	} else {
-		rr.warnCount = getCount(rr, severityWarn)
-		return rr.warnCount
+		rr.WarnCount = getCount(rr, severityWarn)
+		return rr.WarnCount
 	}
 }
 
 // GetInfoCount will return the number of warnings returned by the rule results.
 func (rr *RuleResultSet) GetInfoCount() int {
-	if rr.infoCount > 0 {
-		return rr.infoCount
+	if rr.InfoCount > 0 {
+		return rr.InfoCount
 	} else {
-		rr.infoCount = getCount(rr, severityInfo)
-		return rr.infoCount
+		rr.InfoCount = getCount(rr, severityInfo)
+		return rr.InfoCount
 	}
 }
 

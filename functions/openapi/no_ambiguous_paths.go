@@ -62,6 +62,8 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	return results
 }
 
+var reggie, _ = regexp.Compile(`^{.+?}$`)
+
 func checkPaths(pA, pB string) bool {
 	segsA := strings.Split(pA, "/")[1:]
 	segsB := strings.Split(pB, "/")[1:]
@@ -74,8 +76,8 @@ func checkPaths(pA, pB string) bool {
 	b := 0
 	amb := true
 	for i, part := range segsA {
-		aVar, _ := regexp.MatchString("^{.+?}$", part)
-		bVar, _ := regexp.MatchString("^{.+?}$", segsB[i])
+		aVar := reggie.MatchString(part)
+		bVar := reggie.MatchString(segsB[i])
 		if aVar || bVar {
 			if aVar {
 				a++

@@ -53,7 +53,10 @@ func CheckSpecIsValidOpenAPI(spec []byte) (*gojsonschema.Result, error) {
 		// there is little point capturing the errors here as have already unmarshalled data at least once.
 
 		var yamlData map[string]interface{}
-		yaml.Unmarshal(spec, &yamlData)
+		uErr := yaml.Unmarshal(spec, &yamlData)
+		if uErr != nil {
+			return nil, uErr
+		}
 
 		jsonData, _ := json.Marshal(yamlData)
 

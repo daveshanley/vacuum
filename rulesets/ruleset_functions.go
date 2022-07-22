@@ -182,7 +182,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 			FunctionOptions: fo,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           noScriptTagsInMarkdown,
+		HowToFix:           noScriptTagsInMarkdownFix,
 	}
 }
 
@@ -511,7 +511,7 @@ func GetAPIServersRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasAPIServers",
 		},
-		HowToFix: componentDescriptionFix,
+		HowToFix: oasServersFix,
 	}
 }
 

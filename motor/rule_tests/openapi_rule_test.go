@@ -34,7 +34,10 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
 	rs := rulesets.BuildDefaultRuleSets()
 	rules := rs.GenerateOpenAPIDefaultRuleSet()
 	for n := 0; n < b.N; n++ {
-		motor.ApplyRules(rules, []byte(badDoc))
+		er := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
+		if er.Errors != nil {
+			continue // we don't care but the linter does.
+		}
 	}
 
 }
@@ -65,15 +68,15 @@ func Test_Default_OpenAPIRuleSet_FireABunchOfIssues(t *testing.T) {
         name: hurry`
 
 	rs := rulesets.BuildDefaultRuleSets()
-	results, err := motor.ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), []byte(badDoc))
-	assert.NoError(t, err)
-	assert.NotNil(t, results)
-	assert.Len(t, results, 29)
+	rules := rs.GenerateOpenAPIDefaultRuleSet()
+	lintExecution := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
+	assert.Len(t, lintExecution.Errors, 0)
+	assert.Len(t, lintExecution.Results, 29)
 
-	for n := 0; n < len(results); n++ {
-		assert.NotNil(t, results[n].Path)
-		assert.NotNil(t, results[n].StartNode)
-		assert.NotNil(t, results[n].EndNode)
+	for n := 0; n < len(lintExecution.Results); n++ {
+		assert.NotNil(t, lintExecution.Results[n].Path)
+		assert.NotNil(t, lintExecution.Results[n].StartNode)
+		assert.NotNil(t, lintExecution.Results[n].EndNode)
 	}
 
 }
