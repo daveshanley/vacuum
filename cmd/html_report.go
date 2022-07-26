@@ -54,6 +54,10 @@ func GetHTMLReportCommand() *cobra.Command {
 			start := time.Now()
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
+			if len(specBytes) <= 0 {
+				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
+				return err
+			}
 
 			var resultSet *model.RuleResultSet
 			var ruleset *motor.RuleSetExecutionResult
@@ -70,10 +74,12 @@ func GetHTMLReportCommand() *cobra.Command {
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 				resultSet, ruleset, err = BuildResults(rulesetFlag, specBytes, customFunctions)
 				if err != nil {
+					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
 					return err
 				}
 				specIndex = ruleset.Index
 				specInfo = ruleset.SpecInfo
+
 				specInfo.Generated = time.Now()
 				stats = statistics.CreateReportStatistics(specIndex, specInfo, resultSet)
 
