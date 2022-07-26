@@ -43,6 +43,10 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	links := context.Index.GetAllLinks()
 	callbacks := context.Index.GetAllCallbacks()
 
+	for _, ref := range context.Index.GetPolyAllOfReferences() {
+		allRefs[ref.Definition] = ref
+	}
+
 	// if a component does not exist in allRefs, it was not referenced anywhere.
 	notUsed := make(map[string]*index.Reference)
 
