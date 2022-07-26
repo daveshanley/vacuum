@@ -12,5 +12,5 @@ updates:
   - package-ecosystem: "npm" 
     directory: "/html-report/ui"
     schedule:
-      interval: "daily"
+      interval: "monthly"
       
