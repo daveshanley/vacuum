@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@open-wc/testing": "^3.1.6",
-    "chart.js": "^3.8.0",
+    "chart.js": "^3.9.1",
     "css-loader": "^6.7.1",
     "lit": "^2.2.8",
     "style-loader": "^3.3.1",
