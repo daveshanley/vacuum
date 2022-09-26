@@ -6,7 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,7 +34,7 @@ func (de DuplicatedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 	for _, enum := range enums {
 
-		duplicates := datamodel.CheckEnumForDuplicates(enum.Node.Content)
+		duplicates := utils.CheckEnumForDuplicates(enum.Node.Content)
 
 		startNode := enum.Node
 		endNode := enum.Node
