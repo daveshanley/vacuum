@@ -858,10 +858,10 @@
     "@types/mocha" "^8.2.0"
     "@web/test-runner-core" "^0.10.20"
 
-"@web/test-runner-playwright@^0.8.8":
-  version "0.8.9"
-  resolved "https://registry.yarnpkg.com/@web/test-runner-playwright/-/test-runner-playwright-0.8.9.tgz#d34eb28e343c42b75c924d84f434d328d5f1f47d"
-  integrity sha512-VrVrZSqcvMLK9Zc7VqwZlJFaLDV7OyWT+nyxWvzt7G9xW+9/TKf+xUbMBOdB1qjQPo7yKBFHWgbGBieunBgStw==
+"@web/test-runner-playwright@^0.8.10":
+  version "0.8.10"
+  resolved "https://registry.yarnpkg.com/@web/test-runner-playwright/-/test-runner-playwright-0.8.10.tgz#3881f896875ddaf515972e9fc78c41910e9d0514"
+  integrity sha512-DEnPihsxjJAPU/UPe3Wb6GVES4xICUrue0UVVxJL651m4zREuUHwSFm4S+cVq78qYcro3WuvCAnucdVB8bUCNw==
   dependencies:
     "@web/test-runner-core" "^0.10.20"
     "@web/test-runner-coverage-v8" "^0.4.8"
