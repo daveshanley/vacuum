@@ -11,7 +11,7 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 )
 
 func GetGenerateRulesetCommand() *cobra.Command {
@@ -80,7 +80,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			reportOutputName := fmt.Sprintf("%s-%s%s", reportOutput, args[0], extension)
 
-			err = ioutil.WriteFile(reportOutputName, yamlBytes, 0664)
+			err = os.WriteFile(reportOutputName, yamlBytes, 0664)
 
 			if err != nil {
 				pterm.Error.Printf("Unable to write RuleSet file: '%s': %s\n", reportOutputName, err.Error())
