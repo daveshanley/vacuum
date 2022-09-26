@@ -6,7 +6,7 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ func TestOperation4xResponse_RunRule(t *testing.T) {
 
 func TestOperation4xResponse_RunRule_Success(t *testing.T) {
 
-	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/burgershop.openapi.yaml")
+	sampleYaml, _ := os.ReadFile("../../model/test_files/burgershop.openapi.yaml")
 
 	var rootNode yaml.Node
 	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
@@ -59,7 +59,7 @@ func TestOperation4xResponse_RunRule_ExitEarly(t *testing.T) {
 
 func TestOperation4xResponse_RunRule_Fail(t *testing.T) {
 
-	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/stripe.yaml")
+	sampleYaml, _ := os.ReadFile("../../model/test_files/stripe.yaml")
 
 	var rootNode yaml.Node
 	mErr := yaml.Unmarshal(sampleYaml, &rootNode)

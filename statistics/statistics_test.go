@@ -5,7 +5,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -13,7 +13,7 @@ func TestCreateReportStatistics(t *testing.T) {
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	specBytes, _ := ioutil.ReadFile("../model/test_files/petstorev3.json")
+	specBytes, _ := os.ReadFile("../model/test_files/petstorev3.json")
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet: selectedRS,
@@ -32,7 +32,7 @@ func TestCreateReportStatistics_Perfect(t *testing.T) {
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	specBytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	specBytes, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet: selectedRS,
@@ -50,7 +50,7 @@ func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	specBytes, _ := ioutil.ReadFile("../model/test_files/api.github.com.yaml")
+	specBytes, _ := os.ReadFile("../model/test_files/api.github.com.yaml")
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet: selectedRS,

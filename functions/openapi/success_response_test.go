@@ -6,7 +6,7 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ func TestSuccessResponse_RunRule(t *testing.T) {
 
 func TestSuccessResponse_RunRule_Success(t *testing.T) {
 
-	sampleYaml, _ := ioutil.ReadFile("../../model/test_files/burgershop.openapi.yaml")
+	sampleYaml, _ := os.ReadFile("../../model/test_files/burgershop.openapi.yaml")
 
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 

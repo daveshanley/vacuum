@@ -3,7 +3,7 @@ package cmd
 import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 )
@@ -17,7 +17,7 @@ func TestGenerateRulesetCommand(t *testing.T) {
 		"test-output",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -34,7 +34,7 @@ func TestGenerateRulesetCommand_Recommended(t *testing.T) {
 		"test-output",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -73,5 +73,4 @@ func TestGenerateRulesetCommand_BadWrite(t *testing.T) {
 	})
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
-
 }

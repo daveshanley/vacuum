@@ -11,7 +11,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -50,7 +49,7 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			// read file.
-			specBytes, ferr := ioutil.ReadFile(args[0])
+			specBytes, ferr := os.ReadFile(args[0])
 
 			// split up file into an array with lines.
 			specStringData := strings.Split(string(specBytes), "\n")
@@ -74,7 +73,7 @@ func GetLintCommand() *cobra.Command {
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
 
-				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+				rsBytes, rsErr := os.ReadFile(rulesetFlag)
 				if rsErr != nil {
 					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()

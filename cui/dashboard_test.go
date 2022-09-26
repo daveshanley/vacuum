@@ -12,7 +12,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 )
@@ -115,7 +115,7 @@ func TestDashboard_Render(t *testing.T) {
 
 func testBootDashboard() (*model.RuleResultSet, *index.SpecIndex, *datamodel.SpecInfo) {
 	var rootNode yaml.Node
-	yamlBytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	yamlBytes, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	info, _ := datamodel.ExtractSpecInfo(yamlBytes)
 

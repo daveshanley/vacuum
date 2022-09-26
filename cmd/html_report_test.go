@@ -3,7 +3,7 @@ package cmd
 import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 )
@@ -22,7 +22,7 @@ func TestGetHTMLReportCommand(t *testing.T) {
 		"test-report.html",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -40,7 +40,7 @@ func TestGetHTMLReportCommand_NoRuleset(t *testing.T) {
 		"test-report.html",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
@@ -57,7 +57,7 @@ func TestGetHTMLReportCommand_LoadReport(t *testing.T) {
 		"test-report.html",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)

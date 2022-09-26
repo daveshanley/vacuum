@@ -3,7 +3,7 @@ package cmd
 import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 )
@@ -16,7 +16,7 @@ func TestGetSpectralReportCommand(t *testing.T) {
 		"../model/test_files/petstorev3.json",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -33,7 +33,7 @@ func TestGetSpectralReportCommand_CustomName(t *testing.T) {
 		"blue-shoes.json",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -55,7 +55,7 @@ func TestGetSpectralReportCommand_CustomRuleset(t *testing.T) {
 		"blue-shoes.json",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)

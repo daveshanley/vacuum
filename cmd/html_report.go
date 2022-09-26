@@ -15,7 +15,6 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -99,7 +98,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			generatedBytes := report.GenerateReport(false)
 			//generatedBytes := report.GenerateReport(true) // test mode
 
-			err = ioutil.WriteFile(reportOutput, generatedBytes, 0664)
+			err = os.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
 				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, err.Error())

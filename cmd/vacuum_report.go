@@ -16,7 +16,6 @@ import (
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -59,7 +58,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			start := time.Now()
 
 			// read file.
-			specBytes, fileError := ioutil.ReadFile(args[0])
+			specBytes, fileError := os.ReadFile(args[0])
 
 			if fileError != nil {
 				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
@@ -82,7 +81,7 @@ func GetVacuumReportCommand() *cobra.Command {
 
 				customFunctions, _ = LoadCustomFunctions(functionsFlag)
 
-				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+				rsBytes, rsErr := os.ReadFile(rulesetFlag)
 				if rsErr != nil {
 					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()
@@ -151,7 +150,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			reportOutputName := fmt.Sprintf("%s-%s%s",
 				reportOutput, vr.Generated.Format("01-02-06-15_04_05"), extension)
 
-			err = ioutil.WriteFile(reportOutputName, reportData, 0664)
+			err = os.WriteFile(reportOutputName, reportData, 0664)
 
 			if err != nil {
 				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, err.Error())

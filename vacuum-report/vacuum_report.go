@@ -9,7 +9,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pb33f/libopenapi/datamodel"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"io"
+	"os"
 	"sync"
 	"time"
 )
@@ -27,7 +28,7 @@ type VacuumReport struct {
 // to a ready to run report is returned. If the file isn't a report, or can't be read and cannot be parsed then nil is returned.
 // regardless of the outcome, if the file can be read, the bytes will be returned.
 func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
-	bytes, err := ioutil.ReadFile(filePath)
+	bytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,7 +85,7 @@ func CheckFileForVacuumReport(data []byte) (*VacuumReport, error) {
 	} else {
 		// ok so the file is gzipped, however, it may still not be a report.
 		// run through all the checks as we would normally.
-		decompressed, derr := ioutil.ReadAll(gzipRead)
+		decompressed, derr := io.ReadAll(gzipRead)
 		if derr != nil {
 			return nil, derr
 		}

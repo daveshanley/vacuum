@@ -4,7 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -32,7 +32,7 @@ func TestApplyRules_PostResponseSuccess(t *testing.T) {
 `
 	rc := CreateRuleComposer()
 	rs, _ := rc.ComposeRuleSet([]byte(json))
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -65,7 +65,7 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
 `
 	rc := CreateRuleComposer()
 	rs, _ := rc.ComposeRuleSet([]byte(json))
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -106,7 +106,7 @@ func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
 `
 	rc := CreateRuleComposer()
 	rs, _ := rc.ComposeRuleSet([]byte(json))
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -140,7 +140,7 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -176,7 +176,7 @@ func TestApplyRules_LengthTestSuccess(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -208,7 +208,7 @@ func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -240,7 +240,7 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -272,7 +272,7 @@ func TestApplyRules_LengthFail_Tags(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -305,7 +305,7 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -344,7 +344,7 @@ func TestApplyRules_Xor_Success(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -383,7 +383,7 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -425,7 +425,7 @@ func TestApplyRules_BadData(t *testing.T) {
 
 func TestApplyRules_CircularReferences(t *testing.T) {
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/circular-tests.yaml")
 
 	// circular references can still be extracted, even without a ruleset.
 
@@ -459,7 +459,7 @@ func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 	assert.NoError(t, err)
@@ -492,7 +492,7 @@ func TestApplyRules_Length_Description_BadPath(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	_, err = ApplyRules(rs, burgershop)
 
@@ -527,7 +527,7 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	results, err := ApplyRules(rs, burgershop)
 
@@ -562,7 +562,7 @@ func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
 	rse := &RuleSetExecution{
 		RuleSet: rs,
@@ -600,7 +600,7 @@ func TestApplyRulesToRuleSet_CircularReferences(t *testing.T) {
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
 
-	burgershop, _ := ioutil.ReadFile("../model/test_files/circular-tests.yaml")
+	burgershop, _ := os.ReadFile("../model/test_files/circular-tests.yaml")
 
 	rse := &RuleSetExecution{
 		RuleSet: rs,
@@ -1310,7 +1310,7 @@ servers:
 
 func TestPetstoreSpecAgainstDefaultRuleSet(t *testing.T) {
 
-	b, _ := ioutil.ReadFile("../model/test_files/petstorev3.json")
+	b, _ := os.ReadFile("../model/test_files/petstorev3.json")
 	rs := rulesets.BuildDefaultRuleSets()
 	results, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
 
@@ -1321,7 +1321,7 @@ func TestPetstoreSpecAgainstDefaultRuleSet(t *testing.T) {
 
 func TestStripeSpecAgainstDefaultRuleSet(t *testing.T) {
 
-	b, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
+	b, _ := os.ReadFile("../model/test_files/stripe.yaml")
 	rs := rulesets.BuildDefaultRuleSets()
 	results, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
 
@@ -1331,7 +1331,7 @@ func TestStripeSpecAgainstDefaultRuleSet(t *testing.T) {
 }
 
 func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
-	m, _ := ioutil.ReadFile("../model/test_files/k8s.json")
+	m, _ := os.ReadFile("../model/test_files/k8s.json")
 	rs := rulesets.BuildDefaultRuleSets()
 	for n := 0; n < b.N; n++ {
 		_, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)

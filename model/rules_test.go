@@ -5,17 +5,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 	"sort"
 	"testing"
 )
 
 func TestRuleSchema(t *testing.T) {
 
-	schemaMain, err := ioutil.ReadFile("../rulesets/schemas/ruleset.schema.json")
+	schemaMain, err := os.ReadFile("../rulesets/schemas/ruleset.schema.json")
 	assert.NoError(t, err)
 
-	goodRules, err := ioutil.ReadFile("test_files/rules.json")
+	goodRules, err := os.ReadFile("test_files/rules.json")
 	assert.NoError(t, err)
 
 	schemaLoader := gojsonschema.NewStringLoader(string(schemaMain))
