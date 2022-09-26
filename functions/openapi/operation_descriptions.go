@@ -48,10 +48,19 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			continue
 		}
 
+		skip := false
 		for m, method := range op.Content {
 
 			if m%2 == 0 {
 				opMethod = method.Value
+				continue
+			}
+			if strings.Contains(strings.ToLower(opMethod), "x-") {
+				skip = true
+				continue
+			}
+			if skip {
+				skip = false
 				continue
 			}
 

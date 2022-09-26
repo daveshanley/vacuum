@@ -8,7 +8,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -38,7 +37,7 @@ func BenchmarkCheckFileForVacuumReport_Uncompressed(b *testing.B) {
 
 func TestBuildVacuumReport_Valid_Compressed(t *testing.T) {
 	j := testhelp_compressedJSON()
-	tmp, _ := ioutil.TempFile("", "")
+	tmp, _ := os.CreateTemp("", "")
 	defer os.Remove(tmp.Name())
 	_, wErr := tmp.Write(j)
 	assert.NoError(t, wErr)
@@ -50,7 +49,7 @@ func TestBuildVacuumReport_Valid_Compressed(t *testing.T) {
 
 func TestBuildVacuumReport_Invalid_Compressed(t *testing.T) {
 	j := []byte("melody and pumpkin go on an adventure")
-	tmp, _ := ioutil.TempFile("", "")
+	tmp, _ := os.CreateTemp("", "")
 	defer os.Remove(tmp.Name())
 	_, wErr := tmp.Write(testhelp_compress(j))
 	assert.NoError(t, wErr)
@@ -62,7 +61,7 @@ func TestBuildVacuumReport_Invalid_Compressed(t *testing.T) {
 
 func TestBuildVacuumReport_Valid_Uncompressed(t *testing.T) {
 	j := testhelp_uncompressedJSON()
-	tmp, _ := ioutil.TempFile("", "")
+	tmp, _ := os.CreateTemp("", "")
 	defer os.Remove(tmp.Name())
 	_, wErr := tmp.Write(j)
 	assert.NoError(t, wErr)
@@ -74,7 +73,7 @@ func TestBuildVacuumReport_Valid_Uncompressed(t *testing.T) {
 
 func TestBuildVacuumReport_Invalid_Uncompressed(t *testing.T) {
 	j := []byte("melody and pumpkin discover a secret castle in the shanley woods")
-	tmp, _ := ioutil.TempFile("", "")
+	tmp, _ := os.CreateTemp("", "")
 	defer os.Remove(tmp.Name())
 	_, wErr := tmp.Write(j)
 	assert.NoError(t, wErr)
@@ -129,7 +128,7 @@ func testhelp_generateReport() *VacuumReport {
 	vr := new(VacuumReport)
 	si := new(datamodel.SpecInfo)
 
-	bytes, _ := ioutil.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	bytes, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 	si.SpecBytes = &bytes
 
 	vr.Generated = time.Now()

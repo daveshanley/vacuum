@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -18,7 +18,7 @@ func TestGetVacuumReportCommand(t *testing.T) {
 		"../model/test_files/petstorev3.json",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -38,7 +38,7 @@ func TestGetVacuumReportCommand_Compress(t *testing.T) {
 		"../model/test_files/petstorev3.json",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -58,7 +58,7 @@ func TestGetVacuumReportCommand_CustomPrefix(t *testing.T) {
 		"cheesy-shoes",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
@@ -82,7 +82,7 @@ func TestGetVacuumReportCommand_WithRuleSet(t *testing.T) {
 		"../model/test_files/petstorev3.json",
 	})
 	cmdErr := cmd.Execute()
-	outBytes, err := ioutil.ReadAll(b)
+	outBytes, err := io.ReadAll(b)
 
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)

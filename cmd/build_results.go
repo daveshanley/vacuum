@@ -5,7 +5,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
-	"io/ioutil"
+	"os"
 )
 
 func BuildResults(rulesetFlag string, specBytes []byte, customFunctions map[string]model.RuleFunction) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
@@ -20,7 +20,7 @@ func BuildResults(rulesetFlag string, specBytes []byte, customFunctions map[stri
 	// and see if it's valid. If so - let's go!
 	if rulesetFlag != "" {
 
-		rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+		rsBytes, rsErr := os.ReadFile(rulesetFlag)
 		if rsErr != nil {
 			return nil, nil, rsErr
 		}

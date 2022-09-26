@@ -11,7 +11,6 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"time"
 )
@@ -49,7 +48,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			start := time.Now()
 
 			// read file.
-			specBytes, fileError := ioutil.ReadFile(args[0])
+			specBytes, fileError := os.ReadFile(args[0])
 
 			if fileError != nil {
 				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
@@ -73,7 +72,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			if rulesetFlag != "" {
 
 				customFunctions, _ = LoadCustomFunctions(functionsFlag)
-				rsBytes, rsErr := ioutil.ReadFile(rulesetFlag)
+				rsBytes, rsErr := os.ReadFile(rulesetFlag)
 				if rsErr != nil {
 					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()
@@ -103,7 +102,7 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			data, _ := json.MarshalIndent(spectralReport, "", "    ")
 
-			err := ioutil.WriteFile(reportOutput, data, 0664)
+			err := os.WriteFile(reportOutput, data, 0664)
 
 			if err != nil {
 				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutput, err.Error())

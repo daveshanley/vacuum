@@ -2,7 +2,7 @@ package parser
 
 import (
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ func TestCheckSpecIsValidOpenAPI3_Error(t *testing.T) {
 
 func TestCheckSpecIsValidOpenAPI3_Valid(t *testing.T) {
 
-	spec, _ := ioutil.ReadFile("schemas/test_files/tiny.openapi.yaml")
+	spec, _ := os.ReadFile("schemas/test_files/tiny.openapi.yaml")
 	res, err := CheckSpecIsValidOpenAPI(spec)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -33,7 +33,7 @@ func TestCheckSpecIsValidOpenAPI3_Valid(t *testing.T) {
 
 func TestCheckSpecIsValidOpenAPI2_WrongVersion(t *testing.T) {
 
-	spec, _ := ioutil.ReadFile("schemas/test_files/tiny.swagger-wrong-version.yaml")
+	spec, _ := os.ReadFile("schemas/test_files/tiny.swagger-wrong-version.yaml")
 	res, err := CheckSpecIsValidOpenAPI(spec)
 	assert.Error(t, err)
 	assert.Nil(t, res)
@@ -41,7 +41,7 @@ func TestCheckSpecIsValidOpenAPI2_WrongVersion(t *testing.T) {
 
 func TestCheckSpecIsValidOpenAPI2_Valid(t *testing.T) {
 
-	spec, _ := ioutil.ReadFile("schemas/test_files/tiny.swagger.yaml")
+	spec, _ := os.ReadFile("schemas/test_files/tiny.swagger.yaml")
 	res, err := CheckSpecIsValidOpenAPI(spec)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -50,7 +50,7 @@ func TestCheckSpecIsValidOpenAPI2_Valid(t *testing.T) {
 
 func TestCheckSpecIsValidOpenAPI3_JSON(t *testing.T) {
 
-	spec, _ := ioutil.ReadFile("schemas/test_files/tiny.openapi.json")
+	spec, _ := os.ReadFile("schemas/test_files/tiny.openapi.json")
 	res, err := CheckSpecIsValidOpenAPI(spec)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)

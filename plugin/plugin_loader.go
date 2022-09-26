@@ -2,7 +2,7 @@ package plugin
 
 import (
 	"github.com/pterm/pterm"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"plugin"
 	"strings"
@@ -11,7 +11,7 @@ import (
 // LoadFunctions will load custom functions found in the supplied path
 func LoadFunctions(path string) (*Manager, error) {
 
-	dirEntries, err := ioutil.ReadDir(path)
+	dirEntries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}

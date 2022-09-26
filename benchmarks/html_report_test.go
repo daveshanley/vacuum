@@ -6,13 +6,13 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
 func BenchmarkHtmlReport_GenerateReport(b *testing.B) {
 
-	specBytes, _ := ioutil.ReadFile("../model/test_files/stripe.yaml")
+	specBytes, _ := os.ReadFile("../model/test_files/stripe.yaml")
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
 	// default is recommended rules, based on spectral (for now anyway)
