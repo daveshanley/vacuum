@@ -53,7 +53,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 		if validateErr != nil {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("OpenAPI specification cannot be validated: %v", validateErr.Error()),
+				Message:   fmt.Sprintf("Swagger specification cannot be validated: %v", validateErr.Error()),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      "$",
@@ -66,7 +66,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		if !res.Valid() {
 			for _, resErr := range res.Errors() {
 				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("OpenAPI specification is invalid: %s", resErr.Description()),
+					Message:   fmt.Sprintf("Swagger specification is invalid: %s", resErr.Description()),
 					StartNode: nodes[0],
 					EndNode:   nodes[0],
 					Path:      "$",
@@ -95,7 +95,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		}
 		if failure, ok := validationError.(*jsonschema.InvalidJSONTypeError); ok {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("OpenAPI specification is invalid: %v", failure.Error()),
+				Message:   fmt.Sprintf("OpenAPI specification has invalid data: %v", failure.Error()),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      "$",

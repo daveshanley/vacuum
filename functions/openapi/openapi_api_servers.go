@@ -70,6 +70,11 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			continue
 		}
 
+		// ignore URIs with keywords
+		if strings.Contains(urlNode.Value, "{") && strings.Contains(urlNode.Value, "}") {
+			continue
+		}
+
 		// check url is valid
 		parsed, err := url.Parse(urlNode.Value)
 		if err != nil {

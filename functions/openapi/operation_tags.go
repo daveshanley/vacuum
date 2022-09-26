@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OperationTags is a rule that checks operations are using tags and they are not empty.
@@ -46,6 +47,7 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 			} else {
 				verbNode = pathsNode.Content[x+1]
 			}
+			skip := false
 			for y, verbMapNode := range verbNode.Content {
 
 				if verbMapNode.Tag == "!!str" {
@@ -53,7 +55,14 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				} else {
 					continue
 				}
-
+				if strings.Contains(strings.ToLower(currentVerb), "x-") {
+					skip = true
+					continue
+				}
+				if skip {
+					skip = false
+					continue
+				}
 				var opTagsNode *yaml.Node
 
 				if y+1 < len(verbNode.Content) {
