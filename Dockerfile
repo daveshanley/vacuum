@@ -9,4 +9,7 @@ COPY . ./
 RUN go mod download && go mod verify
 RUN go build -v -o /vacuum vacuum.go
 
+FROM debian:bullseye-slim
+COPY --from=0 /vacuum /
+
 ENTRYPOINT ["/vacuum"]
