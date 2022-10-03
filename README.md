@@ -141,17 +141,15 @@ vacuum is available as a container, you can pull the image from
 docker pull dshanley/vacuum
 ```
 
-or you can pull it from [Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
+To run, mount the current working dir to the container and use a relative path to your spec, like so
 
 ```
-docker pull ghcr.io/daveshanley/vacuum:latest
+docker run --rm -v $PWD:/work:ro dshanley/vacuum lint <your-openapi-spec.yaml>
 ```
 
-To run, just add `docker dshanley/vacuum` as your command, like so
-
-```
-docker dshanley/vacuum lint <your-openapi-spec.yaml>
-```
+Alternatively, you can pull it from
+[Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
+To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the above commands.
 
 ## Build an interactive HTML report 
 
