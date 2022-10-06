@@ -116,7 +116,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation `requestBody` for method `post` at path `/fish/paste` is missing a description", res[0].Message)
+	assert.Equal(t, "Field `requestBody` for operation `post` at path `/fish/paste` is missing a description", res[0].Message)
 
 }
 
@@ -152,7 +152,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionMeetsLength(t *testing.
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation `requestBody` for method `post` description at path `/fish/paste` must be at least 5 words "+
+	assert.Equal(t, "Field `requestBody` for operation `post` description at path `/fish/paste` must be at least 5 words "+
 		"long, (4 is not enough)", res[0].Message)
 
 }
@@ -235,5 +235,95 @@ func TestOperationDescription_CheckResponsesDescriptionLongEnough(t *testing.T) 
 	assert.NotNil(t, res[0].Path)
 	assert.Equal(t, "Operation `post` response `200` description at path `/fish/paste` must be at least 2 "+
 		"words long, (1 is not enough)", res[0].Message)
+
+}
+
+func TestOperationDescription_CheckParametersIgnored(t *testing.T) {
+
+	yml := `paths:
+  /fish/paste:
+    parameters:
+      - in: query
+    post:
+      description: this is a description that is great and 10 words long at least
+      operationId: c`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	opts := make(map[string]string)
+	opts["minWords"] = "10"
+
+	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationDescription{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+
+}
+
+func TestOperationDescription_CheckExtensionsIgnored(t *testing.T) {
+
+	yml := `paths:
+  /fish/paste:
+    x-parameters:
+      - in: query
+    post:
+      description: this is a description that is great and 10 words long at least
+      operationId: c`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	opts := make(map[string]string)
+	opts["minWords"] = "10"
+
+	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationDescription{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+
+}
+
+func TestOperationDescription_CheckForNoPaths(t *testing.T) {
+
+	yml := `openapi: 3.0.3`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	opts := make(map[string]string)
+	opts["minWords"] = "10"
+
+	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationDescription{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
 
 }

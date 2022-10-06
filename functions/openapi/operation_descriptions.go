@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -56,6 +57,11 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				continue
 			}
 			if strings.Contains(strings.ToLower(opMethod), "x-") {
+				skip = true
+				continue
+			}
+			// do not process parameters, they are not operations.
+			if opMethod == v3.ParametersLabel {
 				skip = true
 				continue
 			}
