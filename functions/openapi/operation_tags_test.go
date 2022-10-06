@@ -125,3 +125,85 @@ func TestOperationTags_RunRule_EmptyTags(t *testing.T) {
 	assert.Equal(t, "$.paths./hello.get", res[0].Path)
 
 }
+
+func TestOperationTags_RunRule_IgnoreParameters(t *testing.T) {
+
+	yml := `paths:
+  /hello:
+    post:
+      tags:
+        - a
+        - b
+    parameters:
+      - in: query`
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationTags{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestOperationTags_RunRule_IgnoreExtensions(t *testing.T) {
+
+	yml := `paths:
+  /hello:
+    post:
+      tags:
+        - a
+        - b
+    x-parameters:
+      - in: query
+    parameters:
+      - in: path`
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationTags{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestOperationTags_RunRule_HandleNoPaths(t *testing.T) {
+
+	yml := `openapi: 3.0.3`
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationTags{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}

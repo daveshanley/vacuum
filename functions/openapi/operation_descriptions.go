@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -59,6 +60,11 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				skip = true
 				continue
 			}
+			// do not process parameters, they are not operations.
+			if opMethod == v3.ParametersLabel {
+				skip = true
+				continue
+			}
 			if skip {
 				skip = false
 				continue
@@ -93,7 +99,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				descKey, descNode = utils.FindKeyNode("description", requestBodyNode.Content)
 
 				if descNode == nil {
-					res := createDescriptionResult(fmt.Sprintf("Operation `requestBody` for method `%s` at path `%s` "+
+					res := createDescriptionResult(fmt.Sprintf("Field `requestBody` for operation `%s` at path `%s` "+
 						"is missing a description", opMethod, opPath),
 						utils.BuildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
 					res.Rule = context.Rule
@@ -104,7 +110,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					words := strings.Split(descNode.Value, " ")
 					if len(words) < minWords {
 
-						res := createDescriptionResult(fmt.Sprintf("Operation `requestBody` for method `%s` description "+
+						res := createDescriptionResult(fmt.Sprintf("Field `requestBody` for operation `%s` description "+
 							"at path `%s` must be at least %d words long, (%d is not enough)", opMethod, opPath,
 							minWords, len(words)), basePath, descKey, descNode)
 						res.Rule = context.Rule
