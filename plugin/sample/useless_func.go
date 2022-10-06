@@ -1,4 +1,4 @@
-package main
+package sample
 
 import (
 	"github.com/daveshanley/vacuum/model"
