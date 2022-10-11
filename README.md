@@ -151,6 +151,22 @@ Alternatively, you can pull it from
 [Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
 To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the above commands.
 
+## Using vacuum with pre-commit
+
+Vacuum can be used with [pre-commit](https://pre-commit.com).
+
+To do that, add to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/daveshanley/vacuum
+    rev: # a tag or a commit hash from this repo, see https://github.com/daveshanley/vacuum/releases
+    hooks:
+      - id: vacuum
+```
+
+See the [hook config](./.pre-commit-hooks.yaml) here for details on what options the hook uses and what files it checks by default.
+
 ## Build an interactive HTML report 
 
 ```

@@ -1,0 +1,7 @@
+- id: vacuum
+  name: vacuum
+  description: OpenAPI linter and quality checker (native install)
+  language: golang
+  entry: vacuum lint
+  args: [--details]
+  files: ^(openapi|swagger)\.(json|ya?ml)$
