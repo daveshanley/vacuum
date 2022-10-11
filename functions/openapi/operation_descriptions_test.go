@@ -267,7 +267,36 @@ func TestOperationDescription_CheckParametersIgnored(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 0)
+}
 
+func TestOperationDescription_CheckServersIgnored(t *testing.T) {
+	yml := `paths:
+  /fish/paste:
+    servers:
+      - url: https://api.example.com/v1
+    post:
+      description: this is a description that is great and 10 words long at least
+      operationId: c`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	opts := make(map[string]string)
+	opts["minWords"] = "10"
+
+	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationDescription{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
 }
 
 func TestOperationDescription_CheckExtensionsIgnored(t *testing.T) {

@@ -155,6 +155,34 @@ func TestOperationTags_RunRule_IgnoreParameters(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
+func TestOperationTags_RunRule_IgnoreServers(t *testing.T) {
+	yml := `paths:
+  /hello:
+    post:
+      tags:
+        - a
+        - b
+    servers:
+      - url: https://api.example.com/v1`
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationTags{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestOperationTags_RunRule_IgnoreExtensions(t *testing.T) {
 
 	yml := `paths:

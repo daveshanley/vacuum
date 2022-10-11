@@ -9,7 +9,6 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // OperationTags is a rule that checks operations are using tags and they are not empty.
@@ -56,12 +55,13 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				} else {
 					continue
 				}
-				if strings.Contains(strings.ToLower(currentVerb), "x-") {
-					skip = true
-					continue
-				}
-				// skip parameters, they are not an operation.
-				if currentVerb == v3.ParametersLabel {
+				// skip non-operations
+				switch currentVerb {
+				case
+					// No v2.*Label here, they're duplicates
+					v3.GetLabel, v3.PutLabel, v3.PostLabel, v3.DeleteLabel, v3.OptionsLabel, v3.HeadLabel, v3.PatchLabel, v3.TraceLabel:
+					// Ok, an operation
+				default:
 					skip = true
 					continue
 				}
