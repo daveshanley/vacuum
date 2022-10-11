@@ -56,12 +56,13 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				opMethod = method.Value
 				continue
 			}
-			if strings.Contains(strings.ToLower(opMethod), "x-") {
-				skip = true
-				continue
-			}
-			// do not process parameters, they are not operations.
-			if opMethod == v3.ParametersLabel {
+			// skip non-operations
+			switch opMethod {
+			case
+				// No v2.*Label here, they're duplicates
+				v3.GetLabel, v3.PutLabel, v3.PostLabel, v3.DeleteLabel, v3.OptionsLabel, v3.HeadLabel, v3.PatchLabel, v3.TraceLabel:
+				// Ok, an operation
+			default:
 				skip = true
 				continue
 			}
