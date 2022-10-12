@@ -44,7 +44,8 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
 
 func Test_Default_OpenAPIRuleSet_FireABunchOfIssues(t *testing.T) {
 
-	badDoc := `paths:
+	badDoc := `openapi: 3.0.3
+paths:
   /curry/{hurry}/{salsa}:
     get:
       tags:
@@ -71,7 +72,7 @@ func Test_Default_OpenAPIRuleSet_FireABunchOfIssues(t *testing.T) {
 	rules := rs.GenerateOpenAPIDefaultRuleSet()
 	lintExecution := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
 	assert.Len(t, lintExecution.Errors, 0)
-	assert.Len(t, lintExecution.Results, 29)
+	assert.Len(t, lintExecution.Results, 27)
 
 	for n := 0; n < len(lintExecution.Results); n++ {
 		assert.NotNil(t, lintExecution.Results[n].Path)
