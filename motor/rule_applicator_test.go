@@ -618,7 +618,8 @@ func TestApplyRulesToRuleSet_CircularReferences(t *testing.T) {
 
 func TestRuleSet_ContactProperties(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   contact:
     name: pizza
     email: monkey`
@@ -638,7 +639,8 @@ func TestRuleSet_ContactProperties(t *testing.T) {
 
 func TestRuleSet_InfoContact(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   title: Terrible API Spec
   description: No operations, no contact, useless.`
 
@@ -657,7 +659,8 @@ func TestRuleSet_InfoContact(t *testing.T) {
 
 func TestRuleSet_InfoDescription(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   title: Terrible API Spec
   contact:
     name: rubbish
@@ -678,7 +681,8 @@ func TestRuleSet_InfoDescription(t *testing.T) {
 
 func TestRuleSet_InfoLicense(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   title: Terrible API Spec
   description: really crap
   contact:
@@ -700,7 +704,8 @@ func TestRuleSet_InfoLicense(t *testing.T) {
 
 func TestRuleSet_InfoLicenseUrl(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   title: Terrible API Spec
   description: really crap
   contact:
@@ -724,7 +729,8 @@ func TestRuleSet_InfoLicenseUrl(t *testing.T) {
 
 func TestRuleSet_NoEvalInMarkdown(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   description: this has no eval('alert(1234') impact in vacuum, but JS tools might suffer.`
 
 	rules := make(map[string]*model.Rule)
@@ -742,7 +748,8 @@ func TestRuleSet_NoEvalInMarkdown(t *testing.T) {
 
 func TestRuleSet_NoScriptInMarkdown(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   description: this has no impact in vacuum, <script>alert('XSS for you')</script>`
 
 	rules := make(map[string]*model.Rule)
@@ -761,7 +768,8 @@ func TestRuleSet_NoScriptInMarkdown(t *testing.T) {
 
 func TestRuleSet_TagsAlphabetical(t *testing.T) {
 
-	yml := `tags:
+	yml := `openapi: 3.1.0
+tags:
   - name: zebra
   - name: chicken
   - name: puppy`
@@ -782,7 +790,8 @@ func TestRuleSet_TagsAlphabetical(t *testing.T) {
 
 func TestRuleSet_TagsMissing(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   contact:
     name: Duck
 paths:
@@ -810,7 +819,8 @@ components:
 
 func TestRuleSet_TagsNotArray(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   contact:
     name: Duck
 tags: none
@@ -839,7 +849,8 @@ components:
 
 func TestRuleSet_TagsWrongType(t *testing.T) {
 
-	yml := `info:
+	yml := `openapi: 3.1.0
+info:
   contact:
     name: Duck
 tags:
@@ -869,7 +880,8 @@ components:
 
 func TestRuleSet_OperationIdInvalidInUrl(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hi:
     get:
       operationId: nice rice
@@ -893,7 +905,8 @@ func TestRuleSet_OperationIdInvalidInUrl(t *testing.T) {
 
 func TestRuleSetGetOperationTagsRule(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hi:
     get:
       tags:
@@ -918,7 +931,8 @@ func TestRuleSetGetOperationTagsRule(t *testing.T) {
 
 func TestRuleSetGetOperationTagsMultipleRule(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hi:
     get:
       tags:
@@ -949,7 +963,8 @@ func TestRuleSetGetOperationTagsMultipleRule(t *testing.T) {
 
 func TestRuleSetGetPathDeclarationsMustExist(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hi/{there}:
     get:
       operationId: a
@@ -974,7 +989,8 @@ func TestRuleSetGetPathDeclarationsMustExist(t *testing.T) {
 
 func TestRuleSetNoPathTrailingSlashTest(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hi/{there}/:
     get:
       operationId: a
@@ -1000,7 +1016,8 @@ func TestRuleSetNoPathTrailingSlashTest(t *testing.T) {
 
 func TestRuleSetNoPathQueryString(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hi/{there}?oh=yeah:
     get:
       operationId: a
@@ -1026,7 +1043,8 @@ func TestRuleSetNoPathQueryString(t *testing.T) {
 
 func TestRuleTagDescriptionRequiredRule(t *testing.T) {
 
-	yml := `tags:
+	yml := `openapi: 3.1.0
+tags:
   - name: pizza
     description: nice
   - name: cinnamon
@@ -1245,7 +1263,8 @@ func TestRuleOAS3HostTrailingSlashRule(t *testing.T) {
 
 func TestRuleOAS3HostTrailingSlashRule_Fail(t *testing.T) {
 
-	yml := `servers:
+	yml := `openapi: 3.1.0
+servers:
  - url: https://quobix.com/
  - url: https://pb33f.io/
 `

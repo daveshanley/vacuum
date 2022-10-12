@@ -1010,7 +1010,7 @@ func GetOAS2UnusedComponentRule() *model.Rule {
 		Name:         "Check for unused definitions",
 		Id:           oas2UnusedDefinition,
 		Formats:      model.OAS2Format,
-		Description:  "Check for unused components and bad references",
+		Description:  "Check for unused definitions and bad references",
 		Given:        "$",
 		Resolved:     false,
 		Recommended:  true,

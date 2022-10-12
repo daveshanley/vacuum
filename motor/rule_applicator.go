@@ -12,6 +12,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/resolver"
 	"github.com/pb33f/libopenapi/utils"
+	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
 	"sync"
 )
@@ -338,6 +339,11 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			Given:      ctx.rule.Given,
 			Index:      ctx.index,
 			SpecInfo:   ctx.specInfo,
+		}
+
+		if ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
+			pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
+			return ctx.ruleResults
 		}
 
 		// validate the rule is configured correctly before running it.

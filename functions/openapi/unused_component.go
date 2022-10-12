@@ -43,8 +43,20 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	links := context.Index.GetAllLinks()
 	callbacks := context.Index.GetAllCallbacks()
 
+	// create poly maps.
+	oneOfRefs := make(map[string]*index.Reference)
+	allOfRefs := make(map[string]*index.Reference)
+	anyOfRefs := make(map[string]*index.Reference)
+
+	// include all polymorphic references.
 	for _, ref := range context.Index.GetPolyAllOfReferences() {
-		allRefs[ref.Definition] = ref
+		allOfRefs[ref.Definition] = ref
+	}
+	for _, ref := range context.Index.GetPolyOneOfReferences() {
+		oneOfRefs[ref.Definition] = ref
+	}
+	for _, ref := range context.Index.GetPolyAnyOfReferences() {
+		anyOfRefs[ref.Definition] = ref
 	}
 
 	// if a component does not exist in allRefs, it was not referenced anywhere.
@@ -66,9 +78,18 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	// find everything that was never referenced.
 	for _, resultMap := range mapsToSearch {
 		for key, ref := range resultMap {
+
+			// check everything!
 			if allRefs[key] == nil {
-				// nothing is using this!
-				notUsed[key] = ref
+				found := false
+				// check poly refs if the reference can't be found
+				if oneOfRefs[key] != nil || allOfRefs[key] != nil || anyOfRefs[key] != nil {
+					found = true
+				}
+				if !found {
+					// nothing is using this!
+					notUsed[key] = ref
+				}
 			}
 		}
 	}
