@@ -43,9 +43,9 @@ func GetLintCommand() *cobra.Command {
 
 			// check for file args
 			if len(args) != 1 {
-				pterm.Error.Println("Please supply OpenAPI specification(s) to lint")
+				pterm.Error.Println("Please supply an OpenAPI specification to lint")
 				pterm.Println()
-				return fmt.Errorf("no files supplied")
+				return fmt.Errorf("no file supplied")
 			}
 
 			// read file.
