@@ -165,7 +165,11 @@ repos:
       - id: vacuum
 ```
 
-See the [hook config](./.pre-commit-hooks.yaml) here for details on what options the hook uses and what files it checks by default.
+See the [hook definition](./.pre-commit-hooks.yaml) here for details on what options the hook uses and what files it checks by default.
+
+If no filenames or more than one filename in your repository matches the default `files` pattern in the hook definition,
+the pattern needs to be overridden in your config so that it matches exactly one filename to lint at a time.
+To lint multiple files, specify the hook multiple times with the appropriate overrides.
 
 ## Build an interactive HTML report 
 

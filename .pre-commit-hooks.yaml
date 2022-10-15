@@ -4,4 +4,5 @@
   language: golang
   entry: vacuum lint
   args: [--details]
-  files: ^(openapi|swagger)\.(json|ya?ml)$
+  types: [text]
+  files: (^|/)(openapi|swagger)\.(json|ya?ml)$
