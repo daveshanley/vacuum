@@ -54,6 +54,9 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 			if m%2 == 0 {
 				opMethod = method.Value
+				if skip {
+					skip = false
+				}
 				continue
 			}
 			// skip non-operations
