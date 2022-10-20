@@ -85,11 +85,11 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 
 		sev := 1
 		switch result.Rule.Severity {
-		case "error":
+		case SeverityError:
 			sev = 0
-		case "info":
+		case SeverityInfo:
 			sev = 2
-		case "hint":
+		case SeverityHint:
 			sev = 3
 		}
 
@@ -128,7 +128,7 @@ func (rr *RuleResultSet) GetErrorCount() int {
 	if rr.ErrorCount > 0 {
 		return rr.ErrorCount
 	} else {
-		rr.ErrorCount = getCount(rr, severityError)
+		rr.ErrorCount = getCount(rr, SeverityError)
 		return rr.ErrorCount
 	}
 }
@@ -138,7 +138,7 @@ func (rr *RuleResultSet) GetWarnCount() int {
 	if rr.WarnCount > 0 {
 		return rr.WarnCount
 	} else {
-		rr.WarnCount = getCount(rr, severityWarn)
+		rr.WarnCount = getCount(rr, SeverityWarn)
 		return rr.WarnCount
 	}
 }
@@ -148,7 +148,7 @@ func (rr *RuleResultSet) GetInfoCount() int {
 	if rr.InfoCount > 0 {
 		return rr.InfoCount
 	} else {
-		rr.InfoCount = getCount(rr, severityInfo)
+		rr.InfoCount = getCount(rr, SeverityInfo)
 		return rr.InfoCount
 	}
 }
@@ -188,7 +188,7 @@ func (rr *RuleResultSet) GetErrorsByRuleCategory(category string) []*RuleFunctio
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
 		switch cat.Rule.Severity {
-		case severityError:
+		case SeverityError:
 			filtered = append(filtered, cat)
 		}
 	}
@@ -201,7 +201,7 @@ func (rr *RuleResultSet) GetWarningsByRuleCategory(category string) []*RuleFunct
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
 		switch cat.Rule.Severity {
-		case severityWarn:
+		case SeverityWarn:
 			filtered = append(filtered, cat)
 		}
 	}
@@ -214,7 +214,7 @@ func (rr *RuleResultSet) GetInfoByRuleCategory(category string) []*RuleFunctionR
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
 		switch cat.Rule.Severity {
-		case severityInfo:
+		case SeverityInfo:
 			filtered = append(filtered, cat)
 		}
 	}
@@ -227,7 +227,7 @@ func (rr *RuleResultSet) GetHintByRuleCategory(category string) []*RuleFunctionR
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
 		switch cat.Rule.Severity {
-		case severityHint:
+		case SeverityHint:
 			filtered = append(filtered, cat)
 		}
 	}

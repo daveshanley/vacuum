@@ -23,7 +23,7 @@ func GetContactPropertiesRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  false,
 		Type:         validation,
-		Severity:     info,
+		Severity:     model.SeverityInfo,
 		Then: []model.RuleAction{
 			{
 				Field:    "name",
@@ -55,7 +55,7 @@ func GetInfoContactRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:    "contact",
 			Function: "truthy",
@@ -77,7 +77,7 @@ func GetInfoDescriptionRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Field:    "description",
 			Function: "truthy",
@@ -99,7 +99,7 @@ func GetInfoLicenseRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Type:         style,
-		Severity:     info,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Field:    "license",
 			Function: "truthy",
@@ -121,7 +121,7 @@ func GetInfoLicenseUrlRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Type:         style,
-		Severity:     info,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Field:    "url",
 			Function: "truthy",
@@ -148,7 +148,7 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function:        "noEvalDescription",
 			FunctionOptions: fo,
@@ -176,7 +176,7 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function:        "noEvalDescription",
 			FunctionOptions: fo,
@@ -203,7 +203,7 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         style,
-		Severity:     info,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Function:        "alphabetical",
 			FunctionOptions: fo,
@@ -240,7 +240,7 @@ func GetOpenApiTagsRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Recommended:  false,
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:           "tags",
 			Function:        "schema",
@@ -277,7 +277,7 @@ func GetOAS2APISchemesRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:           "schemes",
 			Function:        "schema",
@@ -303,7 +303,7 @@ func GetOAS2HostNotExampleRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -329,7 +329,7 @@ func GetOAS3HostNotExampleRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  false,
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -354,7 +354,7 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -379,7 +379,7 @@ func GetOAS3HostTrailingSlashRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  false,
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:           "url",
 			Function:        "pattern",
@@ -405,7 +405,7 @@ func GetOperationDescriptionRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function:        "oasDescriptions",
 			FunctionOptions: opts,
@@ -426,7 +426,7 @@ func GetOAS2ParameterDescriptionRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasParamDescriptions",
 		},
@@ -446,7 +446,7 @@ func GetOAS3ParameterDescriptionRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasParamDescriptions",
 		},
@@ -467,7 +467,7 @@ func GetDescriptionDuplicationRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,
-		Severity:     info,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Function: "oasDescriptionDuplication",
 		},
@@ -487,7 +487,7 @@ func GetComponentDescriptionsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryDescriptions],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasComponentDescriptions",
 		},
@@ -507,7 +507,7 @@ func GetAPIServersRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasAPIServers",
 		},
@@ -531,7 +531,7 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Field:           "operationId",
 			Function:        "pattern",
@@ -555,7 +555,7 @@ func GetOperationTagsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasOperationTags",
 		},
@@ -578,7 +578,7 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -603,7 +603,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -628,7 +628,7 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
@@ -650,7 +650,7 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:    "description",
 			Function: "truthy",
@@ -671,7 +671,7 @@ func GetTypedEnumRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "typedEnum",
 		},
@@ -692,7 +692,7 @@ func GetPathParamsRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasPathParam",
 		},
@@ -712,7 +712,7 @@ func GetGlobalOperationTagsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasTagDefined",
 		},
@@ -732,7 +732,7 @@ func GetOperationParametersRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasOpParams",
 		},
@@ -754,7 +754,7 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasOpFormDataConsumeCheck",
 		},
@@ -774,7 +774,7 @@ func GetOAS2PolymorphicAnyOfRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasPolymorphicAnyOf",
 		},
@@ -794,7 +794,7 @@ func GetOAS2PolymorphicOneOfRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasPolymorphicOneOf",
 		},
@@ -814,7 +814,7 @@ func GetOAS2SchemaRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasDocumentSchema",
 		},
@@ -834,7 +834,7 @@ func GetOAS3SchemaRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasDocumentSchema",
 		},
@@ -854,7 +854,7 @@ func GetOperationIdUniqueRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasOpIdUnique",
 		},
@@ -874,7 +874,7 @@ func GetOperationSingleTagRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasOpSingleTag",
 		},
@@ -894,7 +894,7 @@ func GetOAS2APIHostRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Type:         style,
-		Severity:     info,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Field:    "host",
 			Function: "truthy",
@@ -915,7 +915,7 @@ func GetOperationIdRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasOpId",
 		},
@@ -935,7 +935,7 @@ func GetOperationSuccessResponseRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Field:    "responses",
 			Function: "oasOpSuccessResponse",
@@ -956,7 +956,7 @@ func GetDuplicatedEntryInEnumRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "duplicatedEnum",
 		},
@@ -976,7 +976,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "refSiblings",
 		},
@@ -996,7 +996,7 @@ func GetOAS3UnusedComponentRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasUnusedComponent",
 		},
@@ -1016,7 +1016,7 @@ func GetOAS2UnusedComponentRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasUnusedComponent",
 		},
@@ -1039,7 +1039,7 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySecurity],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function:        "oasOpSecurityDefined",
 			FunctionOptions: oasSecurityPath,
@@ -1060,7 +1060,7 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySecurity],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oas2OpSecurityDefined",
 		},
@@ -1080,7 +1080,7 @@ func GetOAS2DiscriminatorRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "oasDiscriminator",
 		},
@@ -1100,7 +1100,7 @@ func GetOAS3ExamplesRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryExamples],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasExample",
 		},
@@ -1120,7 +1120,7 @@ func GetOAS2ExamplesRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryExamples],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasExample",
 		},
@@ -1140,7 +1140,7 @@ func NoAmbiguousPaths() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     err,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "ambiguousPaths",
 		},
@@ -1160,7 +1160,7 @@ func GetNoVerbsInPathRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         style,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "noVerbsInPath",
 		},
@@ -1180,7 +1180,7 @@ func GetPathsKebabCaseRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "pathsKebabCase",
 		},
@@ -1200,7 +1200,7 @@ func GetOperationErrorResponseRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Type:         validation,
-		Severity:     warn,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasOpErrorResponse",
 		},

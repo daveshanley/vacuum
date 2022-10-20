@@ -27,7 +27,7 @@ func TestXor_RunRule_SuccessPropsStringArray(t *testing.T) {
 	opts := make(map[string][]string)
 	opts["properties"] = []string{"sparkles", "rainbows"}
 
-	rule := buildCoreTestRule(path, severityError, "xor", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", nil)
 	ctx := model.RuleFunctionContext{RuleAction: model.CastToRuleAction(rule.Then), Rule: &rule, Options: opts}
 	ctx.Given = path
 
@@ -51,7 +51,7 @@ func TestXor_RunRule_Success(t *testing.T) {
 	opts := make(map[string]string)
 	opts["properties"] = "sparkles, rainbows"
 
-	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -74,7 +74,7 @@ func TestXor_RunRule_NoProps(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -98,7 +98,7 @@ func TestXor_RunRule_Fail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["properties"] = "sparkles, shiny"
 
-	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -122,7 +122,7 @@ func TestXor_RunRule_Fail_AllUndefined(t *testing.T) {
 	opts := make(map[string]string)
 	opts["properties"] = "clouds, rain"
 
-	rule := buildCoreTestRule(path, severityError, "xor", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 

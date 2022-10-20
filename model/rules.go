@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	severityError        = "error"
-	severityWarn         = "warn"
-	severityInfo         = "info"
-	severityHint         = "hint"
+	SeverityError        = "error"
+	SeverityWarn         = "warn"
+	SeverityInfo         = "info"
+	SeverityHint         = "hint"
 	CategoryExamples     = "examples"
 	CategoryOperations   = "operations"
 	CategoryInfo         = "information"
@@ -115,13 +115,13 @@ type RuleFunctionSchema struct {
 // then -1 is returned.
 func (r *Rule) GetSeverityAsIntValue() int {
 	switch r.Severity {
-	case severityError:
+	case SeverityError:
 		return 0
-	case severityWarn:
+	case SeverityWarn:
 		return 1
-	case severityInfo:
+	case SeverityInfo:
 		return 2
-	case severityHint:
+	case SeverityHint:
 		return 3
 	}
 	return -1

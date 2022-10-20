@@ -49,7 +49,7 @@ func TestNewRuleResultSet(t *testing.T) {
 	r1 := RuleFunctionResult{
 		Message: "pip",
 		Rule: &Rule{
-			Severity: severityError,
+			Severity: SeverityError,
 		},
 	}
 	results := NewRuleResultSet([]RuleFunctionResult{r1})
@@ -61,13 +61,13 @@ func TestNewRuleResultSet(t *testing.T) {
 func TestRuleResults_GetErrorCount(t *testing.T) {
 
 	r1 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityError,
+		Severity: SeverityError,
 	}}
 	r2 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityError,
+		Severity: SeverityError,
 	}}
 	r3 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityWarn,
+		Severity: SeverityWarn,
 	}}
 
 	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
@@ -80,13 +80,13 @@ func TestRuleResults_GetErrorCount(t *testing.T) {
 func TestRuleResults_GetWarnCount(t *testing.T) {
 
 	r1 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityInfo,
+		Severity: SeverityInfo,
 	}}
 	r2 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityError,
+		Severity: SeverityError,
 	}}
 	r3 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityWarn,
+		Severity: SeverityWarn,
 	}}
 
 	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
@@ -99,13 +99,13 @@ func TestRuleResults_GetWarnCount(t *testing.T) {
 func TestRuleResults_GetInfoCount(t *testing.T) {
 
 	r1 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityInfo,
+		Severity: SeverityInfo,
 	}}
 	r2 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityInfo,
+		Severity: SeverityInfo,
 	}}
 	r3 := &RuleFunctionResult{Rule: &Rule{
-		Severity: severityWarn,
+		Severity: SeverityWarn,
 	}}
 
 	results := &RuleResultSet{Results: []*RuleFunctionResult{r1, r2, r3}}
@@ -118,15 +118,15 @@ func TestRuleResults_GetInfoCount(t *testing.T) {
 func TestRuleResultSet_GetResultsByRuleCategory(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}}
 	r2 := RuleFunctionResult{Rule: &Rule{
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}}
 	r3 := RuleFunctionResult{Rule: &Rule{
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryOperations],
 	}}
 
@@ -142,13 +142,13 @@ func TestRuleResultSet_GetResultsByRuleCategoryWithLimit(t *testing.T) {
 
 	rule1 := &Rule{
 		Id:           "one",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}
 
 	rule2 := &Rule{
 		Id:           "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}
 
@@ -180,17 +180,17 @@ func TestRuleResultSet_SortResultsByLineNumber(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "ten",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "twenty",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 20}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryOperations],
 	}, StartNode: &yaml.Node{Line: 3}}
 
@@ -207,23 +207,23 @@ func TestRuleResultSet_CheckCategoryCounts(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityError,
+		Severity:     SeverityError,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 20}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 3}}
 
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 3}}
 
@@ -239,22 +239,22 @@ func TestRuleResultSet_GenerateSpectralReport(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityError,
+		Severity:     SeverityError,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
@@ -266,22 +266,22 @@ func TestRuleResultSet_CalculateCategoryHealth_Errors(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityError,
+		Severity:     SeverityError,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
@@ -294,22 +294,22 @@ func TestRuleResultSet_CalculateCategoryHealth_Warnings(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
@@ -323,7 +323,7 @@ func TestRuleResultSet_CalculateCategoryHealth_Warnings_Lots(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		r = append(r, RuleFunctionResult{Rule: &Rule{
 			Description:  "one",
-			Severity:     severityWarn,
+			Severity:     SeverityWarn,
 			RuleCategory: RuleCategories[CategoryInfo],
 		}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}})
 	}
@@ -338,7 +338,7 @@ func TestRuleResultSet_CalculateCategoryHealth_Errors_Lots(t *testing.T) {
 	for i := 0; i < 900; i++ {
 		r = append(r, RuleFunctionResult{Rule: &Rule{
 			Description:  fmt.Sprintf("%d", i),
-			Severity:     severityError,
+			Severity:     SeverityError,
 			RuleCategory: RuleCategories[CategoryInfo],
 		}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}})
 	}
@@ -353,22 +353,22 @@ func TestRuleResultSet_GetRuleResultsForCategory(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategorySecurity],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
@@ -381,22 +381,22 @@ func TestRuleResultSet_GetRuleResultsForCategoryAll(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategorySecurity],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 
@@ -409,28 +409,28 @@ func TestRule_GetSeverityAsIntValue(t *testing.T) {
 
 	r1 := &Rule{
 		Description:  "one",
-		Severity:     severityError,
+		Severity:     SeverityError,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}
 	assert.Equal(t, 0, r1.GetSeverityAsIntValue())
 
 	r2 := &Rule{
 		Description:  "two",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}
 	assert.Equal(t, 1, r2.GetSeverityAsIntValue())
 
 	r3 := &Rule{
 		Description:  "three",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}
 	assert.Equal(t, 2, r3.GetSeverityAsIntValue())
 
 	r4 := &Rule{
 		Description:  "four",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}
 	assert.Equal(t, 3, r4.GetSeverityAsIntValue())
@@ -448,27 +448,27 @@ func TestRuleResultsForCategory_Sort(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategorySecurity],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 	r5 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityError,
+		Severity:     SeverityError,
 		RuleCategory: RuleCategories[CategorySchemas],
 	}, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}}
 

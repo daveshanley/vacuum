@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/daveshanley/vacuum/model"
 	"io"
 	"os"
 	"testing"
@@ -133,7 +135,7 @@ func TestGetLintCommand_BadRuleset(t *testing.T) {
 
 func TestGetLintCommand_InvalidRuleset(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -141,7 +143,7 @@ func TestGetLintCommand_InvalidRuleset(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "I AM NOT A PATH <-- ",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -151,7 +153,7 @@ func TestGetLintCommand_InvalidRuleset(t *testing.T) {
       }
     }
   }
-}`
+}`, model.SeverityError)
 
 	tmp, _ := os.CreateTemp("", "")
 	_, _ = io.WriteString(tmp, json)

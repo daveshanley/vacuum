@@ -36,7 +36,7 @@ paths:
 	ops := make(map[string]string)
 	ops["min"] = "3"
 
-	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -64,7 +64,7 @@ paths:
 	ops := make(map[string]string)
 	ops["min"] = "4"
 
-	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -92,7 +92,7 @@ paths:
 	ops := make(map[string]string)
 	ops["min"] = "4"
 
-	rule := buildCoreTestRule(path, severityError, "length", "paths", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -118,7 +118,7 @@ tags:
 	ops := make(map[string]string)
 	ops["min"] = "6"
 
-	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -144,7 +144,7 @@ tags:
 	ops := make(map[string]string)
 	ops["max"] = "2"
 
-	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -173,7 +173,7 @@ tags:
 	ops["max"] = "4"
 	ops["min"] = "2"
 
-	rule := buildCoreTestRule(path, severityError, "length", "tags", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "tags", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -201,7 +201,7 @@ tags:
 	ops["max"] = "3"
 	ops["min"] = "2"
 
-	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -229,7 +229,7 @@ tags:
 	ops["max"] = "9"
 	ops["min"] = "2"
 
-	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -259,7 +259,7 @@ tags:
 	ops["max"] = "9"
 	ops["min"] = "2"
 
-	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -287,7 +287,7 @@ tags:
 	ops["max"] = "9"
 	ops["min"] = "3"
 
-	rule := buildCoreTestRule(path, severityError, "length", "", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -316,7 +316,7 @@ tags:
 	ops["max"] = "1"
 	ops["min"] = "0"
 
-	rule := buildCoreTestRule(path, severityError, "length", "", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -343,7 +343,7 @@ tags:`
 	ops["max"] = "9"
 	ops["min"] = "2"
 
-	rule := buildCoreTestRule(path, severityError, "length", "description", ops)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "description", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Given = path
 
@@ -367,7 +367,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	rule := buildCoreTestRule(path, severityError, "length", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Options = nil
 	ctx.Given = path
@@ -393,7 +393,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	rule := buildCoreTestRule(path, severityError, "length", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Options = "not options at all"
 	ctx.Given = path

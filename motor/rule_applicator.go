@@ -101,7 +101,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         "validation",
-		Severity:     "error",
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "blank",
 		},
@@ -204,7 +204,7 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategorySchemas],
 		Type:         "validation",
-		Severity:     "error",
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "blank",
 		},

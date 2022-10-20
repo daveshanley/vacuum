@@ -1,6 +1,7 @@
 package motor
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
@@ -77,7 +78,7 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
 
 func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "truthy-test": {
@@ -85,7 +86,7 @@ func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.info.contact",
-      "severity": "error",
+      "severity": "%s",
       "then": [
 		{
         	"function": "truthy",
@@ -103,7 +104,7 @@ func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, _ := rc.ComposeRuleSet([]byte(json))
 	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
@@ -116,7 +117,7 @@ func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
 
 func TestApplyRules_LengthTestFail(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test": {
@@ -124,7 +125,7 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.paths./burgers.post.requestBody.content.application/json",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "examples",
@@ -135,7 +136,7 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -151,7 +152,7 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
 
 func TestApplyRules_LengthTestSuccess(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test": {
@@ -159,7 +160,7 @@ func TestApplyRules_LengthTestSuccess(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.paths./burgers.post.requestBody.content.application/json",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "examples",
@@ -171,7 +172,7 @@ func TestApplyRules_LengthTestSuccess(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -185,7 +186,7 @@ func TestApplyRules_LengthTestSuccess(t *testing.T) {
 
 func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "pattern-test-description": {
@@ -193,7 +194,7 @@ func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$..description",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "pattern",
 		"functionOptions" : { 
@@ -203,7 +204,7 @@ func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -217,7 +218,7 @@ func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
 
 func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "alpha-test-description": {
@@ -225,7 +226,7 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.tags",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "alphabetical",
 		"functionOptions" : { 
@@ -235,7 +236,7 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -249,7 +250,7 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 
 func TestApplyRules_LengthFail_Tags(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -257,7 +258,7 @@ func TestApplyRules_LengthFail_Tags(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.tags",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"functionOptions" : { 
@@ -267,7 +268,7 @@ func TestApplyRules_LengthFail_Tags(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -281,7 +282,7 @@ func TestApplyRules_LengthFail_Tags(t *testing.T) {
 
 func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -289,7 +290,7 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.components.schemas.Burger",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -300,7 +301,7 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -314,7 +315,7 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 
 func TestApplyRules_Xor_Success(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "xor-test-description": {
@@ -329,7 +330,7 @@ func TestApplyRules_Xor_Success(t *testing.T) {
         "$.paths[*][*]..headers[*].examples[*]",
         "$.components.headers[*].examples[*]"
       ],
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "xor",
 		"functionOptions" : { 
@@ -339,7 +340,7 @@ func TestApplyRules_Xor_Success(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -353,7 +354,7 @@ func TestApplyRules_Xor_Success(t *testing.T) {
 
 func TestApplyRules_Xor_Fail(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "xor-test-description": {
@@ -368,7 +369,7 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
         "$.paths[*][*]..headers[*].examples[*]",
         "$.components.headers[*].examples[*]"
       ],
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "xor",
 		"functionOptions" : { 
@@ -378,7 +379,7 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -392,7 +393,7 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
 
 func TestApplyRules_BadData(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test": {
@@ -400,7 +401,7 @@ func TestApplyRules_BadData(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.paths./burgers.post.requestBody.content.application/json",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "examples",
@@ -412,7 +413,7 @@ func TestApplyRules_BadData(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -435,7 +436,7 @@ func TestApplyRules_CircularReferences(t *testing.T) {
 
 func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -443,7 +444,7 @@ func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -454,7 +455,7 @@ func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -468,7 +469,7 @@ func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
 
 func TestApplyRules_Length_Description_BadPath(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -476,7 +477,7 @@ func TestApplyRules_Length_Description_BadPath(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "I AM NOT A PATH",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -487,7 +488,7 @@ func TestApplyRules_Length_Description_BadPath(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -504,7 +505,7 @@ func TestApplyRules_Length_Description_BadPath(t *testing.T) {
 
 func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -512,7 +513,7 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$.info",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -522,7 +523,7 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -538,7 +539,7 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 
 func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -546,7 +547,7 @@ func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "I AM NOT A PATH",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -557,7 +558,7 @@ func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)
@@ -576,7 +577,7 @@ func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
 
 func TestApplyRulesToRuleSet_CircularReferences(t *testing.T) {
 
-	json := `{
+	json := fmt.Sprintf(`{
   "documentationUrl": "quobix.com",
   "rules": {
     "length-test-description": {
@@ -584,7 +585,7 @@ func TestApplyRulesToRuleSet_CircularReferences(t *testing.T) {
       "recommended": true,
       "type": "style",
       "given": "$",
-      "severity": "error",
+      "severity": "%s",
       "then": {
         "function": "length",
 		"field": "required",
@@ -595,7 +596,7 @@ func TestApplyRulesToRuleSet_CircularReferences(t *testing.T) {
     }
   }
 }
-`
+`, model.SeverityError)
 	rc := CreateRuleComposer()
 	rs, err := rc.ComposeRuleSet([]byte(json))
 	assert.NoError(t, err)

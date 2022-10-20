@@ -28,7 +28,7 @@ func TestEnumeration_RunRule_Success(t *testing.T) {
 	opts := make(map[string]string)
 	opts["values"] = "turkey, sprouts, presents, ham"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 
@@ -47,7 +47,7 @@ func TestEnumeration_RunRule_Fail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["values"] = "turkey, sprouts, presents, ham"
 
-	rule := buildCoreTestRule(path, severityError, "enumeration", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 
@@ -65,7 +65,7 @@ func TestEnumeration_RunRule_FalseFail(t *testing.T) {
 
 	opts := make(map[string]string) // don't add opts.
 
-	rule := buildCoreTestRule(path, severityError, "enumeration", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 

@@ -2,10 +2,6 @@ package core
 
 import "github.com/daveshanley/vacuum/model"
 
-const (
-	severityError = "error"
-)
-
 func buildCoreTestRule(given, severity, function, field string, functionOptions map[string]string) model.Rule {
 	return model.Rule{
 		Given:    given,
