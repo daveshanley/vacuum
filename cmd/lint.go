@@ -25,6 +25,12 @@ func GetLintCommand() *cobra.Command {
 		Use:           "lint",
 		Short:         "Lint an OpenAPI specification",
 		Long:          `Lint an OpenAPI specification, the output of the response will be in the terminal`,
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) != 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			detailsFlag, _ := cmd.Flags().GetBool("details")
@@ -181,6 +187,29 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().StringP("category", "c", "", "Show a single category of results")
 	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result.")
 	cmd.Flags().StringP("fail-severity", "n", "error", "Results of this level or above will trigger a failure exit code")
+
+	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
+		model.CategoryAll,
+		model.CategoryDescriptions,
+		model.CategoryExamples,
+		model.CategoryInfo,
+		model.CategoryOperations,
+		model.CategorySchemas,
+		model.CategorySecurity,
+		model.CategoryTags,
+		model.CategoryValidation,
+	}, cobra.ShellCompDirectiveNoFileComp))
+	if regErr != nil {
+		panic(regErr)
+	}
+	regErr = cmd.RegisterFlagCompletionFunc("fail-severity", cobra.FixedCompletions([]string{
+		"info",
+		"warn",
+		"error",
+	}, cobra.ShellCompDirectiveNoFileComp))
+	if regErr != nil {
+		panic(regErr)
+	}
 
 	return cmd
 }

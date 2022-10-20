@@ -52,6 +52,19 @@ func init() {
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
 
+	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
+		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
+	))
+	if regErr != nil {
+		panic(regErr)
+	}
+	regErr = rootCmd.RegisterFlagCompletionFunc("ruleset", cobra.FixedCompletions(
+		[]string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt,
+	))
+	if regErr != nil {
+		panic(regErr)
+	}
+
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())

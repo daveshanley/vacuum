@@ -23,6 +23,16 @@ func GetGenerateRulesetCommand() *cobra.Command {
 		Short:         "Generate a vacuum RuleSet",
 		Long:          "Generate a YAML ruleset containing 'all', or 'recommended' rules",
 		Example:       "vacuum generate-ruleset recommended | all <ruleset-output-name>",
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return []string{"recommended", "all"}, cobra.ShellCompDirectiveNoFileComp
+			case 1:
+				return []string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt
+			default:
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			PrintBanner()

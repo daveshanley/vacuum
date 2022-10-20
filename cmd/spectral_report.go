@@ -25,6 +25,16 @@ func GetSpectralReportCommand() *cobra.Command {
 		Long: "Generate a JSON report using the same model as Spectral. Default output " +
 			"filename is 'vacuum-spectral-report.json' located in the working directory.",
 		Example: "vacuum report my-awesome-spec.yaml <vacuum-spectral-report.json>",
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
+			case 1:
+				return []string{"json"}, cobra.ShellCompDirectiveFilterFileExt
+			default:
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			PrintBanner()

@@ -30,6 +30,12 @@ func GetVacuumReportCommand() *cobra.Command {
 		Long: "Generate a full report of a linting run. This can be used as a result set, or can be used to replay a linting run. " +
 			"the default filename is 'vacuum-report-MM-DD-YY-HH_MM_SS.json' located in the working directory.",
 		Example: "vacuum report <my-awesome-spec.yaml> <report-prefix>",
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			PrintBanner()
