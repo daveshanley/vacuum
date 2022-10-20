@@ -13,4 +13,6 @@ FROM debian:bullseye-slim
 WORKDIR /work
 COPY --from=0 /vacuum /
 
-ENTRYPOINT ["/vacuum"]
+ENV PATH=$PATH:/
+
+ENTRYPOINT ["vacuum"]
