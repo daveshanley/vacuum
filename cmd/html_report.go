@@ -30,6 +30,16 @@ func GetHTMLReportCommand() *cobra.Command {
 		Long: "Generate an interactive and useful HTML report. Default output " +
 			"filename is 'report.html' located in the working directory.",
 		Example: "vacuum html-report <my-awesome-spec.yaml> <report.html>",
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			switch len(args) {
+			case 0:
+				return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
+			case 1:
+				return []string{"html", "htm"}, cobra.ShellCompDirectiveFilterFileExt
+			default:
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			PrintBanner()

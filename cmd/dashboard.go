@@ -24,6 +24,12 @@ func GetDashboardCommand() *cobra.Command {
 		Short:   "Show vacuum dashboard for linting report",
 		Long:    "Interactive console dashboard to explore linting report in detail",
 		Example: "vacuum dashboard my-awesome-spec.yaml",
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) != 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// check for file args
