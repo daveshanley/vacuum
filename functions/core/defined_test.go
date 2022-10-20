@@ -28,7 +28,7 @@ func TestDefined_RunRule_Success(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	rule := buildCoreTestRule(path, severityError, "defined", "cake", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "defined", "cake", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 
@@ -48,7 +48,7 @@ func TestDefined_RunRule_Fail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	rule := buildCoreTestRule(path, severityError, "defined", "cake", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "defined", "cake", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 

@@ -136,7 +136,7 @@ func testhelp_generateReport() *VacuumReport {
 
 	r1 := model.RuleFunctionResult{Rule: &model.Rule{
 		Description:  "one",
-		Severity:     "error",
+		Severity:     model.SeverityError,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 1, Column: 10}, EndNode: &yaml.Node{Line: 20, Column: 20}}
 

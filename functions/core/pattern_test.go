@@ -28,7 +28,7 @@ func TestPattern_RunRule_PatternMatchSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["match"] = "[abc]+"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -46,7 +46,7 @@ func TestPattern_RunRule_PatternNothingSupplied(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", nil)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -67,7 +67,7 @@ func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 	opts := make(map[string]string)
 	opts["notMatch"] = "[[abc)"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "carpet", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "carpet", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -88,7 +88,7 @@ func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["match"] = "[abc]+"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "carpet", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "carpet", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -109,7 +109,7 @@ func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 	opts := make(map[string]string)
 	opts["match"] = "([abc]"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "carpet", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "carpet", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -130,7 +130,7 @@ func TestPattern_RunRule_PatternNotMatchFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["notMatch"] = `\w{3}\d`
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "pizza", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "pizza", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -152,7 +152,7 @@ func TestPattern_RunRule_UseFieldName(t *testing.T) {
 	opts := make(map[string]string)
 	opts["match"] = "cake"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "sleep", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "sleep", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -174,7 +174,7 @@ func TestPattern_RunRule_ContainMap(t *testing.T) {
 	opts := make(map[string]string)
 	opts["match"] = "until"
 
-	rule := buildCoreTestRule(path, severityError, "pattern", "sleep", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "sleep", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule

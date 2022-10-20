@@ -186,7 +186,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
 	cmd.Flags().StringP("category", "c", "", "Show a single category of results")
 	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result.")
-	cmd.Flags().StringP("fail-severity", "n", "error", "Results of this level or above will trigger a failure exit code")
+	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 
 	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
 		model.CategoryAll,
@@ -203,9 +203,9 @@ func GetLintCommand() *cobra.Command {
 		panic(regErr)
 	}
 	regErr = cmd.RegisterFlagCompletionFunc("fail-severity", cobra.FixedCompletions([]string{
-		"info",
-		"warn",
-		"error",
+		model.SeverityInfo,
+		model.SeverityWarn,
+		model.SeverityError,
 	}, cobra.ShellCompDirectiveNoFileComp))
 	if regErr != nil {
 		panic(regErr)
@@ -257,15 +257,15 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 		}
 
 		switch sev {
-		case "error":
+		case model.SeverityError:
 			sev = pterm.LightRed(sev)
-		case "warn":
+		case model.SeverityWarn:
 			sev = pterm.LightYellow("warning")
-		case "info":
+		case model.SeverityInfo:
 			sev = pterm.LightBlue(sev)
 		}
 
-		if errors && r.Rule.Severity != "error" {
+		if errors && r.Rule.Severity != model.SeverityError {
 			continue // only show errors
 		}
 

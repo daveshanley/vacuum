@@ -21,7 +21,7 @@ func TestAlphabetical_RunRule_FailStringArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -45,7 +45,7 @@ func TestAlphabetical_RunRule_PassStringArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -66,7 +66,7 @@ func TestAlphabetical_RunRule_FailIntegerArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -87,7 +87,7 @@ func TestAlphabetical_RunRule_FailFloatArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -108,7 +108,7 @@ func TestAlphabetical_RunRule_SuccessIntegerArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -129,7 +129,7 @@ func TestAlphabetical_RunRule_SuccessFloatArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -150,7 +150,7 @@ func TestAlphabetical_RunRule_IgnoreBooleanArray(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -178,7 +178,7 @@ func TestAlphabetical_RunRule_ObjectFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["keyedBy"] = "nuggets"
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -206,7 +206,7 @@ func TestAlphabetical_RunRule_ObjectSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["keyedBy"] = "heat"
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -234,7 +234,7 @@ func TestAlphabetical_RunRule_ObjectIntegersSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["keyedBy"] = "heat"
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -262,7 +262,7 @@ func TestAlphabetical_RunRule_ObjectIntegersFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["keyedBy"] = "heat"
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -289,7 +289,7 @@ func TestAlphabetical_RunRule_ObjectFailNoKeyedBy(t *testing.T) {
 
 	opts := make(map[string]string)
 
-	rule := buildCoreTestRule(path, severityError, "alphabetical", "", opts)
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
 	ctx.Rule = &rule

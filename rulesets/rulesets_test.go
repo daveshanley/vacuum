@@ -1,6 +1,8 @@
 package rulesets
 
 import (
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -149,12 +151,12 @@ rules:
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_OverrideNotFound(t *testing.T) {
 
-	yaml := `extends:
+	yaml := fmt.Sprintf(`extends:
   -
     - spectral:oas
     - off
 rules:
- soda-pop: "warn"`
+ soda-pop: "%s"`, model.SeverityWarn)
 
 	def := BuildDefaultRuleSets()
 	rs, err := CreateRuleSetFromData([]byte(yaml))
@@ -166,12 +168,12 @@ rules:
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_All_OverrideNotFound(t *testing.T) {
 
-	yaml := `extends:
+	yaml := fmt.Sprintf(`extends:
   -
     - spectral:oas
     - all
 rules:
- soda-pop: "warn"`
+ soda-pop: "%s"`, model.SeverityWarn)
 
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
@@ -198,18 +200,18 @@ rules:
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_SeverityInfo(t *testing.T) {
 
-	yaml := `extends:
+	yaml := fmt.Sprintf(`extends:
   -
     - spectral:oas
     - recommended
 rules:
- operation-success-response: "hint"`
+ operation-success-response: "%s"`, model.SeverityHint)
 
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
 	assert.Len(t, override.Rules, totalRecommendedRules)
-	assert.Equal(t, "hint", override.Rules["operation-success-response"].Severity)
+	assert.Equal(t, model.SeverityHint, override.Rules["operation-success-response"].Severity)
 }
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRules(t *testing.T) {
@@ -227,8 +229,8 @@ rules:
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
 	assert.Len(t, override.Rules, 2)
-	assert.Equal(t, "warn", override.Rules["operation-success-response"].Severity)
-	assert.Equal(t, "warn", override.Rules["info-contact"].Severity)
+	assert.Equal(t, model.SeverityWarn, override.Rules["operation-success-response"].Severity)
+	assert.Equal(t, model.SeverityWarn, override.Rules["info-contact"].Severity)
 }
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRulesNotFound(t *testing.T) {

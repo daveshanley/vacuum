@@ -24,7 +24,7 @@ tags:
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 4)
 
-	rule := buildCoreTestRule(path, severityError, "falsy", "description", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 
@@ -51,7 +51,7 @@ notTags:
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 0)
 
-	rule := buildCoreTestRule(path, severityError, "falsy", "description", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 
@@ -77,7 +77,7 @@ tags:
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 4)
 
-	rule := buildCoreTestRule(path, severityError, "Falsy", "description", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "Falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 

@@ -11,22 +11,22 @@ func TestRuleResultSet_PrepareForSerialization(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{
 		Description:  "one",
-		Severity:     severityError,
+		Severity:     SeverityError,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 1, Column: 10}, EndNode: &yaml.Node{Line: 20, Column: 20}}
 	r2 := RuleFunctionResult{Rule: &Rule{
 		Description:  "two",
-		Severity:     severityInfo,
+		Severity:     SeverityInfo,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 1, Column: 40}, EndNode: &yaml.Node{Line: 50, Column: 30}}
 	r3 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityWarn,
+		Severity:     SeverityWarn,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 1, Column: 15}, EndNode: &yaml.Node{Line: 100, Column: 10}}
 	r4 := RuleFunctionResult{Rule: &Rule{
 		Description:  "three",
-		Severity:     severityHint,
+		Severity:     SeverityHint,
 		RuleCategory: RuleCategories[CategoryInfo],
 	}, StartNode: &yaml.Node{Line: 1, Column: 1999}, EndNode: &yaml.Node{Line: 8989899, Column: 10}}
 

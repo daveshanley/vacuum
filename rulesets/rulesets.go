@@ -20,10 +20,6 @@ import (
 var rulesetSchema string
 
 const (
-	warn                              = "warn"
-	err                               = "error"
-	info                              = "info"
-	hint                              = "hint"
 	style                             = "style"
 	validation                        = "validation"
 	noVerbsInPath                     = "no-http-verbs-in-path"
@@ -202,7 +198,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			}
 
 			switch evalStr {
-			case err, warn, info, hint:
+			case model.SeverityError, model.SeverityWarn, model.SeverityInfo, model.SeverityHint:
 				rs.Rules[k].Severity = evalStr
 			case SpectralOff:
 				delete(rs.Rules, k) // remove it completely

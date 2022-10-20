@@ -35,7 +35,7 @@ tags:
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 4)
 
-	rule := buildCoreTestRule(path, severityError, "truthy", "description", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -63,7 +63,7 @@ notTags:
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 0)
 
-	rule := buildCoreTestRule(path, severityError, "truthy", "description", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -92,7 +92,7 @@ tags:
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 4)
 
-	rule := buildCoreTestRule(path, severityError, "truthy", "description", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 	ctx.Rule = &rule
@@ -119,7 +119,7 @@ func TestTruthy_RunRule_ArrayTest(t *testing.T) {
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	rule := buildCoreTestRule(path, severityError, "truthy", "rags", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "rags", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 	ctx.Rule = &rule

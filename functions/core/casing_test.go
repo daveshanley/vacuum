@@ -19,7 +19,7 @@ func TestCasing_RunRule_CamelSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "camel"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -41,7 +41,7 @@ func TestCasing_RunRule_CamelFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "camel"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 	def := &Casing{}
@@ -62,7 +62,7 @@ func TestCasing_RunRule_PascalSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "pascal"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 	def := &Casing{}
@@ -83,7 +83,7 @@ func TestCasing_RunRule_PascalFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "pascal"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -105,7 +105,7 @@ func TestCasing_RunRule_KebabSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "kebab"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -127,7 +127,7 @@ func TestCasing_RunRule_KebabFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "kebab"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -149,7 +149,7 @@ func TestCasing_RunRule_CobolSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "cobol"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -171,7 +171,7 @@ func TestCasing_RunRule_CobolFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "cobol"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -193,7 +193,7 @@ func TestCasing_RunRule_SnakeSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "snake"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -215,7 +215,7 @@ func TestCasing_RunRule_SnakeFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "snake"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -237,7 +237,7 @@ func TestCasing_RunRule_MacroSuccess(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "macro"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -259,7 +259,7 @@ func TestCasing_RunRule_MacroFail(t *testing.T) {
 	opts := make(map[string]string)
 	opts["type"] = "macro"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -282,7 +282,7 @@ func TestCasing_RunRule_CamelNoDigits_Success(t *testing.T) {
 	opts["type"] = "camel"
 	opts["disallowDigits"] = "true"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -305,7 +305,7 @@ func TestCasing_RunRule_CamelNoDigits_Fail(t *testing.T) {
 	opts["type"] = "camel"
 	opts["disallowDigits"] = "true"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -328,7 +328,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Success(t *testing.T) {
 	opts["type"] = "snake"
 	opts["separator.char"] = ","
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -351,7 +351,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Fail(t *testing.T) {
 	opts["type"] = "snake"
 	opts["separator.char"] = ","
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -375,7 +375,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Success(t *testing.T) {
 	opts["separator.char"] = ","
 	opts["separator.allowLeading"] = "true"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 
@@ -399,7 +399,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 	opts["separator.char"] = ","
 	opts["separator.allowLeading"] = "false"
 
-	rule := buildCoreTestRule(path, severityError, "casing", "", nil)
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
 

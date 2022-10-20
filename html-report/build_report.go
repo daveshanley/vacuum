@@ -95,13 +95,13 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		},
 		"ruleSeverityIcon": func(sev string) string {
 			switch sev {
-			case "error":
+			case model.SeverityError:
 				return "❌"
-			case "warn":
+			case model.SeverityWarn:
 				return "⚠️"
-			case "info":
+			case model.SeverityInfo:
 				return "🔵"
-			case "hint":
+			case model.SeverityHint:
 				return "💠"
 			}
 			return ""
