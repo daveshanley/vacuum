@@ -43,6 +43,15 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	links := context.Index.GetAllLinks()
 	callbacks := context.Index.GetAllCallbacks()
 
+	// extract securityRequirements from swagger. These are not mapped as they are not $refs
+	// so, we need to map them as if they were.
+	secReq := context.Index.GetSecurityRequirementReferences()
+	if context.SpecInfo != nil && context.SpecInfo.SpecType == utils.OpenApi2 {
+		for r := range secReq {
+			allRefs[fmt.Sprintf("#/securityDefinitions/%s", r)] = &index.Reference{}
+		}
+	}
+
 	// create poly maps.
 	oneOfRefs := make(map[string]*index.Reference)
 	allOfRefs := make(map[string]*index.Reference)
