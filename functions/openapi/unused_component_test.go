@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
@@ -56,6 +57,46 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := UnusedComponent{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestUnusedComponent_RunRule_SuccessSwaggerSecurity(t *testing.T) {
+
+	yml := `swagger: 2.0
+securityDefinitions:
+  basicAuth:
+    type: basic
+  sessionAuth:
+    type: apiKey
+    in: header
+    name: X-API-Key
+paths:
+  "/store/inventory":
+    get:
+      security:
+        - basicAuth: []
+  "/store/inventory/doSomething":
+    get:
+      security:
+        - sessionAuth: []`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	ctx.SpecInfo = info
 
 	def := UnusedComponent{}
 	res := def.RunRule(nodes, ctx)
