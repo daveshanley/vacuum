@@ -51,10 +51,16 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			}
 
 			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) {
+				var endNode *yaml.Node
+				if len(node.Content) > 0 {
+					endNode = node.Content[len(node.Content)-1]
+				} else {
+					endNode = node
+				}
 				results = append(results, model.RuleFunctionResult{
 					Message:   fmt.Sprintf("%s: `%s` must be set", context.Rule.Description, context.RuleAction.Field),
 					StartNode: node,
-					EndNode:   node.Content[len(node.Content)-1],
+					EndNode:   endNode,
 					Path:      pathValue,
 					Rule:      context.Rule,
 				})
