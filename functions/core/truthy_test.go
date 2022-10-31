@@ -103,6 +103,26 @@ tags:
 	assert.Len(t, res, 2)
 }
 
+func TestTruthy_RunRule_NoContent(t *testing.T) {
+
+	sampleYaml := `info: test`
+
+	path := "$.info"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "info", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	tru := Truthy{}
+	res := tru.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+}
+
 func TestTruthy_RunRule_ArrayTest(t *testing.T) {
 
 	sampleYaml := `- lemons:
