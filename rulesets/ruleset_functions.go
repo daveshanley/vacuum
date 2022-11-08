@@ -603,7 +603,7 @@ func GetPathNoTrailingSlashRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         validation,
-		Severity:     model.SeverityError,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
