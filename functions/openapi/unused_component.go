@@ -112,7 +112,9 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 				}
 
 				// check if this is a security reference definition (that does not use a $ref)
-				found = checkOpenAPISecurity(key)
+				if !found {
+					found = checkOpenAPISecurity(key)
+				}
 				if !found {
 					// nothing is using this!
 					notUsed[key] = ref

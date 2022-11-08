@@ -75,16 +75,21 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			}
 
 			basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
-			descKey, descNode := utils.FindKeyNode("description", method.Content)
-			requestBodyKey, requestBodyNode := utils.FindKeyNode("requestBody", method.Content)
+			descKey, descNode := utils.FindKeyNodeTop("description", method.Content)
+			_, summNode := utils.FindKeyNodeTop("summary", method.Content)
+			requestBodyKey, requestBodyNode := utils.FindKeyNodeTop("requestBody", method.Content)
 			_, responsesNode := utils.FindKeyNode("responses", method.Content)
 
 			if descNode == nil {
 
-				res := createDescriptionResult(fmt.Sprintf("Operation `%s` at path `%s` is missing a description",
-					opMethod, opPath), basePath, method, method)
-				res.Rule = context.Rule
-				results = append(results, res)
+				// if there is no summary either, then report
+				if summNode == nil {
+					res := createDescriptionResult(fmt.Sprintf("Operation `%s` at path `%s` is missing a description and a summary",
+						opMethod, opPath), basePath, method, method)
+					res.Rule = context.Rule
+					results = append(results, res)
+				}
+
 			} else {
 
 				// check if description is above a certain length of words
@@ -100,14 +105,20 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			// check operation request body
 			if requestBodyNode != nil {
 
-				descKey, descNode = utils.FindKeyNode("description", requestBodyNode.Content)
+				descKey, descNode = utils.FindKeyNodeTop("description", requestBodyNode.Content)
+				_, summNode = utils.FindKeyNodeTop("summary", requestBodyNode.Content)
 
 				if descNode == nil {
-					res := createDescriptionResult(fmt.Sprintf("Field `requestBody` for operation `%s` at path `%s` "+
-						"is missing a description", opMethod, opPath),
-						utils.BuildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
-					res.Rule = context.Rule
-					results = append(results, res)
+
+					// if there is no summary either, then report
+					if summNode == nil {
+						res := createDescriptionResult(fmt.Sprintf("Field `requestBody` for operation `%s` at path `%s` "+
+							"is missing a description and a summary", opMethod, opPath),
+							utils.BuildPath(basePath, []string{"requestBody"}), requestBodyKey, requestBodyNode)
+						res.Rule = context.Rule
+						results = append(results, res)
+					}
+
 				} else {
 
 					// check if request body description is above a certain length of words
@@ -136,14 +147,19 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 						continue
 					}
 
-					descKey, descNode = utils.FindKeyNode("description", response.Content)
+					descKey, descNode = utils.FindKeyNodeTop("description", response.Content)
+					_, summNode = utils.FindKeyNodeTop("summary", response.Content)
 
 					if descNode == nil {
-						res := createDescriptionResult(fmt.Sprintf("Operation `%s` response `%s` "+
-							"at path `%s` is missing a description", opMethod, opCode, opPath),
-							utils.BuildPath(basePath, []string{"requestBody"}), opCodeNode, response)
-						res.Rule = context.Rule
-						results = append(results, res)
+
+						// if there is no summary either, then report
+						if summNode == nil {
+							res := createDescriptionResult(fmt.Sprintf("Operation `%s` response `%s` "+
+								"at path `%s` is missing a description and a summary", opMethod, opCode, opPath),
+								utils.BuildPath(basePath, []string{"requestBody"}), opCodeNode, response)
+							res.Rule = context.Rule
+							results = append(results, res)
+						}
 					} else {
 
 						// check if response description is above a certain length of words
