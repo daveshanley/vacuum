@@ -84,6 +84,35 @@ func TestOperationDescription_CheckDescriptionTooShort(t *testing.T) {
 
 }
 
+func TestOperationDescription_SummaryButNoDescription(t *testing.T) {
+
+	yml := `paths:
+  /fish/paste:
+    post:
+      summary: this is a thing that does nothing`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	opts := make(map[string]string)
+	opts["minWords"] = "1"
+
+	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationDescription{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+
+}
+
 func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	yml := `paths:
@@ -116,7 +145,7 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Field `requestBody` for operation `post` at path `/fish/paste` is missing a description", res[0].Message)
+	assert.Equal(t, "Field `requestBody` for operation `post` at path `/fish/paste` is missing a description and a summary", res[0].Message)
 
 }
 
@@ -192,7 +221,7 @@ func TestOperationDescription_CheckResponsesDescriptionExist(t *testing.T) {
 
 	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "Operation `post` response `200` at path `/fish/paste` is missing a description",
+	assert.Equal(t, "Operation `post` response `200` at path `/fish/paste` is missing a description and a summary",
 		res[0].Message)
 
 }
