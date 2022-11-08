@@ -9,6 +9,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // UnusedComponent will check if a component or definition has been created, but it's not used anywhere by anything.
@@ -50,6 +51,20 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		for r := range secReq {
 			allRefs[fmt.Sprintf("#/securityDefinitions/%s", r)] = &index.Reference{}
 		}
+	}
+
+	// extract security from OpenAPI.
+	checkOpenAPISecurity := func(key string) bool {
+		if strings.Contains(key, "securitySchemes") {
+			segs := strings.Split(key, "/")
+			def := segs[len(segs)-1]
+			for r := range context.Index.GetSecurityRequirementReferences() {
+				if r == def {
+					return true
+				}
+			}
+		}
+		return false
 	}
 
 	// create poly maps.
@@ -95,6 +110,9 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 				if oneOfRefs[key] != nil || allOfRefs[key] != nil || anyOfRefs[key] != nil {
 					found = true
 				}
+
+				// check if this is a security reference definition (that does not use a $ref)
+				found = checkOpenAPISecurity(key)
 				if !found {
 					// nothing is using this!
 					notUsed[key] = ref

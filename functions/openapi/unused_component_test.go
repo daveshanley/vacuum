@@ -104,6 +104,37 @@ paths:
 	assert.Len(t, res, 0)
 }
 
+func TestUnusedComponent_RunRule_SuccessOpenAPISecurity(t *testing.T) {
+
+	yml := `openapi: 3.0.1
+info:
+  description: A test spec with a security def that is not a ref!
+security:
+  - SomeSecurity: []
+components:
+  securitySchemes:
+    SomeSecurity:
+      description: A secure way to do things and stuff.`
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	ctx.SpecInfo = info
+
+	def := UnusedComponent{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestUnusedComponent_RunRule_Success_Fail_TwoMissing_Two_Undefined(t *testing.T) {
 
 	yml := `parameters:
