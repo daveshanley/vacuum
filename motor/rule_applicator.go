@@ -34,6 +34,7 @@ type ruleContext struct {
 type RuleSetExecution struct {
 	RuleSet         *rulesets.RuleSet             // The RuleSet in which to apply
 	Spec            []byte                        // The raw bytes of the OpenAPI specification.
+	SpecInfo        *datamodel.SpecInfo           // Pre-parsed spec-info.
 	CustomFunctions map[string]model.RuleFunction // custom functions loaded from plugin.
 }
 
@@ -68,12 +69,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var specResolved yaml.Node
 	var specUnresolved yaml.Node
 
-	// extract spec info, make this available to rule context.
-	specInfo, err := datamodel.ExtractSpecInfo(execution.Spec)
-	if err != nil || specInfo == nil {
-		if specInfo == nil || specInfo.RootNode == nil {
-			return &RuleSetExecutionResult{Errors: []error{err}}
+	var specInfo *datamodel.SpecInfo
+	var err error
+	if execution.SpecInfo == nil {
+		// extract spec info, make this available to rule context.
+		specInfo, err = datamodel.ExtractSpecInfo(execution.Spec)
+		if err != nil || specInfo == nil {
+			if specInfo == nil || specInfo.RootNode == nil {
+				return &RuleSetExecutionResult{Errors: []error{err}}
+			}
 		}
+	} else {
+		specInfo = execution.SpecInfo
 	}
 
 	specUnresolved = *specInfo.RootNode
