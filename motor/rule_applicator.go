@@ -121,7 +121,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			Rule:      circularRule,
 			StartNode: er.Node,
 			EndNode:   er.Node,
-			Message:   er.Error.Error(),
+			Message:   er.Error(),
 			Path:      er.Path,
 		}
 		ruleResults = append(ruleResults, res)
@@ -224,7 +224,7 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 			Rule:      circularRule,
 			StartNode: er.Node,
 			EndNode:   er.Node,
-			Message:   er.Error.Error(),
+			Message:   er.Error(),
 			Path:      er.Path,
 		}
 		ruleResults = append(ruleResults, res)

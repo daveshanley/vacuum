@@ -118,6 +118,8 @@ github.com/pb33f/libopenapi v0.1.4 h1:Fn93K5xkC6YuwHUvV+9h7tFLSZy/jWuFvwcooY76yy
 github.com/pb33f/libopenapi v0.1.4/go.mod h1:2YQimTECeYQ/LBmRpr+AFo/aR+DsZ8oucOnFAkjt0hg=
 github.com/pb33f/libopenapi v0.2.3 h1:Vb0mN+npI9TEUbbkQ3cZ3e4634coLLztVLEsDk/RrWg=
 github.com/pb33f/libopenapi v0.2.3/go.mod h1:UcUNPQcwq4ojgQgthV+zbeUs25lhDlD4bM9Da8n2vdU=
+github.com/pb33f/libopenapi v0.3.2 h1:rsS1bNltxC2pf+34RewbNbSxT62c8OdthpoTXZQM1ic=
+github.com/pb33f/libopenapi v0.3.2/go.mod h1:UcUNPQcwq4ojgQgthV+zbeUs25lhDlD4bM9Da8n2vdU=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
