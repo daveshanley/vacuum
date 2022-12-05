@@ -1061,7 +1061,9 @@
       }
     `]}render(){return K`
       <div class=${this.colorForScore()}>
-        <span class="grade">${this.value.toLocaleString()}${this.percentage?"%":""}</span>
+        <span class="grade"
+          >${this.value.toLocaleString()}${this.percentage?"%":""}</span
+        >
         <span class="label"> ${this.label} </span>
       </div>
     `}colorForScore(){if(this.preset)return this.preset;switch(!0){case this.value<=10:return"error";case this.value>10&&this.value<20:return"warn-400";case this.value>=20&&this.value<30:return"warn-300";case this.value>=30&&this.value<40:return"warn-200";case this.value>=40&&this.value<50:return"warn";case this.value>=50&&this.value<65:return"ok-400";case this.value>=65&&this.value<75:return"ok-300";case this.value>=75&&this.value<95:return"ok-200";case this.value>=95:default:return"ok"}}};Ke([fe({type:Number})],We.prototype,"value",void 0),Ke([fe()],We.prototype,"preset",void 0),Ke([fe()],We.prototype,"percentage",void 0),Ke([fe()],We.prototype,"label",void 0),We=Ke([ve("header-statistic")],We)})()})();
