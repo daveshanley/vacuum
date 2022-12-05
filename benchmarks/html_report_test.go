@@ -31,7 +31,7 @@ func BenchmarkHtmlReport_GenerateReport(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		// generate html report
-		report := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats)
+		report := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, false)
 		report.GenerateReport(true)
 
 	}

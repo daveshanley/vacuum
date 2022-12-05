@@ -22,7 +22,7 @@ import (
 // GetHTMLReportCommand returns a cobra command for generating an HTML Report.
 func GetHTMLReportCommand() *cobra.Command {
 
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		SilenceUsage:  true,
 		SilenceErrors: false,
 		Use:           "html-report",
@@ -53,6 +53,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			}
 
 			timeFlag, _ := cmd.Flags().GetBool("time")
+			disableTimestamp, _ := cmd.Flags().GetBool("disableTimestamp")
 
 			reportOutput := "report.html"
 
@@ -103,7 +104,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			duration := time.Since(start)
 
 			// generate html report
-			report := html_report.NewHTMLReport(specIndex, specInfo, resultSet, stats)
+			report := html_report.NewHTMLReport(specIndex, specInfo, resultSet, stats, disableTimestamp)
 
 			generatedBytes := report.GenerateReport(false)
 			//generatedBytes := report.GenerateReport(true) // test mode
@@ -125,4 +126,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
+
+	return cmd
 }
