@@ -39,14 +39,15 @@ export class CategoryRuleComponent extends BaseComponent {
   @property()
   open: boolean;
 
-  @query('.violations')
-  _violations: HTMLElement;
+  // @query('.violations')
+  private violations: HTMLElement;
 
   private _expandState: boolean;
 
   otherRuleSelected() {
     this.open = false;
-    this._violations.style.display = 'none';
+    this.violations = this.renderRoot.querySelector('.violations')
+    this.violations.style.display = 'none';
     this._expandState = false;
     this._slottedChildren.forEach((result: CategoryRuleResultComponent) => {
       result.selected = false;
@@ -55,6 +56,7 @@ export class CategoryRuleComponent extends BaseComponent {
   }
 
   render() {
+    this.violations = this.renderRoot.querySelector('.violations')
     let truncatedAlert: TemplateResult;
     if (this.truncated) {
       truncatedAlert = html`
@@ -88,15 +90,15 @@ export class CategoryRuleComponent extends BaseComponent {
 
   private _ruleSelected() {
     if (!this.open) {
-      this._violations.style.display = 'block';
+      this.violations.style.display = 'block';
       // use some intelligence to resize this in a responsive way.
       const heightCalc =
         this.parentElement.parentElement.offsetHeight -
         this.totalRulesViolated * 60;
-      this._violations.style.maxHeight = heightCalc + 'px';
+      this.violations.style.maxHeight = heightCalc + 'px';
       this._expandState = true;
     } else {
-      this._violations.style.display = 'none';
+      this.violations.style.display = 'none';
       this._expandState = false;
     }
 
