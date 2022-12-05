@@ -12,14 +12,14 @@ import (
 
 func TestHtmlReport_GenerateReport(t *testing.T) {
 
-	report := NewHTMLReport(nil, nil, nil, nil)
+	report := NewHTMLReport(nil, nil, nil, nil, false)
 	assert.NotEmpty(t, report.GenerateReport(true))
 
 }
 
 func TestHtmlReport_GenerateReport_File(t *testing.T) {
 
-	report := NewHTMLReport(nil, nil, nil, nil)
+	report := NewHTMLReport(nil, nil, nil, nil, false)
 	generated := report.GenerateReport(false)
 
 	tmp, _ := os.CreateTemp("", "")
@@ -50,7 +50,7 @@ func TestNewHTMLReport_FullRender_Stripe(t *testing.T) {
 	// generate statistics
 	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
-	report := NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats)
+	report := NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, false)
 	generated := report.GenerateReport(true)
 	assert.True(t, len(generated) > 0)
 
