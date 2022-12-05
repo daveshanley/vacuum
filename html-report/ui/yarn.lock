@@ -715,31 +715,7 @@
   dependencies:
     semver "^7.3.4"
 
-"@web/dev-server-core@^0.3.17", "@web/dev-server-core@^0.3.18":
-  version "0.3.18"
-  resolved "https://registry.yarnpkg.com/@web/dev-server-core/-/dev-server-core-0.3.18.tgz#3a5d8497ece5947bb01cea5cc1488dfe7fbe6878"
-  integrity sha512-o8EBGKXlBjAaQZiYNE1RZsNZJFQHjjr9FwuJyP2fsN+dkdZRhOjp4/E46hl2rB17Qgq4AizFmds8enmF/hU5dw==
-  dependencies:
-    "@types/koa" "^2.11.6"
-    "@types/ws" "^7.4.0"
-    "@web/parse5-utils" "^1.2.0"
-    chokidar "^3.4.3"
-    clone "^2.1.2"
-    es-module-lexer "^0.9.0"
-    get-stream "^6.0.0"
-    is-stream "^2.0.0"
-    isbinaryfile "^4.0.6"
-    koa "^2.13.0"
-    koa-etag "^4.0.0"
-    koa-send "^5.0.1"
-    koa-static "^5.0.0"
-    lru-cache "^6.0.0"
-    mime-types "^2.1.27"
-    parse5 "^6.0.1"
-    picomatch "^2.2.2"
-    ws "^7.4.2"
-
-"@web/dev-server-core@^0.3.19":
+"@web/dev-server-core@^0.3.18", "@web/dev-server-core@^0.3.19":
   version "0.3.19"
   resolved "https://registry.yarnpkg.com/@web/dev-server-core/-/dev-server-core-0.3.19.tgz#b61f9a0b92351371347a758b30ba19e683c72e94"
   integrity sha512-Q/Xt4RMVebLWvALofz1C0KvP8qHbzU1EmdIA2Y1WMPJwiFJFhPxdr75p9YxK32P2t0hGs6aqqS5zE0HW9wYzYA==
@@ -763,13 +739,13 @@
     picomatch "^2.2.2"
     ws "^7.4.2"
 
-"@web/dev-server-esbuild@^0.3.1":
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/@web/dev-server-esbuild/-/dev-server-esbuild-0.3.1.tgz#c75ef61b925fa23f73f2f015c629ec4574418c8c"
-  integrity sha512-ZVQwCQye9BMqEWdAeNREJJ78y2N6PwV21UcgObfGWdMcBPhX9KzACI4X+HMEWheFK0+le5IWsUhYagnYTp9NHw==
+"@web/dev-server-esbuild@^0.3.3":
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/@web/dev-server-esbuild/-/dev-server-esbuild-0.3.3.tgz#e82af2e5acec0e645b920400be9601601b3921c5"
+  integrity sha512-hB9C8X9NsFWUG2XKT3W+Xcw3IZ/VObf4LNbK14BTjApnNyZfV6hVhSlJfvhgOoJ4DxsImfhIB5+gMRKOG9NmBw==
   dependencies:
     "@mdn/browser-compat-data" "^4.0.0"
-    "@web/dev-server-core" "^0.3.17"
+    "@web/dev-server-core" "^0.3.19"
     esbuild "^0.12 || ^0.13 || ^0.14"
     parse5 "^6.0.1"
     ua-parser-js "^1.0.2"
