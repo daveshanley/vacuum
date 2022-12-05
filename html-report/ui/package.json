@@ -20,8 +20,8 @@
     "@types/chart.js": "^2.9.37",
     "@typescript-eslint/eslint-plugin": "^5.38.1",
     "@typescript-eslint/parser": "^5.38.1",
-    "@web/test-runner": "^0.14.0",
     "@web/dev-server-esbuild": "^0.3.3",
+    "@web/test-runner": "^0.14.0",
     "@web/test-runner-commands": "^0.6.5",
     "@web/test-runner-playwright": "^0.8.10",
     "copy-webpack-plugin": "^11.0.0",
@@ -38,7 +38,7 @@
     "webpack-dev-server": "^4.11.1"
   },
   "dependencies": {
-    "@open-wc/testing": "^3.1.6",
+    "@open-wc/testing": "^3.1.7",
     "chart.js": "^3.9.1",
     "css-loader": "^6.7.1",
     "lit": "^2.4.1",
