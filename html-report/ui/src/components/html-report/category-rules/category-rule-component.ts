@@ -1,6 +1,6 @@
 import { BaseComponent } from '../../../ts/base-component';
 import { html, TemplateResult } from 'lit';
-import { customElement, property, query } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import {
   RuleSelected,
   RuleSelectedEvent,
@@ -46,7 +46,7 @@ export class CategoryRuleComponent extends BaseComponent {
 
   otherRuleSelected() {
     this.open = false;
-    this.violations = this.renderRoot.querySelector('.violations')
+    this.violations = this.renderRoot.querySelector('.violations');
     this.violations.style.display = 'none';
     this._expandState = false;
     this._slottedChildren.forEach((result: CategoryRuleResultComponent) => {
@@ -56,7 +56,7 @@ export class CategoryRuleComponent extends BaseComponent {
   }
 
   render() {
-    this.violations = this.renderRoot.querySelector('.violations')
+    this.violations = this.renderRoot.querySelector('.violations');
     let truncatedAlert: TemplateResult;
     if (this.truncated) {
       truncatedAlert = html`
