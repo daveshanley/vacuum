@@ -120,7 +120,7 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 					rm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[j].Path)))
 					return lm < rm
 				}
-				// sha256 these paths for consistency
+				// sha256 these messages for consistency
 				lm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[i].Message)))
 				rm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[j].Message)))
 				return lm < rm
