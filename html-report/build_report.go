@@ -4,6 +4,7 @@ package html_report
 
 import (
 	"bytes"
+	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -89,7 +90,40 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		},
 		"sortResults": func(results []*model.RuleFunctionResult) []*model.RuleFunctionResult {
 			sort.Slice(results, func(i, j int) bool {
-				return results[i].Range.Start.Line < results[j].Range.Start.Line
+				if results[i].Range.Start.Line < results[j].Range.Start.Line {
+					return true
+				}
+				if results[i].Range.Start.Line > results[j].Range.Start.Line {
+					return false
+				}
+				if results[i].Range.Start.Char < results[j].Range.Start.Char {
+					return true
+				}
+				if results[i].Range.Start.Char > results[j].Range.Start.Char {
+					return false
+				}
+				if results[i].Range.End.Line < results[j].Range.End.Line {
+					return true
+				}
+				if results[i].Range.End.Line > results[j].Range.End.Line {
+					return false
+				}
+				if results[i].Range.End.Char < results[j].Range.End.Char {
+					return true
+				}
+				if results[i].Range.End.Char > results[j].Range.End.Char {
+					return false
+				}
+				if results[i].Path != results[j].Path {
+					// sha256 these paths for consistency
+					lm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[i].Path)))
+					rm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[j].Path)))
+					return lm < rm
+				}
+				// sha256 these paths for consistency
+				lm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[i].Message)))
+				rm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[j].Message)))
+				return lm < rm
 			})
 			return results
 		},
@@ -102,7 +136,13 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 
 			r = results.GetResultsForCategoryWithLimit(cat, limit)
 			sort.Slice(r.RuleResults, func(i, j int) bool {
-				return r.RuleResults[i].Rule.Id < r.RuleResults[j].Rule.Id
+				if r.RuleResults[i].Rule.Id < r.RuleResults[j].Rule.Id {
+					return true
+				}
+				if r.RuleResults[i].Rule.Id > r.RuleResults[j].Rule.Id {
+					return false
+				}
+				return true
 			})
 			return r
 		},

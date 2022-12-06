@@ -375,8 +375,14 @@ func (rr *RuleResultSet) Len() int { return len(rr.Results) }
 
 // Less determines which result has the lower line number
 func (rr *RuleResultSet) Less(i, j int) bool {
-	if rr.Results != nil && rr.Results[i].StartNode != nil && rr.Results[j].StartNode != nil {
-		return rr.Results[i].StartNode.Line < rr.Results[j].StartNode.Line
+	if rr.Results[i].StartNode != nil && rr.Results[j].StartNode != nil {
+		if rr.Results[i].StartNode.Line < rr.Results[j].StartNode.Line {
+			return true
+		}
+		if rr.Results[i].StartNode.Line > rr.Results[j].StartNode.Line {
+			return false
+		}
+		return rr.Results[i].RuleId < rr.Results[j].RuleId
 	}
 	return false
 }
