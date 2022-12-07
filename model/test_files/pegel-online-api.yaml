@@ -1,610 +1,639 @@
 openapi: "3.0.0"
 info:
-  description: "API des Deutschen Wetterdienstes (DWD) aus der DWD App.
-<br><br>
-Neben unterschiedlichen Wetterwarnungen (s.u.) lassen sich unter
-[/dwd.api.proxy.bund.dev/v30/stationOverviewExtended](/dwd.api.proxy.bund.dev/v30/stationOverviewExtended) nach Angabe des Parameters *stationIDs* (z.B. 'G005')
-auch die Wetterdaten ausgewählter Wetterstationen anfordern (wobei die sog. 'Stationskennung' des DWD anzugeben ist). 
-<br><br>
-Unter [https://opendata.dwd.de/](https://opendata.dwd.de/) bietet der DWD darüber hinaus auch aktuelle und historische Daten zu diversen Wetter- und Klimaphänomenen zum Download an (vgl. hierzu die offizielle Dokumentation [hier](https://opendata.dwd.de/climate_environment/CDC/Readme_intro_CDC_ftp.pdf)). In diesem Zusammenhang erwähnenswert ist auch eine weitere offizielle Liste aller Wetterstationen (ohne Stationskennung aber mit sog. 'Stations_id') [hier](https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/recent/KL_Tageswerte_Beschreibung_Stationen.txt)."
-  version: "1.2.0"
-  title: "Deutscher Wetterdienst: API"
+  contact:
+    url: "https://www.pegelonline.wsv.de/"
+    name: "Wasserstraßen- und Schifffahrtsverwaltung des Bundes (WSV)"
+  version: "1.0.0"
+  x-office: "Wasserstraßen- und Schifffahrtsverwaltung"
+  title: "Pegel-Online API"
+  description:
+    "API für das bundesweite Messstellennetz der Wasserstraßen- und Schifffahrtsverwaltung des Bundes.
+
+
+    Die API stellt drei verschiedene Ressourcen zur Verfügung: __Station__, __Measurement__, __Water__.
+
+    ### Authentifizierung / Autorisierung / API Limitierung
+
+    Es ist keine Authentifizierung oder Autorisierung notwendig. Aktuell besteht keine API Limitierung.
+
+    ### Allgemeine Query-Parameter
+
+    Zusätzlich zu den angegebenen Parametern sind ebenfalls allgemeine Parameter für alle Schnittstellen verfügbar ([Dokumentation](https://www.pegelonline.wsv.de/webservice/dokuRestapi;jsessionid=A294589CCEF6630142D2589F49BFA2EC#urlParameter)).
+
+    - `charset`: Gibt die Kodierung der Response an. Standard ist hier _UTF-8_. Möglich ist z.B. auch _ISO-8859-1_.
+
+    - `prettyprint`: Kann die zur besseren Lesbarkeit standardmäßig aktivierte Teilung der Response in mehreren Zeilen deaktivieren: _prettyprint=false_. Diese Einstellung wird für den produktiven Einsatz empfohlen.
+
+    - `limit/offset`: Einschränkung der Anzahl der Ergebnisse. Hiermit kann 'Pagination' realisiert werden. `limit` gibt dabei die Anzahl der zurückgegebenen Elemente an. `offset` ermöglicht einen Offset vom Startwert. Beispiel: _limit=10&offset=20_ bedeutet, dass 10 Elemente beginnend mit dem 21. Element zurückgegeben werden.
+    "
+  termsOfService: "https://www.pegelonline.wsv.de/gast/nutzungsbedingungen"
 
 servers:
-  - url: 'https://app-prod-ws.warnwetter.de/v30'
-
+  - url: "https://www.pegelonline.wsv.de/webservices/rest-api/v2"
+tags:
+  - name: station
+    x-displayName: Station
+  - name: measurement
+    x-displayName: Measurement
+  - name: water
+    x-displayName: Water
 paths:
-  /stationOverviewExtended:
+  /stations.json:
     get:
-      description: Query für eine oder mehrere Wetterstationen
-      summary: Wetterstation Daten
+      summary: Übersicht über alle Stationen (Pegel)
+      description: Stationen (Pegel) sortiert nach Gewässername und Messstellenname.
+      operationId: getStations
+      tags:
+        - station
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StationOverviewResult"
       parameters:
-        - name: stationIds
-          in: query
-          style: form
-          description: "Beim Parameter stationsIds handelt es sich um die Stationskennungen des DWD. Die Liste der Stationskennungen kann z.B. [hier](https://www.dwd.de/DE/leistungen/klimadatendeutschland/stationsliste.html) eingesehen werden."
+        - $ref: "#/components/parameters/includeTimeseries"
+        - $ref: "#/components/parameters/includeCurrentMeasurement"
+        - $ref: "#/components/parameters/includeCharacteristicValues"
+        - in: query
+          required: false
+          name: waters
           explode: false
           schema:
             type: array
             items:
-              oneOf:
-                - type: string
-                - type: integer
-          example: [10865, G005]
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StationOverview'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-        '400':
-          description: Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      servers:
-        - url: 'https://app-prod-ws.warnwetter.de/v30'
-
-  /crowd_meldungen_overview_v2.json:
+              type: string
+          description: "Gewässer, filtert Stationen für bestimmte Gewässer"
+          examples:
+            Kein Filter:
+              value: []
+            Rhein:
+              value:
+                - RHEIN
+              description: "Stationen, die am Gewässer Rhein liegen"
+        - in: query
+          required: false
+          name: ids
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: "Filter nach Stationen, möglich sind der Pegelname, Pegelnummer oder die UUID"
+        - $ref: "#/components/parameters/timeseriesQuery"
+        - in: query
+          required: false
+          name: fuzzyId
+          schema:
+            type: string
+          examples:
+            Kein Filter:
+              value: ""
+            Berlin:
+              value: Berlin
+              description: "Stationen, die _Berlin_ enthalten"
+        - in: query
+          required: false
+          name: latitude
+          schema:
+            type: number
+            format: float
+          description: Breitengrad einer geografischen Position (WGS84 in Dezimalnotation)
+        - in: query
+          required: false
+          name: longitude
+          schema:
+            type: number
+            format: float
+          description: Längengrad einer geografischen Position (WGS84 in Dezimalnotation)
+        - in: query
+          required: false
+          name: km
+          schema:
+            type: number
+            format: float
+          description: "Flusskilometer, die Angabe eines Gewässers (waters) ist notwendig"
+        - in: query
+          required: false
+          name: radius
+          schema:
+            type: number
+            format: float
+          description: "Suchradius für Stationen um die geografische Position oder den angegebenen Flusskilometer. Longitude und / oder Latitude oder km sind notwendig."
+  /stations/{station}.json:
     get:
-      summary: DWD Crowdwettermeldungen
-      description: Der DWD erlaubt Usern das aktuelle Wetter zu melden. In der Response befinden sich alle aktuellen Meldungen
+      summary: Zugriff auf eine bestimmte Station (Pegel)
+      description: >-
+        Zugriff auf eine Station (Pegel) ist mittels des Namens, der Pegelnummer sowie
+        der UUID möglich. Es wird die Verwendung der UUID empfohlen.
+      operationId: getStationsById
+      tags:
+        - station
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CROWDMeldung'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+                $ref: "#/components/schemas/Station"
+      parameters:
+        - $ref: "#/components/parameters/station"
+        - $ref: "#/components/parameters/includeTimeseries"
+        - $ref: "#/components/parameters/includeCurrentMeasurement"
+        - $ref: "#/components/parameters/includeCharacteristicValues"
 
-
-  /warnings_nowcast.json:
+  /stations/{station}/{timeseries}/measurements.json:
     get:
-      summary: Nowcast Warnungen (deutsch)
+      summary: Zugriff auf die Ressource Measurement
+      description: >-
+        Es handeln sich dabei um die gemessenen Rohwerte. Es können maximal
+        Werte der letzten 31 Tage bezogen werden.
+      operationId: getMeasurementByStation
+      tags:
+        - measurement
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WarningNowcast'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-  /warnings_nowcast_en.json:
-    get:
-      summary: Nowcast Warnungen (englisch)
-      responses:
-        '200':
+                $ref: "#/components/schemas/MeasurementResult"
+        "404":
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WarningNowcast'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+                $ref: "#/components/schemas/TimeseriesNotFound"
+      parameters:
+        - $ref: "#/components/parameters/station"
+        - $ref: "#/components/parameters/timeseriesPath"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/end"
 
-  /gemeinde_warnings_v2.json:
+  /stations/{station}/{timeseries}/measurements.png:
     get:
-      summary: Gemeinde Unwetterwarnungen (Deutsch)
+      summary: Zugriff auf die Ressource Measurement - Rückgabe als Diagramm (PNG)
+      description: >-
+        Es handelt sich dabei um die gemessenen Rohwerte. Es können maximal
+        Werte der letzten 31 Tage bezogen werden.
+      operationId: getMeasurementDiagramByStation
+      tags:
+        - measurement
       responses:
-        '200':
+        "200":
           description: OK
           content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GemeindeWarnings'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-  /gemeinde_warnings_v2_en.json:
-    get:
-      summary: Gemeinde Unwetterwarnungen (Englisch)
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GemeindeWarnings'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-  /warnings_coast.json:
-    get:
-      summary: Küsten Unwetterwarnungen (deutsch)
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WarningCoast'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-
-  /warnings_coast_en.json:
-    get:
-      summary: Küsten Unwetterwarnungen (englisch)
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/WarningCoast'
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-
-  /sea_warning_text.json:
-    get:
-      summary: Hochsee Unwetterwarnungen als Text
-      responses:
-        '200':
-          description: OK
-          content:
-            application/text:
+            image/png:
               schema:
                 type: string
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-
-
-  /alpen_forecast_text_dwms.json:
-    get:
-      summary: Alpen Wettervorhersage als Text
-      responses:
-        '200':
-          description: OK
-          content:
-            application/text:
-              schema:
-                type: string
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
-
-
-  /warnings_lawine.json:
-    get:
-      summary: Alpen Wettervorhersage als Text
-      responses:
-        '200':
+                format: binary
+        "404":
           description: OK
           content:
             application/json:
               schema:
-                type: string
-        '404':
-          description: Not Found
-      servers:
-        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+                $ref: "#/components/schemas/TimeseriesNotFound"
+      parameters:
+        - $ref: "#/components/parameters/station"
+        - $ref: "#/components/parameters/timeseriesPath"
+        - $ref: "#/components/parameters/start"
+        - $ref: "#/components/parameters/end"
+        - in: query
+          required: false
+          name: width
+          schema:
+            type: number
+            format: integer
+          description: Breite der grafischen Darstellung
+          example: 900
+        - in: query
+          required: false
+          name: height
+          schema:
+            type: number
+            format: integer
+          description: Höhe der grafischen Darstellung
+          example: 400
+        - in: query
+          required: false
+          name: enableSecondaryYAxis
+          schema:
+            type: boolean
+          description: Aktivierung einer zweiten Y-Achse auf der rechten Seite
 
+  /waters.json:
+    get:
+      summary: Zugriff auf die Ressource Water
+      description: Alle Gewässer
+      operationId: getWaters
+      tags:
+        - water
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaterResult"
+      parameters:
+        - in: query
+          required: false
+          name: ids
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: Beschränkung auf ausgewählte Gewässer IDs
+        - in: query
+          required: false
+          name: stations
+          schema:
+            type: string
+          description: Beschränkung auf ausgewählte Stationen (Pegel)
+        - in: query
+          required: false
+          name: includeStations
+          schema:
+            type: boolean
+          description: Stationen mit zurückgeben
+        - $ref: "#/components/parameters/includeTimeseries"
+        - $ref: "#/components/parameters/includeCurrentMeasurement"
+        - $ref: "#/components/parameters/includeCharacteristicValues"
+
+  /stations/{station}/{timeseries}.json:
+    get:
+      summary: Zugriff auf eine Timeseries
+      description: >-
+        Liefert den aktuellen Wert der Station (Pegel). Kann auch als Unterressource von Timeseries angefordert werden.
+      operationId: getCurrentMeasurmentByStation
+      tags:
+        - water
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Timeseries"
+        "404":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeseriesNotFound"
+      parameters:
+        - $ref: "#/components/parameters/station"
+        - $ref: "#/components/parameters/timeseriesPath"
+        - $ref: "#/components/parameters/includeCurrentMeasurement"
+        - $ref: "#/components/parameters/includeCharacteristicValues"
 components:
+  parameters:
+    includeTimeseries:
+      in: query
+      required: false
+      name: includeTimeseries
+      schema:
+        type: boolean
+      description: "Informationen zu den Zeitreihen"
+    station:
+      in: path
+      required: true
+      name: station
+      schema:
+        type: string
+      description: "UUID / Name / Pegelnummer der Station."
+      examples:
+        UUID:
+          value: 593647aa-9fea-43ec-a7d6-6476a76ae868
+          description: "UUID der Station"
+        Name:
+          value: EITZE
+        Pegelnummer:
+          value: "48900237"
+    includeCurrentMeasurement:
+      in: query
+      name: includeCurrentMeasurement
+      required: false
+      schema:
+        type: boolean
+      description: "Aktuell gemessener Wert"
+    includeCharacteristicValues:
+      in: query
+      required: false
+      name: includeCharacteristicValues
+      schema:
+        type: boolean
+      description: "kennzeichnende Wasserstände"
+    timeseriesPath:
+      in: path
+      required: true
+      name: timeseries
+      schema:
+        type: string
+      description: "timeseries shortname"
+      examples:
+        Wasserstand Rohdaten:
+          value: W
+        Lufttemperatur:
+          value: LT
+        Wassertemperatur:
+          value: WT
+        Abfluss Rohdaten:
+          value: Q
+        Elektrische Leitfähigkeit Rohdaten:
+          value: LF
+        Durchfahrtshöhe:
+          value: DFH
+        Trübung:
+          value: TR
+        Windgeschwindigkeit:
+          value: WG
+        Windrichtung:
+          value: WR
+        Niederschlag:
+          value: NIDERSCHLAG
+        Niederschlagsintensität:
+          value: NIEDRSCHLAGSINTENSITÄT
+        Wellenperiode:
+          value: TP
+        Signifikante Wellenhöhe:
+          value: SIGH
+        Maximale Wellenhöhe:
+          value: MAXH
+        Sauerstoffgehalt:
+          value: O2
+        pH-Wert:
+          value: PH
+        Fließgeschwindkeit:
+          value: VA
+        Chlorid:
+          value: CL
+    start:
+      in: query
+      required: false
+      name: start
+      schema:
+        type: string
+        format: datetime
+      description: "Zeitpunkt codiert im [ISO_8601](https://de.wikipedia.org/wiki/ISO_8601) Format. Angabe eines Datums oder einer Period (_P_, z.B. 'P8D' für die Messwerte der letzten 8 Tage) sind möglich."
+      examples:
+        Datum:
+          value: "2022-02-06T09:00:00+01:00"
+        Period:
+          value: P8D
+          description: "Messwerte der letzten 8 Tage"
+    end:
+      name: end
+      in: query
+      required: false
+      schema:
+        type: string
+        format: datetime
+      description: "Endzeitpunkt codiert im [ISO_8601](https://de.wikipedia.org/wiki/ISO_8601) Format. Kann auch leer gelassen werden, dann wird automatisch der aktuelle Zeitstempel verwendet."
+      example: ""
+    charset:
+      name: charset
+      in: query
+      required: false
+      schema:
+        type: string
+      description: "Kodierung der Response"
+      example: UTF-8
+    prettyprint:
+      name: prettyprint
+      in: query
+      required: false
+      schema:
+        type: boolean
+      description: "Bessere Lesbarkeit der Response durch Aufteilen in mehreren Zeilen. Für den produktiven Einsatz wird `false` empfohlen."
+      example: false
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: number
+        format: integer
+    offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: number
+        format: integer
+    timeseriesQuery:
+      name: timeseries
+      in: query
+      required: false
+      explode: false
+      schema:
+        type: string
+      description: "Filter nach ausgewählten Zeitreihen"
+      examples:
+        Kein Filter:
+          value: ""
+        Wasserstand Rohdaten:
+          value: W
+        Lufttemperatur:
+          value: LT
+        Wassertemperatur:
+          value: WT
+        Abfluss Rohdaten:
+          value: Q
+        Elektrische Leitfähigkeit Rohdaten:
+          value: LF
+        Durchfahrtshöhe:
+          value: DFH
+        Trübung:
+          value: TR
+        Windgeschwindigkeit:
+          value: WG
+        Windrichtung:
+          value: WR
+        Niederschlag:
+          value: NIDERSCHLAG
+        Niederschlagsintensität:
+          value: NIEDRSCHLAGSINTENSITÄT
+        Wellenperiode:
+          value: TP
+        Signifikante Wellenhöhe:
+          value: SIGH
+        Maximale Wellenhöhe:
+          value: MAXH
+        Sauerstoffgehalt:
+          value: O2
+        pH-Wert:
+          value: PH
+        Fließgeschwindkeit:
+          value: VA
+        Chlorid:
+          value: CL
   schemas:
-    WarningNowcast:
+    StationOverviewResult:
+      type: array
+      items:
+        $ref: "#/components/schemas/Station"
+    Station:
+        type: object
+        properties:
+          uuid:
+            type: string
+            example: 47174d8f-1b8e-4599-8a59-b580dd55bc87
+            description: "Eindeutige unveränderliche ID"
+          number:
+            type: string
+            example: "48900237"
+            description: "Pegelnummer"
+          shortname:
+            type: string
+            example: EITZE
+            description: "Pegelname (max. 40 Zeichen)"
+          longname:
+            type: string
+            example: EITZE
+            description: "Pegelname (max. 255 Zeichen)"
+          km:
+            type: number
+            format: float
+            example: 9.56
+            description: "Flusskilometer"
+          agency:
+            type: string
+            example: VERDEN
+            description: "Wasserstraßen- und Schifffahrtsamt"
+          longitude:
+            type: number
+            format: float
+            example: 9.276769435375872
+            description: "Längengrad in WGS84 Dezimalnotation"
+          latitude:
+            type: number
+            format: float
+            example: 52.90406544743417
+            description: "Breitengrad in WGS84 Dezimalnotation"
+          water:
+            type: object
+            description: "Angaben zum Gewässer"
+            properties:
+              shortname:
+                type: string
+                example: ALLER
+              longname:
+                type: string
+                example: ALLER
+          timeseries:
+            type: array
+            items:
+              $ref: "#/components/schemas/Timeseries"
+    Timeseries:
       type: object
       properties:
-        time:
-          type: integer
-          format: int64
-        warnings:
-          type: array
-          items:
-            type: object
-            properties:
-              type:
-                type: integer
-                format: int32
-              level:
-                type: integer
-                format: int32
-              start:
-                type: integer
-                format: int64
-              end:
-                type: integer
-                format: int64
-              states:
-                type: array
-                items:
-                  type: number
-              regions:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    polygon:
-                      type: array
-                      items:
-                        type: number
-                    triangles:
-                      type: array
-                      items:
-                        type: integer
-                        format: int32
-              urls:
-                type: array
-                items:
-                  type: string
-              bn:
-                type: boolean
-              isVorabinfo:
-                type: boolean
-              instruction:
-                type: string
-                nullable: true
-              description:
-                type: string
-              descriptionText:
-                type: string
-              event:
-                type: string
-              headLine:
-                type: string
-        binnenSee:
+        shortname:
           type: string
-          nullable: true
-    StationOverview:
-      type: object
-      properties:
-        "10865":
+          example: W
+          description: Kurzbezeichnung
+        longname:
+          type: string
+          example: WASSERSTAND ROHDATEN
+          description: "Langbezeichnung"
+        unit:
+          type: string
+          example: cm
+          description: "Maßeinheit"
+        equidistance:
+          type: number
+          format: float
+          example: 15
+          description: "Abstand der Messwerte in Minuten."
+        currrentMeasurement:
+          $ref: "#/components/schemas/CurrentMeasurement"
+        gaugeZero:
           type: object
           properties:
-            forecast1:
-              type: object
-              properties:
-                stationId:
-                  type: string
-                start:
-                  type: integer
-                  format: int64
-                timeStep:
-                  type: integer
-                  format: int32
-                temperature:
-                  type: array
-                  items:
-                    type: integer
-                    format: int32
-                temperatureStd:
-                  type: array
-                  items:
-                    type: integer
-                    format: int32
-                windSpeed:
-                  type: string
-                  nullable: true
-                windDirection:
-                  type: string
-                  nullable: true
-                windGust:
-                  type: string
-                  nullable: true
-                icon:
-                  type: array
-                  items:
-                    type: integer
-                    format: int32
-                precipitationTotal:
-                  type: array
-                  items:
-                    type: integer
-                    format: int32
-                precipitationProbablity:
-                  type: string
-                  nullable: true
-                precipitationProbablityIndex:
-                  type: string
-                  nullable: true
-            forecast2:
-              type: object
-              properties:
-                stationId:
-                  type: string
-                start:
-                  type: integer
-                  format: int64
-                timeStep:
-                  type: integer
-                  format: int32
-                temperature:
-                  type: array
-                  items:
-                    type: number
-                temperatureStd:
-                  type: array
-                  items:
-                    type: number
-                windSpeed:
-                  type: string
-                  nullable: true
-                windDirection:
-                  type: string
-                  nullable: true
-                windGust:
-                  type: string
-                  nullable: true
-                icon:
-                  type: array
-                  items:
-                    type: integer
-                    format: int32
-                precipitationTotal:
-                  type: array
-                  items:
-                    type: integer
-                    format: int32
-                precipitationProbablity:
-                  type: string
-                  nullable: true
-                precipitationProbablityIndex:
-                  type: string
-                  nullable: true
-            forecastStart:
+            unit:
               type: string
-              nullable: true
-            days:
-              type: array
-              items:
-                type: object
-                properties:
-                  stationId:
-                    type: string
-                    nullable: true
-                  dayDate:
-                    type: string
-                    format: date
-                  temperatureMin:
-                    type: integer
-                    format: int32
-                  temperatureMax:
-                    type: integer
-                    format: int32
-                  icon:
-                    type: integer
-                    format: int32
-                  icon1:
-                    type: string
-                    nullable: true
-                  icon2:
-                    type: string
-                    nullable: true
-                  precipitation:
-                    type: integer
-                    format: int32
-                  windSpeed:
-                    type: integer
-                    format: int32
-                  windGust:
-                    type: integer
-                    format: int32
-                  windDirection:
-                    type: integer
-                    format: int32
-                  sunshine:
-                    type: integer
-                    format: int32
-            warnings:
-              type: array
-              items:
-                type: object
-            threeHourSummaries:
+              example: m. ü. NN
+              description: "Einheit des Pegelnullpunkts (immer in Metern über einem Normalhöhennull ([Dokumentation](https://www.pegelonline.wsv.de/gast/hilfe#hilfe_hoehensystem))"
+            value:
+              type: number
+              format: float
+              example: 8
+              description: "Höhe als Dezimalwert"
+            validFrom:
               type: string
-              nullable: true
-
-    CROWDMeldung:
+              format: date
+              example: "1985-03-13"
+              description: "Beginn der Gültigkeit. [ISO_8601](https://de.wikipedia.org/wiki/ISO_8601) Datum."
+        characteristicValues:
+          type: array
+          items:
+            $ref: "#/components/schemas/CharacteristicValues"
+    CharacteristicValues:
       type: object
-      properties:
-        start:
-          type: integer
-          format: int64
-        end:
-          type: integer
-          format: int64
-        highestSeverities:
-          type: array
-          items:
-            type: object
-            properties:
-              category:
-                type: string
-              auspraegung:
-                type: string
-        meldungen:
-          type: array
-          items:
-            type: object
-            properties:
-              meldungId:
-                type: integer
-                format: int32
-              timestamp:
-                type: integer
-                format: int64
-              lat:
-                type: string
-              lon:
-                type: string
-              place:
-                type: string
-              category:
-                type: string
-              auspraegung:
-                type: string
-              zusatzAttribute:
-                type: array
-                items:
-                  type: object
-    GemeindeWarnings:
-      type: object
-      properties:
-        time:
-          type: integer
-          format: int64
-        warnings:
-          type: array
-          items:
-            type: object
-            properties:
-              type:
-                type: integer
-                format: int32
-              level:
-                type: integer
-                format: int32
-              start:
-                type: integer
-                format: int64
-              end:
-                type: integer
-                format: int64
-              regions:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    polygon:
-                      type: array
-                      items:
-                        type: number
-                    triangles:
-                      type: array
-                      items:
-                        type: integer
-                        format: int32
-              urls:
-                type: array
-                items:
-                  type:
-                    object
-              bn:
-                type: boolean
-              isVorabinfo:
-                type: boolean
-              description:
-                type: string
-              descriptionText:
-                type: string
-              event:
-                type: string
-              headLine:
-                type: string
-        binnenSee:
-          type: object
-          properties:
-            "209901000":
-              type: array
-              items:
-                type: object
-                properties:
-                  type:
-                    type: integer
-                    format: int32
-                  level:
-                    type: integer
-                    format: int32
-                  start:
-                    type: integer
-                    format: int64
-                  bn:
-                    type: boolean
-                  instruction:
-                    type: string
-                  description:
-                    type: string
-                  descriptionText:
-                    type: string
-                  event:
-                    type: string
-                  headline:
-                    type: string
-    Error:
+      description: "Diese Beschreibungen variieren."
+    CurrentMeasurement:
       type: object
       properties:
         timestamp:
-          type: integer
-          format: int64
-          example: 1630077980735
-        status:
-          type: integer
-          format: int32
-          example: 404
-        error:
+          example: "2022-03-02T10:30:00+01:00"
+        value:
+          type: number
+          example: 323
+        trend:
+          type: number
+          example: -1
+        stateMnwMhw:
           type: string
-          example: Not Found
-        message:
-          type: string
-          example: "An error occured"
-        path:
-          type: string
-          example: /v30/alpen_forecast_text_dwms.json
-
-    WarningCoast:
+          example: normal
+        stateNswHsw:
+          example: unknown
+    MeasurementResult:
+      type: array
+      items:
+        type: object
+        properties:
+          timestamp:
+            type: string
+            format: datetime
+            example: "2022-02-06T10:15:00+01:00"
+            description: "Zeitpunkt im [ISO_8601](https://de.wikipedia.org/wiki/ISO_8601) Format codiert"
+          value:
+            type: number
+            format: float
+            example: 333
+            description: "Wert als Dezimalzahl in der Einheit, welche durch die Timeseries der Station vorgegeben ist."
+    WaterResult:
       type: object
       properties:
-        time:
+        shortname:
+          type: string
+          format: datetime
+          example: RHEIN
+          description: "Kurzbezeichnung, maximal 40 Zeichen."
+        longname:
+          type: string
+          example: RHEIN
+          description: "Langbezeichnung, maximal 255 Zeichen."
+    TimeseriesNotFound:
+      type: object
+      properties:
+        status:
           type: integer
-          format: int64
-        warnings:
-          type: object
-          properties:
-            "501000007":
-              type: array
-              items:
-                type: object
-                properties:
-                  type:
-                    type: integer
-                    format: int32
-                  level:
-                    type: integer
-                    format: int32
-                  bn:
-                    type: boolean
-                  instruction:
-                    type: string
-                  description:
-                    type: string
-                  descriptionText:
-                    type: string
-                  event:
-                    type: string
-                  headline:
-                    type: string
-
-
-externalDocs:
-  description: "Ausführlichere Dokumentation"
-  url: "https://listed.to/@DieSieben/7851/api-des-deutschen-wetterdienstes"
+          example: 404
+        msg:
+          type: string
+          example: "Timeseries does not exist."
+    Comment:
+      description: "Liegt z.B. eine Fehlfunktion oder ein Ausfall an der Messstelle vor, so ist dies hier mit einer Textbeschreibung erläutert."
+      type: array
+      items:
+        type: object
+        properties:
+          shortDescription:
+            type: string
+            description: "Kurzbeschreibung, maximal 55 Zeichen."
+          longDescription:
+            type: string
+            description: "Langbeschreibung, maximal 500 Zeichen."
