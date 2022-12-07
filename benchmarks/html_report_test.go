@@ -74,7 +74,7 @@ func BenchmarkHtmlReport_GenerateReportIdentical(b *testing.B) {
 	}
 }
 
-func TestHtmlReport_GenerateReportIdenticalRun100(t *testing.T) {
+func TestHtmlReport_GenerateReportIdenticalRun200(t *testing.T) {
 	specBytes, _ := os.ReadFile("../model/test_files/pegel-online-api.yaml")
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
@@ -92,6 +92,10 @@ func TestHtmlReport_GenerateReportIdenticalRun100(t *testing.T) {
 	// generate statistics
 	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
+	reportZero := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
+	reportZeroBytes := reportZero.GenerateReport(false)
+	hashZero := sha256.Sum256(reportZeroBytes)
+
 	for n := 0; n < 200; n++ {
 		// generate html reports and compare hash
 		reportA := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
@@ -104,6 +108,14 @@ func TestHtmlReport_GenerateReportIdenticalRun100(t *testing.T) {
 		hashB := sha256.Sum256(reportBBytes)
 
 		if hashA != hashB {
+			panic("failed identical check")
+		}
+
+		if hashA != hashZero {
+			panic("failed identical check")
+		}
+
+		if hashB != hashZero {
 			panic("failed identical check")
 		}
 
