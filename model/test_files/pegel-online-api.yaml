@@ -1,0 +1,610 @@
+openapi: "3.0.0"
+info:
+  description: "API des Deutschen Wetterdienstes (DWD) aus der DWD App.
+<br><br>
+Neben unterschiedlichen Wetterwarnungen (s.u.) lassen sich unter
+[/dwd.api.proxy.bund.dev/v30/stationOverviewExtended](/dwd.api.proxy.bund.dev/v30/stationOverviewExtended) nach Angabe des Parameters *stationIDs* (z.B. 'G005')
+auch die Wetterdaten ausgewählter Wetterstationen anfordern (wobei die sog. 'Stationskennung' des DWD anzugeben ist). 
+<br><br>
+Unter [https://opendata.dwd.de/](https://opendata.dwd.de/) bietet der DWD darüber hinaus auch aktuelle und historische Daten zu diversen Wetter- und Klimaphänomenen zum Download an (vgl. hierzu die offizielle Dokumentation [hier](https://opendata.dwd.de/climate_environment/CDC/Readme_intro_CDC_ftp.pdf)). In diesem Zusammenhang erwähnenswert ist auch eine weitere offizielle Liste aller Wetterstationen (ohne Stationskennung aber mit sog. 'Stations_id') [hier](https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/recent/KL_Tageswerte_Beschreibung_Stationen.txt)."
+  version: "1.2.0"
+  title: "Deutscher Wetterdienst: API"
+
+servers:
+  - url: 'https://app-prod-ws.warnwetter.de/v30'
+
+paths:
+  /stationOverviewExtended:
+    get:
+      description: Query für eine oder mehrere Wetterstationen
+      summary: Wetterstation Daten
+      parameters:
+        - name: stationIds
+          in: query
+          style: form
+          description: "Beim Parameter stationsIds handelt es sich um die Stationskennungen des DWD. Die Liste der Stationskennungen kann z.B. [hier](https://www.dwd.de/DE/leistungen/klimadatendeutschland/stationsliste.html) eingesehen werden."
+          explode: false
+          schema:
+            type: array
+            items:
+              oneOf:
+                - type: string
+                - type: integer
+          example: [10865, G005]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StationOverview'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '400':
+          description: Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      servers:
+        - url: 'https://app-prod-ws.warnwetter.de/v30'
+
+  /crowd_meldungen_overview_v2.json:
+    get:
+      summary: DWD Crowdwettermeldungen
+      description: Der DWD erlaubt Usern das aktuelle Wetter zu melden. In der Response befinden sich alle aktuellen Meldungen
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CROWDMeldung'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+
+  /warnings_nowcast.json:
+    get:
+      summary: Nowcast Warnungen (deutsch)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningNowcast'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+  /warnings_nowcast_en.json:
+    get:
+      summary: Nowcast Warnungen (englisch)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningNowcast'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+  /gemeinde_warnings_v2.json:
+    get:
+      summary: Gemeinde Unwetterwarnungen (Deutsch)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GemeindeWarnings'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+  /gemeinde_warnings_v2_en.json:
+    get:
+      summary: Gemeinde Unwetterwarnungen (Englisch)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GemeindeWarnings'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+  /warnings_coast.json:
+    get:
+      summary: Küsten Unwetterwarnungen (deutsch)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningCoast'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+
+  /warnings_coast_en.json:
+    get:
+      summary: Küsten Unwetterwarnungen (englisch)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarningCoast'
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+
+  /sea_warning_text.json:
+    get:
+      summary: Hochsee Unwetterwarnungen als Text
+      responses:
+        '200':
+          description: OK
+          content:
+            application/text:
+              schema:
+                type: string
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+
+
+  /alpen_forecast_text_dwms.json:
+    get:
+      summary: Alpen Wettervorhersage als Text
+      responses:
+        '200':
+          description: OK
+          content:
+            application/text:
+              schema:
+                type: string
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+
+  /warnings_lawine.json:
+    get:
+      summary: Alpen Wettervorhersage als Text
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+        '404':
+          description: Not Found
+      servers:
+        - url: 'https://s3.eu-central-1.amazonaws.com/app-prod-static.warnwetter.de/v16'
+
+components:
+  schemas:
+    WarningNowcast:
+      type: object
+      properties:
+        time:
+          type: integer
+          format: int64
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: integer
+                format: int32
+              level:
+                type: integer
+                format: int32
+              start:
+                type: integer
+                format: int64
+              end:
+                type: integer
+                format: int64
+              states:
+                type: array
+                items:
+                  type: number
+              regions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    polygon:
+                      type: array
+                      items:
+                        type: number
+                    triangles:
+                      type: array
+                      items:
+                        type: integer
+                        format: int32
+              urls:
+                type: array
+                items:
+                  type: string
+              bn:
+                type: boolean
+              isVorabinfo:
+                type: boolean
+              instruction:
+                type: string
+                nullable: true
+              description:
+                type: string
+              descriptionText:
+                type: string
+              event:
+                type: string
+              headLine:
+                type: string
+        binnenSee:
+          type: string
+          nullable: true
+    StationOverview:
+      type: object
+      properties:
+        "10865":
+          type: object
+          properties:
+            forecast1:
+              type: object
+              properties:
+                stationId:
+                  type: string
+                start:
+                  type: integer
+                  format: int64
+                timeStep:
+                  type: integer
+                  format: int32
+                temperature:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+                temperatureStd:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+                windSpeed:
+                  type: string
+                  nullable: true
+                windDirection:
+                  type: string
+                  nullable: true
+                windGust:
+                  type: string
+                  nullable: true
+                icon:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+                precipitationTotal:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+                precipitationProbablity:
+                  type: string
+                  nullable: true
+                precipitationProbablityIndex:
+                  type: string
+                  nullable: true
+            forecast2:
+              type: object
+              properties:
+                stationId:
+                  type: string
+                start:
+                  type: integer
+                  format: int64
+                timeStep:
+                  type: integer
+                  format: int32
+                temperature:
+                  type: array
+                  items:
+                    type: number
+                temperatureStd:
+                  type: array
+                  items:
+                    type: number
+                windSpeed:
+                  type: string
+                  nullable: true
+                windDirection:
+                  type: string
+                  nullable: true
+                windGust:
+                  type: string
+                  nullable: true
+                icon:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+                precipitationTotal:
+                  type: array
+                  items:
+                    type: integer
+                    format: int32
+                precipitationProbablity:
+                  type: string
+                  nullable: true
+                precipitationProbablityIndex:
+                  type: string
+                  nullable: true
+            forecastStart:
+              type: string
+              nullable: true
+            days:
+              type: array
+              items:
+                type: object
+                properties:
+                  stationId:
+                    type: string
+                    nullable: true
+                  dayDate:
+                    type: string
+                    format: date
+                  temperatureMin:
+                    type: integer
+                    format: int32
+                  temperatureMax:
+                    type: integer
+                    format: int32
+                  icon:
+                    type: integer
+                    format: int32
+                  icon1:
+                    type: string
+                    nullable: true
+                  icon2:
+                    type: string
+                    nullable: true
+                  precipitation:
+                    type: integer
+                    format: int32
+                  windSpeed:
+                    type: integer
+                    format: int32
+                  windGust:
+                    type: integer
+                    format: int32
+                  windDirection:
+                    type: integer
+                    format: int32
+                  sunshine:
+                    type: integer
+                    format: int32
+            warnings:
+              type: array
+              items:
+                type: object
+            threeHourSummaries:
+              type: string
+              nullable: true
+
+    CROWDMeldung:
+      type: object
+      properties:
+        start:
+          type: integer
+          format: int64
+        end:
+          type: integer
+          format: int64
+        highestSeverities:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              auspraegung:
+                type: string
+        meldungen:
+          type: array
+          items:
+            type: object
+            properties:
+              meldungId:
+                type: integer
+                format: int32
+              timestamp:
+                type: integer
+                format: int64
+              lat:
+                type: string
+              lon:
+                type: string
+              place:
+                type: string
+              category:
+                type: string
+              auspraegung:
+                type: string
+              zusatzAttribute:
+                type: array
+                items:
+                  type: object
+    GemeindeWarnings:
+      type: object
+      properties:
+        time:
+          type: integer
+          format: int64
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: integer
+                format: int32
+              level:
+                type: integer
+                format: int32
+              start:
+                type: integer
+                format: int64
+              end:
+                type: integer
+                format: int64
+              regions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    polygon:
+                      type: array
+                      items:
+                        type: number
+                    triangles:
+                      type: array
+                      items:
+                        type: integer
+                        format: int32
+              urls:
+                type: array
+                items:
+                  type:
+                    object
+              bn:
+                type: boolean
+              isVorabinfo:
+                type: boolean
+              description:
+                type: string
+              descriptionText:
+                type: string
+              event:
+                type: string
+              headLine:
+                type: string
+        binnenSee:
+          type: object
+          properties:
+            "209901000":
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: integer
+                    format: int32
+                  level:
+                    type: integer
+                    format: int32
+                  start:
+                    type: integer
+                    format: int64
+                  bn:
+                    type: boolean
+                  instruction:
+                    type: string
+                  description:
+                    type: string
+                  descriptionText:
+                    type: string
+                  event:
+                    type: string
+                  headline:
+                    type: string
+    Error:
+      type: object
+      properties:
+        timestamp:
+          type: integer
+          format: int64
+          example: 1630077980735
+        status:
+          type: integer
+          format: int32
+          example: 404
+        error:
+          type: string
+          example: Not Found
+        message:
+          type: string
+          example: "An error occured"
+        path:
+          type: string
+          example: /v30/alpen_forecast_text_dwms.json
+
+    WarningCoast:
+      type: object
+      properties:
+        time:
+          type: integer
+          format: int64
+        warnings:
+          type: object
+          properties:
+            "501000007":
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: integer
+                    format: int32
+                  level:
+                    type: integer
+                    format: int32
+                  bn:
+                    type: boolean
+                  instruction:
+                    type: string
+                  description:
+                    type: string
+                  descriptionText:
+                    type: string
+                  event:
+                    type: string
+                  headline:
+                    type: string
+
+
+externalDocs:
+  description: "Ausführlichere Dokumentation"
+  url: "https://listed.to/@DieSieben/7851/api-des-deutschen-wetterdienstes"

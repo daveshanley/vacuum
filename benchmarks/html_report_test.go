@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	"crypto/sha256"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -36,4 +37,75 @@ func BenchmarkHtmlReport_GenerateReport(b *testing.B) {
 
 	}
 
+}
+
+func BenchmarkHtmlReport_GenerateReportIdentical(b *testing.B) {
+	specBytes, _ := os.ReadFile("../model/test_files/pegel-online-api.yaml")
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+
+	// default is recommended rules, based on spectral (for now anyway)
+	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		RuleSet: selectedRS,
+		Spec:    specBytes,
+	})
+
+	resultSet := model.NewRuleResultSet(ruleset.Results)
+	resultSet.SortResultsByLineNumber()
+
+	// generate statistics
+	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+
+	for n := 0; n < b.N; n++ {
+		// generate html reports and compare hash
+		reportA := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
+		reportABytes := reportA.GenerateReport(false)
+
+		reportB := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
+		reportBBytes := reportB.GenerateReport(false)
+
+		hashA := sha256.Sum256(reportABytes)
+		hashB := sha256.Sum256(reportBBytes)
+
+		if hashA != hashB {
+			panic("failed identical check")
+		}
+	}
+}
+
+func TestHtmlReport_GenerateReportIdenticalRun100(t *testing.T) {
+	specBytes, _ := os.ReadFile("../model/test_files/pegel-online-api.yaml")
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+
+	// default is recommended rules, based on spectral (for now anyway)
+	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		RuleSet: selectedRS,
+		Spec:    specBytes,
+	})
+
+	resultSet := model.NewRuleResultSet(ruleset.Results)
+	resultSet.SortResultsByLineNumber()
+
+	// generate statistics
+	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+
+	for n := 0; n < 200; n++ {
+		// generate html reports and compare hash
+		reportA := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
+		reportABytes := reportA.GenerateReport(false)
+
+		reportB := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
+		reportBBytes := reportB.GenerateReport(false)
+
+		hashA := sha256.Sum256(reportABytes)
+		hashB := sha256.Sum256(reportBBytes)
+
+		if hashA != hashB {
+			panic("failed identical check")
+		}
+
+	}
 }
