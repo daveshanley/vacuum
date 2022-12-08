@@ -6,11 +6,13 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/parser"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"sync"
+	"time"
 )
 
 // Examples is a rule that checks that examples are being correctly used.
@@ -75,10 +77,10 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
 
 				//check requests.
-				_, rbNode := utils.FindKeyNode("requestBody", method.Content)
+				_, rbNode := utils.FindKeyNodeTop("requestBody", method.Content)
 
 				//check responses
-				_, respNode := utils.FindKeyNode("responses", method.Content)
+				_, respNode := utils.FindKeyNodeTop("responses", method.Content)
 
 				if rbNode != nil {
 					requestBodyCollection = append(requestBodyCollection, opExample{
@@ -88,13 +90,13 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				}
 
 				// check parameters.
-				_, paramsNode := utils.FindKeyNode("parameters", method.Content)
+				_, paramsNode := utils.FindKeyNodeTop("parameters", method.Content)
 				if paramsNode != nil && utils.IsNodeArray(paramsNode) {
 
 					for y, param := range paramsNode.Content {
 
 						// extract name from param
-						_, nameNode := utils.FindKeyNode("name", []*yaml.Node{param})
+						_, nameNode := utils.FindKeyNodeTop("name", param.Content)
 						if nameNode != nil {
 
 							paramCollection = append(paramCollection, opExample{
@@ -166,12 +168,12 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	paramsNode := context.Index.GetParametersNode()
 
-	if paramsNode != nil && utils.IsNodeArray(paramsNode) {
+	if paramsNode != nil && (utils.IsNodeArray(paramsNode) || utils.IsNodeMap(paramsNode)) {
 
 		for x, param := range paramsNode.Content {
 
 			// extract name from param
-			_, nameNode := utils.FindKeyNode("name", []*yaml.Node{param})
+			_, nameNode := utils.FindKeyNodeTop("name", param.Content)
 			if nameNode != nil {
 				results = analyzeExample(nameNode.Value, param,
 					utils.BuildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results, context)
@@ -271,6 +273,9 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					}
 					res.Path = utils.BuildPath(path, []string{compName, pName})
 					res.Rule = context.Rule
+					res.Range = buildRange(res.StartNode, res.EndNode)
+					t := time.Now()
+					res.Timestamp = &t
 					*results = append(*results, res)
 					continue
 
@@ -315,6 +320,9 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 							z.EndNode = exValue
 							z.Rule = context.Rule
 							z.Path = utils.BuildPath(path, []string{compName, pName})
+							z.Range = buildRange(z.StartNode, z.EndNode)
+							t := time.Now()
+							z.Timestamp = &t
 							*results = append(*results, z)
 						}
 					}
@@ -353,6 +361,9 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					z.EndNode = topExKey
 				}
 				z.Rule = context.Rule
+				z.Range = buildRange(z.StartNode, z.EndNode)
+				t := time.Now()
+				z.Timestamp = &t
 				*results = append(*results, z)
 			}
 		}
@@ -388,22 +399,42 @@ func checkExamples(rbNode *yaml.Node, basePath string, results *[]model.RuleFunc
 	return results
 }
 
+func buildRange(start, end *yaml.Node) reports.Range {
+	return reports.Range{
+		Start: reports.RangeItem{
+			Line: start.Line,
+			Char: start.Column,
+		},
+		End: reports.RangeItem{
+			Line: end.Line,
+			Char: end.Column,
+		},
+	}
+}
+
 func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath string, results *[]model.RuleFunctionResult, context model.RuleFunctionContext) *[]model.RuleFunctionResult {
 
-	_, sValue := utils.FindKeyNode("schema", mediaTypeNode.Content)
-	_, esValue := utils.FindKeyNode("examples", mediaTypeNode.Content)
-	_, eValue := utils.FindKeyNode("example", mediaTypeNode.Content)
+	sLabel, sValue := utils.FindKeyNodeTop("schema", mediaTypeNode.Content)
+	_, esValue := utils.FindKeyNodeTop("examples", mediaTypeNode.Content)
+	_, eValue := utils.FindKeyNodeTop("example", mediaTypeNode.Content)
 
 	// if there are no examples, anywhere then add a result.
 	if sValue != nil && (esValue == nil && eValue == nil) {
-		res := model.BuildFunctionResultString(fmt.Sprintf("Schema for `%s` does not "+
-			"contain any examples or example data", nameNodeValue))
 
-		res.StartNode = mediaTypeNode
-		res.EndNode = sValue
-		res.Path = basePath
-		res.Rule = context.Rule
-		modifyExampleResults(results, res)
+		// check type is not a boolean
+		_, typ := utils.FindKeyNodeTop("type", sValue.Content)
+		if typ != nil && typ.Value != "boolean" && typ.Value != "number" {
+
+			res := model.BuildFunctionResultString(fmt.Sprintf("Schema for `%s` does not "+
+				"contain any examples or example data", nameNodeValue))
+
+			res.StartNode = sLabel
+			res.EndNode = sValue
+			res.Path = basePath
+			res.Rule = context.Rule
+			res.Range = buildRange(sLabel, sValue)
+			modifyExampleResults(results, &res)
+		}
 		return results
 	}
 
@@ -413,17 +444,18 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 	var exampleName string
 
 	if esValue != nil {
-
+		var exampleNameNode *yaml.Node
 		for v, multiExampleNode := range esValue.Content {
 			if v%2 == 0 {
 				exampleName = multiExampleNode.Value
+				exampleNameNode = multiExampleNode
 				continue
 			}
 
 			nodePath := utils.BuildPath(basePath, []string{"content", nameNodeValue, "schema", "examples", exampleName, "value"})
 
-			_, valueNode := utils.FindKeyNode("value", []*yaml.Node{multiExampleNode})
-			_, externalValueNode := utils.FindKeyNode("externalValue", []*yaml.Node{multiExampleNode})
+			_, valueNode := utils.FindKeyNodeTop("value", multiExampleNode.Content)
+			_, externalValueNode := utils.FindKeyNodeTop("externalValue", multiExampleNode.Content)
 
 			if valueNode != nil {
 				// check if the example validates against the convertedSchema
@@ -433,22 +465,24 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				if err != nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
 						exampleName, err.Error()))
-					z.StartNode = esValue
+					z.StartNode = exampleNameNode
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					modifyExampleResults(results, z)
+					z.Range = buildRange(exampleNameNode, exampleNameNode)
+					modifyExampleResults(results, &z)
 					continue
 				}
 
 				if convertedSchema == nil {
 					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
 						exampleName, "no convertedSchema can be extracted, invalid convertedSchema"))
-					z.StartNode = esValue
+					z.StartNode = exampleNameNode
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					modifyExampleResults(results, z)
+					z.Range = buildRange(exampleNameNode, exampleNameNode)
+					modifyExampleResults(results, &z)
 					continue
 				}
 
@@ -463,24 +497,26 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 						z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
 							exampleName, resError.Description()))
-						z.StartNode = esValue
+						z.StartNode = exampleNameNode
 						z.EndNode = valueNode
 						z.Path = nodePath
 						z.Rule = context.Rule
-						modifyExampleResults(results, z)
+						z.Range = buildRange(exampleNameNode, exampleNameNode)
+						modifyExampleResults(results, &z)
 					}
 				}
 
 				// check if the example contains a summary
-				_, summaryNode := utils.FindKeyNode("summary", []*yaml.Node{multiExampleNode})
+				_, summaryNode := utils.FindKeyNodeTop("summary", multiExampleNode.Content)
 				if summaryNode == nil {
-					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` missing a `summary` "+
-						"- examples need explaining", exampleName))
-					z.StartNode = esValue
+					z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` (line %d) missing a `summary` "+
+						"- examples need explaining", exampleName, exampleNameNode.Line))
+					z.StartNode = exampleNameNode
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					modifyExampleResults(results, z)
+					z.Range = buildRange(exampleNameNode, exampleNameNode)
+					modifyExampleResults(results, &z)
 				}
 
 				// can`t both have a value and an external value set!
@@ -492,7 +528,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					z.EndNode = valueNode
 					z.Path = nodePath
 					z.Rule = context.Rule
-					modifyExampleResults(results, z)
+					z.Range = buildRange(esValue, valueNode)
+					modifyExampleResults(results, &z)
 				}
 
 			}
@@ -518,7 +555,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				}
 				z.Rule = context.Rule
 				z.Path = basePath
-				modifyExampleResults(results, z)
+				z.Range = buildRange(eValue, eValue)
+				modifyExampleResults(results, &z)
 				return results
 			}
 
@@ -540,7 +578,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			}
 			z.Rule = context.Rule
 			z.Path = basePath
-			modifyExampleResults(results, z)
+			z.Range = buildRange(eValue, eValue)
+			modifyExampleResults(results, &z)
 			return results
 		}
 
@@ -558,7 +597,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				}
 				z.Rule = context.Rule
 				z.Path = basePath
-				modifyExampleResults(results, z)
+				z.Range = buildRange(eValue, eValue)
+				modifyExampleResults(results, &z)
 			}
 			return results
 		}
@@ -567,12 +607,12 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 	ex := false
 	if sValue != nil {
 
-		_, propsNode := utils.FindKeyNode("properties", []*yaml.Node{sValue})
+		_, propsNode := utils.FindKeyNodeTop("properties", []*yaml.Node{sValue})
 
 		if propsNode != nil {
 			for n, prop := range propsNode.Content {
 				if n%2 != 0 {
-					_, exampleNode := utils.FindKeyNode("example", []*yaml.Node{prop})
+					_, exampleNode := utils.FindKeyNodeTop("example", []*yaml.Node{prop})
 					if exampleNode != nil {
 						ex = true
 					}
@@ -590,7 +630,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				z.StartNode = sValue
 				z.EndNode = sValue
 				z.Rule = context.Rule
-				modifyExampleResults(results, z)
+				z.Range = buildRange(sValue, sValue)
+				modifyExampleResults(results, &z)
 			}
 
 		}
@@ -599,7 +640,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 		}
 		exampleValidation := parser.ValidateExample(schema)
 		if len(exampleValidation) > 0 {
-			_, pNode := utils.FindKeyNode("properties", sValue.Content)
+			_, pNode := utils.FindKeyNodeTop("properties", sValue.Content)
 			var endNode *yaml.Node
 			if pNode != nil && len(pNode.Content) > 0 {
 				endNode = pNode.Content[len(pNode.Content)-1]
@@ -609,7 +650,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				z.StartNode = pNode
 				z.EndNode = endNode
 				z.Rule = context.Rule
-				modifyExampleResults(results, z)
+				z.Range = buildRange(pNode, endNode)
+				modifyExampleResults(results, &z)
 			}
 		}
 	}
@@ -619,8 +661,10 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 var exampleLock sync.Mutex
 
-func modifyExampleResults(results *[]model.RuleFunctionResult, result model.RuleFunctionResult) {
+func modifyExampleResults(results *[]model.RuleFunctionResult, result *model.RuleFunctionResult) {
 	exampleLock.Lock()
-	*results = append(*results, result)
+	t := time.Now()
+	result.Timestamp = &t
+	*results = append(*results, *result)
 	exampleLock.Unlock()
 }

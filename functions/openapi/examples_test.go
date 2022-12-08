@@ -196,15 +196,15 @@ func TestExamples_RunRule_Fail_Inline_Schema_Multi_Examples(t *testing.T) {
                   type: integer
                 name:
                   type: string
-              examples:
-                lemon:
-                  value: 
-                    id: in
-                    invalidProperty: oh dear
-                lime:
-                  value: 
-                    id: 2
-                    name: Pickles`
+            examples:
+              lemon:
+                value: 
+                  id: in
+                  invalidProperty: oh dear
+              lime:
+                value: 
+                  id: 2
+                  name: Pickles`
 
 	path := "$"
 
@@ -244,14 +244,14 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
               properties:
                 id:
                   type: integer
-              examples:
-                lemon:
-                  summary: this is an example of a lemon.	
-                  value:
-                    id: 1
-                lime:
-                  value: 
-                    id: 2`
+            examples:
+              lemon:
+                summary: this is an example of a lemon.	
+                value:
+                  id: 1
+              lime:
+                value: 
+                  id: 2`
 
 	path := "$"
 
@@ -271,7 +271,7 @@ func TestExamples_RunRule_Fail_Inline_Schema_Missing_Summary(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Example `lime` missing a `summary` - examples need explaining", res[0].Message)
+	assert.Equal(t, "Example `lime` (line 19) missing a `summary` - examples need explaining", res[0].Message)
 	assert.NotNil(t, res[0].Path)
 }
 
@@ -290,7 +290,7 @@ func TestExamples_RunRule_Fail_Single_Example_Not_An_Object(t *testing.T) {
               properties:
                 id:
                   type: integer
-              example: apples`
+            example: apples`
 
 	path := "$"
 
@@ -329,8 +329,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object(t *testing.T) {
               properties:
                 id:
                   type: integer
-              example:
-                id: cake`
+            example:
+              id: cake`
 
 	path := "$"
 
@@ -371,8 +371,8 @@ func TestExamples_RunRule_Fail_Single_Example_Invalid_Object_Response(t *testing
                 properties:
                   id:
                     type: integer
-                example:
-                  id: cake`
+              example:
+                id: cake`
 
 	path := "$"
 
@@ -477,7 +477,8 @@ func TestExamples_RunRule_Fail_TopLevel_Param_No_Example(t *testing.T) {
 
 	yml := `components:
   parameters:
-    - in: path
+    param1:
+      in: path
       name: icypop
       schema:
         type: integer`
@@ -665,16 +666,16 @@ func TestExamples_RunRule_Fail_ExternalAndValue(t *testing.T) {
               properties:
                 id:
                   type: integer
-              examples:
-                lemon:
-                  externalValue: https://quobix.com
-                  summary: this is an example of a lemon.                  
-                  value:
-                    id: 1
-                lime:
-                  summary: nice chickens
-                  value: 
-                    id: 2`
+            examples:
+              lemon:
+                externalValue: https://quobix.com
+                summary: this is an example of a lemon.                  
+                value:
+                  id: 1
+              lime:
+                summary: nice chickens
+                value: 
+                  id: 2`
 
 	path := "$"
 

@@ -4,7 +4,6 @@ package html_report
 
 import (
 	"bytes"
-	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -90,40 +89,34 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		},
 		"sortResults": func(results []*model.RuleFunctionResult) []*model.RuleFunctionResult {
 			sort.Slice(results, func(i, j int) bool {
-				if results[i].Range.Start.Line < results[j].Range.Start.Line {
+				if results[i].StartNode.Line < results[j].StartNode.Line {
 					return true
 				}
-				if results[i].Range.Start.Line > results[j].Range.Start.Line {
+				if results[i].StartNode.Line > results[j].StartNode.Line {
 					return false
 				}
-				if results[i].Range.Start.Char < results[j].Range.Start.Char {
-					return true
-				}
-				if results[i].Range.Start.Char > results[j].Range.Start.Char {
-					return false
-				}
-				if results[i].Range.End.Line < results[j].Range.End.Line {
-					return true
-				}
-				if results[i].Range.End.Line > results[j].Range.End.Line {
-					return false
-				}
-				if results[i].Range.End.Char < results[j].Range.End.Char {
-					return true
-				}
-				if results[i].Range.End.Char > results[j].Range.End.Char {
-					return false
-				}
-				if results[i].Path != results[j].Path {
+				if results[i].Message != results[j].Message {
 					// sha256 these paths for consistency
-					lm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[i].Path)))
-					rm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[j].Path)))
+					lm := results[i].Message
+					rm := results[j].Message
 					return lm < rm
 				}
-				// sha256 these messages for consistency
-				lm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[i].Message)))
-				rm := fmt.Sprintf("%x", sha256.Sum256([]byte(results[j].Message)))
-				return lm < rm
+				if results[i].Path != results[j].Path {
+					lSegs := strings.Split(results[i].Path, ".")
+					rSegs := strings.Split(results[j].Path, ".")
+					if len(lSegs) == len(rSegs) {
+						for u := range lSegs {
+							if lSegs[u] != rSegs[u] {
+								return lSegs[u] < rSegs[u]
+							}
+						}
+					}
+					return len(lSegs) < len(rSegs)
+				}
+				if results[i].Timestamp != nil && results[j].Timestamp != nil {
+					return results[i].Timestamp.After(*results[j].Timestamp)
+				}
+				return false
 			})
 			return results
 		},
