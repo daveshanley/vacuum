@@ -8,6 +8,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
 	"regexp"
+	"time"
 )
 
 const (
@@ -52,6 +53,7 @@ type RuleFunctionResult struct {
 	Rule         *Rule         `json:"-" yaml:"-"`                       // The rule used
 	StartNode    *yaml.Node    `json:"-" yaml:"-"`                       // Start of the violation
 	EndNode      *yaml.Node    `json:"-" yaml:"-"`                       // end of the violation
+	Timestamp    *time.Time    `json:"-" yaml:"-"`                       // When the result was created.
 }
 
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
