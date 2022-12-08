@@ -66,10 +66,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		ruleWaitGroup.Add(len(execution.RuleSet.Rules))
 	}
 
-	var specResolved yaml.Node
-	var specUnresolved yaml.Node
+	var specResolved *yaml.Node
+	var specUnresolved *yaml.Node
 
-	var specInfo *datamodel.SpecInfo
+	var specInfo, specInfoUnresolved *datamodel.SpecInfo
 	var err error
 	if execution.SpecInfo == nil {
 		// extract spec info, make this available to rule context.
@@ -79,15 +79,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				return &RuleSetExecutionResult{Errors: []error{err}}
 			}
 		}
+		specInfoUnresolved, _ = datamodel.ExtractSpecInfo(execution.Spec)
 	} else {
 		specInfo = execution.SpecInfo
+		specInfoUnresolved = execution.SpecInfo
 	}
 
-	specUnresolved = *specInfo.RootNode
-	specResolved = specUnresolved
+	specUnresolved = specInfoUnresolved.RootNode
+	specResolved = specInfo.RootNode
 
 	// create resolved and un-resolved indexes.
-	indexResolved := index.NewSpecIndex(&specResolved)
+	indexResolved := index.NewSpecIndex(specResolved)
+	indexUnresolved := index.NewSpecIndex(specUnresolved)
 
 	// create a resolver
 	resolverInstance := resolver.NewResolver(indexResolved)
@@ -132,9 +135,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	if execution.RuleSet != nil {
 		for _, rule := range execution.RuleSet.Rules {
-			ruleSpec := &specResolved
+			ruleSpec := specResolved
+			ruleIndex := indexResolved
 			if !rule.Resolved {
-				ruleSpec = &specUnresolved
+				ruleSpec = specUnresolved
+				ruleIndex = indexUnresolved
 			}
 
 			// this list of things is most likely going to grow a bit, so we use a nice clean message design.
@@ -146,7 +151,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				wg:               &ruleWaitGroup,
 				errors:           &errors,
 				specInfo:         specInfo,
-				index:            indexResolved,
+				index:            ruleIndex,
 				customFunctions:  execution.CustomFunctions,
 			}
 			go runRule(ctx)
