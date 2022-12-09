@@ -134,8 +134,7 @@ go build vacuum.go
 
 ## Running vacuum via Docker
 
-vacuum is available as a container, you can pull the image from
-[Docker Hub](https://hub.docker.com/repository/docker/dshanley/vacuum/general)
+vacuum is available as a container, you can pull the image from [Docker Hub](https://hub.docker.com/r/dshanley/vacuum)
 
 ```
 docker pull dshanley/vacuum
