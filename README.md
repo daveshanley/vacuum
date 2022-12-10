@@ -1,5 +1,6 @@
-![vacuum logo](logo.png)
-
+<p align="center">
+	<img src="logo.png" alt="vacuum" height="300px"/>
+</p>
 # vacuum - The world's fastest OpenAPI & Swagger linter.
 
 ![Pipeline](https://github.com/daveshanley/vacuum/workflows/vaccum%20pipeline/badge.svg)
@@ -34,6 +35,19 @@ yarn global add @quobix/vacuum
 curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
 ```
 
+---
+
+
+## Sponsors
+If your company is using `vacuum`, please considering [supporting this project](https://github.com/sponsors/daveshanley),
+like our _very kind_ sponsors:
+
+<p align="center">
+	<a href="//www.speakeasyapi.dev"><img src=".github/sponsors/speakeasy.png" alt="Speakeasy" height="100px"/></a>
+    <br/>
+    <a href="//www.speakeasyapi.dev">Speakeasy</a>
+</p>
+---
 
 ## Documentation
 
@@ -72,7 +86,6 @@ See all the documentation at https://quobix.com/vacuum
   - [No Rules](https://quobix.com/vacuum/rulesets/no-rules/)
   - [Recommended Rules](https://quobix.com/vacuum/rulesets/recommended/)
   - [Custom Rules](https://quobix.com/vacuum/rulesets/custom-rulesets/)
-
 
 ---
 
