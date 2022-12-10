@@ -47,6 +47,7 @@ like our _very kind_ sponsors:
     <br/>
     <a href="//www.speakeasyapi.dev">Speakeasy</a>
 </p>
+
 ---
 
 ## Documentation
