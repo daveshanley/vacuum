@@ -284,6 +284,23 @@ func TestBuildFunctionResultString(t *testing.T) {
 		BuildFunctionResultString("wow, a cheese ball").Message)
 }
 
+func TestCompileRegex(t *testing.T) {
+
+	ctx := RuleFunctionContext{}
+	var res []RuleFunctionResult
+	regex := CompileRegex(ctx, "type", &res)
+	assert.True(t, regex.Match([]byte("type")))
+	assert.Len(t, res, 0)
+}
+
+func TestCompileRegex_Fail(t *testing.T) {
+
+	ctx := RuleFunctionContext{}
+	var res []RuleFunctionResult
+	_ = CompileRegex(ctx, `^\/(?!\/)(.*?)`, &res)
+	assert.Len(t, res, 1)
+}
+
 type dummyFunc struct {
 }
 

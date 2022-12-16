@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -36,7 +37,14 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	var results []model.RuleFunctionResult
 
-	schema := utils.ExtractValueFromInterfaceMap("schema", context.Options).(parser.Schema)
+	var schema parser.Schema
+	var ok bool
+	s := utils.ExtractValueFromInterfaceMap("schema", context.Options)
+	if schema, ok = s.(parser.Schema); !ok {
+		var p parser.Schema
+		_ = mapstructure.Decode(s, &p)
+		schema = p
+	}
 
 	for x, node := range nodes {
 		if x%2 == 0 && len(nodes) > 1 {

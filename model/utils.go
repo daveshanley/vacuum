@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"regexp"
 	"strings"
 )
 
@@ -167,4 +168,19 @@ func MapPathAndNodesToResults(path string, startNode, endNode *yaml.Node, result
 	}
 
 	return mapped
+}
+
+// CompileRegex attempts to compile the provided `Pattern` from the ruleset. If it fails, returns nil
+// and adds an error to the result set. Any rule using this should then return the results if there is no *Regexp
+// returned.
+func CompileRegex(context RuleFunctionContext, pattern string, results *[]RuleFunctionResult) *regexp.Regexp {
+	compiledRegex, err := regexp.Compile(pattern)
+	if err != nil {
+		*results = append(*results, RuleFunctionResult{
+			Message: fmt.Sprintf("Error: cannot run rule, pattern `%s` cannot be compiled", pattern),
+			Rule:    context.Rule,
+		})
+		return nil
+	}
+	return compiledRegex
 }

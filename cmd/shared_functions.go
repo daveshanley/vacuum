@@ -42,7 +42,9 @@ func PrintBanner() {
 	pterm.Println()
 	_ = pterm.DefaultBigText.WithLetters(
 		putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
-	pterm.Printf("version: %s | compiled: %s\n\n", Version, Date)
+	pterm.Printf("version: %s | compiled: %s\n", pterm.LightGreen(Version), pterm.LightGreen(Date))
+	pterm.Println(pterm.Cyan("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum"))
+	pterm.Println()
 	pterm.Println()
 }
 
