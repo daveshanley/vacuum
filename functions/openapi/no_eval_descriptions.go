@@ -35,6 +35,12 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 	descriptions := context.Index.GetAllDescriptions()
 	compiledRegex := context.Rule.PrecompiledPattern
+	if compiledRegex == nil {
+		compiledRegex = model.CompileRegex(context, pattern, &results)
+		if compiledRegex == nil {
+			return results
+		}
+	}
 
 	for _, desc := range descriptions {
 
