@@ -6,9 +6,11 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"regexp"
+	"strings"
 )
 
 // PathParameters is a rule that checks path level and operation level parameters for correct paths. The rule is
@@ -41,7 +43,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 	var results []model.RuleFunctionResult
 
-	opNodes := context.Index.GetPathsNode()
+	pathNodes := context.Index.GetPathsNode()
 	paramRegex := `(\{;?\??[a-zA-Z0-9_-]+\*?\})`
 	rx, _ := regexp.Compile(paramRegex)
 
@@ -53,15 +55,15 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	pathElements := make(map[string]bool)
 	topLevelParams := make(map[string]map[string][]string)
 
-	if opNodes == nil {
+	if pathNodes == nil {
 		return results
 	}
-	for j, operationNode := range opNodes.Content {
+	for j, pathNode := range pathNodes.Content {
 
-		if utils.IsNodeStringValue(operationNode) {
+		if utils.IsNodeStringValue(pathNode) {
 			// replace any params with an invalid char (%) so we can perform a path
 			// equality check. /hello/{fresh} and /hello/{fish} are equivalent to OpenAPI.
-			currentPath = operationNode.Value
+			currentPath = pathNode.Value
 			currentPathNormalized := rx.ReplaceAllString(currentPath, "%")
 
 			// check if it's been seen
@@ -69,9 +71,9 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				res := model.BuildFunctionResultString(
 					fmt.Sprintf("Paths `%s` and `%s` must not be equivalent, paths must be unique",
 						seenPaths[currentPathNormalized], currentPath))
-				res.StartNode = operationNode
-				res.EndNode = operationNode
-				res.Path = fmt.Sprintf("$.paths.%s", currentPath)
+				res.StartNode = pathNode
+				res.EndNode = pathNode
+				res.Path = fmt.Sprintf("$.paths.['%s']", currentPath)
 				res.Rule = context.Rule
 				results = append(results, res)
 			} else {
@@ -87,9 +89,9 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					res := model.BuildFunctionResultString(
 						fmt.Sprintf("Path `%s` must not use the parameter `%s` multiple times",
 							currentPath, param))
-					res.StartNode = operationNode
-					res.EndNode = operationNode
-					res.Path = fmt.Sprintf("$.paths.%s", currentPath)
+					res.StartNode = pathNode
+					res.EndNode = pathNode
+					res.Path = fmt.Sprintf("$.paths.['%s']", currentPath)
 					res.Rule = context.Rule
 					results = append(results, res)
 				} else {
@@ -99,7 +101,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 		}
 
-		if utils.IsNodeMap(operationNode) {
+		if utils.IsNodeMap(pathNode) {
 
 			topLevelParametersNode := context.Index.GetOperationParameterReferences()[currentPath]["top"]
 			//_, topLevelParametersNode := utils.FindKeyNodeTop("parameters", operationNode.Content)
@@ -134,7 +136,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			c := 0
 			verbLevelParams := make(map[string]map[string][]string)
 
-			for _, verbMapNode := range operationNode.Content {
+			for _, verbMapNode := range pathNode.Content {
 				if utils.IsNodeStringValue(verbMapNode) && utils.IsHttpVerb(verbMapNode.Value) {
 					currentVerb = verbMapNode.Value
 				} else {
@@ -186,14 +188,38 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				}
 			}
 
-			startNode := operationNode
+			startNode := pathNode
 			endNode := utils.FindLastChildNode(startNode)
-			if j+1 < len(opNodes.Content) {
-				endNode = opNodes.Content[j+1]
+			if j+1 < len(pathNodes.Content) {
+				endNode = pathNodes.Content[j+1]
+			}
+
+			r := ""
+			for i, verbMapNode := range pathNode.Content {
+				if i%2 == 0 {
+					r = verbMapNode.Value
+					continue
+				}
+				if isVerb(r) {
+					if len(topLevelParams) <= 0 {
+						if verbLevelParams[r] == nil {
+							for pe := range pathElements {
+								err := fmt.Sprintf("`%s` must define parameter `%s` as expected by path `%s`",
+									strings.ToUpper(r), pe, currentPath)
+								res := model.BuildFunctionResultString(err)
+								res.StartNode = startNode
+								res.EndNode = endNode
+								res.Path = fmt.Sprintf("$.paths.['%s'].%s", currentPath, r)
+								res.Rule = context.Rule
+								results = append(results, res)
+							}
+						}
+					}
+					pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams,
+						pathElements, &results, startNode, endNode, context, r)
+				}
 			}
 			pp.ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams,
-				pathElements, &results, startNode, endNode, context)
-			pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams,
 				pathElements, &results, startNode, endNode, context)
 
 			// reset for the next run.
@@ -220,6 +246,14 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 }
 
+func isVerb(verb string) bool {
+	switch strings.ToLower(verb) {
+	case v3.GetLabel, v3.PostLabel, v3.PutLabel, v3.PatchLabel, v3.DeleteLabel, v3.HeadLabel, v3.OptionsLabel, v3.TraceLabel:
+		return true
+	}
+	return false
+}
+
 func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string]map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
 	context model.RuleFunctionContext) {
@@ -238,7 +272,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
 				res.EndNode = endNode
-				res.Path = fmt.Sprintf("$.paths.%s", path)
+				res.Path = fmt.Sprintf("$.paths.['%s']", path)
 				res.Rule = context.Rule
 				*results = append(*results, res)
 			}
@@ -248,7 +282,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 
 func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string]map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
-	context model.RuleFunctionContext) {
+	context model.RuleFunctionContext, verb string) {
 	var top map[string][]string
 
 	if allPathParams != nil {
@@ -260,11 +294,11 @@ func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, al
 		}
 		for p := range pathElements {
 			if !pp.segmentExistsInPathParams(p, e, top) {
-				err := fmt.Sprintf("Operation must define parameter `%s` as expected by path `%s`", p, path)
+				err := fmt.Sprintf("`%s` must define parameter `%s` as expected by path `%s`", strings.ToUpper(verb), p, path)
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
 				res.EndNode = endNode
-				res.Path = fmt.Sprintf("$.paths.%s", path)
+				res.Path = fmt.Sprintf("$.paths.['%s']", path)
 				res.Rule = context.Rule
 				*results = append(*results, res)
 			}
@@ -317,7 +351,7 @@ func (pp PathParameters) isPathParamNamedAndRequired(in, required, name *yaml.No
 		res := model.BuildFunctionResultString(errMsg)
 		res.StartNode = required
 		res.EndNode = required
-		res.Path = fmt.Sprintf("$.paths.%s.%s.parameters", currentPath, currentVerb)
+		res.Path = fmt.Sprintf("$.paths.['%s'].%s.parameters", currentPath, currentVerb)
 		res.Rule = context.Rule
 
 		if utils.IsNodeBoolValue(required) {

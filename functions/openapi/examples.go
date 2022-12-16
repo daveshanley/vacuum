@@ -559,7 +559,6 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				modifyExampleResults(results, &z)
 				return results
 			}
-
 		}
 
 		//return results
