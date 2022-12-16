@@ -259,7 +259,7 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Operation must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
+	assert.Equal(t, "`GET` must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
 		res[0].Message)
 }
 
@@ -313,6 +313,107 @@ paths:
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Operation must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
+	assert.Equal(t, "`GET` must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
 		res[0].Message)
+}
+
+func TestPathParameters_RunRule_NoParamsDefined(t *testing.T) {
+
+	yml := `
+paths:
+  /update/{somethings}:
+    post:
+      operationId: postSomething
+      summary: Post something
+      tags:
+        - tag1
+      responses:
+        '200':
+          description: Post OK
+    get:
+      operationId: getSomething
+      summary: Get something
+      tags:
+        - tag1
+      responses:
+        '200':
+          description: Get OK
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := PathParameters{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 2)
+	assert.Equal(t, "`POST` must define parameter `somethings` as expected by path `/update/{somethings}`",
+		res[0].Message)
+	assert.Equal(t, "`GET` must define parameter `somethings` as expected by path `/update/{somethings}`",
+		res[1].Message)
+}
+
+func TestPathParameters_RunRule_NoParamsDefined_TopExists(t *testing.T) {
+
+	yml := `paths:
+  /update/{somethings}:
+    parameters:
+      - in: path
+        name: somethings
+        schema:
+          type: string
+          example: something nice
+          description: this is something nice.
+        required: true
+    post:
+      operationId: postSomething
+      summary: Post something
+      tags:
+        - tag1
+      responses:
+        '200':
+          description: Post OK
+    get:
+      operationId: getSomething
+      summary: Get something
+      tags:
+        - tag1
+      responses:
+        '200':
+          description: Get OK
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := PathParameters{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
 }
