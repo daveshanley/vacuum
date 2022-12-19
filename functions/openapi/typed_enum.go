@@ -5,15 +5,15 @@ package openapi
 
 import (
 	"fmt"
+	"strconv"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
-	"strconv"
 )
 
 // TypedEnum will check enum values match the types provided
-type TypedEnum struct {
-}
+type TypedEnum struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the TypedEnum rule.
 func (te TypedEnum) GetSchema() model.RuleFunctionSchema {
@@ -24,7 +24,6 @@ func (te TypedEnum) GetSchema() model.RuleFunctionSchema {
 
 // RunRule will execute the TypedEnum rule, based on supplied context and a supplied []*yaml.Node slice.
 func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
 	if len(nodes) <= 0 {
 		return nil
 	}
@@ -34,8 +33,17 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	enums := context.Index.GetAllEnums()
 
 	for _, enum := range enums {
+		var enumType string
+		if enum.Type.Value != "" {
+			enumType = enum.Type.Value
+		} else if len(enum.Type.Content) == 2 {
+			for _, n := range enum.Type.Content {
+				if n.Value != "null" {
+					enumType = n.Value
+				}
+			}
+		}
 
-		enumType := enum.Type.Value
 		enumDataNode := enum.Node
 
 		// extract types into an array and have them checked against the spec.
