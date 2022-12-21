@@ -701,6 +701,8 @@ func GetPathParamsRule() *model.Rule {
 }
 
 // GetGlobalOperationTagsRule will check that an operation tag exists in top level tags
+// This rule was dropped to a warning from an error after discussion here:
+//  - https://github.com/daveshanley/vacuum/issues/215
 func GetGlobalOperationTagsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check operation tags exist globally",
@@ -712,7 +714,7 @@ func GetGlobalOperationTagsRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         validation,
-		Severity:     model.SeverityError,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasTagDefined",
 		},
