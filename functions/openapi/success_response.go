@@ -56,18 +56,34 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 					}
 					verbDataNode := operationNode.Content[h+1]
 
-					fieldNode, valNode := utils.FindFirstKeyNode(context.RuleAction.Field, verbDataNode.Content, 0)
+					fieldNode, valNode := utils.FindKeyNodeTop(context.RuleAction.Field, verbDataNode.Content)
+
 					if fieldNode != nil && valNode != nil {
 						var responseSeen bool
+						var responseInvalidType bool
+						var responseCode int
+						var invalidCodes []int
 						for _, response := range valNode.Content {
-							if response.Tag == "!!str" {
-								responseCode, _ := strconv.Atoi(response.Value)
+							if utils.IsNodeStringValue(response) {
+								responseCode, _ = strconv.Atoi(response.Value)
 								if responseCode >= 200 && responseCode < 400 {
 									responseSeen = true
 								}
 							}
+
+							// check for an integer instead of a string, and check if this is an OpenAPI 3+ doc,
+							// if so, throw an error about using the wrong type
+							// https://github.com/daveshanley/vacuum/issues/214
+							if context.SpecInfo.SpecType == utils.OpenApi3 {
+								if utils.IsNodeIntValue(response) {
+									responseInvalidType = true
+									responseSeen = true
+									c, _ := strconv.Atoi(response.Value)
+									invalidCodes = append(invalidCodes, c)
+								}
+							}
 						}
-						if !responseSeen {
+						if !responseSeen || responseInvalidType {
 
 							// see if we can extract a name from the operationId
 							_, g := utils.FindKeyNode("operationId", verbDataNode.Content)
@@ -83,13 +99,29 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 								endNode = operationNode.Content[j+1]
 							}
 
-							results = append(results, model.RuleFunctionResult{
-								Message:   fmt.Sprintf("Operation `%s` must define at least a single `2xx` or `3xx` response", name),
-								StartNode: fieldNode,
-								EndNode:   endNode,
-								Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
-								Rule:      context.Rule,
-							})
+							if !responseSeen {
+								results = append(results, model.RuleFunctionResult{
+									Message:   fmt.Sprintf("Operation `%s` must define at least a single `2xx` or `3xx` response", name),
+									StartNode: fieldNode,
+									EndNode:   endNode,
+									Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
+									Rule:      context.Rule,
+								})
+							}
+
+							if responseInvalidType {
+								for i := range invalidCodes {
+									results = append(results, model.RuleFunctionResult{
+										Message: fmt.Sprintf("Operation `%s` uses an `integer` instead of a `string` "+
+											"for response code `%d`", name, invalidCodes[i]),
+										StartNode: fieldNode,
+										EndNode:   endNode,
+										Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
+										Rule:      context.Rule,
+									})
+								}
+							}
+
 						}
 					}
 
