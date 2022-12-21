@@ -1388,7 +1388,7 @@ components:
 			},
 		})
 
-	time.Sleep(1)
+	time.Sleep(100)
 	assert.True(t, panicRan)
 
 }
