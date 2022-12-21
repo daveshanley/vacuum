@@ -5,8 +5,10 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -1325,6 +1327,69 @@ servers:
 	results, _ := ApplyRules(rs, []byte(yml))
 	assert.Nil(t, results)
 	assert.Len(t, results, 0)
+
+}
+
+type testRule struct{}
+
+func (t *testRule) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "test",
+	}
+}
+
+func (d *testRule) RunRule(nodes []*yaml.Node,
+	context model.RuleFunctionContext,
+) []model.RuleFunctionResult {
+	panic("run away!")
+}
+
+func TestCustomRuleHandlePanic(t *testing.T) {
+
+	rules := map[string]*model.Rule{
+		"test": {
+			Id:           "test",
+			Formats:      model.OAS3AllFormat,
+			Given:        "$",
+			Recommended:  true,
+			RuleCategory: model.RuleCategories[model.CategoryValidation],
+			Type:         "validation",
+			Severity:     model.SeverityError,
+			Then: model.RuleAction{
+				Function: "test",
+			},
+		},
+	}
+
+	set := &rulesets.RuleSet{
+		DocumentationURI: "",
+		Rules:            rules,
+		Description:      "",
+	}
+
+	spec := []byte(`openapi: 3.1
+components:
+  schemas:
+    none:
+      type: int`)
+
+	panicRan := false
+	saveMePlease := func(r any) {
+		panicRan = true
+	}
+
+	ApplyRulesToRuleSet(
+		&RuleSetExecution{
+			PanicFunction: saveMePlease,
+			RuleSet:       set,
+			Spec:          spec,
+			CustomFunctions: map[string]model.RuleFunction{
+				"test": &testRule{},
+			},
+		})
+
+	time.Sleep(1)
+	assert.True(t, panicRan)
 
 }
 
