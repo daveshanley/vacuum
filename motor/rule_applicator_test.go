@@ -1388,6 +1388,7 @@ components:
 			},
 		})
 
+	//nolint:staticcheck // ignore this linting issue, its no a bug, it's on purpose.
 	time.Sleep(100)
 	assert.True(t, panicRan)
 
