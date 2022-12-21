@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,8 @@ func TestSuccessResponse_RunRule_Success(t *testing.T) {
 
 	sampleYaml, _ := os.ReadFile("../../model/test_files/burgershop.openapi.yaml")
 
+	info, _ := datamodel.ExtractSpecInfo([]byte(sampleYaml))
+
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
@@ -32,8 +35,8 @@ func TestSuccessResponse_RunRule_Success(t *testing.T) {
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := SuccessResponse{}
+	ctx.SpecInfo = info
 	res := def.RunRule(nodes, ctx)
-
 	assert.Len(t, res, 0)
 }
 
@@ -50,20 +53,37 @@ paths:
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
-
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
 	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
-
+	ctx.Index = index.NewSpecIndex(info.RootNode)
+	ctx.SpecInfo = info
 	def := SuccessResponse{}
-	res := def.RunRule(rootNode.Content, ctx)
+	res := def.RunRule(info.RootNode.Content, ctx)
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "Operation `fresh` must define at least a single `2xx` or `3xx` response", res[0].Message)
 
+}
+
+func TestSuccessResponse_NoPaths(t *testing.T) {
+
+	yml := `swagger: 2.0
+definitions:
+  something:
+    description: hello`
+
+	path := "$"
+
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(info.RootNode)
+	ctx.SpecInfo = info
+	def := SuccessResponse{}
+	res := def.RunRule(info.RootNode.Content, ctx)
+
+	assert.Len(t, res, 0)
 }
 
 func TestSuccessResponse_TriggerFailure_NoId(t *testing.T) {
@@ -78,20 +98,50 @@ paths:
 
 	path := "$"
 
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(info.RootNode)
+	ctx.SpecInfo = info
+
+	def := SuccessResponse{}
+	res := def.RunRule(info.RootNode.Content, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "Operation `undefined operation (no operationId)` must define at least a"+
+		" single `2xx` or `3xx` response", res[0].Message)
+
+}
+
+func TestSuccessResponse_TriggerFailure_IntVsString(t *testing.T) {
+
+	yml := `openapi: 3.1
+paths:
+  /melody:
+    post:
+      responses:
+        500:
+          description: hello`
+
+	path := "$"
+
 	var rootNode yaml.Node
 	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
 	assert.NoError(t, mErr)
 
+	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+
 	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	ctx.Index = index.NewSpecIndex(info.RootNode)
+	ctx.SpecInfo = info
 
 	def := SuccessResponse{}
 	res := def.RunRule(rootNode.Content, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Operation `undefined operation (no operationId)` must define at least a"+
-		" single `2xx` or `3xx` response", res[0].Message)
+	assert.Equal(t, "Operation `undefined operation (no operationId)` uses an `integer` instead of a "+
+		"`string` for response code `500`", res[0].Message)
 
 }
 
