@@ -27,6 +27,7 @@ type ruleContext struct {
 	index            *index.SpecIndex
 	specInfo         *datamodel.SpecInfo
 	customFunctions  map[string]model.RuleFunction
+	panicFunc        func(p any)
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -36,6 +37,7 @@ type RuleSetExecution struct {
 	Spec            []byte                        // The raw bytes of the OpenAPI specification.
 	SpecInfo        *datamodel.SpecInfo           // Pre-parsed spec-info.
 	CustomFunctions map[string]model.RuleFunction // custom functions loaded from plugin.
+	PanicFunction   func(p any)                   // In case of emergency, do this thing here.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -154,6 +156,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				index:            ruleIndex,
 				customFunctions:  execution.CustomFunctions,
 			}
+			if execution.PanicFunction != nil {
+				ctx.panicFunc = execution.PanicFunction
+			}
 			go runRule(ctx)
 		}
 
@@ -267,7 +272,15 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 
 func runRule(ctx ruleContext) {
 
+	if ctx.panicFunc != nil {
+		defer func() {
+			if r := recover(); r != nil {
+				ctx.panicFunc(r)
+			}
+		}()
+	}
 	defer ctx.wg.Done()
+
 	var givenPaths []string
 	if x, ok := ctx.rule.Given.(string); ok {
 		givenPaths = append(givenPaths, x)
