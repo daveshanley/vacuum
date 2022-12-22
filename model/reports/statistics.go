@@ -1,7 +1,14 @@
 package reports
 
+import (
+	"time"
+)
+
 // ReportStatistics represents statistics for an individual specification report.
 type ReportStatistics struct {
+	ID                 uint                 `gorm:"primaryKey" json:"-" yaml:"-"`
+	CreatedAt          time.Time            `json:"-" yaml:"-"`
+	UpdatedAt          time.Time            `json:"-" yaml:"-"`
 	FilesizeKB         int                  `json:"filesizeKb,omitempty" yaml:"filesizeKb,omitempty"`
 	FilesizeBytes      int                  `json:"filesizeBytes,omitempty" yaml:"filesizeBytes,omitempty"`
 	SpecType           string               `json:"specType,omitempty" yaml:"specType,omitempty"`
@@ -23,17 +30,20 @@ type ReportStatistics struct {
 	TotalWarnings      int                  `json:"totalWarnings,omitempty" yaml:"totalWarnings,omitempty"`
 	TotalInfo          int                  `json:"totalInfo,omitempty" yaml:"totalInfo,omitempty"`
 	TotalHints         int                  `json:"totalHints,omitempty" yaml:"totalHints,omitempty"`
-	CategoryStatistics []*CategoryStatistic `json:"categoryStatistics,omitempty" yaml:"categoryStatistics,omitempty"`
+	CategoryStatistics []*CategoryStatistic `gorm:"foreignKey:ID" json:"categoryStatistics,omitempty" yaml:"categoryStatistics,omitempty"`
 }
 
 // CategoryStatistic represents the number of issues for a particular category
 type CategoryStatistic struct {
-	CategoryName string `json:"categoryName" yaml:"categoryName"`
-	CategoryId   string `json:"categoryId" yaml:"categoryId"`
-	NumIssues    int    `json:"numIssues" yaml:"numIssues"`
-	Score        int    `json:"score" yaml:"score"`
-	Warnings     int    `json:"warnings" yaml:"warnings"`
-	Errors       int    `json:"errors" yaml:"errors"`
-	Info         int    `json:"info" yaml:"info"`
-	Hints        int    `json:"hints" yaml:"hints"`
+	ID           uint      `gorm:"primaryKey" json:"-" yaml:"-"`
+	CreatedAt    time.Time `json:"-" yaml:"-"`
+	UpdatedAt    time.Time `json:"-" yaml:"-"`
+	CategoryName string    `json:"categoryName" yaml:"categoryName"`
+	CategoryId   string    `json:"categoryId" yaml:"categoryId"`
+	NumIssues    int       `json:"numIssues" yaml:"numIssues"`
+	Score        int       `json:"score" yaml:"score"`
+	Warnings     int       `json:"warnings" yaml:"warnings"`
+	Errors       int       `json:"errors" yaml:"errors"`
+	Info         int       `json:"info" yaml:"info"`
+	Hints        int       `json:"hints" yaml:"hints"`
 }
