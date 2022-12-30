@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -27,6 +28,34 @@ func TestGetVacuumReportCommand(t *testing.T) {
 	time := time.Now()
 	file := fmt.Sprintf("vacuum-report-%s.json", time.Format("01-02-06-15_04_05"))
 	defer os.Remove(file)
+}
+
+func TestGetVacuumReportCommand_StdInOut(t *testing.T) {
+	cmd := GetVacuumReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{"-i", "-o"})
+	cmd.SetIn(strings.NewReader("openapi: 3.1.0"))
+	cmdErr := cmd.Execute()
+	outBytes, err := io.ReadAll(b)
+
+	assert.NoError(t, cmdErr)
+	assert.NoError(t, err)
+	assert.NotNil(t, outBytes)
+}
+
+func TestGetVacuumReportCommand_NoPretty(t *testing.T) {
+	cmd := GetVacuumReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{"-i", "-o", "-n"})
+	cmd.SetIn(strings.NewReader("openapi: 3.1.0"))
+	cmdErr := cmd.Execute()
+	outBytes, err := io.ReadAll(b)
+
+	assert.NoError(t, cmdErr)
+	assert.NoError(t, err)
+	assert.NotNil(t, outBytes)
 }
 
 func TestGetVacuumReportCommand_Compress(t *testing.T) {
