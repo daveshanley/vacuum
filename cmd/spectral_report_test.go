@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,34 @@ func TestGetSpectralReportCommand_CustomName(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
 	defer os.Remove("blue-shoes.json")
+}
+
+func TestGetSpectralReportCommand_StdInOut(t *testing.T) {
+	cmd := GetSpectralReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{"-i", "-o"})
+	cmd.SetIn(strings.NewReader("openapi: 3.1.0"))
+	cmdErr := cmd.Execute()
+	outBytes, err := io.ReadAll(b)
+
+	assert.NoError(t, cmdErr)
+	assert.NoError(t, err)
+	assert.NotNil(t, outBytes)
+}
+
+func TestGetSpectralReportCommand_StdInOutNoPretty(t *testing.T) {
+	cmd := GetSpectralReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{"-i", "-o", "-n"})
+	cmd.SetIn(strings.NewReader("openapi: 3.1.0"))
+	cmdErr := cmd.Execute()
+	outBytes, err := io.ReadAll(b)
+
+	assert.NoError(t, cmdErr)
+	assert.NoError(t, err)
+	assert.NotNil(t, outBytes)
 }
 
 func TestGetSpectralReportCommand_CustomRuleset(t *testing.T) {
