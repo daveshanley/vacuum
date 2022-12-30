@@ -4,8 +4,10 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -17,7 +19,7 @@ import (
 
 func GetSpectralReportCommand() *cobra.Command {
 
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Use:           "spectral-report",
@@ -37,17 +39,24 @@ func GetSpectralReportCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			PrintBanner()
+			stdIn, _ := cmd.Flags().GetBool("stdin")
+			stdOut, _ := cmd.Flags().GetBool("stdout")
+
+			if !stdIn && !stdOut {
+				PrintBanner()
+			}
 
 			// check for file args
-			if len(args) == 0 {
-				errText := "please supply an OpenAPI specification to generate a report"
+			if !stdIn && len(args) == 0 {
+				errText := "please supply an OpenAPI specification to generate a spectral report, or use " +
+					"the -i flag to use stdin"
 				pterm.Error.Println(errText)
 				pterm.Println()
 				return errors.New(errText)
 			}
 
 			timeFlag, _ := cmd.Flags().GetBool("time")
+			noPretty, _ := cmd.Flags().GetBool("no-pretty")
 
 			reportOutput := "vacuum-spectral-report.json"
 
@@ -57,8 +66,20 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			start := time.Now()
 
-			// read file.
-			specBytes, fileError := os.ReadFile(args[0])
+			var specBytes []byte
+			var fileError error
+
+			if stdIn {
+				// read file from stdin
+				inputReader := cmd.InOrStdin()
+				buf := &bytes.Buffer{}
+				_, fileError = buf.ReadFrom(inputReader)
+				specBytes = buf.Bytes()
+
+			} else {
+				// read file from filesystem
+				specBytes, fileError = os.ReadFile(args[0])
+			}
 
 			if fileError != nil {
 				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
@@ -94,7 +115,9 @@ func GetSpectralReportCommand() *cobra.Command {
 				}
 			}
 
-			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+			if !stdIn && !stdOut {
+				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet:         selectedRS,
@@ -107,10 +130,26 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			duration := time.Since(start)
 
+			var source string
+			if stdIn {
+				source = "stdin"
+			} else {
+				source = args[0] // todo: convert to full path.
+			}
 			// serialize
-			spectralReport := resultSet.GenerateSpectralReport(args[0]) // todo: convert to full path.
+			spectralReport := resultSet.GenerateSpectralReport(source)
 
-			data, _ := json.MarshalIndent(spectralReport, "", "    ")
+			var data []byte
+			if noPretty {
+				data, _ = json.Marshal(spectralReport)
+			} else {
+				data, _ = json.MarshalIndent(spectralReport, "", "    ")
+			}
+
+			if stdOut {
+				fmt.Print(string(data))
+				return nil
+			}
 
 			err := os.WriteFile(reportOutput, data, 0664)
 
@@ -129,5 +168,9 @@ func GetSpectralReportCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolP("stdin", "i", false, "Use stdin as input, instead of a file")
+	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
+	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
+	return cmd
 
 }
