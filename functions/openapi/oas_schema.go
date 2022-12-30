@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 )
@@ -87,14 +88,13 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		}
 		if failure, ok := validationError.(*jsonschema.InvalidJSONTypeError); ok {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("OpenAPI specification has invalid data: %v", failure.Error()),
+				Message:   fmt.Sprintf("OpenAPI specification has `invalid` data: %v", failure.Error()),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      "$",
 				Rule:      context.Rule,
 			})
 		}
-
 	}
 	return results
 }
@@ -108,12 +108,24 @@ func diveIntoFailure(validationErrors []*jsonschema.ValidationError,
 			diveIntoFailure(validationErrors[x].Causes, results, root, rule)
 		}
 		_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[x].InstanceLocation)
+
+		// try and find node using path.
+		searchPath, err := yamlpath.NewPath(path)
+		var foundNode *yaml.Node
+		if err == nil {
+			foundNodesFromPath, pErr := searchPath.Find(root)
+			if pErr != nil {
+				foundNode = root
+			} else {
+				foundNode = foundNodesFromPath[0]
+			}
+		}
 		*results = append(*results, model.RuleFunctionResult{
-			Message: fmt.Sprintf("OpenAPI specification is invalid: %s %v",
+			Message: fmt.Sprintf("OpenAPI specification is `invalid`: %s %v",
 				validationErrors[x].InstanceLocation,
 				validationErrors[x].Message),
-			StartNode: root,
-			EndNode:   root,
+			StartNode: foundNode,
+			EndNode:   foundNode,
 			Path:      path,
 			Rule:      rule,
 		})
