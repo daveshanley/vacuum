@@ -26,9 +26,10 @@ func GetVacuumReportCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Use:           "report",
-		Short:         "Generate a vacuum sealed, replayable report",
+		Short:         "Generate a vacuum sealed, re-playable report",
 		Long: "Generate a full report of a linting run. This can be used as a result set, or can be used to replay a linting run. " +
-			"the default filename is 'vacuum-report-MM-DD-YY-HH_MM_SS.json' located in the working directory.",
+			"the default filename is 'vacuum-report-MM-DD-YY-HH_MM_SS.json' located in the working directory. " +
+			"Use the -i flag for using stdin instead of reading a file, and -o for stdout, instead of writing to a file.",
 		Example: "vacuum report <my-awesome-spec.yaml> <report-prefix>",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
@@ -124,6 +125,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				RuleSet:         selectedRS,
 				Spec:            specBytes,
 				CustomFunctions: customFunctions,
+				SilenceLogs:     true,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
