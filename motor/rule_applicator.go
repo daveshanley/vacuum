@@ -28,6 +28,7 @@ type ruleContext struct {
 	specInfo         *datamodel.SpecInfo
 	customFunctions  map[string]model.RuleFunction
 	panicFunc        func(p any)
+	silenceLogs      bool
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -38,6 +39,7 @@ type RuleSetExecution struct {
 	SpecInfo        *datamodel.SpecInfo           // Pre-parsed spec-info.
 	CustomFunctions map[string]model.RuleFunction // custom functions loaded from plugin.
 	PanicFunction   func(p any)                   // In case of emergency, do this thing here.
+	SilenceLogs     bool                          // Prevent any warnings about rules/rule-sets being printed.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -155,6 +157,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				specInfo:         specInfo,
 				index:            ruleIndex,
 				customFunctions:  execution.CustomFunctions,
+				silenceLogs:      execution.SilenceLogs,
 			}
 			if execution.PanicFunction != nil {
 				ctx.panicFunc = execution.PanicFunction
@@ -367,7 +370,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		}
 
 		if ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
-			pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
+			if !ctx.silenceLogs {
+				pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
+			}
 			return ctx.ruleResults
 		}
 
