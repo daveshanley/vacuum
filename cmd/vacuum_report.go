@@ -38,11 +38,16 @@ func GetVacuumReportCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			PrintBanner()
+			stdIn, _ := cmd.Flags().GetBool("stdin")
+			stdOut, _ := cmd.Flags().GetBool("stdout")
+
+			if !stdIn && !stdOut {
+				PrintBanner()
+			}
 
 			// check for file args
-			if len(args) == 0 {
-				errText := "please supply an OpenAPI specification to generate a report"
+			if !stdIn && len(args) == 0 {
+				errText := "please supply an OpenAPI specification to generate a report, or use the -i flag to use stdin"
 				pterm.Error.Println(errText)
 				pterm.Println()
 				return errors.New(errText)
@@ -63,8 +68,20 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			start := time.Now()
 
-			// read file.
-			specBytes, fileError := os.ReadFile(args[0])
+			var specBytes []byte
+			var fileError error
+
+			if stdIn {
+				// read file from stdin
+				inputReader := cmd.InOrStdin()
+				buf := &bytes.Buffer{}
+				_, fileError = buf.ReadFrom(inputReader)
+				specBytes = buf.Bytes()
+
+			} else {
+				// read file from filesystem
+				specBytes, fileError = os.ReadFile(args[0])
+			}
 
 			if fileError != nil {
 				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
@@ -99,7 +116,9 @@ func GetVacuumReportCommand() *cobra.Command {
 				}
 			}
 
-			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+			if !stdIn && !stdOut {
+				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet:         selectedRS,
@@ -137,6 +156,11 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			reportData := data
 
+			if stdOut {
+				fmt.Print(string(reportData))
+				return nil
+			}
+
 			if compress {
 
 				var b bytes.Buffer
@@ -157,7 +181,6 @@ func GetVacuumReportCommand() *cobra.Command {
 				reportOutput, vr.Generated.Format("01-02-06-15_04_05"), extension)
 
 			err = os.WriteFile(reportOutputName, reportData, 0664)
-
 			if err != nil {
 				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, err.Error())
 				pterm.Println()
@@ -173,6 +196,8 @@ func GetVacuumReportCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolP("stdin", "i", false, "Use stdin as input, instead of a file")
+	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("compress", "c", false, "Compress results using gzip")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	return cmd
