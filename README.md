@@ -4,6 +4,9 @@
 
 ![Pipeline](https://github.com/daveshanley/vacuum/workflows/vaccum%20pipeline/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
+[![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
+[![Docs](https://img.shields.io/badge/godoc-reference-5fafd7)](https://pkg.go.dev/github.com/daveshanley/vacuum)
+
 
 An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
 
@@ -47,6 +50,11 @@ like our _very kind_ sponsors:
 </p>
 
 ---
+
+## Come chat with us
+
+Need help? Have a question? Want to share your work? [Join our discord](https://discord.gg/UAcUF78MQN) and
+come say hi!
 
 ## Documentation
 
