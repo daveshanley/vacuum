@@ -126,6 +126,8 @@ github.com/pterm/pterm v0.12.36/go.mod h1:NjiL09hFhT/vWjQHSj1athJpx6H8cjpHXNAK5b
 github.com/pterm/pterm v0.12.40/go.mod h1:ffwPLwlbXxP+rxT0GsgDTzS3y3rmpAO1NMjUkGTYf8s=
 github.com/pterm/pterm v0.12.50 h1:53nKg5lLI1kXkvLWq2IQI5rgkPkFzEQsuQjxAb39VlE=
 github.com/pterm/pterm v0.12.50/go.mod h1:79BLm4vos2z+eOoHnDG7ZWuYtLaSStyaspKjGmSoxc4=
+github.com/pterm/pterm v0.12.51 h1:iwhNG1FhQMgks+5kVyr/ClRk3WJCuL907nJN7RqmEpw=
+github.com/pterm/pterm v0.12.51/go.mod h1:79BLm4vos2z+eOoHnDG7ZWuYtLaSStyaspKjGmSoxc4=
 github.com/rivo/uniseg v0.2.0 h1:S1pD9weZBuJdFmowNwbpi7BJ8TNftyUImj/0WQi72jY=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
