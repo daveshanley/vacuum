@@ -1,10 +1,8 @@
-<p align="center">
-	<img src="logo.png" alt="vacuum" height="300px"/>
-</p>
+![logo](logo.png)
+
 # vacuum - The world's fastest OpenAPI & Swagger linter.
 
 ![Pipeline](https://github.com/daveshanley/vacuum/workflows/vaccum%20pipeline/badge.svg)
-[![codecov](https://codecov.io/gh/daveshanley/vacuum/branch/main/graph/badge.svg?)](https://codecov.io/gh/daveshanley/vacuum)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 
 An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
