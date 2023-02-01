@@ -29,7 +29,7 @@ func (od OAS2Discriminator) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 
 	var results []model.RuleFunctionResult
 
-	schemas := context.Index.GetAllSchemas()
+	schemas := context.Index.GetAllComponentSchemas()
 
 	for id, schema := range schemas {
 

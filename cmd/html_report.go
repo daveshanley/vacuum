@@ -42,6 +42,15 @@ func GetHTMLReportCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+
+			// disable color and styling, for CI/CD use.
+			// https://github.com/daveshanley/vacuum/issues/234
+			if noStyleFlag {
+				pterm.DisableColor()
+				pterm.DisableStyling()
+			}
+
 			PrintBanner()
 
 			// check for file args
@@ -127,6 +136,7 @@ func GetHTMLReportCommand() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
+	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 
 	return cmd
 }
