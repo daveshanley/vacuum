@@ -1,3 +1,4 @@
+openapi: 3.0
 paths:
   /burgers:
     post:
@@ -13,13 +14,18 @@ components:
       properties:
         things:
           "$ref": "#/components/schemas/Two"
+      required:
+        - things
     Two:
-      decription: "test two"
+      description: "test two"
       properties:
         testThing:
           "$ref": "#/components/schemas/One"
         anyOf:
           - "$ref": "#/components/schemas/Four"
+      required:
+        - testThing
+        - anyOf
     Three:
       description: "test three"
       properties:
@@ -29,30 +35,40 @@ components:
           "$ref": "#/components/schemas/Seven"
         yester:
           "$ref": "#/components/schemas/Seven"
+      required:
+        - tester
+        - bester
+        - yester
     Four:
-      desription: "test four"
+      description: "test four"
       properties:
         lemons:
           "$ref": "#/components/schemas/Nine"
+      required:
+        - lemons
     Five:
       properties:
         rice:
           "$ref": "#/components/schemas/Six"
+      required:
+        - rice
     Six:
       properties:
         mints:
           "$ref": "#/components/schemas/Nine"
+      required:
+        - mints
     Seven:
       properties:
         wow:
           "$ref": "#/components/schemas/Three"
+      required:
+        - wow
     Nine:
       description: done.
     Ten:
       properties:
         yeah:
           "$ref": "#/components/schemas/Ten"
-
-
-
-
+      required:
+        - yeah
