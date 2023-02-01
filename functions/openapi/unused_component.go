@@ -34,7 +34,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 	// extract all references, and every single component
 	allRefs := context.Index.GetAllReferences()
-	schemas := context.Index.GetAllSchemas()
+	schemas := context.Index.GetAllComponentSchemas()
 	responses := context.Index.GetAllResponses()
 	parameters := context.Index.GetAllParameters()
 	examples := context.Index.GetAllExamples()

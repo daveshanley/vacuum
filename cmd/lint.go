@@ -42,6 +42,14 @@ func GetLintCommand() *cobra.Command {
 			silent, _ := cmd.Flags().GetBool("silent")
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 			failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
+			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+
+			// disable color and styling, for CI/CD use.
+			// https://github.com/daveshanley/vacuum/issues/234
+			if noStyleFlag {
+				pterm.DisableColor()
+				pterm.DisableStyling()
+			}
 
 			if !silent {
 				PrintBanner()
@@ -186,6 +194,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
 	cmd.Flags().StringP("category", "c", "", "Show a single category of results")
 	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result.")
+	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 
 	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
