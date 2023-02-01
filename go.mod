@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/alecthomas/chroma v0.10.0
-	github.com/dustin/go-humanize v1.0.0
+	github.com/dustin/go-humanize v1.0.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
