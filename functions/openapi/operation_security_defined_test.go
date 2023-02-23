@@ -47,7 +47,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -83,7 +84,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -115,7 +117,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -146,7 +149,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -182,7 +186,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)

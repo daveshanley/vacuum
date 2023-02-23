@@ -47,7 +47,8 @@ func TestNoRefSiblings_RunRule_Fail(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -78,7 +79,8 @@ func TestNoRefSiblings_RunRule_Components(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -109,7 +111,8 @@ func TestNoRefSiblings_RunRule_Parameters(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -140,7 +143,8 @@ func TestNoRefSiblings_RunRule_Definitions(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -175,7 +179,8 @@ func TestNoRefSiblings_RunRule_Success(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)
@@ -211,7 +216,8 @@ func TestNoRefSiblings_RunRule_Fail_Single(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "no_ref_siblings", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoRefSiblings{}
 	res := def.RunRule(nodes, ctx)

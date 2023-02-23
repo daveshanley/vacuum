@@ -48,7 +48,8 @@ func TestOperationParameters_RunRule_Success(t *testing.T) {
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -77,7 +78,8 @@ func TestOperationParameters_RunRule_MissingName(t *testing.T) {
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -107,7 +109,8 @@ func TestOperationParameters_RunRule_DuplicateIdButDifferentInType(t *testing.T)
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -136,7 +139,8 @@ func TestOperationParameters_RunRule_DuplicateIdSameInType(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -172,7 +176,8 @@ func TestOperationParameters_RunRule_DuplicateId_MultipleVerbsDifferentInTypes(t
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -207,7 +212,8 @@ func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -237,7 +243,8 @@ func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -267,7 +274,8 @@ func TestOperationParameters_RunRule_FormDataAndBody(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)

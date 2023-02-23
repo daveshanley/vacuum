@@ -56,7 +56,8 @@ paths:
 	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
 	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(info.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, config)
 	ctx.SpecInfo = info
 	def := SuccessResponse{}
 	res := def.RunRule(info.RootNode.Content, ctx)
@@ -78,7 +79,8 @@ definitions:
 	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
 	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(info.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, config)
 	ctx.SpecInfo = info
 	def := SuccessResponse{}
 	res := def.RunRule(info.RootNode.Content, ctx)
@@ -101,7 +103,8 @@ paths:
 	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
 	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(info.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, config)
 	ctx.SpecInfo = info
 
 	def := SuccessResponse{}
@@ -133,7 +136,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "success_response", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(info.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(info.RootNode, config)
 	ctx.SpecInfo = info
 
 	def := SuccessResponse{}

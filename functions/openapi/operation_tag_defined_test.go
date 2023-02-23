@@ -53,7 +53,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "tag_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := TagDefined{}
 	res := def.RunRule(nodes, ctx)
@@ -95,7 +96,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "tag_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := TagDefined{}
 	res := def.RunRule(nodes, ctx)

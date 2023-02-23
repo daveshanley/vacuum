@@ -34,7 +34,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 	// add any param indexing errors already found.
 	errs := context.Index.GetOperationParametersIndexErrors()
-	for n, _ := range errs {
+	for n := range errs {
 		er := errs[n].(*index.IndexingError)
 		results = append(results, model.RuleFunctionResult{
 			Message:   er.Error(),

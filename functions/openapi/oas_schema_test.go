@@ -31,7 +31,8 @@ wiff: waff`
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -50,7 +51,8 @@ func TestOAS2Schema_RunRule_JSONSource_Fail_SpecBorked(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -69,7 +71,8 @@ func TestOAS2Schema_RunRule_JSONSource_Fail(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -88,7 +91,8 @@ func TestOAS2Schema_RunRule_JSONSource_Fail_Unknown(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -122,7 +126,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -156,7 +161,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -175,7 +181,8 @@ func TestOAS3Schema_RunRule_Fail(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}
@@ -209,7 +216,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := OASSchema{}

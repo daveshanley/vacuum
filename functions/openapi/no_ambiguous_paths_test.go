@@ -66,7 +66,8 @@ paths:
 	rule := buildOpenApiTestRuleAction(path, "ambiguousPaths", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)

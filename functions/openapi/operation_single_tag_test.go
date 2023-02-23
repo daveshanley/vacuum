@@ -46,7 +46,8 @@ func TestOperationSingleTag_RunRule_Fail(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_single_tag", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSingleTag{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -78,7 +79,8 @@ func TestOperationSingleTag_RunRule_Success(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_single_tag", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationSingleTag{}
 	res := def.RunRule(rootNode.Content, ctx)
