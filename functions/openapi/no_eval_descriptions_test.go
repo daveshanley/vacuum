@@ -48,7 +48,8 @@ components:
 	rule.PrecompiledPattern = comp
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
 	ctx.Rule = &rule
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := NoEvalInDescriptions{}
 	res := def.RunRule(nodes, ctx)
@@ -83,7 +84,8 @@ components:
 	rule.PrecompiledPattern = comp
 
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 	ctx.Rule = &rule
 
 	def := NoEvalInDescriptions{}
@@ -119,7 +121,8 @@ components:
 	comp, _ := regexp.Compile(fo["pattern"])
 	rule.PrecompiledPattern = comp
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), fo)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 	ctx.Rule = &rule
 
 	def := NoEvalInDescriptions{}

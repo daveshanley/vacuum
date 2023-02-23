@@ -124,7 +124,8 @@ func testBootDashboard() (*model.RuleResultSet, *index.SpecIndex, *datamodel.Spe
 		return nil, nil, nil
 	}
 
-	index := index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	specIndex := index.NewSpecIndexWithConfig(&rootNode, config)
 
 	// let's go ahead and lint the spec and pass the results to the dashboard.
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -135,5 +136,5 @@ func testBootDashboard() (*model.RuleResultSet, *index.SpecIndex, *datamodel.Spe
 		Spec:    yamlBytes,
 	})
 	resultSet := model.NewRuleResultSet(applied.Results)
-	return resultSet, index, info
+	return resultSet, specIndex, info
 }

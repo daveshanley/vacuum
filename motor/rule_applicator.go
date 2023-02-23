@@ -92,9 +92,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	specUnresolved = specInfoUnresolved.RootNode
 	specResolved = specInfo.RootNode
 
+	config := index.CreateOpenAPIIndexConfig()
+
 	// create resolved and un-resolved indexes.
-	indexResolved := index.NewSpecIndex(specResolved)
-	indexUnresolved := index.NewSpecIndex(specUnresolved)
+	indexResolved := index.NewSpecIndexWithConfig(specResolved, config)
+	indexUnresolved := index.NewSpecIndexWithConfig(specUnresolved, config)
 
 	// create a resolver
 	resolverInstance := resolver.NewResolver(indexResolved)
@@ -203,10 +205,11 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 	specResolved = specUnresolved
 
 	// create an index
-	index := index.NewSpecIndex(&specResolved)
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&specResolved, config)
 
 	// create a resolver
-	resolverInstance := resolver.NewResolver(index)
+	resolverInstance := resolver.NewResolver(idx)
 
 	// resolve the doc
 	resolverInstance.Resolve()
@@ -261,7 +264,7 @@ func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionRes
 				ruleResults:      &ruleResults,
 				wg:               &ruleWaitGroup,
 				errors:           &errors,
-				index:            index,
+				index:            idx,
 				specInfo:         specInfo,
 			}
 			go runRule(ctx)

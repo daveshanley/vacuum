@@ -31,7 +31,8 @@ func TestOperation4xResponse_RunRule_Success(t *testing.T) {
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := Operation4xResponse{}
 	res := def.RunRule(nodes, ctx)
@@ -49,7 +50,8 @@ func TestOperation4xResponse_RunRule_ExitEarly(t *testing.T) {
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := Operation4xResponse{}
 	res := def.RunRule(nodes, ctx)
@@ -67,7 +69,8 @@ func TestOperation4xResponse_RunRule_Fail(t *testing.T) {
 	nodes, _ := utils.FindNodes(sampleYaml, "$")
 	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := Operation4xResponse{}
 	res := def.RunRule(nodes, ctx)

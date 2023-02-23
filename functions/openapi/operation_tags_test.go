@@ -46,7 +46,8 @@ func TestOperationTags_RunRule_Success(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)
@@ -79,7 +80,8 @@ func TestOperationTags_RunRule_NoTags(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)
@@ -115,7 +117,8 @@ func TestOperationTags_RunRule_EmptyTags(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)
@@ -147,7 +150,8 @@ func TestOperationTags_RunRule_IgnoreParameters(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)
@@ -175,7 +179,8 @@ func TestOperationTags_RunRule_IgnoreServers(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)
@@ -206,7 +211,8 @@ func TestOperationTags_RunRule_IgnoreExtensions(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)
@@ -228,7 +234,8 @@ func TestOperationTags_RunRule_HandleNoPaths(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationTags{}
 	res := def.RunRule(nodes, ctx)

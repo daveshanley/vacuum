@@ -45,7 +45,9 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := DescriptionDuplication{}
 	res := def.RunRule(nodes, ctx)
@@ -79,7 +81,10 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
 	def := DescriptionDuplication{}
 	res := def.RunRule(nodes, ctx)
 
@@ -111,7 +116,10 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
 	def := DescriptionDuplication{}
 	res := def.RunRule(nodes, ctx)
 

@@ -45,7 +45,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -81,7 +82,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -116,7 +118,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -151,7 +154,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -186,7 +190,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -219,7 +224,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "formData_consume_check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := FormDataConsumeCheck{}
 	res := def.RunRule(rootNode.Content, ctx)

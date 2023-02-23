@@ -51,7 +51,8 @@ func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -91,7 +92,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -124,7 +126,8 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) 
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -156,7 +159,8 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -191,7 +195,8 @@ func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -221,7 +226,8 @@ func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -253,7 +259,8 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -303,7 +310,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 
@@ -354,7 +362,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)
@@ -410,7 +419,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PathParameters{}
 	res := def.RunRule(nodes, ctx)

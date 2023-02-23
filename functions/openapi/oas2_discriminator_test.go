@@ -43,7 +43,8 @@ definitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_discriminator", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2Discriminator{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -75,7 +76,8 @@ definitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_discriminator", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2Discriminator{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -105,7 +107,8 @@ definitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_discriminator", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2Discriminator{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -136,7 +139,8 @@ definitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_discriminator", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2Discriminator{}
 	res := def.RunRule(rootNode.Content, ctx)

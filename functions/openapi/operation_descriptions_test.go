@@ -45,7 +45,8 @@ func TestOperationDescription_CheckDescriptionMissing(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -74,7 +75,8 @@ func TestOperationDescription_CheckDescriptionTooShort(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -104,7 +106,8 @@ func TestOperationDescription_SummaryButNoDescription(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -138,7 +141,8 @@ func TestOperationDescription_CheckRequestBodyDescriptionExists(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -174,7 +178,8 @@ func TestOperationDescription_CheckRequestBodyDescriptionMeetsLength(t *testing.
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -214,7 +219,8 @@ func TestOperationDescription_CheckResponsesDescriptionExist(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -255,7 +261,8 @@ func TestOperationDescription_CheckResponsesDescriptionLongEnough(t *testing.T) 
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -290,7 +297,8 @@ func TestOperationDescription_CheckParametersIgnored(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -320,7 +328,8 @@ func TestOperationDescription_CheckServersIgnored(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -351,7 +360,8 @@ func TestOperationDescription_CheckExtensionsIgnored(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)
@@ -377,7 +387,8 @@ func TestOperationDescription_CheckForNoPaths(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "operation-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OperationDescription{}
 	res := def.RunRule(nodes, ctx)

@@ -35,9 +35,10 @@ func TestConvertNode_Simple(t *testing.T) {
 	mErr := yaml.Unmarshal([]byte(yml), &node)
 	assert.NoError(t, mErr)
 
-	index := index.NewSpecIndex(&node)
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&node, config)
 
-	resolver := resolver.NewResolver(index)
+	resolver := resolver.NewResolver(idx)
 	resolver.Resolve()
 
 	p, _ := yamlpath.NewPath("$.components.schemas.Citrus")
@@ -89,10 +90,11 @@ func TestValidateExample_AllInvalid(t *testing.T) {
 	mErr := yaml.Unmarshal([]byte(yml), &node)
 	assert.NoError(t, mErr)
 
-	index := index.NewSpecIndex(&node)
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&node, config)
 
-	resolver := resolver.NewResolver(index)
-	resolver.Resolve()
+	rslvr := resolver.NewResolver(idx)
+	rslvr.Resolve()
 
 	p, _ := yamlpath.NewPath("$.components.schemas.Savory")
 	r, _ := p.Find(&node)

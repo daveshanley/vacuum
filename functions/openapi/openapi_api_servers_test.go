@@ -30,7 +30,8 @@ func TestAPIServers_RunRule_Fail(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -51,7 +52,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -73,7 +75,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -95,7 +98,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -117,7 +121,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -139,7 +144,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -161,7 +167,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -183,7 +190,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}
@@ -205,7 +213,8 @@ paths:
 
 	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(specInfo.RootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
 	ctx.SpecInfo = specInfo
 
 	def := APIServers{}

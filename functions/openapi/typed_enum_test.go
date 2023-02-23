@@ -53,7 +53,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := TypedEnum{}
 	res := def.RunRule(nodes, ctx)
@@ -81,7 +82,8 @@ func TestTypedEnum_RunRule_31NullableEnum_SuccessCheck(t *testing.T) {
 
 	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := TypedEnum{}
 	res := def.RunRule(nodes, ctx)
@@ -124,7 +126,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "typed_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := TypedEnum{}
 	res := def.RunRule(nodes, ctx)

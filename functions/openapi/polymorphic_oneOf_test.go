@@ -41,7 +41,8 @@ func TestPolymorphicOneOf_RunRule_Fail(t *testing.T) {
 	rule := buildOpenApiTestRuleAction(path, "polymorphic_oneOf", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PolymorphicOneOf{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -70,7 +71,8 @@ func TestPolymorphicOneOf_RunRule_Success(t *testing.T) {
 	rule := buildOpenApiTestRuleAction(path, "polymorphic_oneOf", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := PolymorphicOneOf{}
 	res := def.RunRule(rootNode.Content, ctx)

@@ -19,7 +19,8 @@ func TestNewStatsChart(t *testing.T) {
 	info, _ := datamodel.ExtractSpecInfo(yamlBytes)
 	mErr := yaml.Unmarshal(yamlBytes, &rootNode)
 	assert.NoError(t, mErr)
-	idx := index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&rootNode, config)
 
 	chart := NewStatsChart(idx, info)
 

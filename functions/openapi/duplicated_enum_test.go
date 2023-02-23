@@ -53,7 +53,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "duplicated_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := DuplicatedEnum{}
 	res := def.RunRule(nodes, ctx)
@@ -94,7 +95,8 @@ components:
 
 	rule := buildOpenApiTestRuleAction(path, "duplicated_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := DuplicatedEnum{}
 	res := def.RunRule(nodes, ctx)

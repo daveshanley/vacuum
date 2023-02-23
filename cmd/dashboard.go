@@ -81,7 +81,10 @@ func GetDashboardCommand() *cobra.Command {
 					pterm.Println()
 					return err
 				}
-				specIndex = index.NewSpecIndex(&rootNode)
+
+				config := index.CreateOpenAPIIndexConfig()
+				specIndex = index.NewSpecIndexWithConfig(&rootNode, config)
+
 				specInfo = vacuumReport.SpecInfo
 				specInfo.Generated = vacuumReport.Generated
 			}

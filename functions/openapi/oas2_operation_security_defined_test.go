@@ -46,7 +46,8 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -80,7 +81,8 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -113,7 +115,8 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -146,7 +149,8 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)
@@ -181,7 +185,8 @@ securityDefinitions:
 
 	rule := buildOpenApiTestRuleAction(path, "oas2_operation_security_defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Index = index.NewSpecIndex(&rootNode)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
 	def := OAS2OperationSecurityDefined{}
 	res := def.RunRule(rootNode.Content, ctx)

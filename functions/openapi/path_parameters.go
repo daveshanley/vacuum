@@ -153,7 +153,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				//if verbParametersNode != nil {
 				for _, verbParams := range verbParametersNode {
 
-					if verbParams == nil || len(verbParams) == 0 {
+					if verbParams == nil {
 						continue
 					}
 
