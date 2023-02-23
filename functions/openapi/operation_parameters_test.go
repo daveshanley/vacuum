@@ -86,7 +86,7 @@ func TestOperationParameters_RunRule_MissingName(t *testing.T) {
 	assert.Equal(t, "the 'get' operation parameter at path '/users/{id}', index 1 has no 'name' value", res[0].Message)
 }
 
-func TestOperationParameters_RunRule_DuplicateId(t *testing.T) {
+func TestOperationParameters_RunRule_DuplicateIdButDifferentInType(t *testing.T) {
 
 	yml := `paths:
   /users/{id}:
@@ -112,11 +112,40 @@ func TestOperationParameters_RunRule_DuplicateId(t *testing.T) {
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "the `get` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id`", res[0].Message)
+	assert.Len(t, res, 0)
 }
 
-func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
+func TestOperationParameters_RunRule_DuplicateIdSameInType(t *testing.T) {
+
+	yml := `paths:
+  /users/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+        - in: path
+          name: id`
+
+	path := "$.paths"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationParameters{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "the `get` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id` and `in` type", res[0].Message)
+}
+
+func TestOperationParameters_RunRule_DuplicateId_MultipleVerbsDifferentInTypes(t *testing.T) {
 
 	yml := `paths:
   /users/{id}:
@@ -148,8 +177,43 @@ func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
 	def := OperationParameters{}
 	res := def.RunRule(nodes, ctx)
 
+	assert.Len(t, res, 0)
+}
+
+func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
+
+	yml := `paths:
+  /users/{id}:
+    get:
+      parameters:
+        - in: path
+          name: id
+        - in: path
+          name: id
+    post:
+      parameters:
+        - in: path
+          name: id
+        - in: query
+          name: winter`
+
+	path := "$.paths"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "operation-parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = index.NewSpecIndex(&rootNode)
+
+	def := OperationParameters{}
+	res := def.RunRule(nodes, ctx)
+
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the `get` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id`", res[0].Message)
+	assert.Equal(t, "the `get` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id` and `in` type", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {

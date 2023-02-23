@@ -5,8 +5,9 @@ package openapi
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
+	model "github.com/daveshanley/vacuum/model"
 	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"regexp"
@@ -107,27 +108,30 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			//_, topLevelParametersNode := utils.FindKeyNodeTop("parameters", operationNode.Content)
 			// look for top level params
 			//if topLevelParametersNode != nil {
-			for x, topLevelParam := range topLevelParametersNode {
-				_, paramInNode := utils.FindKeyNode("in", topLevelParam.Node.Content)
-				_, paramRequiredNode := utils.FindKeyNode("required", topLevelParam.Node.Content)
-				_, paramNameNode := utils.FindKeyNode("name", topLevelParam.Node.Content)
+			for x, topLevelParamSlice := range topLevelParametersNode {
+				for _, topLevelParam := range topLevelParamSlice {
 
-				if currentVerb == "" {
-					currentVerb = "top"
-				}
+					_, paramInNode := utils.FindKeyNode("in", topLevelParam.Node.Content)
+					_, paramRequiredNode := utils.FindKeyNode("required", topLevelParam.Node.Content)
+					_, paramNameNode := utils.FindKeyNode("name", topLevelParam.Node.Content)
 
-				if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
-					currentPath, currentVerb, &topLevelParams, nil, &results, context) {
-
-					var paramData map[string][]string
-					if topLevelParams["top"] != nil {
-						paramData = topLevelParams["top"]
-					} else {
-						paramData = make(map[string][]string)
+					if currentVerb == "" {
+						currentVerb = "top"
 					}
-					path := []string{"paths", currentPath, "parameters", fmt.Sprintf("%v", x)}
-					paramData[paramNameNode.Value] = path
-					topLevelParams["top"] = paramData
+
+					if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
+						currentPath, currentVerb, &topLevelParams, nil, &results, context) {
+
+						var paramData map[string][]string
+						if topLevelParams["top"] != nil {
+							paramData = topLevelParams["top"]
+						} else {
+							paramData = make(map[string][]string)
+						}
+						path := []string{"paths", currentPath, "parameters", fmt.Sprintf("%v", x)}
+						paramData[paramNameNode.Value] = path
+						topLevelParams["top"] = paramData
+					}
 				}
 			}
 			//}
@@ -147,30 +151,33 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				verbParametersNode := context.Index.GetOperationParameterReferences()[currentPath][currentVerb]
 
 				//if verbParametersNode != nil {
-				for _, verbParam := range verbParametersNode {
+				for _, verbParams := range verbParametersNode {
 
-					if verbParam == nil {
+					if verbParams == nil || len(verbParams) == 0 {
 						continue
 					}
-					_, paramInNode := utils.FindKeyNode("in", verbParam.Node.Content)
-					_, paramRequiredNode := utils.FindKeyNode("required", verbParam.Node.Content)
-					_, paramNameNode := utils.FindKeyNode("name", verbParam.Node.Content)
 
-					if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
-						currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results, context) {
+					for _, verbParam := range verbParams {
+						_, paramInNode := utils.FindKeyNode("in", verbParam.Node.Content)
+						_, paramRequiredNode := utils.FindKeyNode("required", verbParam.Node.Content)
+						_, paramNameNode := utils.FindKeyNode("name", verbParam.Node.Content)
 
-						path := []string{"paths", currentPath, currentVerb, "parameters",
-							fmt.Sprintf("%v", c)}
-						var paramData map[string][]string
-						if verbLevelParams[currentVerb] != nil {
-							paramData = verbLevelParams[currentVerb]
-						} else {
-							paramData = make(map[string][]string)
+						if pp.isPathParamNamedAndRequired(paramInNode, paramRequiredNode, paramNameNode,
+							currentPath, currentVerb, &verbLevelParams, topLevelParams["top"], &results, context) {
+
+							path := []string{"paths", currentPath, currentVerb, "parameters",
+								fmt.Sprintf("%v", c)}
+							var paramData map[string][]string
+							if verbLevelParams[currentVerb] != nil {
+								paramData = verbLevelParams[currentVerb]
+							} else {
+								paramData = make(map[string][]string)
+							}
+							paramData[paramNameNode.Value] = path
+							verbLevelParams[currentVerb] = paramData
 						}
-						paramData[paramNameNode.Value] = path
-						verbLevelParams[currentVerb] = paramData
+						c++
 					}
-					c++
 				}
 				//}
 			}
@@ -234,10 +241,11 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	// include operation param errors found by the index
 	errors := context.Index.GetOperationParametersIndexErrors()
 	for _, err := range errors {
-		res := model.BuildFunctionResultString(err.Error.Error())
-		res.StartNode = err.Node
-		res.EndNode = err.Node
-		res.Path = err.Path
+		idxErr := err.(*index.IndexingError)
+		res := model.BuildFunctionResultString(idxErr.Error())
+		res.StartNode = idxErr.Node
+		res.EndNode = idxErr.Node
+		res.Path = idxErr.Path
 		res.Rule = context.Rule
 		results = append(results, res)
 	}

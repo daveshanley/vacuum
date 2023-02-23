@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -32,12 +33,14 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 	var results []model.RuleFunctionResult
 
 	// add any param indexing errors already found.
-	for _, paramIndexError := range context.Index.GetOperationParametersIndexErrors() {
+	errs := context.Index.GetOperationParametersIndexErrors()
+	for n, _ := range errs {
+		er := errs[n].(*index.IndexingError)
 		results = append(results, model.RuleFunctionResult{
-			Message:   paramIndexError.Error.Error(),
-			StartNode: paramIndexError.Node,
-			EndNode:   paramIndexError.Node,
-			Path:      paramIndexError.Path,
+			Message:   er.Error(),
+			StartNode: er.Node,
+			EndNode:   er.Node,
+			Path:      er.Path,
 			Rule:      context.Rule,
 		})
 	}
@@ -53,8 +56,9 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 			resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", path, currentVerb)
 
-			for key, param := range methodNode {
+			for key, params := range methodNode {
 
+				// TODO: come back and re-visit this code
 				if strings.Contains(key, "~1") {
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("There is a `~1` character in this `%s` operation at '%s",
@@ -67,66 +71,51 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					continue
 				}
 
-				// check for crazy
-
-				if param == nil {
+				for _, param := range params {
+					_, paramInNode := utils.FindKeyNode("in", param.Node.Content)
 					startNode := param.Node
 					endNode := utils.FindLastChildNode(startNode)
 
-					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("the `%s` operation at path `%s` contains an "+
-							"empty parameter", currentVerb, currentPath),
-						StartNode: startNode,
-						EndNode:   endNode,
-						Path:      resultPath,
-						Rule:      context.Rule,
-					})
-					continue
-				}
-				_, paramInNode := utils.FindKeyNode("in", param.Node.Content)
-
-				startNode := param.Node
-				endNode := utils.FindLastChildNode(startNode)
-
-				if paramInNode != nil {
-					if seenParamInLocations[paramInNode.Value] {
-						if paramInNode.Value == "body" {
-							results = append(results, model.RuleFunctionResult{
-								Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
-									"duplicate param in:body definition", currentVerb, currentPath),
-								StartNode: startNode,
-								EndNode:   endNode,
-								Path:      resultPath,
-								Rule:      context.Rule,
-							})
-						}
-					} else {
-						if paramInNode.Value == "body" || paramInNode.Value == "formData" {
-							if seenParamInLocations["formData"] || seenParamInLocations["body"] {
+					if paramInNode != nil {
+						if seenParamInLocations[paramInNode.Value] {
+							if paramInNode.Value == "body" {
 								results = append(results, model.RuleFunctionResult{
-									Message: fmt.Sprintf("the `%s` operation at path `%s` "+
-										"contains parameters using both in:body and in:formData",
-										currentVerb, currentPath),
+									Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
+										"duplicate param in:body definition", currentVerb, currentPath),
 									StartNode: startNode,
 									EndNode:   endNode,
 									Path:      resultPath,
 									Rule:      context.Rule,
 								})
 							}
+						} else {
+							if paramInNode.Value == "body" || paramInNode.Value == "formData" {
+								if seenParamInLocations["formData"] || seenParamInLocations["body"] {
+									results = append(results, model.RuleFunctionResult{
+										Message: fmt.Sprintf("the `%s` operation at path `%s` "+
+											"contains parameters using both in:body and in:formData",
+											currentVerb, currentPath),
+										StartNode: startNode,
+										EndNode:   endNode,
+										Path:      resultPath,
+										Rule:      context.Rule,
+									})
+								}
+							}
+							seenParamInLocations[paramInNode.Value] = true
 						}
-						seenParamInLocations[paramInNode.Value] = true
-					}
-				} else {
-					rfr := model.RuleFunctionResult{
-						Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
-							"parameter with no `in` value", currentVerb, currentPath),
-						StartNode: startNode,
-						EndNode:   endNode,
-						Path:      resultPath,
-						Rule:      context.Rule,
-					}
-					results = append(results, rfr)
+					} else {
+						rfr := model.RuleFunctionResult{
+							Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
+								"parameter with no `in` value", currentVerb, currentPath),
+							StartNode: startNode,
+							EndNode:   endNode,
+							Path:      resultPath,
+							Rule:      context.Rule,
+						}
+						results = append(results, rfr)
 
+					}
 				}
 			}
 		}
