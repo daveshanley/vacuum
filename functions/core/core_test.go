@@ -4,8 +4,9 @@ import "github.com/daveshanley/vacuum/model"
 
 func buildCoreTestRule(given, severity, function, field string, functionOptions map[string]string) model.Rule {
 	return model.Rule{
-		Given:    given,
-		Severity: severity,
+		Given:       given,
+		Severity:    severity,
+		Description: "test rule",
 		Then: &model.RuleAction{
 			Field:           field,
 			Function:        function,
@@ -24,6 +25,7 @@ func buildCoreTestContext(action *model.RuleAction, options map[string]string) m
 func buildCoreTestContextFromRule(action *model.RuleAction, rule model.Rule) model.RuleFunctionContext {
 	ruleAction := model.CastToRuleAction(rule.Then)
 	return model.RuleFunctionContext{
+		Rule:       &rule,
 		RuleAction: action,
 		Options:    ruleAction.FunctionOptions,
 	}

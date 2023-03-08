@@ -31,6 +31,7 @@ func TestEnumeration_RunRule_Success(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Enumeration{}
 	res := def.RunRule(nodes, ctx)
@@ -50,6 +51,7 @@ func TestEnumeration_RunRule_Fail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Enumeration{}
 	res := def.RunRule(nodes, ctx)
@@ -68,6 +70,7 @@ func TestEnumeration_RunRule_FalseFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Enumeration{}
 	res := def.RunRule(nodes, ctx)

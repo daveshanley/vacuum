@@ -27,6 +27,7 @@ tags:
 	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)
@@ -54,6 +55,7 @@ notTags:
 	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)
@@ -80,6 +82,7 @@ tags:
 	rule := buildCoreTestRule(path, model.SeverityError, "Falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)
