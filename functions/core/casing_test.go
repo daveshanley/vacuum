@@ -22,6 +22,8 @@ func TestCasing_RunRule_CamelSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -44,6 +46,7 @@ func TestCasing_RunRule_CamelFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
 
@@ -65,6 +68,7 @@ func TestCasing_RunRule_PascalSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
 
@@ -86,6 +90,7 @@ func TestCasing_RunRule_PascalFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -108,6 +113,7 @@ func TestCasing_RunRule_KebabSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -130,6 +136,7 @@ func TestCasing_RunRule_KebabFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -152,6 +159,7 @@ func TestCasing_RunRule_CobolSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -174,6 +182,7 @@ func TestCasing_RunRule_CobolFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -196,6 +205,7 @@ func TestCasing_RunRule_SnakeSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -218,6 +228,7 @@ func TestCasing_RunRule_SnakeFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -240,6 +251,7 @@ func TestCasing_RunRule_MacroSuccess(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -262,6 +274,7 @@ func TestCasing_RunRule_MacroFail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -285,6 +298,7 @@ func TestCasing_RunRule_CamelNoDigits_Success(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -308,6 +322,7 @@ func TestCasing_RunRule_CamelNoDigits_Fail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -331,6 +346,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Success(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -354,6 +370,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Fail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -378,6 +395,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Success(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)
@@ -402,6 +420,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := &Casing{}
 	res := def.RunRule(nodes, ctx)

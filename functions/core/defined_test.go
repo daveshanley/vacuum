@@ -31,6 +31,7 @@ func TestDefined_RunRule_Success(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "defined", "cake", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := Defined{}
 	res := def.RunRule(nodes, ctx)
@@ -51,6 +52,7 @@ func TestDefined_RunRule_Fail(t *testing.T) {
 	rule := buildCoreTestRule(path, model.SeverityError, "defined", "cake", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
+	ctx.Rule = &rule
 
 	def := Defined{}
 	res := def.RunRule(nodes, ctx)

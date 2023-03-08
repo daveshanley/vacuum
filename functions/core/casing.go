@@ -161,8 +161,17 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 		rx := regexp.MustCompile(leadingPattern)
 		if !rx.MatchString(nodes[0].Value) {
+
+			var msg string
+			if context.Rule.Description != "" {
+				msg = fmt.Sprintf("%s: '%s' is not %s case!", context.Rule.Description,
+					nodes[0].Value, casingType)
+			} else {
+				msg = fmt.Sprintf("'%s' is not %s case!", nodes[0].Value, casingType)
+			}
+
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("'%s' is not %s case!", nodes[0].Value, casingType),
+				Message:   msg,
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      pathValue,
