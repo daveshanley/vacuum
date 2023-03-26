@@ -206,6 +206,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		}
 
 		// let's try to cast to a bool, this means we want to enable a rule.
+		// otherwise it means delete it
 		if eval, ok := v.(bool); ok {
 			if eval {
 				if rsm.openAPIRuleSet.Rules[k] == nil {
@@ -213,6 +214,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 					continue
 				}
 				rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
+			} else {
+				delete(rs.Rules, k) // remove it completely
 			}
 		}
 
