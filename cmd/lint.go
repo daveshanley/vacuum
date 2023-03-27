@@ -43,6 +43,7 @@ func GetLintCommand() *cobra.Command {
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 			failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			baseFlag, _ := cmd.Flags().GetString("base")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -106,6 +107,7 @@ func GetLintCommand() *cobra.Command {
 				RuleSet:         selectedRS,
 				Spec:            specBytes,
 				CustomFunctions: customFunctions,
+				Base:            baseFlag,
 			})
 
 			results := result.Results

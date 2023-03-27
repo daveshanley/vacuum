@@ -59,10 +59,10 @@ type RuleFunctionResult struct {
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results     []*RuleFunctionResult                   `json:"results" yaml:"results"`           // All the results!
-	WarnCount   int                                     `json:"warningCount" yaml:"warningCount"` // Total warnings
-	ErrorCount  int                                     `json:"errorCount" yaml:"errorCount"`     // Total errors
-	InfoCount   int                                     `json:"infoCount" yaml:"infoCount"`       // Total info
+	Results     []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"` // All the results!
+	WarnCount   int                                     `json:"warningCount" yaml:"warningCount"`           // Total warnings
+	ErrorCount  int                                     `json:"errorCount" yaml:"errorCount"`               // Total errors
+	InfoCount   int                                     `json:"infoCount" yaml:"infoCount"`                 // Total info
 	categoryMap map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 }
 
