@@ -43,6 +43,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			stdIn, _ := cmd.Flags().GetBool("stdin")
 			stdOut, _ := cmd.Flags().GetBool("stdout")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			baseFlag, _ := cmd.Flags().GetString("base")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -133,6 +134,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				Spec:            specBytes,
 				CustomFunctions: customFunctions,
 				SilenceLogs:     true,
+				Base:            baseFlag,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)

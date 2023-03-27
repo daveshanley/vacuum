@@ -8,7 +8,11 @@ import (
 	"os"
 )
 
-func BuildResults(rulesetFlag string, specBytes []byte, customFunctions map[string]model.RuleFunction) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+func BuildResults(
+	rulesetFlag string,
+	specBytes []byte,
+	customFunctions map[string]model.RuleFunction,
+	base string) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -36,6 +40,7 @@ func BuildResults(rulesetFlag string, specBytes []byte, customFunctions map[stri
 		RuleSet:         selectedRS,
 		Spec:            specBytes,
 		CustomFunctions: customFunctions,
+		Base:            base,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

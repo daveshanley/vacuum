@@ -14,6 +14,7 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
+	"net/url"
 	"sync"
 )
 
@@ -40,6 +41,7 @@ type RuleSetExecution struct {
 	CustomFunctions map[string]model.RuleFunction // custom functions loaded from plugin.
 	PanicFunction   func(p any)                   // In case of emergency, do this thing here.
 	SilenceLogs     bool                          // Prevent any warnings about rules/rule-sets being printed.
+	Base            string                        // The base path or URL of the specification, used for resolving relative or remote paths.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -92,7 +94,20 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	specUnresolved = specInfoUnresolved.RootNode
 	specResolved = specInfo.RootNode
 
-	config := index.CreateOpenAPIIndexConfig()
+	config := index.CreateClosedAPIIndexConfig()
+
+	if execution.Base != "" {
+		// check if this is a URL or not
+		u, e := url.Parse(execution.Base)
+		if e == nil && u.Scheme != "" && u.Host != "" {
+			config.BaseURL = u
+			config.BasePath = ""
+		} else {
+			config.BasePath = execution.Base
+		}
+		config.AllowFileLookup = true
+		config.AllowRemoteLookup = true
+	}
 
 	// create resolved and un-resolved indexes.
 	indexResolved := index.NewSpecIndexWithConfig(specResolved, config)

@@ -51,6 +51,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
+	rootCmd.PersistentFlags().StringP("base", "p", "", "Base URL or path to use for resolving relative or remote references")
 
 	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
