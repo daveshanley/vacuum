@@ -42,6 +42,8 @@ func GetVacuumReportCommand() *cobra.Command {
 			stdIn, _ := cmd.Flags().GetBool("stdin")
 			stdOut, _ := cmd.Flags().GetBool("stdout")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			baseFlag, _ := cmd.Flags().GetString("base")
+			junitFlag, _ := cmd.Flags().GetBool("junit")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -134,12 +136,37 @@ func GetVacuumReportCommand() *cobra.Command {
 				Spec:            specBytes,
 				CustomFunctions: customFunctions,
 				SilenceLogs:     true,
+				Base:            baseFlag,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
 			resultSet.SortResultsByLineNumber()
 
 			duration := time.Since(start)
+
+			// if we want jUnit output, then build the report and be done with it.
+			if junitFlag {
+				junitXML := vacuum_report.BuildJUnitReport(resultSet, start)
+				if stdOut {
+					fmt.Print(string(junitXML))
+					return nil
+				} else {
+
+					reportOutputName := fmt.Sprintf("%s-%s%s",
+						reportOutput, time.Now().Format("01-02-06-15_04_05"), ".xml")
+
+					err := os.WriteFile(reportOutputName, junitXML, 0664)
+					if err != nil {
+						pterm.Error.Printf("Unable to write junit report file: '%s': %s\n", reportOutputName, err.Error())
+						pterm.Println()
+						return err
+					}
+
+					pterm.Success.Printf("JUnit Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+					pterm.Println()
+					return nil
+				}
+			}
 
 			// pre-render
 			resultSet.PrepareForSerialization(ruleset.SpecInfo)
@@ -208,6 +235,7 @@ func GetVacuumReportCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolP("stdin", "i", false, "Use stdin as input, instead of a file")
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
+	cmd.Flags().BoolP("junit", "j", false, "Generate report in JUnit format (cannot be compressed)")
 	cmd.Flags().BoolP("compress", "c", false, "Compress results using gzip")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
