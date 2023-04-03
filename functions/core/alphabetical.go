@@ -134,14 +134,23 @@ func (a Alphabetical) isValidArray(arr *yaml.Node) bool {
 }
 
 func (a Alphabetical) isValidStringArray(arr *yaml.Node) bool {
+	if len(arr.Content) == 0 {
+		return false
+	}
 	return arr.Content[0].Tag == "!!str"
 }
 
 func (a Alphabetical) isValidNumberArray(arr *yaml.Node) bool {
+	if len(arr.Content) == 0 {
+		return false
+	}
 	return arr.Content[0].Tag == "!!int" || arr.Content[0].Tag == "!!float"
 }
 
 func (a Alphabetical) isValidMapArray(arr *yaml.Node) bool {
+	if len(arr.Content) == 0 {
+		return false
+	}
 	return arr.Content[0].Tag == "!!map"
 }
 
