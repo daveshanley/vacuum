@@ -56,6 +56,10 @@ type RuleFunctionResult struct {
     StartNode    *yaml.Node    `json:"-" yaml:"-"`                       // Start of the violation
     EndNode      *yaml.Node    `json:"-" yaml:"-"`                       // end of the violation
     Timestamp    *time.Time    `json:"-" yaml:"-"`                       // When the result was created.
+
+    // ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
+    // populated, then this is a reference to the model that fired the rule. (not currently used yet)
+    ModelContext any `json:"-" yaml:"-"`
 }
 
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
