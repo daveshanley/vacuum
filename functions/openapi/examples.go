@@ -600,7 +600,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
             var buf strings.Builder
 
             for i := range schemaErrors {
-                buf.WriteString(fmt.Sprintf("%s", schemaErrors[i].Reason))
+                buf.WriteString(schemaErrors[i].Reason)
                 if i+1 < len(schemaErrors) {
                     buf.WriteString("\n")
                 }
