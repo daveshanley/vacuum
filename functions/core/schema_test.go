@@ -1,27 +1,30 @@
 package core
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/parser"
-	"github.com/pb33f/libopenapi/utils"
-	"github.com/stretchr/testify/assert"
-	"testing"
+    "github.com/daveshanley/vacuum/model"
+    highBase "github.com/pb33f/libopenapi/datamodel/high/base"
+    "github.com/pb33f/libopenapi/datamodel/low"
+    lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+    "github.com/pb33f/libopenapi/utils"
+    "github.com/stretchr/testify/assert"
+    "gopkg.in/yaml.v3"
+    "testing"
 )
 
 func TestOpenAPISchema_GetSchema(t *testing.T) {
-	def := Schema{}
-	assert.Equal(t, "oas_schema", def.GetSchema().Name)
+    def := Schema{}
+    assert.Equal(t, "oas_schema", def.GetSchema().Name)
 }
 
 func TestOpenAPISchema_RunRule(t *testing.T) {
-	def := Schema{}
-	res := def.RunRule(nil, model.RuleFunctionContext{})
-	assert.Len(t, res, 0)
+    def := Schema{}
+    res := def.RunRule(nil, model.RuleFunctionContext{})
+    assert.Len(t, res, 0)
 }
 
 func TestOpenAPISchema_DuplicateEntryInEnum(t *testing.T) {
 
-	yml := `components:
+    yml := `components:
   schemas:
     Color:
       type: string
@@ -30,170 +33,202 @@ func TestOpenAPISchema_DuplicateEntryInEnum(t *testing.T) {
         - white
         - black`
 
-	path := "$..[?(@.enum)]"
+    path := "$..[?(@.enum)]"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
+    opts := make(map[string]interface{})
 
-	opts := make(map[string]interface{})
-	opts["schema"] = parser.Schema{
-		Type: &utils.ArrayLabel,
-		Items: &parser.Schema{
-			Type: &utils.StringLabel,
-		},
-		UniqueItems: true,
-	}
+    validate := `type: array
+items:
+  type: string
+uniqueItems: true`
 
-	rule := model.Rule{
-		Given: path,
-		Then: &model.RuleAction{
-			Field:           "enum",
-			Function:        "enum",
-			FunctionOptions: opts,
-		},
-		Description: "Enum values must not have duplicate entry",
-	}
+    var n yaml.Node
+    _ = yaml.Unmarshal([]byte(validate), &n)
 
-	ctx := model.RuleFunctionContext{
-		RuleAction: model.CastToRuleAction(rule.Then),
-		Rule:       &rule,
-		Options:    opts,
-		Given:      rule.Given,
-	}
+    schema := testGenerateJSONSchema(n.Content[0])
 
-	def := Schema{}
-	res := def.RunRule(nodes, ctx)
+    opts["schema"] = schema
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "Enum values must not have duplicate entry: array items[0,2] must be unique", res[0].Message)
+    rule := model.Rule{
+        Given: path,
+        Then: &model.RuleAction{
+            Field:           "enum",
+            Function:        "enum",
+            FunctionOptions: opts,
+        },
+        Description: "Enum values must not have duplicate entry",
+    }
+
+    ctx := model.RuleFunctionContext{
+        RuleAction: model.CastToRuleAction(rule.Then),
+        Rule:       &rule,
+        Options:    opts,
+        Given:      rule.Given,
+    }
+
+    def := Schema{}
+    res := def.RunRule(nodes, ctx)
+
+    assert.Len(t, res, 1)
+    assert.Equal(t, "Enum values must not have duplicate entry: items at index 0 and 2 are equal", res[0].Message)
 
 }
 
 func TestOpenAPISchema_InvalidSchemaInteger(t *testing.T) {
 
-	yml := `smell:
-  stink: not a number`
+    yml := `smell: not a number`
 
-	path := "$"
+    path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	props := make(map[string]*parser.Schema)
-	props["stink"] = &parser.Schema{Type: &utils.IntegerLabel}
+    validate := `type: integer`
 
-	opts := make(map[string]interface{})
-	opts["schema"] = parser.Schema{
-		Type:       &utils.ObjectLabel,
-		Properties: props,
-	}
+    var n yaml.Node
+    _ = yaml.Unmarshal([]byte(validate), &n)
 
-	rule := model.Rule{
-		Given: path,
-		Then: &model.RuleAction{
-			Field:           "smell",
-			Function:        "schema",
-			FunctionOptions: opts,
-		},
-		Description: "schema must be valid",
-	}
+    schema := testGenerateJSONSchema(n.Content[0])
 
-	ctx := model.RuleFunctionContext{
-		RuleAction: model.CastToRuleAction(rule.Then),
-		Rule:       &rule,
-		Options:    opts,
-		Given:      rule.Given,
-	}
+    opts := make(map[string]interface{})
+    opts["schema"] = schema
 
-	def := Schema{}
-	res := def.RunRule(nodes, ctx)
+    rule := model.Rule{
+        Given: path,
+        Then: &model.RuleAction{
+            Field:           "smell",
+            Function:        "schema",
+            FunctionOptions: opts,
+        },
+        Description: "schema must be valid",
+    }
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "schema must be valid: Invalid type. Expected: integer, given: string", res[0].Message)
+    ctx := model.RuleFunctionContext{
+        RuleAction: model.CastToRuleAction(rule.Then),
+        Rule:       &rule,
+        Options:    opts,
+        Given:      rule.Given,
+    }
 
+    def := Schema{}
+    res := def.RunRule(nodes, ctx)
+
+    assert.Len(t, res, 1)
+    assert.Equal(t, "schema must be valid: expected integer, but got string", res[0].Message)
+
+}
+
+func testGenerateJSONSchema(node *yaml.Node) *highBase.Schema {
+    sch := lowBase.Schema{}
+    _ = low.BuildModel(node, &sch)
+    _ = sch.Build(node, nil)
+    highSch := highBase.NewSchema(&sch)
+    return highSch
 }
 
 func TestOpenAPISchema_InvalidSchemaBoolean(t *testing.T) {
 
-	yml := `smell:
+    yml := `smell:
   stank: not a bool`
 
-	path := "$"
+    path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	props := make(map[string]*parser.Schema)
-	props["stank"] = &parser.Schema{Type: &utils.BooleanLabel}
+    props := make(map[string]*highBase.Schema)
+    props["stank"] = &highBase.Schema{
+        Type: []string{utils.BooleanLabel},
+    }
 
-	opts := make(map[string]interface{})
-	opts["schema"] = parser.Schema{
-		Type:       &utils.ObjectLabel,
-		Properties: props,
-	}
+    opts := make(map[string]interface{})
 
-	rule := model.Rule{
-		Given: path,
-		Then: &model.RuleAction{
-			Field:           "smell",
-			Function:        "schema",
-			FunctionOptions: opts,
-		},
-		Description: "schema must be valid",
-	}
+    validate := `type: object
+properties:
+  stank:
+    type: boolean`
 
-	ctx := model.RuleFunctionContext{
-		RuleAction: model.CastToRuleAction(rule.Then),
-		Rule:       &rule,
-		Options:    opts,
-		Given:      rule.Given,
-	}
+    var n yaml.Node
+    _ = yaml.Unmarshal([]byte(validate), &n)
 
-	def := Schema{}
-	res := def.RunRule(nodes, ctx)
+    schema := testGenerateJSONSchema(n.Content[0])
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "schema must be valid: Invalid type. Expected: boolean, given: string", res[0].Message)
+    opts["schema"] = schema
+
+    rule := model.Rule{
+        Given: path,
+        Then: &model.RuleAction{
+            Field:           "smell",
+            Function:        "schema",
+            FunctionOptions: opts,
+        },
+        Description: "schema must be valid",
+    }
+
+    ctx := model.RuleFunctionContext{
+        RuleAction: model.CastToRuleAction(rule.Then),
+        Rule:       &rule,
+        Options:    opts,
+        Given:      rule.Given,
+    }
+
+    def := Schema{}
+    res := def.RunRule(nodes, ctx)
+
+    assert.Len(t, res, 1)
+    assert.Equal(t, "schema must be valid: expected boolean, but got string", res[0].Message)
 
 }
 
 func TestOpenAPISchema_MissingFieldForceValidation(t *testing.T) {
 
-	yml := `eliminate:
+    yml := `eliminate:
   cyberhacks: not a bool`
 
-	path := "$"
+    path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	props := make(map[string]*parser.Schema)
-	props["stank"] = &parser.Schema{Type: &utils.BooleanLabel}
+    props := make(map[string]*highBase.Schema)
+    props["stank"] = &highBase.Schema{
+        Type: []string{utils.BooleanLabel},
+    }
 
-	opts := make(map[string]interface{})
-	opts["schema"] = parser.Schema{
-		Type:       &utils.ObjectLabel,
-		Properties: props,
-	}
-	opts["forceValidation"] = true
+    opts := make(map[string]interface{})
 
-	rule := model.Rule{
-		Given: path,
-		Then: &model.RuleAction{
-			Field:           "lolly",
-			Function:        "schema",
-			FunctionOptions: opts,
-		},
-		Description: "schema must be valid",
-	}
+    validate := `type: object
+properties:
+  stank:
+    type: boolean`
 
-	ctx := model.RuleFunctionContext{
-		RuleAction: model.CastToRuleAction(rule.Then),
-		Rule:       &rule,
-		Options:    opts,
-		Given:      rule.Given,
-	}
+    var n yaml.Node
+    _ = yaml.Unmarshal([]byte(validate), &n)
 
-	def := Schema{}
-	res := def.RunRule(nodes, ctx)
+    schema := testGenerateJSONSchema(n.Content[0])
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "schema must be valid: `lolly`, is missing and is required", res[0].Message)
+    opts["schema"] = schema
+    opts["forceValidation"] = true
+
+    rule := model.Rule{
+        Given: path,
+        Then: &model.RuleAction{
+            Field:           "lolly",
+            Function:        "schema",
+            FunctionOptions: opts,
+        },
+        Description: "schema must be valid",
+    }
+
+    ctx := model.RuleFunctionContext{
+        RuleAction: model.CastToRuleAction(rule.Then),
+        Rule:       &rule,
+        Options:    opts,
+        Given:      rule.Given,
+    }
+
+    def := Schema{}
+    res := def.RunRule(nodes, ctx)
+
+    assert.Len(t, res, 1)
+    assert.Equal(t, "schema must be valid: `lolly`, is missing and is required", res[0].Message)
 
 }

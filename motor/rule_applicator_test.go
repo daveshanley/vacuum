@@ -843,7 +843,7 @@ components:
 
     results, _ := ApplyRules(rs, []byte(yml))
     assert.NotNil(t, results)
-    assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: Invalid type. Expected: array, given: string",
+    assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: expected array, but got string",
         results[0].Message)
 
 }
@@ -874,7 +874,7 @@ components:
 
     results, _ := ApplyRules(rs, []byte(yml))
     assert.NotNil(t, results)
-    assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: Invalid type. Expected: object, given: string",
+    assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: expected object, but got string",
         results[0].Message)
 
 }
