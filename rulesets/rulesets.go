@@ -11,7 +11,7 @@ import (
     "github.com/daveshanley/vacuum/model"
     "github.com/mitchellh/mapstructure"
     "github.com/pb33f/libopenapi/utils"
-    "github.com/xeipuuv/gojsonschema"
+    "github.com/santhosh-tekuri/jsonschema/v5"
     "go.uber.org/zap"
     "strings"
 )
@@ -319,9 +319,7 @@ func generateDefaultOpenAPIRuleSet() *RuleSet {
         Rules:            rules,
         Description:      "Every single rule that is built-in to vacuum. The full monty",
     }
-
     return set
-
 }
 
 // RuleSet represents a collection of Rule definitions.
@@ -333,7 +331,6 @@ type RuleSet struct {
     Rules            map[string]*model.Rule `json:"-" yaml:"-"`
     Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
     extendsMeta      map[string]string
-    schemaLoader     gojsonschema.JSONLoader
 }
 
 // GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be
@@ -372,27 +369,33 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
         return nil, errors.New("data is not JSON")
     }
 
-    jsonLoader := gojsonschema.NewStringLoader(jsonString)
-    schemaLoader := LoadRulesetSchema()
+    compiler := jsonschema.NewCompiler()
+    _ = compiler.AddResource("schema.json", strings.NewReader(rulesetSchema))
+    jsch, _ := compiler.Compile("schema.json")
 
-    // check blob is a valid contract, before creating ruleset.
-    res, uErr := gojsonschema.Validate(schemaLoader, jsonLoader)
-    if uErr != nil {
-        return nil, uErr
-    }
+    var data map[string]interface{}
+    _ = json.Unmarshal(jsonData, &data)
 
-    if !res.Valid() {
+    // 4. validate the object against the schema
+    scErrs := jsch.Validate(data)
+
+    if scErrs != nil {
+        jk := scErrs.(*jsonschema.ValidationError)
         var buf strings.Builder
-        for _, e := range res.Errors() {
-            buf.WriteString(fmt.Sprintf("%s (line),", e.Description()))
+        // flatten the validationErrors
+        schFlatErrs := jk.BasicOutput().Errors
+        for q := range schFlatErrs {
+            buf.WriteString(fmt.Sprintf("%s", schFlatErrs[q].Error))
+            if q+1 < len(schFlatErrs) {
+                buf.WriteString(", ")
+            }
         }
-
         return nil, fmt.Errorf("rules not valid: %s", buf.String())
     }
 
     // unmarshal JSON into new RuleSet
     rs := &RuleSet{}
-    uErr = json.Unmarshal(jsonData, rs)
+    uErr := json.Unmarshal(jsonData, rs)
     if uErr != nil {
         return nil, uErr
     }
@@ -415,16 +418,7 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
             b.Resolved = true // default resolved
         }
     }
-
-    // save our loaded schema for later.
-    rs.schemaLoader = schemaLoader
-
     return rs, nil
-}
-
-// LoadRulesetSchema creates a new JSON Schema loader for the RuleSet schema.
-func LoadRulesetSchema() gojsonschema.JSONLoader {
-    return gojsonschema.NewStringLoader(rulesetSchema)
 }
 
 // CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input

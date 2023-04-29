@@ -37,9 +37,13 @@ func TestApplyRules_PostResponseSuccess(t *testing.T) {
     rs, _ := rc.ComposeRuleSet([]byte(json))
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_PostResponseFailure(t *testing.T) {
@@ -70,11 +74,15 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
     rs, _ := rc.ComposeRuleSet([]byte(json))
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Results, 1)
     assert.Equal(t, "operations must define a success response with one of the following codes: "+
-        "'900, 300, 750, 600'", results[0].Message)
+        "'900, 300, 750, 600'", results.Results[0].Message)
 
 }
 
@@ -111,9 +119,13 @@ func TestApplyRules_TruthyTest_MultipleElements_Fail(t *testing.T) {
     rs, _ := rc.ComposeRuleSet([]byte(json))
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 2)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 2)
 
 }
 
@@ -145,10 +157,15 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 1)
-    assert.Equal(t, "'examples' must not be longer/greater than '1'", results[0].Message)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
+    assert.Equal(t, "'examples' must not be longer/greater than '1'", results.Results[0].Message)
 
 }
 
@@ -181,9 +198,14 @@ func TestApplyRules_LengthTestSuccess(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
@@ -213,9 +235,14 @@ func TestApplyRules_PatternTestSuccess_NotMatch(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
@@ -245,9 +272,14 @@ func TestApplyRules_AlphabeticalTestFail_Tags(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_LengthFail_Tags(t *testing.T) {
@@ -277,9 +309,14 @@ func TestApplyRules_LengthFail_Tags(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 }
 
 func TestApplyRules_LengthSuccess_Description(t *testing.T) {
@@ -310,9 +347,13 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_Xor_Success(t *testing.T) {
@@ -349,9 +390,12 @@ func TestApplyRules_Xor_Success(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_Xor_Fail(t *testing.T) {
@@ -388,9 +432,13 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_BadData(t *testing.T) {
@@ -422,8 +470,13 @@ func TestApplyRules_BadData(t *testing.T) {
 
     burgershop := []byte("!@#$%^&*()(*&^%$#%^&*(*)))]")
 
-    _, err = ApplyRules(rs, burgershop)
-    assert.Error(t, err)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 1)
+
 }
 
 func TestApplyRules_CircularReferences(t *testing.T) {
@@ -431,9 +484,13 @@ func TestApplyRules_CircularReferences(t *testing.T) {
     burgershop, _ := os.ReadFile("../model/test_files/circular-tests.yaml")
 
     // circular references can still be extracted, even without a ruleset.
-
-    results, _ := ApplyRules(nil, burgershop)
-    assert.Len(t, results, 3)
+    rse := &RuleSetExecution{
+        RuleSet: nil,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 3)
 }
 
 func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
@@ -464,9 +521,13 @@ func TestApplyRules_LengthSuccess_Description_Rootnode(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-    assert.NoError(t, err)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 }
 
 func TestApplyRules_Length_Description_BadPath(t *testing.T) {
@@ -497,11 +558,13 @@ func TestApplyRules_Length_Description_BadPath(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    _, err = ApplyRules(rs, burgershop)
-
-    // TODO: this doesn't return any errors yet, we need to change the signature of the ApplyRules function
-    // to return an array of errors, no a single one.
-    assert.NoError(t, err)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 1)
+    assert.Len(t, results.Results, 0)
 
 }
 
@@ -532,10 +595,13 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 
     burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
 
-    results, err := ApplyRules(rs, burgershop)
-
-    assert.Len(t, results, 1)
-    assert.NoError(t, err)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    burgershop,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 
 }
 
@@ -571,9 +637,7 @@ func TestApplyRulesToRuleSet_Length_Description_BadPath(t *testing.T) {
         RuleSet: rs,
         Spec:    burgershop,
     }
-
     result := ApplyRulesToRuleSet(rse)
-
     assert.Len(t, result.Errors, 1)
 }
 
@@ -632,9 +696,13 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Equal(t, "Contact details are incomplete: `url` must be set", results[0].Message)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Equal(t, "Contact details are incomplete: `url` must be set", results.Results[0].Message)
 
 }
 
@@ -652,9 +720,15 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
-    assert.Equal(t, "Info section is missing contact details: `contact` must be set", results[0].Message)
+    assert.Equal(t, "Info section is missing contact details: `contact` must be set", results.Results[0].Message)
 
 }
 
@@ -674,9 +748,13 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Equal(t, "Info section is missing a description: `description` must be set", results[0].Message)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Equal(t, "Info section is missing a description: `description` must be set", results.Results[0].Message)
 
 }
 
@@ -697,9 +775,13 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Equal(t, "Info section should contain a license: `license` must be set", results[0].Message)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Equal(t, "Info section should contain a license: `license` must be set", results.Results[0].Message)
 
 }
 
@@ -722,9 +804,15 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
-    assert.Equal(t, "License should contain an url: `url` must be set", results[0].Message)
+    assert.Equal(t, "License should contain an url: `url` must be set", results.Results[0].Message)
 
 }
 
@@ -741,9 +829,15 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
-    assert.Equal(t, "description contains content with `eval\\(`, forbidden", results[0].Message)
+    assert.Equal(t, "description contains content with `eval\\(`, forbidden", results.Results[0].Message)
 
 }
 
@@ -760,10 +854,16 @@ info:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
     assert.Equal(t, "description contains content with `<script`, forbidden",
-        results[0].Message)
+        results.Results[0].Message)
 
 }
 
@@ -782,10 +882,16 @@ tags:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
     assert.Equal(t, "Tags must be in alphabetical order: `chicken` must be placed before `zebra` (alphabetical)",
-        results[0].Message)
+        results.Results[0].Message)
 
 }
 
@@ -811,10 +917,16 @@ components:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
     assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: `tags`, is missing and is required",
-        results[0].Message)
+        results.Results[0].Message)
 
 }
 
@@ -841,10 +953,16 @@ components:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
     assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: expected array, but got string",
-        results[0].Message)
+        results.Results[0].Message)
 
 }
 
@@ -872,10 +990,16 @@ components:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+
     assert.NotNil(t, results)
     assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: expected object, but got string",
-        results[0].Message)
+        results.Results[0].Message)
 
 }
 
@@ -898,9 +1022,13 @@ paths:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 2)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 2)
 
 }
 
@@ -924,9 +1052,13 @@ paths:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 2)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 2)
 
 }
 
@@ -956,9 +1088,13 @@ paths:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 3)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 3)
 
 }
 
@@ -980,11 +1116,15 @@ paths:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
     assert.Equal(t, "Path parameter declarations must not be empty ex. `/api/{}` is invalid:"+
-        " matches the expression `{}`", results[0].Message)
+        " matches the expression `{}`", results.Results[0].Message)
 
 }
 
@@ -1009,9 +1149,13 @@ paths:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 2)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 2)
 
 }
 
@@ -1036,9 +1180,13 @@ paths:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 2)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 2)
 
 }
 
@@ -1059,10 +1207,14 @@ tags:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
-    assert.Equal(t, "Tag must have a description defined: `description` must be set", results[0].Message)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
+    assert.Equal(t, "Tag must have a description defined: `description` must be set", results.Results[0].Message)
 
 }
 
@@ -1084,9 +1236,13 @@ definitions:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 
 }
 
@@ -1109,9 +1265,13 @@ definitions:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.Nil(t, results)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 
 }
 
@@ -1134,9 +1294,13 @@ definitions:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 
 }
 
@@ -1159,9 +1323,13 @@ definitions:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.Nil(t, results)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 
 }
 
@@ -1177,9 +1345,13 @@ host: https://quobix.com`
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.Nil(t, results)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 
 }
 
@@ -1195,9 +1367,13 @@ host: https://example.com`
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 
 }
 
@@ -1213,9 +1389,13 @@ host: https://quobix.com/`
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 
 }
 
@@ -1231,9 +1411,13 @@ host: https://quobix.com`
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.Nil(t, results)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 
 }
 
@@ -1302,9 +1486,13 @@ servers:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.NotNil(t, results)
-    assert.Len(t, results, 1)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 1)
 
 }
 
@@ -1322,9 +1510,13 @@ servers:
         Rules: rules,
     }
 
-    results, _ := ApplyRules(rs, []byte(yml))
-    assert.Nil(t, results)
-    assert.Len(t, results, 0)
+    rse := &RuleSetExecution{
+        RuleSet: rs,
+        Spec:    []byte(yml),
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
+    assert.Len(t, results.Results, 0)
 
 }
 
@@ -1336,7 +1528,7 @@ func (t *testRule) GetSchema() model.RuleFunctionSchema {
     }
 }
 
-func (d *testRule) RunRule(nodes []*yaml.Node,
+func (t *testRule) RunRule(nodes []*yaml.Node,
     context model.RuleFunctionContext,
 ) []model.RuleFunctionResult {
     panic("run away!")
@@ -1396,9 +1588,12 @@ func TestPetstoreSpecAgainstDefaultRuleSet(t *testing.T) {
 
     b, _ := os.ReadFile("../model/test_files/petstorev3.json")
     rs := rulesets.BuildDefaultRuleSets()
-    results, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
-
-    assert.NoError(t, err)
+    rse := &RuleSetExecution{
+        RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
+        Spec:    b,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
     assert.NotNil(t, results)
 
 }
@@ -1407,9 +1602,12 @@ func TestStripeSpecAgainstDefaultRuleSet(t *testing.T) {
 
     b, _ := os.ReadFile("../model/test_files/stripe.yaml")
     rs := rulesets.BuildDefaultRuleSets()
-    results, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), b)
-
-    assert.NoError(t, err)
+    rse := &RuleSetExecution{
+        RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
+        Spec:    b,
+    }
+    results := ApplyRulesToRuleSet(rse)
+    assert.Len(t, results.Errors, 0)
     assert.NotNil(t, results)
 
 }
@@ -1418,9 +1616,12 @@ func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
     m, _ := os.ReadFile("../model/test_files/k8s.json")
     rs := rulesets.BuildDefaultRuleSets()
     for n := 0; n < b.N; n++ {
-        _, err := ApplyRules(rs.GenerateOpenAPIDefaultRuleSet(), m)
-        if err != nil {
-            continue // we don't care, but the linter does.
+        rse := &RuleSetExecution{
+            RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
+            Spec:    m,
         }
+        results := ApplyRulesToRuleSet(rse)
+        assert.Len(b, results.Errors, 0)
+        assert.NotNil(b, results)
     }
 }

@@ -37,7 +37,7 @@ type ruleContext struct {
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
-// of ApplyRules to change, without a huge refactor. The ApplyRules function only returns a single error also.
+// of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
     RuleSet         *rulesets.RuleSet             // The RuleSet in which to apply
     Spec            []byte                        // The raw bytes of the OpenAPI specification.
@@ -146,45 +146,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
         }
     }
 
-    //if len(docModelErrors) > 0 {
-    //    res := model.RuleFunctionResult{
-    //        Rule: &model.Rule{
-    //            Name:         "Errors building OpenAPI document model",
-    //            Id:           "document",
-    //            Description:  "There were issues building the OpenAPI document model.",
-    //            Given:        "$",
-    //            Resolved:     true,
-    //            Recommended:  true,
-    //            RuleCategory: model.RuleCategories[model.CategoryValidation],
-    //            Type:         "validation",
-    //            Severity:     model.SeverityError,
-    //            Then: model.RuleAction{
-    //                Function: "blank",
-    //            },
-    //            HowToFix: "Document errors are likely due to resolving issues at this point.",
-    //        },
-    //        StartNode: nil,
-    //        EndNode:   nil,
-    //        Message:   errors.Join(docModelErrors...).Error(),
-    //        Path:      "",
-    //    }
-    //    ruleResults = append(ruleResults, res)
-    //}
-
-    //if execution.SpecInfo == nil {
-    //    // extract spec info, make this available to rule context.
-    //    specInfo, err = datamodel.ExtractSpecInfo(execution.Spec)
-    //    if err != nil || specInfo == nil {
-    //        if specInfo == nil || specInfo.RootNode == nil {
-    //            return &RuleSetExecutionResult{Errors: []error{err}}
-    //        }
-    //    }
-    //    specInfoUnresolved, _ = datamodel.ExtractSpecInfo(execution.Spec)
-    //} else {
-    //    specInfo = execution.SpecInfo
-    //    specInfoUnresolved = execution.SpecInfo
-    //}
-
     specUnresolved = specInfoUnresolved.RootNode
     specResolved = specInfo.RootNode
 
@@ -281,103 +242,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
         SpecInfo:         specInfo,
         Errors:           errors,
     }
-}
-
-// Deprecated: ApplyRules will apply a loaded model.RuleSet against an OpenAPI specification.
-// Please use ApplyRulesToRuleSet instead of this function, the signature needs to change.
-func ApplyRules(ruleSet *rulesets.RuleSet, spec []byte) ([]model.RuleFunctionResult, error) {
-
-    builtinFunctions := functions.MapBuiltinFunctions()
-    var ruleResults []model.RuleFunctionResult
-    var ruleWaitGroup sync.WaitGroup
-    if ruleSet != nil && ruleSet.Rules != nil {
-        ruleWaitGroup.Add(len(ruleSet.Rules))
-    }
-
-    var specResolved yaml.Node
-    var specUnresolved yaml.Node
-
-    // extract spec info, make this available to rule context.
-    specInfo, err := datamodel.ExtractSpecInfo(spec)
-    if err != nil || specInfo == nil {
-        if specInfo == nil || specInfo.RootNode == nil {
-            return nil, err
-        }
-    }
-
-    specUnresolved = *specInfo.RootNode
-    specResolved = specUnresolved
-
-    // create an index
-    config := index.CreateOpenAPIIndexConfig()
-    idx := index.NewSpecIndexWithConfig(&specResolved, config)
-
-    // create a resolver
-    resolverInstance := resolver.NewResolver(idx)
-
-    // resolve the doc
-    resolverInstance.Resolve()
-
-    // any errors (circular or lookup) from resolving spec.
-    errs := resolverInstance.GetResolvingErrors()
-
-    // create circular rule, it's blank, but we need a rule for a result.
-    circularRule := &model.Rule{
-        Name:         "Check for circular references",
-        Id:           "circular-references",
-        Description:  "Specification schemas contain circular references",
-        Given:        "$",
-        Resolved:     true,
-        Recommended:  true,
-        RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         "validation",
-        Severity:     model.SeverityError,
-        Then: model.RuleAction{
-            Function: "blank",
-        },
-        HowToFix: CircularReferencesFix,
-    }
-
-    // add all circular references to results.
-    for _, er := range errs {
-        res := model.RuleFunctionResult{
-            Rule:      circularRule,
-            StartNode: er.Node,
-            EndNode:   er.Node,
-            Message:   er.Error(),
-            Path:      er.Path,
-        }
-        ruleResults = append(ruleResults, res)
-    }
-
-    // run all rules.
-    var errors []error
-
-    if ruleSet != nil {
-        for _, rule := range ruleSet.Rules {
-            ruleSpec := &specResolved
-            if !rule.Resolved {
-                ruleSpec = &specUnresolved
-            }
-
-            // this list of things is most likely going to grow a bit, so we use a nice clean message design.
-            ctx := ruleContext{
-                rule:             rule,
-                specNode:         ruleSpec,
-                builtinFunctions: builtinFunctions,
-                ruleResults:      &ruleResults,
-                wg:               &ruleWaitGroup,
-                errors:           &errors,
-                index:            idx,
-                specInfo:         specInfo,
-            }
-            go runRule(ctx)
-        }
-
-        ruleWaitGroup.Wait()
-    }
-
-    return ruleResults, nil
 }
 
 func runRule(ctx ruleContext) {
