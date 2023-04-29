@@ -1,109 +1,122 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
-	"testing"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/pb33f/libopenapi"
+    "github.com/pb33f/libopenapi/datamodel"
+    "github.com/pb33f/libopenapi/index"
+    "github.com/stretchr/testify/assert"
+    "gopkg.in/yaml.v3"
+    "testing"
 )
 
 func TestOAS2Schema_GetSchema(t *testing.T) {
-	def := OASSchema{}
-	assert.Equal(t, "oas_schema", def.GetSchema().Name)
+    def := OASSchema{}
+    assert.Equal(t, "oas_schema", def.GetSchema().Name)
 }
 
 func TestOAS2Schema_RunRule(t *testing.T) {
-	def := OASSchema{}
-	res := def.RunRule(nil, model.RuleFunctionContext{})
-	assert.Len(t, res, 0)
+    def := OASSchema{}
+    res := def.RunRule(nil, model.RuleFunctionContext{})
+    assert.Len(t, res, 0)
 }
 
 func TestOAS2Schema_RunRule_Fail(t *testing.T) {
 
-	yml := `swagger: 2.0
+    yml := `swagger: 2.0
 wiff: waff`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 4)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 3)
 }
 
 func TestOAS2Schema_RunRule_JSONSource_Fail_SpecBorked(t *testing.T) {
 
-	yml := `{"swagger":"2.0", hello":"there"}`
+    yml := `{"swagger":"2.0", hello":"there"}`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 1)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 1)
 }
 
 func TestOAS2Schema_RunRule_JSONSource_Fail(t *testing.T) {
 
-	yml := `{"swagger":"2.0", "hello":"there"}`
+    yml := `{"swagger":"2.0", "hello":"there"}`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 3)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 2)
 }
 
 func TestOAS2Schema_RunRule_JSONSource_Fail_Unknown(t *testing.T) {
 
-	yml := `{"swimmer":"2.0", "hello":"there"}`
+    yml := `{"swimmer":"2.0", "hello":"there"}`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 0)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 0)
 }
 
 func TestOAS2Schema_RunRule_AlmostPass(t *testing.T) {
 
-	yml := `swagger: 2.0
+    yml := `swagger: 2.0
 info:
   contact:
     name: Hi
@@ -120,25 +133,28 @@ paths:
         "200":
           description: OK`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 1)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 1)
 }
 
 func TestOAS3Schema_RunRule_Pass(t *testing.T) {
 
-	yml := `openapi: "3.0.0"
+    yml := `openapi: "3.0.0"
 info:
   contact:
     name: Hi
@@ -155,45 +171,51 @@ paths:
         "200":
           description: OK`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 0)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 0)
 }
 
 func TestOAS3Schema_RunRule_Fail(t *testing.T) {
 
-	yml := `openapi: "3.0"`
+    yml := `openapi: "3.0"`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 2)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 2)
 }
 
 func TestOAS2Schema_RunRule_Success(t *testing.T) {
 
-	yml := `swagger: '2.0'
+    yml := `swagger: '2.0'
 info:
   contact:
     name: Hi
@@ -210,18 +232,21 @@ paths:
         "200":
           description: OK`
 
-	path := "$"
+    path := "$"
 
-	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
 
-	rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
-	ctx.SpecInfo = specInfo
+    rule := buildOpenApiTestRuleAction(path, "oas2_schema", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+    ctx.SpecInfo = specInfo
 
-	def := OASSchema{}
-	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+    // add doc to context
+    ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
 
-	assert.Len(t, res, 0)
+    def := OASSchema{}
+    res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+    assert.Len(t, res, 0)
 }
