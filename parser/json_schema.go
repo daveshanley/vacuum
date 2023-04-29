@@ -4,6 +4,7 @@
 package parser
 
 import (
+    "encoding/json"
     "errors"
     "fmt"
     yamlAlt "github.com/ghodss/yaml"
@@ -198,7 +199,11 @@ func ValidateNodeAgainstSchema(schema *highBase.Schema, node *yaml.Node, isArray
     if !isArray {
         d, e = yaml.Marshal(node)
     } else {
-        d, e = yaml.Marshal([]*yaml.Node{node})
+        if !utils.IsNodeArray(node) {
+            d, e = yaml.Marshal([]*yaml.Node{node})
+        } else {
+            d, e = yaml.Marshal(node)
+        }
     }
     if e != nil {
         return false, []*validationErrors.ValidationError{{Message: e.Error()}}
@@ -210,6 +215,9 @@ func ValidateNodeAgainstSchema(schema *highBase.Schema, node *yaml.Node, isArray
         return false, []*validationErrors.ValidationError{{Message: err.Error()}}
     }
 
+    var decoded any
+    _ = json.Unmarshal(n, &decoded)
+
     validator := schema_validation.NewSchemaValidator()
-    return validator.ValidateSchemaBytes(schema, n)
+    return validator.ValidateSchemaObject(schema, decoded)
 }
