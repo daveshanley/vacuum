@@ -385,7 +385,7 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
         // flatten the validationErrors
         schFlatErrs := jk.BasicOutput().Errors
         for q := range schFlatErrs {
-            buf.WriteString(fmt.Sprintf("%s", schFlatErrs[q].Error))
+            buf.WriteString(schFlatErrs[q].Error)
             if q+1 < len(schFlatErrs) {
                 buf.WriteString(", ")
             }
