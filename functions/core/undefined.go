@@ -40,14 +40,9 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if fieldNode != nil {
 
-			var msg string
-			if context.Rule.Description != "" {
-				msg = fmt.Sprintf("%s: '%s' must be undefined", context.Rule.Description, context.RuleAction.Field)
-			} else {
-				msg = fmt.Sprintf("'%s' must be undefined", context.RuleAction.Field)
-			}
 			results = append(results, model.RuleFunctionResult{
-				Message:   msg,
+				Message: fmt.Sprintf("%s: '%s' must be undefined",
+					context.Rule.Description, context.RuleAction.Field),
 				StartNode: fieldNode,
 				EndNode:   fieldNode,
 				Path:      pathValue,

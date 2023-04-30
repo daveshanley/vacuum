@@ -21,9 +21,17 @@ var OAS2Format = []string{OAS2}
 var AllFormats = []string{OAS3, OAS31, OAS2}
 
 // BuildFunctionResult will create a RuleFunctionResult from a key, message and value.
+// Deprecated: use BuildFunctionResultWithDescription instead.
 func BuildFunctionResult(key, message string, value interface{}) RuleFunctionResult {
     return RuleFunctionResult{
         Message: fmt.Sprintf("'%s' %s '%v'", key, message, value),
+    }
+}
+
+// BuildFunctionResultWithDescription will create a RuleFunctionResult from a description, key, message and value.
+func BuildFunctionResultWithDescription(desc, key, message string, value interface{}) RuleFunctionResult {
+    return RuleFunctionResult{
+        Message: fmt.Sprintf("%s: '%s' %s '%v'", desc, key, message, value),
     }
 }
 
