@@ -182,7 +182,7 @@ components:
     def := UnusedComponent{}
     res := def.RunRule(nodes, ctx)
 
-    assert.Len(t, res, 2)
+    assert.Len(t, res, 4)
 }
 
 func TestUnusedComponent_RunRule_Success_Fail_Four_Undefined(t *testing.T) {
