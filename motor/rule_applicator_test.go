@@ -165,7 +165,7 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
 
     assert.Len(t, results.Errors, 0)
     assert.Len(t, results.Results, 1)
-    assert.Equal(t, "'examples' must not be longer/greater than '1'", results.Results[0].Message)
+    assert.Equal(t, "this is a test for checking the length function: 'examples' must not be longer/greater than '1'", results.Results[0].Message)
 
 }
 
