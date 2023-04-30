@@ -82,6 +82,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
     // create new configurations
     config := index.CreateClosedAPIIndexConfig()
+    config.AllowFileLookup = true
     docConfig := datamodel.NewClosedDocumentConfiguration()
 
     if execution.Base != "" {
@@ -96,7 +97,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
             config.BasePath = execution.Base
             docConfig.BasePath = execution.Base
         }
-        config.AllowFileLookup = true
         config.AllowRemoteLookup = true
     }
 
