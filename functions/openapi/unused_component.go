@@ -139,5 +139,19 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
         })
     }
 
+    // Check for reverse references. This is where a component is referenced, but it does not exist.
+    refErrors := context.Index.GetReferenceIndexErrors()
+    for i := range refErrors {
+        if rErr, ok := refErrors[i].(*index.IndexingError); ok {
+            results = append(results, model.RuleFunctionResult{
+                Message:   rErr.Err.Error(),
+                StartNode: rErr.Node,
+                EndNode:   rErr.Node,
+                Path:      rErr.Path,
+                Rule:      context.Rule,
+            })
+        }
+    }
+
     return results
 }

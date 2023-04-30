@@ -1,29 +1,29 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/utils"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
-	"testing"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/pb33f/libopenapi/datamodel"
+    "github.com/pb33f/libopenapi/index"
+    "github.com/pb33f/libopenapi/utils"
+    "github.com/stretchr/testify/assert"
+    "gopkg.in/yaml.v3"
+    "testing"
 )
 
 func TestUnusedComponent_GetSchema(t *testing.T) {
-	def := UnusedComponent{}
-	assert.Equal(t, "unused_component", def.GetSchema().Name)
+    def := UnusedComponent{}
+    assert.Equal(t, "unused_component", def.GetSchema().Name)
 }
 
 func TestUnusedComponent_RunRule(t *testing.T) {
-	def := UnusedComponent{}
-	res := def.RunRule(nil, model.RuleFunctionContext{})
-	assert.Len(t, res, 0)
+    def := UnusedComponent{}
+    res := def.RunRule(nil, model.RuleFunctionContext{})
+    assert.Len(t, res, 0)
 }
 
 func TestUnusedComponent_RunRule_Success(t *testing.T) {
 
-	yml := `paths:
+    yml := `paths:
   /naughty/{puppy}:
     parameters:
       - $ref: '#/components/parameters/Chewy'
@@ -46,28 +46,28 @@ components:
       in: query
       name: chewy`
 
-	path := "$"
+    path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+    var rootNode yaml.Node
+    mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+    assert.NoError(t, mErr)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+    rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
-	def := UnusedComponent{}
-	res := def.RunRule(nodes, ctx)
+    def := UnusedComponent{}
+    res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+    assert.Len(t, res, 0)
 }
 
 func TestUnusedComponent_RunRule_SuccessSwaggerSecurity(t *testing.T) {
 
-	yml := `swagger: 2.0
+    yml := `swagger: 2.0
 securityDefinitions:
   basicAuth:
     type: basic
@@ -85,30 +85,31 @@ paths:
       security:
         - sessionAuth: []`
 
-	path := "$"
+    path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+    var rootNode yaml.Node
+    mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+    assert.NoError(t, mErr)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
-	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
-	ctx.SpecInfo = info
+    rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+    info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    ctx.SpecInfo = info
+    ctx.Rule = &rule
 
-	def := UnusedComponent{}
-	res := def.RunRule(nodes, ctx)
+    def := UnusedComponent{}
+    res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+    assert.Len(t, res, 0)
 }
 
 func TestUnusedComponent_RunRule_SuccessOpenAPISecurity(t *testing.T) {
 
-	yml := `openapi: 3.0.1
+    yml := `openapi: 3.0.1
 info:
   description: A test spec with a security def that is not a ref!
 security:
@@ -117,30 +118,30 @@ components:
   securitySchemes:
     SomeSecurity:
       description: A secure way to do things and stuff.`
-	path := "$"
+    path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+    var rootNode yaml.Node
+    mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+    assert.NoError(t, mErr)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
-	info, _ := datamodel.ExtractSpecInfo([]byte(yml))
-	ctx.SpecInfo = info
+    rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+    info, _ := datamodel.ExtractSpecInfo([]byte(yml))
+    ctx.SpecInfo = info
 
-	def := UnusedComponent{}
-	res := def.RunRule(nodes, ctx)
+    def := UnusedComponent{}
+    res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+    assert.Len(t, res, 0)
 }
 
 func TestUnusedComponent_RunRule_Success_Fail_TwoMissing_Two_Undefined(t *testing.T) {
 
-	yml := `parameters:
+    yml := `parameters:
   Chewy:
     description: chewy
     in: query
@@ -165,28 +166,28 @@ components:
     Kitty:
       $ref: '#/components/schemas/Puppy' `
 
-	path := "$"
+    path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+    var rootNode yaml.Node
+    mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+    assert.NoError(t, mErr)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+    rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
-	def := UnusedComponent{}
-	res := def.RunRule(nodes, ctx)
+    def := UnusedComponent{}
+    res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 2)
+    assert.Len(t, res, 2)
 }
 
 func TestUnusedComponent_RunRule_Success_Fail_Four_Undefined(t *testing.T) {
 
-	yml := `paths:
+    yml := `paths:
   /naughty/{puppy}:
     parameters:
       - $ref: '#/components/parameters/Chewy'
@@ -222,28 +223,28 @@ components:
       in: query
       name: chewy`
 
-	path := "$"
+    path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+    var rootNode yaml.Node
+    mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+    assert.NoError(t, mErr)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+    rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
-	def := UnusedComponent{}
-	res := def.RunRule(nodes, ctx)
+    def := UnusedComponent{}
+    res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 4)
+    assert.Len(t, res, 4)
 }
 
 func TestUnusedComponent_RunRule_Success_PolymorphicCheck(t *testing.T) {
 
-	yml := `paths:
+    yml := `paths:
   /naughty/{puppy}:
     get:
       responses:
@@ -280,21 +281,21 @@ components:
       type: string
       description: bunny`
 
-	path := "$"
+    path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+    var rootNode yaml.Node
+    mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+    assert.NoError(t, mErr)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+    nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+    rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+    ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+    config := index.CreateOpenAPIIndexConfig()
+    ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
 
-	def := UnusedComponent{}
-	res := def.RunRule(nodes, ctx)
+    def := UnusedComponent{}
+    res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+    assert.Len(t, res, 0)
 }
