@@ -14,14 +14,14 @@ import (
 func GetContactPropertiesRule() *model.Rule {
     return &model.Rule{
         Name:         "Check contact properties: name, URL, email",
-        Id:           contactProperties,
+        Id:           ContactProperties,
         Formats:      model.AllFormats,
         Description:  "Contact details are incomplete",
         Given:        "$.info.contact",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  false,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityInfo,
         Then: []model.RuleAction{
             {
@@ -46,14 +46,14 @@ func GetContactPropertiesRule() *model.Rule {
 func GetInfoContactRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for specification contact details",
-        Id:           infoContact,
+        Id:           InfoContact,
         Formats:      model.AllFormats,
         Description:  "Info section is missing contact details",
         Given:        "$.info",
         Resolved:     true,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Field:    "contact",
@@ -68,14 +68,14 @@ func GetInfoContactRule() *model.Rule {
 func GetInfoDescriptionRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for a specification description",
-        Id:           infoDescription,
+        Id:           InfoDescription,
         Formats:      model.AllFormats,
         Description:  "Info section is missing a description",
         Given:        "$.info",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Field:    "description",
@@ -90,14 +90,14 @@ func GetInfoDescriptionRule() *model.Rule {
 func GetInfoLicenseRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for a license definition",
-        Id:           infoLicense,
+        Id:           InfoLicense,
         Formats:      model.AllFormats,
         Description:  "Info section should contain a license",
         Given:        "$.info",
         Resolved:     true,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityInfo,
         Then: model.RuleAction{
             Field:    "license",
@@ -112,14 +112,14 @@ func GetInfoLicenseRule() *model.Rule {
 func GetInfoLicenseUrlRule() *model.Rule {
     return &model.Rule{
         Name:         "Check if license is missing an URL",
-        Id:           licenseUrl,
+        Id:           LicenseUrl,
         Formats:      model.AllFormats,
         Description:  "License should contain an url",
         Given:        "$.info.license",
         Resolved:     true,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityInfo,
         Then: model.RuleAction{
             Field:    "url",
@@ -139,14 +139,14 @@ func GetNoEvalInMarkdownRule() *model.Rule {
 
     return &model.Rule{
         Name:         "Check descriptions for  'eval()' statements",
-        Id:           noEvalInMarkdown,
+        Id:           NoEvalInMarkdown,
         Formats:      model.AllFormats,
         Description:  "Markdown descriptions must not have `eval()` statements'",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryValidation],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function:        "noEvalDescription",
@@ -167,14 +167,14 @@ func GetNoScriptTagsInMarkdownRule() *model.Rule {
 
     return &model.Rule{
         Name:         "Check descriptions for '<script>' tags",
-        Id:           noScriptTagsInMarkdown,
+        Id:           NoScriptTagsInMarkdown,
         Formats:      model.AllFormats,
         Description:  "Markdown descriptions must not have `<script>` tags'",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryValidation],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function:        "noEvalDescription",
@@ -194,14 +194,14 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 
     return &model.Rule{
         Name:         "Check tags are ordered alphabetically",
-        Id:           openAPITagsAlphabetical,
+        Id:           OpenAPITagsAlphabetical,
         Formats:      model.AllFormats,
         Description:  "Tags must be in alphabetical order",
         Given:        "$.tags",
         Resolved:     true,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryTags],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityInfo,
         Then: model.RuleAction{
             Function:        "alphabetical",
@@ -229,14 +229,14 @@ uniqueItems: true`
 
     return &model.Rule{
         Name:         "Check global tags are defined",
-        Id:           openAPITags,
+        Id:           OpenAPITags,
         Formats:      model.AllFormats,
         Description:  "Top level spec `tags` must not be empty, and must be an array",
         Given:        "$",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryTags],
         Recommended:  false,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Field:           "tags",
@@ -264,14 +264,14 @@ uniqueItems: true`
 
     return &model.Rule{
         Name:         "Check host schemes are defined",
-        Id:           oas2APISchemes,
+        Id:           Oas2APISchemes,
         Formats:      model.OAS2Format,
         Description:  "OpenAPI host `schemes` must be present and non-empty array",
         Given:        "$",
         Resolved:     false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Field:           "schemes",
@@ -290,14 +290,14 @@ func GetOAS2HostNotExampleRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check server URLs for example.com",
-        Id:           oas2HostNotExample,
+        Id:           Oas2HostNotExample,
         Formats:      model.OAS2Format,
         Description:  "Host URL should not point at example.com",
         Given:        "$.host",
         Resolved:     false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  true,
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function:        "pattern",
@@ -316,14 +316,14 @@ func GetOAS3HostNotExampleRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check server URLs for example.com",
-        Id:           oas3HostNotExample,
+        Id:           Oas3HostNotExample,
         Formats:      model.OAS3AllFormat,
         Description:  "Server URL should not point at example.com",
         Given:        "$.servers[*].url",
         Resolved:     false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  false,
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function:        "pattern",
@@ -341,14 +341,14 @@ func GetOAS2HostTrailingSlashRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check host for trailing slash",
-        Id:           oas2HostTrailingSlash,
+        Id:           Oas2HostTrailingSlash,
         Formats:      model.OAS2Format,
         Description:  "Host URL should not contain a trailing slash",
         Given:        "$.host",
         Resolved:     false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  true,
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function:        "pattern",
@@ -366,14 +366,14 @@ func GetOAS3HostTrailingSlashRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check server url for trailing slash",
-        Id:           oas3HostTrailingSlash,
+        Id:           Oas3HostTrailingSlash,
         Formats:      model.OAS3Format,
         Description:  "server URL should not contain a trailing slash",
         Given:        "$.servers[*]",
         Resolved:     false,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
         Recommended:  false,
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Field:           "url",
@@ -392,14 +392,14 @@ func GetOperationDescriptionRule() *model.Rule {
     opts["minWords"] = "1" // there must be at least a single word.
     return &model.Rule{
         Name:         "Check operation description",
-        Id:           operationDescription,
+        Id:           OperationDescription,
         Formats:      model.AllFormats,
         Description:  "Operation description checks",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryDescriptions],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function:        "oasDescriptions",
@@ -413,14 +413,14 @@ func GetOperationDescriptionRule() *model.Rule {
 func GetOAS2ParameterDescriptionRule() *model.Rule {
     return &model.Rule{
         Name:         "Check parameter description",
-        Id:           oas2ParameterDescription,
+        Id:           Oas2ParameterDescription,
         Formats:      model.OAS2Format,
         Description:  "Parameter description checks",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryDescriptions],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasParamDescriptions",
@@ -433,14 +433,14 @@ func GetOAS2ParameterDescriptionRule() *model.Rule {
 func GetOAS3ParameterDescriptionRule() *model.Rule {
     return &model.Rule{
         Name:         "Check parameter description",
-        Id:           oas3ParameterDescription,
+        Id:           Oas3ParameterDescription,
         Formats:      model.OAS3AllFormat,
         Description:  "Parameter description checks",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryDescriptions],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasParamDescriptions",
@@ -454,14 +454,14 @@ func GetOAS3ParameterDescriptionRule() *model.Rule {
 func GetDescriptionDuplicationRule() *model.Rule {
     return &model.Rule{
         Name:         "Check descriptions for duplicates",
-        Id:           descriptionDuplication,
+        Id:           DescriptionDuplication,
         Formats:      model.AllFormats,
         Description:  "Description duplication check",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryDescriptions],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityInfo,
         Then: model.RuleAction{
             Function: "oasDescriptionDuplication",
@@ -475,13 +475,13 @@ func GetComponentDescriptionsRule() *model.Rule {
     return &model.Rule{
         Name:         "Check component description",
         Formats:      model.OAS3AllFormat,
-        Id:           componentDescription,
+        Id:           ComponentDescription,
         Description:  "Component description check",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryDescriptions],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasComponentDescriptions",
@@ -494,14 +494,14 @@ func GetComponentDescriptionsRule() *model.Rule {
 func GetAPIServersRule() *model.Rule {
     return &model.Rule{
         Name:         "Validate API server definitions",
-        Id:           oas3APIServers,
+        Id:           Oas3APIServers,
         Formats:      model.OAS3Format,
         Description:  "Check for valid API servers definition",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryValidation],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasAPIServers",
@@ -518,14 +518,14 @@ func GetOperationIdValidInUrlRule() *model.Rule {
     comp, _ := regexp.Compile(opts["match"].(string))
     return &model.Rule{
         Name:         "Check operationId is URL friendly",
-        Id:           operationOperationIdValidInUrl,
+        Id:           OperationOperationIdValidInUrl,
         Formats:      model.AllFormats,
         Description:  "OperationId must use URL friendly characters",
         Given:        "$.paths[*][*]",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Field:           "operationId",
@@ -542,14 +542,14 @@ func GetOperationIdValidInUrlRule() *model.Rule {
 func GetOperationTagsRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operation tags are used",
-        Id:           operationTags,
+        Id:           OperationTags,
         Formats:      model.AllFormats,
         Description:  "Operation `tags` are missing/empty",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryTags],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasOperationTags",
@@ -565,14 +565,14 @@ func GetPathDeclarationsMustExistRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check path parameter declarations",
-        Id:           pathDeclarationsMustExist,
+        Id:           PathDeclarationsMustExist,
         Formats:      model.AllFormats,
         Description:  "Path parameter declarations must not be empty ex. `/api/{}` is invalid",
         Given:        "$.paths",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function:        "pattern",
@@ -590,14 +590,14 @@ func GetPathNoTrailingSlashRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check path for any trailing slashes",
-        Id:           pathKeysNoTrailingSlash,
+        Id:           PathKeysNoTrailingSlash,
         Formats:      model.AllFormats,
         Description:  "Path must not end with a slash",
         Given:        "$.paths",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function:        "pattern",
@@ -615,14 +615,14 @@ func GetPathNotIncludeQueryRule() *model.Rule {
     comp, _ := regexp.Compile(opts["notMatch"].(string))
     return &model.Rule{
         Name:         "Check path excludes query string",
-        Id:           pathNotIncludeQuery,
+        Id:           PathNotIncludeQuery,
         Formats:      model.AllFormats,
         Description:  "Path must not include query string",
         Given:        "$.paths",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function:        "pattern",
@@ -637,14 +637,14 @@ func GetPathNotIncludeQueryRule() *model.Rule {
 func GetTagDescriptionRequiredRule() *model.Rule {
     return &model.Rule{
         Name:         "Check tag description",
-        Id:           tagDescription,
+        Id:           TagDescription,
         Formats:      model.AllFormats,
         Description:  "Tag must have a description defined",
         Given:        "$.tags",
         Resolved:     true,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryTags],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Field:    "description",
@@ -658,14 +658,14 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 func GetTypedEnumRule() *model.Rule {
     return &model.Rule{
         Name:         "Check enum types",
-        Id:           typedEnum,
+        Id:           TypedEnum,
         Formats:      model.AllFormats,
         Description:  "Enum values must respect the specified type",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "typedEnum",
@@ -679,14 +679,14 @@ func GetPathParamsRule() *model.Rule {
     // add operation tag defined rule
     return &model.Rule{
         Name:         "Check path validity and definition",
-        Id:           pathParamsRule,
+        Id:           PathParamsRule,
         Formats:      model.AllFormats,
         Description:  "Path parameters must be defined and valid.",
         Given:        "$",
         Resolved:     true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
         Recommended:  true,
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasPathParam",
@@ -701,14 +701,14 @@ func GetPathParamsRule() *model.Rule {
 func GetGlobalOperationTagsRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operation tags exist globally",
-        Id:           operationTagDefined,
+        Id:           OperationTagDefined,
         Formats:      model.AllFormats,
         Description:  "Operation tags must be defined in global tags.",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryTags],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasTagDefined",
@@ -721,14 +721,14 @@ func GetGlobalOperationTagsRule() *model.Rule {
 func GetOperationParametersRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operation parameters",
-        Id:           operationParameters,
+        Id:           OperationParameters,
         Formats:      model.AllFormats,
         Description:  "Operation parameters are unique and non-repeating.",
         Given:        "$.paths",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasOpParams",
@@ -742,7 +742,7 @@ func GetOperationParametersRule() *model.Rule {
 func GetOAS2FormDataConsumesRule() *model.Rule {
     return &model.Rule{
         Name:    "Check operation parameter 'formData' definition",
-        Id:      oas2OperationFormDataConsumeCheck,
+        Id:      Oas2OperationFormDataConsumeCheck,
         Formats: model.OAS2Format,
         Description: "Operations with `in: formData` parameter must include `application/x-www-form-urlencoded` or" +
             " `multipart/form-data` in their `consumes` property.",
@@ -750,7 +750,7 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasOpFormDataConsumeCheck",
@@ -763,14 +763,14 @@ func GetOAS2FormDataConsumesRule() *model.Rule {
 func GetOAS2PolymorphicAnyOfRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for invalid use of 'anyOf'",
-        Id:           oas2AnyOf,
+        Id:           Oas2AnyOf,
         Formats:      model.OAS2Format,
         Description:  "`anyOf` was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasPolymorphicAnyOf",
@@ -783,14 +783,14 @@ func GetOAS2PolymorphicAnyOfRule() *model.Rule {
 func GetOAS2PolymorphicOneOfRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for invalid use of 'oneOf'",
-        Id:           oas2OneOf,
+        Id:           Oas2OneOf,
         Formats:      model.OAS2Format,
         Description:  "`oneOf` was introduced in OpenAPI 3.0, cannot be used un OpenAPI 2 specs",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasPolymorphicOneOf",
@@ -803,14 +803,14 @@ func GetOAS2PolymorphicOneOfRule() *model.Rule {
 func GetOAS2SchemaRule() *model.Rule {
     return &model.Rule{
         Name:         "Check schema is valid OpenAPI 2",
-        Id:           oas2Schema,
+        Id:           Oas2Schema,
         Formats:      model.OAS2Format,
         Description:  "OpenAPI 2 specification is invalid",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryValidation],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasDocumentSchema",
@@ -823,14 +823,14 @@ func GetOAS2SchemaRule() *model.Rule {
 func GetOAS3SchemaRule() *model.Rule {
     return &model.Rule{
         Name:         "Check spec is valid OpenAPI 3",
-        Id:           oas3Schema,
+        Id:           Oas3Schema,
         Formats:      model.OAS3Format,
         Description:  "OpenAPI 3 specification is invalid",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasDocumentSchema",
@@ -843,14 +843,14 @@ func GetOAS3SchemaRule() *model.Rule {
 func GetOperationIdUniqueRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operations for unique operationId",
-        Id:           operationOperationIdUnique,
+        Id:           OperationOperationIdUnique,
         Formats:      model.AllFormats,
         Description:  "Every operation must have unique `operationId`.",
         Given:        "$.paths",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasOpIdUnique",
@@ -863,14 +863,14 @@ func GetOperationIdUniqueRule() *model.Rule {
 func GetOperationSingleTagRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operations for multiple tags",
-        Id:           operationSingularTag,
+        Id:           OperationSingularTag,
         Formats:      model.AllFormats,
         Description:  "Operation cannot have more than a single tag defined",
         Given:        "$",
         Resolved:     false,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryTags],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasOpSingleTag",
@@ -883,14 +883,14 @@ func GetOperationSingleTagRule() *model.Rule {
 func GetOAS2APIHostRule() *model.Rule {
     return &model.Rule{
         Name:         "Check spec for 'host' value",
-        Id:           oas2APIHost,
+        Id:           Oas2APIHost,
         Formats:      model.OAS2Format,
         Description:  "OpenAPI `host` must be present and a non-empty string",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryInfo],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityInfo,
         Then: model.RuleAction{
             Field:    "host",
@@ -904,14 +904,14 @@ func GetOAS2APIHostRule() *model.Rule {
 func GetOperationIdRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operations for an operationId",
-        Id:           operationOperationId,
+        Id:           OperationOperationId,
         Formats:      model.AllFormats,
         Description:  "Every operation must contain an `operationId`.",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasOpId",
@@ -924,14 +924,14 @@ func GetOperationIdRule() *model.Rule {
 func GetOperationSuccessResponseRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operations for success response",
-        Id:           operationSuccessResponse,
+        Id:           OperationSuccessResponse,
         Formats:      model.AllFormats,
         Description:  "Operation must have at least one `2xx` or a `3xx` response.",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Field:    "responses",
@@ -945,14 +945,14 @@ func GetOperationSuccessResponseRule() *model.Rule {
 func GetDuplicatedEntryInEnumRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for duplicate enum entries",
-        Id:           duplicatedEntryInEnum,
+        Id:           DuplicatedEntryInEnum,
         Formats:      model.AllFormats,
         Description:  "Enum values must not have duplicate entry",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "duplicatedEnum",
@@ -965,14 +965,14 @@ func GetDuplicatedEntryInEnumRule() *model.Rule {
 func GetNoRefSiblingsRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for siblings to $ref values",
-        Id:           noRefSiblings,
+        Id:           NoRefSiblings,
         Formats:      model.AllFormats,
         Description:  "$ref values cannot be placed next to other properties (like a description)",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "refSiblings",
@@ -985,14 +985,14 @@ func GetNoRefSiblingsRule() *model.Rule {
 func GetOAS3UnusedComponentRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for unused components",
-        Id:           oas3UnusedComponent,
+        Id:           Oas3UnusedComponent,
         Formats:      model.OAS3AllFormat,
         Description:  "Check for unused components and bad references",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasUnusedComponent",
@@ -1005,14 +1005,14 @@ func GetOAS3UnusedComponentRule() *model.Rule {
 func GetOAS2UnusedComponentRule() *model.Rule {
     return &model.Rule{
         Name:         "Check for unused definitions",
-        Id:           oas2UnusedDefinition,
+        Id:           Oas2UnusedDefinition,
         Formats:      model.OAS2Format,
         Description:  "Check for unused definitions and bad references",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasUnusedComponent",
@@ -1028,14 +1028,14 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 
     return &model.Rule{
         Name:         "Check operation security",
-        Id:           oas3OperationSecurityDefined,
+        Id:           Oas3OperationSecurityDefined,
         Formats:      model.OAS3AllFormat,
         Description:  "`security` values must match a scheme defined in components.securitySchemes",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySecurity],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function:        "oasOpSecurityDefined",
@@ -1049,14 +1049,14 @@ func GetOAS3SecurityDefinedRule() *model.Rule {
 func GetOAS2SecurityDefinedRule() *model.Rule {
     return &model.Rule{
         Name:         "Check operation security",
-        Id:           oas2OperationSecurityDefined,
+        Id:           Oas2OperationSecurityDefined,
         Formats:      model.OAS2Format,
         Description:  "`security` values must match a scheme defined in securityDefinitions",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySecurity],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oas2OpSecurityDefined",
@@ -1069,14 +1069,14 @@ func GetOAS2SecurityDefinedRule() *model.Rule {
 func GetOAS2DiscriminatorRule() *model.Rule {
     return &model.Rule{
         Name:         "Discriminator check",
-        Id:           oas2Discriminator,
+        Id:           Oas2Discriminator,
         Formats:      model.OAS2Format,
         Description:  "discriminators are used correctly in schemas",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategorySchemas],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "oasDiscriminator",
@@ -1089,14 +1089,14 @@ func GetOAS2DiscriminatorRule() *model.Rule {
 func GetOAS3ExamplesRule() *model.Rule {
     return &model.Rule{
         Name:         "Check all examples",
-        Id:           oas3ValidSchemaExample,
+        Id:           Oas3ValidSchemaExample,
         Formats:      model.OAS3AllFormat,
         Description:  "Examples must be present and valid for operations and components",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryExamples],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasExample",
@@ -1109,14 +1109,14 @@ func GetOAS3ExamplesRule() *model.Rule {
 func GetOAS2ExamplesRule() *model.Rule {
     return &model.Rule{
         Name:         "Check all examples",
-        Id:           oas2ValidSchemaExample,
+        Id:           Oas2ValidSchemaExample,
         Formats:      model.OAS2Format,
         Description:  "Examples must be present and valid for operations and components",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryExamples],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasExample",
@@ -1129,14 +1129,14 @@ func GetOAS2ExamplesRule() *model.Rule {
 func NoAmbiguousPaths() *model.Rule {
     return &model.Rule{
         Name:         "No ambiguous paths, each path must resolve unambiguously",
-        Id:           noAmbiguousPaths,
+        Id:           NoAmbiguousPathsRule,
         Formats:      model.AllFormats,
         Description:  "Paths need to resolve unambiguously from one another",
         Given:        "$",
         Resolved:     true,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityError,
         Then: model.RuleAction{
             Function: "ambiguousPaths",
@@ -1149,14 +1149,14 @@ func NoAmbiguousPaths() *model.Rule {
 func GetNoVerbsInPathRule() *model.Rule {
     return &model.Rule{
         Name:         "Paths cannot contain HTTP verbs as segments",
-        Id:           noVerbsInPath,
+        Id:           NoVerbsInPath,
         Formats:      model.AllFormats,
         Description:  "Path segments must not contain an HTTP verb",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         style,
+        Type:         Style,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "noVerbsInPath",
@@ -1169,14 +1169,14 @@ func GetNoVerbsInPathRule() *model.Rule {
 func GetPathsKebabCaseRule() *model.Rule {
     return &model.Rule{
         Name:         "Path segments must be kebab-case only",
-        Id:           pathsKebabCase,
+        Id:           PathsKebabCase,
         Formats:      model.AllFormats,
         Description:  "Path segments must only use kebab-case (no underscores or uppercase)",
         Given:        "$",
         Resolved:     false,
         Recommended:  true,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "pathsKebabCase",
@@ -1189,14 +1189,14 @@ func GetPathsKebabCaseRule() *model.Rule {
 func GetOperationErrorResponseRule() *model.Rule {
     return &model.Rule{
         Name:         "Operations must return at least 4xx user error response",
-        Id:           operationErrorResponse,
+        Id:           OperationErrorResponse,
         Formats:      model.AllFormats,
         Description:  "Make sure operations return at least one `4xx` error response to help with bad requests",
         Given:        "$.paths",
         Resolved:     true,
         Recommended:  false,
         RuleCategory: model.RuleCategories[model.CategoryOperations],
-        Type:         validation,
+        Type:         Validation,
         Severity:     model.SeverityWarn,
         Then: model.RuleAction{
             Function: "oasOpErrorResponse",

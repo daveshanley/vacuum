@@ -20,61 +20,61 @@ import (
 var rulesetSchema string
 
 const (
-    style                             = "style"
-    validation                        = "validation"
-    noVerbsInPath                     = "no-http-verbs-in-path"
-    pathsKebabCase                    = "paths-kebab-case"
-    noAmbiguousPaths                  = "no-ambiguous-paths"
-    operationErrorResponse            = "operation-4xx-response"
-    operationSuccessResponse          = "operation-success-response"
-    operationOperationIdUnique        = "operation-operationId-unique"
-    operationOperationId              = "operation-operationId"
-    operationParameters               = "operation-parameters"
-    operationSingularTag              = "operation-singular-tag"
-    operationTagDefined               = "operation-tag-defined"
-    pathParamsRule                    = "path-params"
-    contactProperties                 = "contact-properties"
-    infoContact                       = "info-contact"
-    infoDescription                   = "info-description"
-    infoLicense                       = "info-license"
-    licenseUrl                        = "license-url"
-    openAPITagsAlphabetical           = "openapi-tags-alphabetical"
-    openAPITags                       = "openapi-tags"
-    operationTags                     = "operation-tags"
-    operationDescription              = "operation-description"
-    componentDescription              = "component-description"
-    operationOperationIdValidInUrl    = "operation-operationId-valid-in-url"
-    pathDeclarationsMustExist         = "path-declarations-must-exist"
-    pathKeysNoTrailingSlash           = "path-keys-no-trailing-slash"
-    pathNotIncludeQuery               = "path-not-include-query"
-    tagDescription                    = "tag-description"
-    noRefSiblings                     = "no-$ref-siblings"
-    oas3UnusedComponent               = "oas3-unused-component"
-    oas2UnusedDefinition              = "oas2-unused-definition"
-    oas2APIHost                       = "oas2-api-host"
-    oas2APISchemes                    = "oas2-api-schemes"
-    oas2Discriminator                 = "oas2-discriminator"
-    oas2HostNotExample                = "oas2-host-not-example"
-    oas3HostNotExample                = "oas3-host-not-example.com"
-    oas2HostTrailingSlash             = "oas2-host-trailing-slash"
-    oas3HostTrailingSlash             = "oas3-host-trailing-slash"
-    oas2ParameterDescription          = "oas2-parameter-description"
-    oas3ParameterDescription          = "oas3-parameter-description"
-    oas3OperationSecurityDefined      = "oas3-operation-security-defined"
-    oas2OperationSecurityDefined      = "oas2-operation-security-defined"
-    oas3ValidSchemaExample            = "oas3-valid-schema-example"
-    oas2ValidSchemaExample            = "oas2-valid-schema-example"
-    typedEnum                         = "typed-enum"
-    duplicatedEntryInEnum             = "duplicated-entry-in-enum"
-    noEvalInMarkdown                  = "no-eval-in-markdown"
-    noScriptTagsInMarkdown            = "no-script-tags-in-markdown"
-    descriptionDuplication            = "description-duplication"
-    oas3APIServers                    = "oas3-api-servers"
-    oas2OperationFormDataConsumeCheck = "oas2-operation-formData-consume-check"
-    oas2AnyOf                         = "oas2-anyOf"
-    oas2OneOf                         = "oas2-oneOf"
-    oas2Schema                        = "oas2-schema"
-    oas3Schema                        = "oas3-schema"
+    Style                             = "style"
+    Validation                        = "validation"
+    NoVerbsInPath                     = "no-http-verbs-in-path"
+    PathsKebabCase                    = "paths-kebab-case"
+    NoAmbiguousPathsRule              = "no-ambiguous-paths"
+    OperationErrorResponse            = "operation-4xx-response"
+    OperationSuccessResponse          = "operation-success-response"
+    OperationOperationIdUnique        = "operation-operationId-unique"
+    OperationOperationId              = "operation-operationId"
+    OperationParameters               = "operation-parameters"
+    OperationSingularTag              = "operation-singular-tag"
+    OperationTagDefined               = "operation-tag-defined"
+    PathParamsRule                    = "path-params"
+    ContactProperties                 = "contact-properties"
+    InfoContact                       = "info-contact"
+    InfoDescription                   = "info-description"
+    InfoLicense                       = "info-license"
+    LicenseUrl                        = "license-url"
+    OpenAPITagsAlphabetical           = "openapi-tags-alphabetical"
+    OpenAPITags                       = "openapi-tags"
+    OperationTags                     = "operation-tags"
+    OperationDescription              = "operation-description"
+    ComponentDescription              = "component-description"
+    OperationOperationIdValidInUrl    = "operation-operationId-valid-in-url"
+    PathDeclarationsMustExist         = "path-declarations-must-exist"
+    PathKeysNoTrailingSlash           = "path-keys-no-trailing-slash"
+    PathNotIncludeQuery               = "path-not-include-query"
+    TagDescription                    = "tag-description"
+    NoRefSiblings                     = "no-$ref-siblings"
+    Oas3UnusedComponent               = "oas3-unused-component"
+    Oas2UnusedDefinition              = "oas2-unused-definition"
+    Oas2APIHost                       = "oas2-api-host"
+    Oas2APISchemes                    = "oas2-api-schemes"
+    Oas2Discriminator                 = "oas2-discriminator"
+    Oas2HostNotExample                = "oas2-host-not-example"
+    Oas3HostNotExample                = "oas3-host-not-example.com"
+    Oas2HostTrailingSlash             = "oas2-host-trailing-slash"
+    Oas3HostTrailingSlash             = "oas3-host-trailing-slash"
+    Oas2ParameterDescription          = "oas2-parameter-description"
+    Oas3ParameterDescription          = "oas3-parameter-description"
+    Oas3OperationSecurityDefined      = "oas3-operation-security-defined"
+    Oas2OperationSecurityDefined      = "oas2-operation-security-defined"
+    Oas3ValidSchemaExample            = "oas3-valid-schema-example"
+    Oas2ValidSchemaExample            = "oas2-valid-schema-example"
+    TypedEnum                         = "typed-enum"
+    DuplicatedEntryInEnum             = "duplicated-entry-in-enum"
+    NoEvalInMarkdown                  = "no-eval-in-markdown"
+    NoScriptTagsInMarkdown            = "no-script-tags-in-markdown"
+    DescriptionDuplication            = "description-duplication"
+    Oas3APIServers                    = "oas3-api-servers"
+    Oas2OperationFormDataConsumeCheck = "oas2-operation-formData-consume-check"
+    Oas2AnyOf                         = "oas2-anyOf"
+    Oas2OneOf                         = "oas2-oneOf"
+    Oas2Schema                        = "oas2-schema"
+    Oas3Schema                        = "oas3-schema"
     SpectralOpenAPI                   = "spectral:oas"
     SpectralRecommended               = "recommended"
     SpectralAll                       = "all"
@@ -111,7 +111,7 @@ func BuildDefaultRuleSets() RuleSets {
     log = zap.NewExample()
 
     rulesetsSingleton = &ruleSetsModel{
-        openAPIRuleSet: generateDefaultOpenAPIRuleSet(),
+        openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
     }
     return rulesetsSingleton
 }
@@ -257,66 +257,84 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
     return rs
 }
 
-func generateDefaultOpenAPIRuleSet() *RuleSet {
+// CreateRuleSetFromRuleMap creates a RuleSet from a map of rules. Built-in rules can can be exposed by using
+// the GetAllBuiltInRules() function.
+func CreateRuleSetFromRuleMap(rules map[string]*model.Rule) *RuleSet {
+    rs := &RuleSet{
+        DocumentationURI: "https://quobix.com/vacuum/rulesets/understanding",
+        Formats:          []string{"oas2", "oas3"},
+        Extends:          map[string]string{SpectralOpenAPI: SpectralOff},
+        Description:      fmt.Sprintf("a custom ruleset composed of %d rules", len(rules)),
+        RuleDefinitions:  make(map[string]interface{}),
+        Rules:            rules,
+    }
+    return rs
+}
 
+// GetAllBuiltInRules returns a map of all the built-in rules available, ready to be used in a RuleSet.
+func GetAllBuiltInRules() map[string]*model.Rule {
     rules := make(map[string]*model.Rule)
-    rules[operationSuccessResponse] = GetOperationSuccessResponseRule()
-    rules[operationOperationIdUnique] = GetOperationIdUniqueRule()
-    rules[operationOperationId] = GetOperationIdRule()
-    rules[operationParameters] = GetOperationParametersRule()
-    rules[operationSingularTag] = GetOperationSingleTagRule()
-    rules[operationTagDefined] = GetGlobalOperationTagsRule()
-    rules[pathParamsRule] = GetPathParamsRule()
-    rules[contactProperties] = GetContactPropertiesRule()
-    rules[infoContact] = GetInfoContactRule()
-    rules[infoDescription] = GetInfoDescriptionRule()
-    rules[infoLicense] = GetInfoLicenseRule()
-    rules[licenseUrl] = GetInfoLicenseUrlRule()
-    rules[openAPITagsAlphabetical] = GetOpenApiTagsAlphabeticalRule()
-    rules[openAPITags] = GetOpenApiTagsRule()
-    rules[operationTags] = GetOperationTagsRule()
-    rules[operationDescription] = GetOperationDescriptionRule()
-    rules[componentDescription] = GetComponentDescriptionsRule()
-    rules[operationOperationIdValidInUrl] = GetOperationIdValidInUrlRule()
-    rules[pathDeclarationsMustExist] = GetPathDeclarationsMustExistRule()
-    rules[pathKeysNoTrailingSlash] = GetPathNoTrailingSlashRule()
-    rules[pathNotIncludeQuery] = GetPathNotIncludeQueryRule()
-    rules[tagDescription] = GetTagDescriptionRequiredRule()
-    rules[noRefSiblings] = GetNoRefSiblingsRule()
-    rules[oas3UnusedComponent] = GetOAS3UnusedComponentRule()
-    rules[oas2UnusedDefinition] = GetOAS2UnusedComponentRule()
-    rules[oas2APIHost] = GetOAS2APIHostRule()
-    rules[oas2APISchemes] = GetOAS2APISchemesRule()
-    rules[oas2Discriminator] = GetOAS2DiscriminatorRule()
-    rules[oas2HostNotExample] = GetOAS2HostNotExampleRule()
-    rules[oas3HostNotExample] = GetOAS3HostNotExampleRule()
-    rules[oas2HostTrailingSlash] = GetOAS2HostTrailingSlashRule()
-    rules[oas3HostTrailingSlash] = GetOAS3HostTrailingSlashRule()
-    rules[oas2ParameterDescription] = GetOAS2ParameterDescriptionRule()
-    rules[oas3ParameterDescription] = GetOAS3ParameterDescriptionRule()
-    rules[oas3OperationSecurityDefined] = GetOAS3SecurityDefinedRule()
-    rules[oas2OperationSecurityDefined] = GetOAS2SecurityDefinedRule()
-    rules[typedEnum] = GetTypedEnumRule()
-    rules[duplicatedEntryInEnum] = GetDuplicatedEntryInEnumRule()
-    rules[noEvalInMarkdown] = GetNoEvalInMarkdownRule()
-    rules[noScriptTagsInMarkdown] = GetNoScriptTagsInMarkdownRule()
-    rules[descriptionDuplication] = GetDescriptionDuplicationRule()
-    rules[oas3APIServers] = GetAPIServersRule()
-    rules[oas2OperationFormDataConsumeCheck] = GetOAS2FormDataConsumesRule()
-    rules[oas2AnyOf] = GetOAS2PolymorphicAnyOfRule()
-    rules[oas2OneOf] = GetOAS2PolymorphicOneOfRule()
-    rules[oas3ValidSchemaExample] = GetOAS3ExamplesRule()
-    rules[oas2ValidSchemaExample] = GetOAS2ExamplesRule()
-    rules[noAmbiguousPaths] = NoAmbiguousPaths()
-    rules[noVerbsInPath] = GetNoVerbsInPathRule()
-    rules[pathsKebabCase] = GetPathsKebabCaseRule()
-    rules[operationErrorResponse] = GetOperationErrorResponseRule()
-    rules[oas2Schema] = GetOAS2SchemaRule()
-    rules[oas3Schema] = GetOAS3SchemaRule()
+    rules[OperationSuccessResponse] = GetOperationSuccessResponseRule()
+    rules[OperationOperationIdUnique] = GetOperationIdUniqueRule()
+    rules[OperationOperationId] = GetOperationIdRule()
+    rules[OperationParameters] = GetOperationParametersRule()
+    rules[OperationSingularTag] = GetOperationSingleTagRule()
+    rules[OperationTagDefined] = GetGlobalOperationTagsRule()
+    rules[PathParamsRule] = GetPathParamsRule()
+    rules[ContactProperties] = GetContactPropertiesRule()
+    rules[InfoContact] = GetInfoContactRule()
+    rules[InfoDescription] = GetInfoDescriptionRule()
+    rules[InfoLicense] = GetInfoLicenseRule()
+    rules[LicenseUrl] = GetInfoLicenseUrlRule()
+    rules[OpenAPITagsAlphabetical] = GetOpenApiTagsAlphabeticalRule()
+    rules[OpenAPITags] = GetOpenApiTagsRule()
+    rules[OperationTags] = GetOperationTagsRule()
+    rules[OperationDescription] = GetOperationDescriptionRule()
+    rules[ComponentDescription] = GetComponentDescriptionsRule()
+    rules[OperationOperationIdValidInUrl] = GetOperationIdValidInUrlRule()
+    rules[PathDeclarationsMustExist] = GetPathDeclarationsMustExistRule()
+    rules[PathKeysNoTrailingSlash] = GetPathNoTrailingSlashRule()
+    rules[PathNotIncludeQuery] = GetPathNotIncludeQueryRule()
+    rules[TagDescription] = GetTagDescriptionRequiredRule()
+    rules[NoRefSiblings] = GetNoRefSiblingsRule()
+    rules[Oas3UnusedComponent] = GetOAS3UnusedComponentRule()
+    rules[Oas2UnusedDefinition] = GetOAS2UnusedComponentRule()
+    rules[Oas2APIHost] = GetOAS2APIHostRule()
+    rules[Oas2APISchemes] = GetOAS2APISchemesRule()
+    rules[Oas2Discriminator] = GetOAS2DiscriminatorRule()
+    rules[Oas2HostNotExample] = GetOAS2HostNotExampleRule()
+    rules[Oas3HostNotExample] = GetOAS3HostNotExampleRule()
+    rules[Oas2HostTrailingSlash] = GetOAS2HostTrailingSlashRule()
+    rules[Oas3HostTrailingSlash] = GetOAS3HostTrailingSlashRule()
+    rules[Oas2ParameterDescription] = GetOAS2ParameterDescriptionRule()
+    rules[Oas3ParameterDescription] = GetOAS3ParameterDescriptionRule()
+    rules[Oas3OperationSecurityDefined] = GetOAS3SecurityDefinedRule()
+    rules[Oas2OperationSecurityDefined] = GetOAS2SecurityDefinedRule()
+    rules[TypedEnum] = GetTypedEnumRule()
+    rules[DuplicatedEntryInEnum] = GetDuplicatedEntryInEnumRule()
+    rules[NoEvalInMarkdown] = GetNoEvalInMarkdownRule()
+    rules[NoScriptTagsInMarkdown] = GetNoScriptTagsInMarkdownRule()
+    rules[DescriptionDuplication] = GetDescriptionDuplicationRule()
+    rules[Oas3APIServers] = GetAPIServersRule()
+    rules[Oas2OperationFormDataConsumeCheck] = GetOAS2FormDataConsumesRule()
+    rules[Oas2AnyOf] = GetOAS2PolymorphicAnyOfRule()
+    rules[Oas2OneOf] = GetOAS2PolymorphicOneOfRule()
+    rules[Oas3ValidSchemaExample] = GetOAS3ExamplesRule()
+    rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
+    rules[NoAmbiguousPathsRule] = NoAmbiguousPaths()
+    rules[NoVerbsInPath] = GetNoVerbsInPathRule()
+    rules[PathsKebabCase] = GetPathsKebabCaseRule()
+    rules[OperationErrorResponse] = GetOperationErrorResponseRule()
+    rules[Oas2Schema] = GetOAS2SchemaRule()
+    rules[Oas3Schema] = GetOAS3SchemaRule()
+    return rules
+}
 
+// GenerateDefaultOpenAPIRuleSet generates a default ruleset for OpenAPI. All the built in rules, ready to go.
+func GenerateDefaultOpenAPIRuleSet() *RuleSet {
     set := &RuleSet{
         DocumentationURI: "https://quobix.com/vacuum/rulesets/all",
-        Rules:            rules,
+        Rules:            GetAllBuiltInRules(),
         Description:      "Every single rule that is built-in to vacuum. The full monty",
     }
     return set
