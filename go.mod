@@ -12,8 +12,8 @@ require (
 	github.com/pb33f/libopenapi v0.8.1
 	github.com/pb33f/libopenapi-validator v0.0.5
 	github.com/pterm/pterm v0.12.57
-	github.com/santhosh-tekuri/jsonschema/v5 v5.2.0
-	github.com/spf13/cobra v1.6.1
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.0
+	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	go.uber.org/zap v1.24.0
@@ -28,7 +28,7 @@ require (
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/gookit/color v1.5.2 // indirect
-	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.5 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
