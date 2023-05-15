@@ -4,6 +4,9 @@
 package motor
 
 import (
+	"net/url"
+	"sync"
+
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -17,8 +20,6 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
-	"net/url"
-	"sync"
 )
 
 type ruleContext struct {
@@ -82,8 +83,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// create new configurations
 	config := index.CreateClosedAPIIndexConfig()
-	config.AllowFileLookup = true
+
 	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig.AllowFileReferences = true
+	config.AllowFileLookup = true
 
 	if execution.Base != "" {
 		// check if this is a URL or not
