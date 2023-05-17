@@ -132,6 +132,8 @@ github.com/pb33f/libopenapi v0.8.0 h1:zfXNu7/Hk9sgMV3UC2hnSB4CGlgQkMaWWwPn0Id+eL
 github.com/pb33f/libopenapi v0.8.0/go.mod h1:lvUmCtjgHUGVj6WzN3I5/CS9wkXtyN3Ykjh6ZZP5lrI=
 github.com/pb33f/libopenapi v0.8.1 h1:kudGljKp7cErupRr8ND5oIaTsfjOfQYAxSd3Z2dxt6k=
 github.com/pb33f/libopenapi v0.8.1/go.mod h1:lvUmCtjgHUGVj6WzN3I5/CS9wkXtyN3Ykjh6ZZP5lrI=
+github.com/pb33f/libopenapi v0.8.2 h1:9oem/yteVXN/mFgC2SYvc4fPGVgZ+VSedY4ICoOykFE=
+github.com/pb33f/libopenapi v0.8.2/go.mod h1:lvUmCtjgHUGVj6WzN3I5/CS9wkXtyN3Ykjh6ZZP5lrI=
 github.com/pb33f/libopenapi-validator v0.0.3 h1:tSRhE7awxiNPV6VHhgEQ6v0rN7kFnzW+uChHSoo5W58=
 github.com/pb33f/libopenapi-validator v0.0.3/go.mod h1:lJII+eGg2vCaKOiXuqtDsVPGa0Ud2TxSbmI5IsINMHQ=
 github.com/pb33f/libopenapi-validator v0.0.4 h1:Z5BIRfgcE8JXx8MW1Ffv8+YTMA47y5G5pcc97qiUXwg=
@@ -140,6 +142,8 @@ github.com/pb33f/libopenapi-validator v0.0.5 h1:NaJMU+51NW54u2ihfCKRt5/Apkll0ERA
 github.com/pb33f/libopenapi-validator v0.0.5/go.mod h1:uAF035zrQxpAdaoZuZZyy7eh7+Fjw3ovv4bOAPjt97U=
 github.com/pb33f/libopenapi-validator v0.0.6 h1:bO43y6UGLOUQpru0XezUUxPtnoKMKM4WQCSS+xMElxY=
 github.com/pb33f/libopenapi-validator v0.0.6/go.mod h1:uAF035zrQxpAdaoZuZZyy7eh7+Fjw3ovv4bOAPjt97U=
+github.com/pb33f/libopenapi-validator v0.0.7 h1:0ZtV2V28Fu69wIMccNeFHyusmubfoq4zy2uGqrjDHMk=
+github.com/pb33f/libopenapi-validator v0.0.7/go.mod h1:uAF035zrQxpAdaoZuZZyy7eh7+Fjw3ovv4bOAPjt97U=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
