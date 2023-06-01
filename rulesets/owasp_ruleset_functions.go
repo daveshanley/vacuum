@@ -13,6 +13,7 @@ func GetOwaspAPIRuleNoNumericIDs() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
+	// TODO: not exactly equal to the one in spectral
 	yml := `type: object
 not:
   properties:
@@ -87,7 +88,34 @@ func GetOWASPRuleNoAPIKeysInURL() *model.Rule {
 		Id:           "", // TODO
 		Formats:      model.OAS3AllFormat,
 		Description:  "API Keys are (usually opaque) strings that\nare passed in headers, cookies or query parameters\nto access APIs.\nThose keys can be eavesdropped, especially when they are stored\nin cookies or passed as URL parameters.\n```\nsecurity:\n- ApiKey: []\npaths:\n  /books: {}\n  /users: {}\nsecuritySchemes:\n  ApiKey:\n    type: apiKey\n    in: cookie\n    name: X-Api-Key\n```",
-		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`, // todo, make apiKey case insensitive
+		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`, // TODO, make apiKey case insensitive
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           "", // TODO
+	}
+}
+
+func GetOWASPRuleSecurityCredentialsDetected() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["notMatch"] = `(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+
+	return &model.Rule{
+		Name:         "Security credentials detected in path parameter: {{value}}",
+		Id:           "", // TODO
+		Formats:      model.OAS3AllFormat,
+		Description:  "URL parameters MUST NOT contain credentials such as API key, password, or secret. See [RAC_GEN_004](https://docs.italia.it/italia/piano-triennale-ict/lg-modellointeroperabilita-docs/it/bozza/doc/04_Raccomandazioni%20di%20implementazione/04_raccomandazioni-tecniche-generali/01_globali.html?highlight=credenziali#rac-gen-004-non-passare-credenziali-o-dati-riservati-nellurl)",
+		Given:        `$..parameters[*][?(@.in =~ /(query|path)/)].name`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
