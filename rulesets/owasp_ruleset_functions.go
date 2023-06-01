@@ -28,7 +28,7 @@ properties:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "Use random IDs that cannot be guessed",
+		Name:         "OWASP API1:2019",
 		Id:           OWASP1,
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
@@ -55,7 +55,7 @@ func GetOWASPRule2HTTPBasic() *model.Rule {
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 
 	return &model.Rule{
-		Name:         "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
+		Name:         "Security scheme uses HTTP Basic",
 		Id:           OWASP1,
 		Formats:      model.AllFormats,
 		Description:  "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
