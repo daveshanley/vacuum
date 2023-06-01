@@ -1974,3 +1974,58 @@ paths:
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Results, 9)
 }
+
+func TestRuleSet_GetOWASPRuleAuthInsecureSchemesSuccess(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    "bearer is ok":
+      type: "http"
+      scheme: "bearer"`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleAuthInsecureSchemes() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleAuthInsecureSchemesError(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    "bad negotiate":
+      type: "http"
+      scheme: "negotiate"
+    "bad negotiate":
+      type: "http"
+      scheme: "oauth"`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleAuthInsecureSchemes() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 2)
+}
