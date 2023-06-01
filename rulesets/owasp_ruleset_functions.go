@@ -1,13 +1,15 @@
 package rulesets
 
 import (
+	"regexp"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 )
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func GetOwaspAPIRule() *model.Rule {
+func GetOwaspAPIRule1() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -41,6 +43,34 @@ properties:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TBD
+		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRule2() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "basic"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+
+	return &model.Rule{
+		Name:         "Use random IDs that cannot be guessed",
+		Id:           OWASP1,
+		Formats:      model.AllFormats,
+		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
+		Given:        `$.components.securitySchemes[*]`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Field:           "scheme",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           "", // TODO
 	}
 }
