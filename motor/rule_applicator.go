@@ -276,13 +276,21 @@ func runRule(ctx ruleContext) {
 		givenPaths = append(givenPaths, x)
 	}
 
+	if x, ok := ctx.rule.Given.([]interface{}); ok {
+		for _, gpI := range x {
+			if gp, ok := gpI.(string); ok {
+				givenPaths = append(givenPaths, gp)
+			}
+			// TODO: come back and clean this up if it proves to be required.
+			// Not sure why I added this check for a given field, it's always a string path.
+			//if gp, ok := gpI.(int); ok { //
+			//	givenPaths = append(givenPaths, fmt.Sprintf("%v", gp))
+			//}
+		}
+	}
+
 	if x, ok := ctx.rule.Given.([]string); ok {
 		givenPaths = x
-		// TODO: come back and clean this up if it proves to be required.
-		// Not sure why I added this check for a given field, it's always a string path.
-		//if gp, ok := gpI.(int); ok { //
-		//	givenPaths = append(givenPaths, fmt.Sprintf("%v", gp))
-		//}
 	}
 
 	for _, givenPath := range givenPaths {
