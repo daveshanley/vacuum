@@ -9,7 +9,7 @@ import (
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func GetOwaspAPIRule1() *model.Rule {
+func GetOwaspAPIRule1NoNumericIDs() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -47,7 +47,7 @@ properties:
 	}
 }
 
-func GetOWASPRule2() *model.Rule {
+func GetOWASPRule2HTTPBasic() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -55,10 +55,10 @@ func GetOWASPRule2() *model.Rule {
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 
 	return &model.Rule{
-		Name:         "Use random IDs that cannot be guessed",
+		Name:         "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
 		Id:           OWASP1,
 		Formats:      model.AllFormats,
-		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
+		Description:  "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
 		Given:        `$.components.securitySchemes[*]`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
