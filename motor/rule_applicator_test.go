@@ -1725,7 +1725,7 @@ paths:
             format: uuid`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-1"] = rulesets.GetOwaspAPIRule()
+	rules["owasp-1"] = rulesets.GetOwaspAPIRule1()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1770,7 +1770,7 @@ paths:
             type: integer`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-1"] = rulesets.GetOwaspAPIRule()
+	rules["owasp-1"] = rulesets.GetOwaspAPIRule1()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1782,4 +1782,59 @@ paths:
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Results, 5)
+}
+
+func TestRuleSet_TestOWASP2Success(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    "anything-else":
+      type: "http"
+      scheme: "bearer"`
+
+	rules := make(map[string]*model.Rule)
+	rules["owasp-2"] = rulesets.GetOWASPRule2()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_TestOWASP2Error(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    "bad negotiate":
+      type: "http"
+      scheme: "negotiate"
+    "please-hack-me":
+      type: "http"
+      scheme: basic`
+
+	rules := make(map[string]*model.Rule)
+	rules["owasp-2"] = rulesets.GetOWASPRule2()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
 }
