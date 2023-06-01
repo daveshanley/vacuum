@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "vacuum.go",
-            "args": ["lint", "-d", "/home/ricardograca/Documents/api-mgmt-api-management/vacuum/rulesets/example.json"]
+            "args": ["lint", "-d", "/home/ricardograca/example.json"]
         }
     ]
 }

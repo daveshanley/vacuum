@@ -14,10 +14,10 @@ func OWASP1Rule() *model.Rule {
 	yml := `type: object
 not:
   properties:
-    type: 
+    type:
       pattern: integer
 properties:
-  format: 
+  format:
     enum:
       - uuid`
 
