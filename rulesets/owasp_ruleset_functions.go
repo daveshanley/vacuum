@@ -7,7 +7,7 @@ import (
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func OWASP1Rule() *model.Rule {
+func GetOwaspAPIRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -41,6 +41,6 @@ properties:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: owaspErrorResponseFix,
+		HowToFix: "", // TBD
 	}
 }

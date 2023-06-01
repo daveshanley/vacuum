@@ -2,13 +2,14 @@ package motor
 
 import (
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -1707,4 +1708,78 @@ func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 		assert.Len(b, results.Errors, 0)
 		assert.NotNil(b, results)
 	}
+}
+
+func TestRuleSet_TestOWASP1(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+paths:
+  /foo/{id}/:
+    get:
+      description: "get"
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: string
+            format: uuid`
+
+	rules := make(map[string]*model.Rule)
+	rules["owasp-1"] = rulesets.GetOwaspAPIRule()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_TestOWASP1Error(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+paths:
+  /foo/{id}/:
+    get:
+      description: "get"
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+        - name: notanid
+          in: path
+          schema:
+            type: integer
+        - name: underscore_id
+          in: path
+          schema:
+            type: integer
+        - name: hyphen-id
+          in: path
+          schema:
+            type: integer
+            format: int32
+        - name: camelId
+          in: path
+          schema:
+            type: integer`
+
+	rules := make(map[string]*model.Rule)
+	rules["owasp-1"] = rulesets.GetOwaspAPIRule()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 5)
 }
