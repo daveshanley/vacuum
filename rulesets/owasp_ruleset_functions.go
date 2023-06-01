@@ -9,7 +9,7 @@ import (
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func GetOwaspAPIRule1NoNumericIDs() *model.Rule {
+func GetOwaspAPIRuleNoNumericIDs() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -47,7 +47,7 @@ properties:
 	}
 }
 
-func GetOWASPRule2HTTPBasic() *model.Rule {
+func GetOWASPRuleSecuritySchemeUseHTTPBasic() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -67,6 +67,33 @@ func GetOWASPRule2HTTPBasic() *model.Rule {
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Field:           "scheme",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           "", // TODO
+	}
+}
+
+func GetOWASPRuleNoAPIKeysInURL() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["notMatch"] = "^(path|query)$"
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+
+	return &model.Rule{
+		Name:         "ApiKey passed in URL: {{error}}",
+		Id:           "", // TODO
+		Formats:      model.OAS3AllFormat,
+		Description:  "API Keys are (usually opaque) strings that\nare passed in headers, cookies or query parameters\nto access APIs.\nThose keys can be eavesdropped, especially when they are stored\nin cookies or passed as URL parameters.\n```\nsecurity:\n- ApiKey: []\npaths:\n  /books: {}\n  /users: {}\nsecuritySchemes:\n  ApiKey:\n    type: apiKey\n    in: cookie\n    name: X-Api-Key\n```",
+		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`, // todo, make apiKey case insensitive
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
 			Function:        "pattern",
 			FunctionOptions: opts,
 		},

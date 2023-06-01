@@ -1710,7 +1710,7 @@ func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 	}
 }
 
-func TestRuleSet_TestOWASP1(t *testing.T) {
+func TestRuleSet_TestGetOwaspAPIRuleNoNumericIDsSuccess(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -1725,7 +1725,7 @@ paths:
             format: uuid`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-1"] = rulesets.GetOwaspAPIRule1NoNumericIDs()
+	rules["here"] = rulesets.GetOwaspAPIRuleNoNumericIDs()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1739,7 +1739,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_TestOWASP1Error(t *testing.T) {
+func TestRuleSet_TestGetOwaspAPIRuleNoNumericIDsError(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -1770,7 +1770,7 @@ paths:
             type: integer`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-1"] = rulesets.GetOwaspAPIRule1NoNumericIDs()
+	rules["here"] = rulesets.GetOwaspAPIRuleNoNumericIDs()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1784,7 +1784,7 @@ paths:
 	assert.Len(t, results.Results, 5)
 }
 
-func TestRuleSet_TestOWASP2Success(t *testing.T) {
+func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasicSuccess(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -1796,7 +1796,7 @@ components:
       scheme: "bearer"`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-2"] = rulesets.GetOWASPRule2HTTPBasic()
+	rules["here"] = rulesets.GetOWASPRuleSecuritySchemeUseHTTPBasic()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1810,7 +1810,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_TestOWASP2Error(t *testing.T) {
+func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasicError(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -1825,7 +1825,7 @@ components:
       scheme: basic`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-2"] = rulesets.GetOWASPRule2HTTPBasic()
+	rules["here"] = rulesets.GetOWASPRuleSecuritySchemeUseHTTPBasic()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1837,4 +1837,59 @@ components:
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Results, 1)
+}
+
+func TestRuleSet_GetOWASPRuleNoAPIKeysInURLSuccess(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    "API Key in URL":
+      type: "APIKey"
+      in: "header"`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleNoAPIKeysInURL()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleNoAPIKeysInURLError(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    "API Key in Query":
+      type: apiKey
+      in: query
+    "API Key in Path":
+      type: apiKey
+      in: path`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleNoAPIKeysInURL() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 2)
 }
