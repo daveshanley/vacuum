@@ -129,3 +129,30 @@ func GetOWASPRuleSecurityCredentialsDetected() *model.Rule {
 		HowToFix:           "", // TODO
 	}
 }
+
+func GetOWASPRuleAuthInsecureSchemes() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["notMatch"] = `^(negotiate|oauth)$`
+	comp, _ := regexp.Compile(opts["notMatch"].(string))
+
+	return &model.Rule{
+		Name:         "Authentication scheme is considered outdated or insecure: {{value}}",
+		Id:           "", // TODO
+		Formats:      model.OAS3AllFormat,
+		Description:  "There are many [HTTP authorization schemes](https://www.iana.org/assignments/http-authschemes/) but some of them are now considered insecure, such as negotiating authentication using specifications like NTLM or OAuth v1",
+		Given:        `$..securitySchemes[*][?(@.type=="http")].scheme`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           "", // TODO
+	}
+}
