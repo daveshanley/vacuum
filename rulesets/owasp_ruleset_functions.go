@@ -156,3 +156,33 @@ func GetOWASPRuleAuthInsecureSchemes() *model.Rule {
 		HowToFix:           "", // TODO
 	}
 }
+
+func GetOWASPRuleJWTBestPractices() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["match"] = `.*RFC8725.*`
+	comp, _ := regexp.Compile(opts["match"].(string))
+
+	return &model.Rule{
+		Name:        "Security schemes using JWTs must explicitly declare support for RFC8725 in the description",
+		Id:          "", // TODO
+		Description: "",
+		Given: []string{
+			`$..securitySchemes[*][?(@.type=="oauth2")]`,
+			`$..securitySchemes[*][?(@.bearerFormat=="jwt" || @.bearerFormat=="JWT")]`,
+		},
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Field:           "description",
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           "", // TODO
+	}
+}
