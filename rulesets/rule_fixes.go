@@ -1,6 +1,6 @@
 package rulesets
 
-//TODO: look into copy management solutions, because this sucks.
+// TODO: look into copy management solutions, because this sucks.
 const (
 	operationSuccessResponseFix string = "Make sure that your operation returns a 'success' response via  2xx or 3xx " +
 		"response code. An API consumer will always expect a success response"
@@ -153,4 +153,6 @@ const (
 	operationsErrorResponseFix string = "Make sure each operation defines at least one 4xx error response. 4xx Errors are " +
 		"used to inform clients they are using the API incorrectly, with bad input, or malformed requests. An API with no errors" +
 		"defined is really hard to navigate."
+
+	owaspErrorResponseFix string = "owasp message"
 )
