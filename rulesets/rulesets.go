@@ -339,7 +339,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	// rules[OperationErrorResponse] = GetOperationErrorResponseRule()
 	// rules[Oas2Schema] = GetOAS2SchemaRule()
 	// rules[Oas3Schema] = GetOAS3SchemaRule()
-	rules[OWASP1] = GetOwaspAPIRule1()
+	rules[OWASP1] = GetOwaspAPIRule1NoNumericIDs()
 
 	return rules
 }
@@ -347,7 +347,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 // GetAllBuiltInOWASPRules returns a map of all the owasp rules available, ready to be used in a RuleSet.
 func GetAllBuiltInOWASPRules() map[string]*model.Rule {
 	rules := make(map[string]*model.Rule)
-	rules[OWASP1] = GetOwaspAPIRule1()
+	rules[OWASP1] = GetOwaspAPIRule1NoNumericIDs()
 
 	return rules
 }

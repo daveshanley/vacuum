@@ -1725,7 +1725,7 @@ paths:
             format: uuid`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-1"] = rulesets.GetOwaspAPIRule1()
+	rules["owasp-1"] = rulesets.GetOwaspAPIRule1NoNumericIDs()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1770,7 +1770,7 @@ paths:
             type: integer`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-1"] = rulesets.GetOwaspAPIRule1()
+	rules["owasp-1"] = rulesets.GetOwaspAPIRule1NoNumericIDs()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1796,7 +1796,7 @@ components:
       scheme: "bearer"`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-2"] = rulesets.GetOWASPRule2()
+	rules["owasp-2"] = rulesets.GetOWASPRule2HTTPBasic()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
@@ -1825,7 +1825,7 @@ components:
       scheme: basic`
 
 	rules := make(map[string]*model.Rule)
-	rules["owasp-2"] = rulesets.GetOWASPRule2()
+	rules["owasp-2"] = rulesets.GetOWASPRule2HTTPBasic()
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
