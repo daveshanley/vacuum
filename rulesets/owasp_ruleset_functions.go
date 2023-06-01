@@ -29,7 +29,7 @@ properties:
 
 	return &model.Rule{
 		Name:         "OWASP API1:2019",
-		Id:           OWASP1,
+		Id:           "", // TODO
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
 		Given:        `$.paths..parameters[*][?(@.name == "id" || @.name =~ /(_id|Id|-id)$/)))]`,
@@ -56,7 +56,7 @@ func GetOWASPRule2HTTPBasic() *model.Rule {
 
 	return &model.Rule{
 		Name:         "Security scheme uses HTTP Basic",
-		Id:           OWASP1,
+		Id:           "", // TODO
 		Formats:      model.AllFormats,
 		Description:  "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
 		Given:        `$.components.securitySchemes[*]`,
