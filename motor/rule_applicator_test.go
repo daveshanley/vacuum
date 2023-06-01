@@ -2,13 +2,14 @@ package motor
 
 import (
 	"fmt"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"os"
-	"testing"
-	"time"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
