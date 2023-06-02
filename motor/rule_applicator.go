@@ -289,6 +289,7 @@ func runRule(ctx ruleContext) {
 		}
 	}
 
+	// for hardcoded Given statements, use []string directly
 	if x, ok := ctx.rule.Given.([]string); ok {
 		givenPaths = x
 	}
