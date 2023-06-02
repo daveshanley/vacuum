@@ -186,3 +186,54 @@ func GetOWASPRuleJWTBestPractices() *model.Rule {
 		HowToFix:           "", // TODO
 	}
 }
+
+// TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-unsafe
+func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
+	return nil
+}
+
+// TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-unsafe-strict
+func GetOWASPRuleProtectionGlobalUnsafeStrict() *model.Rule {
+	return nil
+}
+
+// TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-safe
+func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
+	return nil
+}
+
+// TODO: not working properly
+func GetOWASPRuleDefineErrorValidation() *model.Rule {
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	// TODO: not exactly equal to the one in spectral
+	yml := `type: object
+oneOf:
+  - required:
+    - 400
+  - required:
+    - 422
+  - required: 
+    - 4XX`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+
+	return &model.Rule{
+		Name:         "Missing error response of either 400, 422 or 4XX",
+		Id:           "", // TODO
+		Description:  "Carefully define schemas for all the API responses, including either 400, 422 or 4XX responses which describe errors caused by invalid requests",
+		Given:        `$.paths..responses`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		HowToFix: "", // TODO
+	}
+}
