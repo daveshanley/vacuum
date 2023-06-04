@@ -202,7 +202,7 @@ func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
 	return nil
 }
 
-// TODO: nimplemented inside spectral already (not sure if needed)
+// TO REVIEW, Uses oasOpErrorResponse function by extending it
 func GetOWASPRuleDefineErrorValidation() *model.Rule {
 
 	return &model.Rule{
@@ -214,12 +214,106 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityError,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasOpErrorResponse",
 			FunctionOptions: map[string]interface{}{
 				"owaspEnabled": true,
 			},
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+// TODO: Not working properly
+func GetOWASPRuleDefineErrorResponses401() *model.Rule {
+
+	return &model.Rule{
+		Name:         "Operation is missing {{property}}",
+		Id:           "", // TODO
+		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 401 describes what happens when a request is unauthorized, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
+		Given:        `$.paths..responses`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: []model.RuleAction{
+			{
+				Field:    "401",
+				Function: "truthy",
+			},
+			// {
+			// 	Field:    "401.content",
+			// 	Function: "truthy",
+			// },
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+// TODO
+// func GetOWASPRuleDefineErrorResponses500() *model.Rule {
+
+// 	return &model.Rule{
+// 		Name:         "Operation is missing {{property}}",
+// 		Id:           "", // TODO
+// 		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 500 describes what happens when a request fails with an internal server error, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
+// 		Given:        `$.paths..responses`,
+// 		Resolved:     false,
+// 		RuleCategory: model.RuleCategories[model.CategoryInfo],
+// 		Recommended:  true,
+// 		Type:         Validation,
+// 		Severity:     model.SeverityWarn,
+// 		Then: []model.RuleAction{
+// 			{
+// 				Field:    "500",
+// 				Function: "truthy",
+// 			},
+// 			{
+// 				Field:    "500.content",
+// 				Function: "truthy",
+// 			},
+// 		},
+// 		HowToFix: "", // TODO
+// 	}
+// }
+
+// TODO
+// func GetOWASPRuleRateLimit() *model.Rule {
+
+// 	return &model.Rule{
+// 		Name:         "All 2XX and 4XX responses should define rate limiting headers",
+// 		Id:           "", // TODO
+// 		Description:  "Define proper rate limiting to avoid attackers overloading the API. There are many ways to implement rate-limiting, but most of them involve using HTTP headers, and there are two popular ways to do that:\n\nIETF Draft HTTP RateLimit Headers:. https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/\n\nCustomer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)",
+// 		Given:        `$.paths..responses`,
+// 		Resolved:     false,
+// 		Formats:      model.OAS3AllFormat,
+// 		RuleCategory: model.RuleCategories[model.CategoryInfo],
+// 		Recommended:  true,
+// 		Type:         Validation,
+// 		Severity:     model.SeverityError,
+// 		Then:         []model.RuleAction{},
+// 		HowToFix:     "", // TODO
+// 	}
+// }
+
+func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
+
+	return &model.Rule{
+		Name:         "A 429 response should define a Retry-After header",
+		Id:           "", // TODO
+		Description:  "Define proper rate limiting to avoid attackers overloading the API. Part of that involves setting a Retry-After header so well meaning consumers are not polling and potentially exacerbating problems",
+		Given:        `$..responses.429.headers`,
+		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Field:    "Retry-After",
+			Function: "defined",
 		},
 		HowToFix: "", // TODO
 	}
