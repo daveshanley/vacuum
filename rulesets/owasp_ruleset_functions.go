@@ -202,23 +202,8 @@ func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
 	return nil
 }
 
-// TODO: not working properly
+// TODO: nimplemented inside spectral already (not sure if needed)
 func GetOWASPRuleDefineErrorValidation() *model.Rule {
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	// TODO: not exactly equal to the one in spectral
-	yml := `type: object
-oneOf:
-  - required:
-    - 400
-  - required:
-    - 422
-  - required: 
-    - 4XX`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
 		Name:         "Missing error response of either 400, 422 or 4XX",
@@ -231,8 +216,10 @@ oneOf:
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "oasOpErrorResponse",
+			FunctionOptions: map[string]interface{}{
+				"default_error_code_enabled": true,
+			},
 		},
 		HowToFix: "", // TODO
 	}
