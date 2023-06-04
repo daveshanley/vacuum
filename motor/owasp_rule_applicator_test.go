@@ -388,7 +388,6 @@ components:
 	assert.Len(t, results.Results, 2)
 }
 
-// TODO: Not working as expected
 func TestRuleSet_GetOWASPRuleDefineErrorValidationSuccess(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
@@ -433,6 +432,162 @@ paths:
 
 	rules := make(map[string]*model.Rule)
 	rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
+}
+
+// func TestRuleSet_GetOWASPRuleDefineErrorResponses401Success(t *testing.T) {
+
+// 	yml := `openapi: "3.1.0"
+// info:
+//   version: "1.0"
+// paths:
+//   /:
+//     get:
+//       responses:
+//         401:
+//           description: "ok"
+//           content:
+//             "application/json":
+// `
+
+// 	rules := make(map[string]*model.Rule)
+// 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+
+// 	rs := &rulesets.RuleSet{
+// 		Rules: rules,
+// 	}
+
+// 	rse := &RuleSetExecution{
+// 		RuleSet: rs,
+// 		Spec:    []byte(yml),
+// 	}
+// 	results := ApplyRulesToRuleSet(rse)
+// 	assert.Len(t, results.Results, 0)
+// }
+
+// func TestRuleSet_GetOWASPRuleDefineErrorResponses401Error(t *testing.T) {
+
+// 	yml := `openapi: "3.1.0"
+// info:
+//   version: "1.0"
+// paths:
+//   /:
+//     get:
+//       responses:
+//         200:
+//           description: "ok"
+//           content:
+//             "application/problem+json":
+// `
+
+// 	rules := make(map[string]*model.Rule)
+// 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+
+// 	rs := &rulesets.RuleSet{
+// 		Rules: rules,
+// 	}
+
+// 	rse := &RuleSetExecution{
+// 		RuleSet: rs,
+// 		Spec:    []byte(yml),
+// 	}
+// 	results := ApplyRulesToRuleSet(rse)
+// 	assert.Len(t, results.Results, 2)
+// }
+
+// func TestRuleSet_GetOWASPRuleDefineErrorResponses401ErrorMissing(t *testing.T) {
+
+// 	yml := `openapi: "3.1.0"
+// info:
+//   version: "1.0"
+// paths:
+//   /:
+//     get:
+//       responses:
+//         401:
+// `
+
+// 	rules := make(map[string]*model.Rule)
+// 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+
+// 	rs := &rulesets.RuleSet{
+// 		Rules: rules,
+// 	}
+
+// 	rse := &RuleSetExecution{
+// 		RuleSet: rs,
+// 		Spec:    []byte(yml),
+// 	}
+// 	results := ApplyRulesToRuleSet(rse)
+// 	assert.Len(t, results.Results, 1)
+// }
+
+func TestRuleSet_GetOWASPRuleRateLimitRetryAfterSuccess(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        "429":
+          description: "ok"
+          headers:
+            "Retry-After":
+              description: "standard retry header"
+              schema:
+                type: string
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleRateLimitRetryAfter() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleRateLimitRetryAfterError(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        429:
+          description: "ok"
+          headers:
+        200:
+          description: "ok"
+          headers:
+            "Retry-After":
+              description: "standard retry header"
+              schema:
+                type: string
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleRateLimitRetryAfter() // TODO
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
