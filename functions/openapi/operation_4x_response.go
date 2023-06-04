@@ -36,8 +36,8 @@ func (or Operation4xResponse) RunRule(nodes []*yaml.Node, context model.RuleFunc
 	ops := context.Index.GetPathsNode().Content
 
 	// check if should validate default error code (e.g., 4xx)
-	s := utils.ExtractValueFromInterfaceMap("default_error_code_enabled", context.Options)
-	defaultErrorCodeEnabled := s.(bool)
+	s := utils.ExtractValueFromInterfaceMap("owaspEnabled", context.Options)
+	owaspEnabled := s.(bool)
 
 	var opPath, opMethod string
 	for i, op := range ops {
@@ -59,9 +59,16 @@ func (or Operation4xResponse) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					if k%2 != 0 {
 						continue
 					}
-					responseCode, _ := strconv.Atoi(response.Value)
-					if (response.Value == "4XX" && defaultErrorCodeEnabled) || responseCode >= 400 && responseCode <= 499 {
-						seen = true
+					if owaspEnabled {
+						responseCode, _ := strconv.Atoi(response.Value)
+						if response.Value == "4XX" || responseCode == 400 || responseCode == 422 {
+							seen = true
+						}
+					} else {
+						responseCode, _ := strconv.Atoi(response.Value)
+						if responseCode >= 400 && responseCode <= 499 {
+							seen = true
+						}
 					}
 				}
 				if !seen {

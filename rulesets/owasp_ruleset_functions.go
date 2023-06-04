@@ -218,7 +218,7 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 		Then: model.RuleAction{
 			Function: "oasOpErrorResponse",
 			FunctionOptions: map[string]interface{}{
-				"default_error_code_enabled": true,
+				"owaspEnabled": true,
 			},
 		},
 		HowToFix: "", // TODO
