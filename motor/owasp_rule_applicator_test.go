@@ -398,7 +398,9 @@ paths:
   /:
     get:
       responses:
-        "400":
+        "500":
+          description: "classic validation fail"
+        "4XX":
           description: "classic validation fail"`
 
 	rules := make(map[string]*model.Rule)
@@ -429,6 +431,8 @@ paths:
           description: "ok"
           content:
             "application/json":
+        500:
+          description: "classic validation fail"
 `
 
 	rules := make(map[string]*model.Rule)
