@@ -516,12 +516,102 @@ paths:
       responses:
         401:
           description: "ok"
-          cont:
+          invalid-content:
             "application/problem+json"
 `
 
 	rules := make(map[string]*model.Rule)
 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
+}
+
+func TestRuleSet_GetOWASPRuleDefineErrorResponses500Success(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        500:
+          description: "ok"
+          content:
+            "application/json":
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses500() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleDefineErrorResponses500Error(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        200:
+          description: "ok"
+          content:
+            "application/problem+json":
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses500() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 2)
+}
+
+func TestRuleSet_GetOWASPRuleDefineErrorResponses500ErrorMissing(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        500:
+          description: "ok"
+          invalid-content:
+            "application/problem+json"
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses500() // TODO
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
