@@ -387,3 +387,46 @@ func GetOWASPRuleArrayLimit() *model.Rule {
 		HowToFix: "", // TODO
 	}
 }
+
+// TODO: Not working and wrong
+func GetOWASPRuleIntegerLimit() *model.Rule {
+
+	return &model.Rule{
+		Name:         "Schema of type integer must specify minimum and maximum",
+		Id:           "", // TODO
+		Description:  "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected",
+		Given:        []string{},
+		Resolved:     false,
+		Formats:      append(model.OAS2Format, model.OAS3Format...),
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Field:    "maxItems",
+			Function: "defined",
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRuleNoAdditionalProperties() *model.Rule {
+
+	return &model.Rule{
+		Name:         "If the additionalProperties keyword is used it must be set to false",
+		Id:           "", // TODO
+		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties",
+		Given:        `$..[?(@.type=="object" && @.additionalProperties)]`,
+		Resolved:     false,
+		Formats:      append(model.OAS2Format, model.OAS3Format...),
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Field:    "additionalProperties",
+			Function: "falsy",
+		},
+		HowToFix: "", // TODO
+	}
+}
