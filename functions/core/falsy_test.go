@@ -11,11 +11,11 @@ func TestFalsy_RunRule_Fail(t *testing.T) {
 
 	sampleYaml := `
 tags:
-  - name: "bad tag 1"
+  - name: "good tag 1"
     description: true
-  - name: "bad tag 2"
+  - name: "good tag 2"
     description: 1
-  - name: "bad tag 3"
+  - name: "good tag 3"
     description: "hello"`
 
 	path := "$.tags[*]"
@@ -66,12 +66,12 @@ func TestFalsy_RunRule_Pass(t *testing.T) {
 
 	sampleYaml := `
 tags:
- - name: "good tag 1"
- - name: "good tag 2"
+ - name: "bad tag 1"
+ - name: "bad tag 2"
    description: "false"
- - name: "good tag 3"
+ - name: "bad tag 3"
    description: ""
- - name: "good Tag 4"
+ - name: "bad Tag 4"
    description: "0"`
 
 	path := "$.tags[*]"
