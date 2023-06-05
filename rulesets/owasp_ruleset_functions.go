@@ -323,24 +323,24 @@ required:
 	}
 }
 
-// TODO
-// func GetOWASPRuleRateLimit() *model.Rule {
-
-// 	return &model.Rule{
-// 		Name:         "All 2XX and 4XX responses should define rate limiting headers",
-// 		Id:           "", // TODO
-// 		Description:  "Define proper rate limiting to avoid attackers overloading the API. There are many ways to implement rate-limiting, but most of them involve using HTTP headers, and there are two popular ways to do that:\n\nIETF Draft HTTP RateLimit Headers:. https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/\n\nCustomer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)",
-// 		Given:        `$.paths..responses`,
-// 		Resolved:     false,
-// 		Formats:      model.OAS3AllFormat,
-// 		RuleCategory: model.RuleCategories[model.CategoryInfo],
-// 		Recommended:  true,
-// 		Type:         Validation,
-// 		Severity:     model.SeverityError,
-// 		Then:         []model.RuleAction{},
-// 		HowToFix:     "", // TODO
-// 	}
-// }
+func GetOWASPRuleRateLimit() *model.Rule {
+	return &model.Rule{
+		Name:         "All 2XX and 4XX responses should define rate limiting headers",
+		Id:           "", // TODO
+		Description:  "Define proper rate limiting to avoid attackers overloading the API. There are many ways to implement rate-limiting, but most of them involve using HTTP headers, and there are two popular ways to do that:\n\nIETF Draft HTTP RateLimit Headers:. https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/\n\nCustomer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)",
+		Given:        `$.paths..responses`,
+		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "owaspRateLimitDefinition",
+		},
+		HowToFix: "", // TODO
+	}
+}
 
 func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
 
