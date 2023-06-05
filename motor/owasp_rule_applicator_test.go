@@ -625,6 +625,101 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
+func TestRuleSet_GetOWASPRuleRateLimitSuccess(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        "401":
+          description: "ok"
+          headers:
+            "RateLimit-Limit":
+              schema:
+                type: string
+            "RateLimit-Reset":
+              schema:
+                type: string
+        "201":
+          description: "ok"
+          headers:
+            "X-RateLimit-Limit":
+              schema:
+                type: string
+        "203":
+          description: "ok"
+          headers:
+            "X-Rate-Limit-Limit":
+              schema:
+                type: string
+        "301":
+          description: "ok"
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleRateLimit() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleRateLimitError(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        "401":
+          description: "ok"
+          headers:
+            "RateLimit-Limit":
+              schema:
+                type: string
+        "201":
+          description: "ok"
+          headers:
+            "Wrong-RateLimit-Limit":
+              schema:
+                type: string
+        "303":
+          description: "ok"
+          headers:
+            "Wrong-Rate-Limit-Limit":
+              schema:
+                type: string
+        "203":
+          description: "ok"
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleRateLimit() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 3)
+}
+
 func TestRuleSet_GetOWASPRuleRateLimitRetryAfterSuccess(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
