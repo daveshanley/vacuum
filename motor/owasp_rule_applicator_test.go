@@ -445,92 +445,92 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-// func TestRuleSet_GetOWASPRuleDefineErrorResponses401Success(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses401Success(t *testing.T) {
 
-// 	yml := `openapi: "3.1.0"
-// info:
-//   version: "1.0"
-// paths:
-//   /:
-//     get:
-//       responses:
-//         401:
-//           description: "ok"
-//           content:
-//             "application/json":
-// `
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        401:
+          description: "ok"
+          content:
+            "application/json":
+`
 
-// 	rules := make(map[string]*model.Rule)
-// 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
 
-// 	rs := &rulesets.RuleSet{
-// 		Rules: rules,
-// 	}
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
 
-// 	rse := &RuleSetExecution{
-// 		RuleSet: rs,
-// 		Spec:    []byte(yml),
-// 	}
-// 	results := ApplyRulesToRuleSet(rse)
-// 	assert.Len(t, results.Results, 0)
-// }
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
 
-// func TestRuleSet_GetOWASPRuleDefineErrorResponses401Error(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses401Error(t *testing.T) {
 
-// 	yml := `openapi: "3.1.0"
-// info:
-//   version: "1.0"
-// paths:
-//   /:
-//     get:
-//       responses:
-//         200:
-//           description: "ok"
-//           content:
-//             "application/problem+json":
-// `
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        200:
+          description: "ok"
+          content:
+            "application/problem+json":
+`
 
-// 	rules := make(map[string]*model.Rule)
-// 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
 
-// 	rs := &rulesets.RuleSet{
-// 		Rules: rules,
-// 	}
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
 
-// 	rse := &RuleSetExecution{
-// 		RuleSet: rs,
-// 		Spec:    []byte(yml),
-// 	}
-// 	results := ApplyRulesToRuleSet(rse)
-// 	assert.Len(t, results.Results, 2)
-// }
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 2)
+}
 
-// func TestRuleSet_GetOWASPRuleDefineErrorResponses401ErrorMissing(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses401ErrorMissing(t *testing.T) {
 
-// 	yml := `openapi: "3.1.0"
-// info:
-//   version: "1.0"
-// paths:
-//   /:
-//     get:
-//       responses:
-//         401:
-// `
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        401:
+`
 
-// 	rules := make(map[string]*model.Rule)
-// 	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
 
-// 	rs := &rulesets.RuleSet{
-// 		Rules: rules,
-// 	}
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
 
-// 	rse := &RuleSetExecution{
-// 		RuleSet: rs,
-// 		Spec:    []byte(yml),
-// 	}
-// 	results := ApplyRulesToRuleSet(rse)
-// 	assert.Len(t, results.Results, 1)
-// }
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
+}
 
 func TestRuleSet_GetOWASPRuleRateLimitRetryAfterSuccess(t *testing.T) {
 
@@ -588,6 +588,42 @@ paths:
 
 	rules := make(map[string]*model.Rule)
 	rules["here"] = rulesets.GetOWASPRuleRateLimitRetryAfter() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
+}
+
+func TestRuleSet_GetOWASPRuleArrayLimitError(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        429:
+          description: "ok"
+          headers:
+        200:
+          description: "ok"
+          headers:
+            "Retry-After":
+              description: "standard retry header"
+              schema:
+                type: string
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleArrayLimit() // TODO
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
