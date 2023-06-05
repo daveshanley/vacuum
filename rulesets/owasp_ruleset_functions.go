@@ -225,8 +225,42 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 	}
 }
 
-// TODO: Not working properly
+// Had to split into GetOWASPRuleDefineErrorResponses401 and GetOWASPRuleDefineErrorResponses401Content
+// func GetOWASPRuleDefineErrorResponses401() *model.Rule {
+
+// 	return &model.Rule{
+// 		Name:         "Operation is missing {{property}}",
+// 		Id:           "", // TODO
+// 		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 401 describes what happens when a request is unauthorized, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
+// 		Given:        `$.paths..responses`,
+// 		Resolved:     false,
+// 		RuleCategory: model.RuleCategories[model.CategoryInfo],
+// 		Recommended:  true,
+// 		Type:         Validation,
+// 		Severity:     model.SeverityWarn,
+// 		Then: []model.RuleAction{
+// 			{
+// 				Field:    "401",
+// 				Function: "defined",
+// 			},
+// 		},
+// 		HowToFix: "", // TODO
+// 	}
+// }
+
+// Had to split into GetOWASPRuleDefineErrorResponses401 and GetOWASPRuleDefineErrorResponses401Content since pb33f does not support path keys for now
 func GetOWASPRuleDefineErrorResponses401() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	// TODO: not exactly equal to the one in spectral
+	yml := `type: object
+required:
+  - content`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
 		Name:         "Operation is missing {{property}}",
@@ -234,6 +268,7 @@ func GetOWASPRuleDefineErrorResponses401() *model.Rule {
 		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 401 describes what happens when a request is unauthorized, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
+		Formats:      model.AllFormats,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         Validation,
@@ -244,8 +279,10 @@ func GetOWASPRuleDefineErrorResponses401() *model.Rule {
 				Function: "defined",
 			},
 			{
-				Field:    "content",
-				Function: "defined",
+
+				Field:           "401",
+				Function:        "schema",
+				FunctionOptions: opts,
 			},
 		},
 		HowToFix: "", // TODO

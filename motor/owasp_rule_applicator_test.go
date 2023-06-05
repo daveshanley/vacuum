@@ -515,6 +515,9 @@ paths:
     get:
       responses:
         401:
+          description: "ok"
+          cont:
+            "application/problem+json"
 `
 
 	rules := make(map[string]*model.Rule)
