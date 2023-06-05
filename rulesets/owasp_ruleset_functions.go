@@ -241,12 +241,12 @@ func GetOWASPRuleDefineErrorResponses401() *model.Rule {
 		Then: []model.RuleAction{
 			{
 				Field:    "401",
-				Function: "truthy",
+				Function: "defined",
 			},
-			// {
-			// 	Field:    "401.content",
-			// 	Function: "truthy",
-			// },
+			{
+				Field:    "content",
+				Function: "defined",
+			},
 		},
 		HowToFix: "", // TODO
 	}
@@ -313,6 +313,31 @@ func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Field:    "Retry-After",
+			Function: "defined",
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+// TODO: Not working as expected
+func GetOWASPRuleArrayLimit() *model.Rule {
+
+	return &model.Rule{
+		Name:        "Schema of type array must specify maxItems",
+		Id:          "", // TODO
+		Description: "Array size should be limited to mitigate resource exhaustion attacks. This can be done using `maxItems`. You should ensure that the subschema in `items` is constrained too",
+		Given: []string{
+			`$..[?(@.type=="array")]`,
+			`'$..[?(@.type.constructor.name === "Array" && @.type.includes("array"))]`, // only for oas 3
+		},
+		Resolved:     false,
+		Formats:      model.AllFormats,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Field:    "maxItems",
 			Function: "defined",
 		},
 		HowToFix: "", // TODO
