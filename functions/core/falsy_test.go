@@ -1,16 +1,16 @@
 package core
 
 import (
-	"testing"
+  "testing"
 
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
-	"github.com/stretchr/testify/assert"
+  "github.com/daveshanley/vacuum/model"
+  "github.com/pb33f/libopenapi/utils"
+  "github.com/stretchr/testify/assert"
 )
 
 func TestFalsy_RunRule_Fail(t *testing.T) {
 
-	sampleYaml := `
+  sampleYaml := `
 tags:
   - name: "good tag 1"
     description: true
@@ -19,25 +19,25 @@ tags:
   - name: "good tag 3"
     description: "hello"`
 
-	path := "$.tags[*]"
+  path := "$.tags[*]"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
-	assert.Len(t, nodes, 3)
+  nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+  assert.Len(t, nodes, 3)
 
-	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
-	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Given = path
-	ctx.Rule = &rule
+  rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
+  ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+  ctx.Given = path
+  ctx.Rule = &rule
 
-	tru := Falsy{}
-	res := tru.RunRule(nodes, ctx)
+  tru := Falsy{}
+  res := tru.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 3)
+  assert.Len(t, res, 3)
 }
 
 func TestFalsy_RunRule_Fail_NoNodes(t *testing.T) {
 
-	sampleYaml := `
+  sampleYaml := `
 notTags:
  - name: "bad tag 1"
    description: false
@@ -47,25 +47,25 @@ notTags:
    description: "32"
  - name: "bad tag 4"`
 
-	path := "$.tags[*]"
+  path := "$.tags[*]"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
-	assert.Len(t, nodes, 0)
+  nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+  assert.Len(t, nodes, 0)
 
-	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
-	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Given = path
-	ctx.Rule = &rule
+  rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
+  ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+  ctx.Given = path
+  ctx.Rule = &rule
 
-	tru := Falsy{}
-	res := tru.RunRule(nodes, ctx)
+  tru := Falsy{}
+  res := tru.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+  assert.Len(t, res, 0)
 }
 
 func TestFalsy_RunRule_Pass(t *testing.T) {
 
-	sampleYaml := `
+  sampleYaml := `
 tags:
  - name: "good tag 1"
  - name: "good tag 2"
@@ -75,18 +75,18 @@ tags:
  - name: "good Tag 4"
    description: "0"`
 
-	path := "$.tags[*]"
+  path := "$.tags[*]"
 
-	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
-	assert.Len(t, nodes, 4)
+  nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+  assert.Len(t, nodes, 4)
 
-	rule := buildCoreTestRule(path, model.SeverityError, "Falsy", "description", nil)
-	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
-	ctx.Given = path
-	ctx.Rule = &rule
+  rule := buildCoreTestRule(path, model.SeverityError, "Falsy", "description", nil)
+  ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+  ctx.Given = path
+  ctx.Rule = &rule
 
-	tru := Falsy{}
-	res := tru.RunRule(nodes, ctx)
+  tru := Falsy{}
+  res := tru.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+  assert.Len(t, res, 0)
 }
