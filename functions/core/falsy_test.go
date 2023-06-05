@@ -1,11 +1,10 @@
 package core
 
 import (
-	"testing"
-
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestFalsy_RunRule_Fail(t *testing.T) {
