@@ -825,7 +825,7 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesValidOAS3Success(t *testing.T) {
 
 	yml := `openapi: "3.0.0"
 info:
@@ -850,4 +850,57 @@ components:
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesNoAdditionalPropertiesDefinedSuccess(t *testing.T) {
+
+	yml := `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: object
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesAdditionalPropertiesDefinedError(t *testing.T) {
+
+	yml := `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: object
+      additionalProperties: true
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
 }
