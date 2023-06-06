@@ -43,7 +43,7 @@ notTags:
  - name: "bad tag 2"
    description: 0
  - name: "bad tag 3"
-   description: "32"
+   description: ""
  - name: "bad tag 4"`
 
 	path := "$.tags[*]"
