@@ -38,18 +38,18 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 
 	for _, node := range nodes {
 
-		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
-		if (fieldNode != nil && fieldNodeValue != nil) &&
-			(fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0") {
-			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("%s: '%s' must be falsy", context.Rule.Description, context.RuleAction.Field),
-				StartNode: node,
-				EndNode:   node,
-				Path:      pathValue,
-				Rule:      context.Rule,
-			})
-		}
-	}
+        fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
+        if (fieldNode != nil && fieldNodeValue != nil) &&
+            (fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0") {
+            results = append(results, model.RuleFunctionResult{
+                Message:   fmt.Sprintf("%s: '%s' must be falsy", context.Rule.Description, context.RuleAction.Field),
+                StartNode: node,
+                EndNode:   node,
+                Path:      pathValue,
+                Rule:      context.Rule,
+            })
+        }
+    }
 
 	return results
 }
