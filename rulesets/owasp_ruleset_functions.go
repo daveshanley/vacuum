@@ -29,7 +29,7 @@ properties:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "OWASP API1:2019",
+		Name:         "OWASP API1:2019", // fix
 		Id:           "", // TODO
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
