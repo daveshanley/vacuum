@@ -30,7 +30,7 @@ properties:
 
 	return &model.Rule{
 		Name:         "OWASP API1:2019", // fix
-		Id:           "", // TODO
+		Id:           "",                // TODO
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
 		Given:        `$.paths..parameters[*][?(@.name == "id" || @.name =~ /(_id|Id|-id)$/)))]`,
@@ -216,10 +216,7 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "oasOpErrorResponse",
-			FunctionOptions: map[string]interface{}{
-				"owaspEnabled": true,
-			},
+			Function: "owaspDefineError",
 		},
 		HowToFix: "", // TODO
 	}
