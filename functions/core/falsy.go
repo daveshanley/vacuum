@@ -4,11 +4,10 @@
 package core
 
 import (
-	"fmt"
-
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 // Falsy is a rule that will determine if something is seen as 'false' (could be a 0 or missing, or actually 'false')
@@ -17,26 +16,26 @@ type Falsy struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the Falsy rule.
 func (f Falsy) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{
-		Name: "falsy",
-	}
+    return model.RuleFunctionSchema{
+        Name: "falsy",
+    }
 }
 
 // RunRule will execute the Falsy rule, based on supplied context and a supplied []*yaml.Node slice.
 func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) <= 0 {
-		return nil
-	}
+    if len(nodes) <= 0 {
+        return nil
+    }
 
-	var results []model.RuleFunctionResult
+    var results []model.RuleFunctionResult
 
-	pathValue := "unknown"
-	if path, ok := context.Given.(string); ok {
-		pathValue = path
-	}
+    pathValue := "unknown"
+    if path, ok := context.Given.(string); ok {
+        pathValue = path
+    }
 
-	for _, node := range nodes {
+    for _, node := range nodes {
 
         fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
         if (fieldNode != nil && fieldNodeValue != nil) &&
@@ -51,5 +50,5 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
         }
     }
 
-	return results
+    return results
 }
