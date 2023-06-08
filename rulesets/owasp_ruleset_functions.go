@@ -222,29 +222,6 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 	}
 }
 
-// Had to split into GetOWASPRuleDefineErrorResponses401 and GetOWASPRuleDefineErrorResponses401Content
-// func GetOWASPRuleDefineErrorResponses401() *model.Rule {
-
-// 	return &model.Rule{
-// 		Name:         "Operation is missing {{property}}",
-// 		Id:           "", // TODO
-// 		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 401 describes what happens when a request is unauthorized, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
-// 		Given:        `$.paths..responses`,
-// 		Resolved:     false,
-// 		RuleCategory: model.RuleCategories[model.CategoryInfo],
-// 		Recommended:  true,
-// 		Type:         Validation,
-// 		Severity:     model.SeverityWarn,
-// 		Then: []model.RuleAction{
-// 			{
-// 				Field:    "401",
-// 				Function: "defined",
-// 			},
-// 		},
-// 		HowToFix: "", // TODO
-// 	}
-// }
-
 // Had to split into GetOWASPRuleDefineErrorResponses401 and GetOWASPRuleDefineErrorResponses401Content since pb33f does not support path keys for now
 func GetOWASPRuleDefineErrorResponses401() *model.Rule {
 
