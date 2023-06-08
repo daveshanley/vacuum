@@ -428,6 +428,10 @@ paths:
           description: "ok"
           content:
             "application/json":
+        401:
+          description: "ok"
+          content:
+            "application/json":
 `
 
 	rules := make(map[string]*model.Rule)

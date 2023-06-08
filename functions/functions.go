@@ -96,6 +96,7 @@ func MapBuiltinFunctions() Functions {
 
 		// owasp
 		funcs["owaspRateLimitDefinition"] = owasp.RateLimitDefinition{}
+		funcs["owaspDefineError"] = owasp.DefineError{}
 
 	})
 
