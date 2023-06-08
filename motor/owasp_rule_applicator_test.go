@@ -79,7 +79,7 @@ paths:
 		Spec:    []byte(yml),
 	}
 	results := ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 5) // in spectral, this outputs 4 errors
+	assert.Len(t, results.Results, 5) // in spectral, this outputs 4 errors // TO DISCUSS
 }
 
 func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasicSuccess(t *testing.T) {
