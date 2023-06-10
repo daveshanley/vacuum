@@ -337,16 +337,32 @@ func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
 	}
 }
 
-// TODO: Not working as expected
 func GetOWASPRuleArrayLimit() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	yml := `type: object
+if:
+  properties:
+    type:
+      enum: 
+        - array
+then:
+  oneOf:
+  - required:
+    - maxItems
+`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
 		Name:        "Schema of type array must specify maxItems",
 		Id:          "", // TODO
 		Description: "Array size should be limited to mitigate resource exhaustion attacks. This can be done using `maxItems`. You should ensure that the subschema in `items` is constrained too",
 		Given: []string{
-			`$..[?(@.type=="array")]`,
-			`'$..[?(@.type.constructor.name === "Array" && @.type.includes("array"))]`, // only for oas 3
+			`$..[?(@.type)]`,
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
@@ -355,8 +371,8 @@ func GetOWASPRuleArrayLimit() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:    "maxItems",
-			Function: "defined",
+			Function:        "schema",
+			FunctionOptions: opts,
 		},
 		HowToFix: "", // TODO
 	}
