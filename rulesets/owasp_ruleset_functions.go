@@ -389,7 +389,7 @@ func GetOWASPRuleNoAdditionalProperties() *model.Rule {
 	return &model.Rule{
 		Name:         "If the additionalProperties keyword is used it must be set to false",
 		Id:           "", // TODO
-		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties",
+		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties`",
 		Given:        `$..[?(@.type=="object" && @.additionalProperties)]`,
 		Resolved:     false,
 		Formats:      append(model.OAS2Format, model.OAS3Format...),
@@ -400,6 +400,63 @@ func GetOWASPRuleNoAdditionalProperties() *model.Rule {
 		Then: model.RuleAction{
 			Field:    "additionalProperties",
 			Function: "falsy",
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRuleConstrainedAdditionalProperties() *model.Rule {
+
+	return &model.Rule{
+		Name:         "Objects should not allow unconstrained additionalProperties",
+		Id:           "", // TODO
+		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties`",
+		Given:        `$..[?(@.type=="object" && @.additionalProperties!=true && @.additionalProperties!=false )]`,
+		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Field:    "maxProperties",
+			Function: "defined",
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRuleDefineErrorResponses429() *model.Rule {
+
+	opts := make(map[string]interface{})
+	yml := `type: object
+required:
+  - content`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+
+	return &model.Rule{
+		Name:         "Operation is missing rate limiting response in {{property}}",
+		Id:           "", // TODO
+		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. A HTTP 429 response signals the API client is making too many requests, and will supply information about when to retry so that the client can back off calmly without everything breaking. Defining this response is important not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces. It also ensures your API/framework/gateway actually has rate limiting set up",
+		Given:        `$.paths..responses`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: []model.RuleAction{
+			{
+				Field:    "429",
+				Function: "defined",
+			},
+			{
+				Field:           "429",
+				Function:        "schema",
+				FunctionOptions: opts,
+			},
 		},
 		HowToFix: "", // TODO
 	}
