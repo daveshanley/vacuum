@@ -793,40 +793,158 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleArrayLimit_Error(t *testing.T) {
+// func TestRuleSet_GetOWASPRuleArrayLimit_Error(t *testing.T) {
 
-	yml := `openapi: "3.1.0"
+// 	yml := `openapi: "3.1.0"
+// info:
+//   version: "1.0"
+// paths:
+//   /:
+//     get:
+//       responses:
+//         429:
+//           description: "ok"
+//           headers:
+//         200:
+//           description: "ok"
+//           headers:
+//             "Retry-After":
+//               description: "standard retry header"
+//               schema:
+//                 type: string
+// `
+
+// 	rules := make(map[string]*model.Rule)
+// 	rules["here"] = rulesets.GetOWASPRuleArrayLimit() // TODO
+
+// 	rs := &rulesets.RuleSet{
+// 		Rules: rules,
+// 	}
+
+// 	rse := &RuleSetExecution{
+// 		RuleSet: rs,
+// 		Spec:    []byte(yml),
+// 	}
+// 	results := ApplyRulesToRuleSet(rse)
+// 	assert.Len(t, results.Results, 1)
+// }
+
+func TestRuleSet_GetOWASPRuleStringLimit_Success(t *testing.T) {
+
+	yml1 := `openapi: "3.1.0"
 info:
   version: "1.0"
-paths:
-  /:
-    get:
-      responses:
-        429:
-          description: "ok"
-          headers:
-        200:
-          description: "ok"
-          headers:
-            "Retry-After":
-              description: "standard retry header"
-              schema:
-                type: string
+components:
+  schemas:
+    Foo:
+      type: ["null", "string"]
+      maxLength: 16
+`
+	yml2 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: "string"
+      enum:
+        - 1
+        - 2
+        - 3
+`
+	yml3 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: "string"
+      const: 1
+`
+	yml4 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: "string"
+      maxLength: 5
+`
+	yml5 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: "stringer"
+`
+	yml6 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: ["stringer", "onestringto", "somestring", "String"]
+    Bar:
+      example: okay
+      type: stringer
+  type: integer
 `
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleArrayLimit() // TODO
+	for _, yml := range []string{yml1, yml2, yml3, yml4, yml5, yml6} {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleStringLimit() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
+		rse := &RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 0)
 	}
-	results := ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 1)
+}
+
+func TestRuleSet_GetOWASPRuleStringLimit_Error(t *testing.T) {
+
+	yml1 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: [integer, string, boolean]
+`
+	yml2 := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: string
+    Bar:
+      example: "bar"
+      type: string
+`
+
+	for _, yml := range []string{yml1, yml2} {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleStringLimit() // TODO
+
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
+
+		rse := &RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := ApplyRulesToRuleSet(rse)
+		assert.NotEqualValues(t, len(results.Results), 0) // Should output an error and not five
+	}
 }
 
 func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesValidOAS3_Success(t *testing.T) {

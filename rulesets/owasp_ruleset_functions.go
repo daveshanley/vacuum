@@ -362,6 +362,71 @@ func GetOWASPRuleArrayLimit() *model.Rule {
 	}
 }
 
+func GetOWASPRuleStringLimit() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	yml := `type: object
+if:
+  properties:
+    type:
+      enum: 
+        - string
+then:
+  oneOf:
+  - required:
+    - maxLength
+  - required:
+    - enum
+  - required:
+    - const
+else:
+  if:
+    properties:
+      type:
+        type: array
+  then:
+    if:
+      properties:
+        type:
+          contains:
+            enum:
+              - string
+    then:
+      oneOf:
+      - required:
+        - maxLength
+      - required:
+        - enum
+      - required:
+        - const
+`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
+
+	return &model.Rule{
+		Name:        "Schema of type string must specify maxLength, enum, or const",
+		Id:          "", // TODO
+		Description: "String size should be limited to mitigate resource exhaustion attacks. This can be done using `maxLength`, `enum` or `const`",
+		Given: []string{
+			`$..[?(@.type)]`,
+		},
+		Resolved:     false,
+		Formats:      model.AllFormats,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		HowToFix: "", // TODO
+	}
+}
+
 // TODO: Not working and wrong
 func GetOWASPRuleIntegerLimit() *model.Rule {
 
