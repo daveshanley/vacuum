@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_TestGetOwaspAPIRuleNoNumericIDsSuccess(t *testing.T) {
+func TestRuleSet_TestGetOwaspAPIRuleNoNumericIDs_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -37,7 +37,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_TestGetOwaspAPIRuleNoNumericIDsError(t *testing.T) {
+func TestRuleSet_TestGetOwaspAPIRuleNoNumericIDs_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -82,7 +82,7 @@ paths:
 	assert.Len(t, results.Results, 5) // in spectral, this outputs 4 errors // TO DISCUSS
 }
 
-func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasicSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasic_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -108,7 +108,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasicError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleSecuritySchemeUseHTTPBasic_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -137,7 +137,7 @@ components:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleNoAPIKeysInURLSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoAPIKeysInURL_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -163,7 +163,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleNoAPIKeysInURLError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoAPIKeysInURL_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -192,7 +192,7 @@ components:
 	assert.Len(t, results.Results, 2)
 }
 
-func TestRuleSet_GetOWASPRuleSecurityCredentialsDetectedSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleSecurityCredentialsDetected_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -222,7 +222,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleSecurityCredentialsDetectedError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleSecurityCredentialsDetected_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -273,7 +273,7 @@ paths:
 	assert.Len(t, results.Results, 9)
 }
 
-func TestRuleSet_GetOWASPRuleAuthInsecureSchemesSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleAuthInsecureSchemes_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -299,7 +299,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleAuthInsecureSchemesError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleAuthInsecureSchemes_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -328,7 +328,7 @@ components:
 	assert.Len(t, results.Results, 2)
 }
 
-func TestRuleSet_GetOWASPRuleJWTBestPracticesSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleJWTBestPractices_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -358,7 +358,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleJWTBestPracticesError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleJWTBestPractices_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -388,7 +388,7 @@ components:
 	assert.Len(t, results.Results, 2)
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorValidationSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorValidation_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -415,7 +415,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorValidationError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorValidation_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -449,7 +449,7 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorResponses401Success(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses401_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -479,7 +479,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorResponses401Error(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses401_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -539,7 +539,7 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorResponses500Success(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses500_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -569,7 +569,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorResponses500Error(t *testing.T) {
+func TestRuleSet_GetOWASPRuleDefineErrorResponses500_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -629,7 +629,7 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleRateLimitSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleRateLimit_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -678,7 +678,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleRateLimitError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleRateLimit_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -724,7 +724,7 @@ paths:
 	assert.Len(t, results.Results, 3)
 }
 
-func TestRuleSet_GetOWASPRuleRateLimitRetryAfterSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleRateLimitRetryAfter_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -757,7 +757,7 @@ paths:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleRateLimitRetryAfterError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleRateLimitRetryAfter_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -793,7 +793,7 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleArrayLimitError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleArrayLimit_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -829,7 +829,7 @@ paths:
 	assert.Len(t, results.Results, 1)
 }
 
-func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesValidOAS3Success(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesValidOAS3_Success(t *testing.T) {
 
 	yml := `openapi: "3.0.0"
 info:
@@ -856,7 +856,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesNoAdditionalPropertiesDefinedSuccess(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesNoAdditionalPropertiesDefined_Success(t *testing.T) {
 
 	yml := `openapi: "3.0.0"
 info:
@@ -882,7 +882,7 @@ components:
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesAdditionalPropertiesDefinedError(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoAdditionalPropertiesAdditionalPropertiesDefined_Error(t *testing.T) {
 
 	yml := `openapi: "3.0.0"
 info:
@@ -896,6 +896,61 @@ components:
 
 	rules := make(map[string]*model.Rule)
 	rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 1)
+}
+
+func TestRuleSet_GetOWASPRuleConstrainedAdditionalProperties_Success(t *testing.T) {
+
+	yml := `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: object
+      additionalProperties: indeterminate
+	  maxProperties: 1
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    []byte(yml),
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestRuleSet_GetOWASPRuleConstrainedAdditionalProperties_Error(t *testing.T) {
+
+	yml := `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: object
+      additionalProperties: indeterminate
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
 
 	rs := &rulesets.RuleSet{
 		Rules: rules,
