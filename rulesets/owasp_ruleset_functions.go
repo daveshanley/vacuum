@@ -443,6 +443,75 @@ else:
 	}
 }
 
+func GetOWASPRuleStringRestricted() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	yml := `type: object
+if:
+  properties:
+    type:
+      enum: 
+        - string
+then:
+  anyOf:
+  - required:
+    - format
+  - required:
+    - pattern
+  - required:
+    - enum
+  - required:
+    - const
+else:
+  if:
+    properties:
+      type:
+        type: array
+  then:
+    if:
+      properties:
+        type:
+          contains:
+            enum:
+              - string
+    then:
+      anyOf:
+      - required:
+        - format
+      - required:
+        - pattern
+      - required:
+        - enum
+      - required:
+        - const
+`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
+
+	return &model.Rule{
+		Name:        "Schema of type string must specify a format, pattern, enum, or const",
+		Id:          "", // TODO
+		Description: "To avoid unexpected values being sent or leaked, ensure that strings have either a `format`, RegEx `pattern`, `enum`, or `const`",
+		Given: []string{
+			`$..[?(@.type)]`,
+		},
+		Resolved:     false,
+		Formats:      model.AllFormats,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		HowToFix: "", // TODO
+	}
+}
+
 // TODO: Not working and wrong
 func GetOWASPRuleIntegerLimit() *model.Rule {
 
