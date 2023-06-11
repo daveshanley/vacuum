@@ -24,19 +24,21 @@ paths:
           in: query
           required: true`
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleSecurityCredentialsDetected() // TODO
+	t.Run("invalid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleSecurityCredentialsDetected() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 0)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 0)
+	})
 }
 
 func TestRuleSet_GetOWASPRuleSecurityCredentialsDetected_Error(t *testing.T) {
@@ -75,17 +77,19 @@ paths:
           in: query
           required: true`
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleSecurityCredentialsDetected() // TODO
+	t.Run("valid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleSecurityCredentialsDetected() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 9)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 9)
+	})
 }

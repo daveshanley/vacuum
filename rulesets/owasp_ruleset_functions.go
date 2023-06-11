@@ -523,11 +523,27 @@ if:
       enum: 
         - integer
 then:
+  not:
+    oneOf:
+      - required:
+        - exclusiveMinimum
+        - minimum
+      - required:
+        - exclusiveMaximum
+        - maximum
   oneOf:
-  - required:
-    - minimum
-  - required:
-    - exclusiveMinimum
+    - required:
+      - minimum
+      - maximum
+    - required:
+      - minimum
+      - exclusiveMaximum
+    - required:
+      - exclusiveMinimum
+      - maximum
+    - required:
+      - exclusiveMinimum
+      - exclusiveMaximum
 else:
   if:
     properties:
@@ -541,11 +557,27 @@ else:
             enum:
               - integer
     then:
-      anyOf:
-      - required:
-        - minimum
-      - required:
-        - exclusiveMinimum
+      not:
+        oneOf:
+          - required:
+            - exclusiveMinimum
+            - minimum
+          - required:
+            - exclusiveMaximum
+            - maximum
+      oneOf:
+        - required:
+          - minimum
+          - maximum
+        - required:
+          - minimum
+          - exclusiveMaximum
+        - required:
+          - exclusiveMinimum
+          - maximum
+        - required:
+          - exclusiveMinimum
+          - exclusiveMaximum
 `
 
 	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
@@ -553,19 +585,21 @@ else:
 	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
-		Name:         "Schema of type integer must specify minimum and maximum",
-		Id:           "", // TODO
-		Description:  "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected",
-		Given:        []string{},
+		Name:        "Schema of type integer must specify minimum and maximum",
+		Id:          "", // TODO
+		Description: "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected",
+		Given: []string{
+			`$..[?(@.type)]`,
+		},
 		Resolved:     false,
-		Formats:      append(model.OAS2Format, model.OAS3Format...),
+		Formats:      model.AllFormats,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:    "maxItems",
-			Function: "defined",
+			Function:        "schema",
+			FunctionOptions: opts,
 		},
 		HowToFix: "", // TODO
 	}

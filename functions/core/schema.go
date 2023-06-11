@@ -86,6 +86,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 				if p, ok := context.Given.(string); ok {
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
+				results = append(results, r)
 			}
 		}
 	}
