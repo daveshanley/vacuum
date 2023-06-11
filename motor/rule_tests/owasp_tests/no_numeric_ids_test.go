@@ -25,7 +25,7 @@ paths:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleAPIRuleNoNumericIDs()
+		rules["here"] = rulesets.GetOWASPRuleNoNumericIDs()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -72,7 +72,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleAPIRuleNoNumericIDs()
+		rules["here"] = rulesets.GetOWASPRuleNoNumericIDs()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

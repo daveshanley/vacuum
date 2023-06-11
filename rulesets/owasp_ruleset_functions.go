@@ -9,7 +9,7 @@ import (
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func GetOWASPRuleAPIRuleNoNumericIDs() *model.Rule {
+func GetOWASPRuleNoNumericIDs() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -578,6 +578,67 @@ else:
         - required:
           - exclusiveMinimum
           - exclusiveMaximum
+`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
+
+	return &model.Rule{
+		Name:        "Schema of type integer must specify minimum and maximum",
+		Id:          "", // TODO
+		Description: "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected",
+		Given: []string{
+			`$..[?(@.type)]`,
+		},
+		Resolved:     false,
+		Formats:      model.AllFormats,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRuleIntegerLegacyLimit() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	yml := `type: object
+if:
+  properties:
+    type:
+      enum: 
+        - integer
+then:
+  allOf:
+    - required:
+      - minimum
+    - required:
+      - maximum
+else:
+  if:
+    properties:
+      type:
+        type: array
+  then:
+    if:
+      properties:
+        type:
+          contains:
+            enum:
+              - integer
+    then:
+      allOf:
+        - required:
+          - minimum
+        - required:
+          - maximum
 `
 
 	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
