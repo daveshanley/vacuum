@@ -11,28 +11,63 @@ import (
 
 func TestRuleSet_GetOWASPRuleNoAdditionalProperties_Success(t *testing.T) {
 
-	yml := `openapi: "3.0.0"
+	tc := []struct {
+		name string
+		yml  string
+	}{
+		{
+			name: "valid case: oas2 does not allow additionalProperties by default so dont worry about it",
+			yml: `swagger: "2.0"
+info:
+  version: "1.0"
+definitions:
+  Foo:
+    type: object
+    additionalProperties: false
+`,
+		},
+		{
+			name: "valid case: oas3",
+			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
       type: object
-`
-
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
-
-	rs := &rulesets.RuleSet{
-		Rules: rules,
+      additionalProperties: false
+`,
+		},
+		{
+			name: "valid case: no additionalProperties defined",
+			yml: `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: object
+`,
+		},
 	}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			rules := make(map[string]*model.Rule)
+			rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
+
+			rs := &rulesets.RuleSet{
+				Rules: rules,
+			}
+
+			rse := &motor.RuleSetExecution{
+				RuleSet: rs,
+				Spec:    []byte(tt.yml),
+			}
+			results := motor.ApplyRulesToRuleSet(rse)
+			assert.Len(t, results.Results, 0)
+		})
 	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 0)
 }
 
 func TestRuleSet_GetOWASPRuleNoAdditionalProperties_Error(t *testing.T) {
@@ -47,17 +82,19 @@ components:
       additionalProperties: true
 `
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
+	t.Run("invalid case: additionalProperties set to true (oas3)", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleNoAdditionalProperties() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 1)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 1)
+	})
 }

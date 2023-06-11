@@ -23,19 +23,21 @@ paths:
             type: string
             format: uuid`
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleAPIRuleNoNumericIDs()
+	t.Run("valid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleAPIRuleNoNumericIDs()
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 0)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 0)
+	})
 }
 
 func TestRuleSet_TestGetOWASPRuleAPIRuleNoNumericIDs_Error(t *testing.T) {
@@ -68,17 +70,19 @@ paths:
           schema:
             type: integer`
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleAPIRuleNoNumericIDs()
+	t.Run("invalid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleAPIRuleNoNumericIDs()
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 5) // in spectral, this outputs 4 errors // TO DISCUSS
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 5) // in spectral, this outputs 4 errors // TO DISCUSS
+	})
 }

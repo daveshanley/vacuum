@@ -22,19 +22,21 @@ components:
 	  maxProperties: 1
 `
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
+	t.Run("valid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 0)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 0)
+	})
 }
 
 func TestRuleSet_GetOWASPRuleConstrainedAdditionalProperties_Error(t *testing.T) {
@@ -49,17 +51,19 @@ components:
       additionalProperties: indeterminate
 `
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
+	t.Run("invalid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 1)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 1)
+	})
 }

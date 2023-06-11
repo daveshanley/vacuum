@@ -11,7 +11,37 @@ import (
 
 func TestRuleSet_GetOWASPRuleDefineErrorValidation_Success(t *testing.T) {
 
-	yml := `openapi: "3.1.0"
+	tc := []struct {
+		name string
+		yml  string
+	}{
+		{
+			name: "valid case: 400",
+			yml: `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        "400":
+          description: "classic validation fail"`,
+		},
+		{
+			name: "valid case: 422",
+			yml: `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        "422":
+          description: "classic validation fail"`,
+		},
+		{
+			name: "valid case: 4XX",
+			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
 paths:
@@ -19,21 +49,27 @@ paths:
     get:
       responses:
         "4XX":
-          description: "classic validation fail"`
-
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
-
-	rs := &rulesets.RuleSet{
-		Rules: rules,
+          description: "classic validation fail"`,
+		},
 	}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
+	for _, tt := range tc {
+		t.Run("valid case: 400", func(t *testing.T) {
+			rules := make(map[string]*model.Rule)
+			rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
+
+			rs := &rulesets.RuleSet{
+				Rules: rules,
+			}
+
+			rse := &motor.RuleSetExecution{
+				RuleSet: rs,
+				Spec:    []byte(tt.yml),
+			}
+			results := motor.ApplyRulesToRuleSet(rse)
+			assert.Len(t, results.Results, 0)
+		})
 	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 0)
 }
 
 func TestRuleSet_GetOWASPRuleDefineErrorValidation_Error(t *testing.T) {
@@ -55,17 +91,19 @@ paths:
             "application/json":
 `
 
-	rules := make(map[string]*model.Rule)
-	rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
+	t.Run("invalid case", func(t *testing.T) {
+		rules := make(map[string]*model.Rule)
+		rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
 
-	rs := &rulesets.RuleSet{
-		Rules: rules,
-	}
+		rs := &rulesets.RuleSet{
+			Rules: rules,
+		}
 
-	rse := &motor.RuleSetExecution{
-		RuleSet: rs,
-		Spec:    []byte(yml),
-	}
-	results := motor.ApplyRulesToRuleSet(rse)
-	assert.Len(t, results.Results, 1)
+		rse := &motor.RuleSetExecution{
+			RuleSet: rs,
+			Spec:    []byte(yml),
+		}
+		results := motor.ApplyRulesToRuleSet(rse)
+		assert.Len(t, results.Results, 1)
+	})
 }

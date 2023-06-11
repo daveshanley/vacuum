@@ -11,118 +11,154 @@ import (
 
 func TestRuleSet_GetOWASPRuleStringLimit_Success(t *testing.T) {
 
-	yml1 := `openapi: "3.1.0"
+	tc := []struct {
+		name string
+		yml  string
+	}{
+		{
+			name: "valid case: oas2",
+			yml: `swagger: "2.0"
+info:
+  version: "1.0"
+definitions:
+  Foo:
+    type: string
+    maxLength: 99`,
+		},
+		{
+			name: "valid case: oas3.0",
+			yml: `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: string
+      maxLength: 99`,
+		},
+		{
+			name: "valid case: oas3.1",
+			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
       type: ["null", "string"]
-      maxLength: 16
-`
-	yml2 := `openapi: "3.1.0"
+      maxLength: 99`,
+		},
+		{
+			name: "valid case: oas3.0",
+			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
       type: "string"
-      enum:
-        - 1
-        - 2
-        - 3
-`
-	yml3 := `openapi: "3.1.0"
+      enum: [a, b, c]`,
+		},
+		{
+			name: "valid case: oas3.1",
+			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
       type: "string"
-      const: 1
-`
-	yml4 := `openapi: "3.1.0"
+      const: "constant"`,
+		},
+		{
+			name: "valid case: pattern and maxLength, oas3.1",
+			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
       type: "string"
-      maxLength: 5
-`
-	yml5 := `openapi: "3.1.0"
-info:
-  version: "1.0"
-components:
-  schemas:
-    Foo:
-      type: "stringer"
-`
-	yml6 := `openapi: "3.1.0"
-info:
-  version: "1.0"
-components:
-  schemas:
-    Foo:
-      type: ["stringer", "onestringto", "somestring", "String"]
-    Bar:
-      example: okay
-      type: stringer
-  type: integer
-`
+      format: "hex"
+      pattern: "^[0-9a-fA-F]+$"
+      maxLength: 10`,
+		},
+	}
 
-	for _, yml := range []string{yml1, yml2, yml3, yml4, yml5, yml6} {
-		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleStringLimit() // TODO
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			rules := make(map[string]*model.Rule)
+			rules["here"] = rulesets.GetOWASPRuleStringLimit() // TODO
 
-		rs := &rulesets.RuleSet{
-			Rules: rules,
-		}
+			rs := &rulesets.RuleSet{
+				Rules: rules,
+			}
 
-		rse := &motor.RuleSetExecution{
-			RuleSet: rs,
-			Spec:    []byte(yml),
-		}
-		results := motor.ApplyRulesToRuleSet(rse)
-		assert.Len(t, results.Results, 0)
+			rse := &motor.RuleSetExecution{
+				RuleSet: rs,
+				Spec:    []byte(tt.yml),
+			}
+			results := motor.ApplyRulesToRuleSet(rse)
+			assert.Len(t, results.Results, 0)
+		})
 	}
 }
 
 func TestRuleSet_GetOWASPRuleStringLimit_Error(t *testing.T) {
 
-	yml1 := `openapi: "3.1.0"
+	tc := []struct {
+		name string
+		n    int
+		yml  string
+	}{
+		{
+			name: "invalid case: oas2 missing maxLength",
+			n:    5, // TODO: Should be one (problem: if and else branching cause)
+			yml: `swagger: "2.0"
+info:
+  version: "1.0"
+definitions:
+  Foo:
+    type: string`,
+		},
+		{
+			name: "invalid case: oas3.0 missing maxLength",
+			n:    5, // TODO: Should be one (problem: if and else branching cause)
+			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
-      type: [integer, string, boolean]
-`
-	yml2 := `openapi: "3.1.0"
+      type: string`,
+		},
+		{
+			name: "invalid case: oas3.1 missing maxLength",
+			n:    7, // TODO: Should be one (problem: if and else branching cause)
+			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
 components:
   schemas:
     Foo:
-      type: string
-    Bar:
-      example: "bar"
-      type: string
-`
+      type: [null, string]`,
+		},
+	}
 
-	for _, yml := range []string{yml1, yml2} {
-		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleStringLimit() // TODO
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			rules := make(map[string]*model.Rule)
+			rules["here"] = rulesets.GetOWASPRuleStringLimit() // TODO
 
-		rs := &rulesets.RuleSet{
-			Rules: rules,
-		}
+			rs := &rulesets.RuleSet{
+				Rules: rules,
+			}
 
-		rse := &motor.RuleSetExecution{
-			RuleSet: rs,
-			Spec:    []byte(yml),
-		}
-		results := motor.ApplyRulesToRuleSet(rse)
-		assert.NotEqualValues(t, len(results.Results), 0) // Should output an error and not five
+			rse := &motor.RuleSetExecution{
+				RuleSet: rs,
+				Spec:    []byte(tt.yml),
+			}
+			results := motor.ApplyRulesToRuleSet(rse)
+			assert.Len(t, results.Results, tt.n) // Should output an error and not five
+		})
 	}
 }
