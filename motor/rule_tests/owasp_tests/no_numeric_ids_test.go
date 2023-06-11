@@ -83,6 +83,6 @@ paths:
 			Spec:    []byte(yml),
 		}
 		results := motor.ApplyRulesToRuleSet(rse)
-		assert.Len(t, results.Results, 5) // in spectral, this outputs 4 errors // TO DISCUSS
+		assert.Len(t, results.Results, 5)
 	})
 }
