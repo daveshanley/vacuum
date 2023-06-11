@@ -666,6 +666,63 @@ else:
 	}
 }
 
+func GetOWASPRuleIntegerFormat() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	yml := `type: object
+if:
+  properties:
+    type:
+      enum: 
+        - integer
+then:
+  allOf:
+    - required:
+      - format
+else:
+  if:
+    properties:
+      type:
+        type: array
+  then:
+    if:
+      properties:
+        type:
+          contains:
+            enum:
+              - integer
+    then:
+      allOf:
+        - required:
+          - format
+`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
+
+	return &model.Rule{
+		Name:        "Schema of type integer must specify format (int32 or int64)",
+		Id:          "", // TODO
+		Description: "Integers should be limited to mitigate resource exhaustion attacks. Specifying whether int32 or int64 is expected via `format`",
+		Given: []string{
+			`$..[?(@.type)]`,
+		},
+		Resolved:     false,
+		Formats:      model.AllFormats,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		HowToFix: "", // TODO
+	}
+}
+
 func GetOWASPRuleNoAdditionalProperties() *model.Rule {
 
 	return &model.Rule{
