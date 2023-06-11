@@ -800,3 +800,65 @@ required:
 		HowToFix: "", // TODO
 	}
 }
+
+func GetOWASPRuleSecurityHostsHttpsOAS2() *model.Rule {
+
+	opts := make(map[string]interface{})
+	yml := `type: array
+items:
+  type: "string"
+  enum: [https]`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
+
+	return &model.Rule{
+		Name:        "All servers defined MUST use https, and no other protocol is permitted",
+		Id:          "", // TODO
+		Description: "All server interactions MUST use the https protocol, so the only OpenAPI scheme being used should be `https`.\n\nLearn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html",
+		Given: []string{
+			`$.schemes`,
+		},
+		Resolved:     false,
+		Formats:      model.OAS2Format,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRuleSecurityHostsHttpsOAS3() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	opts["match"] = "^https:"
+	comp, _ := regexp.Compile(opts["match"].(string))
+
+	return &model.Rule{
+		Name:        "Server URLs MUST begin https://, and no other protocol is permitted",
+		Id:          "", // TODO
+		Description: "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.\n\nLearn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html",
+		Given: []string{
+			`$.servers..url`,
+		},
+		Resolved:     false,
+		Formats:      model.OAS3Format,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function:        "pattern",
+			FunctionOptions: opts,
+		},
+		PrecompiledPattern: comp,
+		HowToFix:           "", // TODO
+	}
+}
