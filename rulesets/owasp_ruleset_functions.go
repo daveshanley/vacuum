@@ -9,7 +9,7 @@ import (
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func GetOwaspAPIRuleNoNumericIDs() *model.Rule {
+func GetOWASPRuleAPIRuleNoNumericIDs() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -512,8 +512,45 @@ else:
 	}
 }
 
-// TODO: Not working and wrong
 func GetOWASPRuleIntegerLimit() *model.Rule {
+
+	// create a schema to match against.
+	opts := make(map[string]interface{})
+	yml := `type: object
+if:
+  properties:
+    type:
+      enum: 
+        - integer
+then:
+  oneOf:
+  - required:
+    - minimum
+  - required:
+    - exclusiveMinimum
+else:
+  if:
+    properties:
+      type:
+        type: array
+  then:
+    if:
+      properties:
+        type:
+          contains:
+            enum:
+              - integer
+    then:
+      anyOf:
+      - required:
+        - minimum
+      - required:
+        - exclusiveMinimum
+`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
 		Name:         "Schema of type integer must specify minimum and maximum",
