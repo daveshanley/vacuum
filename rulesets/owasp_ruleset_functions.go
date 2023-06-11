@@ -29,8 +29,8 @@ properties:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "OWASP API1:2019", // fix
-		Id:           "",                // TODO
+		Name:         "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
+		Id:           "", // TODO
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
 		Given:        `$.paths..parameters[*][?(@.name == "id" || @.name =~ /(_id|Id|-id)$/)))]`,
@@ -189,7 +189,26 @@ func GetOWASPRuleJWTBestPractices() *model.Rule {
 
 // TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-unsafe
 func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
-	return nil
+	return &model.Rule{
+		Name:         "This operation is not protected by any security scheme",
+		Id:           "", // TODO
+		Description:  "Your API should be protected by a `security` rule either at global or operation level. All operations should be protected especially when they\nnot safe (methods that do not alter the state of the server) \nHTTP methods like `POST`, `PUT`, `PATCH` and `DELETE`.\nThis is done with one or more non-empty `security` rules.\n\nSecurity rules are defined in the `securityScheme` section",
+		Given:        `$`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "checkSecurity",
+			FunctionOptions: map[string]interface{}{
+				"schemesPath": []string{"securitySchemes"},
+				"nullable":    true,
+				"methods":     []string{"post", "put", "patch", "delete"},
+			},
+		},
+		HowToFix: "", // TODO
+	}
 }
 
 // TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-unsafe-strict
@@ -202,7 +221,6 @@ func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
 	return nil
 }
 
-// TO REVIEW, Uses oasOpErrorResponse function by extending it
 func GetOWASPRuleDefineErrorValidation() *model.Rule {
 
 	return &model.Rule{
@@ -222,7 +240,6 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 	}
 }
 
-// Had to split into GetOWASPRuleDefineErrorResponses401 and GetOWASPRuleDefineErrorResponses401Content since pb33f does not support path keys for now
 func GetOWASPRuleDefineErrorResponses401() *model.Rule {
 
 	// create a schema to match against.
