@@ -19,7 +19,6 @@ func (cd CheckSecurity) GetSchema() model.RuleFunctionSchema {
 
 // RunRule will execute the CheckSecurity rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
 	if len(nodes) <= 0 {
 		return nil
 	}
@@ -36,6 +35,9 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 		methods = castedMethods
 	}
 
+	// security at the global level replaces if not defined at the operation level
+	_, valueOfSecurityGlobalNode := utils.FindFirstKeyNode("security", nodes, 0)
+
 	var results []model.RuleFunctionResult
 	_, valueOfPathNode := utils.FindFirstKeyNode("paths", nodes, 0)
 	for i := 1; i < len(valueOfPathNode.Content); i += 2 {
@@ -51,56 +53,59 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				"trace",
 			}, valueOfPathNode.Content[i].Content[j].Value) && slices.Contains(methods, valueOfPathNode.Content[i].Content[j].Value) && len(valueOfPathNode.Content[i].Content) > j+1 {
 				operation := valueOfPathNode.Content[i].Content[j+1]
-				_, valueOfSecurityNode := utils.FindFirstKeyNode("security", operation.Content, 0)
-				if valueOfSecurityNode == nil {
-					results = append(results, model.RuleFunctionResult{
-						Message:   "", // TODO
-						StartNode: nodes[0],
-						EndNode:   utils.FindLastChildNodeWithLevel(nodes[0], 0),
-						Path:      fmt.Sprintf("$.paths.%s.%s", valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value), // TODO
-						Rule:      context.Rule,
-					})
-					continue
-				}
-				if len(valueOfSecurityNode.Content) == 0 {
-					results = append(results, model.RuleFunctionResult{
-						Message:   "", // TODO
-						StartNode: nodes[0],
-						EndNode:   utils.FindLastChildNodeWithLevel(nodes[0], 0),
-						Path:      fmt.Sprintf("$.paths.%s.%s.security", valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value), // TODO
-						Rule:      context.Rule,
-					})
-					continue
-				}
-				if valueOfSecurityNode.Kind == yaml.SequenceNode {
-					for k := 0; k < len(valueOfSecurityNode.Content); k++ {
-						if valueOfSecurityNode.Content[k].Kind != yaml.MappingNode {
-							continue
-						}
-						if len(valueOfSecurityNode.Content[k].Content) == 0 && !nullable {
-							results = append(results, model.RuleFunctionResult{
-								Message:   "", // TODO
-								StartNode: nodes[0],
-								EndNode:   utils.FindLastChildNodeWithLevel(nodes[0], 0),
-								Path:      fmt.Sprintf("$.paths.%s.%s", valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value), // TODO
-								Rule:      context.Rule,
-							})
-						}
-					}
-				}
+				results = append(results, checkSecurityRule(operation, valueOfSecurityGlobalNode, nullable, valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value, context.Rule)...)
 			}
 		}
 	}
 
 	return results
+}
 
-	// []model.RuleFunctionResult{
-	// 	{
-	// 		Message:   "", // TODO
-	// 		StartNode: nodes[0],
-	// 		EndNode:   utils.FindLastChildNodeWithLevel(nodes[0], 0),
-	// 		Path:      "", // TODO
-	// 		Rule:      context.Rule,
-	// 	},
-	// }
+func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Node, nullable bool, pathPrefix, method string, rule *model.Rule) []model.RuleFunctionResult {
+	_, valueOfSecurityNode := utils.FindFirstKeyNode("security", operation.Content, 0)
+	if valueOfSecurityNode == nil { // if not defined at the operation level, use global
+		valueOfSecurityNode = valueOfSecurityGlobalNode
+	}
+	if valueOfSecurityNode == nil {
+		return []model.RuleFunctionResult{
+			{
+				Message:   "", // TODO
+				StartNode: operation,
+				EndNode:   utils.FindLastChildNodeWithLevel(operation, 0),
+				Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method), // TODO
+				Rule:      rule,
+			},
+		}
+	}
+	if len(valueOfSecurityNode.Content) == 0 {
+		return []model.RuleFunctionResult{
+			{
+				Message:   "", // TODO
+				StartNode: operation,
+				EndNode:   utils.FindLastChildNodeWithLevel(operation, 0),
+				Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method), // TODO
+				Rule:      rule,
+			},
+		}
+	}
+	if valueOfSecurityNode.Kind == yaml.SequenceNode {
+		var results []model.RuleFunctionResult
+		for k := 0; k < len(valueOfSecurityNode.Content); k++ {
+			if valueOfSecurityNode.Content[k].Kind != yaml.MappingNode {
+				continue
+			}
+			if len(valueOfSecurityNode.Content[k].Content) == 0 && !nullable {
+				results = append(results, model.RuleFunctionResult{
+					Message:   "", // TODO
+					StartNode: operation,
+					EndNode:   utils.FindLastChildNodeWithLevel(operation, 0),
+					Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method), // TODO
+					Rule:      rule,
+				})
+			}
+		}
+		return results
+	}
+
+	return nil
 }

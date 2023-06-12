@@ -228,7 +228,7 @@ func GetOWASPRuleProtectionGlobalUnsafeStrict() *model.Rule {
 			FunctionOptions: map[string]interface{}{
 				"schemesPath": []string{"securitySchemes"},
 				"nullable":    false,
-				"methods":     []string{"post", "put", "delete", "put"},
+				"methods":     []string{"post", "put", "patch", "delete"},
 			},
 		},
 		HowToFix: "", // TODO
