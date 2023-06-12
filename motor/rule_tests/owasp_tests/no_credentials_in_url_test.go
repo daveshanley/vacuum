@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleSecurityCredentialsDetected_Success(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoCredentialsInURL_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -26,7 +26,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleSecurityCredentialsDetected() // TODO
+		rules["here"] = rulesets.GetOWASPRuleNoCredentialsInURL() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -41,7 +41,7 @@ paths:
 	})
 }
 
-func TestRuleSet_GetOWASPRuleSecurityCredentialsDetected_Error(t *testing.T) {
+func TestRuleSet_GetOWASPRuleNoCredentialsInURL_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -79,7 +79,7 @@ paths:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleSecurityCredentialsDetected() // TODO
+		rules["here"] = rulesets.GetOWASPRuleNoCredentialsInURL() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
