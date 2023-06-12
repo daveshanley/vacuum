@@ -44,7 +44,6 @@ properties:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -72,7 +71,6 @@ func GetOWASPRuleSecuritySchemeUseHTTPBasic() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           "", // TODO
 	}
 }
 
@@ -99,11 +97,10 @@ func GetOWASPRuleNoAPIKeysInURL() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           "", // TODO
 	}
 }
 
-func GetOWASPRuleSecurityCredentialsDetected() *model.Rule {
+func GetOWASPRuleNoCredentialsInURL() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -126,7 +123,6 @@ func GetOWASPRuleSecurityCredentialsDetected() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           "", // TODO
 	}
 }
 
@@ -153,7 +149,6 @@ func GetOWASPRuleAuthInsecureSchemes() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           "", // TODO
 	}
 }
 
@@ -183,7 +178,6 @@ func GetOWASPRuleJWTBestPractices() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           "", // TODO
 	}
 }
 
@@ -207,7 +201,6 @@ func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
 				"methods":     []string{"post", "put", "patch", "delete"},
 			},
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -231,7 +224,6 @@ func GetOWASPRuleProtectionGlobalUnsafeStrict() *model.Rule {
 				"methods":     []string{"post", "put", "patch", "delete"},
 			},
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -255,7 +247,6 @@ func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
 				"methods":     []string{"get", "head"},
 			},
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -274,7 +265,6 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspDefineError",
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -312,7 +302,6 @@ required:
 				FunctionOptions: opts,
 			},
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -348,7 +337,6 @@ required:
 				FunctionOptions: opts,
 			},
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -367,7 +355,6 @@ func GetOWASPRuleRateLimit() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspRateLimitDefinition",
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -388,7 +375,41 @@ func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
 			Field:    "Retry-After",
 			Function: "defined",
 		},
-		HowToFix: "", // TODO
+	}
+}
+
+func GetOWASPRuleDefineErrorResponses429() *model.Rule {
+
+	opts := make(map[string]interface{})
+	yml := `type: object
+required:
+  - content`
+
+	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+	opts["schema"] = jsonSchema
+	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+
+	return &model.Rule{
+		Name:         "Operation is missing rate limiting response in {{property}}",
+		Id:           "", // TODO
+		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. A HTTP 429 response signals the API client is making too many requests, and will supply information about when to retry so that the client can back off calmly without everything breaking. Defining this response is important not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces. It also ensures your API/framework/gateway actually has rate limiting set up",
+		Given:        `$.paths..responses`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: []model.RuleAction{
+			{
+				Field:    "429",
+				Function: "defined",
+			},
+			{
+				Field:           "429",
+				Function:        "schema",
+				FunctionOptions: opts,
+			},
+		},
 	}
 }
 
@@ -429,7 +450,6 @@ then:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -494,7 +514,6 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -563,7 +582,6 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -656,7 +674,6 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -717,7 +734,6 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -774,7 +790,6 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -795,7 +810,6 @@ func GetOWASPRuleNoAdditionalProperties() *model.Rule {
 			Field:    "additionalProperties",
 			Function: "falsy",
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -816,43 +830,6 @@ func GetOWASPRuleConstrainedAdditionalProperties() *model.Rule {
 			Field:    "maxProperties",
 			Function: "defined",
 		},
-		HowToFix: "", // TODO
-	}
-}
-
-func GetOWASPRuleDefineErrorResponses429() *model.Rule {
-
-	opts := make(map[string]interface{})
-	yml := `type: object
-required:
-  - content`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
-
-	return &model.Rule{
-		Name:         "Operation is missing rate limiting response in {{property}}",
-		Id:           "", // TODO
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. A HTTP 429 response signals the API client is making too many requests, and will supply information about when to retry so that the client can back off calmly without everything breaking. Defining this response is important not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces. It also ensures your API/framework/gateway actually has rate limiting set up",
-		Given:        `$.paths..responses`,
-		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
-		Recommended:  true,
-		Type:         Validation,
-		Severity:     model.SeverityWarn,
-		Then: []model.RuleAction{
-			{
-				Field:    "429",
-				Function: "defined",
-			},
-			{
-				Field:           "429",
-				Function:        "schema",
-				FunctionOptions: opts,
-			},
-		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -885,7 +862,6 @@ items:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
-		HowToFix: "", // TODO
 	}
 }
 
@@ -914,6 +890,5 @@ func GetOWASPRuleSecurityHostsHttpsOAS3() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
-		HowToFix:           "", // TODO
 	}
 }
