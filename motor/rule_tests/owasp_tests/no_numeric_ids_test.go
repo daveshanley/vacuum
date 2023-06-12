@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_TestGetOWASPRuleAPIRuleNoNumericIDs_Success(t *testing.T) {
+func TestRuleSet_TestGetOWASPRuleNoNumericIDs_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -40,7 +40,7 @@ paths:
 	})
 }
 
-func TestRuleSet_TestGetOWASPRuleAPIRuleNoNumericIDs_Error(t *testing.T) {
+func TestRuleSet_TestGetOWASPRuleNoNumericIDs_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:

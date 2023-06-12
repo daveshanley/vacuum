@@ -187,7 +187,7 @@ func GetOWASPRuleJWTBestPractices() *model.Rule {
 	}
 }
 
-// TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-unsafe
+// https://github.com/italia/api-oas-checker/blob/master/security/security.yml
 func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
@@ -211,14 +211,52 @@ func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
 	}
 }
 
-// TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-unsafe-strict
+// https://github.com/italia/api-oas-checker/blob/master/security/security.yml
 func GetOWASPRuleProtectionGlobalUnsafeStrict() *model.Rule {
-	return nil
+	return &model.Rule{
+		Name:         "This operation is not protected by any security scheme",
+		Id:           "", // TODO
+		Description:  "Check if the operation is protected at operation level.\nOtherwise, check the global `#/security` property",
+		Given:        `$`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityInfo,
+		Then: model.RuleAction{
+			Function: "checkSecurity",
+			FunctionOptions: map[string]interface{}{
+				"schemesPath": []string{"securitySchemes"},
+				"nullable":    false,
+				"methods":     []string{"post", "put", "delete", "put"},
+			},
+		},
+		HowToFix: "", // TODO
+	}
 }
 
-// TODO: create checkSecurity function similar to the one in spectral // owasp:api2:2019-protection-global-safe
+// https://github.com/italia/api-oas-checker/blob/master/security/security.yml
 func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
-	return nil
+	return &model.Rule{
+		Name:         "This operation is not protected by any security scheme",
+		Id:           "", // TODO
+		Description:  "Check if the operation is protected at operation level.\nOtherwise, check the global `#/security` property",
+		Given:        `$`,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityInfo,
+		Then: model.RuleAction{
+			Function: "checkSecurity",
+			FunctionOptions: map[string]interface{}{
+				"schemesPath": []string{"securitySchemes"},
+				"nullable":    true,
+				"methods":     []string{"get", "head"},
+			},
+		},
+		HowToFix: "", // TODO
+	}
 }
 
 func GetOWASPRuleDefineErrorValidation() *model.Rule {
