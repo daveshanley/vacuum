@@ -66,8 +66,8 @@ paths:
   /security-ko-post-noauth:
     patch:
       security:
-        - {}
         - BasicAuth: []
+        - {}
       responses: {}
 components:
   securitySchemes:
