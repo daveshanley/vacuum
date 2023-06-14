@@ -53,7 +53,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				"trace",
 			}, valueOfPathNode.Content[i].Content[j].Value) && slices.Contains(methods, valueOfPathNode.Content[i].Content[j].Value) && len(valueOfPathNode.Content[i].Content) > j+1 {
 				operation := valueOfPathNode.Content[i].Content[j+1]
-				results = append(results, checkSecurityRule(operation, valueOfSecurityGlobalNode, nullable, valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value, context.Rule)...)
+				results = append(results, checkSecurityRule(operation, valueOfSecurityGlobalNode, nullable, valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value, context)...)
 			}
 		}
 	}
@@ -61,7 +61,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	return results
 }
 
-func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Node, nullable bool, pathPrefix, method string, rule *model.Rule) []model.RuleFunctionResult {
+func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Node, nullable bool, pathPrefix, method string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	_, valueOfSecurityNode := utils.FindFirstKeyNode("security", operation.Content, 0)
 	if valueOfSecurityNode == nil { // if not defined at the operation level, use global
 		valueOfSecurityNode = valueOfSecurityGlobalNode
@@ -69,22 +69,22 @@ func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Nod
 	if valueOfSecurityNode == nil {
 		return []model.RuleFunctionResult{
 			{
-				Message:   "", // TODO
+				Message:   fmt.Sprintf("%s: 'security' was not defined: for path %q in method %q.", context.Rule.Description, pathPrefix, method),
 				StartNode: operation,
-				EndNode:   utils.FindLastChildNodeWithLevel(operation, 0),
+				EndNode:   operation,
 				Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method), // TODO
-				Rule:      rule,
+				Rule:      context.Rule,
 			},
 		}
 	}
 	if len(valueOfSecurityNode.Content) == 0 {
 		return []model.RuleFunctionResult{
 			{
-				Message:   "", // TODO
-				StartNode: operation,
-				EndNode:   utils.FindLastChildNodeWithLevel(operation, 0),
+				Message:   fmt.Sprintf("%s: 'security' is empty: for path %q in method %q.", context.Rule.Description, pathPrefix, method),
+				StartNode: valueOfSecurityNode,
+				EndNode:   valueOfSecurityNode,
 				Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method), // TODO
-				Rule:      rule,
+				Rule:      context.Rule,
 			},
 		}
 	}
@@ -96,11 +96,11 @@ func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Nod
 			}
 			if len(valueOfSecurityNode.Content[k].Content) == 0 && !nullable {
 				results = append(results, model.RuleFunctionResult{
-					Message:   "", // TODO
-					StartNode: operation,
-					EndNode:   utils.FindLastChildNodeWithLevel(operation, 0),
-					Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method), // TODO
-					Rule:      rule,
+					Message:   fmt.Sprintf("%s: 'security' has null elements: for path %q in method %q with element.", context.Rule.Description, pathPrefix, method),
+					StartNode: valueOfSecurityNode.Content[k],
+					EndNode:   utils.FindLastChildNodeWithLevel(valueOfSecurityNode.Content[k], 0),
+					Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method), // TODO
+					Rule:      context.Rule,
 				})
 			}
 		}
