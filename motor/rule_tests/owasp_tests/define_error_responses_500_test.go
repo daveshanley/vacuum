@@ -26,7 +26,7 @@ paths:
 
 	t.Run("valid: defines a 500 response with content", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-define-error-responses-500"] = rulesets.GetOWASPDefineErrorResponses500Rule() // TODO
+		rules["owasp-define-error-responses-500"] = rulesets.GetOWASPDefineErrorResponses500Rule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -85,7 +85,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-define-error-responses-500"] = rulesets.GetOWASPDefineErrorResponses500Rule() // TODO
+			rules["owasp-define-error-responses-500"] = rulesets.GetOWASPDefineErrorResponses500Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

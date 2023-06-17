@@ -31,7 +31,7 @@ servers:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-security-hosts-https-oas3"] = rulesets.GetOWASPSecurityHostsHttpsOAS3Rule() // TODO
+			rules["owasp-security-hosts-https-oas3"] = rulesets.GetOWASPSecurityHostsHttpsOAS3Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -80,7 +80,7 @@ servers:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-security-hosts-https-oas3"] = rulesets.GetOWASPSecurityHostsHttpsOAS3Rule() // TODO
+			rules["owasp-security-hosts-https-oas3"] = rulesets.GetOWASPSecurityHostsHttpsOAS3Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

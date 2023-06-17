@@ -8,16 +8,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type DefineError struct {
+type DefineErrorDefinition struct {
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
-func (cd DefineError) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "define_error"}
+func (cd DefineErrorDefinition) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "define_error_definition"}
 }
 
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
-func (cd DefineError) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (cd DefineErrorDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
 		return nil

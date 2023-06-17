@@ -26,7 +26,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-no-credentials-in-url"] = rulesets.GetOWASPNoCredentialsInURLRule() // TODO
+		rules["owasp-no-credentials-in-url"] = rulesets.GetOWASPNoCredentialsInURLRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -79,7 +79,7 @@ paths:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-no-credentials-in-url"] = rulesets.GetOWASPNoCredentialsInURLRule() // TODO
+		rules["owasp-no-credentials-in-url"] = rulesets.GetOWASPNoCredentialsInURLRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

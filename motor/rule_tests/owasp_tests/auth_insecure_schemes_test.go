@@ -22,7 +22,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-auth-insecure-schemes"] = rulesets.GetOWASPAuthInsecureSchemesRule() // TODO
+		rules["owasp-auth-insecure-schemes"] = rulesets.GetOWASPAuthInsecureSchemesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -53,7 +53,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-auth-insecure-schemes"] = rulesets.GetOWASPAuthInsecureSchemesRule() // TODO
+		rules["owasp-auth-insecure-schemes"] = rulesets.GetOWASPAuthInsecureSchemesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

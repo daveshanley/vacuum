@@ -71,7 +71,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-rate-limit"] = rulesets.GetOWASPRateLimitRule() // TODO
+			rules["owasp-rate-limit"] = rulesets.GetOWASPRateLimitRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -136,7 +136,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-rate-limit"] = rulesets.GetOWASPRateLimitRule() // TODO
+			rules["owasp-rate-limit"] = rulesets.GetOWASPRateLimitRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

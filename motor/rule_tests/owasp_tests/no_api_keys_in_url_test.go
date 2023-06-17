@@ -53,7 +53,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-no-api-keys-in-url"] = rulesets.GetOWASPNoAPIKeysInURLRule() // TODO
+		rules["owasp-no-api-keys-in-url"] = rulesets.GetOWASPNoAPIKeysInURLRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

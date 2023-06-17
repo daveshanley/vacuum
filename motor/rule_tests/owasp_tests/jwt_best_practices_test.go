@@ -26,7 +26,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-jwt-best-practices"] = rulesets.GetOWASPJWTBestPracticesRule() // TODO
+		rules["owasp-jwt-best-practices"] = rulesets.GetOWASPJWTBestPracticesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -58,7 +58,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-jwt-best-practices"] = rulesets.GetOWASPJWTBestPracticesRule() // TODO
+		rules["owasp-jwt-best-practices"] = rulesets.GetOWASPJWTBestPracticesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

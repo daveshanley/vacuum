@@ -262,7 +262,7 @@ func GetOWASPDefineErrorValidationRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "owaspDefineError",
+			Function: "owaspDefineErrorDefinition",
 		},
 	}
 }

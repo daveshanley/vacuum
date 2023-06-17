@@ -54,7 +54,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-no-additionalProperties"] = rulesets.GetOWASPNoAdditionalPropertiesRule() // TODO
+			rules["owasp-no-additionalProperties"] = rulesets.GetOWASPNoAdditionalPropertiesRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -84,7 +84,7 @@ components:
 
 	t.Run("invalid case: additionalProperties set to true (oas3)", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-no-additionalProperties"] = rulesets.GetOWASPNoAdditionalPropertiesRule() // TODO
+		rules["owasp-no-additionalProperties"] = rulesets.GetOWASPNoAdditionalPropertiesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

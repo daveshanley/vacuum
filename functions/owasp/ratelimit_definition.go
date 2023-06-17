@@ -25,9 +25,9 @@ type RateLimitDefinition struct {
 }
 
 func (m message) String() string {
-	return fmt.Sprintf(`response with code %d, must contain 'headers':
-		%s or %s or %s and %s`, m.responseCode,
-		XRatelimitLimit, XRateLimitLimit, RatelimitLimit, RatelimitReset,
+	return fmt.Sprintf(`response with code %d, must contain defined 'headers':
+		%s or %s or %s and %s`, m.responseCode, XRatelimitLimit, XRateLimitLimit,
+		RatelimitLimit, RatelimitReset,
 	)
 }
 
@@ -100,5 +100,5 @@ func (cd RateLimitDefinition) validateNode(node *yaml.Node) bool {
 	}
 
 	return slices.Contains(headers, XRatelimitLimit) || slices.Contains(headers, XRateLimitLimit) ||
-		slices.Contains(headers, XRateLimitLimit) && slices.Contains(headers, RatelimitLimit)
+		slices.Contains(headers, RatelimitLimit) && slices.Contains(headers, RatelimitReset)
 }
