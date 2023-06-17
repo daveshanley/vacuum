@@ -216,7 +216,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 								res := model.BuildFunctionResultString(err)
 								res.StartNode = startNode
 								res.EndNode = endNode
-								res.Path = fmt.Sprintf("$.paths.['%s'].%s", currentPath, r)
+								res.Path = fmt.Sprintf("$.paths['%s'].%s", currentPath, r)
 								res.Rule = context.Rule
 								results = append(results, res)
 							}
