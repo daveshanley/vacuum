@@ -3,8 +3,8 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
 	"testing"

@@ -1,18 +1,18 @@
 package parser
 
 import (
-    "github.com/pb33f/libopenapi/index"
-    "github.com/pb33f/libopenapi/resolver"
-    "github.com/stretchr/testify/assert"
-    "github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
-    "gopkg.in/yaml.v3"
-    "testing"
+	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/resolver"
+	"github.com/stretchr/testify/assert"
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
+	"gopkg.in/yaml.v3"
+	"testing"
 )
 
 // test we can generate a schema from a simple object
 func TestConvertNode_Simple(t *testing.T) {
 
-    yml := `components:
+	yml := `components:
   schemas:
     Citrus:
       type: object
@@ -31,33 +31,33 @@ func TestConvertNode_Simple(t *testing.T) {
         butter:
           type: boolean`
 
-    var node yaml.Node
-    mErr := yaml.Unmarshal([]byte(yml), &node)
-    assert.NoError(t, mErr)
+	var node yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &node)
+	assert.NoError(t, mErr)
 
-    config := index.CreateOpenAPIIndexConfig()
-    idx := index.NewSpecIndexWithConfig(&node, config)
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&node, config)
 
-    resolver := resolver.NewResolver(idx)
-    resolver.Resolve()
+	resolver := resolver.NewResolver(idx)
+	resolver.Resolve()
 
-    p, _ := yamlpath.NewPath("$.components.schemas.Citrus")
-    r, _ := p.Find(&node)
+	p, _ := yamlpath.NewPath("$.components.schemas.Citrus")
+	r, _ := p.Find(&node)
 
-    schema, err := ConvertNodeIntoJSONSchema(r[0], idx)
-    assert.NoError(t, err)
-    assert.NotNil(t, schema)
-    assert.Len(t, schema.Properties, 3)
+	schema, err := ConvertNodeIntoJSONSchema(r[0], idx)
+	assert.NoError(t, err)
+	assert.NotNil(t, schema)
+	assert.Len(t, schema.Properties, 3)
 
-    // now check the schema is valid
-    res, e := ValidateNodeAgainstSchema(schema, r[0], false)
-    assert.Nil(t, e)
-    assert.True(t, res)
+	// now check the schema is valid
+	res, e := ValidateNodeAgainstSchema(schema, r[0], false)
+	assert.Nil(t, e)
+	assert.True(t, res)
 }
 
 func TestValidateExample_AllInvalid(t *testing.T) {
 
-    yml := `components:
+	yml := `components:
   schemas:
     Citrus:
       type: object
@@ -86,22 +86,22 @@ func TestValidateExample_AllInvalid(t *testing.T) {
         pizza:
           $ref: '#/components/schemas/Citrus'`
 
-    var node yaml.Node
-    mErr := yaml.Unmarshal([]byte(yml), &node)
-    assert.NoError(t, mErr)
+	var node yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &node)
+	assert.NoError(t, mErr)
 
-    config := index.CreateOpenAPIIndexConfig()
-    idx := index.NewSpecIndexWithConfig(&node, config)
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&node, config)
 
-    rslvr := resolver.NewResolver(idx)
-    rslvr.Resolve()
+	rslvr := resolver.NewResolver(idx)
+	rslvr.Resolve()
 
-    p, _ := yamlpath.NewPath("$.components.schemas.Savory")
-    r, _ := p.Find(&node)
+	p, _ := yamlpath.NewPath("$.components.schemas.Savory")
+	r, _ := p.Find(&node)
 
-    schema, _ := ConvertNodeIntoJSONSchema(r[0], idx)
+	schema, _ := ConvertNodeIntoJSONSchema(r[0], idx)
 
-    results := ValidateExample(schema)
-    assert.Len(t, results, 6)
+	results := ValidateExample(schema)
+	assert.Len(t, results, 6)
 
 }
