@@ -48,10 +48,12 @@ func (t *TabbedView) scrollRulesDown() {
 }
 
 func (t *TabbedView) scrollViolationsDown() {
-	t.violationList.ScrollDown()
-	t.setActiveRule()
-	t.setActiveViolation()
-	t.generateRuleViolationView()
+	if len(t.violationList.Rows) > 0 {
+		t.violationList.ScrollDown()
+		t.setActiveRule()
+		t.setActiveViolation()
+		t.generateRuleViolationView()
+	}
 }
 
 func (t *TabbedView) scrollRulesUp() {
@@ -60,10 +62,12 @@ func (t *TabbedView) scrollRulesUp() {
 }
 
 func (t *TabbedView) scrollViolationsUp() {
-	t.violationList.ScrollUp()
-	t.setActiveRule()
-	t.setActiveViolation()
-	t.generateRuleViolationView()
+	if len(t.violationList.Rows) > 0 {
+		t.violationList.ScrollUp()
+		t.setActiveRule()
+		t.setActiveViolation()
+		t.generateRuleViolationView()
+	}
 }
 
 func (t *TabbedView) setActiveRule() {
