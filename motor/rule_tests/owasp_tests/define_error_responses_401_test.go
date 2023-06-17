@@ -26,7 +26,7 @@ paths:
 
 	t.Run("valid: defines a 401 response with content", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-define-error-responses-401"] = rulesets.GetOWASPDefineErrorResponses401Rule() // TODO
+		rules["owasp-define-error-responses-401"] = rulesets.GetOWASPDefineErrorResponses401Rule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -85,7 +85,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-define-error-responses-401"] = rulesets.GetOWASPDefineErrorResponses401Rule() // TODO
+			rules["owasp-define-error-responses-401"] = rulesets.GetOWASPDefineErrorResponses401Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

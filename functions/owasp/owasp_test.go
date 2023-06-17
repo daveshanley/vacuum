@@ -13,7 +13,7 @@ func buildOpenApiTestRuleAction(given, function, field string, functionOptions i
 	}
 }
 
-func buildOpenApiTestContext(action *model.RuleAction, options map[string]string) model.RuleFunctionContext {
+func buildOpenApiTestContext(action *model.RuleAction, options map[string]interface{}) model.RuleFunctionContext {
 	return model.RuleFunctionContext{
 		RuleAction: action,
 		Options:    options,

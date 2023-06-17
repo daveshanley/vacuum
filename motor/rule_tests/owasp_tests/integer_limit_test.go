@@ -72,7 +72,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-integer-limit"] = rulesets.GetOWASPIntegerLimitRule() // TODO
+			rules["owasp-integer-limit"] = rulesets.GetOWASPIntegerLimitRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -168,7 +168,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-integer-limit"] = rulesets.GetOWASPIntegerLimitRule() // TODO
+			rules["owasp-integer-limit"] = rulesets.GetOWASPIntegerLimitRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

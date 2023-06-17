@@ -19,7 +19,7 @@ func TestRateLimitDefinition_RunRule(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
-func TestRateLimitDefinition_CheckDescriptionMissing(t *testing.T) {
+func TestRateLimitDefinition_RateLimitMissing(t *testing.T) {
 
 	yml := `paths:
   /pizza/:
@@ -34,17 +34,15 @@ func TestRateLimitDefinition_CheckDescriptionMissing(t *testing.T) {
         error
       450:
         headers:
-          "X-RateLimit-Limit"`
+          "X-RateLimit-Limit":
+`
 
 	path := "$.paths..responses"
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	opts := make(map[string]string)
-	opts["minWords"] = "10"
-
-	rule := buildOpenApiTestRuleAction(path, "ratelimit_definition", "", opts)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	rule := buildOpenApiTestRuleAction(path, "ratelimit_definition", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	def := RateLimitDefinition{}
 	res := def.RunRule(nodes, ctx)

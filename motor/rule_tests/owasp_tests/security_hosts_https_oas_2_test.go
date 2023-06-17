@@ -36,7 +36,7 @@ schemes:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-security-hosts-https-oas2"] = rulesets.GetOWASPSecurityHostsHttpsOAS2Rule() // TODO
+			rules["owasp-security-hosts-https-oas2"] = rulesets.GetOWASPSecurityHostsHttpsOAS2Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -109,7 +109,7 @@ schemes: [ftp]
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-security-hosts-https-oas2"] = rulesets.GetOWASPSecurityHostsHttpsOAS2Rule() // TODO
+			rules["owasp-security-hosts-https-oas2"] = rulesets.GetOWASPSecurityHostsHttpsOAS2Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

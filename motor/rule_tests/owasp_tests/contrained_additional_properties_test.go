@@ -24,7 +24,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-constrained-additionalProperties"] = rulesets.GetOWASPConstrainedAdditionalPropertiesRule() // TODO
+		rules["owasp-constrained-additionalProperties"] = rulesets.GetOWASPConstrainedAdditionalPropertiesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -53,7 +53,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-constrained-additionalProperties"] = rulesets.GetOWASPConstrainedAdditionalPropertiesRule() // TODO
+		rules["owasp-constrained-additionalProperties"] = rulesets.GetOWASPConstrainedAdditionalPropertiesRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

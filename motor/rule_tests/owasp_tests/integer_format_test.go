@@ -56,7 +56,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-integer-format"] = rulesets.GetOWASPIntegerFormatRule() // TODO
+			rules["owasp-integer-format"] = rulesets.GetOWASPIntegerFormatRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -96,7 +96,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-integer-format"] = rulesets.GetOWASPIntegerFormatRule() // TODO
+			rules["owasp-integer-format"] = rulesets.GetOWASPIntegerFormatRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

@@ -54,9 +54,9 @@ paths:
 	}
 
 	for _, tt := range tc {
-		t.Run("valid case: 400", func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-define-error-validation"] = rulesets.GetOWASPDefineErrorValidationRule() // TODO
+			rules["owasp-define-error-validation"] = rulesets.GetOWASPDefineErrorValidationRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -93,7 +93,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-define-error-validation"] = rulesets.GetOWASPDefineErrorValidationRule() // TODO
+		rules["owasp-define-error-validation"] = rulesets.GetOWASPDefineErrorValidationRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

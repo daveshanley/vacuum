@@ -26,7 +26,7 @@ paths:
 
 	t.Run("valid: defines a 429 response with content", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-define-error-responses-429"] = rulesets.GetOWASPDefineErrorResponses429Rule() // TODO
+		rules["owasp-define-error-responses-429"] = rulesets.GetOWASPDefineErrorResponses429Rule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -88,7 +88,7 @@ paths:
 				return
 			}
 			rules := make(map[string]*model.Rule)
-			rules["owasp-define-error-responses-429"] = rulesets.GetOWASPDefineErrorResponses429Rule() // TODO
+			rules["owasp-define-error-responses-429"] = rulesets.GetOWASPDefineErrorResponses429Rule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

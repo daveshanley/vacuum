@@ -29,7 +29,7 @@ paths:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-rate-limit-retry-after"] = rulesets.GetOWASPRateLimitRetryAfterRule() // TODO
+		rules["owasp-rate-limit-retry-after"] = rulesets.GetOWASPRateLimitRetryAfterRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -67,7 +67,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["owasp-rate-limit-retry-after"] = rulesets.GetOWASPRateLimitRetryAfterRule() // TODO
+		rules["owasp-rate-limit-retry-after"] = rulesets.GetOWASPRateLimitRetryAfterRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

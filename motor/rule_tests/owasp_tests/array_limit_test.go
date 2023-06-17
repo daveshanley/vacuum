@@ -60,7 +60,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-array-limit"] = rulesets.GetOWASPArrayLimitRule() // TODO
+			rules["owasp-array-limit"] = rulesets.GetOWASPArrayLimitRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -111,7 +111,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["owasp-array-limit"] = rulesets.GetOWASPArrayLimitRule() // TODO
+			rules["owasp-array-limit"] = rulesets.GetOWASPArrayLimitRule()
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
