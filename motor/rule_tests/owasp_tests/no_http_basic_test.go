@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleNoHttpBasic_Success(t *testing.T) {
+func TestRuleSet_OWASPNoHttpBasic_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -22,7 +22,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleNoHttpBasic()
+		rules["owasp-no-http-basic"] = rulesets.GetOWASPNoHttpBasicRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -37,7 +37,7 @@ components:
 	})
 }
 
-func TestRuleSet_GetOWASPRuleNoHttpBasic_Error(t *testing.T) {
+func TestRuleSet_OWASPNoHttpBasic_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -53,7 +53,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleNoHttpBasic()
+		rules["owasp-no-http-basic"] = rulesets.GetOWASPNoHttpBasicRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

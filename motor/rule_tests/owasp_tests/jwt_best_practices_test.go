@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleJWTBestPractices_Success(t *testing.T) {
+func TestRuleSet_OWASPJWTBestPractices_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -26,7 +26,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleJWTBestPractices() // TODO
+		rules["owasp-jwt-best-practices"] = rulesets.GetOWASPJWTBestPracticesRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -41,7 +41,7 @@ components:
 	})
 }
 
-func TestRuleSet_GetOWASPRuleJWTBestPractices_Error(t *testing.T) {
+func TestRuleSet_OWASPJWTBestPractices_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -58,7 +58,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleJWTBestPractices() // TODO
+		rules["owasp-jwt-best-practices"] = rulesets.GetOWASPJWTBestPracticesRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

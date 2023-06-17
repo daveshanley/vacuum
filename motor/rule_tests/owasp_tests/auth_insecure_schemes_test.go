@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleAuthInsecureSchemes_Success(t *testing.T) {
+func TestRuleSet_OWASPAuthInsecureSchemes_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -22,7 +22,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleAuthInsecureSchemes() // TODO
+		rules["owasp-auth-insecure-schemes"] = rulesets.GetOWASPAuthInsecureSchemesRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -37,7 +37,7 @@ components:
 	})
 }
 
-func TestRuleSet_GetOWASPRuleAuthInsecureSchemes_Error(t *testing.T) {
+func TestRuleSet_OWASPAuthInsecureSchemes_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -53,7 +53,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleAuthInsecureSchemes() // TODO
+		rules["owasp-auth-insecure-schemes"] = rulesets.GetOWASPAuthInsecureSchemesRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

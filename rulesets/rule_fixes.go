@@ -1,6 +1,6 @@
 package rulesets
 
-//TODO: look into copy management solutions, because this sucks.
+// TODO: look into copy management solutions, because this sucks.
 const (
 	operationSuccessResponseFix string = "Make sure that your operation returns a 'success' response via  2xx or 3xx " +
 		"response code. An API consumer will always expect a success response"
