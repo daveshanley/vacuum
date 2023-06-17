@@ -1,14 +1,14 @@
 package rule_tests
 
 import (
-    "github.com/daveshanley/vacuum/motor"
-    "github.com/daveshanley/vacuum/rulesets"
-    "github.com/stretchr/testify/assert"
-    "testing"
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func Benchmark_DefaultOpenAPI(b *testing.B) {
-    badDoc := `paths:
+	badDoc := `paths:
   /curry/{hurry}/{salsa}:
     get:
       tags:
@@ -31,20 +31,20 @@ func Benchmark_DefaultOpenAPI(b *testing.B) {
       - in: path
         name: hurry`
 
-    rs := rulesets.BuildDefaultRuleSets()
-    rules := rs.GenerateOpenAPIDefaultRuleSet()
-    for n := 0; n < b.N; n++ {
-        er := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
-        if er.Errors != nil {
-            continue // we don't care but the linter does.
-        }
-    }
+	rs := rulesets.BuildDefaultRuleSets()
+	rules := rs.GenerateOpenAPIDefaultRuleSet()
+	for n := 0; n < b.N; n++ {
+		er := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
+		if er.Errors != nil {
+			continue // we don't care but the linter does.
+		}
+	}
 
 }
 
 func Test_Default_OpenAPIRuleSet_FireABunchOfIssues(t *testing.T) {
 
-    badDoc := `openapi: 3.0.3
+	badDoc := `openapi: 3.0.3
 paths:
   /curry/{hurry}/{salsa}:
     get:
@@ -68,15 +68,15 @@ paths:
       - in: path
         name: hurry`
 
-    rs := rulesets.BuildDefaultRuleSets()
-    rules := rs.GenerateOpenAPIDefaultRuleSet()
-    lintExecution := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
-    assert.Len(t, lintExecution.Errors, 0)
-    assert.Len(t, lintExecution.Results, 71)
+	rs := rulesets.BuildDefaultRuleSets()
+	rules := rs.GenerateOpenAPIDefaultRuleSet()
+	lintExecution := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
+	assert.Len(t, lintExecution.Errors, 0)
+	assert.Len(t, lintExecution.Results, 71)
 
-    for n := 0; n < len(lintExecution.Results); n++ {
-        assert.NotNil(t, lintExecution.Results[n].Path)
-        assert.NotNil(t, lintExecution.Results[n].StartNode)
-        assert.NotNil(t, lintExecution.Results[n].EndNode)
-    }
+	for n := 0; n < len(lintExecution.Results); n++ {
+		assert.NotNil(t, lintExecution.Results[n].Path)
+		assert.NotNil(t, lintExecution.Results[n].StartNode)
+		assert.NotNil(t, lintExecution.Results[n].EndNode)
+	}
 }
