@@ -10,7 +10,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	XRatelimitLimit = "X-RateLimit-Limit"
+	XRateLimitLimit = "X-Rate-Limit-Limit"
+	RatelimitLimit  = "RateLimit-Limit"
+	RatelimitReset  = "RateLimit-Reset"
+)
+
+type message struct {
+	responseCode int
+}
+
 type RateLimitDefinition struct {
+}
+
+func (m message) String() string {
+	return fmt.Sprintf(`response with code %d, must contain 'headers':
+		%s or %s or %s and %s`, m.responseCode,
+		XRatelimitLimit, XRateLimitLimit, RatelimitLimit, RatelimitReset,
+	)
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the RateLimitDefinition rule.
@@ -20,8 +38,7 @@ func (cd RateLimitDefinition) GetSchema() model.RuleFunctionSchema {
 
 // RunRule will execute the RateLimitDefinition rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd RateLimitDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
-	if len(nodes) <= 0 {
+	if len(nodes) == 0 {
 		return nil
 	}
 
@@ -49,7 +66,7 @@ func (cd RateLimitDefinition) getResult(responseCode int, node *yaml.Node, conte
 			numberOfHeaders++
 			if !(len(node.Content) > i+1) || !cd.validateNode(node.Content[i+1]) {
 				results = append(results, model.RuleFunctionResult{
-					Message:   "Operation must define at least one 4xx error response", // TODO
+					Message:   message{responseCode: responseCode}.String(),
 					StartNode: headersNode,
 					EndNode:   utils.FindLastChildNodeWithLevel(headersNode, 0),
 					Path:      fmt.Sprintf("$.paths.responses.%d.headers", responseCode),
@@ -59,9 +76,10 @@ func (cd RateLimitDefinition) getResult(responseCode int, node *yaml.Node, conte
 		}
 	}
 
+	// headers parameter not found
 	if numberOfHeaders == 0 {
 		results = append(results, model.RuleFunctionResult{
-			Message:   "Operation must define headers", // TODO
+			Message:   message{responseCode: responseCode}.String(),
 			StartNode: node,
 			EndNode:   utils.FindLastChildNodeWithLevel(node, 0),
 			Path:      fmt.Sprintf("$.paths.responses.%d", responseCode),
@@ -81,17 +99,6 @@ func (cd RateLimitDefinition) validateNode(node *yaml.Node) bool {
 		}
 	}
 
-	if slices.Contains(headers, "X-RateLimit-Limit") {
-		return true
-	}
-
-	if slices.Contains(headers, "X-Rate-Limit-Limit") {
-		return true
-	}
-
-	if slices.Contains(headers, "RateLimit-Limit") && slices.Contains(headers, "RateLimit-Reset") {
-		return true
-	}
-
-	return false
+	return slices.Contains(headers, XRatelimitLimit) || slices.Contains(headers, XRateLimitLimit) ||
+		slices.Contains(headers, XRateLimitLimit) && slices.Contains(headers, RatelimitLimit)
 }
