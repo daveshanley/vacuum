@@ -115,7 +115,6 @@ var log *zap.Logger
 
 type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
-	owaspRuleSet   *RuleSet
 }
 
 // RuleSets is used to generate default RuleSets built into vacuum
