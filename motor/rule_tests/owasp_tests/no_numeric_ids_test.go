@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_TestGetOWASPRuleNoNumericIDs_Success(t *testing.T) {
+func TestRuleSet_OWASPNoNumericIDs_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -25,7 +25,7 @@ paths:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleNoNumericIDs()
+		rules["owasp-no-numeric-ids"] = rulesets.GetOWASPNoNumericIDsRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -40,7 +40,7 @@ paths:
 	})
 }
 
-func TestRuleSet_TestGetOWASPRuleNoNumericIDs_Error(t *testing.T) {
+func TestRuleSet_OWASPNoNumericIDs_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 paths:
@@ -72,7 +72,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleNoNumericIDs()
+		rules["owasp-no-numeric-ids"] = rulesets.GetOWASPNoNumericIDsRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

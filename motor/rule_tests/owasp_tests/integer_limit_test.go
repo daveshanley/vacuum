@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleIntegerLimit_Success(t *testing.T) {
+func TestRuleSet_OWASPIntegerLimit_Success(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -72,7 +72,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleIntegerLimit() // TODO
+			rules["owasp-integer-limit"] = rulesets.GetOWASPIntegerLimitRule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -88,7 +88,7 @@ components:
 	}
 }
 
-func TestRuleSet_GetOWASPRuleIntegerLimit_Error(t *testing.T) {
+func TestRuleSet_OWASPIntegerLimit_Error(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -168,7 +168,7 @@ components:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleIntegerLimit() // TODO
+			rules["owasp-integer-limit"] = rulesets.GetOWASPIntegerLimitRule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_TestGetOWASPRuleProtectionGlobalUnsafeStrict_Success(t *testing.T) {
+func TestRuleSet_OWASPProtectionGlobalUnsafeStrict_Success(t *testing.T) {
 
 	yml := `openapi: 3.0.1
 info:
@@ -34,7 +34,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleProtectionGlobalUnsafeStrict()
+		rules["owasp-protection-global-unsafe-strict"] = rulesets.GetOWASPProtectionGlobalUnsafeStrictRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -49,7 +49,7 @@ components:
 	})
 }
 
-func TestRuleSet_TestGetOWASPRuleProtectionGlobalUnsafeStrict_Error(t *testing.T) {
+func TestRuleSet_OWASPProtectionGlobalUnsafeStrict_Error(t *testing.T) {
 
 	yml := `openapi: 3.0.1
 info:
@@ -77,7 +77,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleProtectionGlobalUnsafeStrict()
+		rules["owasp-protection-global-unsafe-strict"] = rulesets.GetOWASPProtectionGlobalUnsafeStrictRule()
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

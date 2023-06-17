@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleSecurityHostsHttpsOAS2_Success(t *testing.T) {
+func TestRuleSet_OWASPSecurityHostsHttpsOAS2_Success(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -36,7 +36,7 @@ schemes:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleSecurityHostsHttpsOAS2() // TODO
+			rules["owasp-security-hosts-https-oas2"] = rulesets.GetOWASPSecurityHostsHttpsOAS2Rule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -52,7 +52,7 @@ schemes:
 	}
 }
 
-func TestRuleSet_GetOWASPRuleSecurityHostsHttpsOAS2_Error(t *testing.T) {
+func TestRuleSet_OWASPSecurityHostsHttpsOAS2_Error(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -109,7 +109,7 @@ schemes: [ftp]
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleSecurityHostsHttpsOAS2() // TODO
+			rules["owasp-security-hosts-https-oas2"] = rulesets.GetOWASPSecurityHostsHttpsOAS2Rule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

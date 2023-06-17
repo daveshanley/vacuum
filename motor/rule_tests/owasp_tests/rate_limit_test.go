@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleRateLimit_Success(t *testing.T) {
+func TestRuleSet_OWASPRateLimit_Success(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -71,7 +71,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleRateLimit() // TODO
+			rules["owasp-rate-limit"] = rulesets.GetOWASPRateLimitRule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -87,7 +87,7 @@ paths:
 	}
 }
 
-func TestRuleSet_GetOWASPRuleRateLimit_Error(t *testing.T) {
+func TestRuleSet_OWASPRateLimit_Error(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -136,7 +136,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleRateLimit() // TODO
+			rules["owasp-rate-limit"] = rulesets.GetOWASPRateLimitRule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

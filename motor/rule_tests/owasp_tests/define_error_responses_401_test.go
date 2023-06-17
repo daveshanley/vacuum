@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleDefineErrorResponses401_Success(t *testing.T) {
+func TestRuleSet_OWASPDefineErrorResponses401_Success(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -26,7 +26,7 @@ paths:
 
 	t.Run("valid: defines a 401 response with content", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+		rules["owasp-define-error-responses-401"] = rulesets.GetOWASPDefineErrorResponses401Rule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -41,7 +41,7 @@ paths:
 	})
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorResponses401_Error(t *testing.T) {
+func TestRuleSet_OWASPDefineErrorResponses401_Error(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -85,7 +85,7 @@ paths:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleDefineErrorResponses401() // TODO
+			rules["owasp-define-error-responses-401"] = rulesets.GetOWASPDefineErrorResponses401Rule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

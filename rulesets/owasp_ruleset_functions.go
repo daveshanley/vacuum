@@ -9,7 +9,7 @@ import (
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
-func GetOWASPRuleNoNumericIDs() *model.Rule {
+func GetOWASPNoNumericIDsRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -46,7 +46,7 @@ properties:
 	}
 }
 
-func GetOWASPRuleNoHttpBasic() *model.Rule {
+func GetOWASPNoHttpBasicRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -73,7 +73,7 @@ func GetOWASPRuleNoHttpBasic() *model.Rule {
 	}
 }
 
-func GetOWASPRuleNoAPIKeysInURL() *model.Rule {
+func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -99,7 +99,7 @@ func GetOWASPRuleNoAPIKeysInURL() *model.Rule {
 	}
 }
 
-func GetOWASPRuleNoCredentialsInURL() *model.Rule {
+func GetOWASPNoCredentialsInURLRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -125,7 +125,7 @@ func GetOWASPRuleNoCredentialsInURL() *model.Rule {
 	}
 }
 
-func GetOWASPRuleAuthInsecureSchemes() *model.Rule {
+func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -151,7 +151,7 @@ func GetOWASPRuleAuthInsecureSchemes() *model.Rule {
 	}
 }
 
-func GetOWASPRuleJWTBestPractices() *model.Rule {
+func GetOWASPJWTBestPracticesRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -181,7 +181,7 @@ func GetOWASPRuleJWTBestPractices() *model.Rule {
 }
 
 // https://github.com/italia/api-oas-checker/blob/master/security/security.yml
-func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
+func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafe,
@@ -204,7 +204,7 @@ func GetOWASPRuleProtectionGlobalUnsafe() *model.Rule {
 }
 
 // https://github.com/italia/api-oas-checker/blob/master/security/security.yml
-func GetOWASPRuleProtectionGlobalUnsafeStrict() *model.Rule {
+func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafeStrict,
@@ -227,7 +227,7 @@ func GetOWASPRuleProtectionGlobalUnsafeStrict() *model.Rule {
 }
 
 // https://github.com/italia/api-oas-checker/blob/master/security/security.yml
-func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
+func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalSafe,
@@ -249,7 +249,7 @@ func GetOWASPRuleProtectionGlobalSafe() *model.Rule {
 	}
 }
 
-func GetOWASPRuleDefineErrorValidation() *model.Rule {
+func GetOWASPDefineErrorValidationRule() *model.Rule {
 
 	return &model.Rule{
 		Name:         "Missing error response of either 400, 422 or 4XX",
@@ -267,7 +267,7 @@ func GetOWASPRuleDefineErrorValidation() *model.Rule {
 	}
 }
 
-func GetOWASPRuleDefineErrorResponses401() *model.Rule {
+func GetOWASPDefineErrorResponses401Rule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -304,7 +304,7 @@ required:
 	}
 }
 
-func GetOWASPRuleDefineErrorResponses500() *model.Rule {
+func GetOWASPDefineErrorResponses500Rule() *model.Rule {
 
 	opts := make(map[string]interface{})
 	yml := `type: object
@@ -339,7 +339,7 @@ required:
 	}
 }
 
-func GetOWASPRuleRateLimit() *model.Rule {
+func GetOWASPRateLimitRule() *model.Rule {
 	return &model.Rule{
 		Name:         "All 2XX and 4XX responses should define rate limiting headers",
 		Id:           OwaspRateLimit,
@@ -357,7 +357,7 @@ func GetOWASPRuleRateLimit() *model.Rule {
 	}
 }
 
-func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
+func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 
 	return &model.Rule{
 		Name:         "A 429 response should define a Retry-After header",
@@ -377,7 +377,7 @@ func GetOWASPRuleRateLimitRetryAfter() *model.Rule {
 	}
 }
 
-func GetOWASPRuleDefineErrorResponses429() *model.Rule {
+func GetOWASPDefineErrorResponses429Rule() *model.Rule {
 
 	opts := make(map[string]interface{})
 	yml := `type: object
@@ -412,7 +412,7 @@ required:
 	}
 }
 
-func GetOWASPRuleArrayLimit() *model.Rule {
+func GetOWASPArrayLimitRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -452,7 +452,7 @@ then:
 	}
 }
 
-func GetOWASPRuleStringLimit() *model.Rule {
+func GetOWASPStringLimitRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -516,7 +516,7 @@ else:
 	}
 }
 
-func GetOWASPRuleStringRestricted() *model.Rule {
+func GetOWASPStringRestrictedRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -584,7 +584,7 @@ else:
 	}
 }
 
-func GetOWASPRuleIntegerLimit() *model.Rule {
+func GetOWASPIntegerLimitRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -676,7 +676,7 @@ else:
 	}
 }
 
-func GetOWASPRuleIntegerLimitLegacy() *model.Rule {
+func GetOWASPIntegerLimitLegacyRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -736,7 +736,7 @@ else:
 	}
 }
 
-func GetOWASPRuleIntegerFormat() *model.Rule {
+func GetOWASPIntegerFormatRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
@@ -792,7 +792,7 @@ else:
 	}
 }
 
-func GetOWASPRuleNoAdditionalProperties() *model.Rule {
+func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 
 	return &model.Rule{
 		Name:         "If the additionalProperties keyword is used it must be set to false",
@@ -812,7 +812,7 @@ func GetOWASPRuleNoAdditionalProperties() *model.Rule {
 	}
 }
 
-func GetOWASPRuleConstrainedAdditionalProperties() *model.Rule {
+func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 
 	return &model.Rule{
 		Name:         "Objects should not allow unconstrained additionalProperties",
@@ -832,7 +832,7 @@ func GetOWASPRuleConstrainedAdditionalProperties() *model.Rule {
 	}
 }
 
-func GetOWASPRuleSecurityHostsHttpsOAS2() *model.Rule {
+func GetOWASPSecurityHostsHttpsOAS2Rule() *model.Rule {
 
 	opts := make(map[string]interface{})
 	yml := `type: array
@@ -864,7 +864,7 @@ items:
 	}
 }
 
-func GetOWASPRuleSecurityHostsHttpsOAS3() *model.Rule {
+func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})

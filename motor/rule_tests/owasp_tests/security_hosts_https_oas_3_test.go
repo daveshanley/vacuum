@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleSecurityHostsHttpsOAS3_Success(t *testing.T) {
+func TestRuleSet_OWASPSecurityHostsHttpsOAS3_Success(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -31,7 +31,7 @@ servers:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleSecurityHostsHttpsOAS3() // TODO
+			rules["owasp-security-hosts-https-oas3"] = rulesets.GetOWASPSecurityHostsHttpsOAS3Rule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -47,7 +47,7 @@ servers:
 	}
 }
 
-func TestRuleSet_GetOWASPRuleSecurityHostsHttpsOAS3_Error(t *testing.T) {
+func TestRuleSet_OWASPSecurityHostsHttpsOAS3_Error(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -80,7 +80,7 @@ servers:
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleSecurityHostsHttpsOAS3() // TODO
+			rules["owasp-security-hosts-https-oas3"] = rulesets.GetOWASPSecurityHostsHttpsOAS3Rule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,

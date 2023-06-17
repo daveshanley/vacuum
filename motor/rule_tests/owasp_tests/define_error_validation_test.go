@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleDefineErrorValidation_Success(t *testing.T) {
+func TestRuleSet_OWASPDefineErrorValidation_Success(t *testing.T) {
 
 	tc := []struct {
 		name string
@@ -56,7 +56,7 @@ paths:
 	for _, tt := range tc {
 		t.Run("valid case: 400", func(t *testing.T) {
 			rules := make(map[string]*model.Rule)
-			rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
+			rules["owasp-define-error-validation"] = rulesets.GetOWASPDefineErrorValidationRule() // TODO
 
 			rs := &rulesets.RuleSet{
 				Rules: rules,
@@ -72,7 +72,7 @@ paths:
 	}
 }
 
-func TestRuleSet_GetOWASPRuleDefineErrorValidation_Error(t *testing.T) {
+func TestRuleSet_OWASPDefineErrorValidation_Error(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
 info:
@@ -93,7 +93,7 @@ paths:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleDefineErrorValidation() // TODO
+		rules["owasp-define-error-validation"] = rulesets.GetOWASPDefineErrorValidationRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,

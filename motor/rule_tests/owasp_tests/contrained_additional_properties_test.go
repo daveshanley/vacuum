@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRuleSet_GetOWASPRuleConstrainedAdditionalProperties_Success(t *testing.T) {
+func TestRuleSet_OWASPConstrainedAdditionalProperties_Success(t *testing.T) {
 
 	yml := `openapi: "3.0.0"
 info:
@@ -24,7 +24,7 @@ components:
 
 	t.Run("valid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
+		rules["owasp-constrained-additionalProperties"] = rulesets.GetOWASPConstrainedAdditionalPropertiesRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
@@ -39,7 +39,7 @@ components:
 	})
 }
 
-func TestRuleSet_GetOWASPRuleConstrainedAdditionalProperties_Error(t *testing.T) {
+func TestRuleSet_OWASPConstrainedAdditionalProperties_Error(t *testing.T) {
 
 	yml := `openapi: "3.0.0"
 info:
@@ -53,7 +53,7 @@ components:
 
 	t.Run("invalid case", func(t *testing.T) {
 		rules := make(map[string]*model.Rule)
-		rules["here"] = rulesets.GetOWASPRuleConstrainedAdditionalProperties() // TODO
+		rules["owasp-constrained-additionalProperties"] = rulesets.GetOWASPConstrainedAdditionalPropertiesRule() // TODO
 
 		rs := &rulesets.RuleSet{
 			Rules: rules,
