@@ -84,9 +84,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// create new configurations
 	config := index.CreateClosedAPIIndexConfig()
 
+	// avoid building the index, we don't need it to run yet.
+	config.AvoidBuildIndex = true
+
 	docConfig := datamodel.NewClosedDocumentConfiguration()
 	docConfig.AllowFileReferences = true
-	config.AllowFileLookup = true
 
 	if execution.Base != "" {
 		// check if this is a URL or not
@@ -101,6 +103,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			docConfig.BasePath = execution.Base
 		}
 		config.AllowRemoteLookup = true
+		config.AllowFileLookup = true
 	}
 
 	var specInfo, specInfoUnresolved *datamodel.SpecInfo
@@ -162,6 +165,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 	indexUnresolved = index.NewSpecIndexWithConfig(specUnresolved, config)
 
+	// build unresolved index
+	indexUnresolved.BuildIndex()
+
 	// create a resolver
 	resolverInstance := resolver.NewResolver(indexResolved)
 
@@ -172,6 +178,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			resolvingErrors = append(resolvingErrors, m)
 		}
 	}
+
+	// re-map resolved index (important, the resolved index is not yet mapped)
+	indexResolved.BuildIndex()
 
 	// check references can be resolved correctly and are not infinite loops.
 	resolvingRule := &model.Rule{
@@ -281,11 +290,6 @@ func runRule(ctx ruleContext) {
 			if gp, ok := gpI.(string); ok {
 				givenPaths = append(givenPaths, gp)
 			}
-			// TODO: come back and clean this up if it proves to be required.
-			// Not sure why I added this check for a given field, it's always a string path.
-			//if gp, ok := gpI.(int); ok { //
-			//	givenPaths = append(givenPaths, fmt.Sprintf("%v", gp))
-			//}
 		}
 	}
 
