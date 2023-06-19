@@ -8,9 +8,10 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
-	"github.com/mitchellh/mapstructure"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
+	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -44,9 +45,41 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	var ok bool
 	s := utils.ExtractValueFromInterfaceMap("schema", context.Options)
 	if schema, ok = s.(*highBase.Schema); !ok {
-		var p highBase.Schema
-		_ = mapstructure.Decode(s, &p)
-		schema = &p
+
+		// build schema from scratch
+		var lowSchema lowBase.Schema
+
+		// unmarshal the schema
+		var on yaml.Node
+		err := on.Encode(&s)
+
+		if err != nil {
+			r := model.BuildFunctionResultString(fmt.Sprintf("unable to parse function options: %s", err.Error()))
+			r.Rule = context.Rule
+			results = append(results, r)
+			return results
+		}
+
+		// first, run the model builder on the schema
+		err = low.BuildModel(&on, &lowSchema)
+		if err != nil {
+			r := model.BuildFunctionResultString(fmt.Sprintf("unable to build low schema from function options: %s", err.Error()))
+			r.Rule = context.Rule
+			results = append(results, r)
+			return results
+		}
+
+		// now build out the low level schema.
+		err = lowSchema.Build(&on, context.Index)
+		if err != nil {
+			r := model.BuildFunctionResultString(fmt.Sprintf("unable to build high schema from function options: %s", err.Error()))
+			r.Rule = context.Rule
+			results = append(results, r)
+			return results
+		}
+
+		// now, build the high level schema
+		schema = highBase.NewSchema(&lowSchema)
 	}
 
 	// use the current node to validate (field not needed)
@@ -76,14 +109,14 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			// If the field is not found, and we're being strict, it's invalid.
 
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
-			if _, ok := forceValidation.(bool); ok {
+			if _, ko := forceValidation.(bool); ko {
 
 				r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", context.Rule.Description,
 					fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field)))
 				r.StartNode = node
 				r.EndNode = node.Content[len(node.Content)-1]
 				r.Rule = context.Rule
-				if p, ok := context.Given.(string); ok {
+				if p, df := context.Given.(string); df {
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
 				results = append(results, r)
