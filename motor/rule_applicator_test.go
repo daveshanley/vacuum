@@ -2,13 +2,16 @@ package motor
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -40,6 +43,47 @@ func TestApplyRules_PostResponseSuccess(t *testing.T) {
 	rse := &RuleSetExecution{
 		RuleSet: rs,
 		Spec:    burgershop,
+	}
+	results := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, results.Results, 0)
+}
+
+func TestApplyRules_PostResponseSuccessWithDocument(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "hello-test": {
+      "description": "this is a test for checking basic mechanics",
+      "recommended": true,
+      "type": "style",
+      "given": "$.paths.*.post.responses",
+      "then": {
+        "function": "post-response-success",
+		"functionOptions" : { 
+			"properties": [
+				"200", "201", "202", "204"
+			]
+		}
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, _ := rc.ComposeRuleSet([]byte(json))
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	var err error
+	// create a new document.
+	docConfig := datamodel.NewClosedDocumentConfiguration()
+	doc, err := libopenapi.NewDocumentWithConfiguration(burgershop, docConfig)
+	assert.NoError(t, err)
+
+	rse := &RuleSetExecution{
+		RuleSet:  rs,
+		Document: doc,
 	}
 	results := ApplyRulesToRuleSet(rse)
 
