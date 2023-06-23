@@ -108,14 +108,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	var specInfo, specInfoUnresolved *datamodel.SpecInfo
 	var doc libopenapi.Document
-	var err error
 
-	// create a new document.
-	doc, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+	if execution.Document != nil {
+		doc = execution.Document
+	} else {
+		var err error
+		// create a new document.
+		doc, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
 
-	if err != nil {
-		// Done.
-		return &RuleSetExecutionResult{Errors: []error{err}}
+		if err != nil {
+			// Done.
+			return &RuleSetExecutionResult{Errors: []error{err}}
+		}
 	}
 
 	// build model
