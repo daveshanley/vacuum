@@ -102,6 +102,42 @@ paths:
 
 }
 
+func TestPathParameters_RunRule_MissingParam_PeriodInParam(t *testing.T) {
+
+	yml := `openapi: 3.0.1
+info:
+title: pizza-cake
+paths:
+  /pizza/{cake}/{cake.id}:
+    parameters:
+      - in: path
+        name: cake
+    get:
+      parameters:
+        - in: path
+          name: cake.id
+          required: true`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := PathParameters{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+
+}
+
 func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) {
 
 	yml := `paths:
