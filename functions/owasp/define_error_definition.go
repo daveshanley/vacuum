@@ -1,6 +1,7 @@
 package owasp
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
@@ -34,10 +35,10 @@ func (cd DefineErrorDefinition) RunRule(nodes []*yaml.Node, context model.RuleFu
 
 	return []model.RuleFunctionResult{
 		{
-			Message:   "", // TODO
+			Message:   "Error '400', '422' or '4XX' was not defined",
 			StartNode: nodes[0],
 			EndNode:   utils.FindLastChildNodeWithLevel(nodes[0], 0),
-			Path:      responseCode, // TODO
+			Path:      fmt.Sprintf("%s", context.Given),
 			Rule:      context.Rule,
 		},
 	}

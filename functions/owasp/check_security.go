@@ -76,7 +76,7 @@ func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Nod
 				Message:   fmt.Sprintf("security' was not defined: for path %q in method %q.", pathPrefix, method),
 				StartNode: operation,
 				EndNode:   operation,
-				Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method), // TODO
+				Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method),
 				Rule:      context.Rule,
 			},
 		}
@@ -87,7 +87,7 @@ func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Nod
 				Message:   fmt.Sprintf("'security' is empty: for path %q in method %q.", pathPrefix, method),
 				StartNode: valueOfSecurityNode,
 				EndNode:   valueOfSecurityNode,
-				Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method), // TODO
+				Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method),
 				Rule:      context.Rule,
 			},
 		}
@@ -103,7 +103,7 @@ func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Nod
 					Message:   fmt.Sprintf("'security' has null elements: for path %q in method %q with element.", pathPrefix, method),
 					StartNode: valueOfSecurityNode.Content[k],
 					EndNode:   utils.FindLastChildNodeWithLevel(valueOfSecurityNode.Content[k], 0),
-					Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method), // TODO
+					Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method),
 					Rule:      context.Rule,
 				})
 			}
