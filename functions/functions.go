@@ -94,7 +94,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["pathsKebabCase"] = openapi_functions.PathsKebabCase{}
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
 
-		// owasp
+		// add known Owasp rules from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 		funcs["owaspRateLimitDefinition"] = owasp.RateLimitDefinition{}
 		funcs["owaspDefineErrorDefinition"] = owasp.DefineErrorDefinition{}
 		funcs["checkSecurity"] = owasp.CheckSecurity{}

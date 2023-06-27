@@ -285,17 +285,16 @@ func runRule(ctx ruleContext) {
 		givenPaths = append(givenPaths, x)
 	}
 
+	if x, ok := ctx.rule.Given.([]string); ok {
+		givenPaths = x
+	}
+
 	if x, ok := ctx.rule.Given.([]interface{}); ok {
 		for _, gpI := range x {
 			if gp, ok := gpI.(string); ok {
 				givenPaths = append(givenPaths, gp)
 			}
 		}
-	}
-
-	// for hardcoded Given statements, use []string directly
-	if x, ok := ctx.rule.Given.([]string); ok {
-		givenPaths = x
 	}
 
 	for _, givenPath := range givenPaths {
