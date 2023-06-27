@@ -21,67 +21,61 @@ import (
 var rulesetSchema string
 
 const (
-	Style                             = "style"
-	Validation                        = "validation"
-	NoVerbsInPath                     = "no-http-verbs-in-path"
-	PathsKebabCase                    = "paths-kebab-case"
-	NoAmbiguousPathsRule              = "no-ambiguous-paths"
-	OperationErrorResponse            = "operation-4xx-response"
-	OperationSuccessResponse          = "operation-success-response"
-	OperationOperationIdUnique        = "operation-operationId-unique"
-	OperationOperationId              = "operation-operationId"
-	OperationParameters               = "operation-parameters"
-	OperationSingularTag              = "operation-singular-tag"
-	OperationTagDefined               = "operation-tag-defined"
-	PathParamsRule                    = "path-params"
-	ContactProperties                 = "contact-properties"
-	InfoContact                       = "info-contact"
-	InfoDescription                   = "info-description"
-	InfoLicense                       = "info-license"
-	LicenseUrl                        = "license-url"
-	OpenAPITagsAlphabetical           = "openapi-tags-alphabetical"
-	OpenAPITags                       = "openapi-tags"
-	OperationTags                     = "operation-tags"
-	OperationDescription              = "operation-description"
-	ComponentDescription              = "component-description"
-	OperationOperationIdValidInUrl    = "operation-operationId-valid-in-url"
-	PathDeclarationsMustExist         = "path-declarations-must-exist"
-	PathKeysNoTrailingSlash           = "path-keys-no-trailing-slash"
-	PathNotIncludeQuery               = "path-not-include-query"
-	TagDescription                    = "tag-description"
-	NoRefSiblings                     = "no-$ref-siblings"
-	Oas3UnusedComponent               = "oas3-unused-component"
-	Oas2UnusedDefinition              = "oas2-unused-definition"
-	Oas2APIHost                       = "oas2-api-host"
-	Oas2APISchemes                    = "oas2-api-schemes"
-	Oas2Discriminator                 = "oas2-discriminator"
-	Oas2HostNotExample                = "oas2-host-not-example"
-	Oas3HostNotExample                = "oas3-host-not-example.com"
-	Oas2HostTrailingSlash             = "oas2-host-trailing-slash"
-	Oas3HostTrailingSlash             = "oas3-host-trailing-slash"
-	Oas2ParameterDescription          = "oas2-parameter-description"
-	Oas3ParameterDescription          = "oas3-parameter-description"
-	Oas3OperationSecurityDefined      = "oas3-operation-security-defined"
-	Oas2OperationSecurityDefined      = "oas2-operation-security-defined"
-	Oas3ValidSchemaExample            = "oas3-valid-schema-example"
-	Oas2ValidSchemaExample            = "oas2-valid-schema-example"
-	TypedEnum                         = "typed-enum"
-	DuplicatedEntryInEnum             = "duplicated-entry-in-enum"
-	NoEvalInMarkdown                  = "no-eval-in-markdown"
-	NoScriptTagsInMarkdown            = "no-script-tags-in-markdown"
-	DescriptionDuplication            = "description-duplication"
-	Oas3APIServers                    = "oas3-api-servers"
-	Oas2OperationFormDataConsumeCheck = "oas2-operation-formData-consume-check"
-	Oas2AnyOf                         = "oas2-anyOf"
-	Oas2OneOf                         = "oas2-oneOf"
-	Oas2Schema                        = "oas2-schema"
-	Oas3Schema                        = "oas3-schema"
-	SpectralOpenAPI                   = "spectral:oas"
-	SpectralOwasp                     = "spectral:owasp"
-	SpectralRecommended               = "recommended"
-	SpectralAll                       = "all"
-	SpectralOff                       = "off"
-
+	Style                                = "style"
+	Validation                           = "validation"
+	NoVerbsInPath                        = "no-http-verbs-in-path"
+	PathsKebabCase                       = "paths-kebab-case"
+	NoAmbiguousPathsRule                 = "no-ambiguous-paths"
+	OperationErrorResponse               = "operation-4xx-response"
+	OperationSuccessResponse             = "operation-success-response"
+	OperationOperationIdUnique           = "operation-operationId-unique"
+	OperationOperationId                 = "operation-operationId"
+	OperationParameters                  = "operation-parameters"
+	OperationSingularTag                 = "operation-singular-tag"
+	OperationTagDefined                  = "operation-tag-defined"
+	PathParamsRule                       = "path-params"
+	ContactProperties                    = "contact-properties"
+	InfoContact                          = "info-contact"
+	InfoDescription                      = "info-description"
+	InfoLicense                          = "info-license"
+	LicenseUrl                           = "license-url"
+	OpenAPITagsAlphabetical              = "openapi-tags-alphabetical"
+	OpenAPITags                          = "openapi-tags"
+	OperationTags                        = "operation-tags"
+	OperationDescription                 = "operation-description"
+	ComponentDescription                 = "component-description"
+	OperationOperationIdValidInUrl       = "operation-operationId-valid-in-url"
+	PathDeclarationsMustExist            = "path-declarations-must-exist"
+	PathKeysNoTrailingSlash              = "path-keys-no-trailing-slash"
+	PathNotIncludeQuery                  = "path-not-include-query"
+	TagDescription                       = "tag-description"
+	NoRefSiblings                        = "no-$ref-siblings"
+	Oas3UnusedComponent                  = "oas3-unused-component"
+	Oas2UnusedDefinition                 = "oas2-unused-definition"
+	Oas2APIHost                          = "oas2-api-host"
+	Oas2APISchemes                       = "oas2-api-schemes"
+	Oas2Discriminator                    = "oas2-discriminator"
+	Oas2HostNotExample                   = "oas2-host-not-example"
+	Oas3HostNotExample                   = "oas3-host-not-example.com"
+	Oas2HostTrailingSlash                = "oas2-host-trailing-slash"
+	Oas3HostTrailingSlash                = "oas3-host-trailing-slash"
+	Oas2ParameterDescription             = "oas2-parameter-description"
+	Oas3ParameterDescription             = "oas3-parameter-description"
+	Oas3OperationSecurityDefined         = "oas3-operation-security-defined"
+	Oas2OperationSecurityDefined         = "oas2-operation-security-defined"
+	Oas3ValidSchemaExample               = "oas3-valid-schema-example"
+	Oas2ValidSchemaExample               = "oas2-valid-schema-example"
+	TypedEnum                            = "typed-enum"
+	DuplicatedEntryInEnum                = "duplicated-entry-in-enum"
+	NoEvalInMarkdown                     = "no-eval-in-markdown"
+	NoScriptTagsInMarkdown               = "no-script-tags-in-markdown"
+	DescriptionDuplication               = "description-duplication"
+	Oas3APIServers                       = "oas3-api-servers"
+	Oas2OperationFormDataConsumeCheck    = "oas2-operation-formData-consume-check"
+	Oas2AnyOf                            = "oas2-anyOf"
+	Oas2OneOf                            = "oas2-oneOf"
+	Oas2Schema                           = "oas2-schema"
+	Oas3Schema                           = "oas3-schema"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -107,6 +101,11 @@ const (
 	OwaspConstrainedAdditionalProperties = "owasp-constrained-additionalProperties"
 	OwaspSecurityHostsHttpsOAS2          = "owasp-security-hosts-https-oas2"
 	OwaspSecurityHostsHttpsOAS3          = "owasp-security-hosts-https-oas3"
+	SpectralOpenAPI                      = "spectral:oas"
+	SpectralOwasp                        = "spectral:owasp"
+	SpectralRecommended                  = "recommended"
+	SpectralAll                          = "all"
+	SpectralOff                          = "off"
 )
 
 var log *zap.Logger
@@ -204,6 +203,13 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	// make sure the map is never nil.
 	if rs.Rules == nil {
 		rs.Rules = make(map[string]*model.Rule)
+	}
+
+	// owasp rules
+	if extends[SpectralOwasp] == SpectralAll {
+		for ruleName, rule := range GetAllOWASPRules() {
+			rs.Rules[ruleName] = rule
+		}
 	}
 
 	// add definitions.
@@ -396,16 +402,6 @@ func GenerateDefaultOpenAPIRuleSet() *RuleSet {
 		DocumentationURI: "https://quobix.com/vacuum/rulesets/all",
 		Rules:            GetAllBuiltInRules(),
 		Description:      "Every single rule that is built-in to vacuum. The full monty",
-	}
-	return set
-}
-
-// GenerateOWASPRuleSet generates a default ruleset for OWASP
-func GenerateOWASPRuleSet() *RuleSet {
-	set := &RuleSet{
-		DocumentationURI: "https://blog.stoplight.io/spectral-owasp-api-security-ruleset",
-		Rules:            GetAllOWASPRules(),
-		Description:      "Every owasp rule from the Spectral OWASP Ruleset",
 	}
 	return set
 }
