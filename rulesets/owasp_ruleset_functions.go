@@ -193,7 +193,7 @@ func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "checkSecurity",
+			Function: "owaspCheckSecurity",
 			FunctionOptions: map[string]interface{}{
 				"schemesPath": []string{"securitySchemes"},
 				"nullable":    true,
@@ -216,7 +216,7 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
-			Function: "checkSecurity",
+			Function: "owaspCheckSecurity",
 			FunctionOptions: map[string]interface{}{
 				"schemesPath": []string{"securitySchemes"},
 				"nullable":    false,
@@ -239,7 +239,7 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
-			Function: "checkSecurity",
+			Function: "owaspCheckSecurity",
 			FunctionOptions: map[string]interface{}{
 				"schemesPath": []string{"securitySchemes"},
 				"nullable":    true,
