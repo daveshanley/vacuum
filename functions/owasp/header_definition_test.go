@@ -8,18 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRateLimitDefinition_GetSchema(t *testing.T) {
+func TestHeaderDefinition_GetSchema(t *testing.T) {
 	def := HeaderDefinition{}
 	assert.Equal(t, "header_definition", def.GetSchema().Name)
 }
 
-func TestRateLimitDefinition_RunRule(t *testing.T) {
+func TestHeaderDefinition_RunRule(t *testing.T) {
 	def := HeaderDefinition{}
 	res := def.RunRule(nil, model.RuleFunctionContext{})
 	assert.Len(t, res, 0)
 }
 
-func TestRateLimitDefinition_HeaderDefinitionMissing(t *testing.T) {
+func TestHeaderDefinition_HeaderDefinitionMissing(t *testing.T) {
 
 	yml := `paths:
   /pizza/:
