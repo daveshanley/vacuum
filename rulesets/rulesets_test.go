@@ -355,9 +355,20 @@ rules:
 
 }
 
-func TestRuleSetsModel_GenerateRuleSetFromConfig_Oas_Owasp(t *testing.T) {
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Oas_SpectralOwasp(t *testing.T) {
 
 	yaml := `extends: [[spectral:oas, all], [spectral:owasp, all]]`
+
+	def := BuildDefaultRuleSets()
+	rs, _ := CreateRuleSetFromData([]byte(yaml))
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, repl.Rules, totalOwaspRules+totalRules)
+
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_Oas_VacuumOwasp(t *testing.T) {
+
+	yaml := `extends: [[spectral:oas, all], [vacuum:owasp, all]]`
 
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
