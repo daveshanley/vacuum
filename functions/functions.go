@@ -95,7 +95,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
 
 		// add owasp functions used by the owasp rules
-		funcs["owaspRateLimitDefinition"] = owasp.RateLimitDefinition{}
+		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}
 		funcs["owaspDefineErrorDefinition"] = owasp.DefineErrorDefinition{}
 		funcs["owaspCheckSecurity"] = owasp.CheckSecurity{}
 

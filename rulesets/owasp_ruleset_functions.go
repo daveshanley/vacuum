@@ -250,7 +250,6 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 }
 
 func GetOWASPDefineErrorValidationRule() *model.Rule {
-
 	return &model.Rule{
 		Name:         "Missing error response of either 400, 422 or 4XX",
 		Id:           OwaspDefineErrorValidation,
@@ -340,6 +339,13 @@ required:
 }
 
 func GetOWASPRateLimitRule() *model.Rule {
+	var (
+		xRatelimitLimit = "X-RateLimit-Limit"
+		xRateLimitLimit = "X-Rate-Limit-Limit"
+		ratelimitLimit  = "RateLimit-Limit"
+		ratelimitReset  = "RateLimit-Reset"
+	)
+
 	return &model.Rule{
 		Name:         "All 2XX and 4XX responses should define rate limiting headers",
 		Id:           OwaspRateLimit,
@@ -352,7 +358,14 @@ func GetOWASPRateLimitRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "owaspRateLimitDefinition",
+			Function: "owaspHeaderDefinition",
+			FunctionOptions: map[string]interface{}{
+				"headers": [][]string{
+					{xRatelimitLimit},
+					{xRateLimitLimit},
+					{ratelimitLimit, ratelimitReset},
+				},
+			},
 		},
 	}
 }
