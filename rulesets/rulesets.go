@@ -103,6 +103,7 @@ const (
 	OwaspSecurityHostsHttpsOAS3          = "owasp-security-hosts-https-oas3"
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
+	VacuumOwasp                          = "vacuum:owasp"
 	SpectralRecommended                  = "recommended"
 	SpectralAll                          = "all"
 	SpectralOff                          = "off"
@@ -205,8 +206,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		rs.Rules = make(map[string]*model.Rule)
 	}
 
-	// owasp rules
-	if extends[SpectralOwasp] == SpectralAll {
+	// owasp rules with spectral and vacuum namespace
+	if extends[SpectralOwasp] == SpectralAll || extends[VacuumOwasp] == SpectralAll {
 		for ruleName, rule := range GetAllOWASPRules() {
 			rs.Rules[ruleName] = rule
 		}
