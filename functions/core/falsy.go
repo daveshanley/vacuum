@@ -5,6 +5,7 @@ package core
 
 import (
 	"fmt"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -39,7 +40,7 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 
 		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if (fieldNode != nil && fieldNodeValue != nil) &&
-			(fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0") {
+			(fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0" || (fieldNodeValue.Value == "" && fieldNodeValue.Content != nil)) {
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("%s: '%s' must be falsy", context.Rule.Description, context.RuleAction.Field),
 				StartNode: node,
