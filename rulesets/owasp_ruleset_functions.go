@@ -13,7 +13,6 @@ func GetOWASPNoNumericIDsRule() *model.Rule {
 
 	// create a schema to match against.
 	opts := make(map[string]interface{})
-	// TODO: not exactly equal to the one in spectral
 	yml := `type: object
 not:
   properties:
@@ -441,6 +440,7 @@ required:
 	}
 }
 
+// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPArrayLimitRule() *model.Rule {
 
 	// create a schema to match against.
@@ -482,6 +482,7 @@ then:
 	}
 }
 
+// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPStringLimitRule() *model.Rule {
 
 	// create a schema to match against.
@@ -547,6 +548,7 @@ else:
 	}
 }
 
+// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPStringRestrictedRule() *model.Rule {
 
 	// create a schema to match against.
@@ -616,6 +618,7 @@ else:
 	}
 }
 
+// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPIntegerLimitRule() *model.Rule {
 
 	// create a schema to match against.
@@ -709,6 +712,7 @@ else:
 	}
 }
 
+// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPIntegerLimitLegacyRule() *model.Rule {
 
 	// create a schema to match against.
@@ -770,6 +774,7 @@ else:
 	}
 }
 
+// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPIntegerFormatRule() *model.Rule {
 
 	// create a schema to match against.
