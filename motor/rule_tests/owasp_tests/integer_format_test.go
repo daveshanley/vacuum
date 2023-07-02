@@ -40,7 +40,7 @@ components:
 `,
 		},
 		{
-			name: "valid case: format - int64",
+			name: "valid case: format - whatever",
 			yml: `openapi: "3.1.0"
 info:
   version: "1.0"

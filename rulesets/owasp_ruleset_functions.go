@@ -29,6 +29,7 @@ properties:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
+		Name:         "Use random IDs that cannot be guessed. UUIDs are preferred",
 		Id:           OwaspNoNumericIDs,
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
@@ -43,6 +44,7 @@ properties:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspNoNumericIDsFix,
 	}
 }
 
@@ -70,6 +72,7 @@ func GetOWASPNoHttpBasicRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
+		HowToFix:           owaspNoHttpBasicFix,
 	}
 }
 
@@ -84,7 +87,7 @@ func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 		Name:         "ApiKey passed in URL: {{error}}",
 		Id:           OwaspNoAPIKeysInURL,
 		Formats:      model.OAS3AllFormat,
-		Description:  "API Keys are (usually opaque) strings that\nare passed in headers, cookies or query parameters\nto access APIs.\nThose keys can be eavesdropped, especially when they are stored\nin cookies or passed as URL parameters.\n```\nsecurity:\n- ApiKey: []\npaths:\n  /books: {}\n  /users: {}\nsecuritySchemes:\n  ApiKey:\n    type: apiKey\n    in: cookie\n    name: X-Api-Key\n```",
+		Description:  "API Keys are (usually opaque) strings that are passed in headers, cookies or query parameters to access APIs. Those keys can be eavesdropped, especially when they are stored in cookies or passed as URL parameters.```\nsecurity:\n- ApiKey: []\npaths:\n  /books: {}\n  /users: {}\nsecuritySchemes:\n  ApiKey:\n    type: apiKey\n    in: cookie\n    name: X-Api-Key\n```",
 		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -96,6 +99,7 @@ func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
+		HowToFix:           owaspNoAPIKeysInURLFix,
 	}
 }
 
@@ -110,7 +114,7 @@ func GetOWASPNoCredentialsInURLRule() *model.Rule {
 		Name:         "Security credentials detected in path parameter: {{value}}",
 		Id:           OwaspNoCredentialsInURL,
 		Formats:      model.OAS3AllFormat,
-		Description:  "URL parameters MUST NOT contain credentials such as API key, password, or secret. See [RAC_GEN_004](https://docs.italia.it/italia/piano-triennale-ict/lg-modellointeroperabilita-docs/it/bozza/doc/04_Raccomandazioni%20di%20implementazione/04_raccomandazioni-tecniche-generali/01_globali.html?highlight=credenziali#rac-gen-004-non-passare-credenziali-o-dati-riservati-nellurl)",
+		Description:  "URL parameters MUST NOT contain credentials such as API key, password, or secret.",
 		Given:        `$..parameters[*][?(@.in =~ /(query|path)/)].name`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -122,6 +126,7 @@ func GetOWASPNoCredentialsInURLRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
+		HowToFix:           owaspNoCredentialsInURLFix,
 	}
 }
 
@@ -136,7 +141,7 @@ func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 		Name:         "Authentication scheme is considered outdated or insecure: {{value}}",
 		Id:           OwaspAuthInsecureSchemes,
 		Formats:      model.OAS3AllFormat,
-		Description:  "There are many [HTTP authorization schemes](https://www.iana.org/assignments/http-authschemes/) but some of them are now considered insecure, such as negotiating authentication using specifications like NTLM or OAuth v1",
+		Description:  "There are many HTTP authorization schemes but some of them are now considered insecure, such as negotiating authentication using specifications like NTLM or OAuth v1",
 		Given:        `$..securitySchemes[*][?(@.type=="http")].scheme`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -148,6 +153,7 @@ func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
+		HowToFix:           owaspAuthInsecureSchemesFix,
 	}
 }
 
@@ -177,6 +183,7 @@ func GetOWASPJWTBestPracticesRule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
+		HowToFix:           owaspJWTBestPracticesFix,
 	}
 }
 
@@ -185,7 +192,7 @@ func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafe,
-		Description:  "Your API should be protected by a `security` rule either at global or operation level. All operations should be protected especially when they\nnot safe (methods that do not alter the state of the server) \nHTTP methods like `POST`, `PUT`, `PATCH` and `DELETE`.\nThis is done with one or more non-empty `security` rules.\n\nSecurity rules are defined in the `securityScheme` section",
+		Description:  "Your API should be protected by a `security` rule either at global or operation level.",
 		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -200,6 +207,7 @@ func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 				"methods":     []string{"post", "put", "patch", "delete"},
 			},
 		},
+		HowToFix: owaspProtectionFix,
 	}
 }
 
@@ -208,7 +216,7 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafeStrict,
-		Description:  "Check if the operation is protected at operation level.\nOtherwise, check the global `#/security` property",
+		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `#/security` property",
 		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -223,6 +231,7 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 				"methods":     []string{"post", "put", "patch", "delete"},
 			},
 		},
+		HowToFix: owaspProtectionFix,
 	}
 }
 
@@ -231,7 +240,7 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 	return &model.Rule{
 		Name:         "This operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalSafe,
-		Description:  "Check if the operation is protected at operation level.\nOtherwise, check the global `#/security` property",
+		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `#/security` property",
 		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -246,6 +255,7 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 				"methods":     []string{"get", "head"},
 			},
 		},
+		HowToFix: owaspProtectionFix,
 	}
 }
 
@@ -263,6 +273,7 @@ func GetOWASPDefineErrorValidationRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspDefineErrorDefinition",
 		},
+		HowToFix: owaspDefineErrorValidationFix,
 	}
 }
 
@@ -281,7 +292,7 @@ required:
 	return &model.Rule{
 		Name:         "Operation is missing {{property}}",
 		Id:           OwaspDefineErrorResponses401,
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 401 describes what happens when a request is unauthorized, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
+		Description:  "OWASP API Security recommends defining schemas for all responses, even errors: 401 response error code",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
 		Formats:      model.AllFormats,
@@ -300,6 +311,7 @@ required:
 				FunctionOptions: opts,
 			},
 		},
+		HowToFix: owaspDefineErrorResponses401Fix,
 	}
 }
 
@@ -317,7 +329,7 @@ required:
 	return &model.Rule{
 		Name:         "Operation is missing {{property}}",
 		Id:           OwaspDefineErrorResponses500,
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. The 500 describes what happens when a request fails with an internal server error, so its important to define this not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces",
+		Description:  "OWASP API Security recommends defining schemas for all responses, even errors: 500 response error code",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -335,6 +347,7 @@ required:
 				FunctionOptions: opts,
 			},
 		},
+		HowToFix: owaspDefineErrorResponses500Fix,
 	}
 }
 
@@ -349,7 +362,7 @@ func GetOWASPRateLimitRule() *model.Rule {
 	return &model.Rule{
 		Name:         "All 2XX and 4XX responses should define rate limiting headers",
 		Id:           OwaspRateLimit,
-		Description:  "Define proper rate limiting to avoid attackers overloading the API. There are many ways to implement rate-limiting, but most of them involve using HTTP headers, and there are two popular ways to do that:\n\nIETF Draft HTTP RateLimit Headers:. https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/\n\nCustomer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)",
+		Description:  "Define proper rate limiting to avoid attackers overloading the API.",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
@@ -367,6 +380,7 @@ func GetOWASPRateLimitRule() *model.Rule {
 				},
 			},
 		},
+		HowToFix: owaspRateLimitFix,
 	}
 }
 
@@ -387,6 +401,7 @@ func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 			Field:    "Retry-After",
 			Function: "defined",
 		},
+		HowToFix: owaspRateLimitRetryAfterFix,
 	}
 }
 
@@ -404,7 +419,7 @@ required:
 	return &model.Rule{
 		Name:         "Operation is missing rate limiting response in {{property}}",
 		Id:           OwaspDefineErrorResponses429,
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors. A HTTP 429 response signals the API client is making too many requests, and will supply information about when to retry so that the client can back off calmly without everything breaking. Defining this response is important not just for documentation, but to empower contract testing to make sure the proper JSON structure is being returned instead of leaking implementation details in backtraces. It also ensures your API/framework/gateway actually has rate limiting set up",
+		Description:  "OWASP API Security recommends defining schemas for all responses, even errors: 429 response error code.",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -422,6 +437,7 @@ required:
 				FunctionOptions: opts,
 			},
 		},
+		HowToFix: owaspDefineErrorResponses429Fix,
 	}
 }
 
@@ -448,7 +464,7 @@ then:
 	return &model.Rule{
 		Name:        "Schema of type array must specify maxItems",
 		Id:          OwaspArrayLimit,
-		Description: "Array size should be limited to mitigate resource exhaustion attacks. This can be done using `maxItems`. You should ensure that the subschema in `items` is constrained too",
+		Description: "Array size should be limited to mitigate resource exhaustion attacks.",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
@@ -462,6 +478,7 @@ then:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspArrayLimitFix,
 	}
 }
 
@@ -526,6 +543,7 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspStringLimitFix,
 	}
 }
 
@@ -594,6 +612,7 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspStringRestrictedFix,
 	}
 }
 
@@ -672,7 +691,7 @@ else:
 	return &model.Rule{
 		Name:        "Schema of type integer must specify minimum and maximum",
 		Id:          OwaspIntegerLimit,
-		Description: "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected",
+		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
@@ -686,6 +705,7 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspIntegerLimitFix,
 	}
 }
 
@@ -732,7 +752,7 @@ else:
 	return &model.Rule{
 		Name:        "Schema of type integer must specify minimum and maximum",
 		Id:          OwaspIntegerLimitLegacy,
-		Description: "Integers should be limited to mitigate resource exhaustion attacks. This can be done using `minimum` and `maximum`, which can with e.g.: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected",
+		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
@@ -746,6 +766,7 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspIntegerLimitFix,
 	}
 }
 
@@ -788,7 +809,7 @@ else:
 	return &model.Rule{
 		Name:        "Schema of type integer must specify format (int32 or int64)",
 		Id:          OwaspIntegerFormat,
-		Description: "Integers should be limited to mitigate resource exhaustion attacks. Specifying whether int32 or int64 is expected via `format`",
+		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
@@ -802,6 +823,7 @@ else:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspIntegerFormatFix,
 	}
 }
 
@@ -810,7 +832,7 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 	return &model.Rule{
 		Name:         "If the additionalProperties keyword is used it must be set to false",
 		Id:           OwaspNoAdditionalProperties,
-		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties`",
+		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
 		Given:        `$..[?(@.type=="object" && @.additionalProperties)]`,
 		Resolved:     false,
 		Formats:      append(model.OAS2Format, model.OAS3Format...),
@@ -818,10 +840,13 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
-		Then: model.RuleAction{
-			Field:    "additionalProperties",
-			Function: "falsy",
+		Then: []model.RuleAction{
+			{
+				Field:    "additionalProperties",
+				Function: "falsy",
+			},
 		},
+		HowToFix: owaspNoAdditionalPropertiesFix,
 	}
 }
 
@@ -830,7 +855,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Objects should not allow unconstrained additionalProperties",
 		Id:           OwaspConstrainedAdditionalProperties,
-		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues, where unspecified fields are passed to the API without validation. Disable them with `additionalProperties: false` or add `maxProperties`",
+		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
 		Given:        `$..[?(@.type=="object" && @.additionalProperties!=true && @.additionalProperties!=false )]`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
@@ -842,6 +867,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 			Field:    "maxProperties",
 			Function: "defined",
 		},
+		HowToFix: owaspNoAdditionalPropertiesFix,
 	}
 }
 
@@ -860,7 +886,7 @@ items:
 	return &model.Rule{
 		Name:        "All servers defined MUST use https, and no other protocol is permitted",
 		Id:          OwaspSecurityHostsHttpsOAS2,
-		Description: "All server interactions MUST use the https protocol, so the only OpenAPI scheme being used should be `https`.\n\nLearn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html",
+		Description: "All server interactions MUST use the https protocol, so the only OpenAPI scheme being used should be `https`.",
 		Given: []string{
 			`$.schemes`,
 		},
@@ -874,6 +900,7 @@ items:
 			Function:        "schema",
 			FunctionOptions: opts,
 		},
+		HowToFix: owaspSecurityHostsHttpsOAS2Fix,
 	}
 }
 
@@ -887,7 +914,7 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 	return &model.Rule{
 		Name:        "Server URLs MUST begin https://, and no other protocol is permitted",
 		Id:          OwaspSecurityHostsHttpsOAS3,
-		Description: "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.\n\nLearn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html",
+		Description: "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.",
 		Given: []string{
 			`$.servers..url`,
 		},
@@ -902,5 +929,6 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 			FunctionOptions: opts,
 		},
 		PrecompiledPattern: comp,
+		HowToFix:           owaspSecurityHostsHttpsOAS3Fix,
 	}
 }

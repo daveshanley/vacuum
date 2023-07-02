@@ -72,7 +72,13 @@ components:
 
 func TestRuleSet_OWASPNoAdditionalProperties_Error(t *testing.T) {
 
-	yml := `openapi: "3.0.0"
+	tc := []struct {
+		name string
+		yml  string
+	}{
+		{
+			name: "invalid case: additionalProperties set to true (oas3)",
+			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
 components:
@@ -80,21 +86,43 @@ components:
     Foo:
       type: object
       additionalProperties: true
-`
+`,
+		},
+		{
+			name: "invalid case: additionalProperties set to an object (oas3)",
+			yml: `openapi: "3.0.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          code:
+            type: integer
+          text:
+            type: string
+`,
+		},
+	}
 
-	t.Run("invalid case: additionalProperties set to true (oas3)", func(t *testing.T) {
-		rules := make(map[string]*model.Rule)
-		rules["owasp-no-additionalProperties"] = rulesets.GetOWASPNoAdditionalPropertiesRule()
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			rules := make(map[string]*model.Rule)
+			rules["owasp-no-additionalProperties"] = rulesets.GetOWASPNoAdditionalPropertiesRule()
 
-		rs := &rulesets.RuleSet{
-			Rules: rules,
-		}
+			rs := &rulesets.RuleSet{
+				Rules: rules,
+			}
 
-		rse := &motor.RuleSetExecution{
-			RuleSet: rs,
-			Spec:    []byte(yml),
-		}
-		results := motor.ApplyRulesToRuleSet(rse)
-		assert.Len(t, results.Results, 1)
-	})
+			rse := &motor.RuleSetExecution{
+				RuleSet: rs,
+				Spec:    []byte(tt.yml),
+			}
+			results := motor.ApplyRulesToRuleSet(rse)
+			assert.Len(t, results.Results, 1)
+		})
+	}
 }
