@@ -106,16 +106,17 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		config.AllowFileLookup = true
 	}
 
-	var specInfo, specInfoUnresolved *datamodel.SpecInfo
-	var doc libopenapi.Document
-	var err error
+	doc := execution.Document
 
-	// create a new document.
-	doc, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+	if doc == nil {
+		var err error
+		// create a new document.
+		doc, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
 
-	if err != nil {
-		// Done.
-		return &RuleSetExecutionResult{Errors: []error{err}}
+		if err != nil {
+			// Done.
+			return &RuleSetExecutionResult{Errors: []error{err}}
+		}
 	}
 
 	// build model
@@ -127,29 +128,28 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	case '2':
 		var docModel *libopenapi.DocumentModel[v2.Swagger]
 		docModel, docModelErrors = doc.BuildV2Model()
-		if execution.SpecInfo == nil {
-			specInfo = doc.GetSpecInfo()
-			specInfoUnresolved, _ = datamodel.ExtractSpecInfo(execution.Spec)
-		} else {
-			specInfo = execution.SpecInfo
-			specInfoUnresolved = execution.SpecInfo
-		}
+
 		if docModel != nil {
 			modelIndex = docModel.Index
 		}
 	case '3':
 		var docModel *libopenapi.DocumentModel[v3.Document]
 		docModel, docModelErrors = doc.BuildV3Model()
-		if execution.SpecInfo == nil {
-			specInfo = doc.GetSpecInfo()
-			specInfoUnresolved, _ = datamodel.ExtractSpecInfo(execution.Spec)
-		} else {
-			specInfo = execution.SpecInfo
-			specInfoUnresolved = execution.SpecInfo
-		}
+
 		if docModel != nil {
 			modelIndex = docModel.Index
 		}
+	}
+
+	specInfo := execution.SpecInfo
+	specInfoUnresolved := execution.SpecInfo
+	if execution.SpecInfo == nil {
+		specInfo = doc.GetSpecInfo()
+		spec := execution.Spec
+		if spec == nil {
+			spec, _ = doc.Serialize()
+		}
+		specInfoUnresolved, _ = datamodel.ExtractSpecInfo(spec)
 	}
 
 	specUnresolved = specInfoUnresolved.RootNode
@@ -301,6 +301,7 @@ func runRule(ctx ruleContext) {
 
 		var nodes []*yaml.Node
 		var err error
+
 		if givenPath != "$" {
 			nodes, err = utils.FindNodesWithoutDeserializing(ctx.specNode, givenPath)
 		} else {
@@ -381,7 +382,6 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				lock.Unlock()
 			}
 		} else {
-
 			// iterate through nodes and supply them one at a time so we don't pollute each run
 			for _, node := range nodes {
 
