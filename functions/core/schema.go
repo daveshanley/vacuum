@@ -93,6 +93,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		if x%2 == 0 && len(nodes) > 1 {
 			continue
 		}
+
 		// if the node is a document node, skip down one level
 		var no []*yaml.Node
 		if node.Kind == yaml.DocumentNode {

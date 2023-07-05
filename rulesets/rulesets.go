@@ -197,13 +197,6 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
-	// add owasp rules
-	if extends[SpectralOwasp] == SpectralOwasp {
-		for ruleName, rule := range GetAllOWASPRules() {
-			rs.Rules[ruleName] = rule
-		}
-	}
-
 	if ruleset.DocumentationURI == "" {
 		ruleset.DocumentationURI = "https://quobix.com/vacuum/rulesets/understanding"
 	}
