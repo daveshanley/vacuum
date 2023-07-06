@@ -4,6 +4,7 @@
 package motor
 
 import (
+	"fmt"
 	"net/url"
 	"sync"
 
@@ -260,6 +261,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		ruleWaitGroup.Wait()
 	}
 
+	ruleResults = *removeDuplicates(&ruleResults)
+
 	return &RuleSetExecutionResult{
 		RuleSetExecution: execution,
 		Results:          ruleResults,
@@ -410,4 +413,49 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		}
 	}
 	return ctx.ruleResults
+}
+
+type seenResult struct {
+	location string
+	message  string
+}
+
+func removeDuplicates(results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
+	seen := make(map[string][]*seenResult)
+	var newResults []model.RuleFunctionResult
+	for _, result := range *results {
+		if result.RuleId == "" && result.Rule != nil && result.Rule.Id != "" {
+			result.RuleId = result.Rule.Id
+		}
+		if r, ok := seen[result.RuleId]; !ok {
+			if result.StartNode != nil {
+				seen[result.RuleId] = []*seenResult{
+					{
+						fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
+						result.Message,
+					},
+				}
+				newResults = append(newResults, result)
+			}
+		} else {
+		stopNowPlease:
+			for _, line := range r {
+				if line.location == fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column) &&
+					line.message == result.Message {
+					break stopNowPlease
+				}
+				if result.StartNode != nil {
+					seen[result.RuleId] = []*seenResult{
+						{
+							fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
+							result.Message,
+						},
+					}
+					newResults = append(newResults, result)
+				}
+			}
+		}
+	}
+
+	return &newResults
 }

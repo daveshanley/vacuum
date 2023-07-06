@@ -36,6 +36,11 @@ func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*rulesets.RuleSet, error
 	// check builtinFunctions exist for rules defined
 	for k, v := range rs.Rules {
 
+		// map ID if it's not been set.
+		if v.Id == "" {
+			v.Id = k
+		}
+
 		if v.Then != nil {
 
 			var ruleAction model.RuleAction

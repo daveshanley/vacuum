@@ -25,6 +25,7 @@ const (
 	CategorySecurity     = "security"
 	CategoryTags         = "tags"
 	CategoryValidation   = "validation"
+	CategoryOWASP        = "OWASP"
 	CategoryAll          = "all"
 )
 

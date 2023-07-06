@@ -22,12 +22,10 @@ type HeaderDefinition struct {
 func (m message) String() string {
 	oout := ""
 	for _, headerSet := range m.headersSets {
-		oout += "{" + strings.Join(headerSet, ", ") + "}"
+		oout += "{" + strings.Join(headerSet, ", ") + "} "
 	}
 
-	return fmt.Sprintf(`response with code %d, must contain one of the defined 'headers' set:
-		{%s}`, m.responseCode, oout,
-	)
+	return fmt.Sprintf(`Response with code %d, must contain one of the defined 'headers': {%s}`, m.responseCode, oout)
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the HeaderDefinition rule.

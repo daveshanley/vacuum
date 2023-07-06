@@ -213,6 +213,13 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		}
 	}
 
+	// owasp rules with spectral and vacuum namespace (recommended)
+	if extends[SpectralOwasp] == SpectralRecommended || extends[VacuumOwasp] == SpectralRecommended {
+		for ruleName, rule := range GetRecommendedOWASPRules() {
+			rs.Rules[ruleName] = rule
+		}
+	}
+
 	// add definitions.
 	rs.RuleDefinitions = ruleset.RuleDefinitions
 
@@ -362,6 +369,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[OperationErrorResponse] = GetOperationErrorResponseRule()
 	rules[Oas2Schema] = GetOAS2SchemaRule()
 	rules[Oas3Schema] = GetOAS3SchemaRule()
+
 	return rules
 }
 
@@ -397,7 +405,12 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	return rules
 }
 
-// GenerateDefaultOpenAPIRuleSet generates a default ruleset for OpenAPI. All the built in rules, ready to go.
+// GetRecommendedOWASPRules returns a map of all the OWASP rules available, ready to be used in a RuleSet.
+func GetRecommendedOWASPRules() map[string]*model.Rule {
+	return GetAllOWASPRules() // change if we need to customize this in the future.
+}
+
+// GenerateDefaultOpenAPIRuleSet generates a default ruleset for OpenAPI. All the built-in rules, ready to go.
 func GenerateDefaultOpenAPIRuleSet() *RuleSet {
 	set := &RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rulesets/all",

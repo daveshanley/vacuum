@@ -50,7 +50,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				pathValue = fmt.Sprintf("%s[%d]", pathValue, x)
 			}
 
-			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) {
+			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) && !utils.IsNodeMap(fieldNodeValue) {
 				var endNode *yaml.Node
 				if len(node.Content) > 0 {
 					endNode = node.Content[len(node.Content)-1]

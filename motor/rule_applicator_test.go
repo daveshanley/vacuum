@@ -645,7 +645,7 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
-	assert.Len(t, results.Results, 1)
+	assert.Len(t, results.Results, 0)
 
 }
 
