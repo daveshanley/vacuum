@@ -5,6 +5,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
@@ -126,6 +127,8 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	return results
 }
 
+var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}
+
 func validateNodeAgainstSchema(schema *highBase.Schema, field *yaml.Node,
 	context model.RuleFunctionContext, x int) []model.RuleFunctionResult {
 
@@ -153,7 +156,22 @@ func validateNodeAgainstSchema(schema *highBase.Schema, field *yaml.Node,
 		if p, ok := context.Given.(string); ok {
 			r.Path = fmt.Sprintf("%s[%d]", p, x)
 		}
-		results = append(results, r)
+		if p, ok := context.Given.([]string); ok {
+			r.Path = fmt.Sprintf("%s[%d]", p[0], x)
+		}
+
+		banned := false
+		for g := range bannedErrors {
+			if strings.Contains(schemaErrors[c].Reason, bannedErrors[g]) {
+				banned = true
+				continue
+			}
+		}
+
+		if !banned {
+			results = append(results, r)
+		}
+
 	}
 	return results
 }

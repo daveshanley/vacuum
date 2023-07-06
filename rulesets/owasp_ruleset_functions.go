@@ -28,13 +28,13 @@ properties:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "Use random IDs that cannot be guessed. UUIDs are preferred",
+		Name:         "Use random IDs that cannot be guessed.",
 		Id:           OwaspNoNumericIDs,
 		Formats:      model.AllFormats,
 		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
 		Given:        `$.paths..parameters[*][?(@.name == "id" || @.name =~ /(_id|Id|-id)$/)))]`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -55,13 +55,13 @@ func GetOWASPNoHttpBasicRule() *model.Rule {
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 
 	return &model.Rule{
-		Name:         "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
+		Name:         "Security scheme uses HTTP Basic.",
 		Id:           OwaspNoHttpBasic,
 		Formats:      model.AllFormats,
-		Description:  "Basic authentication credentials transported over network are more susceptible to interception than other forms of authentication, and as they are not encrypted it means passwords and tokens are more easily leaked",
+		Description:  "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
 		Given:        `$.components.securitySchemes[*]`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -83,13 +83,13 @@ func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 
 	return &model.Rule{
-		Name:         "ApiKey passed in URL: {{error}}",
+		Name:         "API Key detected in URL",
 		Id:           OwaspNoAPIKeysInURL,
 		Formats:      model.OAS3AllFormat,
-		Description:  "API Keys are (usually opaque) strings that are passed in headers, cookies or query parameters to access APIs. Those keys can be eavesdropped, especially when they are stored in cookies or passed as URL parameters.```\nsecurity:\n- ApiKey: []\npaths:\n  /books: {}\n  /users: {}\nsecuritySchemes:\n  ApiKey:\n    type: apiKey\n    in: cookie\n    name: X-Api-Key\n```",
+		Description:  "API Key has been detected in an URL",
 		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -110,13 +110,13 @@ func GetOWASPNoCredentialsInURLRule() *model.Rule {
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 
 	return &model.Rule{
-		Name:         "Security credentials detected in path parameter: {{value}}",
+		Name:         "Security credentials detected in path parameter",
 		Id:           OwaspNoCredentialsInURL,
 		Formats:      model.OAS3AllFormat,
-		Description:  "URL parameters MUST NOT contain credentials such as API key, password, or secret.",
+		Description:  "URL parameters must not contain credentials such as API key, password, or secret.",
 		Given:        `$..parameters[*][?(@.in =~ /(query|path)/)].name`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -137,13 +137,13 @@ func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 	comp, _ := regexp.Compile(opts["notMatch"].(string))
 
 	return &model.Rule{
-		Name:         "Authentication scheme is considered outdated or insecure: {{value}}",
+		Name:         "Authentication scheme is considered outdated or insecure",
 		Id:           OwaspAuthInsecureSchemes,
 		Formats:      model.OAS3AllFormat,
-		Description:  "There are many HTTP authorization schemes but some of them are now considered insecure, such as negotiating authentication using specifications like NTLM or OAuth v1",
+		Description:  "Authentication scheme is considered outdated or insecure",
 		Given:        `$..securitySchemes[*][?(@.type=="http")].scheme`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -164,15 +164,15 @@ func GetOWASPJWTBestPracticesRule() *model.Rule {
 	comp, _ := regexp.Compile(opts["match"].(string))
 
 	return &model.Rule{
-		Name:        "Security schemes using JWTs must explicitly declare support for RFC8725 in the description",
+		Name:        "JWTs must explicitly declare support for `RFC8725`",
 		Id:          OwaspJWTBestPractices,
-		Description: "",
+		Description: "JWTs must explicitly declare support for RFC8725 in the description",
 		Given: []string{
 			`$..securitySchemes[*][?(@.type=="oauth2")]`,
 			`$..securitySchemes[*][?(@.bearerFormat=="jwt" || @.bearerFormat=="JWT")]`,
 		},
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -189,12 +189,12 @@ func GetOWASPJWTBestPracticesRule() *model.Rule {
 // https://github.com/italia/api-oas-checker/blob/master/security/security.yml
 func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 	return &model.Rule{
-		Name:         "This operation is not protected by any security scheme",
+		Name:         "Operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafe,
-		Description:  "Your API should be protected by a `security` rule either at global or operation level.",
+		Description:  "API should be protected by a `security` rule either at global or operation level.",
 		Given:        `$`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -213,12 +213,12 @@ func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 // https://github.com/italia/api-oas-checker/blob/master/security/security.yml
 func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 	return &model.Rule{
-		Name:         "This operation is not protected by any security scheme",
+		Name:         "Operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafeStrict,
-		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `#/security` property",
+		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `security` property",
 		Given:        `$`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityInfo,
@@ -237,12 +237,12 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 // https://github.com/italia/api-oas-checker/blob/master/security/security.yml
 func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 	return &model.Rule{
-		Name:         "This operation is not protected by any security scheme",
+		Name:         "Operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalSafe,
-		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `#/security` property",
+		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `security` property",
 		Given:        `$`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityInfo,
@@ -260,12 +260,12 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 
 func GetOWASPDefineErrorValidationRule() *model.Rule {
 	return &model.Rule{
-		Name:         "Missing error response of either 400, 422 or 4XX",
+		Name:         "Missing error response of either `400`, `422` or `4XX`",
 		Id:           OwaspDefineErrorValidation,
-		Description:  "Carefully define schemas for all the API responses, including either 400, 422 or 4XX responses which describe errors caused by invalid requests",
+		Description:  "Missing error response of either `400`, `422` or `4XX`, Ensure all errors are documented.",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
@@ -289,13 +289,13 @@ required:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "Operation is missing {{property}}",
+		Name:         "Operation is missing a `401` error response",
 		Id:           OwaspDefineErrorResponses401,
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors: 401 response error code",
+		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 401",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
@@ -326,12 +326,12 @@ required:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "Operation is missing {{property}}",
+		Name:         "Operation is missing a `500` error response",
 		Id:           OwaspDefineErrorResponses500,
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors: 500 response error code",
+		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 500",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
@@ -359,13 +359,13 @@ func GetOWASPRateLimitRule() *model.Rule {
 	)
 
 	return &model.Rule{
-		Name:         "All 2XX and 4XX responses should define rate limiting headers",
+		Name:         "`2XX` and `4XX` responses should define rate limiting headers",
 		Id:           OwaspRateLimit,
 		Description:  "Define proper rate limiting to avoid attackers overloading the API.",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -386,13 +386,13 @@ func GetOWASPRateLimitRule() *model.Rule {
 func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "A 429 response should define a Retry-After header",
+		Name:         "A `429` response should define a `Retry-After` header",
 		Id:           OwaspRateLimitRetryAfter,
-		Description:  "Define proper rate limiting to avoid attackers overloading the API. Part of that involves setting a Retry-After header so well meaning consumers are not polling and potentially exacerbating problems",
+		Description:  "Ensure that any `429` response, contains a `Retry-After` header.  ",
 		Given:        `$..responses.429.headers`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -416,12 +416,12 @@ required:
 	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
 
 	return &model.Rule{
-		Name:         "Operation is missing rate limiting response in {{property}}",
+		Name:         "Operation is missing a `429` rate limiting error response",
 		Id:           OwaspDefineErrorResponses429,
-		Description:  "OWASP API Security recommends defining schemas for all responses, even errors: 429 response error code.",
+		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 429",
 		Given:        `$.paths..responses`,
 		Resolved:     false,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
@@ -470,7 +470,7 @@ then:
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -530,13 +530,13 @@ else:
 	return &model.Rule{
 		Name:        "Schema of type string must specify maxLength, enum, or const",
 		Id:          OwaspStringLimit,
-		Description: "String size should be limited to mitigate resource exhaustion attacks. This can be done using `maxLength`, `enum` or `const`",
+		Description: "String size should be limited to mitigate resource exhaustion attacks.",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -598,15 +598,15 @@ else:
 	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
-		Name:        "Schema of type string must specify a format, pattern, enum, or const",
+		Name:        "Schema of type string must specify a `format`, `pattern`, `enum`, or `const`",
 		Id:          OwaspStringRestricted,
-		Description: "To avoid unexpected values being sent or leaked, ensure that strings have either a `format`, RegEx `pattern`, `enum`, or `const`",
+		Description: "String must specify a `format`, RegEx `pattern`, `enum`, or `const`",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -692,15 +692,15 @@ else:
 	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
-		Name:        "Schema of type integer must specify minimum and maximum",
+		Name:        "Schema of type integer must specify `minimum` and `maximum` or `exclusiveMinimum` and `exclusiveMaximum`",
 		Id:          OwaspIntegerLimit,
-		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
+		Description: "Integers should be limited via min/max values to mitigate resource exhaustion attacks.",
 		Given: []string{
 			`$..[?(@.type)]`,
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -754,7 +754,7 @@ else:
 	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
-		Name:        "Schema of type integer must specify minimum and maximum",
+		Name:        "Schema of type integer must specify `minimum` and `maximum`",
 		Id:          OwaspIntegerLimitLegacy,
 		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
 		Given: []string{
@@ -762,7 +762,7 @@ else:
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -820,7 +820,7 @@ else:
 		},
 		Resolved:     false,
 		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -864,7 +864,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Given:        `$..[?(@.type=="object" && @.additionalProperties!=true && @.additionalProperties!=false )]`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
@@ -889,15 +889,15 @@ items:
 	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
 
 	return &model.Rule{
-		Name:        "All servers defined MUST use https, and no other protocol is permitted",
+		Name:        "All servers defined must use TLS (https), no other protocol is permitted",
 		Id:          OwaspSecurityHostsHttpsOAS2,
-		Description: "All server interactions MUST use the https protocol, so the only OpenAPI scheme being used should be `https`.",
+		Description: "All server interactions MUST use TLS, so the only OpenAPI scheme being used should be `https`.",
 		Given: []string{
 			`$.schemes`,
 		},
 		Resolved:     false,
 		Formats:      model.OAS2Format,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
@@ -917,7 +917,7 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 	comp, _ := regexp.Compile(opts["match"].(string))
 
 	return &model.Rule{
-		Name:        "Server URLs MUST begin https://, and no other protocol is permitted",
+		Name:        "Server URLs MUST begin with `https`. No other protocol is permitted",
 		Id:          OwaspSecurityHostsHttpsOAS3,
 		Description: "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.",
 		Given: []string{
@@ -925,7 +925,7 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 		},
 		Resolved:     false,
 		Formats:      model.OAS3Format,
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,

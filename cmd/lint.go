@@ -159,6 +159,8 @@ func GetLintCommand() *cobra.Command {
 					cats = append(cats, model.RuleCategories[model.CategoryOperations])
 				case model.CategoryTags:
 					cats = append(cats, model.RuleCategories[model.CategoryTags])
+				case model.CategoryOWASP:
+					cats = append(cats, model.RuleCategories[model.CategoryOWASP])
 				default:
 					cats = model.RuleCategoriesOrdered
 				}
@@ -231,7 +233,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 	// we just render the entire table, all rows.
 	var tableData [][]string
 	if !snippets {
-		tableData = [][]string{{"Line / Column", "Severity", "Message", "Path"}}
+		tableData = [][]string{{"Line / Column", "Severity", "Message", "Rule", "Path"}}
 	}
 	for i, r := range results {
 
@@ -241,7 +243,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			break
 		}
 		if snippets {
-			tableData = [][]string{{"Line / Column", "Severity", "Message", "Path"}}
+			tableData = [][]string{{"Line / Column", "Severity", "Message", "Rule", "Path"}}
 		}
 		startLine := 0
 		startCol := 0
@@ -259,7 +261,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 		}
 
 		if len(r.Message) > 100 {
-			m = fmt.Sprintf("%s...", r.Message[:100])
+			//m = fmt.Sprintf("%s...", r.Message[:100])
 		}
 
 		sev := "nope"
@@ -280,7 +282,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			continue // only show errors
 		}
 
-		tableData = append(tableData, []string{start, sev, m, p})
+		tableData = append(tableData, []string{start, sev, m, r.Rule.Id, p})
 
 		if snippets && !silent {
 			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()

@@ -59,6 +59,13 @@ func init() {
 		Description: "Validation rules make sure that certain characters or patterns have not been used that may cause" +
 			"issues when rendering in different types of applications.",
 	}
+	RuleCategories[CategoryOWASP] = &RuleCategory{
+		Id:   CategoryOWASP,
+		Name: "OWASP",
+		Description: "OWASP API rules check against the most common security risks in web applications " +
+			"and APIs. These rules check for common security risks and mistakes. ",
+	}
+
 	RuleCategories[CategoryAll] = &RuleCategory{
 		Id:          CategoryAll,
 		Name:        "All Categories",
@@ -74,5 +81,6 @@ func init() {
 		RuleCategories[CategoryDescriptions],
 		RuleCategories[CategorySecurity],
 		RuleCategories[CategoryExamples],
+		RuleCategories[CategoryOWASP],
 	)
 }
