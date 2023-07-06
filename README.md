@@ -61,6 +61,13 @@ come say hi!
 
 ## Documentation
 
+---
+🔥 **New in** `v.2.0` 🔥 : [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
+
+[Learn more about enabling OWASP API rules](https://quobix.com/vacuum/rulesets/owasp/).
+
+---
+
 ### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
 
 See all the documentation at https://quobix.com/vacuum
@@ -88,6 +95,7 @@ See all the documentation at https://quobix.com/vacuum
   - [Operations & Paths](https://quobix.com/vacuum/rules/operations/)
   - [Validation](https://quobix.com/vacuum/rules/validation/)
   - [Security](https://quobix.com/vacuum/rules/security/)
+  - [OWASP](https://quobix.com/vacuum/rules/owasp/)
 - [Functions](https://quobix.com/vacuum/functions/)
   - [Core Functions](https://quobix.com/vacuum/functions/core/) 
   - [OpenAPI Functions](https://quobix.com/vacuum/functions/openapi/)
