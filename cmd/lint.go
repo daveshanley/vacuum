@@ -260,8 +260,8 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			p = fmt.Sprintf("%s...", r.Path[:60])
 		}
 
-		if len(r.Message) > 100 {
-			//m = fmt.Sprintf("%s...", r.Message[:100])
+		if len(r.Message) > 180 {
+			m = fmt.Sprintf("%s...", r.Message[:180])
 		}
 
 		sev := "nope"
