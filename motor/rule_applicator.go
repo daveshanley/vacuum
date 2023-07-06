@@ -285,6 +285,10 @@ func runRule(ctx ruleContext) {
 		givenPaths = append(givenPaths, x)
 	}
 
+	if x, ok := ctx.rule.Given.([]string); ok {
+		givenPaths = x
+	}
+
 	if x, ok := ctx.rule.Given.([]interface{}); ok {
 		for _, gpI := range x {
 			if gp, ok := gpI.(string); ok {

@@ -5,6 +5,7 @@ package core
 
 import (
 	"fmt"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
@@ -79,6 +80,13 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 		// now, build the high level schema
 		schema = highBase.NewSchema(&lowSchema)
+	}
+
+	// use the current node to validate (field not needed)
+	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
+	if _, ok := forceValidationOnCurrentNode.(bool); ok && len(nodes) > 0 {
+		results = append(results, validateNodeAgainstSchema(schema, nodes[0], context, 0)...)
+		return results
 	}
 
 	for x, node := range nodes {

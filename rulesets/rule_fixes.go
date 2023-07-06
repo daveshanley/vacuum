@@ -154,3 +154,27 @@ const (
 		"used to inform clients they are using the API incorrectly, with bad input, or malformed requests. An API with no errors" +
 		"defined is really hard to navigate."
 )
+
+const (
+	owaspNoNumericIDsFix            = "For any parameter which ends in id, use type string with uuid format instead of type integer."
+	owaspNoHttpBasicFix             = "Do not use basic authentication method, use a more secure authentication method (e.g., bearer)."
+	owaspNoAPIKeysInURLFix          = "Make sure that the apiKey is not part of the URL (path or query): https://blog.stoplight.io/api-keys-best-practices-to-authenticate-apis"
+	owaspNoCredentialsInURLFix      = "Remove credentials from the URL."
+	owaspAuthInsecureSchemesFix     = "Use a different authorization scheme. Refer to https://www.iana.org/assignments/http-authschemes/ to know more about HTTP Authentication Schemes."
+	owaspJWTBestPracticesFix        = "Explicitly state, in the description of the security schemes, that it allows for support of the RFC8725: https://datatracker.ietf.org/doc/html/rfc8725."
+	owaspRateLimitFix               = "Implement rate-limiting using HTTP headers: https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/ Customer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)"
+	owaspRateLimitRetryAfterFix     = "Set the Retry-After header in the 429 response."
+	owaspProtectionFix              = "Make sure that all operations should be protected especially when they are not safe (methods that do not alter the state of the server) HTTP methods like `POST`, `PUT`, `PATCH`, and `DELETE`. This is done with one or more non-empty `security` rules. Security rules are defined in the `securityScheme` section."
+	owaspDefineErrorValidationFix   = "Extend the responses of all endpoints to support either 400, 422, or 4XX error codes."
+	owaspDefineErrorResponses401Fix = "For all endpoints, make sure that the 401 response code is defined as well as its contents."
+	owaspDefineErrorResponses500Fix = "For all endpoints, make sure that the 500 response code is defined as well as its contents."
+	owaspDefineErrorResponses429Fix = "For all endpoints, make sure that the 429 response code is defined as well as its contents."
+	owaspArrayLimitFix              = "Add `maxItems` for Schema of type 'array'. You should ensure that the subschema in `items` is constrained too."
+	owaspStringLimitFix             = "Use `maxLength`, `enum`, or `const`."
+	owaspStringRestrictedFix        = "Ensure that strings have either a `format`, RegEx `pattern`, `enum`, or `const`."
+	owaspIntegerLimitFix            = "Use `minimum` and `maximum` properties for integer types: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected."
+	owaspIntegerFormatFix           = "Specify whether int32 or int64 is expected via `format`."
+	owaspNoAdditionalPropertiesFix  = "Disable additional properties by setting `additionalProperties` to `false` or add `maxProperties`."
+	owaspSecurityHostsHttpsOAS2Fix  = "Ensure that you are using the HTTPS protocol. Learn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html."
+	owaspSecurityHostsHttpsOAS3Fix  = "Prefix server URLs with the HTTPS protocol: `https://`. Learn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html."
+)

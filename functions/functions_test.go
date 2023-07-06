@@ -1,11 +1,12 @@
 package functions
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 42)
+	assert.Len(t, funcs.GetAllFunctions(), 45)
 }
