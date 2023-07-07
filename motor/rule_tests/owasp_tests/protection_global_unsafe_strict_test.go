@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"log"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -89,7 +88,6 @@ components:
 			Spec:    []byte(yml),
 		}
 		results := motor.ApplyRulesToRuleSet(rse)
-		log.Println(results.Results)
 		assert.Len(t, results.Results, 2)
 	})
 }
