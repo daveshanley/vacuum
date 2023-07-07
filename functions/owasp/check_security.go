@@ -73,7 +73,7 @@ func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Nod
 	if valueOfSecurityNode == nil {
 		return []model.RuleFunctionResult{
 			{
-				Message:   fmt.Sprintf("security' was not defined: for path %q in method %q.", pathPrefix, method),
+				Message:   fmt.Sprintf("'security' was not defined: for path %q in method %q.", pathPrefix, method),
 				StartNode: operation,
 				EndNode:   operation,
 				Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method),

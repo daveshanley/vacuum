@@ -69,7 +69,7 @@ func (cd HeaderDefinition) getResult(responseCode int, node *yaml.Node, context 
 			numberOfHeaders++
 			if !(len(node.Content) > i+1) || !cd.validateNode(node.Content[i+1], headersSets) {
 				results = append(results, model.RuleFunctionResult{
-					Message:   message{responseCode: responseCode}.String(),
+					Message:   message{responseCode: responseCode, headersSets: headersSets}.String(),
 					StartNode: headersNode,
 					EndNode:   utils.FindLastChildNodeWithLevel(headersNode, 0),
 					Path:      fmt.Sprintf("$.paths.responses.%d.headers", responseCode),
