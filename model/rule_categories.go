@@ -10,7 +10,7 @@ func init() {
 	RuleCategories[CategoryExamples] = &RuleCategory{
 		Id:   CategoryExamples,
 		Name: "Examples",
-		Description: "Examples help consumers understand how API calls should look. They are really important for" +
+		Description: "Examples help consumers understand how API calls should look. They are really important for " +
 			"automated tooling for mocking and testing. These rules check examples have been added to component schemas, " +
 			"parameters and operations. These rules also check that examples match the schema and types provided.",
 	}
@@ -37,13 +37,13 @@ func init() {
 		Id:   CategorySchemas,
 		Name: "Schemas",
 		Description: "Schemas are how request bodies and response payloads are defined. They define the data going in " +
-			"and the data flowing out of an operation. These rules check for structural validity, checking types, checking" +
+			"and the data flowing out of an operation. These rules check for structural validity, checking types, checking " +
 			"required fields and validating correct use of structures.",
 	}
 	RuleCategories[CategorySecurity] = &RuleCategory{
 		Id:   CategorySecurity,
 		Name: "Security",
-		Description: "Security plays a central role in RESTful APIs. These rules make sure that the correct definitions" +
+		Description: "Security plays a central role in RESTful APIs. These rules make sure that the correct definitions " +
 			"have been used and put in the right places.",
 	}
 	RuleCategories[CategoryTags] = &RuleCategory{
@@ -56,7 +56,7 @@ func init() {
 	RuleCategories[CategoryValidation] = &RuleCategory{
 		Id:   CategoryValidation,
 		Name: "Validation",
-		Description: "Validation rules make sure that certain characters or patterns have not been used that may cause" +
+		Description: "Validation rules make sure that certain characters or patterns have not been used that may cause " +
 			"issues when rendering in different types of applications.",
 	}
 	RuleCategories[CategoryOWASP] = &RuleCategory{
