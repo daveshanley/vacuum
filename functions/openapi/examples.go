@@ -496,8 +496,8 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 					}
 
 					if convertedSchema == nil {
-						z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: `%s`",
-							exampleName, "no convertedSchema can be extracted, invalid convertedSchema"))
+						z := model.BuildFunctionResultString(fmt.Sprintf("Example `%s` is not valid: %s",
+							exampleName, "no `schema` can can be extracted for this example"))
 						z.StartNode = exampleNameNode
 						z.EndNode = valueNode
 						z.Path = nodePath
