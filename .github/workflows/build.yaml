@@ -22,6 +22,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Check go mod tidy is up to date
+        run: go mod tidy && git diff --exit-code
+
       - name: Get dependencies
         run: |
           go get -v -t -d ./...
