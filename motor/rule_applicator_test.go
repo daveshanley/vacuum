@@ -1756,6 +1756,7 @@ func TestApplyRules_TestRules_Custom_Document_Pattern(t *testing.T) {
 
 	random, err := os.ReadFile("../model/test_files/non-openapi.yaml")
 
+	assert.NoError(t, err)
 	// create a new document.
 	docConfig := datamodel.NewClosedDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
