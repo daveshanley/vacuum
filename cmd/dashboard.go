@@ -41,6 +41,7 @@ func GetDashboardCommand() *cobra.Command {
 				return errors.New(errText)
 			}
 			baseFlag, _ := cmd.Flags().GetString("base")
+			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
@@ -61,7 +62,7 @@ func GetDashboardCommand() *cobra.Command {
 				customFunctions, _ := LoadCustomFunctions(functionsFlag)
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-				resultSet, ruleset, err = BuildResults(rulesetFlag, specBytes, customFunctions, baseFlag)
+				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(rulesetFlag, specBytes, customFunctions, baseFlag, skipCheckFlag)
 				if err != nil {
 					pterm.Error.Printf("Failed to render dashboard: %v\n\n", err)
 					return err

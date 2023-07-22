@@ -20,7 +20,7 @@ func CreateRuleComposer() *RuleComposer {
 
 // ComposeRuleSet compose a byte array ruleset specification into a *model.RuleSet
 func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*rulesets.RuleSet, error) {
-	rs, err := rulesets.CreateRuleSetUsingJSON(ruleset)
+	rs, err := rulesets.CreateRuleSetFromData(ruleset)
 	if err != nil {
 		return nil, err
 	}

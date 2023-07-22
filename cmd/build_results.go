@@ -13,6 +13,15 @@ func BuildResults(
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	return BuildResultsWithDocCheckSkip(rulesetFlag, specBytes, customFunctions, base, false)
+}
+
+func BuildResultsWithDocCheckSkip(
+	rulesetFlag string,
+	specBytes []byte,
+	customFunctions map[string]model.RuleFunction,
+	base string,
+	skipCheck bool) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -37,10 +46,11 @@ func BuildResults(
 	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:         selectedRS,
-		Spec:            specBytes,
-		CustomFunctions: customFunctions,
-		Base:            base,
+		RuleSet:           selectedRS,
+		Spec:              specBytes,
+		CustomFunctions:   customFunctions,
+		Base:              base,
+		SkipDocumentCheck: skipCheck,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

@@ -1,0 +1,20 @@
+_format_version: "3.0"
+services:
+  - host: mockbin.org
+    id: b1525aee-d304-11ed-afa1-0242ac120002
+    name: summer-time
+    path: /requests
+    plugins: []
+    port: 443
+    protocol: https
+    routes:
+      - id: b7d87736-d304-11ed-afa1-0242ac120002
+        methods:
+          - GET
+        name: summer-time_get
+        paths:
+          - ~/summer-time$
+        plugins: []
+        regex_priority: 200
+        strip_path: false
+        tags: []
