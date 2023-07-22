@@ -1739,6 +1739,85 @@ components:
 	assert.Equal(t, "resolving-references", results.Results[0].RuleId)
 }
 
+func TestApplyRules_TestRules_Custom_Document_Pattern(t *testing.T) {
+
+	yaml := `rules:
+  my-new-rule:
+    description: "Check the version is correct"
+    given: $._format_version
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        match: "^1.1$"
+`
+	rc := CreateRuleComposer()
+	rs, _ := rc.ComposeRuleSet([]byte(yaml))
+
+	random, err := os.ReadFile("../model/test_files/non-openapi.yaml")
+
+	// create a new document.
+	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig.BypassDocumentCheck = true
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
+	assert.NoError(t, err)
+
+	rse := &RuleSetExecution{
+		RuleSet:           rs,
+		Document:          doc,
+		SkipDocumentCheck: true,
+	}
+	results := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, results.Results, 1)
+}
+
+func TestApplyRules_TestRules_Custom_Document_Truthy(t *testing.T) {
+
+	json := `{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "hello-test": {
+      "description": "this is a test for checking basic mechanics",
+      "recommended": true,
+      "type": "style",
+      "given": "$.pizza.pie",
+      "then": {
+        "function": "truthy",
+		"field": "cake"
+      }
+    }
+  }
+}
+`
+	rc := CreateRuleComposer()
+	rs, _ := rc.ComposeRuleSet([]byte(json))
+
+	random := `lemons: nice
+pizza:
+  anything: wow
+  pie:
+   yes: true
+   cake:
+     - 1`
+
+	var err error
+	// create a new document.
+	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig.BypassDocumentCheck = true
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
+	assert.NoError(t, err)
+
+	rse := &RuleSetExecution{
+		RuleSet:           rs,
+		Document:          doc,
+		SkipDocumentCheck: true,
+	}
+	results := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, results.Results, 0)
+}
+
 func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 	m, _ := os.ReadFile("../model/test_files/k8s.json")
 	rs := rulesets.BuildDefaultRuleSets()

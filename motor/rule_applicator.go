@@ -24,31 +24,33 @@ import (
 )
 
 type ruleContext struct {
-	rule             *model.Rule
-	specNode         *yaml.Node
-	builtinFunctions functions.Functions
-	ruleResults      *[]model.RuleFunctionResult
-	wg               *sync.WaitGroup
-	errors           *[]error
-	index            *index.SpecIndex
-	specInfo         *datamodel.SpecInfo
-	customFunctions  map[string]model.RuleFunction
-	panicFunc        func(p any)
-	silenceLogs      bool
-	document         libopenapi.Document
+	rule              *model.Rule
+	specNode          *yaml.Node
+	builtinFunctions  functions.Functions
+	ruleResults       *[]model.RuleFunctionResult
+	wg                *sync.WaitGroup
+	errors            *[]error
+	index             *index.SpecIndex
+	specInfo          *datamodel.SpecInfo
+	customFunctions   map[string]model.RuleFunction
+	panicFunc         func(p any)
+	silenceLogs       bool
+	document          libopenapi.Document
+	skipDocumentCheck bool
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet         *rulesets.RuleSet             // The RuleSet in which to apply
-	Spec            []byte                        // The raw bytes of the OpenAPI specification.
-	SpecInfo        *datamodel.SpecInfo           // Pre-parsed spec-info.
-	CustomFunctions map[string]model.RuleFunction // custom functions loaded from plugin.
-	PanicFunction   func(p any)                   // In case of emergency, do this thing here.
-	SilenceLogs     bool                          // Prevent any warnings about rules/rule-sets being printed.
-	Base            string                        // The base path or URL of the specification, used for resolving relative or remote paths.
-	Document        libopenapi.Document           // a ready to render model.
+	RuleSet           *rulesets.RuleSet             // The RuleSet in which to apply
+	Spec              []byte                        // The raw bytes of the OpenAPI specification.
+	SpecInfo          *datamodel.SpecInfo           // Pre-parsed spec-info.
+	CustomFunctions   map[string]model.RuleFunction // custom functions loaded from plugin.
+	PanicFunction     func(p any)                   // In case of emergency, do this thing here.
+	SilenceLogs       bool                          // Prevent any warnings about rules/rule-sets being printed.
+	Base              string                        // The base path or URL of the specification, used for resolving relative or remote paths.
+	Document          libopenapi.Document           // a ready to render model.
+	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -107,6 +109,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		config.AllowFileLookup = true
 	}
 
+	if execution.SkipDocumentCheck {
+		docConfig.BypassDocumentCheck = true
+	}
+
 	doc := execution.Document
 
 	if doc == nil {
@@ -125,32 +131,33 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var modelIndex *index.SpecIndex
 
 	version := doc.GetVersion()
-	switch version[0] {
-	case '2':
-		var docModel *libopenapi.DocumentModel[v2.Swagger]
-		docModel, docModelErrors = doc.BuildV2Model()
-
-		if docModel != nil {
-			modelIndex = docModel.Index
-		}
-	case '3':
-		var docModel *libopenapi.DocumentModel[v3.Document]
-		docModel, docModelErrors = doc.BuildV3Model()
-
-		if docModel != nil {
-			modelIndex = docModel.Index
-		}
-	}
-
 	specInfo := execution.SpecInfo
 	specInfoUnresolved := execution.SpecInfo
+	if version != "" {
+		switch version[0] {
+		case '2':
+			var docModel *libopenapi.DocumentModel[v2.Swagger]
+			docModel, docModelErrors = doc.BuildV2Model()
+
+			if docModel != nil {
+				modelIndex = docModel.Index
+			}
+		case '3':
+			var docModel *libopenapi.DocumentModel[v3.Document]
+			docModel, docModelErrors = doc.BuildV3Model()
+
+			if docModel != nil {
+				modelIndex = docModel.Index
+			}
+		}
+	}
 	if execution.SpecInfo == nil {
 		specInfo = doc.GetSpecInfo()
 		spec := execution.Spec
 		if spec == nil {
-			spec, _ = doc.Serialize()
+			spec = *specInfo.SpecBytes
 		}
-		specInfoUnresolved, _ = datamodel.ExtractSpecInfo(spec)
+		specInfoUnresolved, _ = datamodel.ExtractSpecInfoWithDocumentCheck(spec, execution.SkipDocumentCheck)
 	}
 
 	specUnresolved = specInfoUnresolved.RootNode
@@ -240,17 +247,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			// this list of things is most likely going to grow a bit, so we use a nice clean message design.
 			ctx := ruleContext{
-				rule:             rule,
-				specNode:         ruleSpec,
-				builtinFunctions: builtinFunctions,
-				ruleResults:      &ruleResults,
-				wg:               &ruleWaitGroup,
-				errors:           &errors,
-				specInfo:         specInfo,
-				index:            ruleIndex,
-				document:         doc,
-				customFunctions:  execution.CustomFunctions,
-				silenceLogs:      execution.SilenceLogs,
+				rule:              rule,
+				specNode:          ruleSpec,
+				builtinFunctions:  builtinFunctions,
+				ruleResults:       &ruleResults,
+				wg:                &ruleWaitGroup,
+				errors:            &errors,
+				specInfo:          specInfo,
+				index:             ruleIndex,
+				document:          doc,
+				customFunctions:   execution.CustomFunctions,
+				silenceLogs:       execution.SilenceLogs,
+				skipDocumentCheck: execution.SkipDocumentCheck,
 			}
 			if execution.PanicFunction != nil {
 				ctx.panicFunc = execution.PanicFunction
@@ -369,7 +377,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			Document:   ctx.document,
 		}
 
-		if ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
+		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
 			if !ctx.silenceLogs {
 				pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
 			}

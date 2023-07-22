@@ -1,4 +1,4 @@
-FROM golang:1.18
+FROM golang:1.20
 
 RUN mkdir -p /opt/vacuum
 
@@ -7,9 +7,9 @@ WORKDIR /opt/vacuum
 COPY . ./
 
 RUN go mod download && go mod verify
-RUN go build -v -o /vacuum vacuum.go
+RUN go build -ldflags="-w -s" -v -o /vacuum vacuum.go
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /work
 COPY --from=0 /vacuum /
 

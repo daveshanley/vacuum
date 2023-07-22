@@ -44,6 +44,7 @@ func GetLintCommand() *cobra.Command {
 			failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
+			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -104,10 +105,11 @@ func GetLintCommand() *cobra.Command {
 			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			start := time.Now()
 			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet:         selectedRS,
-				Spec:            specBytes,
-				CustomFunctions: customFunctions,
-				Base:            baseFlag,
+				RuleSet:           selectedRS,
+				Spec:              specBytes,
+				CustomFunctions:   customFunctions,
+				Base:              baseFlag,
+				SkipDocumentCheck: skipCheckFlag,
 			})
 
 			results := result.Results

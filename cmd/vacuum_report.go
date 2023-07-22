@@ -44,6 +44,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			junitFlag, _ := cmd.Flags().GetBool("junit")
+			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -132,11 +133,12 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet:         selectedRS,
-				Spec:            specBytes,
-				CustomFunctions: customFunctions,
-				SilenceLogs:     true,
-				Base:            baseFlag,
+				RuleSet:           selectedRS,
+				Spec:              specBytes,
+				CustomFunctions:   customFunctions,
+				SilenceLogs:       true,
+				Base:              baseFlag,
+				SkipDocumentCheck: skipCheckFlag,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
