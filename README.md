@@ -62,7 +62,7 @@ come say hi!
 ## Documentation
 
 ---
-🔥 **New in** `v.2.0` 🔥 : [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
+🔥 **New in** `v0.2.0+` 🔥 : [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
 
 [Learn more about enabling OWASP API rules](https://quobix.com/vacuum/rulesets/owasp/).
 
@@ -76,6 +76,7 @@ See all the documentation at https://quobix.com/vacuum
 - [About vacuum](https://quobix.com/vacuum/about/)
 - [Why should you care?](https://quobix.com/vacuum/why/)
 - [Concepts](https://quobix.com/vacuum/concepts/)
+- [FAQ](https://quobix.com/vacuum/faq/)
 - [CLI Commands](https://quobix.com/vacuum/commands/)
   - [lint](https://quobix.com/vacuum/commands/lint/)
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
@@ -86,6 +87,7 @@ See all the documentation at https://quobix.com/vacuum
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)
   - [Loading a RuleSet](https://quobix.com/vacuum/api/loading-ruleset/)
+  - [Linting Non-OpenAPI Files](https://quobix.com/vacuum/api/non-openapi/)
 - [Rules](https://quobix.com/vacuum/rules/)
   - [Examples](https://quobix.com/vacuum/rules/examples/)
   - [Tags](https://quobix.com/vacuum/rules/tags/)
@@ -99,6 +101,7 @@ See all the documentation at https://quobix.com/vacuum
 - [Functions](https://quobix.com/vacuum/functions/)
   - [Core Functions](https://quobix.com/vacuum/functions/core/) 
   - [OpenAPI Functions](https://quobix.com/vacuum/functions/openapi/)
+  - [OWASP Functions](https://quobix.com/vacuum/functions/owasp/)
 - [Understanding RuleSets](https://quobix.com/vacuum/rulesets/understanding/)
   - [All Rules](https://quobix.com/vacuum/rulesets/all/)
   - [No Rules](https://quobix.com/vacuum/rulesets/no-rules/)
