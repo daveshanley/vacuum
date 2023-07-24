@@ -39,6 +39,24 @@ yarn global add @quobix/vacuum
 curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
 ```
 
+## Install using [Docker](https://hub.docker.com/r/dshanley/vacuum)
+
+The image is available at: https://hub.docker.com/r/dshanley/vacuum
+
+```
+docker pull dshanley/vacuum
+```
+
+To run, mount the current working dir to the container and use a relative path to your spec, like so
+
+```
+docker run --rm -v $PWD:/work:ro dshanley/vacuum lint <your-openapi-spec.yaml>
+```
+Alternatively, you can pull it from
+[Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
+To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the above commands.
+
+
 ---
 
 
@@ -141,49 +159,6 @@ No external dependencies, the HTML report will run completely offline.
 
 You can use either **YAML** or **JSON**, vacuum supports both formats.
 
-AsyncAPI support is coming soon!
-
-## Check out the code
-
-```
-git clone https://github.com/daveshanley/vacuum.git
-```
-### Change directory into `vacuum`
-
-```
-cd vacuum
-```
-
-## Build the code
-
-```
-go build vacuum.go
-```
-
-## Run the code
-
-```
-./vacuum lint <your-openapi-spec.yaml>
-```
-
-## Running vacuum via Docker
-
-vacuum is available as a container, you can pull the image from [Docker Hub](https://hub.docker.com/r/dshanley/vacuum)
-
-```
-docker pull dshanley/vacuum
-```
-
-To run, mount the current working dir to the container and use a relative path to your spec, like so
-
-```
-docker run --rm -v $PWD:/work:ro dshanley/vacuum lint <your-openapi-spec.yaml>
-```
-
-Alternatively, you can pull it from
-[Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
-To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the above commands.
-
 ## Using vacuum with pre-commit
 
 Vacuum can be used with [pre-commit](https://pre-commit.com).
@@ -249,6 +224,7 @@ The options here are:
 - `security`
 - `tags`
 - `validation`
+- `owasp`
 
 ## Generate a Spectral compatible report
 
@@ -291,10 +267,10 @@ if you're interested in seeing how things are progressing, it's available.
 ```
 
 ---
-## Supply your own Spectral ruleset
+## Supply your own Spectral compatible ruleset
 
 If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
-then you can use it with Vacuum! 
+then you can use it with vacuum! 
 
 The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
 
@@ -327,6 +303,5 @@ The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--r
 
 ---
 
-Let me know what you think.
 
 > Logo gopher is modified, originally from [egonelbre](https://github.com/egonelbre/gophers)
