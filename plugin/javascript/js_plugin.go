@@ -4,14 +4,12 @@
 package javascript
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/dop251/goja"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
-	"reflect"
-	"strings"
 )
 
 type CoreFunction func(input any, context model.RuleFunctionContext) []model.RuleFunctionResult
@@ -111,14 +109,6 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		var enc interface{}
 		_ = node.Decode(&enc)
 
-		var encodedYaml []byte
-		switch reflect.TypeOf(enc).Kind() {
-		case reflect.Slice, reflect.Map:
-			encodedYaml, _ = json.Marshal(enc)
-		default:
-			encodedYaml = []byte(strings.ReplaceAll(fmt.Sprintf("%v", enc), "\\", ""))
-		}
-
 		runtimeErr := j.runtime.Set("context", context)
 		if runtimeErr != nil {
 			return []model.RuleFunctionResult{
@@ -165,7 +155,8 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		}
 		var functionResults []model.RuleFunctionResult
 
-		ruleOutput, rErr := runRule(goja.Undefined(), j.runtime.ToValue(string(encodedYaml)))
+		// run JS rule!
+		ruleOutput, rErr := runRule(goja.Undefined(), j.runtime.ToValue(enc))
 		if rErr != nil {
 			if jserr, okE := rErr.(*goja.Exception); okE {
 				return []model.RuleFunctionResult{
@@ -199,6 +190,16 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		for i := range functionResults {
 			functionResults[i].StartNode = node
 			functionResults[i].EndNode = node
+			functionResults[i].Range = reports.Range{
+				Start: reports.RangeItem{
+					Line: node.Line,
+					Char: node.Column,
+				},
+				End: reports.RangeItem{
+					Line: node.Line,
+					Char: node.Column,
+				},
+			}
 			functionResults[i].Path = fmt.Sprint(context.Given)
 			functionResults[i].Rule = context.Rule
 		}
