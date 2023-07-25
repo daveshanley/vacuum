@@ -12,8 +12,8 @@ type SpectralReport struct {
 
 // Range indicates the start and end of a report item
 type Range struct {
-	Start RangeItem `json:"start" yaml:"start"`
-	End   RangeItem `json:"end" yaml:"end"`
+	Start RangeItem `json:"start,omitempty" yaml:"start,omitempty"`
+	End   RangeItem `json:"end,omitempty" yaml:"end,omitempty"`
 }
 
 // RangeItem indicates the line and character of a range.
