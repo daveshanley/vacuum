@@ -1,7 +1,12 @@
 package plugin
 
 import (
+	"fmt"
+	"github.com/daveshanley/vacuum/functions/core"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin/javascript"
 	"github.com/pterm/pterm"
+	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"plugin"
@@ -45,7 +50,82 @@ func LoadFunctions(path string) (*Manager, error) {
 				pterm.Error.Printf("Unable to boot plugin")
 			}
 		}
-	}
 
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".js") {
+			fPath := filepath.Join(path, entry.Name())
+			fName := strings.Split(entry.Name(), ".")[0]
+
+			// let's try and read the file
+			p, e := os.ReadFile(fPath)
+			if e != nil {
+				return nil, e
+			}
+
+			function := javascript.NewJSRuleFunction(fName, string(p))
+
+			// found something
+			pterm.Info.Printf("Located custom javascript function: '%s'\n", function.GetSchema().Name)
+
+			// check if the function is valid
+			sErr := function.CheckScript()
+
+			if sErr != nil {
+				pterm.Error.Printf("Failed to load function '%s': %s\n", fName, sErr.Error())
+			}
+
+			// register core functions with this custom function.
+			RegisterCoreFunctions(function)
+
+			// register this function with the plugin manager
+			pm.RegisterFunction(fName, function)
+		}
+	}
 	return pm, nil
+}
+
+var extractInput = func(input any) *yaml.Node {
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte(fmt.Sprintf("%v", input)), &y)
+	return y.Content[0]
+}
+
+var coreError = func() {
+	if r := recover(); r != nil {
+		pterm.Error.Printf("Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
+	}
+}
+
+var loadFunc = func(function model.RuleFunction) javascript.CoreFunction {
+	return func(input any, context model.RuleFunctionContext) []model.RuleFunctionResult {
+		defer coreError()
+		extracted := extractInput(input)
+		results := function.RunRule([]*yaml.Node{extracted}, context)
+		return results
+	}
+}
+
+var truthy = loadFunc(&core.Truthy{})
+var falsy = loadFunc(&core.Falsy{})
+var alphabetical = loadFunc(&core.Alphabetical{})
+var casing = loadFunc(&core.Casing{})
+var defined = loadFunc(&core.Defined{})
+var enum = loadFunc(&core.Enumeration{})
+var length = loadFunc(&core.Length{})
+var pattern = loadFunc(&core.Pattern{})
+var undefined = loadFunc(&core.Undefined{})
+var xor = loadFunc(&core.Xor{})
+var blank = loadFunc(&core.Blank{})
+
+func RegisterCoreFunctions(rule javascript.JSEnabledRuleFunction) {
+	rule.RegisterCoreFunction("truthy", truthy)
+	rule.RegisterCoreFunction("falsy", falsy)
+	rule.RegisterCoreFunction("alphabetical", alphabetical)
+	rule.RegisterCoreFunction("casing", casing)
+	rule.RegisterCoreFunction("defined", defined)
+	rule.RegisterCoreFunction("enum", enum)
+	rule.RegisterCoreFunction("length", length)
+	rule.RegisterCoreFunction("pattern", pattern)
+	rule.RegisterCoreFunction("undefined", undefined)
+	rule.RegisterCoreFunction("xor", xor)
+	rule.RegisterCoreFunction("blank", blank)
 }

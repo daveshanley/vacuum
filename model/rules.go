@@ -37,13 +37,13 @@ type RuleCategory struct {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
-	RuleAction *RuleAction         // A reference to the action defined configured by the rule
-	Rule       *Rule               // A reference to the Rule being used for the function
-	Given      interface{}         // Path/s being used by rule, multiple paths can be used
-	Options    interface{}         // Function options
-	Index      *index.SpecIndex    // A reference to the index created for the spec being parsed
-	SpecInfo   *datamodel.SpecInfo // A reference to all specification information for the spec being parsed.
-	Document   libopenapi.Document // A reference to the document being parsed
+	RuleAction *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
+	Rule       *Rule               `json:"rule,omitempty" yaml:"rule,omitempty"`             // A reference to the Rule being used for the function
+	Given      interface{}         `json:"given,omitempty" yaml:"given,omitempty"`           // Path/s being used by rule, multiple paths can be used
+	Options    interface{}         `json:"options,omitempty" yaml:"options,omitempty"`       // Function options
+	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
+	SpecInfo   *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
+	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
