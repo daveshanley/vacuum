@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"plugin"
+	"reflect"
 	"strings"
 )
 
@@ -85,8 +86,17 @@ func LoadFunctions(path string) (*Manager, error) {
 
 var extractInput = func(input any) *yaml.Node {
 	var y yaml.Node
-	_ = yaml.Unmarshal([]byte(fmt.Sprintf("%v", input)), &y)
-	return y.Content[0]
+	switch reflect.TypeOf(input).Kind() {
+	case reflect.String, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64, reflect.Bool:
+		_ = yaml.Unmarshal([]byte(fmt.Sprintf("%v", input)), &y)
+	case reflect.Map, reflect.Slice:
+		_ = y.Encode(input)
+	}
+	if y.Kind == yaml.DocumentNode {
+		return y.Content[0]
+	} else {
+		return &y
+	}
 }
 
 var coreError = func() {

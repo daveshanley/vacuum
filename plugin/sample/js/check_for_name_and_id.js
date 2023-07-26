@@ -1,3 +1,6 @@
+// Copyright 2023 Princess Beef Heavy Industries / Dave Shanley.
+// SPDX-License-Identifier: MIT
+
 function runRule(input) {
 
     // create an array to hold the results

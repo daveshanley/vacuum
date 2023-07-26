@@ -8,6 +8,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/console"
+	"github.com/dop251/goja_nodejs/require"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
 )
@@ -33,6 +35,10 @@ type JSRuleFunction struct {
 func NewJSRuleFunction(ruleName, script string) JSEnabledRuleFunction {
 	rt := goja.New()
 	rt.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
+	reg := new(require.Registry)
+	reg.Enable(rt)
+	console.Enable(rt)
+
 	return &JSRuleFunction{
 		ruleName: ruleName,
 		script:   script,
@@ -156,7 +162,8 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		var functionResults []model.RuleFunctionResult
 
 		// run JS rule!
-		ruleOutput, rErr := runRule(goja.Undefined(), j.runtime.ToValue(enc))
+		runtimeValue := j.runtime.ToValue(enc)
+		ruleOutput, rErr := runRule(goja.Undefined(), runtimeValue)
 		if rErr != nil {
 			if jserr, okE := rErr.(*goja.Exception); okE {
 				return []model.RuleFunctionResult{
@@ -172,8 +179,8 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 			panic(rErr) // not an exception
 		}
-
-		rErr = mapstructure.Decode(ruleOutput.Export(), &functionResults)
+		op := ruleOutput.Export()
+		rErr = mapstructure.Decode(op, &functionResults)
 		if rErr != nil {
 			return []model.RuleFunctionResult{
 				{

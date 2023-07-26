@@ -1868,6 +1868,103 @@ notCustom: true"
 	assert.Equal(t, 2, results.Results[0].Range.Start.Line)
 }
 
+func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CheckPaths(t *testing.T) {
+
+	yamlBytes := `rules:
+  my-custom-js-rule:
+    description: "core me up"
+    given: $.paths
+    severity: error
+    then:
+      function: check_single_path
+`
+
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+	userRS, userErr := rulesets.CreateRuleSetFromData([]byte(yamlBytes))
+	assert.NoError(t, userErr)
+
+	rs := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
+
+	random := `
+paths:
+  /one:
+    get: something
+  /two:
+    post: something
+  /three:
+    patch: something
+`
+	// load custom functions
+	pm, err := plugin.LoadFunctions("../plugin/sample/js")
+	assert.NoError(t, err)
+
+	// create a new document.
+	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig.BypassDocumentCheck = true
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
+	assert.NoError(t, err)
+
+	rse := &RuleSetExecution{
+		RuleSet:           rs,
+		Document:          doc,
+		CustomFunctions:   pm.GetCustomFunctions(),
+		Base:              "../plugin/sample/js",
+		SkipDocumentCheck: true,
+	}
+	results := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, results.Results, 1)
+	assert.Equal(t, "more than a single path exists, there are 3", results.Results[0].Message)
+}
+
+func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction_FunctionOptions(t *testing.T) {
+
+	yamlBytes := `rules:
+  my-custom-js-rule:
+    description: "core me up"
+    given: $
+    severity: error
+    then:
+      function: use_function_options
+      field: "custom"
+      functionOptions:
+         someOption: "someValue"
+`
+
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+	userRS, userErr := rulesets.CreateRuleSetFromData([]byte(yamlBytes))
+	assert.NoError(t, userErr)
+
+	rs := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
+
+	random := `
+notCustom: true"
+`
+	// load custom functions
+	pm, err := plugin.LoadFunctions("../plugin/sample/js")
+	assert.NoError(t, err)
+
+	// create a new document.
+	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig.BypassDocumentCheck = true
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
+	assert.NoError(t, err)
+
+	rse := &RuleSetExecution{
+		RuleSet:           rs,
+		Document:          doc,
+		CustomFunctions:   pm.GetCustomFunctions(),
+		Base:              "../plugin/sample/js",
+		SkipDocumentCheck: true,
+	}
+	results := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, results.Results, 1)
+	assert.Equal(t, "someOption is set to someValue", results.Results[0].Message)
+	assert.Equal(t, "my-custom-js-rule", results.Results[0].RuleId)
+	assert.Equal(t, 2, results.Results[0].Range.Start.Line)
+}
+
 func TestApplyRules_TestRules_Custom_Document_Truthy(t *testing.T) {
 
 	json := `{

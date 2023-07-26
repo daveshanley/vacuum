@@ -23,7 +23,7 @@ func TestLoadFunctions_JavaScript_OK(t *testing.T) {
 	pm, err := LoadFunctions("sample/js")
 	assert.NotNil(t, pm)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, pm.LoadedFunctionCount())
+	assert.Equal(t, 5, pm.LoadedFunctionCount())
 	assert.Equal(t, "useless_func_modified_name",
 		pm.GetCustomFunctions()["useless_func"].GetSchema().Name)
 	assert.Equal(t, "check_for_name_and_id",
