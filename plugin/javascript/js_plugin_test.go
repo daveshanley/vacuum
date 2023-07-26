@@ -84,7 +84,7 @@ func Test_JSPlugin_Bad_Rule_CodeError(t *testing.T) {
 func Test_JSPlugin_Bad_Rule_GoException(t *testing.T) {
 
 	script := `function runRule() {
-	truthy("oops");
+	vacuum_truthy("oops");
 }
 `
 
@@ -111,7 +111,7 @@ func Test_JSPlugin_Bad_Rule_GoException(t *testing.T) {
 func Test_JSPlugin_Core_Function_OK(t *testing.T) {
 
 	script := `function runRule(input) {
-	return truthy(input, context);
+	return vacuum_truthy(input, context);
 }
 `
 	f := NewJSRuleFunction("test", script)
@@ -122,9 +122,15 @@ func Test_JSPlugin_Core_Function_OK(t *testing.T) {
 		truthy := core.Truthy{}
 		// re-encode input back into yaml
 		var y yaml.Node
-		_ = yaml.Unmarshal([]byte(fmt.Sprintf("%v", input)), &y)
+		_ = y.Encode(input)
 
-		results := truthy.RunRule([]*yaml.Node{y.Content[0]}, context)
+		var results []model.RuleFunctionResult
+		if y.Kind == yaml.DocumentNode {
+			results = truthy.RunRule([]*yaml.Node{y.Content[0]}, context)
+		} else {
+			results = truthy.RunRule([]*yaml.Node{&y}, context)
+		}
+
 		return results
 	})
 
@@ -147,7 +153,7 @@ func Test_JSPlugin_Core_Function_OK(t *testing.T) {
 func Test_JSPlugin_Core_Function_Not_OK(t *testing.T) {
 
 	script := `function runRule(input) {
-	return truthy(input, context);
+	return vacuum_truthy(input, context);
 }
 `
 	f := NewJSRuleFunction("test", script)
