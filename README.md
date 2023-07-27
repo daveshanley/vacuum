@@ -80,7 +80,16 @@ come say hi!
 ## Documentation
 
 ---
-🔥 **New in** `v0.2.0+` 🔥 : [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
+🔥 **New in** `v0.3.0+` 🔥 : [Custom JavaScript Functions](https://quobix.com/vacuum/api/custom-javascript-functions/) are now available out of the box.
+
+Write custom functions in JavaScript and use them in any ruleset. No need
+to compile golang code to extend vacuum anymore!
+
+[Learn more about building custom JavaScript functions](https://quobix.com/vacuum/api/custom-javascript-functions/).
+
+
+---
+**New in** `v0.2.0+`: [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
 
 [Learn more about enabling OWASP API rules](https://quobix.com/vacuum/rulesets/owasp/).
 
@@ -106,6 +115,8 @@ See all the documentation at https://quobix.com/vacuum
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)
   - [Loading a RuleSet](https://quobix.com/vacuum/api/loading-ruleset/)
   - [Linting Non-OpenAPI Files](https://quobix.com/vacuum/api/non-openapi/)
+  - [Custom Golang Functions](https://quobix.com/vacuum/api/custom-functions/)
+  - [Custom JavaScript Functions](https://quobix.com/vacuum/api/custom-javascript-functions/)
 - [Rules](https://quobix.com/vacuum/rules/)
   - [Examples](https://quobix.com/vacuum/rules/examples/)
   - [Tags](https://quobix.com/vacuum/rules/tags/)
