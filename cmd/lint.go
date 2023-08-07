@@ -22,7 +22,7 @@ func GetLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Use:           "lint",
+		Use:           "lint <your-openapi-file.yaml>",
 		Short:         "Lint an OpenAPI specification",
 		Long:          `Lint an OpenAPI specification, the output of the response will be in the terminal`,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
