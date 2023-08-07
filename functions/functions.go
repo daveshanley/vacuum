@@ -78,6 +78,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasSchema"] = core.Schema{} // can't see a reason to duplicate this yet.
 		funcs["oasDescriptions"] = openapi_functions.OperationDescription{}
 		funcs["oasDescriptionDuplication"] = openapi_functions.DescriptionDuplication{}
+		funcs["oasComponentDescriptions"] = openapi_functions.ComponentDescription{}
 		funcs["oasOperationTags"] = openapi_functions.OperationTags{}
 		funcs["oasOpFormDataConsumeCheck"] = openapi_functions.FormDataConsumeCheck{}
 		funcs["oasDiscriminator"] = openapi_functions.OAS2Discriminator{}
