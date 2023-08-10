@@ -314,5 +314,36 @@ The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--r
 
 ---
 
+## Configuration
+
+### File
+You can configure vacuum using a configuration file named `vacuum.conf.yaml`
+
+By default, vacuum searches for this file in the following directories
+1. Working directory
+2. `$XDG_CONFIG_HOME`
+3. `${HOME}/.config`
+
+You can also specify a path to a file using the `--config` flag
+
+Global flags are configured as top level nodes
+```yaml
+time: true
+base: 'http://example.com'
+...
+```
+Command specific flags are configured under a node with the commands name
+```yaml
+...
+lint:
+  silent: true
+  ...
+```
+
+### Environmental variables
+
+You can configure global vacuum flags using environmental variables in the form of: `VACUUM_<flag>`
+
+If a flag, has a `-` in it, replace with `_`
 
 > Logo gopher is modified, originally from [egonelbre](https://github.com/egonelbre/gophers)
