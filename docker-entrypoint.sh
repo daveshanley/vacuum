@@ -5,7 +5,7 @@ set -e
 # otherwise check if command is a valid vacuum subcommand.
 # If it is, prepend `vacuum` to script parameters:
 # if `$@` is `lint`, it becomes `vacuum lint`
-if [ "${1#-}" != "$1" ] || vacuum "$1" --help > /dev/null 2>&1; then
+if [ "${1#-}" != "${1}" ] || [ -z "$(command -v "${1}")" ]; then
     set -- vacuum "$@"
 fi
 
