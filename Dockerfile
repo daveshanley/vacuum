@@ -10,9 +10,11 @@ RUN go mod download && go mod verify
 RUN go build -ldflags="-w -s" -v -o /vacuum vacuum.go
 
 FROM debian:bookworm-slim
+
 WORKDIR /work
-COPY --from=0 /vacuum /
 
-ENV PATH=$PATH:/
+COPY --from=0 /vacuum /usr/local/bin/vacuum
 
-ENTRYPOINT ["vacuum"]
+COPY docker-entrypoint.sh /
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
