@@ -96,12 +96,15 @@ func useConfigFile(cmd *cobra.Command) error {
 		return err
 	}
 	// bind global flags
-	bindFlags(cmd.InheritedFlags(), viper.GetViper())
+	err = bindFlags(cmd.InheritedFlags(), viper.GetViper())
+	if err != nil {
+		return err
+	}
 	// bind command specific flags
 	if viperSubTree := viper.Sub(cmd.Name()); viperSubTree != nil {
-		bindFlags(cmd.LocalFlags(), viperSubTree)
+		err = bindFlags(cmd.LocalFlags(), viperSubTree)
 	}
-	return nil
+	return err
 }
 func useDefaultConfigFile() error {
 	viper.SetConfigName("vacuum.conf")
