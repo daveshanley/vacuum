@@ -244,6 +244,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 				// check for an example
 				exKey, exValue := utils.FindKeyNode("example", prop.Content)
+				examplesKey, examplesValue := utils.FindKeyNodeTop("examples", prop.Content)
 				_, typeValue := utils.FindKeyNode("type", prop.Content)
 				_, enumValue := utils.FindKeyNode("enum", prop.Content)
 
@@ -262,7 +263,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					continue
 				}
 
-				if exKey == nil && exValue == nil && !skip {
+				if examplesKey == nil && examplesValue == nil && exKey == nil && exValue == nil && !skip {
 
 					res := model.BuildFunctionResultString(fmt.Sprintf("Missing example for `%s` on component `%s`",
 						pName, compName))
