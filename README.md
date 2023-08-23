@@ -64,11 +64,11 @@ To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the a
 If your company is using `vacuum`, please considering [supporting this project](https://github.com/sponsors/daveshanley),
 like our _very kind_ sponsors:
 
-<p align="center">
-	<a href="//www.speakeasyapi.dev"><img src=".github/sponsors/speakeasy.png" alt="Speakeasy" height="100px"/></a>
-    <br/>
-    <a href="//www.speakeasyapi.dev">Speakeasy</a>
-</p>
+
+[![speakeasy](.github/sponsors/speakeasy-github-sponsor-dark.svg#gh-dark-mode-only)](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
+[![speakeasy](.github/sponsors/speakeasy-github-sponsor-light.svg#gh-light-mode-only)](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
+
+[Speakeasy](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
 
 ---
 
