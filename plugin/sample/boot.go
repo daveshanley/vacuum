@@ -1,4 +1,4 @@
-package sample
+package main
 
 import "github.com/daveshanley/vacuum/plugin"
 
@@ -12,4 +12,8 @@ func Boot(pm *plugin.Manager) {
 	// register custom functions with vacuum plugin manager.
 	pm.RegisterFunction(useless.GetSchema().Name, useless)
 	pm.RegisterFunction(checkSinglePath.GetSchema().Name, checkSinglePath)
+}
+
+func main() {
+	// this is a sample plugin
 }
