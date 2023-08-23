@@ -65,10 +65,10 @@ If your company is using `vacuum`, please considering [supporting this project](
 like our _very kind_ sponsors:
 
 
-<a href="https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship">
-<picture style="width: 80%">
+<a href="https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship" style="text-align: center; display: block">
+<picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/speakeasy-github-sponsor-dark.svg">
-  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg">
+  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg" style="width: 70%">
 </picture>
 </a>
 
