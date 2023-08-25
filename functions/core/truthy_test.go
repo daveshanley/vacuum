@@ -149,3 +149,22 @@ func TestTruthy_RunRule_ArrayTest(t *testing.T) {
 
 	assert.Len(t, res, 1)
 }
+
+func TestTruthy_RunRule_CheckSecurity(t *testing.T) {
+
+	sampleYaml := `notSecurity: none`
+
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "security", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	tru := Truthy{}
+	res := tru.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+}

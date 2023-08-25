@@ -42,7 +42,11 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 	for x, node := range nodes {
 
-		fieldNode, fieldNodeValue := utils.FindFirstKeyNode(context.RuleAction.Field, node.Content, 0)
+		if node.Kind == yaml.DocumentNode {
+			node = node.Content[0]
+		}
+
+		fieldNode, fieldNodeValue := utils.FindKeyNodeTop(context.RuleAction.Field, node.Content)
 		if fieldNode == nil && fieldNodeValue == nil || fieldNodeValue.Value == "false" ||
 			fieldNodeValue.Value == "0" || fieldNodeValue.Value == "" {
 
