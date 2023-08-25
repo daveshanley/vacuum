@@ -63,13 +63,14 @@ var pathKebabCaseRegex, _ = regexp.Compile(`^[{}a-z\d-.]+$`)
 func checkPathCase(path string) (bool, []string) {
 	segs := strings.Split(path, "/")[1:]
 	var found []string
-	for _, seg := range segs {
+	for i, seg := range segs {
 		if !pathKebabCaseRegex.MatchString(seg) {
 			// check if it's a variable, if so, skip
 			if seg == "" {
 				continue
 			}
-			if seg[0] == '{' && seg[len(seg)-1] == '}' {
+			// if this is a variable, or a variable at the end of a path then skip
+			if seg[0] == '{' && (strings.Contains("}", seg) || i+1 == len(segs)) {
 				continue
 			}
 			found = append(found, seg)
