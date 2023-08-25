@@ -48,7 +48,7 @@ paths:
 	assert.NoError(t, err)
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
-	rule := buildOpenApiTestRuleAction(path, "verbsInPath", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "pathsKebabCase", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
 	config := index.CreateOpenAPIIndexConfig()
@@ -58,5 +58,46 @@ paths:
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 2)
+
+}
+
+func TestPathsKebabCase_WithExtension(t *testing.T) {
+
+	yml := `openapi: 3.0.0
+paths:
+  '/woah/slow-down/you-move-too-fast.pdf':
+    get:
+      summary: not bad
+  '/you-have/got/to/make/{theMorning}.last':
+    get:
+      summary: still good
+  '/just-kicking/down/the/cobble-stones.csv':
+    get:
+      summary: nice
+  '/looking/{for-fun}/and/feeling-groovy.json':
+    get:
+      summary: this is fine
+  '/ok//ok':
+    get:
+      summary: should we complain? nah`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	err := yaml.Unmarshal([]byte(yml), &rootNode)
+
+	assert.NoError(t, err)
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "pathsKebabCase", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Rule = &rule
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := PathsKebabCase{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
 
 }
