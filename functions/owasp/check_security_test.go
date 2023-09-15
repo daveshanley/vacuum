@@ -53,3 +53,34 @@ components:
 	assert.Len(t, res, 2)
 
 }
+
+func TestCheckSecurity_SecurityMissingOnOneOperation(t *testing.T) {
+	test_appspec := `openapi: 3.0.1
+info:
+  version: "1.2.3"
+  title: "securitySchemes"
+paths:
+  /insecure:
+    put:
+      responses: {}
+  /secure:
+    put:
+      responses: {}
+      security:
+        - BasicAuth: []
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(test_appspec), path)
+	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
+		"methods": []string{"put"},
+	})
+	ruleFunctionResults := CheckSecurity{}.RunRule(nodes, ctx)
+
+	assert.Len(t, ruleFunctionResults, 1)
+}
