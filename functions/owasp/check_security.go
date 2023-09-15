@@ -36,7 +36,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	}
 
 	// security at the global level replaces if not defined at the operation level
-	_, valueOfSecurityGlobalNode := utils.FindFirstKeyNode("security", nodes, 0)
+	_, valueOfSecurityGlobalNode := findGlobalSecurityNode(nodes)
 
 	var results []model.RuleFunctionResult
 	_, valueOfPathNode := utils.FindFirstKeyNode("paths", nodes, 0)
@@ -60,6 +60,36 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	}
 
 	return results
+}
+
+func findGlobalSecurityNode(nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
+	// Find the first document node. There should be only one, so just take the first
+	var documentNode *yaml.Node
+	for _, node := range nodes {
+		if node.Kind != yaml.DocumentNode {
+			continue
+		}
+		documentNode = node
+		break
+	}
+	if documentNode == nil {
+		return nil, nil
+	}
+
+	// Find the document's mapping node. There should be only one, so just take the first
+	var mappingNode *yaml.Node
+	for _, node := range documentNode.Content {
+		if node.Kind != yaml.MappingNode {
+			continue
+		}
+		mappingNode = node
+		continue
+	}
+	if mappingNode == nil {
+		return nil, nil
+	}
+
+	return utils.FindKeyNodeTop("security", mappingNode.Content)
 }
 
 func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Node, nullable bool, pathPrefix, method string, context model.RuleFunctionContext) []model.RuleFunctionResult {
