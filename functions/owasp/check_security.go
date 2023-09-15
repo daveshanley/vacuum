@@ -46,16 +46,13 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 
 	for i := 1; i < len(valueOfPathNode.Content); i += 2 {
 		for j := 0; j < len(valueOfPathNode.Content[i].Content); j += 2 {
-			if slices.Contains([]string{
-				"get",
-				"head",
-				"post",
-				"put",
-				"patch",
-				"delete",
-				"options",
-				"trace",
-			}, valueOfPathNode.Content[i].Content[j].Value) && slices.Contains(methods, valueOfPathNode.Content[i].Content[j].Value) && len(valueOfPathNode.Content[i].Content) > j+1 {
+			if slices.Contains(
+				[]string{"get", "head", "post", "put", "patch", "delete", "options", "trace"},
+				valueOfPathNode.Content[i].Content[j].Value,
+			) && slices.Contains(
+				methods,
+				valueOfPathNode.Content[i].Content[j].Value,
+			) && len(valueOfPathNode.Content[i].Content) > j+1 {
 				operation := valueOfPathNode.Content[i].Content[j+1]
 				results = append(results, checkSecurityRule(operation, valueOfSecurityGlobalNode, nullable, valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value, context)...)
 			}
