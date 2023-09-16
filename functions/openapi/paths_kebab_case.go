@@ -59,18 +59,19 @@ func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 }
 
 var pathKebabCaseRegex, _ = regexp.Compile(`^[{}a-z\d-.]+$`)
+var variableRegex, _ = regexp.Compile(`^\{(\w.*)}\.?.*$`)
 
 func checkPathCase(path string) (bool, []string) {
 	segs := strings.Split(path, "/")[1:]
 	var found []string
-	for i, seg := range segs {
+	for _, seg := range segs {
 		if !pathKebabCaseRegex.MatchString(seg) {
 			// check if it's a variable, if so, skip
 			if seg == "" {
 				continue
 			}
 			// if this is a variable, or a variable at the end of a path then skip
-			if seg[0] == '{' && (strings.Contains("}", seg) || i+1 == len(segs)) {
+			if variableRegex.MatchString(seg) {
 				continue
 			}
 			found = append(found, seg)
