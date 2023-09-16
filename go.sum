@@ -241,12 +241,8 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
-github.com/pb33f/libopenapi v0.9.7 h1:HbuWB9PPZKsRtheYbRBQkhF//Ay2Bfgg0f6gw3qq7qs=
-github.com/pb33f/libopenapi v0.9.7/go.mod h1:8lr9sjsI5uZxtiEvHgg1A9/p/70briQ5WUGoJiuTFPc=
 github.com/pb33f/libopenapi v0.10.4 h1:qwXPI0weNEczMpK/UDAL/P53U44OHzUFKqwvjKgygiQ=
 github.com/pb33f/libopenapi v0.10.4/go.mod h1:s8uj6S0DjWrwZVj20ianJBz+MMjHAbeeRYNyo9ird74=
-github.com/pb33f/libopenapi-validator v0.0.15 h1:jR8rdgxjxsTp+uH9l2D/gUPm2w3SsxDeYJFSR1ojA+I=
-github.com/pb33f/libopenapi-validator v0.0.15/go.mod h1:NjY6ZsalzzcenfYJe9NFB4Hy9DKWjM/7DTnf4MF+n/M=
 github.com/pb33f/libopenapi-validator v0.0.17 h1:OHWbh1mEfLtrCCdaioyX2gbVO49wfU61CYRw5WZoPQ0=
 github.com/pb33f/libopenapi-validator v0.0.17/go.mod h1:zZu3fKnCmajVVp2a5JPK4ZMdn2jXGFp467iin8rDuCU=
 github.com/pelletier/go-toml/v2 v2.0.8 h1:0ctb6s9mE31h0/lhu+J6OPmVeDxJn+kYnJc2jZR9tGQ=
@@ -347,8 +343,6 @@ golang.org/x/exp v0.0.0-20191227195350-da58074b4299/go.mod h1:2RIsYlXP63K8oxa1u0
 golang.org/x/exp v0.0.0-20200119233911-0405dc783f0a/go.mod h1:2RIsYlXP63K8oxa1u096TMicItID8zy7Y6sNkU49FU4=
 golang.org/x/exp v0.0.0-20200207192155-f17229e696bd/go.mod h1:J/WKrq2StrnmMY6+EHIKF9dgMWnmCNThgcyBT1FY9mM=
 golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6/go.mod h1:3jZMyOhIsHpP37uCMkUooju7aAi5cS1Q23tOzKc+0MU=
-golang.org/x/exp v0.0.0-20220909182711-5c715a9e8561 h1:MDc5xs78ZrZr3HMQugiXOAkSZtfTpbJLDr/lwfgO53E=
-golang.org/x/exp v0.0.0-20220909182711-5c715a9e8561/go.mod h1:cyybsKvd6eL0RnXn6p/Grxp8F5bW7iYuBgsNCOHpMYE=
 golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb h1:mIKbk8weKhSeLH2GmUTrvx8CjkyJmnU1wFmg59CUjFA=
 golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb/go.mod h1:FXUEEKJgO7OQYeo8N01OfiKP8RXMtf6e8aTskBGqWdc=
 golang.org/x/image v0.0.0-20190227222117-0694c2d4d067/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
