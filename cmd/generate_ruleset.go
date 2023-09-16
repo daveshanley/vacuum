@@ -39,7 +39,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			// check for file args
 			if len(args) < 1 {
-				errText := "please supply 'recommended' or 'all' and a file path to output the ruleset."
+				errText := "please supply 'recommended' or 'all' and a file path to output the ruleset"
 				pterm.Error.Println(errText)
 				pterm.Println()
 				return errors.New(errText)
