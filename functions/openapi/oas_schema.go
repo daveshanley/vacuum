@@ -5,8 +5,10 @@
 package openapi
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
 	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
@@ -49,8 +51,15 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	if valid {
 		return nil
 	}
+
+	// duplicates are possible, so we need to de-dupe them.
+	seen := make(map[string]*errors.SchemaValidationFailure)
 	for i := range validationErrors {
 		for y := range validationErrors[i].SchemaValidationErrors {
+			// skip, seen it.
+			if _, ok := seen[hashResult(validationErrors[i].SchemaValidationErrors[y])]; ok {
+				continue
+			}
 			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].Location)
 			n := &yaml.Node{
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
@@ -63,7 +72,14 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Path:      location,
 				Rule:      context.Rule,
 			})
+			seen[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]
 		}
 	}
 	return results
+}
+
+func hashResult(sve *errors.SchemaValidationFailure) string {
+	return fmt.Sprintf("%x",
+		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.Location, sve.Line, sve.Column, sve.Reason))))
+
 }
