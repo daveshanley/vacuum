@@ -51,7 +51,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	}
 	for i := range validationErrors {
 		for y := range validationErrors[i].SchemaValidationErrors {
-			location, _ := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].Location)
+			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].Location)
 			n := &yaml.Node{
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
