@@ -9,7 +9,6 @@ import (
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
-	"github.com/pterm/pterm/putils"
 	"os"
 	"time"
 )
@@ -40,8 +39,20 @@ func RenderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
 
 func PrintBanner() {
 	pterm.Println()
-	_ = pterm.DefaultBigText.WithLetters(
-		putils.LettersFromStringWithRGB("vacuum", pterm.NewRGB(153, 51, 255))).Render()
+
+	//_ = pterm.DefaultBigText.WithLetters(
+	//	putils.LettersFromString(pterm.LightMagenta("vacuum"))).Render()
+	banner := `
+██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
+██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
+██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
+╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
+ ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
+  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝
+`
+
+	pterm.Println(pterm.LightMagenta(banner))
+	pterm.Println()
 	pterm.Printf("version: %s | compiled: %s\n", pterm.LightGreen(Version), pterm.LightGreen(Date))
 	pterm.Println(pterm.Cyan("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum"))
 	pterm.Println()
