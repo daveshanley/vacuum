@@ -122,7 +122,7 @@ func useDefaultConfigFile() error {
 	return nil
 }
 
-// Allow overriding speicifying configuraiton from environmental variables
+// Allow overriding specifying configuration from environment variables
 func useEnvironmentConfiguration() {
 	viper.SetEnvPrefix("VACUUM")
 	viper.AutomaticEnv()

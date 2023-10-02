@@ -60,7 +60,7 @@ const (
 	oasServersFix string = "Ensure server URIs are correct and valid, check the schemes, ensure descriptions are complete."
 
 	operationIdValidInUrlFix string = "An operationId is critical to correct code generation and operation identification. The operationId " +
-		"should really be designed in a way to make it friendly when used as part of an URL. Remove non-standard URL characters."
+		"should really be designed in a way to make it friendly when used as part of a URL. Remove non-standard URL characters."
 
 	operationTagsFix string = "Operations use tags to define the domain(s) they are apart of. Generally a single tag per operation is " +
 		"used, however some tools use multiple tags. The point is that you need tags! Add some tags to the operation that match the " +

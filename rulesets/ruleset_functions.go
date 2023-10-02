@@ -108,13 +108,13 @@ func GetInfoLicenseRule() *model.Rule {
 }
 
 // GetInfoLicenseUrlRule will return a rule that uses the truthy function to check if the
-// info object contains a license with an url that is set.
+// info object contains a license with a URL that is set.
 func GetInfoLicenseUrlRule() *model.Rule {
 	return &model.Rule{
-		Name:         "Check if license is missing an URL",
+		Name:         "Check if license is missing a URL",
 		Id:           LicenseUrl,
 		Formats:      model.AllFormats,
-		Description:  "License should contain an url",
+		Description:  "License should contain a URL",
 		Given:        "$.info.license",
 		Resolved:     true,
 		Recommended:  false,
@@ -510,7 +510,7 @@ func GetAPIServersRule() *model.Rule {
 	}
 }
 
-// GetOperationIdValidInUrlRule will check id an operationId will be valid when used in an url.
+// GetOperationIdValidInUrlRule will check id an operationId will be valid when used in a URL.
 func GetOperationIdValidInUrlRule() *model.Rule {
 	// TODO: re-build this the path is useless.
 	opts := make(map[string]interface{})
