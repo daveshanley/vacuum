@@ -86,7 +86,7 @@ func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 		Name:         "API Key detected in URL",
 		Id:           OwaspNoAPIKeysInURL,
 		Formats:      model.OAS3AllFormat,
-		Description:  "API Key has been detected in an URL",
+		Description:  "API Key has been detected in a URL",
 		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],

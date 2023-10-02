@@ -42,8 +42,8 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 			path := fmt.Sprintf("$.paths.%s", opPath)
 			for _, p := range seen {
-				ambigious := checkPaths(p, opPath)
-				if ambigious {
+				ambiguous := checkPaths(p, opPath)
+				if ambiguous {
 
 					results = append(results, model.RuleFunctionResult{
 						Message:   fmt.Sprintf("Paths are ambiguous with one another: `%s` and `%s`", p, opPath),

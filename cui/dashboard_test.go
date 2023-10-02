@@ -96,7 +96,7 @@ func TestDashboard_Render(t *testing.T) {
 		}
 	}()
 
-	// TODO: detatch console UI renderer from logic, so we can run logic, without
+	// TODO: detach console UI renderer from logic, so we can run logic, without
 	// worrying about the renderer being available.
 	//---------
 	// if there is a render error, it's because the console UI cannot be rendered in the

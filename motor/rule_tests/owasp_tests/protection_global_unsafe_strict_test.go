@@ -18,7 +18,7 @@ info:
 security:
   - BasicAuth: []
 paths:
-  /security-gloabl-ok-put:
+  /security-global-ok-put:
     put:
       responses: {}
   /security-ok-put:
