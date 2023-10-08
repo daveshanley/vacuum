@@ -86,6 +86,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	// use the current node to validate (field not needed)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
 	if _, ok := forceValidationOnCurrentNode.(bool); ok && len(nodes) > 0 {
+		schema.GoLow().Index = context.Index
 		results = append(results, validateNodeAgainstSchema(schema, nodes[0], context, 0)...)
 		return results
 	}
@@ -105,6 +106,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 		_, field := utils.FindKeyNodeTop(context.RuleAction.Field, no)
 		if field != nil {
+			schema.GoLow().Index = context.Index
 			results = append(results, validateNodeAgainstSchema(schema, field, context, x)...)
 
 		} else {

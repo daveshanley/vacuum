@@ -159,11 +159,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 		specInfoUnresolved, _ = datamodel.ExtractSpecInfoWithDocumentCheck(spec, execution.SkipDocumentCheck)
 	}
-
 	specUnresolved = specInfoUnresolved.RootNode
 	specResolved = specInfo.RootNode
 
 	var indexResolved, indexUnresolved *index.SpecIndex
+
+	config.SpecInfo = specInfo
 
 	// create resolved and un-resolved indexes.
 	if modelIndex != nil {
