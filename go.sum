@@ -241,10 +241,10 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
-github.com/pb33f/libopenapi v0.10.6 h1:46iGQqoMm6o5gYK34ER/dpxsSYdh0+76U3+obm5uEyk=
-github.com/pb33f/libopenapi v0.10.6/go.mod h1:s8uj6S0DjWrwZVj20ianJBz+MMjHAbeeRYNyo9ird74=
-github.com/pb33f/libopenapi-validator v0.0.20 h1:ZUrVH/zlam+wWgR2HKuZc0uOuGXvcL3cB8jutPtiI9A=
-github.com/pb33f/libopenapi-validator v0.0.20/go.mod h1:i7j2T/x7W8nJedxXWj7tFdxwp6e6MC2pBIFuJ1AEihg=
+github.com/pb33f/libopenapi v0.12.1 h1:DRhgbg1t32OSYoHT/Bk3stVruqquAkKj+S+OqOQIbBc=
+github.com/pb33f/libopenapi v0.12.1/go.mod h1:s8uj6S0DjWrwZVj20ianJBz+MMjHAbeeRYNyo9ird74=
+github.com/pb33f/libopenapi-validator v0.0.22 h1:2dhrR2OLIrgmMvGnijEw2O+NJ14yw4Wt90HD3ApwSRM=
+github.com/pb33f/libopenapi-validator v0.0.22/go.mod h1:avmxYRGg0u9b+fNWIsOUjujimLfbdzh2vfAsh8zo6V4=
 github.com/pelletier/go-toml/v2 v2.0.8 h1:0ctb6s9mE31h0/lhu+J6OPmVeDxJn+kYnJc2jZR9tGQ=
 github.com/pelletier/go-toml/v2 v2.0.8/go.mod h1:vuYfssBdrU2XDZ9bYydBu6t+6a6PYNcZljzZR9VXg+4=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
