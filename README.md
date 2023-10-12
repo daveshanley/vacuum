@@ -74,6 +74,15 @@ like our _very kind_ sponsors:
 
 [Speakeasy](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
 
+<a href="https://scalar.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/scalar-dark.png">
+  <img alt="scalar" src=".github/sponsors/scalar-light.png">
+</picture>
+</a>
+
+[scalar](https://scalar.com)
+
 ---
 
 ## Come chat with us
