@@ -83,6 +83,17 @@ like our _very kind_ sponsors:
 
 [scalar](https://scalar.com)
 
+<a href="https://zuplo.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/zuplo-dark.png">
+  <img alt="scalar" src=".github/sponsors/zuplo-light.png">
+</picture>
+</a>
+
+[zuplo](https://zuplo.com)
+
+
+
 ---
 
 ## Come chat with us
