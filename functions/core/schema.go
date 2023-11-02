@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	ctx "context"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
@@ -71,7 +72,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		}
 
 		// now build out the low level schema.
-		err = lowSchema.Build(&on, context.Index)
+		err = lowSchema.Build(ctx.Background(), &on, context.Index)
 		if err != nil {
 			r := model.BuildFunctionResultString(fmt.Sprintf("unable to build high schema from function options: %s", err.Error()))
 			r.Rule = context.Rule

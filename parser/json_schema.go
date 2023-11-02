@@ -4,6 +4,7 @@
 package parser
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,7 +147,7 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, index *index.SpecIndex) (*highBa
 	if mbErr != nil {
 		return nil, mbErr
 	}
-	schErr := sch.Build(node, index)
+	schErr := sch.Build(context.Background(), node, index)
 	if schErr != nil {
 		return nil, schErr
 	}

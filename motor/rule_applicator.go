@@ -4,6 +4,7 @@
 package motor
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"sync"
@@ -17,7 +18,7 @@ import (
 	v2 "github.com/pb33f/libopenapi/datamodel/high/v2"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/resolver"
+	//"github.com/pb33f/libopenapi/resolver"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
@@ -85,28 +86,25 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var specUnresolved *yaml.Node
 
 	// create new configurations
-	config := index.CreateClosedAPIIndexConfig()
+	indexConfig := index.CreateClosedAPIIndexConfig()
 
 	// avoid building the index, we don't need it to run yet.
-	config.AvoidBuildIndex = true
+	indexConfig.AvoidBuildIndex = true
 
-	docConfig := datamodel.NewClosedDocumentConfiguration()
-	docConfig.AllowFileReferences = true
+	docConfig := datamodel.NewDocumentConfiguration()
 
 	if execution.Base != "" {
 		// check if this is a URL or not
 		u, e := url.Parse(execution.Base)
 		if e == nil && u.Scheme != "" && u.Host != "" {
-			config.BaseURL = u
-			config.BasePath = ""
+			indexConfig.BaseURL = u
+			indexConfig.BasePath = ""
 			docConfig.BaseURL = u
 			docConfig.BasePath = ""
 		} else {
-			config.BasePath = execution.Base
+			indexConfig.BasePath = execution.Base
 			docConfig.BasePath = execution.Base
 		}
-		config.AllowRemoteLookup = true
-		config.AllowFileLookup = true
 	}
 
 	if execution.SkipDocumentCheck {
@@ -115,15 +113,32 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	doc := execution.Document
 
+	// If no doc is supplied (default) then create a new one.
+	// otherwise update the configuration with the supplied document.
+	// and build it.
 	if doc == nil {
 		var err error
 		// create a new document.
 		doc, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
 
 		if err != nil {
-			// Done.
+			// Done here, we can't do anything else.
 			return &RuleSetExecutionResult{Errors: []error{err}}
 		}
+	} else {
+		suppliedDocConfig := doc.GetConfiguration()
+		docConfig.AllowFileReferences = suppliedDocConfig.AllowFileReferences
+		docConfig.AllowRemoteReferences = suppliedDocConfig.AllowRemoteReferences
+		docConfig.BaseURL = suppliedDocConfig.BaseURL
+		docConfig.BasePath = suppliedDocConfig.BasePath
+		docConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
+		docConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
+		docConfig.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
+
+		indexConfig.AvoidBuildIndex = suppliedDocConfig.AvoidIndexBuild
+		indexConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
+		indexConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
+
 	}
 
 	// build model
@@ -133,6 +148,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	version := doc.GetVersion()
 	specInfo := execution.SpecInfo
 	specInfoUnresolved := execution.SpecInfo
+
+	var rolodexResolved, rolodexUnresolved *index.Rolodex
+
 	if version != "" {
 		switch version[0] {
 		case '2':
@@ -145,12 +163,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		case '3':
 			var docModel *libopenapi.DocumentModel[v3.Document]
 			docModel, docModelErrors = doc.BuildV3Model()
-
+			rolodexResolved = doc.GetRolodex()
 			if docModel != nil {
-				modelIndex = docModel.Index
+				modelIndex = rolodexResolved.GetRootIndex()
 			}
+			rolodexResolved.BuildIndexes()
+			rolodexResolved.Resolve()
+
 		}
 	}
+
 	if execution.SpecInfo == nil {
 		specInfo = doc.GetSpecInfo()
 		spec := execution.Spec
@@ -159,37 +181,74 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 		specInfoUnresolved, _ = datamodel.ExtractSpecInfoWithDocumentCheck(spec, execution.SkipDocumentCheck)
 	}
-	specUnresolved = specInfoUnresolved.RootNode
-	specResolved = specInfo.RootNode
+	//specUnresolved = specInfoUnresolved.RootNode
+	//specResolved = specInfo.RootNode
 
 	var indexResolved, indexUnresolved *index.SpecIndex
 
-	config.SpecInfo = specInfo
+	indexConfig.SpecInfo = specInfo
+	indexConfig.Rolodex = rolodexResolved
+	indexConfig.AvoidCircularReferenceCheck = true
+	indexConfig.AvoidBuildIndex = docConfig.AvoidIndexBuild
+
+	var resolvingErrors []*index.ResolvingError
 
 	// create resolved and un-resolved indexes.
 	if modelIndex != nil {
 		indexResolved = modelIndex
 	} else {
-		indexResolved = index.NewSpecIndexWithConfig(specResolved, config)
+		var err error
+		rolodexResolved, err = BuildRolodexFromIndexConfig(indexConfig)
+		if err != nil {
+			resolvingErrors = append(resolvingErrors, &index.ResolvingError{
+				ErrorRef: err,
+			})
+		}
+		rolodexResolved.IndexTheRolodex()
+		rolodexResolved.BuildIndexes()
+		rolodexResolved.Resolve()
+		indexResolved = rolodexResolved.GetRootIndex()
 	}
-	indexUnresolved = index.NewSpecIndexWithConfig(specUnresolved, config)
+
+	// create a new rolodex for the unresolved index.
+	unresolvedConfig := *indexConfig
+	unresolvedConfig.SpecInfo = specInfoUnresolved
+	unresolvedConfig.IgnorePolymorphicCircularReferences = docConfig.IgnorePolymorphicCircularReferences
+	unresolvedConfig.IgnoreArrayCircularReferences = docConfig.IgnoreArrayCircularReferences
+
+	var err error
+	rolodexUnresolved, err = BuildRolodexFromIndexConfig(&unresolvedConfig)
+	if err != nil {
+		resolvingErrors = append(resolvingErrors, &index.ResolvingError{
+			ErrorRef: err,
+		})
+	}
+	rolodexUnresolved.IndexTheRolodex()
+	rolodexUnresolved.BuildIndexes()
+	rolodexUnresolved.CheckForCircularReferences()
+	indexUnresolved = rolodexUnresolved.GetRootIndex()
+
+	//indexUnresolved = index.NewSpecIndexWithConfig(specUnresolved, indexConfig)
 
 	// build unresolved index
-	indexUnresolved.BuildIndex()
+	//indexUnresolved.BuildIndex()
 
 	// create a resolver
-	resolverInstance := resolver.NewResolver(indexResolved)
+	//resolverInstance := index.NewResolver(indexResolved)
+
+	//resolverInstance.IgnorePoly = docConfig.IgnorePolymorphicCircularReferences
+	//resolverInstance.IgnoreArray = docConfig.IgnoreArrayCircularReferences
 
 	// resolve the doc
-	resolvingErrors := resolverInstance.Resolve()
+	//resolvingErrors = append(resolvingErrors, rolodexUnresolved.GetRootIndex().GetResolver().Resolve()...)
 	for i := range docModelErrors {
-		if m, ok := docModelErrors[i].(*resolver.ResolvingError); ok {
+		var m *index.ResolvingError
+		if errors.As(docModelErrors[i], &m) {
 			resolvingErrors = append(resolvingErrors, m)
 		}
 	}
 
 	// re-map resolved index (important, the resolved index is not yet mapped)
-	indexResolved.BuildIndex()
 
 	// check references can be resolved correctly and are not infinite loops.
 	resolvingRule := &model.Rule{
@@ -222,7 +281,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	for _, er := range indexResolved.GetReferenceIndexErrors() {
-		idxError := er.(*index.IndexingError)
+		var idxError *index.IndexingError
+		errors.As(er, &idxError)
 		res := model.RuleFunctionResult{
 			RuleId:    "resolving-references",
 			Rule:      resolvingRule,
@@ -235,7 +295,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	// run all rules.
-	var errors []error
+	var errs []error
 
 	if execution.RuleSet != nil {
 		for _, rule := range execution.RuleSet.Rules {
@@ -253,7 +313,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				builtinFunctions:  builtinFunctions,
 				ruleResults:       &ruleResults,
 				wg:                &ruleWaitGroup,
-				errors:            &errors,
+				errors:            &errs,
 				specInfo:          specInfo,
 				index:             ruleIndex,
 				document:          doc,
@@ -277,7 +337,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Results:          ruleResults,
 		Index:            indexResolved,
 		SpecInfo:         specInfo,
-		Errors:           errors,
+		Errors:           errs,
 	}
 }
 
