@@ -181,8 +181,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 		specInfoUnresolved, _ = datamodel.ExtractSpecInfoWithDocumentCheck(spec, execution.SkipDocumentCheck)
 	}
-	//specUnresolved = specInfoUnresolved.RootNode
-	//specResolved = specInfo.RootNode
+	specUnresolved = specInfoUnresolved.RootNode
+	specResolved = specInfo.RootNode
 
 	var indexResolved, indexUnresolved *index.SpecIndex
 
@@ -196,6 +196,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// create resolved and un-resolved indexes.
 	if modelIndex != nil {
 		indexResolved = modelIndex
+
 	} else {
 		var err error
 		rolodexResolved, err = BuildRolodexFromIndexConfig(indexConfig)
@@ -204,7 +205,15 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				ErrorRef: err,
 			})
 		}
-		rolodexResolved.IndexTheRolodex()
+		rolodexResolved.SetRootNode(specInfo.RootNode)
+		indexErr := rolodexResolved.IndexTheRolodex()
+
+		// todo: not a resolving error
+		if indexErr != nil {
+			resolvingErrors = append(resolvingErrors, &index.ResolvingError{
+				ErrorRef: indexErr,
+			})
+		}
 		rolodexResolved.BuildIndexes()
 		rolodexResolved.Resolve()
 		indexResolved = rolodexResolved.GetRootIndex()
@@ -223,7 +232,15 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			ErrorRef: err,
 		})
 	}
-	rolodexUnresolved.IndexTheRolodex()
+	rolodexUnresolved.SetRootNode(specInfo.RootNode)
+
+	indexErr := rolodexUnresolved.IndexTheRolodex()
+	// todo: not a resolving error
+	if indexErr != nil {
+		resolvingErrors = append(resolvingErrors, &index.ResolvingError{
+			ErrorRef: indexErr,
+		})
+	}
 	rolodexUnresolved.BuildIndexes()
 	rolodexUnresolved.CheckForCircularReferences()
 	indexUnresolved = rolodexUnresolved.GetRootIndex()

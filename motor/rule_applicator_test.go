@@ -78,7 +78,7 @@ func TestApplyRules_PostResponseSuccessWithDocument(t *testing.T) {
 
 	var err error
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	doc, err := libopenapi.NewDocumentWithConfiguration(burgershop, docConfig)
 	assert.NoError(t, err)
 
@@ -1758,7 +1758,7 @@ func TestApplyRules_TestRules_Custom_Document_Pattern(t *testing.T) {
 
 	assert.NoError(t, err)
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
 	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
 	assert.NoError(t, err)
@@ -1800,7 +1800,7 @@ custom:
 	assert.NoError(t, err)
 
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
 	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
 	assert.NoError(t, err)
@@ -1846,7 +1846,7 @@ notCustom: true"
 	assert.NoError(t, err)
 
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
 	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
 	assert.NoError(t, err)
@@ -1898,7 +1898,7 @@ paths:
 	assert.NoError(t, err)
 
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
 	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
 	assert.NoError(t, err)
@@ -1944,7 +1944,7 @@ notCustom: true"
 	assert.NoError(t, err)
 
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
 	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
 	assert.NoError(t, err)
@@ -1995,7 +1995,7 @@ pizza:
 
 	var err error
 	// create a new document.
-	docConfig := datamodel.NewClosedDocumentConfiguration()
+	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.BypassDocumentCheck = true
 	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(random), docConfig)
 	assert.NoError(t, err)
