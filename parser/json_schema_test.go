@@ -2,7 +2,6 @@ package parser
 
 import (
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
@@ -38,7 +37,7 @@ func TestConvertNode_Simple(t *testing.T) {
 	config := index.CreateOpenAPIIndexConfig()
 	idx := index.NewSpecIndexWithConfig(&node, config)
 
-	resolver := resolver.NewResolver(idx)
+	resolver := index.NewResolver(idx)
 	resolver.Resolve()
 
 	p, _ := yamlpath.NewPath("$.components.schemas.Citrus")
@@ -93,7 +92,7 @@ func TestValidateExample_AllInvalid(t *testing.T) {
 	config := index.CreateOpenAPIIndexConfig()
 	idx := index.NewSpecIndexWithConfig(&node, config)
 
-	rslvr := resolver.NewResolver(idx)
+	rslvr := index.NewResolver(idx)
 	rslvr.Resolve()
 
 	p, _ := yamlpath.NewPath("$.components.schemas.Savory")
