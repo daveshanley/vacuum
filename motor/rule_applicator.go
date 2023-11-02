@@ -127,8 +127,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	} else {
 		suppliedDocConfig := doc.GetConfiguration()
-		docConfig.AllowFileReferences = suppliedDocConfig.AllowFileReferences
-		docConfig.AllowRemoteReferences = suppliedDocConfig.AllowRemoteReferences
 		docConfig.BaseURL = suppliedDocConfig.BaseURL
 		docConfig.BasePath = suppliedDocConfig.BasePath
 		docConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
