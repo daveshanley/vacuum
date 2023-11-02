@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"github.com/daveshanley/vacuum/model"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -121,7 +122,7 @@ func TestOpenAPISchema_InvalidSchemaInteger(t *testing.T) {
 func testGenerateJSONSchema(node *yaml.Node) *highBase.Schema {
 	sch := lowBase.Schema{}
 	_ = low.BuildModel(node, &sch)
-	_ = sch.Build(node, nil)
+	_ = sch.Build(context.Background(), node, nil)
 	highSch := highBase.NewSchema(&sch)
 	return highSch
 }
