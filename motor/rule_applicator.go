@@ -232,7 +232,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			ErrorRef: err,
 		})
 	}
-	rolodexUnresolved.SetRootNode(specInfo.RootNode)
+	rolodexUnresolved.SetRootNode(specInfoUnresolved.RootNode)
 
 	indexErr := rolodexUnresolved.IndexTheRolodex()
 	// todo: not a resolving error
