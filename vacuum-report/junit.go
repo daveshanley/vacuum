@@ -46,7 +46,6 @@ type Failure struct {
 func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 
 	since := time.Since(t)
-
 	var suites []*TestSuite
 
 	var cats = model.RuleCategoriesOrdered
@@ -99,7 +98,11 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 		}
 	}
 
-	b, _ := xml.MarshalIndent(suites, "", " ")
+	allSuites := &TestSuites{
+		TestSuites: suites,
+	}
+
+	b, _ := xml.MarshalIndent(allSuites, "", " ")
 	return b
 
 }
