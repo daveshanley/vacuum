@@ -132,11 +132,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		docConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
 		docConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
 		docConfig.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
-
 		indexConfig.AvoidBuildIndex = suppliedDocConfig.AvoidIndexBuild
 		indexConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
 		indexConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
-
 	}
 
 	// build model
