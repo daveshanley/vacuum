@@ -63,7 +63,7 @@ export class ViolationDrawerComponent extends BaseComponent {
           Learn more about:
           <a
             href="https://quobix.com/vacuum/rules/${this
-              .category}/${this.ruleId.replace('$', '')}"
+              .category.toLowerCase()}/${this.ruleId.replace('$', '').toLowerCase()}"
             >${this.ruleId}</a
           >
         </p>
