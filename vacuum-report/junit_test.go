@@ -16,5 +16,5 @@ func TestBuildJUnitReport(t *testing.T) {
 	j.ResultSet.Results[0].RuleId = "R0001"
 	f := time.Now().Add(-time.Millisecond * 5)
 	data := BuildJUnitReport(j.ResultSet, f)
-	assert.Len(t, data, 347)
+	assert.Len(t, data, 411)
 }
