@@ -4,7 +4,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/resolver"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -64,7 +63,7 @@ components:
 	def := Examples{}
 
 	// we need to resolve this
-	resolver := resolver.NewResolver(ctx.Index)
+	resolver := index.NewResolver(ctx.Index)
 	resolver.Resolve()
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
@@ -112,7 +111,7 @@ components:
 	def := Examples{}
 
 	// we need to resolve this
-	resolver := resolver.NewResolver(ctx.Index)
+	resolver := index.NewResolver(ctx.Index)
 	resolver.Resolve()
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
@@ -173,7 +172,7 @@ components:
 	//resolved, _ := model.ResolveOpenAPIDocument(nodes[0])
 	//res := def.RunRule([]*yaml.Node{resolved}, ctx)
 
-	resolver := resolver.NewResolver(ctx.Index)
+	resolver := index.NewResolver(ctx.Index)
 	resolver.Resolve()
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 

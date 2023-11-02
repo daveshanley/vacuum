@@ -3,7 +3,6 @@ package openapi
 import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/resolver"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -352,7 +351,7 @@ paths:
 	def := PathParameters{}
 
 	// we need to resolve this
-	r := resolver.NewResolver(ctx.Index)
+	r := index.NewResolver(ctx.Index)
 	r.Resolve()
 	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
 
