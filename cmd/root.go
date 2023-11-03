@@ -60,6 +60,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
 	rootCmd.PersistentFlags().StringP("base", "p", "", "Base URL or path to use for resolving relative or remote references")
+	rootCmd.PersistentFlags().BoolP("remote", "u", false, "Allow local files and remote (http) references to be looked up")
 	rootCmd.PersistentFlags().BoolP("skip-check", "k", false, "Skip checking for a valid OpenAPI document, useful for linting fragments or non-OpenAPI documents")
 
 	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(

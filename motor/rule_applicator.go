@@ -50,6 +50,7 @@ type RuleSetExecution struct {
 	PanicFunction     func(p any)                   // In case of emergency, do this thing here.
 	SilenceLogs       bool                          // Prevent any warnings about rules/rule-sets being printed.
 	Base              string                        // The base path or URL of the specification, used for resolving relative or remote paths.
+	AllowLookup       bool                          // Allow remote lookup of files or links
 	Document          libopenapi.Document           // a ready to render model.
 	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
 }
@@ -101,10 +102,17 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexConfig.BasePath = ""
 			docConfig.BaseURL = u
 			docConfig.BasePath = ""
+			indexConfig.AllowRemoteLookup = true
 		} else {
+			indexConfig.AllowFileLookup = true
 			indexConfig.BasePath = execution.Base
 			docConfig.BasePath = execution.Base
 		}
+	}
+
+	if execution.AllowLookup {
+		indexConfig.AllowFileLookup = true
+		indexConfig.AllowRemoteLookup = true
 	}
 
 	if execution.SkipDocumentCheck {
