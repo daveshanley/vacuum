@@ -44,6 +44,7 @@ func GetLintCommand() *cobra.Command {
 			failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 
 			// disable color and styling, for CI/CD use.
@@ -109,6 +110,7 @@ func GetLintCommand() *cobra.Command {
 				Spec:              specBytes,
 				CustomFunctions:   customFunctions,
 				Base:              baseFlag,
+				AllowLookup:	   remoteFlag,
 				SkipDocumentCheck: skipCheckFlag,
 			})
 

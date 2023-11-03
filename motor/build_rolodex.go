@@ -15,7 +15,7 @@ func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig) (*index.Rol
 	rolodex := index.NewRolodex(indexConfig)
 
 	// we need to create a local filesystem for the rolodex.
-	if indexConfig.BasePath != "" {
+	if indexConfig.AllowFileLookup {
 		cwd, absErr := filepath.Abs(indexConfig.BasePath)
 		if absErr != nil {
 			return nil, absErr
@@ -31,8 +31,21 @@ func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig) (*index.Rol
 		rolodex.AddLocalFS(cwd, fileFS)
 	}
 
-	// TODO: Remote filesystem
+	if indexConfig.AllowRemoteLookup {
+
+		// create a remote filesystem
+		remoteFS, err := index.NewRemoteFSWithConfig(indexConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		// add the filesystem to the rolodex
+		if indexConfig.BaseURL == nil {
+			rolodex.AddRemoteFS("root", remoteFS)
+		} else {
+			rolodex.AddRemoteFS(indexConfig.BaseURL.String(), remoteFS)
+		}
+	}
 
 	return rolodex, nil
-
 }
