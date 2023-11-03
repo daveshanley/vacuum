@@ -9,7 +9,6 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // OperationParameters is a rule that checks for valid parameters and parameters combinations
@@ -56,26 +55,11 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 
 			resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", path, currentVerb)
 
-			for key, params := range methodNode {
-
-				// TODO: come back and re-visit this code
-				if strings.Contains(key, "~1") {
-					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("There is a `~1` character in this `%s` operation at '%s",
-							currentVerb, currentPath),
-						StartNode: nil,
-						EndNode:   nil,
-						Path:      resultPath,
-						Rule:      context.Rule,
-					})
-					continue
-				}
-
+			for _, params := range methodNode {
 				for _, param := range params {
 					_, paramInNode := utils.FindKeyNode("in", param.Node.Content)
 					startNode := param.Node
 					endNode := utils.FindLastChildNodeWithLevel(startNode, 0)
-
 					if paramInNode != nil {
 						if seenParamInLocations[paramInNode.Value] {
 							if paramInNode.Value == "body" {
