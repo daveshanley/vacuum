@@ -138,13 +138,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
 		docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
 
-		specInfo = docResolved.GetSpecInfo()
-		indexConfig.SpecInfo = specInfo
-
 		if err != nil {
 			// Done here, we can't do anything else.
 			return &RuleSetExecutionResult{Errors: []error{err}}
 		}
+
+		specInfo = docResolved.GetSpecInfo()
+		indexConfig.SpecInfo = specInfo
+
 	} else {
 		suppliedDocConfig := docResolved.GetConfiguration()
 		docConfig.BaseURL = suppliedDocConfig.BaseURL
