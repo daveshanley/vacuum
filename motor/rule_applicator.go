@@ -249,19 +249,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	rolodexUnresolved.CheckForCircularReferences()
 	indexUnresolved = rolodexUnresolved.GetRootIndex()
 
-	//indexUnresolved = index.NewSpecIndexWithConfig(specUnresolved, indexConfig)
-
-	// build unresolved index
-	//indexUnresolved.BuildIndex()
-
-	// create a resolver
-	//resolverInstance := index.NewResolver(indexResolved)
-
-	//resolverInstance.IgnorePoly = docConfig.IgnorePolymorphicCircularReferences
-	//resolverInstance.IgnoreArray = docConfig.IgnoreArrayCircularReferences
-
-	// resolve the doc
-	//resolvingErrors = append(resolvingErrors, rolodexUnresolved.GetRootIndex().GetResolver().Resolve()...)
 	for i := range docModelErrors {
 		var m *index.ResolvingError
 		if errors.As(docModelErrors[i], &m) {
@@ -270,7 +257,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	// re-map resolved index (important, the resolved index is not yet mapped)
-
 	// check references can be resolved correctly and are not infinite loops.
 	resolvingRule := &model.Rule{
 		Name:         "Check references can be resolved correctly",
