@@ -4,6 +4,7 @@
 package openapi
 
 import (
+	ctx "context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -11,6 +12,7 @@ import (
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/utils"
+	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
 	"strings"
 	"sync"
@@ -133,22 +135,6 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		}
 	}
 
-	// scan requests, responses as fast as we can asynchronously.
-	var wg sync.WaitGroup
-	wg.Add(len(responseBodyCollection))
-	wg.Add(len(requestBodyCollection))
-	wg.Add(len(paramCollection))
-	for _, rb := range responseBodyCollection {
-		go checkExampleAsync(&wg, rb.node, rb.path, results, context)
-	}
-	for _, rb := range requestBodyCollection {
-		go checkExampleAsync(&wg, rb.node, rb.path, results, context)
-	}
-	for _, p := range paramCollection {
-		go analyzeExampleAsync(&wg, p.node.Value, p.param, p.path, results, context)
-	}
-	wg.Wait()
-
 	//check components.
 	objNode := context.Index.GetSchemasNode()
 
@@ -181,6 +167,36 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 					utils.BuildPath(componentParamPath, []string{fmt.Sprintf("%s[%d]", "parameters", x)}), results, context)
 			}
 		}
+	}
+
+	ctxTimeout, cancel := ctx.WithTimeout(ctx.Background(), time.Second*2)
+	defer cancel()
+	f := make(chan bool)
+	go func() {
+		var wg sync.WaitGroup
+		wg.Add(len(responseBodyCollection))
+		wg.Add(len(requestBodyCollection))
+		wg.Add(len(paramCollection))
+		for _, rb := range responseBodyCollection {
+			go checkExampleAsync(&wg, rb.node, rb.path, results, context)
+		}
+		for _, rb := range requestBodyCollection {
+			go checkExampleAsync(&wg, rb.node, rb.path, results, context)
+		}
+		for _, p := range paramCollection {
+			go analyzeExampleAsync(&wg, p.node.Value, p.param, p.path, results, context)
+		}
+		wg.Wait()
+		f <- true
+	}()
+
+	select {
+	case <-ctxTimeout.Done():
+		pterm.Warning.Println("examples rule timed-out after two seconds, trying to scan examples for " +
+			"response bodies, request bodies, and parameters")
+		return *results
+	case <-f:
+		// ok
 	}
 
 	return *results

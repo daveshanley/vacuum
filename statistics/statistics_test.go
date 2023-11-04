@@ -53,8 +53,9 @@ func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
 	specBytes, _ := os.ReadFile("../model/test_files/api.github.com.yaml")
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet: selectedRS,
-		Spec:    specBytes,
+		RuleSet:     selectedRS,
+		Spec:        specBytes,
+		AllowLookup: true,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
