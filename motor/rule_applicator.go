@@ -136,7 +136,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		var err error
 		// create a new document.
 		docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
-		docUnresolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+		docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
 
 		if err != nil {
 			// Done here, we can't do anything else.
@@ -220,8 +220,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig)
 		rolodexUnresolved.SetRootNode(unResInfo.RootNode)
 
-		rolodexResolved.IndexTheRolodex()
-		rolodexUnresolved.IndexTheRolodex()
+		_ = rolodexResolved.IndexTheRolodex()
+		_ = rolodexUnresolved.IndexTheRolodex()
 
 		rolodexResolved.Resolve()
 
@@ -235,14 +235,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
 		}
 
-	}
-
-	if execution.SpecInfo == nil {
-		specInfo = docResolved.GetSpecInfo()
-		spec := execution.Spec
-		if spec == nil {
-			spec = *specInfo.SpecBytes
-		}
 	}
 
 	for i := range resolvedModelErrors {
