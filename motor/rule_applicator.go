@@ -162,7 +162,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	version := docResolved.GetVersion()
 
-	//specInfoUnresolved := execution.SpecInfo
+	var resolvingErrors []*index.ResolvingError
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
 
@@ -172,7 +172,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			_, resolvedModelErrors = docResolved.BuildV2Model()
 			rolodexResolved = docResolved.GetRolodex()
 
-			_, resolvedModelErrors = docUnresolved.BuildV2Model()
+			_, _ = docUnresolved.BuildV2Model()
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
 			indexResolved = rolodexResolved.GetRootIndex()
@@ -191,7 +191,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			_, resolvedModelErrors = docResolved.BuildV3Model()
 			rolodexResolved = docResolved.GetRolodex()
 
-			_, resolvedModelErrors = docUnresolved.BuildV3Model()
+			_, _ = docUnresolved.BuildV3Model()
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
 			indexResolved = rolodexResolved.GetRootIndex()
@@ -231,6 +231,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		specResolved = rolodexResolved.GetRootNode()
 		specUnresolved = rolodexUnresolved.GetRootNode()
 
+		if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
+			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
+		}
+
 	}
 
 	if execution.SpecInfo == nil {
@@ -239,10 +243,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		if spec == nil {
 			spec = *specInfo.SpecBytes
 		}
-
 	}
-
-	var resolvingErrors []*index.ResolvingError
 
 	for i := range resolvedModelErrors {
 		var m *index.ResolvingError
