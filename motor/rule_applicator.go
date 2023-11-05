@@ -86,10 +86,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// create new configurations
 	indexConfig := index.CreateClosedAPIIndexConfig()
+	indexConfigUnresolved := index.CreateClosedAPIIndexConfig()
 
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
-
 	docConfig := datamodel.NewDocumentConfiguration()
 
 	if execution.Base != "" {
@@ -98,12 +98,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		if e == nil && u.Scheme != "" && u.Host != "" {
 			indexConfig.BaseURL = u
 			indexConfig.BasePath = ""
+			indexConfigUnresolved.BaseURL = u
+			indexConfigUnresolved.BasePath = ""
 			docConfig.BaseURL = u
 			docConfig.BasePath = ""
 			indexConfig.AllowRemoteLookup = true
+			indexConfigUnresolved.AllowRemoteLookup = true
+
 		} else {
 			indexConfig.AllowFileLookup = true
 			indexConfig.BasePath = execution.Base
+			indexConfigUnresolved.AllowFileLookup = true
+			indexConfigUnresolved.BasePath = execution.Base
 			docConfig.BasePath = execution.Base
 		}
 	}
@@ -111,10 +117,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	if execution.AllowLookup {
 		if indexConfig.BasePath != "" {
 			indexConfig.AllowFileLookup = true
+			indexConfigUnresolved.AllowFileLookup = true
 		}
 		indexConfig.AllowRemoteLookup = true
+		indexConfigUnresolved.AllowRemoteLookup = true
 		docConfig.AllowRemoteReferences = true
-		//docConfig.AllowFileReferences = true
 	}
 
 	if execution.SkipDocumentCheck {
@@ -127,11 +134,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// If no docResolved is supplied (default) then create a new one.
 	// otherwise update the configuration with the supplied document.
 	// and build it.
-	specInfo := execution.SpecInfo
-	if execution.Document != nil && execution.Document.GetSpecInfo() != nil {
-		specInfo = execution.Document.GetSpecInfo()
-	}
 
+	var specInfo, specInfoUnresolved *datamodel.SpecInfo
 	if docResolved == nil {
 		var err error
 		// create a new document.
@@ -144,19 +148,35 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 
 		specInfo = docResolved.GetSpecInfo()
+		specInfoUnresolved = docUnresolved.GetSpecInfo()
 		indexConfig.SpecInfo = specInfo
 
 	} else {
+
+		var uErr error
+		docUnresolved, uErr = libopenapi.NewDocumentWithConfiguration(*docResolved.GetSpecInfo().SpecBytes, docConfig)
+		if uErr != nil {
+			// Done here, we can't do anything else.
+			return &RuleSetExecutionResult{Errors: []error{uErr}}
+		}
+
+		specInfo = docResolved.GetSpecInfo()
+		specInfoUnresolved = docUnresolved.GetSpecInfo()
+
 		suppliedDocConfig := docResolved.GetConfiguration()
 		docConfig.BaseURL = suppliedDocConfig.BaseURL
 		docConfig.BasePath = suppliedDocConfig.BasePath
 		docConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
 		docConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
 		docConfig.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
+		indexConfig.SpecInfo = specInfo
 		indexConfig.AvoidBuildIndex = suppliedDocConfig.AvoidIndexBuild
 		indexConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
 		indexConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
-		indexConfig.SpecInfo = specInfo
+		indexConfigUnresolved.SpecInfo = specInfoUnresolved
+		indexConfigUnresolved.AvoidBuildIndex = suppliedDocConfig.AvoidIndexBuild
+		indexConfigUnresolved.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
+		indexConfigUnresolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
 	}
 
 	// build model
