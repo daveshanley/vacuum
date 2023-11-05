@@ -1693,6 +1693,154 @@ components:
 	assert.Equal(t, "resolving-references", results.Results[0].RuleId)
 }
 
+type testRuleNotResolved struct{}
+
+func (r *testRuleNotResolved) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	paths := context.Index.GetAllPaths()
+	oneRef := paths["/one"]["get"].Node.Content[1].Content[1].Content[1].Content[1].Content[1].Content[0].Value
+	one := paths["/one"]["get"].Node.Content[1].Content[1].Content[1].Content[1].Content[1].Content[1].Value
+
+	if oneRef != "$ref" && one != "#/components/schemas/one" {
+		return []model.RuleFunctionResult{
+			{
+				Message: "the reference was resolved when it should not be.",
+			},
+		}
+	} else {
+		return []model.RuleFunctionResult{}
+	}
+}
+func (r *testRuleNotResolved) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "notResolved",
+	}
+}
+
+type testRuleResolved struct{}
+
+func (r *testRuleResolved) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	paths := context.Index.GetAllPaths()
+	oneRef := paths["/one"]["get"].Node.Content[1].Content[1].Content[1].Content[1].Content[1].Content[0].Value
+	one := paths["/one"]["get"].Node.Content[1].Content[1].Content[1].Content[1].Content[1].Content[1].Value
+
+	if oneRef == "$ref" && one == "#/components/schemas/one" {
+		return []model.RuleFunctionResult{
+			{
+				Message: "the reference was not resolved when it should not be.",
+			},
+		}
+	} else {
+		return []model.RuleFunctionResult{}
+	}
+}
+func (r *testRuleResolved) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "resolved",
+	}
+}
+
+func TestRuleSet_TestDocumentNotResolved(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /one:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/one'
+components:
+  schemas:
+    one:
+      type: string`
+
+	config := datamodel.NewDocumentConfiguration()
+
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(yml), config)
+	if err != nil {
+		panic(err)
+	}
+
+	ex := &RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"test": {
+					Id:           "test",
+					Resolved:     false,
+					Given:        "$",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityError,
+					Then: model.RuleAction{
+						Function: "notResolved",
+					},
+				},
+			},
+		},
+		Document: doc,
+		CustomFunctions: map[string]model.RuleFunction{
+			"notResolved": &testRuleNotResolved{},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(ex)
+	assert.Len(t, results.Errors, 0)
+	assert.Nil(t, results.Results)
+}
+
+func TestRuleSet_TestDocumentResolved(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /one:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/one'
+components:
+  schemas:
+    one:
+      type: string`
+
+	config := datamodel.NewDocumentConfiguration()
+
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(yml), config)
+	if err != nil {
+		panic(err)
+	}
+
+	ex := &RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"test": {
+					Id:           "test",
+					Resolved:     true,
+					Given:        "$",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityError,
+					Then: model.RuleAction{
+						Function: "resolved",
+					},
+				},
+			},
+		},
+		Document: doc,
+		CustomFunctions: map[string]model.RuleFunction{
+			"resolved": &testRuleResolved{},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(ex)
+	assert.Len(t, results.Errors, 0)
+	assert.Nil(t, results.Results)
+}
+
 func TestRuleSet_InfiniteCircularLoop(t *testing.T) {
 
 	yml := `openapi: 3.1.0
