@@ -129,7 +129,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	docResolved := execution.Document
-	docUnresolved := execution.Document
+	var docUnresolved libopenapi.Document
 
 	// If no docResolved is supplied (default) then create a new one.
 	// otherwise update the configuration with the supplied document.
@@ -148,7 +148,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 
 		specInfo = docResolved.GetSpecInfo()
-		specInfoUnresolved = docUnresolved.GetSpecInfo()
 		indexConfig.SpecInfo = specInfo
 
 	} else {
