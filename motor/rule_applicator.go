@@ -139,8 +139,24 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	if docResolved == nil {
 		var err error
 		// create a new document.
-		docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
-		docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+
+		done := make(chan bool)
+
+		go func() {
+			docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+			done <- true
+		}()
+
+		go func() {
+			docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+			done <- true
+		}()
+
+		complete := 0
+		for complete < 2 {
+			<-done
+			complete++
+		}
 
 		if err != nil {
 			// Done here, we can't do anything else.
@@ -148,6 +164,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 
 		specInfo = docResolved.GetSpecInfo()
+		specInfoUnresolved = docUnresolved.GetSpecInfo()
 		indexConfig.SpecInfo = specInfo
 
 	} else {
@@ -235,18 +252,32 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		unresRoloConfig := *indexConfig
 		resRoloConfig := *indexConfig
 
-		// create an index for the unresolved spec.
-		rolodexResolved, _ = BuildRolodexFromIndexConfig(&resRoloConfig)
-		rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
+		completeChan := make(chan bool)
 
-		unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
-		rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig)
-		rolodexUnresolved.SetRootNode(unResInfo.RootNode)
+		go func() {
+			// create an index for the unresolved spec.
+			rolodexResolved, _ = BuildRolodexFromIndexConfig(&resRoloConfig)
+			rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
 
-		_ = rolodexResolved.IndexTheRolodex()
-		_ = rolodexUnresolved.IndexTheRolodex()
+			_ = rolodexResolved.IndexTheRolodex()
+			rolodexResolved.Resolve()
+			completeChan <- true
+		}()
 
-		rolodexResolved.Resolve()
+		go func() {
+			unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
+			rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig)
+			rolodexUnresolved.SetRootNode(unResInfo.RootNode)
+
+			_ = rolodexUnresolved.IndexTheRolodex()
+			completeChan <- true
+		}()
+
+		completedBuilds := 0
+		for completedBuilds < 2 {
+			<-completeChan
+			completedBuilds++
+		}
 
 		indexResolved = rolodexResolved.GetRootIndex()
 		indexUnresolved = rolodexUnresolved.GetRootIndex()
@@ -318,7 +349,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		for _, rule := range execution.RuleSet.Rules {
 			ruleSpec := specResolved
 			ruleIndex := indexResolved
+			info := specInfo
 			if !rule.Resolved {
+				info = specInfoUnresolved
 				ruleSpec = specUnresolved
 				ruleIndex = indexUnresolved
 			}
@@ -331,7 +364,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				ruleResults:       &ruleResults,
 				wg:                &ruleWaitGroup,
 				errors:            &errs,
-				specInfo:          specInfo,
+				specInfo:          info,
 				index:             ruleIndex,
 				document:          docResolved,
 				customFunctions:   execution.CustomFunctions,

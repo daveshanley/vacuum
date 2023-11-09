@@ -110,7 +110,7 @@ func GetLintCommand() *cobra.Command {
 				Spec:              specBytes,
 				CustomFunctions:   customFunctions,
 				Base:              baseFlag,
-				AllowLookup:	   remoteFlag,
+				AllowLookup:       remoteFlag,
 				SkipDocumentCheck: skipCheckFlag,
 			})
 
