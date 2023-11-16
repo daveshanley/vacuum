@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -12,8 +13,10 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -44,7 +47,6 @@ func GetLintCommand() *cobra.Command {
 			failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
-			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 
 			// disable color and styling, for CI/CD use.
@@ -59,31 +61,21 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			// check for file args
-			if len(args) != 1 {
+			if len(args) < 1 {
 				pterm.Error.Println("Please supply an OpenAPI specification to lint")
 				pterm.Println()
 				return fmt.Errorf("no file supplied")
 			}
 
-			// read file.
-			specBytes, ferr := os.ReadFile(args[0])
+			var errs []error
 
-			// split up file into an array with lines.
-			specStringData := strings.Split(string(specBytes), "\n")
-
-			if ferr != nil {
-
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], ferr.Error())
-				pterm.Println()
-				return ferr
-
+			mf := false
+			if len(args) > 1 {
+				mf = true
 			}
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSets()
-
-			// default is recommended rules, based on spectral (for now anyway)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-
 			customFunctions, _ := LoadCustomFunctions(functionsFlag)
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
@@ -103,97 +95,50 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
-			pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
-			start := time.Now()
-			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet:           selectedRS,
-				Spec:              specBytes,
-				CustomFunctions:   customFunctions,
-				Base:              baseFlag,
-				AllowLookup:       remoteFlag,
-				SkipDocumentCheck: skipCheckFlag,
-			})
+			doneChan := make(chan bool)
+			for i, arg := range args {
 
-			results := result.Results
+				go func(c chan bool, i int, arg string) {
 
-			if len(result.Errors) > 0 {
-				for _, err := range result.Errors {
-					pterm.Error.Printf("linting error: %s", err.Error())
-					pterm.Println()
-				}
-				return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
-			}
-
-			if !silent {
-				pterm.Println()
-			} // Blank line
-
-			resultSet := model.NewRuleResultSet(results)
-			resultSet.SortResultsByLineNumber()
-			fi, _ := os.Stat(args[0])
-			duration := time.Since(start)
-
-			warnings := resultSet.GetWarnCount()
-			errors := resultSet.GetErrorCount()
-			informs := resultSet.GetInfoCount()
-
-			if !detailsFlag {
-				RenderSummary(resultSet, silent)
-				RenderTime(timeFlag, duration, fi)
-				return CheckFailureSeverity(failSeverityFlag, errors, warnings, informs)
-			}
-
-			var cats []*model.RuleCategory
-
-			if categoryFlag != "" {
-				switch categoryFlag {
-				case model.CategoryDescriptions:
-					cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
-				case model.CategoryExamples:
-					cats = append(cats, model.RuleCategories[model.CategoryExamples])
-				case model.CategoryInfo:
-					cats = append(cats, model.RuleCategories[model.CategoryInfo])
-				case model.CategorySchemas:
-					cats = append(cats, model.RuleCategories[model.CategorySchemas])
-				case model.CategorySecurity:
-					cats = append(cats, model.RuleCategories[model.CategorySecurity])
-				case model.CategoryValidation:
-					cats = append(cats, model.RuleCategories[model.CategoryValidation])
-				case model.CategoryOperations:
-					cats = append(cats, model.RuleCategories[model.CategoryOperations])
-				case model.CategoryTags:
-					cats = append(cats, model.RuleCategories[model.CategoryTags])
-				case model.CategoryOWASP:
-					cats = append(cats, model.RuleCategories[model.CategoryOWASP])
-				default:
-					cats = model.RuleCategoriesOrdered
-				}
-			} else {
-				cats = model.RuleCategoriesOrdered
-			}
-
-			// try a category print out.
-			for _, val := range cats {
-
-				categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
-
-				if len(categoryResults) > 0 {
-					if !silent {
-						pterm.DefaultSection.Printf("%s Issues\n", val.Name)
+					lfr := lintFileRequest{
+						fileName:         arg,
+						baseFlag:         baseFlag,
+						multiFile:        mf,
+						skipCheckFlag:    skipCheckFlag,
+						silent:           silent,
+						detailsFlag:      detailsFlag,
+						timeFlag:         timeFlag,
+						failSeverityFlag: failSeverityFlag,
+						categoryFlag:     categoryFlag,
+						snippetsFlag:     snippetsFlag,
+						errorsFlag:       errorsFlag,
+						totalFiles:       len(args),
+						fileIndex:        i,
+						defaultRuleSets:  defaultRuleSets,
+						selectedRS:       selectedRS,
+						functions:        customFunctions,
 					}
-					processResults(categoryResults, specStringData, snippetsFlag, errorsFlag, silent)
 
-				}
+					errs = append(errs, lintFile(lfr))
 
+					if len(args) > 0 && i <= len(args)-1 {
+						pterm.Println(pterm.LightMagenta("------------------------------------------------------"))
+
+					}
+					doneChan <- true
+				}(doneChan, i, arg)
 			}
 
-			if !silent {
-				pterm.Println()
-			} // Blank line
+			completed := 0
+			for completed < len(args) {
+				<-doneChan
+				completed++
+			}
 
-			RenderSummary(resultSet, silent)
-			RenderTime(timeFlag, duration, fi)
-			return CheckFailureSeverity(failSeverityFlag, errors, warnings, informs)
+			if len(errs) > 0 {
+				return errors.Join(errs...)
+			}
+			return nil
 		},
 	}
 
@@ -231,13 +176,149 @@ func GetLintCommand() *cobra.Command {
 	return cmd
 }
 
-func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool) {
+type lintFileRequest struct {
+	fileName         string
+	baseFlag         string
+	multiFile        bool
+	skipCheckFlag    bool
+	silent           bool
+	detailsFlag      bool
+	timeFlag         bool
+	failSeverityFlag string
+	categoryFlag     string
+	snippetsFlag     bool
+	errorsFlag       bool
+	totalFiles       int
+	fileIndex        int
+	defaultRuleSets  rulesets.RuleSets
+	selectedRS       *rulesets.RuleSet
+	functions        map[string]model.RuleFunction
+	lock             sync.Mutex
+}
+
+func lintFile(req lintFileRequest) error {
+	// read file.
+	specBytes, ferr := os.ReadFile(req.fileName)
+
+	// split up file into an array with lines.
+	specStringData := strings.Split(string(specBytes), "\n")
+
+	if ferr != nil {
+
+		pterm.Error.Printf("Unable to read file '%s': %s\n", req.fileName, ferr.Error())
+		pterm.Println()
+		return ferr
+
+	}
+
+	if req.totalFiles <= 1 {
+		pterm.Info.Printf("Linting file '%s' against %d rules: %s\n", req.fileName, len(req.selectedRS.Rules), req.selectedRS.DocumentationURI)
+	}
+	start := time.Now()
+	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		RuleSet:           req.selectedRS,
+		Spec:              specBytes,
+		CustomFunctions:   req.functions,
+		Base:              req.baseFlag,
+		AllowLookup:       true,
+		SkipDocumentCheck: req.skipCheckFlag,
+	})
+
+	results := result.Results
+
+	if len(result.Errors) > 0 {
+		for _, err := range result.Errors {
+			pterm.Error.Printf("linting error: %s", err.Error())
+			pterm.Println()
+		}
+		return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+	}
+
+	if !req.silent {
+		//pterm.Println()
+	} // Blank line
+
+	resultSet := model.NewRuleResultSet(results)
+	resultSet.SortResultsByLineNumber()
+	fi, _ := os.Stat(req.fileName)
+	duration := time.Since(start)
+
+	warnings := resultSet.GetWarnCount()
+	errors := resultSet.GetErrorCount()
+	informs := resultSet.GetInfoCount()
+	req.lock.Lock()
+	defer req.lock.Unlock()
+	if !req.detailsFlag {
+		RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName)
+		RenderTime(req.timeFlag, duration, fi)
+		return CheckFailureSeverity(req.failSeverityFlag, errors, warnings, informs)
+	}
+
+	var cats []*model.RuleCategory
+
+	if req.categoryFlag != "" {
+		switch req.categoryFlag {
+		case model.CategoryDescriptions:
+			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
+		case model.CategoryExamples:
+			cats = append(cats, model.RuleCategories[model.CategoryExamples])
+		case model.CategoryInfo:
+			cats = append(cats, model.RuleCategories[model.CategoryInfo])
+		case model.CategorySchemas:
+			cats = append(cats, model.RuleCategories[model.CategorySchemas])
+		case model.CategorySecurity:
+			cats = append(cats, model.RuleCategories[model.CategorySecurity])
+		case model.CategoryValidation:
+			cats = append(cats, model.RuleCategories[model.CategoryValidation])
+		case model.CategoryOperations:
+			cats = append(cats, model.RuleCategories[model.CategoryOperations])
+		case model.CategoryTags:
+			cats = append(cats, model.RuleCategories[model.CategoryTags])
+		case model.CategoryOWASP:
+			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
+		default:
+			cats = model.RuleCategoriesOrdered
+		}
+	} else {
+		cats = model.RuleCategoriesOrdered
+	}
+
+	// try a category print out.
+
+	//for _, val := range cats {
+
+	//	categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
+
+	abs, _ := filepath.Abs(req.fileName)
+
+	if len(resultSet.Results) > 0 {
+		if !req.silent {
+
+		}
+		processResults(resultSet.Results, specStringData, req.snippetsFlag, req.errorsFlag, req.silent, abs)
+
+	}
+
+	//}
+
+	if !req.silent {
+		//pterm.Println()
+	} // Blank line
+
+	//RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName)
+	RenderTime(req.timeFlag, duration, fi)
+	return CheckFailureSeverity(req.failSeverityFlag, errors, warnings, informs)
+}
+
+func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, filename string) {
+
+	pterm.Println(pterm.LightMagenta(fmt.Sprintf("%s", filename)))
 
 	// if snippets are being used, we render a single table for a result and then a snippet, if not
 	// we just render the entire table, all rows.
 	var tableData [][]string
 	if !snippets {
-		tableData = [][]string{{"Line / Column", "Severity", "Message", "Rule", "Path"}}
+		tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Path"}}
 	}
 	for i, r := range results {
 
@@ -247,7 +328,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			break
 		}
 		if snippets {
-			tableData = [][]string{{"Line / Column", "Severity", "Message", "Rule", "Path"}}
+			tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Path"}}
 		}
 		startLine := 0
 		startCol := 0
@@ -304,9 +385,9 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	// render out code snippet
 
 	if r.StartNode.Line-3 >= 0 {
-		pterm.Printf("\n\n%s %s %s\n", pterm.Gray(r.StartNode.Line-3), pterm.Gray("|"), specData[r.StartNode.Line-3])
+		pterm.Printf("%s %s %s\n", pterm.Gray(r.StartNode.Line-3), pterm.Gray("|"), specData[r.StartNode.Line-3])
 	} else {
-		pterm.Printf("\n\n")
+		pterm.Printf("\n")
 	}
 
 	if r.StartNode.Line-2 >= 1 {
@@ -319,11 +400,11 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	pterm.Printf("%s %s %s\n", pterm.Gray(r.StartNode.Line), pterm.Gray("|"), specData[r.StartNode.Line])
 
 	if r.StartNode.Line+1 <= len(specData) {
-		pterm.Printf("%s %s %s\n\n\n", pterm.Gray(r.StartNode.Line+1), pterm.Gray("|"), specData[r.StartNode.Line+1])
+		pterm.Printf("%s %s %s\n\n", pterm.Gray(r.StartNode.Line+1), pterm.Gray("|"), specData[r.StartNode.Line+1])
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, silent bool) {
+func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename string) {
 
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
@@ -347,8 +428,7 @@ func RenderSummary(rs *model.RuleResultSet, silent bool) {
 			if err != nil {
 				pterm.Error.Printf("error rendering table '%v'", err.Error())
 			}
-			pterm.Println()
-			pterm.Println()
+
 		}
 	}
 
@@ -359,23 +439,53 @@ func RenderSummary(rs *model.RuleResultSet, silent bool) {
 	warningsHuman := humanize.Comma(int64(rs.GetWarnCount()))
 	informsHuman := humanize.Comma(int64(rs.GetInfoCount()))
 
-	if errors > 0 {
-		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
-			"Linting failed with %v errors, %v warnings and %v informs", errorsHuman, warningsHuman, informsHuman)
-		return
-	}
-	if warnings > 0 {
-		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgYellow)).WithMargin(10).Printf(
-			"Linting passed, but with %v warnings and %v informs", warningsHuman, informsHuman)
-		return
-	}
+	if totalFiles <= 1 {
 
-	if informs > 0 {
-		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
-			"Linting passed, %v informs reported", informsHuman)
-	}
+		pterm.Println()
+		pterm.Println()
 
-	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Println(
-		"Linting passed, A perfect score! well done!")
+		if errors > 0 {
+			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
+				"Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
+			return
+		}
+		if warnings > 0 {
+			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgYellow)).WithMargin(10).Printf(
+				"Linting passed, but with %v warnings and %v informs", warningsHuman, informsHuman)
+			return
+		}
+
+		if informs > 0 {
+			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
+				"Linting passed, %v informs reported", informsHuman)
+			return
+		}
+
+		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Println(
+			"Linting passed, A perfect score! well done!")
+
+	} else {
+
+		if errors > 0 {
+			pterm.Error.Printf("'%s' failed with %v errors, %v warnings and %v informs\n\n",
+				filename, errorsHuman, warningsHuman, informsHuman)
+			return
+		}
+		if warnings > 0 {
+			pterm.Warning.Printf(
+				"'%s' passed, but with %v warnings and %v informs\n\n", filename, warningsHuman, informsHuman)
+			return
+		}
+
+		if informs > 0 {
+			pterm.Success.Printf(
+				"'%s' passed, %v informs reported\n\n", filename, informsHuman)
+			return
+		}
+
+		pterm.Success.Printf(
+			"'%s' passed, A perfect score! well done!\n\n", filename)
+
+	}
 
 }
