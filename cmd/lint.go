@@ -23,11 +23,10 @@ import (
 func GetLintCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		SilenceErrors: true,
-		SilenceUsage:  true,
-		Use:           "lint <your-openapi-file.yaml>",
-		Short:         "Lint an OpenAPI specification",
-		Long:          `Lint an OpenAPI specification, the output of the response will be in the terminal`,
+		SilenceUsage: true,
+		Use:          "lint <your-openapi-file.yaml>",
+		Short:        "Lint an OpenAPI specification",
+		Long:         `Lint an OpenAPI specification, the output of the response will be in the terminal`,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) != 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -95,7 +94,22 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
+			var printLock sync.Mutex
+
 			doneChan := make(chan bool)
+
+			if len(args) <= 1 {
+				pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", args[0], len(selectedRS.Rules),
+					selectedRS.DocumentationURI)
+				pterm.Println()
+			}
+
+			if len(args) > 1 {
+				pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(args), len(selectedRS.Rules),
+					selectedRS.DocumentationURI)
+				pterm.Println()
+			}
+
 			for i, arg := range args {
 
 				go func(c chan bool, i int, arg string) {
@@ -117,14 +131,9 @@ func GetLintCommand() *cobra.Command {
 						defaultRuleSets:  defaultRuleSets,
 						selectedRS:       selectedRS,
 						functions:        customFunctions,
+						lock:             &printLock,
 					}
-
 					errs = append(errs, lintFile(lfr))
-
-					if len(args) > 0 && i <= len(args)-1 {
-						pterm.Println(pterm.LightMagenta("------------------------------------------------------"))
-
-					}
 					doneChan <- true
 				}(doneChan, i, arg)
 			}
@@ -135,9 +144,16 @@ func GetLintCommand() *cobra.Command {
 				completed++
 			}
 
+			if !detailsFlag {
+				pterm.Println()
+				pterm.Info.Println("To see full details of linting report, use the '-d' flag.")
+				pterm.Println()
+			}
+
 			if len(errs) > 0 {
 				return errors.Join(errs...)
 			}
+
 			return nil
 		},
 	}
@@ -193,7 +209,7 @@ type lintFileRequest struct {
 	defaultRuleSets  rulesets.RuleSets
 	selectedRS       *rulesets.RuleSet
 	functions        map[string]model.RuleFunction
-	lock             sync.Mutex
+	lock             *sync.Mutex
 }
 
 func lintFile(req lintFileRequest) error {
@@ -211,9 +227,6 @@ func lintFile(req lintFileRequest) error {
 
 	}
 
-	if req.totalFiles <= 1 {
-		pterm.Info.Printf("Linting file '%s' against %d rules: %s\n", req.fileName, len(req.selectedRS.Rules), req.selectedRS.DocumentationURI)
-	}
 	start := time.Now()
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           req.selectedRS,
@@ -234,24 +247,20 @@ func lintFile(req lintFileRequest) error {
 		return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 	}
 
-	if !req.silent {
-		//pterm.Println()
-	} // Blank line
-
 	resultSet := model.NewRuleResultSet(results)
 	resultSet.SortResultsByLineNumber()
 	fi, _ := os.Stat(req.fileName)
 	duration := time.Since(start)
 
 	warnings := resultSet.GetWarnCount()
-	errors := resultSet.GetErrorCount()
+	errs := resultSet.GetErrorCount()
 	informs := resultSet.GetInfoCount()
 	req.lock.Lock()
 	defer req.lock.Unlock()
 	if !req.detailsFlag {
-		RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName)
+		RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
 		RenderTime(req.timeFlag, duration, fi)
-		return CheckFailureSeverity(req.failSeverityFlag, errors, warnings, informs)
+		return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 	}
 
 	var cats []*model.RuleCategory
@@ -283,42 +292,34 @@ func lintFile(req lintFileRequest) error {
 		cats = model.RuleCategoriesOrdered
 	}
 
-	// try a category print out.
-
-	//for _, val := range cats {
-
-	//	categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
-
 	abs, _ := filepath.Abs(req.fileName)
 
 	if len(resultSet.Results) > 0 {
 		if !req.silent {
 
 		}
-		processResults(resultSet.Results, specStringData, req.snippetsFlag, req.errorsFlag, req.silent, abs)
-
+		processResults(resultSet.Results, specStringData, req.snippetsFlag, req.errorsFlag, req.silent, abs, req.fileName)
 	}
 
-	//}
-
-	if !req.silent {
-		//pterm.Println()
-	} // Blank line
-
-	//RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName)
+	RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
 	RenderTime(req.timeFlag, duration, fi)
-	return CheckFailureSeverity(req.failSeverityFlag, errors, warnings, informs)
+	return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 }
 
-func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, filename string) {
+func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, abs, filename string) {
 
-	pterm.Println(pterm.LightMagenta(fmt.Sprintf("%s", filename)))
+	pterm.Println(pterm.LightMagenta(fmt.Sprintf("%s", abs)))
+	underline := make([]string, len(abs))
+	for x, _ := range abs {
+		underline[x] = "-"
+	}
+	pterm.Println(pterm.LightMagenta(strings.Join(underline, "")))
 
 	// if snippets are being used, we render a single table for a result and then a snippet, if not
 	// we just render the entire table, all rows.
 	var tableData [][]string
 	if !snippets {
-		tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Path"}}
+		tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Category", "Path"}}
 	}
 	for i, r := range results {
 
@@ -328,7 +329,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			break
 		}
 		if snippets {
-			tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Path"}}
+			tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Category", "Path"}}
 		}
 		startLine := 0
 		startCol := 0
@@ -338,15 +339,16 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 		if r.StartNode != nil {
 			startCol = r.StartNode.Column
 		}
-		start := fmt.Sprintf("(%v:%v)", startLine, startCol)
+
+		start := fmt.Sprintf("%s:%v:%v", filename, startLine, startCol)
 		m := r.Message
 		p := r.Path
 		if len(r.Path) > 60 {
 			p = fmt.Sprintf("%s...", r.Path[:60])
 		}
 
-		if len(r.Message) > 180 {
-			m = fmt.Sprintf("%s...", r.Message[:180])
+		if len(r.Message) > 100 {
+			m = fmt.Sprintf("%s...", r.Message[:80])
 		}
 
 		sev := "nope"
@@ -367,7 +369,7 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			continue // only show errors
 		}
 
-		tableData = append(tableData, []string{start, sev, m, r.Rule.Id, p})
+		tableData = append(tableData, []string{start, sev, m, r.Rule.Id, r.Rule.RuleCategory.Name, p})
 
 		if snippets && !silent {
 			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
@@ -404,7 +406,7 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename string) {
+func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename, sev string) {
 
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
@@ -441,17 +443,20 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 
 	if totalFiles <= 1 {
 
-		pterm.Println()
-		pterm.Println()
-
 		if errors > 0 {
 			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
 				"Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
 			return
 		}
 		if warnings > 0 {
+			msg := "passed, but with"
+			switch sev {
+			case model.SeverityWarn:
+				msg = "failed with"
+			}
+
 			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgYellow)).WithMargin(10).Printf(
-				"Linting passed, but with %v warnings and %v informs", warningsHuman, informsHuman)
+				"Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
 			return
 		}
 
@@ -469,22 +474,26 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 		if errors > 0 {
 			pterm.Error.Printf("'%s' failed with %v errors, %v warnings and %v informs\n\n",
 				filename, errorsHuman, warningsHuman, informsHuman)
+			pterm.Println()
 			return
 		}
 		if warnings > 0 {
 			pterm.Warning.Printf(
 				"'%s' passed, but with %v warnings and %v informs\n\n", filename, warningsHuman, informsHuman)
+			pterm.Println()
 			return
 		}
 
 		if informs > 0 {
 			pterm.Success.Printf(
 				"'%s' passed, %v informs reported\n\n", filename, informsHuman)
+			pterm.Println()
 			return
 		}
 
 		pterm.Success.Printf(
 			"'%s' passed, A perfect score! well done!\n\n", filename)
+		pterm.Println()
 
 	}
 

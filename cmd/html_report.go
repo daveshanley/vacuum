@@ -23,10 +23,9 @@ import (
 func GetHTMLReportCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		SilenceUsage:  true,
-		SilenceErrors: false,
-		Use:           "html-report",
-		Short:         "Generate an HTML report of a linting run",
+		SilenceUsage: true,
+		Use:          "html-report",
+		Short:        "Generate an HTML report of a linting run",
 		Long: "Generate an interactive and useful HTML report. Default output " +
 			"filename is 'report.html' located in the working directory.",
 		Example: "vacuum html-report <my-awesome-spec.yaml> <report.html>",
