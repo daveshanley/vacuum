@@ -20,10 +20,9 @@ import (
 func GetSpectralReportCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		Use:           "spectral-report",
-		Short:         "Generate a Spectral compatible JSON report",
+		SilenceUsage: true,
+		Use:          "spectral-report",
+		Short:        "Generate a Spectral compatible JSON report",
 		Long: "Generate a JSON report using the same model as Spectral. Default output " +
 			"filename is 'vacuum-spectral-report.json' located in the working directory. " +
 			"Use the -i flag for using stdin instead of reading a file, and -o for stdout, instead of writing to a file.",

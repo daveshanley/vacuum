@@ -34,11 +34,9 @@ func Execute(version, commit, date string) {
 
 func GetRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		SilenceUsage:  true,
-		SilenceErrors: true,
-		Use:           "vacuum lint <your-openapi-file.yaml>",
-		Short:         "vacuum is a very fast OpenAPI linter",
-		Long:          `vacuum is a very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
+		Use:   "vacuum lint <your-openapi-file.yaml>",
+		Short: "vacuum is a very fast OpenAPI linter",
+		Long:  `vacuum is a very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := useConfigFile(cmd)
 			if err != nil {
@@ -46,21 +44,19 @@ func GetRootCommand() *cobra.Command {
 			}
 			return err
 		},
-		Run: func(cmd *cobra.Command, args []string) {
-
+		RunE: func(cmd *cobra.Command, args []string) error {
 			PrintBanner()
-
 			pterm.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
-
 			pterm.Println()
+			return nil
 		},
 	}
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.yaml)")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.yaml) ")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
-	rootCmd.PersistentFlags().StringP("base", "p", "", "Base URL or path to use for resolving relative or remote references")
-	rootCmd.PersistentFlags().BoolP("remote", "u", false, "Allow local files and remote (http) references to be looked up")
+	rootCmd.PersistentFlags().StringP("base", "p", "", "Override Base URL or path to use for resolving local file based or remote references")
+	rootCmd.PersistentFlags().BoolP("remote", "u", true, "Allow local files and remote (http) references to be looked up")
 	rootCmd.PersistentFlags().BoolP("skip-check", "k", false, "Skip checking for a valid OpenAPI document, useful for linting fragments or non-OpenAPI documents")
 
 	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
@@ -89,7 +85,7 @@ func useConfigFile(cmd *cobra.Command) error {
 	useEnvironmentConfiguration()
 	var err error
 	if len(configFile) != 0 {
-		err = useUserSupplliedConfigFile(configFile)
+		err = useUserSuppliedConfigFile(configFile)
 	} else {
 		err = useDefaultConfigFile()
 	}
@@ -130,7 +126,7 @@ func useEnvironmentConfiguration() {
 	// Environment variables can't have dashes in them
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 }
-func useUserSupplliedConfigFile(configFilePath string) error {
+func useUserSuppliedConfigFile(configFilePath string) error {
 	viper.SetConfigFile(os.ExpandEnv(configFile))
 	return viper.ReadInConfig()
 }

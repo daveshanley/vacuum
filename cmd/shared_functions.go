@@ -80,18 +80,18 @@ func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, inf
 		switch failSeverityFlag {
 		case model.SeverityWarn:
 			if warnings > 0 || errors > 0 {
-				return fmt.Errorf("failed linting, with %d errors and %d warnings", errors, warnings)
+				return fmt.Errorf("failed with %d errors and %d warnings", errors, warnings)
 			}
 		case model.SeverityInfo:
 			if informs > 0 || warnings > 0 || errors > 0 {
-				return fmt.Errorf("failed linting, with %d errors, %d warnings and %d informs",
+				return fmt.Errorf("failed with %d errors, %d warnings and %d informs",
 					errors, warnings, informs)
 			}
 			return nil
 		}
 	} else {
 		if errors > 0 {
-			return fmt.Errorf("failed linting, with %d errors", errors)
+			return fmt.Errorf("failed with %d errors", errors)
 		}
 	}
 	return nil
