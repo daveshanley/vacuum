@@ -131,7 +131,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			pterm.Println()
 
 			fi, _ := os.Stat(args[0])
-			RenderTime(timeFlag, duration, fi)
+			RenderTime(timeFlag, duration, fi.Size())
 
 			return nil
 		},

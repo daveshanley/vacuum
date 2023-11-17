@@ -8,6 +8,7 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
+	"log/slog"
 	"regexp"
 	"time"
 )
@@ -44,6 +45,7 @@ type RuleFunctionContext struct {
 	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
 	SpecInfo   *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
 	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
+	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule

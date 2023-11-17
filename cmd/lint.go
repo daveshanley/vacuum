@@ -12,6 +12,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,7 +74,12 @@ func GetLintCommand() *cobra.Command {
 				mf = true
 			}
 
-			defaultRuleSets := rulesets.BuildDefaultRuleSets()
+			// setup logging
+			handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
+			pterm.DefaultLogger.Level = pterm.LogLevelError
+			logger := slog.New(handler)
+
+			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 			customFunctions, _ := LoadCustomFunctions(functionsFlag)
 
@@ -110,9 +116,17 @@ func GetLintCommand() *cobra.Command {
 				pterm.Println()
 			}
 
+			start := time.Now()
+			var size int64
 			for i, arg := range args {
 
 				go func(c chan bool, i int, arg string) {
+
+					// get size
+					s, _ := os.Stat(arg)
+					if s != nil {
+						size = size + s.Size()
+					}
 
 					lfr := lintFileRequest{
 						fileName:         arg,
@@ -132,6 +146,7 @@ func GetLintCommand() *cobra.Command {
 						selectedRS:       selectedRS,
 						functions:        customFunctions,
 						lock:             &printLock,
+						logger:           logger,
 					}
 					errs = append(errs, lintFile(lfr))
 					doneChan <- true
@@ -149,6 +164,10 @@ func GetLintCommand() *cobra.Command {
 				pterm.Info.Println("To see full details of linting report, use the '-d' flag.")
 				pterm.Println()
 			}
+
+			duration := time.Since(start)
+
+			RenderTime(timeFlag, duration, size)
 
 			if len(errs) > 0 {
 				return errors.Join(errs...)
@@ -210,6 +229,7 @@ type lintFileRequest struct {
 	selectedRS       *rulesets.RuleSet
 	functions        map[string]model.RuleFunction
 	lock             *sync.Mutex
+	logger           *slog.Logger
 }
 
 func lintFile(req lintFileRequest) error {
@@ -227,7 +247,6 @@ func lintFile(req lintFileRequest) error {
 
 	}
 
-	start := time.Now()
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           req.selectedRS,
 		Spec:              specBytes,
@@ -235,13 +254,14 @@ func lintFile(req lintFileRequest) error {
 		Base:              req.baseFlag,
 		AllowLookup:       true,
 		SkipDocumentCheck: req.skipCheckFlag,
+		Logger:            req.logger,
 	})
 
 	results := result.Results
 
 	if len(result.Errors) > 0 {
 		for _, err := range result.Errors {
-			pterm.Error.Printf("linting error: %s", err.Error())
+			pterm.Error.Printf("unable to process spec '%s', error: %s", req.fileName, err.Error())
 			pterm.Println()
 		}
 		return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
@@ -249,9 +269,6 @@ func lintFile(req lintFileRequest) error {
 
 	resultSet := model.NewRuleResultSet(results)
 	resultSet.SortResultsByLineNumber()
-	fi, _ := os.Stat(req.fileName)
-	duration := time.Since(start)
-
 	warnings := resultSet.GetWarnCount()
 	errs := resultSet.GetErrorCount()
 	informs := resultSet.GetInfoCount()
@@ -259,7 +276,6 @@ func lintFile(req lintFileRequest) error {
 	defer req.lock.Unlock()
 	if !req.detailsFlag {
 		RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
-		RenderTime(req.timeFlag, duration, fi)
 		return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 	}
 
@@ -302,13 +318,13 @@ func lintFile(req lintFileRequest) error {
 	}
 
 	RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
-	RenderTime(req.timeFlag, duration, fi)
+
 	return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 }
 
 func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, abs, filename string) {
 
-	pterm.Println(pterm.LightMagenta(fmt.Sprintf("%s", abs)))
+	pterm.Println(pterm.LightMagenta(fmt.Sprintf("\n%s", abs)))
 	underline := make([]string, len(abs))
 	for x, _ := range abs {
 		underline[x] = "-"

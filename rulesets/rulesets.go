@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/santhosh-tekuri/jsonschema/v5"
-	"go.uber.org/zap"
 )
 
 //go:embed schemas/ruleset.schema.json
@@ -109,12 +110,9 @@ const (
 	SpectralOff                          = "off"
 )
 
-var log *zap.Logger
-
-//var log *zap.SugaredLogger
-
 type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
+	logger         *slog.Logger
 }
 
 // RuleSets is used to generate default RuleSets built into vacuum
@@ -136,10 +134,16 @@ type RuleSets interface {
 var rulesetsSingleton *ruleSetsModel
 
 func BuildDefaultRuleSets() RuleSets {
-	log = zap.NewExample()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelError,
+	}))
+	return BuildDefaultRuleSetsWithLogger(logger)
+}
 
+func BuildDefaultRuleSetsWithLogger(logger *slog.Logger) RuleSets {
 	rulesetsSingleton = &ruleSetsModel{
 		openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
+		logger:         logger,
 	}
 	return rulesetsSingleton
 }
@@ -233,7 +237,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			// let's check to see if this rule exists
 			if rs.Rules[k] == nil {
 
-				log.Warn("Rule does not exist, ignoring it", zap.String("rule", k))
+				rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
 
 				// we don't know anything about this rule, so skip it.
 				continue
@@ -252,7 +256,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		if eval, ok := v.(bool); ok {
 			if eval {
 				if rsm.openAPIRuleSet.Rules[k] == nil {
-					log.Warn("Rule does not exist, ignoring it", zap.String("rule", k))
+					rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
 					continue
 				}
 				rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
@@ -271,11 +275,11 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 
 			dErr := mapstructure.Decode(newRule, &nr)
 			if dErr != nil {
-				log.Error("Unable to decode rule", zap.String("error", dErr.Error()))
+				rsm.logger.Error("Unable to decode rule", "error", dErr.Error())
 			}
 			dErr = mapstructure.Decode(newRule["category"], &rc)
 			if dErr != nil {
-				log.Error("Unable to decode rule category", zap.String("error", dErr.Error()))
+				rsm.logger.Error("Unable to decode rule category", "error", dErr.Error())
 			}
 
 			// add to validation category if it's not supplied

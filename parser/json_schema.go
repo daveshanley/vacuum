@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/model"
 	yamlAlt "github.com/ghodss/yaml"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
@@ -192,7 +193,7 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 }
 
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
-func ValidateNodeAgainstSchema(schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
+func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
 
 	//convert node to raw yaml first, then convert to json to be used in schema validation
 	var d []byte
@@ -219,6 +220,11 @@ func ValidateNodeAgainstSchema(schema *highBase.Schema, node *yaml.Node, isArray
 	var decoded any
 	_ = json.Unmarshal(n, &decoded)
 
-	validator := schema_validation.NewSchemaValidator()
+	var validator schema_validation.SchemaValidator
+	if ctx != nil && ctx.Logger != nil {
+		validator = schema_validation.NewSchemaValidatorWithLogger(ctx.Logger)
+	} else {
+		validator = schema_validation.NewSchemaValidator()
+	}
 	return validator.ValidateSchemaObject(schema, decoded)
 }
