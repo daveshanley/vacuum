@@ -169,7 +169,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		}
 	}
 
-	ctxTimeout, cancel := ctx.WithTimeout(ctx.Background(), time.Second*2)
+	ctxTimeout, cancel := ctx.WithTimeout(ctx.Background(), time.Second*1)
 	defer cancel()
 	f := make(chan bool)
 	go func() {
@@ -192,8 +192,8 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	select {
 	case <-ctxTimeout.Done():
-		pterm.Warning.Println("examples rule timed-out after two seconds, trying to scan examples for " +
-			"response bodies, request bodies, and parameters")
+		pterm.Warning.Println("bug: examples function timed-out after a second, trying to scan examples for " +
+			"response bodies, request bodies, and parameters. Disable rules that use the example function checking for this spec. Please report this!")
 		return *results
 	case <-f:
 		// ok
@@ -325,10 +325,10 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 					}
 
 					if schema != nil && schema.Type != nil && isArr && exValue != nil {
-						res, errs = parser.ValidateNodeAgainstSchema(schema, exValue, true)
+						res, errs = parser.ValidateNodeAgainstSchema(&context, schema, exValue, true)
 					}
 					if schema != nil && schema.Type != nil && !isArr && exValue != nil {
-						res, errs = parser.ValidateNodeAgainstSchema(schema, exValue, false)
+						res, errs = parser.ValidateNodeAgainstSchema(&context, schema, exValue, false)
 					}
 
 					// TODO: handle enums in here.
@@ -375,7 +375,7 @@ func checkDefinitionForExample(componentNode *yaml.Node, compName string,
 
 			var errorResults []*validationErrors.ValidationError
 			if topExValue != nil {
-				_, errorResults = parser.ValidateNodeAgainstSchema(schema, topExValue, false)
+				_, errorResults = parser.ValidateNodeAgainstSchema(&context, schema, topExValue, false)
 			}
 
 			// extract all validation errors.
@@ -524,7 +524,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 					}
 
-					res, errs := parser.ValidateNodeAgainstSchema(convertedSchema, valueNode, false)
+					res, errs := parser.ValidateNodeAgainstSchema(&context, convertedSchema, valueNode, false)
 
 					if !res {
 						// extract all validation errors.
@@ -606,7 +606,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 
 		//return results
 
-		res, validateError := parser.ValidateNodeAgainstSchema(schema, eValue, false)
+		res, validateError := parser.ValidateNodeAgainstSchema(&context, schema, eValue, false)
 
 		var schemaErrors []*validationErrors.SchemaValidationFailure
 		for i := range validateError {

@@ -94,7 +94,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
 	if _, ok := forceValidationOnCurrentNode.(bool); ok && len(nodes) > 0 {
 		schema.GoLow().Index = context.Index
-		results = append(results, validateNodeAgainstSchema(schema, nodes[0], context, 0)...)
+		results = append(results, validateNodeAgainstSchema(&context, schema, nodes[0], context, 0)...)
 		return results
 	}
 
@@ -114,7 +114,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		_, field := utils.FindKeyNodeTop(context.RuleAction.Field, no)
 		if field != nil {
 			schema.GoLow().Index = context.Index
-			results = append(results, validateNodeAgainstSchema(schema, field, context, x)...)
+			results = append(results, validateNodeAgainstSchema(&context, schema, field, context, x)...)
 
 		} else {
 			// If the field is not found, and we're being strict, it's invalid.
@@ -138,7 +138,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}
 
-func validateNodeAgainstSchema(schema *highBase.Schema, field *yaml.Node,
+func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, field *yaml.Node,
 	context model.RuleFunctionContext, x int) []model.RuleFunctionResult {
 
 	ruleMessage := context.Rule.Description
@@ -149,7 +149,7 @@ func validateNodeAgainstSchema(schema *highBase.Schema, field *yaml.Node,
 	var results []model.RuleFunctionResult
 
 	// validate using schema provided.
-	res, resErrors := parser.ValidateNodeAgainstSchema(schema, field, false)
+	res, resErrors := parser.ValidateNodeAgainstSchema(ctx, schema, field, false)
 
 	if res {
 		return results

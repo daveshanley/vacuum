@@ -9,7 +9,6 @@ import (
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
-	"os"
 	"time"
 )
 
@@ -29,10 +28,14 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 }
 
 // RenderTime will render out the time taken to process a specification, and the size of the file in kb.
-func RenderTime(timeFlag bool, duration time.Duration, fi os.FileInfo) {
+func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	if timeFlag {
 		pterm.Println()
-		pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi.Size()/1000))
+		if (fi / 1000) <= 1024 {
+			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi/1000))
+		} else {
+			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000))
+		}
 		pterm.Println()
 	}
 }

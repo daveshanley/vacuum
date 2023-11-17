@@ -145,7 +145,9 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		rx := regexp.MustCompile(fmt.Sprintf("^%s$", pattern))
 		node := nodes[0]
 		if utils.IsNodeMap(nodes[0]) || utils.IsNodeArray(nodes[0]) {
-			node = nodes[0].Content[0]
+			if len(nodes[0].Content) > 0 {
+				node = nodes[0].Content[0]
+			}
 		}
 
 		if !rx.MatchString(node.Value) {

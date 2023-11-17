@@ -6,6 +6,7 @@ package motor
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"sync"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	//"github.com/pb33f/libopenapi/resolver"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
@@ -36,6 +36,7 @@ type ruleContext struct {
 	silenceLogs       bool
 	document          libopenapi.Document
 	skipDocumentCheck bool
+	logger            *slog.Logger
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -51,6 +52,7 @@ type RuleSetExecution struct {
 	AllowLookup       bool                          // Allow remote lookup of files or links
 	Document          libopenapi.Document           // a ready to render model.
 	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
+	Logger            *slog.Logger                  // A custom logger.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -91,6 +93,15 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
 	docConfig := datamodel.NewDocumentConfiguration()
+
+	// add new pretty logger.
+	if execution.Logger == nil {
+		handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
+		docConfig.Logger = slog.New(handler)
+		pterm.DefaultLogger.Level = pterm.LogLevelError
+	} else {
+		docConfig.Logger = execution.Logger
+	}
 
 	if execution.Base != "" {
 		// check if this is a URL or not
@@ -370,6 +381,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				customFunctions:   execution.CustomFunctions,
 				silenceLogs:       execution.SilenceLogs,
 				skipDocumentCheck: execution.SkipDocumentCheck,
+				logger:            docConfig.Logger,
 			}
 			if execution.PanicFunction != nil {
 				ctx.panicFunc = execution.PanicFunction
@@ -486,6 +498,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			Index:      ctx.index,
 			SpecInfo:   ctx.specInfo,
 			Document:   ctx.document,
+			Logger:     ctx.logger,
 		}
 
 		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
