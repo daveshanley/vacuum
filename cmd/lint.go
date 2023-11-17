@@ -105,15 +105,19 @@ func GetLintCommand() *cobra.Command {
 			doneChan := make(chan bool)
 
 			if len(args) <= 1 {
-				pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", args[0], len(selectedRS.Rules),
-					selectedRS.DocumentationURI)
-				pterm.Println()
+				if !silent {
+					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", args[0], len(selectedRS.Rules),
+						selectedRS.DocumentationURI)
+					pterm.Println()
+				}
 			}
 
 			if len(args) > 1 {
-				pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(args), len(selectedRS.Rules),
-					selectedRS.DocumentationURI)
-				pterm.Println()
+				if !silent {
+					pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(args), len(selectedRS.Rules),
+						selectedRS.DocumentationURI)
+					pterm.Println()
+				}
 			}
 
 			start := time.Now()
@@ -279,41 +283,9 @@ func lintFile(req lintFileRequest) error {
 		return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 	}
 
-	var cats []*model.RuleCategory
-
-	if req.categoryFlag != "" {
-		switch req.categoryFlag {
-		case model.CategoryDescriptions:
-			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
-		case model.CategoryExamples:
-			cats = append(cats, model.RuleCategories[model.CategoryExamples])
-		case model.CategoryInfo:
-			cats = append(cats, model.RuleCategories[model.CategoryInfo])
-		case model.CategorySchemas:
-			cats = append(cats, model.RuleCategories[model.CategorySchemas])
-		case model.CategorySecurity:
-			cats = append(cats, model.RuleCategories[model.CategorySecurity])
-		case model.CategoryValidation:
-			cats = append(cats, model.RuleCategories[model.CategoryValidation])
-		case model.CategoryOperations:
-			cats = append(cats, model.RuleCategories[model.CategoryOperations])
-		case model.CategoryTags:
-			cats = append(cats, model.RuleCategories[model.CategoryTags])
-		case model.CategoryOWASP:
-			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
-		default:
-			cats = model.RuleCategoriesOrdered
-		}
-	} else {
-		cats = model.RuleCategoriesOrdered
-	}
-
 	abs, _ := filepath.Abs(req.fileName)
 
 	if len(resultSet.Results) > 0 {
-		if !req.silent {
-
-		}
 		processResults(resultSet.Results, specStringData, req.snippetsFlag, req.errorsFlag, req.silent, abs, req.fileName)
 	}
 
@@ -324,12 +296,14 @@ func lintFile(req lintFileRequest) error {
 
 func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, abs, filename string) {
 
-	pterm.Println(pterm.LightMagenta(fmt.Sprintf("\n%s", abs)))
-	underline := make([]string, len(abs))
-	for x, _ := range abs {
-		underline[x] = "-"
+	if !silent {
+		pterm.Println(pterm.LightMagenta(fmt.Sprintf("\n%s", abs)))
+		underline := make([]string, len(abs))
+		for x := range abs {
+			underline[x] = "-"
+		}
+		pterm.Println(pterm.LightMagenta(strings.Join(underline, "")))
 	}
-	pterm.Println(pterm.LightMagenta(strings.Join(underline, "")))
 
 	// if snippets are being used, we render a single table for a result and then a snippet, if not
 	// we just render the entire table, all rows.
