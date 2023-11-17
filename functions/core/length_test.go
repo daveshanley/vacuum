@@ -38,6 +38,7 @@ paths:
 
 	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Rule = &rule
 	ctx.Given = path
 
 	le := Length{}

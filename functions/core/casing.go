@@ -136,13 +136,23 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		pathValue = path
 	}
 
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
 	if c.separatorChar == "" {
 		rx := regexp.MustCompile(fmt.Sprintf("^%s$", pattern))
-		if !rx.MatchString(nodes[0].Value) {
+		node := nodes[0]
+		if utils.IsNodeMap(nodes[0]) || utils.IsNodeArray(nodes[0]) {
+			node = nodes[0].Content[0]
+		}
+
+		if !rx.MatchString(node.Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("%s: '%s' is not %s case!", context.Rule.Description, nodes[0].Value, casingType),
-				StartNode: nodes[0],
-				EndNode:   nodes[0],
+				Message:   fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType),
+				StartNode: node,
+				EndNode:   node,
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})
@@ -162,7 +172,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		rx := regexp.MustCompile(leadingPattern)
 		if !rx.MatchString(nodes[0].Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("%s: '%s' is not %s case!", context.Rule.Description,
+				Message: fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
 					nodes[0].Value, casingType),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],

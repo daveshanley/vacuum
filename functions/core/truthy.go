@@ -40,6 +40,11 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		isArray = true
 	}
 
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
 	for x, node := range nodes {
 
 		if node.Kind == yaml.DocumentNode {
@@ -62,7 +67,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					endNode = node
 				}
 				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("%s: `%s` must be set", context.Rule.Description, context.RuleAction.Field),
+					Message:   fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field),
 					StartNode: node,
 					EndNode:   endNode,
 					Path:      pathValue,
