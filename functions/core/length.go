@@ -42,8 +42,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		return nil
 	}
 
-	var min int
-	var max int
+	var minVal int
+	var maxVal int
 
 	// check if there are min and max values
 	if context.Options == nil {
@@ -51,14 +51,19 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	}
 	if opts := utils.ConvertInterfaceIntoStringMap(context.Options); opts != nil {
 		if v, ok := opts["min"]; ok {
-			min, _ = strconv.Atoi(v)
+			minVal, _ = strconv.Atoi(v)
 		}
 		if v, ok := opts["max"]; ok {
-			max, _ = strconv.Atoi(v)
+			maxVal, _ = strconv.Atoi(v)
 		}
 	}
 
-	if min == 0 && max == 0 {
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
+	if minVal == 0 && maxVal == 0 {
 		return results
 	}
 
@@ -106,8 +111,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			// there is no value is trying boil off accuracy, so lets keep it accurate.
 			if utils.IsNodeFloatValue(p) {
 				fValue, _ := strconv.ParseFloat(p.Value, 64)
-				if float64(min) > 0 && fValue < float64(min) {
-					res := createMinError(context.Rule.Description, p.Value, min)
+				if float64(minVal) > 0 && fValue < float64(minVal) {
+					res := createMinError(ruleMessage, p.Value, minVal)
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
@@ -115,8 +120,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					results = append(results, res)
 					continue
 				}
-				if float64(max) > 0 && fValue > float64(max) {
-					res := createMaxError(context.Rule.Description, p.Value, max)
+				if float64(maxVal) > 0 && fValue > float64(maxVal) {
+					res := createMaxError(ruleMessage, p.Value, maxVal)
 					res.StartNode = node
 					res.EndNode = node
 					res.Path = pathValue
@@ -126,8 +131,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				}
 			}
 
-			if min > 0 && valueCheck < min {
-				res := createMinError(context.Rule.Description, p.Value, min)
+			if minVal > 0 && valueCheck < minVal {
+				res := createMinError(ruleMessage, p.Value, minVal)
 				res.StartNode = node
 				res.EndNode = node
 				res.Path = pathValue
@@ -135,8 +140,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				results = append(results, res)
 				continue
 			}
-			if max > 0 && valueCheck > max {
-				res := createMaxError(context.Rule.Description, p.Value, max)
+			if maxVal > 0 && valueCheck > maxVal {
+				res := createMaxError(ruleMessage, p.Value, maxVal)
 				res.StartNode = node
 				res.EndNode = node
 				res.Path = pathValue
@@ -158,14 +163,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			}
 
 			// check for structure sizes (maps and arrays)
-			if min > 0 && nodeCount < min {
+			if minVal > 0 && nodeCount < minVal {
 				var fv string
 				if context.RuleAction.Field != "" {
 					fv = context.RuleAction.Field
 				} else {
 					fv = context.Rule.Given.(string)
 				}
-				res := createMinError(context.Rule.Description, fv, min)
+				res := createMinError(ruleMessage, fv, minVal)
 				res.StartNode = node
 				res.EndNode = node
 				res.Path = pathValue
@@ -175,14 +180,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				continue
 			}
 
-			if max > 0 && nodeCount > max {
+			if maxVal > 0 && nodeCount > maxVal {
 				var fv string
 				if context.RuleAction.Field != "" {
 					fv = context.RuleAction.Field
 				} else {
 					fv = context.Rule.Given.(string)
 				}
-				res := createMaxError(context.Rule.Description, fv, max)
+				res := createMaxError(ruleMessage, fv, maxVal)
 				res.StartNode = node
 				res.EndNode = node
 				res.Path = pathValue

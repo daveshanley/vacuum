@@ -36,11 +36,16 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		pathValue = path
 	}
 
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
 	for _, node := range nodes {
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if fieldNode == nil {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("%s: '%s' must be defined", context.Rule.Description, context.RuleAction.Field),
+				Message:   fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field),
 				StartNode: node,
 				EndNode:   node,
 				Path:      pathValue,

@@ -45,6 +45,12 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	var schema *highBase.Schema
 	var ok bool
+
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
 	s := utils.ExtractValueFromInterfaceMap("schema", context.Options)
 	if schema, ok = s.(*highBase.Schema); !ok {
 
@@ -115,7 +121,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
 			if _, ko := forceValidation.(bool); ko {
 
-				r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", context.Rule.Description,
+				r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", ruleMessage,
 					fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field)))
 				r.StartNode = node
 				r.EndNode = node.Content[len(node.Content)-1]
@@ -135,6 +141,11 @@ var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", 
 func validateNodeAgainstSchema(schema *highBase.Schema, field *yaml.Node,
 	context model.RuleFunctionContext, x int) []model.RuleFunctionResult {
 
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
 	var results []model.RuleFunctionResult
 
 	// validate using schema provided.
@@ -151,7 +162,7 @@ func validateNodeAgainstSchema(schema *highBase.Schema, field *yaml.Node,
 
 	for c := range schemaErrors {
 
-		r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", context.Rule.Description,
+		r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", ruleMessage,
 			schemaErrors[c].Reason))
 		r.StartNode = field
 		r.EndNode = field

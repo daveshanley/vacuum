@@ -35,6 +35,11 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		pathValue = path
 	}
 
+	ruleMessage := context.Rule.Description
+	if context.Rule.Message != "" {
+		ruleMessage = context.Rule.Message
+	}
+
 	for _, node := range nodes {
 
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
@@ -44,8 +49,8 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				val = fmt.Sprintf("'%s' ", context.RuleAction.Field)
 			}
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("%s %smust be undefined",
-					context.Rule.Description, val),
+				Message: fmt.Sprintf("%s: `%s` must be undefined]",
+					ruleMessage, val),
 				StartNode: fieldNode,
 				EndNode:   fieldNode,
 				Path:      pathValue,
