@@ -93,7 +93,6 @@ like our _very kind_ sponsors:
 [zuplo](https://zuplo.com)
 
 
-
 ---
 
 ## Come chat with us
@@ -103,8 +102,23 @@ come say hi!
 
 ## Documentation
 
+🔥 **New in** `v0.5+` 🔥 : **Multi-file linting**  now available for the `lint` command.
+
+Want to lint multiple files at once? Now you can!
+
+```shell
+vacuum lint file1.json path/to/file2.yaml file3.json` 
+```
+
+Want to suck in a ton of files? Use a **glob** pattern!
+
+```shell
+vacuum lint some/path/**/*.yaml` 
+```
+
+
 ---
-🔥 **New in** `v0.3.0+` 🔥 : [Custom JavaScript Functions](https://quobix.com/vacuum/api/custom-javascript-functions/) are now available out of the box.
+`v0.3+`: [Custom JavaScript Functions](https://quobix.com/vacuum/api/custom-javascript-functions/) are now available out of the box.
 
 Write custom functions in JavaScript and use them in any ruleset. No need
 to compile golang code to extend vacuum anymore!
@@ -113,7 +127,7 @@ to compile golang code to extend vacuum anymore!
 
 
 ---
-**New in** `v0.2.0+`: [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
+`v0.2+`: [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
 
 [Learn more about enabling OWASP API rules](https://quobix.com/vacuum/rulesets/owasp/).
 
@@ -163,7 +177,7 @@ See all the documentation at https://quobix.com/vacuum
 
 ---
 
-> **vacuum can suck all the lint of a 5mb OpenAPI spec in about 230ms.**
+> **vacuum can suck all the lint of a 5mb OpenAPI spec in milliseconds.**
 
 Designed to reliably lint OpenAPI specifications, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
@@ -228,6 +242,19 @@ in your favorite browser and explore the results.
 
 ```
 ./vacuum lint -d <your-openapi-spec.yaml>
+```
+
+
+## Lint multiple files at once
+
+```
+./vacuum lint -d <spec1.yaml> <spec2.yaml> <spec3.yaml>
+```
+
+## Lint multiple files using a glob pattern
+
+```
+./vacuum lint -d some/path/**/*.yaml
 ```
 
 ## See full linting report with inline code snippets
