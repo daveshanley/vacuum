@@ -22,7 +22,12 @@ func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig) (*index.Rol
 		}
 
 		// create a local filesystem
-		fileFS, err := index.NewLocalFS(cwd, os.DirFS(cwd))
+		fsCfg := &index.LocalFSConfig{
+			BaseDirectory: cwd,
+			IndexConfig:   indexConfig,
+			DirFS:         os.DirFS(cwd),
+		}
+		fileFS, err := index.NewLocalFSWithConfig(fsCfg)
 		if err != nil {
 			return nil, err
 		}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"path/filepath"
 	"sync"
 
 	"github.com/daveshanley/vacuum/functions"
@@ -43,6 +44,7 @@ type ruleContext struct {
 // of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
 	RuleSet           *rulesets.RuleSet             // The RuleSet in which to apply
+	SpecFileName      string                        // The name of the specification file, used to correctly label location
 	Spec              []byte                        // The raw bytes of the OpenAPI specification.
 	SpecInfo          *datamodel.SpecInfo           // Pre-parsed spec-info.
 	CustomFunctions   map[string]model.RuleFunction // custom functions loaded from plugin.
@@ -392,7 +394,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		ruleWaitGroup.Wait()
 	}
 
-	ruleResults = *removeDuplicates(&ruleResults)
+	ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
 
 	return &RuleSetExecutionResult{
 		RuleSetExecution: execution,
@@ -552,7 +554,7 @@ type seenResult struct {
 	message  string
 }
 
-func removeDuplicates(results *[]model.RuleFunctionResult) *[]model.RuleFunctionResult {
+func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution, idx *index.SpecIndex) *[]model.RuleFunctionResult {
 	seen := make(map[string][]*seenResult)
 	var newResults []model.RuleFunctionResult
 	for _, result := range *results {
@@ -566,6 +568,13 @@ func removeDuplicates(results *[]model.RuleFunctionResult) *[]model.RuleFunction
 						fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
 						result.Message,
 					},
+				}
+				origin := idx.FindNodeOrigin(result.StartNode)
+				if origin != nil {
+					if filepath.Base(origin.AbsoluteLocation) == "root.yaml" {
+						origin.AbsoluteLocation = rse.SpecFileName
+					}
+					result.Origin = origin
 				}
 				newResults = append(newResults, result)
 			}
@@ -582,6 +591,13 @@ func removeDuplicates(results *[]model.RuleFunctionResult) *[]model.RuleFunction
 							fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
 							result.Message,
 						},
+					}
+					origin := idx.FindNodeOrigin(result.StartNode)
+					if origin != nil {
+						if filepath.Base(origin.AbsoluteLocation) == "root.yaml" {
+							origin.AbsoluteLocation = rse.SpecFileName
+						}
+						result.Origin = origin
 					}
 					newResults = append(newResults, result)
 				}

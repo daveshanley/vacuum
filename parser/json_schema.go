@@ -18,6 +18,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 	"time"
 )
 
@@ -142,13 +143,34 @@ func ConvertYAMLIntoJSONSchema(str string, index *index.SpecIndex) (*highBase.Sc
 	return ConvertNodeIntoJSONSchema(node.Content[0], index)
 }
 
-func ConvertNodeIntoJSONSchema(node *yaml.Node, index *index.SpecIndex) (*highBase.Schema, error) {
+func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase.Schema, error) {
 	sch := lowBase.Schema{}
 	mbErr := low.BuildModel(node, &sch)
 	if mbErr != nil {
 		return nil, mbErr
 	}
-	schErr := sch.Build(context.Background(), node, index)
+
+	var path = ""
+
+	isRef, _, ref := utils.IsNodeRefValue(node)
+	if isRef {
+		r := strings.Split(ref, "#")
+		if len(r) == 2 {
+			if r[0] != "" {
+				path = r[0]
+			}
+		} else {
+			path = r[0]
+		}
+	}
+
+	if path == "" && idx != nil {
+		path = idx.GetSpecAbsolutePath()
+	}
+
+	ctx := context.WithValue(context.Background(), index.CurrentPathKey, path)
+
+	schErr := sch.Build(ctx, node, idx)
 	if schErr != nil {
 		return nil, schErr
 	}

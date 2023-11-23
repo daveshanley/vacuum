@@ -254,6 +254,7 @@ func lintFile(req lintFileRequest) error {
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           req.selectedRS,
 		Spec:              specBytes,
+		SpecFileName:      req.fileName,
 		CustomFunctions:   req.functions,
 		Base:              req.baseFlag,
 		AllowLookup:       true,
@@ -311,11 +312,15 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 	if !snippets {
 		tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Category", "Path"}}
 	}
+
+	// width, height, err := terminal.GetSize(0)
+	// TODO: determine the terminal size and render the linting results in a table that fits the screen.
+
 	for i, r := range results {
 
-		if i > 200 {
+		if i > 1000 {
 			tableData = append(tableData, []string{"", "", pterm.LightRed(fmt.Sprintf("...%d "+
-				"more violations not rendered.", len(results)-200)), ""})
+				"more violations not rendered.", len(results)-1000)), ""})
 			break
 		}
 		if snippets {
@@ -330,9 +335,16 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			startCol = r.StartNode.Column
 		}
 
-		start := fmt.Sprintf("%s:%v:%v", filename, startLine, startCol)
+		f := filename
+		if r.Origin != nil {
+			f = r.Origin.AbsoluteLocation
+			startLine = r.Origin.Line
+			startCol = r.Origin.Column
+		}
+		start := fmt.Sprintf("%s:%v:%v", f, startLine, startCol)
 		m := r.Message
 		p := r.Path
+
 		if len(r.Path) > 60 {
 			p = fmt.Sprintf("%s...", r.Path[:60])
 		}
