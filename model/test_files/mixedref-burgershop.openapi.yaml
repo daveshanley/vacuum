@@ -166,7 +166,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: 'test_files/burgershop.openapi.yaml#/components/schemas/Dressing'
+                  $ref: "./burgershop.openapi.yaml#/components/schemas/Dressing"
         "404":
           description: Cannot find your burger in which to list dressings. Sorry
           content:
@@ -222,7 +222,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: 'test_files/burgershop.openapi.yaml#/components/schemas/Dressing'
+                  $ref: "./burgershop.openapi.yaml#/components/schemas/Dressing"
         "500":
           description: Unexpected error. Sorry.
           content:

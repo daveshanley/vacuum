@@ -365,14 +365,14 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas2OperationFormDataConsumeCheck] = GetOAS2FormDataConsumesRule()
 	rules[Oas2AnyOf] = GetOAS2PolymorphicAnyOfRule()
 	rules[Oas2OneOf] = GetOAS2PolymorphicOneOfRule()
-	rules[Oas3ValidSchemaExample] = GetOAS3ExamplesRule()
-	rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
 	rules[NoAmbiguousPathsRule] = NoAmbiguousPaths()
 	rules[NoVerbsInPath] = GetNoVerbsInPathRule()
 	rules[PathsKebabCase] = GetPathsKebabCaseRule()
 	rules[OperationErrorResponse] = GetOperationErrorResponseRule()
 	rules[Oas2Schema] = GetOAS2SchemaRule()
 	rules[Oas3Schema] = GetOAS3SchemaRule()
+	rules[Oas3ValidSchemaExample] = GetOAS3ExamplesRule()
+	rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
 
 	return rules
 }

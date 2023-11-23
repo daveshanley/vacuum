@@ -104,7 +104,15 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		for key, ref := range resultMap {
 
 			// check everything!
-			if allRefs[key] == nil {
+			u := strings.Split(key, "#/")
+			var keyAlt = key
+			if len(u) == 2 {
+				if u[0] == "" {
+					keyAlt = fmt.Sprintf("%s#/%s", context.Index.GetSpecAbsolutePath(), u[1])
+				}
+			}
+
+			if allRefs[key] == nil && allRefs[keyAlt] == nil {
 				found := false
 				// check poly refs if the reference can't be found
 				if oneOfRefs[key] != nil || allOfRefs[key] != nil || anyOfRefs[key] != nil {
@@ -128,11 +136,11 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		_, path := utils.ConvertComponentIdIntoPath(ref.Definition)
 
 		// roll back node by one, so we have the actual start.
-		rolledBack := *ref.Node
-		rolledBack.Line = ref.Node.Line - 1
+		//rolledBack := *ref.Node
+		//rolledBack.Line = ref.Node.Line - 1
 		results = append(results, model.RuleFunctionResult{
 			Message:   fmt.Sprintf("`%s` is potentially unused or has been orphaned", key),
-			StartNode: &rolledBack,
+			StartNode: ref.Node,
 			EndNode:   utils.FindLastChildNodeWithLevel(ref.Node, 0),
 			Path:      path,
 			Rule:      context.Rule,
