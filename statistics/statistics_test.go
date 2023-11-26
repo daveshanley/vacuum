@@ -1,12 +1,14 @@
 package statistics
 
 import (
+	"context"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestCreateReportStatistics(t *testing.T) {
@@ -52,15 +54,28 @@ func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 	specBytes, _ := os.ReadFile("../model/test_files/api.github.com.yaml")
 
-	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:     selectedRS,
-		Spec:        specBytes,
-		AllowLookup: true,
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	defer cancel()
+	d := make(chan bool)
+	go func(f chan bool) {
 
-	resultSet := model.NewRuleResultSet(ruleset.Results)
-	stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+		ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+			RuleSet:     selectedRS,
+			Spec:        specBytes,
+			AllowLookup: true,
+		})
+		resultSet := model.NewRuleResultSet(ruleset.Results)
+		stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
-	assert.Equal(t, 10, stats.OverallScore)
+		assert.Equal(t, 10, stats.OverallScore)
+		f <- true
+	}(d)
+
+	select {
+	case <-ctx.Done():
+		assert.Fail(t, "Timed out, we have an issue that needs fixing")
+	case <-d:
+		break
+	}
 
 }
