@@ -248,8 +248,8 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
-github.com/pb33f/libopenapi v0.13.12 h1:fo38Ton3sKRhcl2TS5eKYp2KiDFzmbpOKC0+wqlPSJQ=
-github.com/pb33f/libopenapi v0.13.12/go.mod h1:Lv2eEtsAtbRFlF8hjH82L8SIGoUNgemMVoKoB6A9THk=
+github.com/pb33f/libopenapi v0.13.13-0.20231126014436-82582c922cdf h1:F2W5/509mxOB1N7MoYJvih+bTfjZgyu/7bMilh2TuRo=
+github.com/pb33f/libopenapi v0.13.13-0.20231126014436-82582c922cdf/go.mod h1:Lv2eEtsAtbRFlF8hjH82L8SIGoUNgemMVoKoB6A9THk=
 github.com/pb33f/libopenapi-validator v0.0.29 h1:ERJxy5xjDrwC/PpU4PQb9cjmkrLo3RgtZK7iS6JXuVQ=
 github.com/pb33f/libopenapi-validator v0.0.29/go.mod h1:WcOnf4o8ZkSJcjGvPNIWPnIra/ADoDbfewsCsWql2W8=
 github.com/pelletier/go-toml/v2 v2.1.0 h1:FnwAJ4oYMvbT/34k9zzHuZNrhlz48GB3/s6at6/MHO4=
