@@ -6,8 +6,10 @@ package motor
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sync"
 
@@ -64,7 +66,8 @@ type RuleSetExecutionResult struct {
 	Index            *index.SpecIndex           // The index that was created from the specification, used by the rules.
 	SpecInfo         *datamodel.SpecInfo        // A reference to the SpecInfo object, used by all the rules.
 	Errors           []error                    // Any errors that were returned.
-
+	FilesProcessed   int                        // number of files extracted by the rolodex
+	FileSize         int64                      // total filesize loaded by the rolodex
 }
 
 // todo: move copy into virtual file system or some kind of map.
@@ -98,9 +101,30 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// add new pretty logger.
 	if execution.Logger == nil {
-		handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
-		docConfig.Logger = slog.New(handler)
-		pterm.DefaultLogger.Level = pterm.LogLevelError
+		var logger *slog.Logger
+		if execution.SilenceLogs {
+			// logger that goes to no-where
+			logger = slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
+				Level: slog.LevelError,
+			}))
+		} else {
+			handler := pterm.NewSlogHandler(&pterm.Logger{
+				Formatter: pterm.LogFormatterColorful,
+				Writer:    os.Stdout,
+				Level:     pterm.LogLevelError,
+				ShowTime:  false,
+				MaxWidth:  280,
+				KeyStyles: map[string]pterm.Style{
+					"error":  *pterm.NewStyle(pterm.FgRed, pterm.Bold),
+					"err":    *pterm.NewStyle(pterm.FgRed, pterm.Bold),
+					"caller": *pterm.NewStyle(pterm.FgGray, pterm.Bold),
+				},
+			})
+			logger = slog.New(handler)
+			pterm.DefaultLogger.Level = pterm.LogLevelError
+		}
+		docConfig.Logger = logger
+
 	} else {
 		docConfig.Logger = execution.Logger
 	}
@@ -231,9 +255,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexResolved = rolodexResolved.GetRootIndex()
 			indexUnresolved = rolodexUnresolved.GetRootIndex()
 
-			rolodexResolved.BuildIndexes()
-			rolodexUnresolved.BuildIndexes()
-
 			// we only resolve one.
 			rolodexResolved.Resolve()
 
@@ -249,9 +270,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			indexResolved = rolodexResolved.GetRootIndex()
 			indexUnresolved = rolodexUnresolved.GetRootIndex()
-
-			rolodexResolved.BuildIndexes()
-			rolodexUnresolved.BuildIndexes()
 
 			// we only resolve one.
 			rolodexResolved.Resolve()
@@ -402,6 +420,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Index:            indexResolved,
 		SpecInfo:         specInfo,
 		Errors:           errs,
+		FilesProcessed:   rolodexResolved.RolodexTotalFiles(),
+		FileSize:         rolodexResolved.RolodexFileSize(),
 	}
 }
 

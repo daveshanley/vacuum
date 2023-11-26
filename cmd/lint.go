@@ -48,6 +48,7 @@ func GetLintCommand() *cobra.Command {
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -75,8 +76,18 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			// setup logging
-			handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
-			pterm.DefaultLogger.Level = pterm.LogLevelError
+			handler := pterm.NewSlogHandler(&pterm.Logger{
+				Formatter: pterm.LogFormatterColorful,
+				Writer:    os.Stdout,
+				Level:     pterm.LogLevelError,
+				ShowTime:  false,
+				MaxWidth:  280,
+				KeyStyles: map[string]pterm.Style{
+					"error":  *pterm.NewStyle(pterm.FgRed, pterm.Bold),
+					"err":    *pterm.NewStyle(pterm.FgRed, pterm.Bold),
+					"caller": *pterm.NewStyle(pterm.FgGray, pterm.Bold),
+				},
+			})
 			logger := slog.New(handler)
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
@@ -121,6 +132,9 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			start := time.Now()
+
+			var filesProcessedSize int64
+			var filesProcessed int
 			var size int64
 			for i, arg := range args {
 
@@ -135,6 +149,7 @@ func GetLintCommand() *cobra.Command {
 					lfr := lintFileRequest{
 						fileName:         arg,
 						baseFlag:         baseFlag,
+						remote:           remoteFlag,
 						multiFile:        mf,
 						skipCheckFlag:    skipCheckFlag,
 						silent:           silent,
@@ -152,7 +167,12 @@ func GetLintCommand() *cobra.Command {
 						lock:             &printLock,
 						logger:           logger,
 					}
-					errs = append(errs, lintFile(lfr))
+					fs, fp, err := lintFile(lfr)
+
+					filesProcessedSize = filesProcessedSize + fs + size
+					filesProcessed = filesProcessed + fp + 1
+
+					errs = append(errs, err)
 					doneChan <- true
 				}(doneChan, i, arg)
 			}
@@ -171,7 +191,7 @@ func GetLintCommand() *cobra.Command {
 
 			duration := time.Since(start)
 
-			RenderTime(timeFlag, duration, size)
+			RenderTimeAndFiles(timeFlag, duration, filesProcessedSize, filesProcessed)
 
 			if len(errs) > 0 {
 				return errors.Join(errs...)
@@ -219,6 +239,7 @@ type lintFileRequest struct {
 	fileName         string
 	baseFlag         string
 	multiFile        bool
+	remote           bool
 	skipCheckFlag    bool
 	silent           bool
 	detailsFlag      bool
@@ -236,7 +257,7 @@ type lintFileRequest struct {
 	logger           *slog.Logger
 }
 
-func lintFile(req lintFileRequest) error {
+func lintFile(req lintFileRequest) (int64, int, error) {
 	// read file.
 	specBytes, ferr := os.ReadFile(req.fileName)
 
@@ -247,7 +268,7 @@ func lintFile(req lintFileRequest) error {
 
 		pterm.Error.Printf("Unable to read file '%s': %s\n", req.fileName, ferr.Error())
 		pterm.Println()
-		return ferr
+		return 0, 0, ferr
 
 	}
 
@@ -257,7 +278,7 @@ func lintFile(req lintFileRequest) error {
 		SpecFileName:      req.fileName,
 		CustomFunctions:   req.functions,
 		Base:              req.baseFlag,
-		AllowLookup:       true,
+		AllowLookup:       req.remote,
 		SkipDocumentCheck: req.skipCheckFlag,
 		Logger:            req.logger,
 	})
@@ -269,7 +290,7 @@ func lintFile(req lintFileRequest) error {
 			pterm.Error.Printf("unable to process spec '%s', error: %s", req.fileName, err.Error())
 			pterm.Println()
 		}
-		return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+		return result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 	}
 
 	resultSet := model.NewRuleResultSet(results)
@@ -281,7 +302,7 @@ func lintFile(req lintFileRequest) error {
 	defer req.lock.Unlock()
 	if !req.detailsFlag {
 		RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
-		return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
+		return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 	}
 
 	abs, _ := filepath.Abs(req.fileName)
@@ -292,7 +313,7 @@ func lintFile(req lintFileRequest) error {
 
 	RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
 
-	return CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
+	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 }
 
 func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, abs, filename string) {

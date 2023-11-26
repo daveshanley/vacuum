@@ -8,6 +8,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/dustin/go-humanize"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
 	"time"
 )
@@ -25,6 +27,23 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 
 	}
 	return rs.GenerateRuleSetFromSuppliedRuleSet(userRS), nil
+}
+
+// RenderTimeAndFiles  will render out the time taken to process a specification, and the size of the file in kb.
+// it will also render out how many files were processed.
+func RenderTimeAndFiles(timeFlag bool, duration time.Duration, fileSize int64, totalFiles int) {
+	if timeFlag {
+		pterm.Println()
+		l := "milliseconds"
+		d := fmt.Sprintf("%d", duration.Milliseconds())
+		if duration.Milliseconds() > 1000 {
+			l = "seconds"
+			d = humanize.FormatFloat("##.##", duration.Seconds())
+		}
+		pterm.Info.Println(fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
+			index.HumanFileSize(float64(fileSize)), totalFiles))
+		pterm.Println()
+	}
 }
 
 // RenderTime will render out the time taken to process a specification, and the size of the file in kb.
