@@ -11,8 +11,8 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/libopenapi v0.13.13-0.20231126014436-82582c922cdf
-	github.com/pb33f/libopenapi-validator v0.0.29
+	github.com/pb33f/libopenapi v0.13.14
+	github.com/pb33f/libopenapi-validator v0.0.30
 	github.com/pterm/pterm v0.12.71
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/spf13/cobra v1.8.0
