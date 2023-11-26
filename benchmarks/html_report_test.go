@@ -2,7 +2,6 @@ package benchmarks
 
 import (
 	"crypto/sha256"
-	"fmt"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -121,5 +120,4 @@ func TestHtmlReport_GenerateReportIdenticalRun200(t *testing.T) {
 		}
 
 	}
-	fmt.Print("done")
 }
