@@ -138,11 +138,25 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 	//check components.
 	objNode := context.Index.GetSchemasNode()
 
-	if context.SpecInfo.SpecFormat == model.OAS3 {
-		results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.components.schemas", context)
-	}
-	if context.SpecInfo.SpecFormat == model.OAS2 {
-		results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.definitions", context)
+	ctxComponentsTimeout, cancelComponents := ctx.WithTimeout(ctx.Background(), time.Millisecond*500)
+	defer cancelComponents()
+	cc := make(chan bool)
+	go func(cc chan bool) {
+		if context.SpecInfo.SpecFormat == model.OAS3 {
+			results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.components.schemas", context)
+		}
+		if context.SpecInfo.SpecFormat == model.OAS2 {
+			results = checkAllDefinitionsForExamples([]*yaml.Node{objNode}, results, "$.definitions", context)
+		}
+		cc <- true
+	}(cc)
+
+	select {
+	case <-ctxComponentsTimeout.Done():
+		pterm.Warning.Println("bug: examples function timed-out after 500ms, trying to scan examples for " +
+			"components. Disable rules that use the example function checking for this spec. Please report this!")
+	case <-cc:
+		break
 	}
 
 	// check parameters
@@ -169,7 +183,7 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 		}
 	}
 
-	ctxTimeout, cancel := ctx.WithTimeout(ctx.Background(), time.Second*1)
+	ctxTimeout, cancel := ctx.WithTimeout(ctx.Background(), time.Millisecond*500)
 	defer cancel()
 	f := make(chan bool)
 	go func() {
@@ -192,11 +206,11 @@ func (ex Examples) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	select {
 	case <-ctxTimeout.Done():
-		pterm.Warning.Println("bug: examples function timed-out after a second, trying to scan examples for " +
+		pterm.Warning.Println("bug: examples function timed-out after 500ms, trying to scan examples for " +
 			"response bodies, request bodies, and parameters. Disable rules that use the example function checking for this spec. Please report this!")
 		return *results
 	case <-f:
-		// ok
+		break
 	}
 
 	return *results
@@ -466,7 +480,7 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 			res := model.BuildFunctionResultString(fmt.Sprintf("Schema for `%s` does not "+
 				"contain any examples or example data", nameNodeValue))
 
-			res.StartNode = sLabel
+			res.StartNode = sValue
 			res.EndNode = sValue
 			res.Path = basePath
 			res.Rule = context.Rule
@@ -499,6 +513,12 @@ func analyzeExample(nameNodeValue string, mediaTypeNode *yaml.Node, basePath str
 				// check if the example validates against the convertedSchema
 				// extract the convertedSchema
 				if sValue != nil {
+
+					//origin := context.Index.GetRolodex().FindNodeOrigin(sValue)
+					//if origin != nil {
+					//	fmt.Sprintf("no idea.")
+					//}
+
 					convertedSchema, err := parser.ConvertNodeIntoJSONSchema(sValue, context.Index)
 
 					if err != nil {
