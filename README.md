@@ -83,14 +83,14 @@ like our _very kind_ sponsors:
 
 [scalar](https://scalar.com)
 
-<a href="https://zuplo.com">
+<a href="https://zuplo.link/vacuum">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/zuplo-dark.png">
   <img alt="scalar" src=".github/sponsors/zuplo-light.png">
 </picture>
 </a>
 
-[zuplo](https://zuplo.com)
+[zuplo]([https://zuplo.com](https://zuplo.link/vacuum))
 
 
 ---
