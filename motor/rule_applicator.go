@@ -154,10 +154,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	if execution.AllowLookup {
-		if indexConfig.BasePath != "" {
-			indexConfig.AllowFileLookup = true
-			indexConfigUnresolved.AllowFileLookup = true
+		if indexConfig.BasePath == "" {
+			indexConfig.BasePath = "."
+			docConfig.BasePath = "."
 		}
+		indexConfig.AllowFileLookup = true
+		indexConfigUnresolved.AllowFileLookup = true
 		indexConfig.AllowRemoteLookup = true
 		indexConfigUnresolved.AllowRemoteLookup = true
 		docConfig.AllowRemoteReferences = true
