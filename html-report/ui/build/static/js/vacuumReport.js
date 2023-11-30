@@ -304,27 +304,27 @@
     <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z" />
   </svg>
 `;var Ie=function(e,t,o,r){var i,a=arguments.length,n=a<3?t:null===r?r=Object.getOwnPropertyDescriptor(t,o):r;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)n=Reflect.decorate(e,t,o,r);else for(var l=e.length-1;l>=0;l--)(i=e[l])&&(n=(a<3?i(n):a>3?i(t,o,n):i(t,o))||n);return a>3&&n&&Object.defineProperty(t,o,n),n};let qe=class extends ke{otherRuleSelected(){this.open=!1,this.violations=this.renderRoot.querySelector(".violations"),this.violations&&(this.violations.style.display="none"),this._expandState=!1,this._slottedChildren.forEach((e=>{e.selected=!1})),this.requestUpdate()}render(){let e;this.violations=this.renderRoot.querySelector(".violations"),this.truncated&&(e=Q`
-                <div class="truncated">
-                    <strong>${this.numResults-this.maxViolations}</strong> more
-                    violations not rendered, There are just too many!
-                </div>
-            `);const t=this._expandState?Ue:He;return Q`
-            <nav
-                    aria-label="Rules and Violations"
-                    class="details ${this._expandState?"open":""}"
-            >
-                <div class="summary" @click=${this._ruleSelected}>
-                    <span class="expand-state">${t}</span>
-                    <span class="rule-icon">${this.ruleIcon}</span>
-                    <span class="rule-description">${this.description}</span>
-                    <span class="rule-violation-count">${this.numResults}</span>
-                </div>
-                <div class="violations" @violationSelected=${this._violationSelected}>
-                    <slot name="results"></slot>
-                    ${e}
-                </div>
-            </nav>
-        `}_ruleSelected(){if(this.open)this.violations&&(this.violations.style.display="none"),this._expandState=!1;else{this.violations&&(this.violations.style.display="block");const e=this.parentElement.parentElement.offsetHeight-60*this.totalRulesViolated;this.violations&&(this.violations.style.maxHeight=e+"px"),this._expandState=!0}this.open=!this.open,this.dispatchEvent(new CustomEvent("ruleSelected",{bubbles:!0,composed:!0,detail:{id:this.ruleId}})),this.requestUpdate()}_violationSelected(e){this._slottedChildren.forEach((t=>{t.selected=e.detail.violationId==t.violationId}))}};qe.styles=Me,Ie([xe()],qe.prototype,"totalRulesViolated",void 0),Ie([xe()],qe.prototype,"maxViolations",void 0),Ie([xe()],qe.prototype,"truncated",void 0),Ie([xe()],qe.prototype,"ruleId",void 0),Ie([xe()],qe.prototype,"description",void 0),Ie([xe()],qe.prototype,"numResults",void 0),Ie([xe()],qe.prototype,"ruleIcon",void 0),Ie([xe()],qe.prototype,"open",void 0),qe=Ie([ye("category-rule")],qe);const De=w`
+        <div class="truncated">
+          <strong>${this.numResults-this.maxViolations}</strong> more
+          violations not rendered, There are just too many!
+        </div>
+      `);const t=this._expandState?Ue:He;return Q`
+      <nav
+        aria-label="Rules and Violations"
+        class="details ${this._expandState?"open":""}"
+      >
+        <div class="summary" @click=${this._ruleSelected}>
+          <span class="expand-state">${t}</span>
+          <span class="rule-icon">${this.ruleIcon}</span>
+          <span class="rule-description">${this.description}</span>
+          <span class="rule-violation-count">${this.numResults}</span>
+        </div>
+        <div class="violations" @violationSelected=${this._violationSelected}>
+          <slot name="results"></slot>
+          ${e}
+        </div>
+      </nav>
+    `}_ruleSelected(){if(this.open)this.violations&&(this.violations.style.display="none"),this._expandState=!1;else{this.violations&&(this.violations.style.display="block");const e=this.parentElement.parentElement.offsetHeight-60*this.totalRulesViolated;this.violations&&(this.violations.style.maxHeight=e+"px"),this._expandState=!0}this.open=!this.open,this.dispatchEvent(new CustomEvent("ruleSelected",{bubbles:!0,composed:!0,detail:{id:this.ruleId}})),this.requestUpdate()}_violationSelected(e){this._slottedChildren.forEach((t=>{t.selected=e.detail.violationId==t.violationId}))}};qe.styles=Me,Ie([xe()],qe.prototype,"totalRulesViolated",void 0),Ie([xe()],qe.prototype,"maxViolations",void 0),Ie([xe()],qe.prototype,"truncated",void 0),Ie([xe()],qe.prototype,"ruleId",void 0),Ie([xe()],qe.prototype,"description",void 0),Ie([xe()],qe.prototype,"numResults",void 0),Ie([xe()],qe.prototype,"ruleIcon",void 0),Ie([xe()],qe.prototype,"open",void 0),qe=Ie([ye("category-rule")],qe);const De=w`
   ul.rule {
     margin: 0;
     padding: 0;
