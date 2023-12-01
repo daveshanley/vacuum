@@ -11,7 +11,7 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/libopenapi v0.13.16
+	github.com/pb33f/libopenapi v0.13.17
 	github.com/pb33f/libopenapi-validator v0.0.32
 	github.com/pterm/pterm v0.12.71
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
@@ -20,7 +20,7 @@ require (
 	github.com/spf13/viper v1.17.0
 	github.com/stretchr/testify v1.8.4
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
+	golang.org/x/exp v0.0.0-20231127185646-65229373498e
 	gopkg.in/yaml.v3 v3.0.1
 )
 
