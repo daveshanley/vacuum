@@ -58,6 +58,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().StringP("base", "p", "", "Override Base URL or path to use for resolving local file based or remote references")
 	rootCmd.PersistentFlags().BoolP("remote", "u", true, "Allow local files and remote (http) references to be looked up")
 	rootCmd.PersistentFlags().BoolP("skip-check", "k", false, "Skip checking for a valid OpenAPI document, useful for linting fragments or non-OpenAPI documents")
+	rootCmd.PersistentFlags().BoolP("debug", "w", false, "Turn on debug logging")
 
 	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
