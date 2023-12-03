@@ -8,6 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	yamlAlt "github.com/ghodss/yaml"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
@@ -16,10 +19,9 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
-	"strings"
-	"time"
 )
 
 type Schema struct {
@@ -63,8 +65,10 @@ type ExampleValidation struct {
 // value that has been set.
 func ValidateExample(jc *highBase.Schema) []*ExampleValidation {
 	var examples []*ExampleValidation
-	if len(jc.Properties) > 0 {
-		for propName, prop := range jc.Properties {
+	if orderedmap.Len(jc.Properties) > 0 {
+		for pair := orderedmap.First(jc.Properties); pair != nil; pair = pair.Next() {
+			propName := pair.Key()
+			prop := pair.Value()
 
 			sc := prop.Schema()
 			if sc.Type != nil && sc.Example != nil {
@@ -75,19 +79,22 @@ func ValidateExample(jc *highBase.Schema) []*ExampleValidation {
 				isFloat := false
 				isString := false
 
-				if _, ok := sc.Example.(string); ok {
+				var example any
+				_ = sc.Example.Decode(&example)
+
+				if _, ok := example.(string); ok {
 					isString = true
 				}
 
-				if _, ok := sc.Example.(bool); ok {
+				if _, ok := example.(bool); ok {
 					isBool = true
 				}
 
-				if _, ok := sc.Example.(float64); ok {
+				if _, ok := example.(float64); ok {
 					isFloat = true
 				}
 
-				if _, ok := sc.Example.(int); ok {
+				if _, ok := example.(int); ok {
 					isInt = true
 				}
 
@@ -122,10 +129,9 @@ func ValidateExample(jc *highBase.Schema) []*ExampleValidation {
 					}
 				}
 				switch sc.Type {
-
 				}
 			} else {
-				if len(sc.Properties) > 0 {
+				if orderedmap.Len(sc.Properties) > 0 {
 					examples = append(examples, ValidateExample(sc)...)
 				}
 			}
@@ -150,7 +156,7 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 		return nil, mbErr
 	}
 
-	var path = ""
+	path := ""
 
 	isRef, _, ref := utils.IsNodeRefValue(node)
 	if isRef {
@@ -181,7 +187,6 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 // ConvertNodeDefinitionIntoSchema will convert any definition node (components, params, etc.) into a standard
 // Schema that can be used with JSONSchema. This will auto-timeout of th
 func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
-
 	schChan := make(chan Schema, 1)
 	errChan := make(chan error, 1)
 
@@ -216,8 +221,7 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
 func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
-
-	//convert node to raw yaml first, then convert to json to be used in schema validation
+	// convert node to raw yaml first, then convert to json to be used in schema validation
 	var d []byte
 	var e error
 	if !isArray {
