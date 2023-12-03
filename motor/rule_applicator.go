@@ -244,6 +244,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	version := docResolved.GetVersion()
 
 	var resolvingErrors []*index.ResolvingError
+	var circularReferences []*index.CircularReferenceResult
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
 
@@ -265,6 +266,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			specResolved = rolodexResolved.GetRootIndex().GetRootNode()
 			specUnresolved = rolodexUnresolved.GetRootIndex().GetRootNode()
 
+			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
+				resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
+				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+			}
+
 		case '3':
 			_, resolvedModelErrors = docResolved.BuildV3Model()
 			rolodexResolved = docResolved.GetRolodex()
@@ -283,6 +289,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 				resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
+				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 			}
 
 		}
@@ -326,6 +333,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 		if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
+			circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 		}
 	}
 
@@ -354,6 +362,24 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		HowToFix: "Ensure that all $ref values are resolvable and locatable within a local or remote document. " + CircularReferencesFix,
 	}
 
+	// add all circular reference errors to the results.
+	circularRefRule := &model.Rule{
+		Name:         "Circular References",
+		Id:           "circular-references",
+		Description:  "Circular reference detected",
+		Message:      "Circular reference detected",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         "validation",
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "blank",
+		},
+		HowToFix: CircularReferencesFix,
+	}
+
 	// add all resolving errors to the results.
 	for _, er := range resolvingErrors {
 		res := model.RuleFunctionResult{
@@ -363,6 +389,19 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			EndNode:   er.Node,
 			Message:   er.Error(),
 			Path:      er.Path,
+		}
+		ruleResults = append(ruleResults, res)
+	}
+
+	// add all circular references to the results.
+	for _, cr := range circularReferences {
+		res := model.RuleFunctionResult{
+			RuleId:    "circular-references",
+			Rule:      circularRefRule,
+			StartNode: cr.Start.Node,
+			EndNode:   cr.LoopPoint.Node,
+			Message:   fmt.Sprintf("Circular reference detected from %s", cr.Start.Definition),
+			Path:      cr.GenerateJourneyPath(),
 		}
 		ruleResults = append(ruleResults, res)
 	}

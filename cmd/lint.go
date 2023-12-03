@@ -49,6 +49,7 @@ func GetLintCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			debugFlag, _ := cmd.Flags().GetBool("debug")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -75,11 +76,16 @@ func GetLintCommand() *cobra.Command {
 				mf = true
 			}
 
+			logLevel := pterm.LogLevelError
+			if debugFlag {
+				logLevel = pterm.LogLevelDebug
+			}
+
 			// setup logging
 			handler := pterm.NewSlogHandler(&pterm.Logger{
 				Formatter: pterm.LogFormatterColorful,
 				Writer:    os.Stdout,
-				Level:     pterm.LogLevelError,
+				Level:     logLevel,
 				ShowTime:  false,
 				MaxWidth:  280,
 				KeyStyles: map[string]pterm.Style{
