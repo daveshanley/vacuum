@@ -11,7 +11,7 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/libopenapi v0.13.20
+	github.com/pb33f/libopenapi v0.13.21
 	github.com/pb33f/libopenapi-validator v0.0.32
 	github.com/pterm/pterm v0.12.71
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
@@ -69,7 +69,7 @@ require (
 )
 
 // replace github.com/pb33f/libopenapi => github.com/speakeasy-api/libopenapi ordered-libopenapi
-replace github.com/pb33f/libopenapi => github.com/speakeasy-api/libopenapi v0.0.0-20231204180802-2b128cb46534
+replace github.com/pb33f/libopenapi => github.com/speakeasy-api/libopenapi v0.0.0-20231204223826-c2b4b662babb
 
 // replace github.com/pb33f/libopenapi-validator => github.com/speakeasy-api/libopenapi-validator upgrade-to-orderedmap
-replace github.com/pb33f/libopenapi-validator => github.com/speakeasy-api/libopenapi-validator v0.0.0-20231204180848-27665c2ab01c
+replace github.com/pb33f/libopenapi-validator => github.com/speakeasy-api/libopenapi-validator v0.0.0-20231204223925-0c447b7e4b3c
