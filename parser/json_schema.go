@@ -93,8 +93,14 @@ func ValidateExample(jc *highBase.Schema) []*ExampleValidation {
 				if _, ok := example.(float64); ok {
 					isFloat = true
 				}
+				if _, ok := example.(float32); ok {
+					isFloat = true
+				}
 
 				if _, ok := example.(int); ok {
+					isInt = true
+				}
+				if _, ok := example.(int64); ok {
 					isInt = true
 				}
 

@@ -1,16 +1,17 @@
 package parser
 
 import (
+	"testing"
+
 	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
-	"testing"
 )
 
 // test we can generate a schema from a simple object
 func TestConvertNode_Simple(t *testing.T) {
-
 	yml := `components:
   schemas:
     Citrus:
@@ -46,7 +47,7 @@ func TestConvertNode_Simple(t *testing.T) {
 	schema, err := ConvertNodeIntoJSONSchema(r[0], idx)
 	assert.NoError(t, err)
 	assert.NotNil(t, schema)
-	assert.Len(t, schema.Properties, 3)
+	assert.Equal(t, 3, orderedmap.Len(schema.Properties))
 
 	// now check the schema is valid
 	res, e := ValidateNodeAgainstSchema(nil, schema, r[0], false)
@@ -55,7 +56,6 @@ func TestConvertNode_Simple(t *testing.T) {
 }
 
 func TestValidateExample_AllInvalid(t *testing.T) {
-
 	yml := `components:
   schemas:
     Citrus:
@@ -63,7 +63,7 @@ func TestValidateExample_AllInvalid(t *testing.T) {
       properties:
         id:
           type: integer
-          example: 1234
+          example: 1234.5
         name:
           type: string
           example: false
@@ -102,5 +102,4 @@ func TestValidateExample_AllInvalid(t *testing.T) {
 
 	results := ValidateExample(schema)
 	assert.Len(t, results, 6)
-
 }
