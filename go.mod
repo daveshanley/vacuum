@@ -69,7 +69,7 @@ require (
 )
 
 // replace github.com/pb33f/libopenapi => github.com/speakeasy-api/libopenapi ordered-libopenapi
-replace github.com/pb33f/libopenapi => github.com/speakeasy-api/libopenapi v0.0.0-20231204101531-2ff7c595854b
+replace github.com/pb33f/libopenapi => github.com/speakeasy-api/libopenapi v0.0.0-20231204180802-2b128cb46534
 
 // replace github.com/pb33f/libopenapi-validator => github.com/speakeasy-api/libopenapi-validator upgrade-to-orderedmap
-replace github.com/pb33f/libopenapi-validator => github.com/speakeasy-api/libopenapi-validator v0.0.0-20231203225248-8ab40e19ca43
+replace github.com/pb33f/libopenapi-validator => github.com/speakeasy-api/libopenapi-validator v0.0.0-20231204180848-27665c2ab01c
