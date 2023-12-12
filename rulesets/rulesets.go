@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -234,27 +235,38 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	}
 
 	// download remote rulesets
-	if CheckForRemoteExtends(extends) {
+	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
+
 		doneChan := make(chan bool)
+
+		// give it a fair wait, 5 seconds is long enough.
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		total := 0
-		for k, _ := range extends {
-			if strings.HasPrefix(k, "http") {
-				total++
-				go SniffOutAllRemoteRules(ctx, doneChan, &rsm, k, nil, rs)
+
+		go func() {
+
+			for k, _ := range extends {
+				if strings.HasPrefix(k, "http") || filepath.Ext(k) == ".yaml" || filepath.Ext(k) == ".json" {
+					total++
+					remote := false
+					if strings.HasPrefix(k, "http") {
+						remote = true
+					}
+					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote)
+				}
 			}
+			doneChan <- true
+		}()
+
+		select {
+		case <-ctx.Done():
+			rsm.logger.Error("external ruleset fetch timed out after 5 seconds")
+			break
+		case <-doneChan:
+			break
 		}
-		complete := 0
-		for complete < total {
-			select {
-			case <-doneChan:
-				complete++
-			case <-ctx.Done():
-				rsm.logger.Error("remote ruleset download timed out after 5 seconds")
-				break
-			}
-		}
+
 	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide
