@@ -418,6 +418,45 @@ func TestRuleSet_GetExtendsRemoteSpec_Single(t *testing.T) {
 
 }
 
+func TestRuleSet_GetExtendsRemoteSpec_Single_HttpError(t *testing.T) {
+
+	yaml := `extends: http://kajshdkjahsdkajshdouaysoewuqyrkajshd.com`
+	var logBuf []byte
+	logBuffer := bytes.NewBuffer(logBuf)
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	def := BuildDefaultRuleSetsWithLogger(logger)
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 0)
+	assert.Len(t, override.RuleDefinitions, 0)
+	assert.Contains(t, logBuffer.String(), "cannot open external ruleset")
+
+}
+
+func TestRuleSet_GetExtendsLocalSpec_Single_HttpError(t *testing.T) {
+
+	yaml := `extends: ./doesnotexist.yaml`
+
+	var logBuf []byte
+	logBuffer := bytes.NewBuffer(logBuf)
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	def := BuildDefaultRuleSetsWithLogger(logger)
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 0)
+	assert.Len(t, override.RuleDefinitions, 0)
+	assert.Contains(t, logBuffer.String(), "cannot open external ruleset")
+
+}
+
 func TestRuleSet_GetExtendsRemoteSpec_Multi(t *testing.T) {
 
 	mockRemoteA := func() *httptest.Server {
@@ -615,7 +654,7 @@ rules:
 
 	mockRemoteB := func() *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			time.Sleep(time.Second * 10)
+			time.Sleep(time.Second * 6)
 			_, _ = rw.Write([]byte(yamlC))
 		}))
 	}
@@ -644,5 +683,145 @@ rules:
 	assert.Len(t, override.RuleDefinitions, 1)
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.Nil(t, rs.Rules["dong"])
-	assert.Contains(t, logBuffer.String(), "remote ruleset download timed out after 5 seconds")
+	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out after 5 seconds")
+}
+
+func TestRuleSet_GetExtendsLocalSpec_Single(t *testing.T) {
+
+	yaml := `extends: {{FILE}}`
+	yaml = strings.ReplaceAll(yaml, "{{FILE}}", "examples/custom-ruleset.yaml")
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 1)
+	assert.Len(t, override.RuleDefinitions, 1)
+
+}
+
+func TestRuleSet_GetExtendsLocalSpec_Multi_Chain(t *testing.T) {
+
+	yaml3 := `rules:
+  dong:
+    description: dong
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info.title
+    then:
+      field: title
+      function: pattern`
+
+	tmpFile3, _ := os.Create("spec3.yaml")
+	defer os.Remove(tmpFile3.Name())
+	_, _ = tmpFile3.Write([]byte(yaml3))
+
+	yaml2 := `extends: {{FILE}}`
+	yaml2 = strings.ReplaceAll(yaml2, "{{FILE}}", tmpFile3.Name())
+
+	tmpFile2, _ := os.Create("spec2.yaml")
+	_, _ = tmpFile2.Write([]byte(yaml2))
+	defer os.Remove(tmpFile2.Name())
+
+	yaml := `extends: [{{FILE}}, examples/all-ruleset.yaml]`
+	tmpFile, _ := os.Create("spec.yaml")
+	yaml = strings.ReplaceAll(yaml, "{{FILE}}", tmpFile2.Name())
+	_, _ = tmpFile.Write([]byte(yaml))
+	defer os.Remove(tmpFile.Name())
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Len(t, override.Rules, 54)
+	assert.Len(t, override.RuleDefinitions, 1)
+
+}
+
+func BenchmarkTestRuleSet_GetExtendsLocalSpec_Multi(b *testing.B) {
+
+	yaml3 := `rules:
+  dong:
+    description: dong
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info.title
+    then:
+      field: title
+      function: pattern`
+
+	tmpFile3, _ := os.Create("spec3.yaml")
+	defer os.Remove(tmpFile3.Name())
+	_, _ = tmpFile3.Write([]byte(yaml3))
+
+	yaml2 := `extends: {{FILE}}`
+	yaml2 = strings.ReplaceAll(yaml2, "{{FILE}}", tmpFile3.Name())
+
+	tmpFile2, _ := os.Create("spec2.yaml")
+	_, _ = tmpFile2.Write([]byte(yaml2))
+	defer os.Remove(tmpFile2.Name())
+
+	yaml := `extends: [{{FILE}}, examples/all-ruleset.yaml]`
+	tmpFile, _ := os.Create("spec.yaml")
+	yaml = strings.ReplaceAll(yaml, "{{FILE}}", tmpFile2.Name())
+	_, _ = tmpFile.Write([]byte(yaml))
+	defer os.Remove(tmpFile.Name())
+
+	for i := 0; i < b.N; i++ {
+
+		def := BuildDefaultRuleSets()
+		rs, err := CreateRuleSetFromData([]byte(yaml))
+		assert.NoError(b, err)
+		override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+		assert.Len(b, override.Rules, 54)
+		assert.Len(b, override.RuleDefinitions, 1)
+
+	}
+}
+
+func TestRuleSet_GetExtendsLocalSpec_Multi_Chain_Loop(t *testing.T) {
+
+	yaml3 := `rules:
+  dong:
+    description: dong
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info.title
+    then:
+      field: title
+      function: pattern`
+
+	tmpFile3, _ := os.Create("spec3.yaml")
+	defer os.Remove(tmpFile3.Name())
+	_, _ = tmpFile3.Write([]byte(yaml3))
+
+	yaml2 := `extends: {{FILE}}`
+	yaml2 = strings.ReplaceAll(yaml2, "{{FILE}}", "spec2.yaml")
+
+	tmpFile2, _ := os.Create("spec2.yaml")
+	_, _ = tmpFile2.Write([]byte(yaml2))
+	defer os.Remove(tmpFile2.Name())
+
+	yaml := `extends: [{{FILE}}, examples/all-ruleset.yaml]`
+	tmpFile, _ := os.Create("spec.yaml")
+	yaml = strings.ReplaceAll(yaml, "{{FILE}}", tmpFile2.Name())
+	_, _ = tmpFile.Write([]byte(yaml))
+	defer os.Remove(tmpFile.Name())
+
+	var logBuf []byte
+	logBuffer := bytes.NewBuffer(logBuf)
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	def := BuildDefaultRuleSetsWithLogger(logger)
+
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	_ = def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	assert.Contains(t, logBuffer.String(), "ruleset links to its self, circular rulesets are not permitted")
+
 }

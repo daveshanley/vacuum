@@ -9,10 +9,14 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 )
 
+// CheckForRemoteExtends checks if the extends map contains a remote link
+// returns true if it does, false if it does not
 func CheckForRemoteExtends(extends map[string]string) bool {
 	for k, _ := range extends {
 		if strings.HasPrefix(k, "http") {
@@ -22,7 +26,20 @@ func CheckForRemoteExtends(extends map[string]string) bool {
 	return false
 }
 
-func DownloadRemoteRuleSet(ctx context.Context, location string) (*RuleSet, error) {
+// CheckForLocalExtends checks if the extends map contains a local link
+// returns true if it does, false if it does not
+func CheckForLocalExtends(extends map[string]string) bool {
+	for k, _ := range extends {
+		if filepath.Ext(k) == ".yaml" || filepath.Ext(k) == ".json" {
+			return true
+		}
+	}
+	return false
+}
+
+// DownloadRemoteRuleSet downloads a remote ruleset and returns a *RuleSet
+// returns an error if it cannot download the ruleset
+func DownloadRemoteRuleSet(_ context.Context, location string) (*RuleSet, error) {
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot download ruleset, location is empty")
@@ -34,7 +51,6 @@ func DownloadRemoteRuleSet(ctx context.Context, location string) (*RuleSet, erro
 	}
 
 	ruleBytes, bytesErr := io.ReadAll(ruleResp.Body)
-
 	if bytesErr != nil {
 		return nil, bytesErr
 	}
@@ -44,7 +60,6 @@ func DownloadRemoteRuleSet(ctx context.Context, location string) (*RuleSet, erro
 	}
 
 	downloadedRS, rsErr := CreateRuleSetFromData(ruleBytes)
-
 	if rsErr != nil {
 		return nil, rsErr
 	}
@@ -52,18 +67,52 @@ func DownloadRemoteRuleSet(ctx context.Context, location string) (*RuleSet, erro
 	return downloadedRS, nil
 }
 
-func SniffOutAllRemoteRules(
+// LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
+// returns an error if it cannot load the ruleset
+func LoadLocalRuleSet(_ context.Context, location string) (*RuleSet, error) {
+
+	if location == "" {
+		return nil, fmt.Errorf("cannot load ruleset, location is empty")
+	}
+
+	ruleBytes, bytesErr := os.ReadFile(location)
+	if bytesErr != nil {
+		return nil, bytesErr
+	}
+
+	if len(ruleBytes) <= 0 {
+		return nil, fmt.Errorf("local ruleset '%s' is empty, cannot extend", location)
+	}
+
+	downloadedRS, rsErr := CreateRuleSetFromData(ruleBytes)
+	if rsErr != nil {
+		return nil, rsErr
+	}
+
+	return downloadedRS, nil
+}
+
+// SniffOutAllExternalRules takes a ruleset and sniffs out all external rules
+// it will recursively sniff out all external rulesets and add them to the ruleset
+// it will return an error if it cannot sniff out the ruleset
+func SniffOutAllExternalRules(
 	ctx context.Context,
-	doneChan chan bool,
 	rsm *ruleSetsModel,
 	location string,
 	visited []string,
-	rs *RuleSet) {
+	rs *RuleSet,
+	remote bool) {
 
-	drs, err := DownloadRemoteRuleSet(ctx, location)
+	var drs *RuleSet
+	var err error
 
+	if remote {
+		drs, err = DownloadRemoteRuleSet(ctx, location)
+	} else {
+		drs, err = LoadLocalRuleSet(ctx, location)
+	}
 	if err != nil {
-		rsm.logger.Error("cannot download remote ruleset",
+		rsm.logger.Error("cannot open external ruleset",
 			"location", location, "error", err.Error())
 		return
 	}
@@ -115,11 +164,10 @@ func SniffOutAllRemoteRules(
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
-	// do we have remote extensions?
-	if CheckForRemoteExtends(extends) {
+	// do we have extensions?
+	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
 		for k, _ := range extends {
-			if strings.HasPrefix(k, "http") {
-
+			if strings.HasPrefix(k, "http") || filepath.Ext(k) == ".yaml" || filepath.Ext(k) == ".json" {
 				if slices.Contains(visited, k) {
 					rsm.logger.Warn("ruleset links to its self, circular rulesets are not permitted",
 						"extends", k)
@@ -127,10 +175,9 @@ func SniffOutAllRemoteRules(
 				}
 
 				// do down the rabbit hole.
-				SniffOutAllRemoteRules(ctx, doneChan, rsm, k, visited, rs)
+				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, remote)
 			}
 		}
 	}
-	doneChan <- true
 	return
 }
