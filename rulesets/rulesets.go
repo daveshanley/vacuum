@@ -4,6 +4,7 @@
 package rulesets
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/mitchellh/mapstructure"
@@ -226,6 +228,34 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 
 	// add definitions.
 	rs.RuleDefinitions = ruleset.RuleDefinitions
+
+	if rs.RuleDefinitions == nil {
+		rs.RuleDefinitions = make(map[string]any)
+	}
+
+	// download remote rulesets
+	if CheckForRemoteExtends(extends) {
+		doneChan := make(chan bool)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		total := 0
+		for k, _ := range extends {
+			if strings.HasPrefix(k, "http") {
+				total++
+				go SniffOutAllRemoteRules(ctx, doneChan, &rsm, k, nil, rs)
+			}
+		}
+		complete := 0
+		for complete < total {
+			select {
+			case <-doneChan:
+				complete++
+			case <-ctx.Done():
+				rsm.logger.Error("remote ruleset download timed out after 5 seconds")
+				break
+			}
+		}
+	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide
 	// what we need to add, enable, disable, replace or change severity on.
