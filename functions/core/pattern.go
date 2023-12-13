@@ -68,6 +68,8 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		pathValue = path
 	}
 
+	message := context.Rule.Message
+
 	ruleMessage := context.Rule.Description
 	if context.Rule.Message != "" {
 		ruleMessage = context.Rule.Message
@@ -99,8 +101,9 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			expPath := fmt.Sprintf("%s['%s']", pathValue, currentField)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: `%s` cannot be compiled into a regular expression [`%s`]",
-						ruleMessage, p.match, err.Error()),
+					Message: SuppliedOrDefault(message,
+						fmt.Sprintf("%s: `%s` cannot be compiled into a regular expression [`%s`]",
+							ruleMessage, p.match, err.Error())),
 					StartNode: node,
 					EndNode:   node,
 					Path:      expPath,
@@ -109,8 +112,9 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			} else {
 				if !rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
-						Message: fmt.Sprintf("%s: `%s` does not match the expression `%s`", ruleMessage,
-							node.Value, p.match),
+						Message: SuppliedOrDefault(message,
+							fmt.Sprintf("%s: `%s` does not match the expression `%s`", ruleMessage,
+								node.Value, p.match)),
 						StartNode: node,
 						EndNode:   node,
 						Path:      expPath,
@@ -126,8 +130,9 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			expPath := fmt.Sprintf("%s['%s']", pathValue, currentField)
 			if err != nil {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: cannot be compiled into a regular expression [`%s`]",
-						ruleMessage, err.Error()),
+					Message: SuppliedOrDefault(message,
+						fmt.Sprintf("%s: cannot be compiled into a regular expression [`%s`]",
+							ruleMessage, err.Error())),
 					StartNode: node,
 					EndNode:   node,
 					Path:      expPath,
@@ -136,7 +141,8 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			} else {
 				if rx.MatchString(node.Value) {
 					results = append(results, model.RuleFunctionResult{
-						Message:   fmt.Sprintf("%s: matches the expression `%s`", ruleMessage, p.notMatch),
+						Message: SuppliedOrDefault(message,
+							fmt.Sprintf("%s: matches the expression `%s`", ruleMessage, p.notMatch)),
 						StartNode: node,
 						EndNode:   node,
 						Path:      expPath,

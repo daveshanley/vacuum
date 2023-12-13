@@ -4,6 +4,7 @@ rules:
   check-title-is-exactly-this:
     description: Check the title of the spec is exactly, 'this specific thing'
     severity: error
+    message: you have to make the title 'this specific thing'
     recommended: true
     formats: [oas2, oas3]
     given: $.info
