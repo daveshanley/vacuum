@@ -50,6 +50,8 @@ func GetLintCommand() *cobra.Command {
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			debugFlag, _ := cmd.Flags().GetBool("debug")
+			noBanner, _ := cmd.Flags().GetBool("no-banner")
+			noMessage, _ := cmd.Flags().GetBool("no-message")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -58,7 +60,7 @@ func GetLintCommand() *cobra.Command {
 				pterm.DisableStyling()
 			}
 
-			if !silent {
+			if !silent && !noBanner {
 				PrintBanner()
 			}
 
@@ -165,6 +167,7 @@ func GetLintCommand() *cobra.Command {
 						categoryFlag:     categoryFlag,
 						snippetsFlag:     snippetsFlag,
 						errorsFlag:       errorsFlag,
+						noMessageFlag:    noMessage,
 						totalFiles:       len(args),
 						fileIndex:        i,
 						defaultRuleSets:  defaultRuleSets,
@@ -213,6 +216,8 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().StringP("category", "c", "", "Show a single category of results")
 	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result.")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner / header output")
+	cmd.Flags().BoolP("no-message", "m", false, "Hide the message output when using -d to show details")
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 
 	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
@@ -250,6 +255,7 @@ type lintFileRequest struct {
 	silent           bool
 	detailsFlag      bool
 	timeFlag         bool
+	noMessageFlag    bool
 	failSeverityFlag string
 	categoryFlag     string
 	snippetsFlag     bool
@@ -314,7 +320,15 @@ func lintFile(req lintFileRequest) (int64, int, error) {
 	abs, _ := filepath.Abs(req.fileName)
 
 	if len(resultSet.Results) > 0 {
-		processResults(resultSet.Results, specStringData, req.snippetsFlag, req.errorsFlag, req.silent, abs, req.fileName)
+		processResults(
+			resultSet.Results,
+			specStringData,
+			req.snippetsFlag,
+			req.errorsFlag,
+			req.silent,
+			req.noMessageFlag,
+			abs,
+			req.fileName)
 	}
 
 	RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
@@ -322,7 +336,13 @@ func lintFile(req lintFileRequest) (int64, int, error) {
 	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
 }
 
-func processResults(results []*model.RuleFunctionResult, specData []string, snippets, errors bool, silent bool, abs, filename string) {
+func processResults(results []*model.RuleFunctionResult,
+	specData []string,
+	snippets,
+	errors bool,
+	silent bool,
+	noMessage bool,
+	abs, filename string) {
 
 	if !silent {
 		pterm.Println(pterm.LightMagenta(fmt.Sprintf("\n%s", abs)))
@@ -339,6 +359,9 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 	if !snippets {
 		tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Category", "Path"}}
 	}
+	if noMessage {
+		tableData = [][]string{{"Location", "Severity", "Rule", "Category", "Path"}}
+	}
 
 	// width, height, err := terminal.GetSize(0)
 	// TODO: determine the terminal size and render the linting results in a table that fits the screen.
@@ -352,6 +375,9 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 		}
 		if snippets {
 			tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Category", "Path"}}
+		}
+		if noMessage {
+			tableData = [][]string{{"Location", "Severity", "Rule", "Category", "Path"}}
 		}
 		startLine := 0
 		startCol := 0
@@ -398,8 +424,11 @@ func processResults(results []*model.RuleFunctionResult, specData []string, snip
 			continue // only show errors
 		}
 
-		tableData = append(tableData, []string{start, sev, m, r.Rule.Id, r.Rule.RuleCategory.Name, p})
-
+		if !noMessage {
+			tableData = append(tableData, []string{start, sev, m, r.Rule.Id, r.Rule.RuleCategory.Name, p})
+		} else {
+			tableData = append(tableData, []string{start, sev, r.Rule.Id, r.Rule.RuleCategory.Name, p})
+		}
 		if snippets && !silent {
 			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 			renderCodeSnippet(r, specData)
