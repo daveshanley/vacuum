@@ -246,7 +246,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 
 		go func() {
 
-			for k, _ := range extends {
+			for k := range extends {
 				if strings.HasPrefix(k, "http") || filepath.Ext(k) == ".yaml" || filepath.Ext(k) == ".json" {
 					total++
 					remote := false

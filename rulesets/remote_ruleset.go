@@ -18,7 +18,7 @@ import (
 // CheckForRemoteExtends checks if the extends map contains a remote link
 // returns true if it does, false if it does not
 func CheckForRemoteExtends(extends map[string]string) bool {
-	for k, _ := range extends {
+	for k := range extends {
 		if strings.HasPrefix(k, "http") {
 			return true
 		}
@@ -29,7 +29,7 @@ func CheckForRemoteExtends(extends map[string]string) bool {
 // CheckForLocalExtends checks if the extends map contains a local link
 // returns true if it does, false if it does not
 func CheckForLocalExtends(extends map[string]string) bool {
-	for k, _ := range extends {
+	for k := range extends {
 		if filepath.Ext(k) == ".yaml" || filepath.Ext(k) == ".json" {
 			return true
 		}
@@ -166,7 +166,7 @@ func SniffOutAllExternalRules(
 
 	// do we have extensions?
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
-		for k, _ := range extends {
+		for k := range extends {
 			if strings.HasPrefix(k, "http") || filepath.Ext(k) == ".yaml" || filepath.Ext(k) == ".json" {
 				if slices.Contains(visited, k) {
 					rsm.logger.Warn("ruleset links to its self, circular rulesets are not permitted",
@@ -179,5 +179,4 @@ func SniffOutAllExternalRules(
 			}
 		}
 	}
-	return
 }
