@@ -6,7 +6,7 @@ rules:
     severity: error
     recommended: true
     formats: [oas2, oas3]
-    given: $.info.title
+    given: $.info
     then:
       field: title
       function: pattern
