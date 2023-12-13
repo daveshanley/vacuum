@@ -189,7 +189,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	return results
 }
 
-func (c Casing) compileExpressions() {
+func (c *Casing) compileExpressions() {
 
 	digits := "0-9"
 	if c.ignoreDigits {
