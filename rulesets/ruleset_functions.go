@@ -502,7 +502,7 @@ func GetAPIServersRule() *model.Rule {
 		Recommended:  true,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Type:         Validation,
-		Severity:     model.SeverityError,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "oasAPIServers",
 		},
