@@ -43,6 +43,8 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	var results []model.RuleFunctionResult
 
+	message := context.Rule.Message
+
 	var schema *highBase.Schema
 	var ok bool
 
@@ -62,7 +64,8 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		err := on.Encode(&s)
 
 		if err != nil {
-			r := model.BuildFunctionResultString(fmt.Sprintf("unable to parse function options: %s", err.Error()))
+			r := model.BuildFunctionResultString(
+				SuppliedOrDefault(message, fmt.Sprintf("unable to parse function options: %s", err.Error())))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
@@ -71,7 +74,9 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		// first, run the model builder on the schema
 		err = low.BuildModel(&on, &lowSchema)
 		if err != nil {
-			r := model.BuildFunctionResultString(fmt.Sprintf("unable to build low schema from function options: %s", err.Error()))
+			r := model.BuildFunctionResultString(
+				SuppliedOrDefault(message,
+					fmt.Sprintf("unable to build low schema from function options: %s", err.Error())))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
@@ -80,7 +85,9 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		// now build out the low level schema.
 		err = lowSchema.Build(ctx.Background(), &on, context.Index)
 		if err != nil {
-			r := model.BuildFunctionResultString(fmt.Sprintf("unable to build high schema from function options: %s", err.Error()))
+			r := model.BuildFunctionResultString(
+				SuppliedOrDefault(message,
+					fmt.Sprintf("unable to build high schema from function options: %s", err.Error())))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
@@ -121,8 +128,9 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
 			if _, ko := forceValidation.(bool); ko {
 
-				r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", ruleMessage,
-					fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field)))
+				r := model.BuildFunctionResultString(
+					SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
+						fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field))))
 				r.StartNode = node
 				r.EndNode = node.Content[len(node.Content)-1]
 				r.Rule = context.Rule
@@ -160,10 +168,12 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 		schemaErrors = append(schemaErrors, resErrors[k].SchemaValidationErrors...)
 	}
 
+	message := context.Rule.Message
+
 	for c := range schemaErrors {
 
-		r := model.BuildFunctionResultString(fmt.Sprintf("%s: %s", ruleMessage,
-			schemaErrors[c].Reason))
+		r := model.BuildFunctionResultString(SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
+			schemaErrors[c].Reason)))
 		r.StartNode = field
 		r.EndNode = field
 		r.Rule = context.Rule
