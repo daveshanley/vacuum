@@ -31,7 +31,7 @@ properties:
 		Name:         "Use random IDs that cannot be guessed.",
 		Id:           OwaspNoNumericIDs,
 		Formats:      model.AllFormats,
-		Description:  "OWASP API1:2019 - Use random IDs that cannot be guessed. UUIDs are preferred",
+		Description:  "Use random IDs that cannot be guessed. UUIDs are preferred",
 		Given:        `$.paths..parameters[*][?(@.name == "id" || @.name =~ /(_id|Id|-id)$/)))]`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
