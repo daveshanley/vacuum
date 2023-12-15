@@ -51,6 +51,7 @@ func BuildResultsWithDocCheckSkip(
 		CustomFunctions:   customFunctions,
 		Base:              base,
 		SkipDocumentCheck: skipCheck,
+		AllowLookup:       true,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

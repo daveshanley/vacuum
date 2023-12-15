@@ -41,6 +41,8 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	var results []model.RuleFunctionResult
 	var values []string
 
+	message := context.Rule.Message
+
 	// check supplied values (required)
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 	if props["values"] == "" {
@@ -61,8 +63,9 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
-					node.Value, values),
+				Message: SuppliedOrDefault(message,
+					fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
+						node.Value, values)),
 				StartNode: node,
 				EndNode:   node,
 				Path:      pathValue,

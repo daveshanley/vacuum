@@ -4,13 +4,16 @@
 package rulesets
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/mitchellh/mapstructure"
@@ -226,6 +229,48 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 
 	// add definitions.
 	rs.RuleDefinitions = ruleset.RuleDefinitions
+
+	if rs.RuleDefinitions == nil {
+		rs.RuleDefinitions = make(map[string]any)
+	}
+
+	// download remote rulesets
+	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
+
+		doneChan := make(chan bool)
+
+		// give it a fair wait, 5 seconds is long enough.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		total := 0
+
+		go func() {
+
+			for k := range extends {
+				if strings.HasPrefix(k, "http") ||
+					filepath.Ext(k) == ".yml" ||
+					filepath.Ext(k) == ".yaml" ||
+					filepath.Ext(k) == ".json" {
+					total++
+					remote := false
+					if strings.HasPrefix(k, "http") {
+						remote = true
+					}
+					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote)
+				}
+			}
+			doneChan <- true
+		}()
+
+		select {
+		case <-ctx.Done():
+			rsm.logger.Error("external ruleset fetch timed out after 5 seconds")
+			break
+		case <-doneChan:
+			break
+		}
+
+	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide
 	// what we need to add, enable, disable, replace or change severity on.

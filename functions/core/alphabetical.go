@@ -42,6 +42,9 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 	var keyedBy string
 
+	// extract a custom message
+	message := context.Rule.Message
+
 	// check supplied type
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 	if props["keyedBy"] != "" {
@@ -58,8 +61,8 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 			if keyedBy == "" {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
-						node.Value, a.GetSchema().ErrorMessage),
+					Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
+						node.Value, a.GetSchema().ErrorMessage)),
 					StartNode: node,
 					EndNode:   node,
 					Path:      pathValue,
@@ -169,14 +172,16 @@ func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node, context model.Rul
 
 func compareStringArray(strArr []string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+	message := context.Rule.Message
+
 	for x := 0; x < len(strArr); x++ {
 		if x+1 < len(strArr) {
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
+					Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
 						context.Rule.Description,
-						strArr[x+1], strArr[x]),
+						strArr[x+1], strArr[x])),
 				})
 			}
 		}
@@ -219,10 +224,11 @@ func (a Alphabetical) checkNumberArrayIsSorted(arr *yaml.Node, context model.Rul
 
 func (a Alphabetical) evaluateIntArray(intArray []int, errmsg string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+	message := context.Rule.Message
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x]),
+				Message: SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
 			})
 		}
 	}
@@ -231,10 +237,12 @@ func (a Alphabetical) evaluateIntArray(intArray []int, errmsg string, context mo
 
 func (a Alphabetical) evaluateFloatArray(floatArray []float64, errmsg string, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+	message := context.Rule.Message
+
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x]),
+				Message: SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
 			})
 		}
 	}

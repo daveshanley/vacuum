@@ -78,6 +78,8 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 	var casingType string
 
+	message := context.Rule.Message
+
 	// check supplied type
 	props := utils.ConvertInterfaceIntoStringMap(context.Options)
 	if props["type"] == "" {
@@ -152,7 +154,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 		if !rx.MatchString(node.Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType),
+				Message:   SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType)),
 				StartNode: node,
 				EndNode:   node,
 				Path:      pathValue,
@@ -174,8 +176,8 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		rx := regexp.MustCompile(leadingPattern)
 		if !rx.MatchString(nodes[0].Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message: fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
-					nodes[0].Value, casingType),
+				Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
+					nodes[0].Value, casingType)),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],
 				Path:      pathValue,

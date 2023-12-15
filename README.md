@@ -102,7 +102,15 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.5+` 🔥 : **Multi-file linting**  now available for the `lint` command.
+🔥 **New in** `v0.6+` 🔥 : **Sharable / distributed rulesets**  now available.
+
+Want to share / extend / distribute your own rulesets? Now you can!
+
+[Learn more about sharable rulesets](https://quobix.com/vacuum/rulesets/sharing/)
+
+---
+
+`v0.5+` : **Multi-file linting**  now available for the `lint` command.
 
 Want to lint multiple files at once? Now you can!
 
@@ -170,6 +178,7 @@ See all the documentation at https://quobix.com/vacuum
   - [OpenAPI Functions](https://quobix.com/vacuum/functions/openapi/)
   - [OWASP Functions](https://quobix.com/vacuum/functions/owasp/)
 - [Understanding RuleSets](https://quobix.com/vacuum/rulesets/understanding/)
+  - [Sharing RuleSets](https://quobix.com/vacuum/rulesets/sharing/)
   - [All Rules](https://quobix.com/vacuum/rulesets/all/)
   - [No Rules](https://quobix.com/vacuum/rulesets/no-rules/)
   - [Recommended Rules](https://quobix.com/vacuum/rulesets/recommended/)
