@@ -12,7 +12,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/libopenapi v0.14.0
-	github.com/pb33f/libopenapi-validator v0.0.35
+	github.com/pb33f/libopenapi-validator v0.0.36
 	github.com/pterm/pterm v0.12.71
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/spf13/cobra v1.8.0
