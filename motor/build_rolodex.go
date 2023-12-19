@@ -5,7 +5,6 @@ package motor
 
 import (
 	"github.com/pb33f/libopenapi/index"
-	"os"
 	"path/filepath"
 )
 
@@ -25,7 +24,6 @@ func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig) (*index.Rol
 		fsCfg := &index.LocalFSConfig{
 			BaseDirectory: cwd,
 			IndexConfig:   indexConfig,
-			DirFS:         os.DirFS(cwd),
 		}
 		fileFS, err := index.NewLocalFSWithConfig(fsCfg)
 		if err != nil {
