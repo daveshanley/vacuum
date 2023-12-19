@@ -126,9 +126,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			pterm.DefaultLogger.Level = pterm.LogLevelError
 		}
 		docConfig.Logger = logger
+		indexConfig.Logger = logger
 
 	} else {
 		docConfig.Logger = execution.Logger
+		indexConfig.Logger = execution.Logger
 	}
 
 	if execution.Base != "" {
