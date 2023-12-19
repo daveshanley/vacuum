@@ -90,7 +90,7 @@ like our _very kind_ sponsors:
 </picture>
 </a>
 
-[zuplo]([https://zuplo.com](https://zuplo.link/vacuum))
+[zuplo](https://zuplo.link/vacuum)
 
 
 ---
