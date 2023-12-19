@@ -20,6 +20,9 @@ var OAS3AllFormat = []string{OAS3, OAS31}
 var OAS2Format = []string{OAS2}
 var AllFormats = []string{OAS3, OAS31, OAS2}
 
+const WebsiteUrl = "https://quobix.com/vacuum"
+const GithubUrl = "https://github.com/daveshanley/vacuum"
+
 // BuildFunctionResult will create a RuleFunctionResult from a key, message and value.
 // Deprecated: use BuildFunctionResultWithDescription instead.
 func BuildFunctionResult(key, message string, value interface{}) RuleFunctionResult {

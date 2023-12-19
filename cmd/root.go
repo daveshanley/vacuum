@@ -85,7 +85,9 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.AddCommand(GetDashboardCommand())
 	rootCmd.AddCommand(GetGenerateRulesetCommand())
 	rootCmd.AddCommand(GetGenerateVersionCommand())
+	rootCmd.AddCommand(GetLanguageServerCommand())
 	rootCmd.AddCommand(GetBundleCommand())
+
 	return rootCmd
 }
 
