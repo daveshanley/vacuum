@@ -59,6 +59,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("remote", "u", true, "Allow local files and remote (http) references to be looked up")
 	rootCmd.PersistentFlags().BoolP("skip-check", "k", false, "Skip checking for a valid OpenAPI document, useful for linting fragments or non-OpenAPI documents")
 	rootCmd.PersistentFlags().BoolP("debug", "w", false, "Turn on debug logging")
+	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
 
 	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
