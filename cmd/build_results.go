@@ -6,14 +6,16 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
 	"os"
+	"time"
 )
 
 func BuildResults(
 	rulesetFlag string,
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
-	base string) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(rulesetFlag, specBytes, customFunctions, base, false)
+	base string,
+	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	return BuildResultsWithDocCheckSkip(rulesetFlag, specBytes, customFunctions, base, false, timeout)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -21,7 +23,8 @@ func BuildResultsWithDocCheckSkip(
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
-	skipCheck bool) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	skipCheck bool,
+	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -52,6 +55,7 @@ func BuildResultsWithDocCheckSkip(
 		Base:              base,
 		SkipDocumentCheck: skipCheck,
 		AllowLookup:       true,
+		Timeout:           timeout,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

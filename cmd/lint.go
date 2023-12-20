@@ -53,6 +53,7 @@ func GetLintCommand() *cobra.Command {
 			noBanner, _ := cmd.Flags().GetBool("no-banner")
 			noMessage, _ := cmd.Flags().GetBool("no-message")
 			allResults, _ := cmd.Flags().GetBool("all-results")
+			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -177,6 +178,7 @@ func GetLintCommand() *cobra.Command {
 						functions:        customFunctions,
 						lock:             &printLock,
 						logger:           logger,
+						timeoutFlag:      timeoutFlag,
 					}
 					fs, fp, err := lintFile(lfr)
 
@@ -266,6 +268,7 @@ type lintFileRequest struct {
 	errorsFlag       bool
 	totalFiles       int
 	fileIndex        int
+	timeoutFlag      int
 	defaultRuleSets  rulesets.RuleSets
 	selectedRS       *rulesets.RuleSet
 	functions        map[string]model.RuleFunction
@@ -297,6 +300,7 @@ func lintFile(req lintFileRequest) (int64, int, error) {
 		AllowLookup:       req.remote,
 		SkipDocumentCheck: req.skipCheckFlag,
 		Logger:            req.logger,
+		Timeout:           time.Duration(req.timeoutFlag) * time.Second,
 	})
 
 	results := result.Results

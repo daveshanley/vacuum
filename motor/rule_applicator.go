@@ -4,6 +4,7 @@
 package motor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
@@ -26,20 +28,20 @@ import (
 )
 
 type ruleContext struct {
-	rule              *model.Rule
-	specNode          *yaml.Node
-	builtinFunctions  functions.Functions
-	ruleResults       *[]model.RuleFunctionResult
-	wg                *sync.WaitGroup
-	errors            *[]error
-	index             *index.SpecIndex
-	specInfo          *datamodel.SpecInfo
-	customFunctions   map[string]model.RuleFunction
-	panicFunc         func(p any)
-	silenceLogs       bool
-	document          libopenapi.Document
-	skipDocumentCheck bool
-	logger            *slog.Logger
+	rule               *model.Rule
+	specNode           *yaml.Node
+	specNodeUnresolved *yaml.Node
+	builtinFunctions   functions.Functions
+	ruleResults        *[]model.RuleFunctionResult
+	errors             *[]error
+	index              *index.SpecIndex
+	specInfo           *datamodel.SpecInfo
+	customFunctions    map[string]model.RuleFunction
+	panicFunc          func(p any)
+	silenceLogs        bool
+	document           libopenapi.Document
+	skipDocumentCheck  bool
+	logger             *slog.Logger
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -57,6 +59,7 @@ type RuleSetExecution struct {
 	Document          libopenapi.Document           // a ready to render model.
 	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
 	Logger            *slog.Logger                  // A custom logger.
+	Timeout           time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -426,39 +429,67 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var errs []error
 
 	if execution.RuleSet != nil {
-		for _, rule := range execution.RuleSet.Rules {
-			ruleSpec := specResolved
-			ruleIndex := indexResolved
-			info := specInfo
-			if !rule.Resolved {
-				info = specInfoUnresolved
-				ruleSpec = specUnresolved
-				ruleIndex = indexUnresolved
-			}
 
-			// this list of things is most likely going to grow a bit, so we use a nice clean message design.
-			ctx := ruleContext{
-				rule:              rule,
-				specNode:          ruleSpec,
-				builtinFunctions:  builtinFunctions,
-				ruleResults:       &ruleResults,
-				wg:                &ruleWaitGroup,
-				errors:            &errs,
-				specInfo:          info,
-				index:             ruleIndex,
-				document:          docResolved,
-				customFunctions:   execution.CustomFunctions,
-				silenceLogs:       execution.SilenceLogs,
-				skipDocumentCheck: execution.SkipDocumentCheck,
-				logger:            docConfig.Logger,
-			}
-			if execution.PanicFunction != nil {
-				ctx.panicFunc = execution.PanicFunction
-			}
-			go runRule(ctx)
+		totalRules := len(execution.RuleSet.Rules)
+		done := make(chan bool)
+		for _, rule := range execution.RuleSet.Rules {
+
+			go func(rule *model.Rule, done chan bool) {
+
+				ruleSpec := specResolved
+				ruleIndex := indexResolved
+				info := specInfo
+				if !rule.Resolved {
+					info = specInfoUnresolved
+					ruleSpec = specUnresolved
+					ruleIndex = indexUnresolved
+				}
+
+				// this list of things is most likely going to grow a bit, so we use a nice clean message design.
+				ctx := ruleContext{
+					rule:               rule,
+					specNode:           ruleSpec,
+					specNodeUnresolved: specUnresolved,
+					builtinFunctions:   builtinFunctions,
+					ruleResults:        &ruleResults,
+					errors:             &errs,
+					specInfo:           info,
+					index:              ruleIndex,
+					document:           docResolved,
+					customFunctions:    execution.CustomFunctions,
+					silenceLogs:        execution.SilenceLogs,
+					skipDocumentCheck:  execution.SkipDocumentCheck,
+					logger:             docConfig.Logger,
+				}
+				if execution.PanicFunction != nil {
+					ctx.panicFunc = execution.PanicFunction
+				}
+
+				if execution.Timeout <= 0 {
+					execution.Timeout = time.Second * 5 // default
+				}
+
+				timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
+				defer ruleCancel()
+				doneChan := make(chan bool)
+				go runRule(ctx, doneChan)
+
+				select {
+				case <-timeoutCtx.Done():
+					ctx.logger.Error("Rule timed out, skipping", "rule", rule.Id, "timeout", execution.Timeout)
+					break
+				case <-doneChan:
+					break
+				}
+				done <- true
+			}(rule, done)
 		}
 
-		ruleWaitGroup.Wait()
+		completed := 0
+		for completed < totalRules {
+			<-done
+			completed++
+		}
 	}
 
 	ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
@@ -474,7 +505,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 }
 
-func runRule(ctx ruleContext) {
+func runRule(ctx ruleContext, doneChan chan bool) {
 
 	if ctx.panicFunc != nil {
 		defer func() {
@@ -483,7 +514,6 @@ func runRule(ctx ruleContext) {
 			}
 		}()
 	}
-	defer ctx.wg.Done()
 
 	var givenPaths []string
 	if x, ok := ctx.rule.Given.(string); ok {
@@ -496,19 +526,62 @@ func runRule(ctx ruleContext) {
 
 	if x, ok := ctx.rule.Given.([]interface{}); ok {
 		for _, gpI := range x {
-			if gp, ok := gpI.(string); ok {
+			if gp, ko := gpI.(string); ko {
 				givenPaths = append(givenPaths, gp)
 			}
 		}
 	}
 
+	findNodes := func(node *yaml.Node, path string, errChan chan error, nodesChan chan []*yaml.Node) {
+		nodes, err := utils.FindNodesWithoutDeserializing(node, path)
+		if err != nil {
+			errChan <- err
+		}
+		nodesChan <- nodes
+	}
+
+	var nodes []*yaml.Node
+	var err error
+
 	for _, givenPath := range givenPaths {
 
-		var nodes []*yaml.Node
-		var err error
-
 		if givenPath != "$" {
-			nodes, err = utils.FindNodesWithoutDeserializing(ctx.specNode, givenPath)
+
+			// create a timeout on this, if we can't get a result within 100ms, then
+			// try again, but with the unresolved spec.
+			lookupCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+			defer cancel()
+			nodesChan := make(chan []*yaml.Node)
+			errChan := make(chan error)
+
+			go findNodes(ctx.specNode, givenPath, errChan, nodesChan)
+
+			select {
+			case nodes = <-nodesChan:
+				break
+			case err = <-errChan:
+				break
+			case <-lookupCtx.Done():
+				ctx.logger.Warn("timeout looking for nodes, trying again with unresolved spec.", "path", givenPath)
+
+				// ok, this timed out, let's try again with the unresolved spec.
+				lookupCtxFinal, finalCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+				defer finalCancel()
+
+				go findNodes(ctx.specNodeUnresolved, givenPath, errChan, nodesChan)
+
+				select {
+				case nodes = <-nodesChan:
+					break
+				case err = <-errChan:
+					break
+				case <-lookupCtxFinal.Done():
+					err = fmt.Errorf("timed out looking for nodes using path '%s'", givenPath)
+					ctx.logger.Error("timeout looking for unresolved nodes, giving up.", "path", givenPath, "rule",
+						ctx.rule.Id)
+				}
+			}
+
 		} else {
 			// if we're looking for the root, don't bother looking, we already have it.
 			nodes = []*yaml.Node{ctx.specNode}
@@ -543,6 +616,7 @@ func runRule(ctx ruleContext) {
 			}
 		}
 	}
+	doneChan <- true
 }
 
 var lock sync.Mutex

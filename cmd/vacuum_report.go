@@ -44,6 +44,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			junitFlag, _ := cmd.Flags().GetBool("junit")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
+			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -138,6 +139,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				SilenceLogs:       true,
 				Base:              baseFlag,
 				SkipDocumentCheck: skipCheckFlag,
+				Timeout:           time.Duration(timeoutFlag) * time.Second,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)

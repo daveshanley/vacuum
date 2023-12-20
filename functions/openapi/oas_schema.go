@@ -38,9 +38,6 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	// grab the original bytes and the spec info from context.
 	info := context.SpecInfo
 
-	// rule cannot proceed until JSON parsing is complete. Wait on channel to signal all clear.
-	<-info.GetJSONParsingChannel()
-
 	if info.SpecType == "" {
 		// spec type is un-known, there is no point in running this rule.
 		return results
