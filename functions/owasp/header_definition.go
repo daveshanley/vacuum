@@ -2,6 +2,7 @@ package owasp
 
 import (
 	"fmt"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"strconv"
 	"strings"
 
@@ -45,70 +46,93 @@ func (cd HeaderDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 		headers = castedHeaders
 	}
 
-	var responseCode = -1
+	//var responseCode = -1
 	var results []model.RuleFunctionResult
-	for i, node := range nodes[0].Content {
-		if i%2 == 0 {
-			responseCode, _ = strconv.Atoi(node.Value)
-		} else if responseCode >= 200 && responseCode < 300 || responseCode >= 400 && responseCode < 500 {
-			result := cd.getResult(responseCode, node, context, headers)
-			results = append(results, result...)
-			responseCode = 0
-		}
+
+	doc := context.Document
+	if doc == nil {
+		return results
 	}
 
-	return results
-}
+	if doc.GetSpecInfo().VersionNumeric <= 2 {
+		return results
+	}
+	m, _ := doc.BuildV3Model()
 
-func (cd HeaderDefinition) getResult(responseCode int, node *yaml.Node, context model.RuleFunctionContext, headersSets [][]string) []model.RuleFunctionResult {
-	var results []model.RuleFunctionResult
-	numberOfHeaders := 0
+	for pathPairs := m.Model.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+		for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+			opValue := opPairs.Value()
+			responses := opValue.Responses.Codes
+			var node *yaml.Node
 
-	for i, headersNode := range node.Content {
-		if headersNode.Value == "headers" {
-			numberOfHeaders++
-			if !(len(node.Content) > i+1) || !cd.validateNode(node.Content[i+1], headersSets) {
-				results = append(results, model.RuleFunctionResult{
-					Message:   message{responseCode: responseCode, headersSets: headersSets}.String(),
-					StartNode: headersNode,
-					EndNode:   utils.FindLastChildNodeWithLevel(headersNode, 0),
-					Path:      fmt.Sprintf("$.paths.responses.%d.headers", responseCode),
-					Rule:      context.Rule,
-				})
+			for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
+				resp := respPairs.Value()
+				respCode := respPairs.Key()
+				code, _ := strconv.Atoi(respCode)
+
+				if code >= 200 && code < 300 || code >= 400 && code < 500 {
+
+					lowCodes := opValue.Responses.GoLow().Codes
+					for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
+						lowCodeKey := lowCodePairs.Key()
+						codeCodeVal, _ := strconv.Atoi(lowCodeKey.KeyNode.Value)
+						if codeCodeVal == code {
+							node = lowCodeKey.KeyNode
+						}
+					}
+					if resp.Headers != nil {
+						result := cd.getResult(code, node, resp, context, headers)
+						results = append(results, result...)
+					} else {
+
+						results = append(results, model.RuleFunctionResult{
+							Message:   message{responseCode: code, headersSets: headers}.String(),
+							StartNode: node,
+							EndNode:   node,
+							Path:      fmt.Sprintf("$.paths.responses.%d", code),
+							Rule:      context.Rule,
+						})
+
+					}
+
+				}
 			}
 		}
 	}
-
-	// headers parameter not found
-	if numberOfHeaders == 0 {
-		results = append(results, model.RuleFunctionResult{
-			Message:   message{responseCode: responseCode, headersSets: headersSets}.String(),
-			StartNode: node,
-			EndNode:   utils.FindLastChildNodeWithLevel(node, 0),
-			Path:      fmt.Sprintf("$.paths.responses.%d", responseCode),
-			Rule:      context.Rule,
-		})
-	}
-
 	return results
 }
 
-// RunRule will execute the HeaderDefinition rule, based on supplied context and a supplied []*yaml.Node slice.
-func (cd HeaderDefinition) validateNode(node *yaml.Node, headers [][]string) bool {
-	var nodeHeaders []string
-	for i, nodeHeader := range node.Content {
-		if i%2 == 0 {
-			nodeHeaders = append(nodeHeaders, nodeHeader.Value)
+func (cd HeaderDefinition) getResult(responseCode int, codeNode *yaml.Node,
+	response *v3.Response, context model.RuleFunctionContext, headersSets [][]string) []model.RuleFunctionResult {
+
+	var results []model.RuleFunctionResult
+	numberOfHeaders := 0
+
+	headers := response.GoLow().Headers
+	var headerKeys []string
+
+	for headerPairs := headers.Value.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
+		numberOfHeaders++
+		headerKey := headerPairs.Key()
+		headerKeys = append(headerKeys, headerKey.KeyNode.Value)
+	}
+	b := false
+	for _, set := range headersSets {
+		if belong(set, headerKeys) {
+			b = true
 		}
 	}
 
-	for _, set := range headers {
-		if belong(set, nodeHeaders) {
-			return true
-		}
+	if !b {
+		results = append(results, model.RuleFunctionResult{
+			Message:   message{responseCode: responseCode, headersSets: headersSets}.String(),
+			StartNode: headers.KeyNode,
+			EndNode:   headers.KeyNode,
+			Path:      fmt.Sprintf("$.paths.responses.%d.headers", responseCode),
+			Rule:      context.Rule,
+		})
 	}
-
-	return false
+	return results
 }
 
 func belong(set []string, nodeHeaders []string) bool {
@@ -117,6 +141,5 @@ func belong(set []string, nodeHeaders []string) bool {
 			return false
 		}
 	}
-
 	return true
 }

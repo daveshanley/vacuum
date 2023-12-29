@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"io"
 	"log/slog"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/mitchellh/mapstructure"
+	doctor "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
@@ -40,6 +42,7 @@ type ruleContext struct {
 	panicFunc          func(p any)
 	silenceLogs        bool
 	document           libopenapi.Document
+	drDocument         *doctor.DrDocument
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 }
@@ -57,6 +60,7 @@ type RuleSetExecution struct {
 	Base              string                        // The base path or URL of the specification, used for resolving relative or remote paths.
 	AllowLookup       bool                          // Allow remote lookup of files or links
 	Document          libopenapi.Document           // a ready to render model.
+	DrDocument        *doctor.DrDocument            // a high level, more powerful model, powered by the doctor.
 	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
 	Logger            *slog.Logger                  // A custom logger.
 	Timeout           time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
@@ -83,6 +87,8 @@ const CircularReferencesFix string = "Circular references are created by schemas
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
 // uses a message structure, to allow the signature to grow, without breaking anything.
 func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
+	fmt.Println("applying rules")
+	nowa := time.Now()
 
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
@@ -101,6 +107,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
 	indexConfig.AvoidCircularReferenceCheck = true
+
 	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.SkipCircularReferenceCheck = true
 
@@ -181,6 +188,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// otherwise update the configuration with the supplied document.
 	// and build it.
 
+	fmt.Println("building docs")
+	nowb := time.Now()
+
 	var specInfo, specInfoUnresolved *datamodel.SpecInfo
 	if docResolved == nil {
 		var err error
@@ -194,7 +204,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}()
 
 		go func() {
-			docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+			dc := *docConfig
+			dc.SkipCircularReferenceCheck = false
+			docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, &dc)
 			done <- true
 		}()
 
@@ -241,6 +253,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfigUnresolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
 	}
 
+	thenb := time.Since(nowb).Milliseconds()
+	fmt.Printf("built docs in %d ms\n", thenb)
+
 	// build model
 	var resolvedModelErrors []error
 	var indexResolved *index.SpecIndex
@@ -253,13 +268,22 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
 
+	fmt.Println("building model")
+	nowc := time.Now()
+
+	var v3DocumentModel *v3.Document
+	//var v2DocumentModel *v2.Swagger
+
+	var drDocument *doctor.DrDocument
+
 	if version != "" {
 		switch version[0] {
 		case '2':
 			_, resolvedModelErrors = docResolved.BuildV2Model()
 			rolodexResolved = docResolved.GetRolodex()
 
-			_, _ = docUnresolved.BuildV2Model()
+			//mod, _ := docUnresolved.BuildV2Model()
+			//v2DocumentModel = &mod.Model
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
 			indexResolved = rolodexResolved.GetRootIndex()
@@ -277,17 +301,39 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			}
 
 		case '3':
+
+			fmt.Println("building resolved model")
+			nowd := time.Now()
+
+			var mod *libopenapi.DocumentModel[v3.Document]
 			_, resolvedModelErrors = docResolved.BuildV3Model()
+
 			rolodexResolved = docResolved.GetRolodex()
 
-			_, _ = docUnresolved.BuildV3Model()
+			then := time.Since(nowd).Milliseconds()
+			fmt.Printf("built resolved model in %d ms\n", then)
+			fmt.Println("building unresolved model")
+
+			nowc = time.Now()
+			mod, _ = docUnresolved.BuildV3Model()
+			v3DocumentModel = &mod.Model
 			rolodexUnresolved = docUnresolved.GetRolodex()
+
+			then = time.Since(nowd).Milliseconds()
+			fmt.Printf("built unresolved model in %d ms\n", then)
 
 			indexResolved = rolodexResolved.GetRootIndex()
 			indexUnresolved = rolodexUnresolved.GetRootIndex()
 
+			drDocument = doctor.NewDrDocument(indexUnresolved, rolodexUnresolved)
+			drDocument.WalkV3(v3DocumentModel)
+
 			// we only resolve one.
+			fmt.Println("resolving")
+			now := time.Now()
 			rolodexResolved.Resolve()
+			then = time.Since(now).Milliseconds()
+			fmt.Printf("resolved in %d ms\n", then)
 
 			specResolved = rolodexResolved.GetRootIndex().GetRootNode()
 			specUnresolved = rolodexUnresolved.GetRootIndex().GetRootNode()
@@ -341,6 +387,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 		}
 	}
+
+	then := time.Since(nowc).Milliseconds()
+	fmt.Printf("built model in %d ms\n", then)
 
 	for i := range resolvedModelErrors {
 		var m *index.ResolvingError
@@ -428,10 +477,30 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// run all rules.
 	var errs []error
 
+	// build the dr document
+	//var drDocument *doctor.DrDocument
+	//if version != "" {
+	//	switch version[0] {
+	//	case '2':
+	//		// TODO: change to swagger
+	//		if v2DocumentModel != nil {
+	//			drDocument = &doctor.DrDocument{}
+	//			drDocument.WalkV3(v3DocumentModel)
+	//		}
+	//	case '3':
+	//		if v3DocumentModel != nil {
+	//
+	//		}
+	//
+	//	}
+	//}
+
 	if execution.RuleSet != nil {
 
 		totalRules := len(execution.RuleSet.Rules)
 		done := make(chan bool)
+		fmt.Println("running rules")
+		now := time.Now()
 		for _, rule := range execution.RuleSet.Rules {
 
 			go func(rule *model.Rule, done chan bool) {
@@ -455,7 +524,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					errors:             &errs,
 					specInfo:           info,
 					index:              ruleIndex,
-					document:           docResolved,
+					document:           docUnresolved,
+					drDocument:         drDocument,
 					customFunctions:    execution.CustomFunctions,
 					silenceLogs:        execution.SilenceLogs,
 					skipDocumentCheck:  execution.SkipDocumentCheck,
@@ -472,6 +542,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
 				defer ruleCancel()
 				doneChan := make(chan bool)
+
 				go runRule(ctx, doneChan)
 
 				select {
@@ -490,9 +561,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			<-done
 			completed++
 		}
+		then := time.Since(now).Milliseconds()
+		fmt.Printf("ran %d rules in %d ms\n", totalRules, then)
 	}
 
 	ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
+
+	theb := time.Since(nowa).Milliseconds()
+	fmt.Printf("applied rules in %d ms\n", theb)
 
 	return &RuleSetExecutionResult{
 		RuleSetExecution: execution,
@@ -553,33 +629,37 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 			defer cancel()
 			nodesChan := make(chan []*yaml.Node)
 			errChan := make(chan error)
+			//cancelChan := make(chan bool)
 
 			go findNodes(ctx.specNode, givenPath, errChan, nodesChan)
-
+			//topBreak:
 			select {
 			case nodes = <-nodesChan:
 				break
 			case err = <-errChan:
+				fmt.Println("giving up finding nodes")
 				break
 			case <-lookupCtx.Done():
 				ctx.logger.Warn("timeout looking for nodes, trying again with unresolved spec.", "path", givenPath)
-
-				// ok, this timed out, let's try again with the unresolved spec.
-				lookupCtxFinal, finalCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
-				defer finalCancel()
-
-				go findNodes(ctx.specNodeUnresolved, givenPath, errChan, nodesChan)
-
-				select {
-				case nodes = <-nodesChan:
-					break
-				case err = <-errChan:
-					break
-				case <-lookupCtxFinal.Done():
-					err = fmt.Errorf("timed out looking for nodes using path '%s'", givenPath)
-					ctx.logger.Error("timeout looking for unresolved nodes, giving up.", "path", givenPath, "rule",
-						ctx.rule.Id)
-				}
+				break
+				//
+				//// ok, this timed out, let's try again with the unresolved spec.
+				//lookupCtxFinal, finalCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+				//defer finalCancel()
+				//
+				//go findNodes(ctx.specNodeUnresolved, givenPath, errChan, nodesChan)
+				//
+				//select {
+				//case nodes = <-nodesChan:
+				//	break
+				//case err = <-errChan:
+				//	break
+				//case <-lookupCtxFinal.Done():
+				//	err = fmt.Errorf("timed out looking for nodes using path '%s'", givenPath)
+				//	ctx.logger.Error("timeout looking for unresolved nodes, giving up.", "path", givenPath, "rule",
+				//		ctx.rule.Id)
+				//	break topBreak
+				//}
 			}
 
 		} else {
@@ -589,6 +669,7 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 
 		if err != nil {
 			*ctx.errors = append(*ctx.errors, err)
+			doneChan <- true
 			return
 		}
 		if len(nodes) <= 0 {
@@ -643,6 +724,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			Index:      ctx.index,
 			SpecInfo:   ctx.specInfo,
 			Document:   ctx.document,
+			DrDocument: ctx.drDocument,
 			Logger:     ctx.logger,
 		}
 
@@ -724,6 +806,10 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 		} else {
 		stopNowPlease:
 			for _, line := range r {
+				if result.StartNode == nil {
+					panic("wtf")
+				}
+
 				if line.location == fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column) &&
 					line.message == result.Message {
 					break stopNowPlease

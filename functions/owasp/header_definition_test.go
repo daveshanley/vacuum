@@ -1,6 +1,8 @@
 package owasp
 
 import (
+	"fmt"
+	"github.com/pb33f/libopenapi"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -21,34 +23,45 @@ func TestHeaderDefinition_RunRule(t *testing.T) {
 
 func TestHeaderDefinition_HeaderDefinitionMissing(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1'
+paths:
   /pizza/:
-    responses:
-      400:
-        error
-      200:
-        error
-      299:
-        error
-      499:
-        "Accept":
+    get:
+      responses:
+        400:
           error
-      461:
-        headers:
-          "Content-Type":
-            schema:
-              type: string
-      450:
-        headers:
-          "Accept":
-            schema:
-              type: string
-          "Cache-Control":
-            schema:
-              type: string
+        200:
+          error
+        299:
+          error
+        499:
+          headers:
+            "Accept":
+              error
+        461:
+          headers:
+            "Content-Type":
+              schema:
+                type: string
+        450:
+          headers:
+            "Accept":
+              schema:
+                type: string
+            "Cache-Control":
+              schema:
+                type: string
 `
 
-	path := "$.paths..responses"
+	// create a new document from specification bytes
+	document, err := libopenapi.NewDocument([]byte(yml))
+	// if anything went wrong, an error is thrown
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	document.BuildV3Model()
+	path := "$"
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
@@ -56,7 +69,7 @@ func TestHeaderDefinition_HeaderDefinitionMissing(t *testing.T) {
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
 		"headers": [][]string{{"Accept", "Cache-Control"}, {"Content-Type"}},
 	})
-
+	ctx.Document = document
 	def := HeaderDefinition{}
 	res := def.RunRule(nodes, ctx)
 

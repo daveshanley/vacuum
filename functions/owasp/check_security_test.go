@@ -1,10 +1,12 @@
 package owasp
 
 import (
+	"fmt"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,24 +40,38 @@ components:
       type: http
       scheme: basic`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
+	drDocument.WalkV3(&m.Model)
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
 		"methods": []string{"put"},
 	})
 
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
 	def := CheckSecurity{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
+	assert.Equal(t, "`security` was not defined for path `/security-global-ok-put` in method `put`", res[0].Message)
+	assert.Equal(t, "`security` was not defined for path `/security-ok-put` in method `put`", res[1].Message)
+	assert.Equal(t, "$.paths['/security-global-ok-put'].put", res[0].Path)
+	assert.Equal(t, "$.paths['/security-ok-put'].put", res[1].Path)
 
 }
 
 func TestCheckSecurity_SecurityMissingOnOneOperation(t *testing.T) {
-	test_appspec := `openapi: 3.0.1
+	yml := `openapi: 3.0.1
 info:
   version: "1.2.3"
   title: "securitySchemes"
@@ -74,13 +90,195 @@ components:
       type: http
       scheme: basic`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
-	nodes, _ := utils.FindNodes([]byte(test_appspec), path)
+
+	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
+	drDocument.WalkV3(&m.Model)
+
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
 		"methods": []string{"put"},
 	})
-	ruleFunctionResults := CheckSecurity{}.RunRule(nodes, ctx)
 
-	assert.Len(t, ruleFunctionResults, 1)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	res := CheckSecurity{}.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`security` was not defined for path `/insecure` in method `put`", res[0].Message)
+	assert.Equal(t, "$.paths['/insecure'].put", res[0].Path)
+}
+
+func TestCheckSecurity_SecurityGlobalDefined(t *testing.T) {
+	yml := `openapi: 3.0.1
+info:
+  version: "1.2.3"
+  title: "securitySchemes"
+security:
+  - BasicAuth: []
+paths:
+  /insecure:
+    put:
+      responses: {}
+  /secure:
+    put:
+      responses: {}
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
+	drDocument.WalkV3(&m.Model)
+
+	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
+		"methods": []string{"put"},
+	})
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	res := CheckSecurity{}.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCheckSecurity_SecurityLocalSecurityEmpty(t *testing.T) {
+	yml := `openapi: 3.0.1
+info:
+  version: "1.2.3"
+  title: "securitySchemes"
+paths:
+  /secure:
+    put:
+      responses: {}
+      security:
+        - {}`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
+	drDocument.WalkV3(&m.Model)
+
+	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
+		"methods": []string{"put"},
+	})
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	res := CheckSecurity{}.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`security` has null elements for path `/secure` in method `put`", res[0].Message)
+	assert.Equal(t, "$.paths['/secure'].put.security", res[0].Path)
+}
+
+func TestCheckSecurity_SecurityLocalSecurityEmpty_AllowNull(t *testing.T) {
+	yml := `openapi: 3.0.1
+info:
+  version: "1.2.3"
+  title: "securitySchemes"
+paths:
+  /secure:
+    put:
+      responses: {}
+      security:
+        - {}`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
+	drDocument.WalkV3(&m.Model)
+
+	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
+		"methods":  []string{"put"},
+		"nullable": true,
+	})
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	res := CheckSecurity{}.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCheckSecurity_SecurityGlobalDefined_Empty(t *testing.T) {
+	yml := `openapi: 3.0.1
+info:
+  version: "1.2.3"
+  title: "securitySchemes"
+security:
+ - {}
+paths:
+  /insecure:
+    put:
+      responses: {}
+  /secure:
+    put:
+      responses: {}
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
+	drDocument.WalkV3(&m.Model)
+
+	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
+		"methods": []string{"put"},
+	})
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	res := CheckSecurity{}.RunRule(nil, ctx)
+
+	assert.Len(t, res, 2)
+	assert.Equal(t, "`security` is empty for path `/insecure` in method `put`", res[0].Message)
+	assert.Equal(t, "$.paths['/insecure'].put", res[0].Path)
+	assert.Equal(t, "`security` is empty for path `/secure` in method `put`", res[1].Message)
+	assert.Equal(t, "$.paths['/secure'].put", res[1].Path)
 }

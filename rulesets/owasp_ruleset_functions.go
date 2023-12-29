@@ -10,50 +10,25 @@ import (
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
 
 func GetOWASPNoNumericIDsRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-not:
-  properties:
-    type:
-      pattern: integer
-properties:
-  format:
-    enum:
-      - uuid`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
-
 	return &model.Rule{
 		Name:         "Use random IDs that cannot be guessed.",
 		Id:           OwaspNoNumericIDs,
 		Formats:      model.AllFormats,
 		Description:  "Use random IDs that cannot be guessed. UUIDs are preferred",
-		Given:        `$.paths..parameters[*][?(@.name == "id" || @.name =~ /(_id|Id|-id)$/)))]`,
+		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:           "schema",
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "owaspNoNumericIDs",
 		},
 		HowToFix: owaspNoNumericIDsFix,
 	}
 }
 
 func GetOWASPNoHttpBasicRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["notMatch"] = "basic"
-	comp, _ := regexp.Compile(opts["notMatch"].(string))
-
 	return &model.Rule{
 		Name:         "Security scheme uses HTTP Basic.",
 		Id:           OwaspNoHttpBasic,
@@ -66,12 +41,9 @@ func GetOWASPNoHttpBasicRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:           "scheme",
-			Function:        "pattern",
-			FunctionOptions: opts,
+			Function: "owaspNoBasicAuth",
 		},
-		PrecompiledPattern: comp,
-		HowToFix:           owaspNoHttpBasicFix,
+		HowToFix: owaspNoHttpBasicFix,
 	}
 }
 
@@ -131,58 +103,40 @@ func GetOWASPNoCredentialsInURLRule() *model.Rule {
 
 func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["notMatch"] = `^(negotiate|oauth)$`
-	comp, _ := regexp.Compile(opts["notMatch"].(string))
-
 	return &model.Rule{
 		Name:         "Authentication scheme is considered outdated or insecure",
 		Id:           OwaspAuthInsecureSchemes,
 		Formats:      model.OAS3AllFormat,
 		Description:  "Authentication scheme is considered outdated or insecure",
-		Given:        `$..securitySchemes[*][?(@.type=="http")].scheme`,
+		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "pattern",
-			FunctionOptions: opts,
+			Function: "owaspAuthInsecureSchemes",
 		},
-		PrecompiledPattern: comp,
-		HowToFix:           owaspAuthInsecureSchemesFix,
+		HowToFix: owaspAuthInsecureSchemesFix,
 	}
 }
 
 func GetOWASPJWTBestPracticesRule() *model.Rule {
 
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["match"] = `.*RFC8725.*`
-	comp, _ := regexp.Compile(opts["match"].(string))
-
 	return &model.Rule{
-		Name:        "JWTs must explicitly declare support for `RFC8725`",
-		Id:          OwaspJWTBestPractices,
-		Description: "JWTs must explicitly declare support for RFC8725 in the description",
-		Given: []string{
-			`$..securitySchemes[*][?(@.type=="oauth2")]`,
-			`$..securitySchemes[*][?(@.bearerFormat=="jwt" || @.bearerFormat=="JWT")]`,
-		},
+		Name:         "JWTs must explicitly declare support for `RFC8725`",
+		Id:           OwaspJWTBestPractices,
+		Description:  "JWTs must explicitly declare support for RFC8725 in the description",
+		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:           "description",
-			Function:        "pattern",
-			FunctionOptions: opts,
+			Function: "owaspJWTBestPractice",
 		},
-		PrecompiledPattern: comp,
-		HowToFix:           owaspJWTBestPracticesFix,
+		HowToFix: owaspJWTBestPracticesFix,
 	}
 }
 
@@ -259,6 +213,10 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 }
 
 func GetOWASPDefineErrorValidationRule() *model.Rule {
+
+	opts := make(map[string]interface{})
+	opts["codes"] = []string{"400", "422", "4XX"}
+
 	return &model.Rule{
 		Name:         "Missing error response of either `400`, `422` or `4XX`",
 		Id:           OwaspDefineErrorValidation,
@@ -270,81 +228,55 @@ func GetOWASPDefineErrorValidationRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "owaspDefineErrorDefinition",
+			Function:        "owaspDefineErrorDefinition",
+			FunctionOptions: opts,
 		},
 		HowToFix: owaspDefineErrorValidationFix,
 	}
 }
 
 func GetOWASPDefineErrorResponses401Rule() *model.Rule {
-
-	// create a schema to match against.
 	opts := make(map[string]interface{})
-	yml := `type: object
-required:
-  - content`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+	opts["code"] = "401"
 
 	return &model.Rule{
 		Name:         "Operation is missing a `401` error response",
 		Id:           OwaspDefineErrorResponses401,
 		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 401",
-		Given:        `$.paths..responses`,
-		Resolved:     true,
+		Given:        `$`,
+		Resolved:     false,
 		Formats:      model.AllFormats,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
-		Then: []model.RuleAction{
-			{
-				Field:    "401",
-				Function: "defined",
-			},
-			{
-				Field:           "401",
-				Function:        "schema",
-				FunctionOptions: opts,
-			},
+		Then: model.RuleAction{
+			Function:        "owaspCheckErrorResponse",
+			FunctionOptions: opts,
 		},
 		HowToFix: owaspDefineErrorResponses401Fix,
 	}
+
 }
 
 func GetOWASPDefineErrorResponses500Rule() *model.Rule {
 
 	opts := make(map[string]interface{})
-	yml := `type: object
-required:
-  - content`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+	opts["code"] = "500"
 
 	return &model.Rule{
 		Name:         "Operation is missing a `500` error response",
 		Id:           OwaspDefineErrorResponses500,
 		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 500",
-		Given:        `$.paths..responses`,
-		Resolved:     true,
+		Given:        `$`,
+		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
-		Then: []model.RuleAction{
-			{
-				Field:    "500",
-				Function: "defined",
-			},
-			{
-				Field:           "500",
-				Function:        "schema",
-				FunctionOptions: opts,
-			},
+		Then: model.RuleAction{
+			Function:        "owaspCheckErrorResponse",
+			FunctionOptions: opts,
 		},
 		HowToFix: owaspDefineErrorResponses500Fix,
 	}
@@ -362,8 +294,8 @@ func GetOWASPRateLimitRule() *model.Rule {
 		Name:         "`2XX` and `4XX` responses should define rate limiting headers",
 		Id:           OwaspRateLimit,
 		Description:  "Define proper rate limiting to avoid attackers overloading the API.",
-		Given:        `$.paths..responses`,
-		Resolved:     true,
+		Given:        `$`,
+		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
@@ -389,7 +321,7 @@ func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 		Name:         "A `429` response should define a `Retry-After` header",
 		Id:           OwaspRateLimitRetryAfter,
 		Description:  "Ensure that any `429` response, contains a `Retry-After` header.  ",
-		Given:        `$..responses.429.headers`,
+		Given:        `$`,
 		Resolved:     true,
 		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
@@ -397,8 +329,7 @@ func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:    "Retry-After",
-			Function: "defined",
+			Function: "owaspRatelimitRetryAfter",
 		},
 		HowToFix: owaspRateLimitRetryAfterFix,
 	}
@@ -407,82 +338,44 @@ func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 func GetOWASPDefineErrorResponses429Rule() *model.Rule {
 
 	opts := make(map[string]interface{})
-	yml := `type: object
-required:
-  - content`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidation"] = true // this will be picked up by the schema function to force validation.
+	opts["code"] = "429"
 
 	return &model.Rule{
 		Name:         "Operation is missing a `429` rate limiting error response",
 		Id:           OwaspDefineErrorResponses429,
 		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 429",
-		Given:        `$.paths..responses`,
+		Given:        `$`,
 		Resolved:     true,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
-		Then: []model.RuleAction{
-			{
-				Field:    "429",
-				Function: "defined",
-			},
-			{
-				Field:           "429",
-				Function:        "schema",
-				FunctionOptions: opts,
-			},
+		Then: model.RuleAction{
+			Function:        "owaspCheckErrorResponse",
+			FunctionOptions: opts,
 		},
 		HowToFix: owaspDefineErrorResponses429Fix,
 	}
 }
 
-// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPArrayLimitRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-if:
-  properties:
-    type:
-      enum: 
-        - array
-then:
-  oneOf:
-  - required:
-    - maxItems
-`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
 	return &model.Rule{
-		Name:        "Schema of type array must specify maxItems",
-		Id:          OwaspArrayLimit,
-		Description: "Array size should be limited to mitigate resource exhaustion attacks.",
-		Given: []string{
-			`$..[?(@.type)]`,
-		},
+		Name:         "Schema of type array must specify maxItems",
+		Id:           OwaspDefineErrorResponses429,
+		Description:  "Array size should be limited to mitigate resource exhaustion attacks.",
+		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.AllFormats,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "owaspArrayLimit",
 		},
 		HowToFix: owaspArrayLimitFix,
 	}
 }
 
-// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPStringLimitRule() *model.Rule {
 
 	// create a schema to match against.

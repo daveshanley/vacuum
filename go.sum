@@ -150,6 +150,8 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
+github.com/pb33f/doctor v0.0.0-20231227220919-69d2670deefa h1:+rSCiDiViNBTjR7gMXpFqQ9+9lPIunJc354xu5R7KFQ=
+github.com/pb33f/doctor v0.0.0-20231227220919-69d2670deefa/go.mod h1:obGeUAMA+aZ3GAEJmhrF8WLv0lGvHlXXLlYyRWCE6Uc=
 github.com/pb33f/libopenapi v0.14.4 h1:NbcYaBbG/6pnJM8lw4F6b5e54HandyKF452HUl4+9j4=
 github.com/pb33f/libopenapi v0.14.4/go.mod h1:m+4Pwri31UvcnZjuP8M7TlbR906DXJmMvYsbis234xg=
 github.com/pb33f/libopenapi-validator v0.0.37 h1:nD6c010yxaFs3hJC+I5esAXf0VE6QLV1iTGkpCXz7W4=

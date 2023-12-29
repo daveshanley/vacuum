@@ -1,6 +1,6 @@
 module github.com/daveshanley/vacuum
 
-go 1.21
+go 1.21.5
 
 require (
 	github.com/alecthomas/chroma v0.10.0
@@ -11,6 +11,7 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/pb33f/doctor v0.0.0-20231227220919-69d2670deefa
 	github.com/pb33f/libopenapi v0.14.4
 	github.com/pb33f/libopenapi-validator v0.0.37
 	github.com/pterm/pterm v0.12.72

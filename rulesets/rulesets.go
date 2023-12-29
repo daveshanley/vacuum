@@ -134,7 +134,7 @@ type RuleSets interface {
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
 }
 
-var rulesetsSingleton *ruleSetsModel
+//var rulesetsSingleton *ruleSetsModel
 
 func BuildDefaultRuleSets() RuleSets {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -144,7 +144,7 @@ func BuildDefaultRuleSets() RuleSets {
 }
 
 func BuildDefaultRuleSetsWithLogger(logger *slog.Logger) RuleSets {
-	rulesetsSingleton = &ruleSetsModel{
+	rulesetsSingleton := &ruleSetsModel{
 		openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
 		logger:         logger,
 	}
@@ -426,12 +426,6 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 func GetAllOWASPRules() map[string]*model.Rule {
 	rules := make(map[string]*model.Rule)
 
-	rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
-	rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
-	rules[OwaspNoAPIKeysInURL] = GetOWASPNoAPIKeysInURLRule()
-	rules[OwaspNoCredentialsInURL] = GetOWASPNoCredentialsInURLRule()
-	rules[OwaspAuthInsecureSchemes] = GetOWASPAuthInsecureSchemesRule()
-	rules[OwaspJWTBestPractices] = GetOWASPJWTBestPracticesRule()
 	rules[OwaspProtectionGlobalUnsafe] = GetOWASPProtectionGlobalUnsafeRule()
 	rules[OwaspProtectionGlobalUnsafeStrict] = GetOWASPProtectionGlobalUnsafeStrictRule()
 	rules[OwaspProtectionGlobalSafe] = GetOWASPProtectionGlobalSafeRule()
@@ -442,15 +436,30 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	rules[OwaspRateLimitRetryAfter] = GetOWASPRateLimitRetryAfterRule()
 	rules[OwaspDefineErrorResponses429] = GetOWASPDefineErrorResponses429Rule()
 	rules[OwaspArrayLimit] = GetOWASPArrayLimitRule()
-	rules[OwaspStringLimit] = GetOWASPStringLimitRule()
-	rules[OwaspStringRestricted] = GetOWASPStringRestrictedRule()
-	rules[OwaspIntegerLimit] = GetOWASPIntegerLimitRule()
-	rules[OwaspIntegerLimitLegacy] = GetOWASPIntegerLimitLegacyRule()
-	rules[OwaspIntegerFormat] = GetOWASPIntegerFormatRule()
-	rules[OwaspNoAdditionalProperties] = GetOWASPNoAdditionalPropertiesRule()
-	rules[OwaspConstrainedAdditionalProperties] = GetOWASPConstrainedAdditionalPropertiesRule()
-	rules[OwaspSecurityHostsHttpsOAS2] = GetOWASPSecurityHostsHttpsOAS2Rule()
-	rules[OwaspSecurityHostsHttpsOAS3] = GetOWASPSecurityHostsHttpsOAS3Rule()
+	rules[OwaspJWTBestPractices] = GetOWASPJWTBestPracticesRule()
+	rules[OwaspAuthInsecureSchemes] = GetOWASPAuthInsecureSchemesRule()
+	rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
+	rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
+	rules[OwaspNoAPIKeysInURL] = GetOWASPNoAPIKeysInURLRule()
+
+	// need re-building.
+
+	//
+	//rules[OwaspNoCredentialsInURL] = GetOWASPNoCredentialsInURLRule()
+	//rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
+	//rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
+	//rules[OwaspNoAPIKeysInURL] = GetOWASPNoAPIKeysInURLRule()
+	//rules[OwaspNoCredentialsInURL] = GetOWASPNoCredentialsInURLRule()
+
+	//rules[OwaspStringLimit] = GetOWASPStringLimitRule()
+	//rules[OwaspStringRestricted] = GetOWASPStringRestrictedRule()
+	//rules[OwaspIntegerLimit] = GetOWASPIntegerLimitRule()
+	//rules[OwaspIntegerLimitLegacy] = GetOWASPIntegerLimitLegacyRule()
+	//rules[OwaspIntegerFormat] = GetOWASPIntegerFormatRule()
+	//rules[OwaspNoAdditionalProperties] = GetOWASPNoAdditionalPropertiesRule()
+	//rules[OwaspConstrainedAdditionalProperties] = GetOWASPConstrainedAdditionalPropertiesRule()
+	//rules[OwaspSecurityHostsHttpsOAS2] = GetOWASPSecurityHostsHttpsOAS2Rule()
+	//rules[OwaspSecurityHostsHttpsOAS3] = GetOWASPSecurityHostsHttpsOAS3Rule()
 	return rules
 }
 
