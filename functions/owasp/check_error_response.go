@@ -88,7 +88,11 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 					Path:      fmt.Sprintf("$.paths.%s.%s.responses", pathPairs.Key(), opType),
 					Rule:      context.Rule,
 				}
-				opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if opValue != nil {
+					opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				} // else {
+				//	panic("why is opValue nil?")
+				//}
 				results = append(results, result)
 			}
 		}
