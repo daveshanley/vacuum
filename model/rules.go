@@ -4,6 +4,7 @@ import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
@@ -42,9 +43,10 @@ type RuleFunctionContext struct {
 	Rule       *Rule               `json:"rule,omitempty" yaml:"rule,omitempty"`             // A reference to the Rule being used for the function
 	Given      interface{}         `json:"given,omitempty" yaml:"given,omitempty"`           // Path/s being used by rule, multiple paths can be used
 	Options    interface{}         `json:"options,omitempty" yaml:"options,omitempty"`       // Function options
-	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
 	SpecInfo   *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
+	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
 	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
+	DrDocument *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 }
 

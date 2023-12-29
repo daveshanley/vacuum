@@ -2,11 +2,13 @@ package owasp
 
 import (
 	"fmt"
-
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/doctor/model/high/base"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
+	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
-	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
+	"slices"
 )
 
 type CheckSecurity struct {
@@ -19,10 +21,6 @@ func (cd CheckSecurity) GetSchema() model.RuleFunctionSchema {
 
 // RunRule will execute the CheckSecurity rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	if len(nodes) <= 0 {
-		return nil
-	}
-
 	var nullable bool
 	nullableMap := utils.ExtractValueFromInterfaceMap("nullable", context.Options)
 	if castedNullable, ok := nullableMap.(bool); ok {
@@ -35,108 +33,98 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 		methods = castedMethods
 	}
 
-	// security at the global level replaces if not defined at the operation level
-	_, valueOfSecurityGlobalNode := findGlobalSecurityNode(nodes)
-
 	var results []model.RuleFunctionResult
-	_, valueOfPathNode := utils.FindFirstKeyNode("paths", nodes, 0)
-	if valueOfPathNode == nil {
-		return nil
-	}
 
-	for i := 1; i < len(valueOfPathNode.Content); i += 2 {
-		for j := 0; j < len(valueOfPathNode.Content[i].Content); j += 2 {
-			if slices.Contains(
-				[]string{"get", "head", "post", "put", "patch", "delete", "options", "trace"},
-				valueOfPathNode.Content[i].Content[j].Value,
-			) && slices.Contains(
-				methods,
-				valueOfPathNode.Content[i].Content[j].Value,
-			) && len(valueOfPathNode.Content[i].Content) > j+1 {
-				operation := valueOfPathNode.Content[i].Content[j+1]
-				results = append(results, checkSecurityRule(operation, valueOfSecurityGlobalNode, nullable, valueOfPathNode.Content[i-1].Value, valueOfPathNode.Content[i].Content[j].Value, context)...)
-			}
-		}
-	}
-
-	return results
-}
-
-func findGlobalSecurityNode(nodes []*yaml.Node) (keyNode *yaml.Node, valueNode *yaml.Node) {
-	// Find the first document node. There should be only one, so just take the first
-	var documentNode *yaml.Node
-	for _, node := range nodes {
-		if node.Kind != yaml.DocumentNode {
-			continue
-		}
-		documentNode = node
-		break
-	}
-	if documentNode == nil {
-		return nil, nil
-	}
-
-	// Find the document's mapping node. There should be only one, so just take the first
-	var mappingNode *yaml.Node
-	for _, node := range documentNode.Content {
-		if node.Kind != yaml.MappingNode {
-			continue
-		}
-		mappingNode = node
-		continue
-	}
-	if mappingNode == nil {
-		return nil, nil
-	}
-
-	return utils.FindKeyNodeTop("security", mappingNode.Content)
-}
-
-func checkSecurityRule(operation *yaml.Node, valueOfSecurityGlobalNode *yaml.Node, nullable bool, pathPrefix, method string, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	_, valueOfSecurityNode := utils.FindFirstKeyNode("security", operation.Content, 0)
-	if valueOfSecurityNode == nil { // if not defined at the operation level, use global
-		valueOfSecurityNode = valueOfSecurityGlobalNode
-	}
-	if valueOfSecurityNode == nil {
-		return []model.RuleFunctionResult{
-			{
-				Message:   fmt.Sprintf("'security' was not defined: for path %q in method %q.", pathPrefix, method),
-				StartNode: operation,
-				EndNode:   operation,
-				Path:      fmt.Sprintf("$.paths.%s.%s", pathPrefix, method),
-				Rule:      context.Rule,
-			},
-		}
-	}
-	if len(valueOfSecurityNode.Content) == 0 {
-		return []model.RuleFunctionResult{
-			{
-				Message:   fmt.Sprintf("'security' is empty: for path %q in method %q.", pathPrefix, method),
-				StartNode: valueOfSecurityNode,
-				EndNode:   valueOfSecurityNode,
-				Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method),
-				Rule:      context.Rule,
-			},
-		}
-	}
-	if valueOfSecurityNode.Kind == yaml.SequenceNode {
-		var results []model.RuleFunctionResult
-		for k := 0; k < len(valueOfSecurityNode.Content); k++ {
-			if valueOfSecurityNode.Content[k].Kind != yaml.MappingNode {
-				continue
-			}
-			if len(valueOfSecurityNode.Content[k].Content) == 0 && !nullable {
-				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("'security' has null elements: for path %q in method %q with element.", pathPrefix, method),
-					StartNode: valueOfSecurityNode.Content[k],
-					EndNode:   utils.FindLastChildNodeWithLevel(valueOfSecurityNode.Content[k], 0),
-					Path:      fmt.Sprintf("$.paths.%s.%s.security", pathPrefix, method),
-					Rule:      context.Rule,
-				})
-			}
-		}
+	if context.DrDocument == nil {
 		return results
 	}
+	drDoc := context.DrDocument.V3Document
+	globalSecurity := drDoc.Security
 
-	return nil
+	for pathPairs := drDoc.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+		path := pathPairs.Key()
+		pathItem := pathPairs.Value()
+		for opPairs := pathItem.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+			opValue := opPairs.Value()
+			opType := opPairs.Key()
+
+			if !slices.Contains(methods, opType) {
+				continue
+			}
+
+			var opNode *yaml.Node
+			var op *drV3.Operation
+
+			switch opType {
+			case v3.GetLabel:
+				opNode = pathPairs.Value().Value.GoLow().Get.KeyNode
+				op = pathPairs.Value().Get
+			case v3.PutLabel:
+				opNode = pathPairs.Value().Value.GoLow().Put.KeyNode
+				op = pathPairs.Value().Put
+			case v3.PostLabel:
+				opNode = pathPairs.Value().Value.GoLow().Post.KeyNode
+				op = pathPairs.Value().Post
+			case v3.DeleteLabel:
+				opNode = pathPairs.Value().Value.GoLow().Delete.KeyNode
+				op = pathPairs.Value().Delete
+			case v3.OptionsLabel:
+				opNode = pathPairs.Value().Value.GoLow().Options.KeyNode
+				op = pathPairs.Value().Options
+			case v3.HeadLabel:
+				opNode = pathPairs.Value().Value.GoLow().Head.KeyNode
+				op = pathPairs.Value().Head
+			case v3.PatchLabel:
+				opNode = pathPairs.Value().Value.GoLow().Patch.KeyNode
+				op = pathPairs.Value().Patch
+			case v3.TraceLabel:
+				opNode = pathPairs.Value().Value.GoLow().Trace.KeyNode
+				op = pathPairs.Value().Trace
+			}
+
+			if opValue.Security == nil && globalSecurity == nil {
+
+				result := model.RuleFunctionResult{
+					Message:   fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType),
+					StartNode: opNode,
+					EndNode:   opNode,
+					Path:      op.GenerateJSONPath(),
+					Rule:      context.Rule,
+				}
+				pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
+
+			}
+
+			if len(opValue.Security) <= 0 && globalSecurity != nil &&
+				(globalSecurity[0].Value.Requirements == nil || globalSecurity[0].Value.Requirements.Len() <= 0) {
+				result := model.RuleFunctionResult{
+					Message:   fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType),
+					StartNode: opNode,
+					EndNode:   opNode,
+					Path:      op.GenerateJSONPath(),
+					Rule:      context.Rule,
+				}
+				opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+			}
+
+			if !nullable && len(opValue.Security) >= 1 && globalSecurity == nil {
+				if opValue.Security[0].Value.Requirements == nil || opValue.Security[0].Value.Requirements.Len() <= 0 {
+					result := model.RuleFunctionResult{
+						Message:   fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType),
+						StartNode: opNode,
+						EndNode:   opNode,
+						Path:      fmt.Sprintf("%s.%s", op.GenerateJSONPath(), "security"),
+						Rule:      context.Rule,
+					}
+					pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
+					continue
+				}
+			}
+		}
+	}
+	return results
 }

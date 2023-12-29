@@ -2,11 +2,13 @@ package owasp
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/doctor/model/high/base"
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"slices"
+	"strings"
 )
 
 type DefineErrorDefinition struct {
@@ -20,26 +22,61 @@ func (cd DefineErrorDefinition) GetSchema() model.RuleFunctionSchema {
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd DefineErrorDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) <= 0 {
-		return nil
+	var results []model.RuleFunctionResult
+
+	if context.Options == nil {
+		return results
 	}
 
-	var responseCode string
-	for i, node := range nodes[0].Content {
-		if i%2 == 0 {
-			responseCode = node.Value
-		} else if responseCode == "400" || responseCode == "422" || strings.ToUpper(responseCode) == "4XX" {
-			return []model.RuleFunctionResult{}
+	// iterate through all paths looking for responses
+	codes := utils.ExtractValueFromInterfaceMap("codes", context.Options).([]string)
+
+	if context.DrDocument == nil {
+		return results
+	}
+
+	drDoc := context.DrDocument.V3Document
+	if drDoc == nil {
+		return results
+	}
+
+	results = append(results, cd.processCode(codes, drDoc, context)...)
+	return results
+}
+
+func (cd DefineErrorDefinition) processCode(codes []string, drDoc *v3.Document, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+	for pathPairs := drDoc.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+		for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+			opValue := opPairs.Value()
+
+			responses := opValue.Responses.Codes
+			seen := make(map[string]bool)
+
+			var node *yaml.Node
+
+			for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
+				respCode := respPairs.Key()
+				if slices.Contains(codes, respCode) {
+					seen[respCode] = true
+				}
+			}
+			node = opValue.Value.GoLow().Responses.KeyNode
+
+			if len(seen) <= 0 {
+				code := strings.Join(codes, "`, `")
+				result := model.RuleFunctionResult{
+					Message:   fmt.Sprintf("missing one of `%s` response codes", code),
+					StartNode: node,
+					EndNode:   node,
+					Path:      fmt.Sprintf("%s.%s", opValue.GenerateJSONPath(), "responses"),
+					Rule:      context.Rule,
+				}
+				opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+
+			}
 		}
 	}
-
-	return []model.RuleFunctionResult{
-		{
-			Message:   "Error '400', '422' or '4XX' was not defined",
-			StartNode: nodes[0],
-			EndNode:   utils.FindLastChildNodeWithLevel(nodes[0], 0),
-			Path:      fmt.Sprintf("%s", context.Given),
-			Rule:      context.Rule,
-		},
-	}
+	return results
 }

@@ -100,6 +100,14 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspDefineErrorDefinition"] = owasp.DefineErrorDefinition{}
 		funcs["owaspCheckSecurity"] = owasp.CheckSecurity{}
 
+		funcs["owaspCheckErrorResponse"] = owasp.CheckErrorResponse{}
+		funcs["owaspRatelimitRetryAfter"] = owasp.RatelimitRetry429{}
+		funcs["owaspArrayLimit"] = owasp.ArrayLimit{}
+		funcs["owaspJWTBestPractice"] = owasp.JWTBestPractice{}
+		funcs["owaspAuthInsecureSchemes"] = owasp.AuthInsecureSchemes{}
+		funcs["owaspNoNumericIds"] = owasp.AuthInsecureSchemes{}
+		funcs["owaspNoBasicAuth"] = owasp.NoBasicAuth{}
+
 	})
 
 	return functionsSingleton
