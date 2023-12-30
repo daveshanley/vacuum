@@ -448,16 +448,8 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	rules[OwaspIntegerLimit] = GetOWASPIntegerLimitRule()
 	rules[OwaspNoAdditionalProperties] = GetOWASPNoAdditionalPropertiesRule()
 	rules[OwaspConstrainedAdditionalProperties] = GetOWASPConstrainedAdditionalPropertiesRule()
-	// need re-building.
 	rules[OwaspSecurityHostsHttpsOAS3] = GetOWASPSecurityHostsHttpsOAS3Rule()
 
-	//rules[OwaspIntegerLimitLegacy] = GetOWASPIntegerLimitLegacyRule()
-	//rules[OwaspSecurityHostsHttpsOAS2] = GetOWASPSecurityHostsHttpsOAS2Rule()
-	//
-	//
-	//
-
-	//
 	return rules
 }
 
