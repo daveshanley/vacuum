@@ -99,7 +99,6 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}
 		funcs["owaspDefineErrorDefinition"] = owasp.DefineErrorDefinition{}
 		funcs["owaspCheckSecurity"] = owasp.CheckSecurity{}
-
 		funcs["owaspCheckErrorResponse"] = owasp.CheckErrorResponse{}
 		funcs["owaspRatelimitRetryAfter"] = owasp.RatelimitRetry429{}
 		funcs["owaspArrayLimit"] = owasp.ArrayLimit{}
@@ -114,6 +113,8 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspIntegerLimit"] = owasp.IntegerLimit{}
 		funcs["owaspIntegerFormat"] = owasp.IntegerFormat{}
 		funcs["owaspNoAdditionalProperties"] = owasp.NoAdditionalProperties{}
+		funcs["owaspAdditionalPropertiesConstrained"] = owasp.AdditionalPropertiesConstrained{}
+		funcs["owaspHostsHttps"] = owasp.HostsHttps{}
 
 	})
 

@@ -4,7 +4,6 @@ import (
 	"regexp"
 
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/parser"
 )
 
 // rules taken from https://github.com/stoplightio/spectral-owasp-ruleset/blob/main/src/ruleset.ts
@@ -431,67 +430,7 @@ func GetOWASPIntegerLimitRule() *model.Rule {
 	}
 }
 
-//// It will return duplicate errors for each branch of any if/else/then logic
-//func GetOWASPIntegerLimitLegacyRule() *model.Rule {
-//
-//	// create a schema to match against.
-//	opts := make(map[string]interface{})
-//	yml := `type: object
-//if:
-//  properties:
-//    type:
-//      enum:
-//        - integer
-//then:
-//  allOf:
-//    - required:
-//      - minimum
-//    - required:
-//      - maximum
-//else:
-//  if:
-//    properties:
-//      type:
-//        type: array
-//  then:
-//    if:
-//      properties:
-//        type:
-//          contains:
-//            enum:
-//              - integer
-//    then:
-//      allOf:
-//        - required:
-//          - minimum
-//        - required:
-//          - maximum
-//`
-//
-//	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-//	opts["schema"] = jsonSchema
-//	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-//
-//	return &model.Rule{
-//		Name:        "Schema of type integer must specify `minimum` and `maximum`",
-//		Id:          OwaspIntegerLimitLegacy,
-//		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
-//		Given: []string{
-//			`$..[?(@.type)]`,
-//		},
-//		Resolved:     false,
-//		Formats:      model.AllFormats,
-//		RuleCategory: model.RuleCategories[model.CategoryOWASP],
-//		Recommended:  true,
-//		Type:         Validation,
-//		Severity:     model.SeverityError,
-//		Then: model.RuleAction{
-//			Function:        "schema",
-//			FunctionOptions: opts,
-//		},
-//		HowToFix: owaspIntegerLimitFix,
-//	}
-//}
+// OwaspIntegerLimitLegacy removed in 0.7.0
 
 func GetOWASPIntegerFormatRule() *model.Rule {
 	return &model.Rule{
@@ -540,7 +479,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Name:         "Objects should not allow unconstrained additionalProperties",
 		Id:           OwaspConstrainedAdditionalProperties,
 		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
-		Given:        `$..[?(@.type=="object" && @.additionalProperties!=true && @.additionalProperties!=false )]`,
+		Given:        `$`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
@@ -548,71 +487,30 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Field:    "maxProperties",
-			Function: "defined",
+			Function: "owaspConstrainedAdditionalProperties",
 		},
 		HowToFix: owaspNoAdditionalPropertiesFix,
 	}
 }
 
-func GetOWASPSecurityHostsHttpsOAS2Rule() *model.Rule {
-
-	opts := make(map[string]interface{})
-	yml := `type: array
-items:
-  type: "string"
-  enum: [https]`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
-	return &model.Rule{
-		Name:        "All servers defined must use TLS (https), no other protocol is permitted",
-		Id:          OwaspSecurityHostsHttpsOAS2,
-		Description: "All server interactions MUST use TLS, so the only OpenAPI scheme being used should be `https`.",
-		Given: []string{
-			`$.schemes`,
-		},
-		Resolved:     false,
-		Formats:      model.OAS2Format,
-		RuleCategory: model.RuleCategories[model.CategoryOWASP],
-		Recommended:  true,
-		Type:         Validation,
-		Severity:     model.SeverityError,
-		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
-		},
-		HowToFix: owaspSecurityHostsHttpsOAS2Fix,
-	}
-}
+// OwaspSecurityHostsHttpsOAS2 removed in 0.7.0
 
 func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["match"] = "^https:"
-	comp, _ := regexp.Compile(opts["match"].(string))
-
 	return &model.Rule{
-		Name:        "Server URLs MUST begin with `https`. No other protocol is permitted",
-		Id:          OwaspSecurityHostsHttpsOAS3,
-		Description: "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.",
-		Given: []string{
-			`$.servers..url`,
-		},
+		Name:         "Server URLs MUST begin with `https`. No other protocol is permitted",
+		Id:           OwaspSecurityHostsHttpsOAS3,
+		Description:  "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.",
+		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.OAS3Format,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "pattern",
-			FunctionOptions: opts,
+			Function: "hostsHttps",
 		},
-		PrecompiledPattern: comp,
-		HowToFix:           owaspSecurityHostsHttpsOAS3Fix,
+		HowToFix: owaspSecurityHostsHttpsOAS3Fix,
 	}
 }
