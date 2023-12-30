@@ -34,7 +34,7 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	rule := buildOpenApiTestRuleAction(path, "jwt_best_practice", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "array_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
@@ -48,6 +48,7 @@ components:
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "schema of type `array` must specify `maxItems`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }
 
 func TestArrayLimit_RunRule_Valid(t *testing.T) {
@@ -73,7 +74,7 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	rule := buildOpenApiTestRuleAction(path, "jwt_best_practice", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "array_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())

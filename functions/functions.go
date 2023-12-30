@@ -107,6 +107,13 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspAuthInsecureSchemes"] = owasp.AuthInsecureSchemes{}
 		funcs["owaspNoNumericIds"] = owasp.AuthInsecureSchemes{}
 		funcs["owaspNoBasicAuth"] = owasp.NoBasicAuth{}
+		funcs["owaspNoApiKeyInUrl"] = owasp.NoApiKeyInUrl{}
+		funcs["owaspNoCredentialsInUrl"] = owasp.NoCredentialsInUrl{}
+		funcs["owaspStringLimit"] = owasp.StringLimit{}
+		funcs["owaspStringRestricted"] = owasp.StringRestricted{}
+		funcs["owaspIntegerLimit"] = owasp.IntegerLimit{}
+		funcs["owaspIntegerFormat"] = owasp.IntegerFormat{}
+		funcs["owaspNoAdditionalProperties"] = owasp.NoAdditionalProperties{}
 
 	})
 

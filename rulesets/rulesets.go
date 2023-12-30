@@ -429,7 +429,6 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	rules[OwaspProtectionGlobalUnsafe] = GetOWASPProtectionGlobalUnsafeRule()
 	rules[OwaspProtectionGlobalUnsafeStrict] = GetOWASPProtectionGlobalUnsafeStrictRule()
 	rules[OwaspProtectionGlobalSafe] = GetOWASPProtectionGlobalSafeRule()
-	rules[OwaspDefineErrorValidation] = GetOWASPDefineErrorValidationRule()
 	rules[OwaspDefineErrorResponses401] = GetOWASPDefineErrorResponses401Rule()
 	rules[OwaspDefineErrorResponses500] = GetOWASPDefineErrorResponses500Rule()
 	rules[OwaspRateLimit] = GetOWASPRateLimitRule()
@@ -440,23 +439,19 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	rules[OwaspAuthInsecureSchemes] = GetOWASPAuthInsecureSchemesRule()
 	rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
 	rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
+	rules[OwaspDefineErrorValidation] = GetOWASPDefineErrorValidationRule()
 	rules[OwaspNoAPIKeysInURL] = GetOWASPNoAPIKeysInURLRule()
-
+	rules[OwaspNoCredentialsInURL] = GetOWASPNoCredentialsInURLRule()
+	rules[OwaspStringLimit] = GetOWASPStringLimitRule()
+	rules[OwaspStringRestricted] = GetOWASPStringRestrictedRule()
+	rules[OwaspIntegerFormat] = GetOWASPIntegerFormatRule()
+	rules[OwaspIntegerLimit] = GetOWASPIntegerLimitRule()
+	rules[OwaspNoAdditionalProperties] = GetOWASPNoAdditionalPropertiesRule()
 	// need re-building.
 
-	//
-	//rules[OwaspNoCredentialsInURL] = GetOWASPNoCredentialsInURLRule()
-	//rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
-	//rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
-	//rules[OwaspNoAPIKeysInURL] = GetOWASPNoAPIKeysInURLRule()
-	//rules[OwaspNoCredentialsInURL] = GetOWASPNoCredentialsInURLRule()
-
-	//rules[OwaspStringLimit] = GetOWASPStringLimitRule()
-	//rules[OwaspStringRestricted] = GetOWASPStringRestrictedRule()
-	//rules[OwaspIntegerLimit] = GetOWASPIntegerLimitRule()
 	//rules[OwaspIntegerLimitLegacy] = GetOWASPIntegerLimitLegacyRule()
-	//rules[OwaspIntegerFormat] = GetOWASPIntegerFormatRule()
-	//rules[OwaspNoAdditionalProperties] = GetOWASPNoAdditionalPropertiesRule()
+	//
+	//
 	//rules[OwaspConstrainedAdditionalProperties] = GetOWASPConstrainedAdditionalPropertiesRule()
 	//rules[OwaspSecurityHostsHttpsOAS2] = GetOWASPSecurityHostsHttpsOAS2Rule()
 	//rules[OwaspSecurityHostsHttpsOAS3] = GetOWASPSecurityHostsHttpsOAS3Rule()
