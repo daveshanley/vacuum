@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/sourcegraph/conc"
 	"io"
 	"log/slog"
 	"net/url"
@@ -196,25 +197,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		var err error
 		// create a new document.
 
-		done := make(chan bool)
+		wg := conc.WaitGroup{}
 
-		go func() {
+		wg.Go(func() {
 			docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
-			done <- true
-		}()
+		})
 
-		go func() {
+		wg.Go(func() {
 			dc := *docConfig
 			dc.SkipCircularReferenceCheck = false
 			docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, &dc)
-			done <- true
-		}()
-
-		complete := 0
-		for complete < 2 {
-			<-done
-			complete++
-		}
+		})
+		wg.Wait()
 
 		if err != nil {
 			// Done here, we can't do anything else.
@@ -325,16 +319,20 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexResolved = rolodexResolved.GetRootIndex()
 			indexUnresolved = rolodexUnresolved.GetRootIndex()
 
-			drDocument = doctor.NewDrDocument(indexUnresolved, rolodexUnresolved)
-			drDocument.WalkV3(v3DocumentModel)
-
-			// we only resolve one.
-			fmt.Println("resolving")
-			now := time.Now()
-			rolodexResolved.Resolve()
-			then = time.Since(now).Milliseconds()
-			fmt.Printf("resolved in %d ms\n", then)
-
+			wg := conc.WaitGroup{}
+			wg.Go(func() {
+				drDocument = doctor.NewDrDocument(indexUnresolved, rolodexUnresolved)
+				drDocument.WalkV3(v3DocumentModel)
+			})
+			wg.Go(func() {
+				// we only resolve one.
+				fmt.Println("resolving")
+				now := time.Now()
+				rolodexResolved.Resolve()
+				then = time.Since(now).Milliseconds()
+				fmt.Printf("resolved in %d ms\n", then)
+			})
+			wg.Wait()
 			specResolved = rolodexResolved.GetRootIndex().GetRootNode()
 			specUnresolved = rolodexUnresolved.GetRootIndex().GetRootNode()
 
@@ -349,32 +347,25 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		unresRoloConfig := *indexConfig
 		resRoloConfig := *indexConfig
 
-		completeChan := make(chan bool)
+		wg := conc.WaitGroup{}
 
-		go func() {
+		wg.Go(func() {
 			// create an index for the unresolved spec.
 			rolodexResolved, _ = BuildRolodexFromIndexConfig(&resRoloConfig)
 			rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
 
 			_ = rolodexResolved.IndexTheRolodex()
 			rolodexResolved.Resolve()
-			completeChan <- true
-		}()
+		})
 
-		go func() {
+		wg.Go(func() {
 			unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
 			rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig)
 			rolodexUnresolved.SetRootNode(unResInfo.RootNode)
 
 			_ = rolodexUnresolved.IndexTheRolodex()
-			completeChan <- true
-		}()
-
-		completedBuilds := 0
-		for completedBuilds < 2 {
-			<-completeChan
-			completedBuilds++
-		}
+		})
+		wg.Wait()
 
 		indexResolved = rolodexResolved.GetRootIndex()
 		indexUnresolved = rolodexUnresolved.GetRootIndex()

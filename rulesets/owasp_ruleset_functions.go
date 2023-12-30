@@ -13,7 +13,7 @@ func GetOWASPNoNumericIDsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Use random IDs that cannot be guessed.",
 		Id:           OwaspNoNumericIDs,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		Description:  "Use random IDs that cannot be guessed. UUIDs are preferred",
 		Given:        `$`,
 		Resolved:     false,
@@ -32,9 +32,9 @@ func GetOWASPNoHttpBasicRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Security scheme uses HTTP Basic.",
 		Id:           OwaspNoHttpBasic,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		Description:  "Security scheme uses HTTP Basic. Use a more secure authentication method, like OAuth 2.0",
-		Given:        `$.components.securitySchemes[*]`,
+		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
@@ -48,53 +48,42 @@ func GetOWASPNoHttpBasicRule() *model.Rule {
 }
 
 func GetOWASPNoAPIKeysInURLRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["notMatch"] = "^(path|query)$"
-	comp, _ := regexp.Compile(opts["notMatch"].(string))
-
 	return &model.Rule{
 		Name:         "API Key detected in URL",
 		Id:           OwaspNoAPIKeysInURL,
 		Formats:      model.OAS3AllFormat,
 		Description:  "API Key has been detected in a URL",
-		Given:        `$..securitySchemes[*][?(@.type=="apiKey")].in`,
+		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "pattern",
-			FunctionOptions: opts,
+			Function: "owaspNoAPIKeyInURL",
 		},
-		PrecompiledPattern: comp,
-		HowToFix:           owaspNoAPIKeysInURLFix,
+		HowToFix: owaspNoAPIKeysInURLFix,
 	}
 }
 
 func GetOWASPNoCredentialsInURLRule() *model.Rule {
 
 	// create a schema to match against.
-	opts := make(map[string]interface{})
-	opts["notMatch"] = `(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`
-	comp, _ := regexp.Compile(opts["notMatch"].(string))
+	comp, _ := regexp.Compile(`(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`)
 
 	return &model.Rule{
 		Name:         "Security credentials detected in path parameter",
 		Id:           OwaspNoCredentialsInURL,
 		Formats:      model.OAS3AllFormat,
 		Description:  "URL parameters must not contain credentials such as API key, password, or secret.",
-		Given:        `$..parameters[*][?(@.in =~ /(query|path)/)].name`,
+		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "pattern",
-			FunctionOptions: opts,
+			Function: "owaspNoCredentialsInURL",
 		},
 		PrecompiledPattern: comp,
 		HowToFix:           owaspNoCredentialsInURLFix,
@@ -126,6 +115,7 @@ func GetOWASPJWTBestPracticesRule() *model.Rule {
 	return &model.Rule{
 		Name:         "JWTs must explicitly declare support for `RFC8725`",
 		Id:           OwaspJWTBestPractices,
+		Formats:      model.OAS3AllFormat,
 		Description:  "JWTs must explicitly declare support for RFC8725 in the description",
 		Given:        `$`,
 		Resolved:     false,
@@ -145,6 +135,7 @@ func GetOWASPProtectionGlobalUnsafeRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Operation is not protected by any security scheme",
 		Id:           OwaspProtectionGlobalUnsafe,
+		Formats:      model.OAS3AllFormat,
 		Description:  "API should be protected by a `security` rule either at global or operation level.",
 		Given:        `$`,
 		Resolved:     false,
@@ -172,6 +163,7 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `security` property",
 		Given:        `$`,
 		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -196,6 +188,7 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 		Description:  "Check if the operation is protected at operation level. Otherwise, check the global `security` property",
 		Given:        `$`,
 		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -221,8 +214,9 @@ func GetOWASPDefineErrorValidationRule() *model.Rule {
 		Name:         "Missing error response of either `400`, `422` or `4XX`",
 		Id:           OwaspDefineErrorValidation,
 		Description:  "Missing error response of either `400`, `422` or `4XX`, Ensure all errors are documented.",
-		Given:        `$.paths..responses`,
+		Given:        `$`,
 		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -245,7 +239,7 @@ func GetOWASPDefineErrorResponses401Rule() *model.Rule {
 		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 401",
 		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -270,6 +264,7 @@ func GetOWASPDefineErrorResponses500Rule() *model.Rule {
 		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 500",
 		Given:        `$`,
 		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -346,6 +341,7 @@ func GetOWASPDefineErrorResponses429Rule() *model.Rule {
 		Description:  "OWASP API Security recommends defining schemas for all responses, even error: 429",
 		Given:        `$`,
 		Resolved:     true,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -365,6 +361,7 @@ func GetOWASPArrayLimitRule() *model.Rule {
 		Description:  "Array size should be limited to mitigate resource exhaustion attacks.",
 		Given:        `$`,
 		Resolved:     false,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -377,349 +374,139 @@ func GetOWASPArrayLimitRule() *model.Rule {
 }
 
 func GetOWASPStringLimitRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-if:
-  properties:
-    type:
-      enum: 
-        - string
-then:
-  oneOf:
-  - required:
-    - maxLength
-  - required:
-    - enum
-  - required:
-    - const
-else:
-  if:
-    properties:
-      type:
-        type: array
-  then:
-    if:
-      properties:
-        type:
-          contains:
-            enum:
-              - string
-    then:
-      oneOf:
-      - required:
-        - maxLength
-      - required:
-        - enum
-      - required:
-        - const
-`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
 	return &model.Rule{
-		Name:        "Schema of type string must specify maxLength, enum, or const",
-		Id:          OwaspStringLimit,
-		Description: "String size should be limited to mitigate resource exhaustion attacks.",
-		Given: []string{
-			`$..[?(@.type)]`,
-		},
+		Name:         "Schema of type string must specify maxLength, enum, or const",
+		Id:           OwaspStringLimit,
+		Description:  "String size should be limited to mitigate resource exhaustion attacks.",
+		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "owaspStringLimit",
 		},
 		HowToFix: owaspStringLimitFix,
 	}
 }
 
-// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPStringRestrictedRule() *model.Rule {
 
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-if:
-  properties:
-    type:
-      enum: 
-        - string
-then:
-  anyOf:
-  - required:
-    - format
-  - required:
-    - pattern
-  - required:
-    - enum
-  - required:
-    - const
-else:
-  if:
-    properties:
-      type:
-        type: array
-  then:
-    if:
-      properties:
-        type:
-          contains:
-            enum:
-              - string
-    then:
-      anyOf:
-      - required:
-        - format
-      - required:
-        - pattern
-      - required:
-        - enum
-      - required:
-        - const
-`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
 	return &model.Rule{
-		Name:        "Schema of type string must specify a `format`, `pattern`, `enum`, or `const`",
-		Id:          OwaspStringRestricted,
-		Description: "String must specify a `format`, RegEx `pattern`, `enum`, or `const`",
-		Given: []string{
-			`$..[?(@.type)]`,
-		},
+		Name:         "Schema of type string must specify a `format`, `pattern`, `enum`, or `const`",
+		Id:           OwaspStringRestricted,
+		Description:  "String must specify a `format`, RegEx `pattern`, `enum`, or `const`",
+		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "owaspStringRestricted",
 		},
 		HowToFix: owaspStringRestrictedFix,
 	}
 }
 
-// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPIntegerLimitRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-if:
-  properties:
-    type:
-      enum: 
-        - integer
-then:
-  not:
-    oneOf:
-      - required:
-        - exclusiveMinimum
-        - minimum
-      - required:
-        - exclusiveMaximum
-        - maximum
-  oneOf:
-    - required:
-      - minimum
-      - maximum
-    - required:
-      - minimum
-      - exclusiveMaximum
-    - required:
-      - exclusiveMinimum
-      - maximum
-    - required:
-      - exclusiveMinimum
-      - exclusiveMaximum
-else:
-  if:
-    properties:
-      type:
-        type: array
-  then:
-    if:
-      properties:
-        type:
-          contains:
-            enum:
-              - integer
-    then:
-      not:
-        oneOf:
-          - required:
-            - exclusiveMinimum
-            - minimum
-          - required:
-            - exclusiveMaximum
-            - maximum
-      oneOf:
-        - required:
-          - minimum
-          - maximum
-        - required:
-          - minimum
-          - exclusiveMaximum
-        - required:
-          - exclusiveMinimum
-          - maximum
-        - required:
-          - exclusiveMinimum
-          - exclusiveMaximum
-`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
 	return &model.Rule{
-		Name:        "Schema of type integer must specify `minimum` and `maximum` or `exclusiveMinimum` and `exclusiveMaximum`",
-		Id:          OwaspIntegerLimit,
-		Description: "Integers should be limited via min/max values to mitigate resource exhaustion attacks.",
-		Given: []string{
-			`$..[?(@.type)]`,
-		},
+		Name:         "Schema of type integer must specify `minimum` and `maximum` or `exclusiveMinimum` and `exclusiveMaximum`",
+		Id:           OwaspIntegerLimit,
+		Description:  "Integers should be limited via min/max values to mitigate resource exhaustion attacks.",
+		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "owaspIntegerLimit",
 		},
 		HowToFix: owaspIntegerLimitFix,
 	}
 }
 
-// It will return duplicate errors for each branch of any if/else/then logic
-func GetOWASPIntegerLimitLegacyRule() *model.Rule {
+//// It will return duplicate errors for each branch of any if/else/then logic
+//func GetOWASPIntegerLimitLegacyRule() *model.Rule {
+//
+//	// create a schema to match against.
+//	opts := make(map[string]interface{})
+//	yml := `type: object
+//if:
+//  properties:
+//    type:
+//      enum:
+//        - integer
+//then:
+//  allOf:
+//    - required:
+//      - minimum
+//    - required:
+//      - maximum
+//else:
+//  if:
+//    properties:
+//      type:
+//        type: array
+//  then:
+//    if:
+//      properties:
+//        type:
+//          contains:
+//            enum:
+//              - integer
+//    then:
+//      allOf:
+//        - required:
+//          - minimum
+//        - required:
+//          - maximum
+//`
+//
+//	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
+//	opts["schema"] = jsonSchema
+//	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
+//
+//	return &model.Rule{
+//		Name:        "Schema of type integer must specify `minimum` and `maximum`",
+//		Id:          OwaspIntegerLimitLegacy,
+//		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
+//		Given: []string{
+//			`$..[?(@.type)]`,
+//		},
+//		Resolved:     false,
+//		Formats:      model.AllFormats,
+//		RuleCategory: model.RuleCategories[model.CategoryOWASP],
+//		Recommended:  true,
+//		Type:         Validation,
+//		Severity:     model.SeverityError,
+//		Then: model.RuleAction{
+//			Function:        "schema",
+//			FunctionOptions: opts,
+//		},
+//		HowToFix: owaspIntegerLimitFix,
+//	}
+//}
 
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-if:
-  properties:
-    type:
-      enum: 
-        - integer
-then:
-  allOf:
-    - required:
-      - minimum
-    - required:
-      - maximum
-else:
-  if:
-    properties:
-      type:
-        type: array
-  then:
-    if:
-      properties:
-        type:
-          contains:
-            enum:
-              - integer
-    then:
-      allOf:
-        - required:
-          - minimum
-        - required:
-          - maximum
-`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
-	return &model.Rule{
-		Name:        "Schema of type integer must specify `minimum` and `maximum`",
-		Id:          OwaspIntegerLimitLegacy,
-		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
-		Given: []string{
-			`$..[?(@.type)]`,
-		},
-		Resolved:     false,
-		Formats:      model.AllFormats,
-		RuleCategory: model.RuleCategories[model.CategoryOWASP],
-		Recommended:  true,
-		Type:         Validation,
-		Severity:     model.SeverityError,
-		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
-		},
-		HowToFix: owaspIntegerLimitFix,
-	}
-}
-
-// It will return duplicate errors for each branch of any if/else/then logic
 func GetOWASPIntegerFormatRule() *model.Rule {
-
-	// create a schema to match against.
-	opts := make(map[string]interface{})
-	yml := `type: object
-if:
-  properties:
-    type:
-      enum: 
-        - integer
-then:
-  allOf:
-    - required:
-      - format
-else:
-  if:
-    properties:
-      type:
-        type: array
-  then:
-    if:
-      properties:
-        type:
-          contains:
-            enum:
-              - integer
-    then:
-      allOf:
-        - required:
-          - format
-`
-
-	jsonSchema, _ := parser.ConvertYAMLIntoJSONSchema(yml, nil)
-	opts["schema"] = jsonSchema
-	opts["forceValidationOnCurrentNode"] = true // use the current node to validate (field not needed)
-
 	return &model.Rule{
-		Name:        "Schema of type integer must specify format (int32 or int64)",
-		Id:          OwaspIntegerFormat,
-		Description: "Integers should be limited to mitigate resource exhaustion attacks.",
-		Given: []string{
-			`$..[?(@.type)]`,
-		},
+		Name:         "Schema of type integer must specify format (int32 or int64)",
+		Id:           OwaspIntegerFormat,
+		Description:  "Integers should be limited to mitigate resource exhaustion attacks.",
+		Given:        `$`,
 		Resolved:     false,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function:        "schema",
-			FunctionOptions: opts,
+			Function: "owaspIntegerFormat",
 		},
 		HowToFix: owaspIntegerFormatFix,
 	}
@@ -731,7 +518,7 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 		Name:         "If the additionalProperties keyword is used it must be set to false",
 		Id:           OwaspNoAdditionalProperties,
 		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
-		Given:        `$..[?(@.type=="object" && @.additionalProperties)]`,
+		Given:        `$`,
 		Resolved:     false,
 		Formats:      append(model.OAS2Format, model.OAS3Format...),
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
@@ -740,8 +527,7 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 		Severity:     model.SeverityWarn,
 		Then: []model.RuleAction{
 			{
-				Field:    "additionalProperties",
-				Function: "falsy",
+				Function: "owaspNoAdditionalProperties",
 			},
 		},
 		HowToFix: owaspNoAdditionalPropertiesFix,

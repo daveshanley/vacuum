@@ -20,7 +20,7 @@ func (cd DefineErrorDefinition) GetSchema() model.RuleFunctionSchema {
 }
 
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
-func (cd DefineErrorDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (cd DefineErrorDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
 
@@ -40,11 +40,10 @@ func (cd DefineErrorDefinition) RunRule(nodes []*yaml.Node, context model.RuleFu
 		return results
 	}
 
-	results = append(results, cd.processCode(codes, drDoc, context)...)
-	return results
+	return processCodes(codes, drDoc, context)
 }
 
-func (cd DefineErrorDefinition) processCode(codes []string, drDoc *v3.Document, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func processCodes(codes []string, drDoc *v3.Document, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	for pathPairs := drDoc.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
 		for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
@@ -74,7 +73,6 @@ func (cd DefineErrorDefinition) processCode(codes []string, drDoc *v3.Document, 
 				}
 				opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
 				results = append(results, result)
-
 			}
 		}
 	}
