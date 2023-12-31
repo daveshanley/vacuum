@@ -47,7 +47,7 @@ components:
     "bad negotiate":
       type: "http"
       scheme: "negotiate"
-    "bad negotiate":
+    "bad negotiate 2":
       type: "http"
       scheme: "oauth"`
 

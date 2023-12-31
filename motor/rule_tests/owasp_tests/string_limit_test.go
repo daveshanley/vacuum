@@ -16,16 +16,6 @@ func TestRuleSet_OWASPStringLimit_Success(t *testing.T) {
 		yml  string
 	}{
 		{
-			name: "valid case: oas2",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: string
-    maxLength: 99`,
-		},
-		{
 			name: "valid case: oas3.0",
 			yml: `openapi: "3.0.0"
 info:
@@ -110,15 +100,6 @@ func TestRuleSet_OWASPStringLimit_Error(t *testing.T) {
 		n    int
 		yml  string
 	}{
-		{
-			name: "invalid case: oas2 missing maxLength",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: string`,
-		},
 		{
 			name: "invalid case: oas3.0 missing maxLength",
 			yml: `openapi: "3.0.0"
