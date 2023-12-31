@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -35,7 +36,8 @@ func (st StringRestricted) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 
 				node := schema.Value.GoLow().Type.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "schema of type `string` must specify `format`, `const`, `enum` or `pattern`",
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						"schema of type `string` must specify `format`, `const`, `enum` or `pattern`"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      schema.GenerateJSONPath(),

@@ -58,6 +58,7 @@ components:
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := CheckSecurity{}
 	res := def.RunRule(nil, ctx)
@@ -108,6 +109,7 @@ components:
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
@@ -154,6 +156,7 @@ components:
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
@@ -190,12 +193,13 @@ paths:
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "`security` has null elements for path `/secure` in method `put`", res[0].Message)
-	assert.Equal(t, "$.paths['/secure'].put.security", res[0].Path)
+	assert.Equal(t, "$.paths['/secure'].put.security[0]", res[0].Path)
 }
 
 func TestCheckSecurity_SecurityLocalSecurityEmpty_AllowNull(t *testing.T) {
@@ -229,6 +233,7 @@ paths:
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
@@ -273,6 +278,7 @@ components:
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := CheckSecurity{}.RunRule(nil, ctx)
 

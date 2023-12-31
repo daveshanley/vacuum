@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 )
@@ -51,7 +52,8 @@ func (r RatelimitRetry429) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 							}
 						}
 						result := model.RuleFunctionResult{
-							Message:   "missing 'Retry-After' header for 429 error response",
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								"missing 'Retry-After' header for 429 error response"),
 							StartNode: node,
 							EndNode:   node,
 							Path:      fmt.Sprintf("$.paths.%s.%s.responses.429", pathPairs.Key(), opType),

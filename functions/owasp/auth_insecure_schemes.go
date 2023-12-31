@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -34,9 +35,9 @@ func (is AuthInsecureSchemes) RunRule(_ []*yaml.Node, context model.RuleFunction
 		if scheme.Value.Type == "http" {
 			if strings.ToLower(scheme.Value.Scheme) == "negotiate" ||
 				strings.ToLower(scheme.Value.Scheme) == "oauth" {
-				node := scheme.Value.GoLow().Description.KeyNode
+				node := scheme.Value.GoLow().Scheme.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "authentication scheme is considered outdated or insecure",
+					Message:   utils.SuppliedOrDefault(context.Rule.Message, "authentication scheme is considered outdated or insecure"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),

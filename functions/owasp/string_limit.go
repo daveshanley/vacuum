@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -31,7 +32,8 @@ func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 			if schema.Value.MaxLength == nil && schema.Value.Const == nil && schema.Value.Enum == nil {
 				node := schema.Value.GoLow().Type.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "schema of type `string` must specify `maxLength`, `const` or `enum`",
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						"schema of type `string` must specify `maxLength`, `const` or `enum`"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      schema.GenerateJSONPath(),

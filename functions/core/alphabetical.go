@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"sort"
@@ -61,7 +62,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 			if keyedBy == "" {
 				results = append(results, model.RuleFunctionResult{
-					Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
+					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
 						node.Value, a.GetSchema().ErrorMessage)),
 					StartNode: node,
 					EndNode:   node,
@@ -179,7 +180,7 @@ func compareStringArray(strArr []string, context model.RuleFunctionContext) []mo
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 				results = append(results, model.RuleFunctionResult{
-					Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
+					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
 						context.Rule.Description,
 						strArr[x+1], strArr[x])),
 				})
@@ -228,7 +229,7 @@ func (a Alphabetical) evaluateIntArray(intArray []int, errmsg string, context mo
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
 			})
 		}
 	}
@@ -242,7 +243,7 @@ func (a Alphabetical) evaluateFloatArray(floatArray []float64, errmsg string, co
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
 			})
 		}
 	}

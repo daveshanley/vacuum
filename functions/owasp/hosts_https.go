@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -34,8 +35,9 @@ func (hh HostsHttps) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 				Message:   "server URLs should use TLS (https)",
 				StartNode: node,
 				EndNode:   node,
-				Path:      fmt.Sprintf("%s.%s", server.GenerateJSONPath(), "url"),
-				Rule:      context.Rule,
+				Path: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+					fmt.Sprintf("%s.%s", server.GenerateJSONPath(), "url")),
+				Rule: context.Rule,
 			}
 			server.AddRuleFunctionResult(base.ConvertRuleResult(&result))
 			results = append(results, result)

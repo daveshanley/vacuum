@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -31,8 +32,9 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 
 			node := schema.Value.GoLow().Type.KeyNode
 			result := model.RuleFunctionResult{
-				Message: "schema of type `string` must specify `minimum` and `maximum` or " +
-					"`exclusiveMinimum` and `exclusiveMaximum`",
+				Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+					"schema of type `string` must specify `minimum` and `maximum` or "+
+						"`exclusiveMinimum` and `exclusiveMaximum`"),
 				StartNode: node,
 				EndNode:   node,
 				Path:      schema.GenerateJSONPath(),
@@ -45,29 +47,58 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 				continue
 			}
 
-			if schema.Value.Minimum != nil || schema.Value.Maximum != nil {
-				if schema.Value.Minimum == nil && schema.Value.Maximum != nil {
-					schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
-					continue
-				}
-				if schema.Value.Minimum != nil && schema.Value.Maximum == nil {
-					schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
-					continue
-				}
+			_min := schema.Value.Minimum
+			_max := schema.Value.Maximum
+			_exMin := schema.Value.ExclusiveMinimum
+			_exMax := schema.Value.ExclusiveMaximum
+
+			// we got nothing.
+			if _min == nil && _max == nil && _exMin == nil && _exMax == nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
 			}
-			if schema.Value.ExclusiveMinimum == nil && schema.Value.ExclusiveMaximum == nil {
-				if schema.Value.ExclusiveMinimum == nil && schema.Value.ExclusiveMaximum != nil {
-					schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
-					continue
-				}
-				if schema.Value.ExclusiveMinimum != nil && schema.Value.ExclusiveMaximum == nil {
-					schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
-					continue
-				}
+
+			// got a min but no max
+			if _min != nil && _max == nil && _exMax == nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
+			}
+
+			// got a max but no min
+			if _min == nil && _max != nil && _exMin == nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
+			}
+
+			// got an exclusive min but no max
+			if _min == nil && _max == nil && _exMin != nil && _exMax == nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
+			}
+
+			// got an exclusive max but no min
+			if _min == nil && _max == nil && _exMin == nil && _exMax != nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
+			}
+
+			// got a min but no exclusive max
+			if _min != nil && _max == nil && _exMax == nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
+			}
+
+			// got an exclusive min, min and exclusive max
+			if _min != nil && _exMin != nil && _exMax != nil {
+				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				results = append(results, result)
+				continue
 			}
 		}
 	}

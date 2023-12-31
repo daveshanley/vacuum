@@ -43,6 +43,7 @@ components:
 	def := JWTBestPractice{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 

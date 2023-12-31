@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -35,7 +36,8 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 			if !strings.Contains(scheme.Value.Description, "RFC8725") {
 				node := scheme.Value.GoLow().Description.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "JWTs must explicitly declare support for `RFC8725` in the description",
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						"JWTs must explicitly declare support for `RFC8725` in the description"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "description"),

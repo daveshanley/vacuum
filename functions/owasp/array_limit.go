@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -29,10 +30,9 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "array") {
 			if schema.Value.MaxItems == nil {
-				// no max items specified
 				node := schema.Value.GoLow().Type.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "schema of type `array` must specify `maxItems`",
+					Message:   utils.SuppliedOrDefault(context.Rule.Message, "schema of type `array` must specify `maxItems`"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      schema.GenerateJSONPath(),

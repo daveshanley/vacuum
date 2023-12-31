@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -47,7 +48,7 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if fieldNode == nil {
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message,
+				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)),
 				StartNode: node,
 				EndNode:   node,

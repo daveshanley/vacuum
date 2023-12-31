@@ -4,18 +4,18 @@
 package core
 
 import (
-	"fmt"
-	"strings"
-
 	ctx "context"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
+	vauumUtils "github.com/daveshanley/vacuum/utils"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // Schema is a rule that creates a schema check against a field value
@@ -65,7 +65,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 		if err != nil {
 			r := model.BuildFunctionResultString(
-				SuppliedOrDefault(message, fmt.Sprintf("unable to parse function options: %s", err.Error())))
+				vauumUtils.SuppliedOrDefault(message, fmt.Sprintf("unable to parse function options: %s", err.Error())))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
@@ -75,7 +75,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		err = low.BuildModel(&on, &lowSchema)
 		if err != nil {
 			r := model.BuildFunctionResultString(
-				SuppliedOrDefault(message,
+				vauumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("unable to build low schema from function options: %s", err.Error())))
 			r.Rule = context.Rule
 			results = append(results, r)
@@ -86,7 +86,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		err = lowSchema.Build(ctx.Background(), &on, context.Index)
 		if err != nil {
 			r := model.BuildFunctionResultString(
-				SuppliedOrDefault(message,
+				vauumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("unable to build high schema from function options: %s", err.Error())))
 			r.Rule = context.Rule
 			results = append(results, r)
@@ -129,7 +129,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			if _, ko := forceValidation.(bool); ko {
 
 				r := model.BuildFunctionResultString(
-					SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
+					vauumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
 						fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field))))
 				r.StartNode = node
 				r.EndNode = node.Content[len(node.Content)-1]
@@ -172,7 +172,7 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 	for c := range schemaErrors {
 
-		r := model.BuildFunctionResultString(SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
+		r := model.BuildFunctionResultString(vauumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
 			schemaErrors[c].Reason)))
 		r.StartNode = field
 		r.EndNode = field

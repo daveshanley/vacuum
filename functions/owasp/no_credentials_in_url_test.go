@@ -44,6 +44,7 @@ components:
 	def := NoCredentialsInUrl{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	comp, _ := regexp.Compile(`(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`)
 	rule.PrecompiledPattern = comp
@@ -87,6 +88,7 @@ components:
 	def := NoCredentialsInUrl{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	comp, _ := regexp.Compile(`(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`)
 	rule.PrecompiledPattern = comp

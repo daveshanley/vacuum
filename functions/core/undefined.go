@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -48,7 +49,7 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				val = fmt.Sprintf("'%s' ", context.RuleAction.Field)
 			}
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined]",
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined]",
 					ruleMessage, val)),
 				StartNode: fieldNode,
 				EndNode:   fieldNode,

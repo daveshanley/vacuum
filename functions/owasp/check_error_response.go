@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -70,7 +71,8 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 			}
 			if !found {
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("missing response code '%s' for '%s'", code, strings.ToUpper(opType)),
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("missing response code '%s' for '%s'", code, strings.ToUpper(opType))),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("$.paths.%s.%s.responses", pathPairs.Key(), opType),
@@ -81,7 +83,8 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 			}
 			if missing {
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("missing schema for '%s' response on '%s'", code, strings.ToUpper(opType)),
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("missing schema for '%s' response on '%s'", code, strings.ToUpper(opType))),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("$.paths.%s.%s.responses", pathPairs.Key(), opType),

@@ -35,6 +35,7 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -67,6 +68,7 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -100,6 +102,7 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 	assert.Len(t, res, 0)
@@ -128,6 +131,7 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -161,6 +165,7 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -194,13 +199,11 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "schema of type `string` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
-		"and `exclusiveMaximum`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
+	assert.Len(t, res, 0)
 }
 
 func TestIntegerLimit_RunRule_ExlMin_Pass(t *testing.T) {
@@ -227,6 +230,7 @@ components:
 	def := IntegerLimit{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 

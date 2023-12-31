@@ -38,6 +38,7 @@ servers:
 	def := HostsHttps{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -72,6 +73,7 @@ servers:
 	def := HostsHttps{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 

@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -29,20 +30,35 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "object") {
 			if schema.Value.AdditionalProperties != nil {
+
+				node := schema.Value.GoLow().Type.KeyNode
+				result := model.RuleFunctionResult{
+					Message: utils.SuppliedOrDefault(context.Rule.Message,
+						"schema should also define `maxProperties` when `additionalProperties` is an object"),
+					StartNode: node,
+					EndNode:   node,
+					Path:      schema.GenerateJSONPath(),
+					Rule:      context.Rule,
+				}
+
 				if schema.Value.AdditionalProperties.IsA() {
 					if schema.Value.MaxProperties == nil {
-						node := schema.Value.GoLow().Type.KeyNode
-						result := model.RuleFunctionResult{
-							Message:   "schema should also define `maxProperties` when `additionalProperties` is an object",
-							StartNode: node,
-							EndNode:   node,
-							Path:      schema.GenerateJSONPath(),
-							Rule:      context.Rule,
-						}
+
 						schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
 						results = append(results, result)
+						continue
 					}
 				}
+				if schema.Value.AdditionalProperties.IsB() && schema.Value.AdditionalProperties.B {
+
+					if schema.Value.MaxProperties == nil {
+
+						schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						results = append(results, result)
+						continue
+					}
+				}
+
 			}
 		}
 	}

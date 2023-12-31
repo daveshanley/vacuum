@@ -56,6 +56,7 @@ paths:
 	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
 	drDocument.WalkV3(&m.Model)
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := DefineErrorDefinition{}
 	res := def.RunRule(nodes, ctx)

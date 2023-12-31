@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -36,7 +37,9 @@ func (ak NoApiKeyInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionContex
 			if strings.ToLower(securityScheme.Value.In) == "query" || strings.ToLower(securityScheme.Value.In) == "path" {
 				node := securityScheme.Value.GoLow().In.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("API keys must not be passed via URL parameters (`%s`)", securityScheme.Value.In),
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("API keys must not be passed via URL parameters (`%s`)",
+							securityScheme.Value.In)),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("%s.%s", securityScheme.GenerateJSONPath(), "in"),
