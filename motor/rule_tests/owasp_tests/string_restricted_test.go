@@ -16,26 +16,6 @@ func TestRuleSet_OWASPStringRestricted_Success(t *testing.T) {
 		yml  string
 	}{
 		{
-			name: "valid case: format (oas2)",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: string
-    format: email`,
-		},
-		{
-			name: "valid case: format (oas2)",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: string
-    pattern: "/^foo/"`,
-		},
-		{
 			name: "valid case: format (oas3)",
 			yml: `openapi: "3.1.0"
 info:
@@ -130,16 +110,6 @@ func TestRuleSet_OWASPStringRestricted_Error(t *testing.T) {
 		name string
 		yml  string
 	}{
-		{
-			name: "invalid case: neither format or pattern (oas2)",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: string
-`,
-		},
 		{
 			name: "invalid case: neither format or pattern (oas3)",
 			yml: `openapi: "3.1.0"

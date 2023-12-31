@@ -56,10 +56,6 @@ func TestRuleSet_OWASPSecurityHostsHttpsOAS3_Error(t *testing.T) {
 		{
 			name: "an invalid server.url using http",
 			yml: `openapi: "3.1.0"
-info:
-  version: "1.0"
-paths:
-  /:
 servers:
   - url: http://api.example.com/
 `,

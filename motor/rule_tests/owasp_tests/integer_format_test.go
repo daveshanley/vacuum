@@ -39,18 +39,6 @@ components:
       format: int64
 `,
 		},
-		{
-			name: "valid case: format - whatever",
-			yml: `openapi: "3.1.0"
-info:
-  version: "1.0"
-components:
-  schemas:
-    Foo:
-      type: integer
-      format: whatever
-`,
-		},
 	}
 
 	for _, tt := range tc {
@@ -89,6 +77,18 @@ components:
       type: integer
 `,
 		},
+		{
+			name: "invalid case: bad format",
+			yml: `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  schemas:
+    Foo:
+      type: integer
+      format: onion pie. yum.
+`,
+		},
 	}
 
 	for _, tt := range tc {
@@ -105,7 +105,7 @@ components:
 				Spec:    []byte(tt.yml),
 			}
 			results := motor.ApplyRulesToRuleSet(rse)
-			assert.NotEqual(t, len(results.Results), 0)
+			assert.Len(t, results.Results, 1)
 		})
 	}
 }

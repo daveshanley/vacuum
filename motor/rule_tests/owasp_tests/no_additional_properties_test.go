@@ -16,17 +16,6 @@ func TestRuleSet_OWASPNoAdditionalProperties_Success(t *testing.T) {
 		yml  string
 	}{
 		{
-			name: "valid case: oas2 does not allow additionalProperties by default so dont worry about it",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: object
-    additionalProperties: false
-`,
-		},
-		{
 			name: "valid case: oas3",
 			yml: `openapi: "3.0.0"
 info:

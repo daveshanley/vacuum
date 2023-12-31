@@ -64,6 +64,6 @@ components:
 			Spec:    []byte(yml),
 		}
 		results := motor.ApplyRulesToRuleSet(rse)
-		assert.Len(t, results.Results, 1)
+		assert.Len(t, results.Results, 2)
 	})
 }

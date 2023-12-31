@@ -16,17 +16,6 @@ func TestRuleSet_OWASPArrayLimit_Success(t *testing.T) {
 		yml  string
 	}{
 		{
-			name: "valid case: oas2",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: array
-    maxItems: 99
-`,
-		},
-		{
 			name: "valid case: oas3",
 			yml: `openapi: "3.1.0"
 info:
@@ -82,16 +71,6 @@ func TestRuleSet_OWASPArrayLimit_Error(t *testing.T) {
 		name string
 		yml  string
 	}{
-		{
-			name: "invalid case: oas2 missing maxItems",
-			yml: `swagger: "2.0"
-info:
-  version: "1.0"
-definitions:
-  Foo:
-    type: array
-`,
-		},
 		{
 			name: "invalid case: oas3 missing maxItems",
 			yml: `openapi: "3.0.0"

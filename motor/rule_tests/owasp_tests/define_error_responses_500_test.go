@@ -22,6 +22,8 @@ paths:
           description: "ok"
           content:
             "application/json":
+              schema:
+                type: object
 `
 
 	t.Run("valid: defines a 500 response with content", func(t *testing.T) {
