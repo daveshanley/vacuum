@@ -3,6 +3,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
@@ -85,7 +86,8 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 			if opValue.Security == nil && globalSecurity == nil {
 
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType),
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType)),
 					StartNode: opNode,
 					EndNode:   opNode,
 					Path:      op.GenerateJSONPath(),
@@ -100,7 +102,8 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 			if len(opValue.Security) <= 0 && globalSecurity != nil &&
 				(globalSecurity[0].Value.Requirements == nil || globalSecurity[0].Value.Requirements.Len() <= 0) {
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType),
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType)),
 					StartNode: opNode,
 					EndNode:   opNode,
 					Path:      op.GenerateJSONPath(),
@@ -110,18 +113,22 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				results = append(results, result)
 			}
 
-			if !nullable && len(opValue.Security) >= 1 && globalSecurity == nil {
-				if opValue.Security[0].Value.Requirements == nil || opValue.Security[0].Value.Requirements.Len() <= 0 {
-					result := model.RuleFunctionResult{
-						Message:   fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType),
-						StartNode: opNode,
-						EndNode:   opNode,
-						Path:      fmt.Sprintf("%s.%s", op.GenerateJSONPath(), "security"),
-						Rule:      context.Rule,
+			if !nullable && len(opValue.Security) >= 1 {
+				for i, _ := range opValue.Security {
+					if opValue.Security[i].Value.Requirements == nil || opValue.Security[i].Value.Requirements.Len() <= 0 {
+						securityNode := opValue.Security[i].Value.GoLow().Requirements.ValueNode
+						result := model.RuleFunctionResult{
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
+							StartNode: securityNode,
+							EndNode:   securityNode,
+							Path:      opValue.Security[i].GenerateJSONPath(),
+							Rule:      context.Rule,
+						}
+						pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						results = append(results, result)
+						continue
 					}
-					pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
-					continue
 				}
 			}
 		}

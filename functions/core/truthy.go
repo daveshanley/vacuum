@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -65,7 +66,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					endNode = node
 				}
 				results = append(results, model.RuleFunctionResult{
-					Message: SuppliedOrDefault(message,
+					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
 					StartNode: node,
 					EndNode:   endNode,

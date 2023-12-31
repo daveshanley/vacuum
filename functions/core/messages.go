@@ -2,10 +2,3 @@
 // SPDX-License-Identifier: MIT
 
 package core
-
-func SuppliedOrDefault(supplied, original string) string {
-	if supplied != "" {
-		return supplied
-	}
-	return original
-}

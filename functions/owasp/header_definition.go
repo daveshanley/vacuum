@@ -2,6 +2,7 @@ package owasp
 
 import (
 	"fmt"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"strconv"
 	"strings"
@@ -89,8 +90,9 @@ func (cd HeaderDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 							Message:   message{responseCode: code, headersSets: headers}.String(),
 							StartNode: node,
 							EndNode:   node,
-							Path:      fmt.Sprintf("$.paths.responses.%d", code),
-							Rule:      context.Rule,
+							Path: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("$.paths.responses.%d", code)),
+							Rule: context.Rule,
 						})
 
 					}

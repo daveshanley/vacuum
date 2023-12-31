@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -78,7 +79,7 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 
 		if seenCount != 1 {
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` and `%s` must not be both defined or undefined",
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` and `%s` must not be both defined or undefined",
 					ruleMessage, properties[0], properties[1])),
 				StartNode: node,
 				EndNode:   node,

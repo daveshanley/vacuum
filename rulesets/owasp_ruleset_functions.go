@@ -21,7 +21,7 @@ func GetOWASPNoNumericIDsRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "owaspNoNumericIDs",
+			Function: "owaspNoNumericIds",
 		},
 		HowToFix: owaspNoNumericIDsFix,
 	}
@@ -59,7 +59,7 @@ func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "owaspNoAPIKeyInURL",
+			Function: "owaspNoApiKeyInUrl",
 		},
 		HowToFix: owaspNoAPIKeysInURLFix,
 	}
@@ -82,7 +82,7 @@ func GetOWASPNoCredentialsInURLRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "owaspNoCredentialsInURL",
+			Function: "owaspNoCredentialsInUrl",
 		},
 		PrecompiledPattern: comp,
 		HowToFix:           owaspNoCredentialsInURLFix,
@@ -487,7 +487,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "owaspConstrainedAdditionalProperties",
+			Function: "owaspAdditionalPropertiesConstrained",
 		},
 		HowToFix: owaspNoAdditionalPropertiesFix,
 	}
@@ -509,7 +509,7 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "hostsHttps",
+			Function: "owaspHostsHttps",
 		},
 		HowToFix: owaspSecurityHostsHttpsOAS3Fix,
 	}

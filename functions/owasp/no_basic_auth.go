@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -32,10 +33,11 @@ func (ba NoBasicAuth) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 
 		scheme := schemePairs.Value()
 		if scheme.Value.Type == "http" {
-			if strings.ToLower(scheme.Value.Scheme) == "basic" {
-				node := scheme.Value.GoLow().Description.KeyNode
+			if strings.ToLower(scheme.Value.Scheme) == "basic" || strings.ToLower(scheme.Value.Scheme) == "negotiate" {
+				node := scheme.Value.GoLow().Scheme.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "security scheme uses HTTP Basic Auth, which is an insecure practice",
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						"security scheme uses HTTP Basic Auth, which is an insecure practice"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),

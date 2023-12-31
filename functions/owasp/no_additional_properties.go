@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -32,7 +33,8 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 				if schema.Value.AdditionalProperties.IsA() || schema.Value.AdditionalProperties.B {
 					node := schema.Value.GoLow().Type.KeyNode
 					result := model.RuleFunctionResult{
-						Message:   "`additionalProperties` should not be set, or set to `false`",
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							"`additionalProperties` should not be set, or set to `false`"),
 						StartNode: node,
 						EndNode:   node,
 						Path:      schema.GenerateJSONPath(),

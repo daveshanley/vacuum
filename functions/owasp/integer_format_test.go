@@ -35,6 +35,7 @@ components:
 	def := IntegerFormat{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -68,6 +69,7 @@ components:
 	def := IntegerFormat{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 

@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"regexp"
@@ -154,7 +155,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 		if !rx.MatchString(node.Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message:   SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType)),
+				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType)),
 				StartNode: node,
 				EndNode:   node,
 				Path:      pathValue,
@@ -176,7 +177,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		rx := regexp.MustCompile(leadingPattern)
 		if !rx.MatchString(nodes[0].Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
 					nodes[0].Value, casingType)),
 				StartNode: nodes[0],
 				EndNode:   nodes[0],

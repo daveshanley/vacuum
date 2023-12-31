@@ -71,6 +71,8 @@ paths:
 	})
 	ctx.Document = document
 	def := HeaderDefinition{}
+	ctx.Rule = &rule
+
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 4)

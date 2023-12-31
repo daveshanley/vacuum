@@ -46,6 +46,7 @@ paths:
 	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
 	drDocument.WalkV3(&m.Model)
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -86,6 +87,7 @@ paths:
 	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
 	drDocument.WalkV3(&m.Model)
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 

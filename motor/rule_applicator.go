@@ -276,7 +276,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			_, resolvedModelErrors = docResolved.BuildV2Model()
 			rolodexResolved = docResolved.GetRolodex()
 
-			//mod, _ := docUnresolved.BuildV2Model()
+			docUnresolved.BuildV2Model()
 			//v2DocumentModel = &mod.Model
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
@@ -310,7 +310,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			nowc = time.Now()
 			mod, _ = docUnresolved.BuildV3Model()
-			v3DocumentModel = &mod.Model
+			if mod != nil {
+				v3DocumentModel = &mod.Model
+			}
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
 			then = time.Since(nowd).Milliseconds()
@@ -321,8 +323,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			wg := conc.WaitGroup{}
 			wg.Go(func() {
-				drDocument = doctor.NewDrDocument(indexUnresolved, rolodexUnresolved)
-				drDocument.WalkV3(v3DocumentModel)
+				if v3DocumentModel != nil {
+					drDocument = doctor.NewDrDocument(indexUnresolved, rolodexUnresolved)
+					drDocument.WalkV3(v3DocumentModel)
+				}
 			})
 			wg.Go(func() {
 				// we only resolve one.
@@ -407,6 +411,25 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		HowToFix: "Ensure that all $ref values are resolvable and locatable within a local or remote document. " + CircularReferencesFix,
 	}
 
+	// checks if schemas can be programmatically built using libopenapi. If not, they will generally fail
+	// any kind of validation or code generation.
+	schemaBuildRule := &model.Rule{
+		Name:         "Check schemas can be programmatically built",
+		Id:           "schema-build-failure",
+		Description:  "Schemas must be able to be programmatically built using automation",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         "validation",
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "blank",
+		},
+		HowToFix: "If a schema cannot be built programmatically, it will generally fail in any kind of tools. " +
+			"The schema must be fixed, follow the error message to find the specific problem.",
+	}
+
 	// add all circular reference errors to the results.
 	circularRefRule := &model.Rule{
 		Name:         "Circular References",
@@ -445,7 +468,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			Rule:      circularRefRule,
 			StartNode: cr.Start.Node,
 			EndNode:   cr.LoopPoint.Node,
-			Message:   fmt.Sprintf("Circular reference detected from %s", cr.Start.Definition),
+			Message:   fmt.Sprintf("circular reference detected from %s", cr.Start.Definition),
 			Path:      cr.GenerateJourneyPath(),
 		}
 		ruleResults = append(ruleResults, res)
@@ -467,6 +490,21 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// run all rules.
 	var errs []error
+
+	// add dr document build errors to the results.
+	if drDocument != nil {
+		for _, er := range drDocument.BuildErrors {
+			res := model.RuleFunctionResult{
+				RuleId:    "schema-build-failure",
+				Rule:      schemaBuildRule,
+				StartNode: er.SchemaProxy.GoLow().GetKeyNode(),
+				EndNode:   er.SchemaProxy.GoLow().GetKeyNode(),
+				Message:   er.Error.Error(),
+				Path:      er.DrSchemaProxy.GenerateJSONPath(),
+			}
+			ruleResults = append(ruleResults, res)
+		}
+	}
 
 	// build the dr document
 	//var drDocument *doctor.DrDocument

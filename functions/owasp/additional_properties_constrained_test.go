@@ -46,6 +46,7 @@ components:
 	def := AdditionalPropertiesConstrained{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -89,6 +90,7 @@ components:
 	def := AdditionalPropertiesConstrained{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
@@ -126,6 +128,7 @@ components:
 	def := AdditionalPropertiesConstrained{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 

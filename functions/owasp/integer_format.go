@@ -5,6 +5,7 @@ package owasp
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"slices"
@@ -33,13 +34,13 @@ func (i IntegerFormat) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 
 				node := schema.Value.GoLow().Type.KeyNode
 				result := model.RuleFunctionResult{
-					Message:   "schema of type `integer` must specify a format of `int32` or `int64`",
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						"schema of type `integer` must specify a format of `int32` or `int64`"),
 					StartNode: node,
 					EndNode:   node,
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}
-
 				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue

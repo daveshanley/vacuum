@@ -3,6 +3,7 @@ package owasp
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/utils"
@@ -65,7 +66,8 @@ func processCodes(codes []string, drDoc *v3.Document, context model.RuleFunction
 			if len(seen) <= 0 {
 				code := strings.Join(codes, "`, `")
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("missing one of `%s` response codes", code),
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("missing one of `%s` response codes", code)),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("%s.%s", opValue.GenerateJSONPath(), "responses"),

@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -63,7 +64,7 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {
 			results = append(results, model.RuleFunctionResult{
-				Message: SuppliedOrDefault(message,
+				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
 						node.Value, values)),
 				StartNode: node,
