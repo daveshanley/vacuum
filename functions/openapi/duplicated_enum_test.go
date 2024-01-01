@@ -1,11 +1,11 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/utils"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -22,7 +22,8 @@ func TestDuplicatedEnum_RunRule(t *testing.T) {
 
 func TestDuplicatedEnum_RunRule_SuccessCheck(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.0
+paths:
   /pizza/:
     parameters:
       - in: query
@@ -43,28 +44,33 @@ components:
       type: string
       enum: [yes, no]`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
-
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
 	rule := buildOpenApiTestRuleAction(path, "duplicated_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := DuplicatedEnum{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
 
 func TestDuplicatedEnum_RunRule_DuplicationFail(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.0
+paths:
   /pizza/:
     parameters:
       - in: query
@@ -85,21 +91,25 @@ components:
       type: string
       enum: [yes, no, yes, no]`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
-
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
 	rule := buildOpenApiTestRuleAction(path, "duplicated_enum", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := DuplicatedEnum{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 5)
 }

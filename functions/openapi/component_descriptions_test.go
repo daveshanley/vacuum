@@ -1,8 +1,10 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -20,7 +22,8 @@ func TestComponentDescription_RunRule(t *testing.T) {
 
 func TestComponentDescription_CheckDescriptionMissing(t *testing.T) {
 
-	yml := `components:
+	yml := `openapi: 3.1
+components:
   schemas:
     Minty:
       type: object
@@ -40,19 +43,30 @@ func TestComponentDescription_CheckDescriptionMissing(t *testing.T) {
     Kitty:
       description: this is long enough, so we should not see any errors here in  `
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
 	opts := make(map[string]string)
 	opts["minWords"] = "10"
 
 	rule := buildOpenApiTestRuleAction(path, "component-description", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := ComponentDescription{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 4)
+	assert.Equal(t, "`schemas` component `Minty` is missing a description", res[0].Message)
+	assert.Equal(t, "`schemas` component `Mouse` description must be at least `10` words long", res[1].Message)
 
 }
