@@ -32,8 +32,8 @@ servers:
 	rule := buildOpenApiTestRuleAction(path, "hosts_https", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := HostsHttps{}
 	ctx.Document = document
@@ -67,8 +67,8 @@ servers:
 	rule := buildOpenApiTestRuleAction(path, "hosts_https", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := HostsHttps{}
 	ctx.Document = document

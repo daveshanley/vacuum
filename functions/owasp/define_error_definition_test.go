@@ -53,8 +53,8 @@ paths:
 	rule := buildOpenApiTestRuleAction(path, "define_error_definition", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
 

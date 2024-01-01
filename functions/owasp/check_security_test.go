@@ -48,8 +48,8 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -99,8 +99,8 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -146,8 +146,8 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -183,8 +183,8 @@ paths:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -222,8 +222,8 @@ paths:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -268,8 +268,8 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{

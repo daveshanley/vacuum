@@ -37,8 +37,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "jwt_best_practice", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := JWTBestPractice{}
 	ctx.Document = document
@@ -75,8 +75,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "jwt_best_practice", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := JWTBestPractice{}
 	ctx.Document = document
@@ -111,8 +111,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "jwt_best_practice", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := JWTBestPractice{}
 	ctx.Document = document
