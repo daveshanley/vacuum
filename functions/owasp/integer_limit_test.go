@@ -29,8 +29,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document
@@ -62,8 +62,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document
@@ -96,8 +96,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document
@@ -125,8 +125,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document
@@ -159,8 +159,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document
@@ -193,8 +193,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document
@@ -224,8 +224,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "integer_limit", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := IntegerLimit{}
 	ctx.Document = document

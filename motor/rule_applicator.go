@@ -324,8 +324,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			wg := conc.WaitGroup{}
 			wg.Go(func() {
 				if v3DocumentModel != nil {
-					drDocument = doctor.NewDrDocument(indexUnresolved, rolodexUnresolved)
-					drDocument.WalkV3(v3DocumentModel)
+					drDocument = doctor.NewDrDocument(mod)
 				}
 			})
 			wg.Go(func() {
@@ -514,7 +513,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	//		// TODO: change to swagger
 	//		if v2DocumentModel != nil {
 	//			drDocument = &doctor.DrDocument{}
-	//			drDocument.WalkV3(v3DocumentModel)
+	//			drDocument.walkV3(v3DocumentModel)
 	//		}
 	//	case '3':
 	//		if v3DocumentModel != nil {

@@ -40,8 +40,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "no_additional_properties", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := AdditionalPropertiesConstrained{}
 	ctx.Document = document
@@ -84,8 +84,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "no_additional_properties", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := AdditionalPropertiesConstrained{}
 	ctx.Document = document
@@ -122,8 +122,8 @@ components:
 	rule := buildOpenApiTestRuleAction(path, "no_additional_properties", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	drDocument := drModel.NewDrDocument(m.Index, m.Index.GetRolodex())
-	drDocument.WalkV3(&m.Model)
+	drDocument := drModel.NewDrDocument(m)
+	
 
 	def := AdditionalPropertiesConstrained{}
 	ctx.Document = document
