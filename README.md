@@ -115,13 +115,13 @@ Want to share / extend / distribute your own rulesets? Now you can!
 Want to lint multiple files at once? Now you can!
 
 ```shell
-vacuum lint file1.json path/to/file2.yaml file3.json` 
+vacuum lint file1.json path/to/file2.yaml file3.json 
 ```
 
 Want to suck in a ton of files? Use a **glob** pattern!
 
 ```shell
-vacuum lint some/path/**/*.yaml` 
+vacuum lint some/path/**/*.yaml 
 ```
 
 
