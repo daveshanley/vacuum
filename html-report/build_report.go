@@ -41,7 +41,7 @@ var hydrateJS string
 var reportCSS string
 
 type HTMLReport interface {
-	GenerateReport(testMode bool) []byte
+	GenerateReport(testMode bool, version string) []byte
 }
 
 // MaxViolations the maximum number of violations the report will render per broken rule.
@@ -59,6 +59,7 @@ type ReportData struct {
 	RuleResults      *model.RuleResultSet      `json:"ruleResults"`
 	MaxViolations    int                       `json:"maxViolations"`
 	Generated        time.Time                 `json:"generated"`
+	Version          string                    `json:"version"`
 	DisableTimestamp bool                      `json:"-"`
 	SpecString       []string                  `json:"-"`
 }
@@ -80,7 +81,7 @@ type htmlReport struct {
 	disableTimestamp bool
 }
 
-func (html htmlReport) GenerateReport(test bool) []byte {
+func (html htmlReport) GenerateReport(test bool, version string) []byte {
 
 	templateFuncs := template.FuncMap{
 		"renderJSON": func(data interface{}) string {
@@ -194,8 +195,16 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 
 	// we need a new category here 'all'
 	cats := model.RuleCategoriesOrdered
+
+	var catsFiltered []*model.RuleCategory
+	for i := range cats {
+		res := html.results.GetResultsByRuleCategory(cats[i].Id)
+		if len(res) >= 1 {
+			catsFiltered = append(catsFiltered, cats[i])
+		}
+	}
 	n := []*model.RuleCategory{model.RuleCategories[model.CategoryAll]}
-	cats = append(n, cats...)
+	catsFiltered = append(n, catsFiltered...)
 
 	var specStringData []string
 
@@ -208,11 +217,12 @@ func (html htmlReport) GenerateReport(test bool) []byte {
 		HydrateJS:      hydrateJS,
 		ReportCSS:      reportCSS,
 		Statistics:     html.stats,
-		RuleCategories: cats,
+		RuleCategories: catsFiltered,
 		TestMode:       test,
 		RuleResults:    html.results,
 		MaxViolations:  MaxViolations,
 		SpecString:     specStringData,
+		Version:        version,
 	}
 	if html.info != nil {
 		reportData.Generated = html.info.Generated
