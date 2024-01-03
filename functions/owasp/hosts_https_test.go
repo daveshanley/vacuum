@@ -33,7 +33,6 @@ servers:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := HostsHttps{}
 	ctx.Document = document
@@ -68,7 +67,6 @@ servers:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := HostsHttps{}
 	ctx.Document = document

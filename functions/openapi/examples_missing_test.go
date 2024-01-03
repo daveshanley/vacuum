@@ -34,7 +34,36 @@ paths:
           application/json:
             schema:
               type: object
-              description: I need an example
+              description: I need an example`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 2)
+	assert.Equal(t, "schema is missing examples", res[0].Message)
+	assert.Contains(t, res[0].Path, "$.paths['/pizza'].get.requestBody.content['application/json']")
+}
+
+func TestExamplesMissing_Alt(t *testing.T) {
+
+	yml := `openapi: 3.1
 components:
   schemas:
     Pizza:
@@ -65,10 +94,9 @@ components:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 4)
+	assert.Len(t, res, 3)
 	assert.Equal(t, "schema is missing examples", res[0].Message)
-	assert.Equal(t, "$.paths['/pizza'].get.requestBody.content['application/json'].schema", res[0].Path)
-	assert.Equal(t, "$.components.schemas['Pizza']", res[1].Path)
+	assert.Contains(t, res[1].Path, "$.components.schemas['Pizza'].properties")
 }
 
 func TestExamplesMissing_Header(t *testing.T) {
@@ -80,7 +108,36 @@ paths:
         '200':
           headers:
             bingo:
-              description: I need an example
+              description: I need an example`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "header is missing examples", res[0].Message)
+	assert.Equal(t, "$.paths['/cake'].get.responses['200'].headers['bingo']", res[0].Path)
+
+}
+
+func TestExamplesMissing_Header_Alt(t *testing.T) {
+	yml := `openapi: 3.1
 components:
   headers:
     Cake:
@@ -106,10 +163,9 @@ components:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.Equal(t, "header is missing examples", res[0].Message)
-	assert.Equal(t, "$.paths['/cake'].get.responses['200'].headers['bingo']", res[0].Path)
-	assert.Equal(t, "$.components.headers['Cake']", res[1].Path)
+	assert.Equal(t, "$.components.headers['Cake']", res[0].Path)
 
 }
 
@@ -121,7 +177,36 @@ paths:
       requestBody:
         content:
           application/json:
-            description: I need an example
+            description: I need an example`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "media type is missing examples", res[0].Message)
+	assert.Equal(t, "$.paths['/herbs'].get.requestBody.content['application/json']", res[0].Path)
+
+}
+
+func TestExamplesMissing_MediaType_Alt(t *testing.T) {
+	yml := `openapi: 3.1
 components:
   requestBodies:
     Herbs:
@@ -149,9 +234,8 @@ components:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.Equal(t, "media type is missing examples", res[0].Message)
-	assert.Equal(t, "$.paths['/herbs'].get.requestBody.content['application/json']", res[0].Path)
-	assert.Equal(t, "$.components.requestBodies['Herbs'].content['slapsication/json']", res[1].Path)
+	assert.Equal(t, "$.components.requestBodies['Herbs'].content['slapsication/json']", res[0].Path)
 
 }

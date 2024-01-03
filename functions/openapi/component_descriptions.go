@@ -69,7 +69,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Schemas != nil {
+	if components != nil && components.Schemas != nil {
 		for schemaPairs := components.Schemas.First(); schemaPairs != nil; schemaPairs = schemaPairs.Next() {
 			schemaValue := schemaPairs.Value()
 			key := schemaPairs.Key()
@@ -83,7 +83,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Parameters != nil {
+	if components != nil && components.Parameters != nil {
 		for paramPairs := components.Parameters.First(); paramPairs != nil; paramPairs = paramPairs.Next() {
 			paramValue := paramPairs.Value()
 			key := paramPairs.Key()
@@ -98,7 +98,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.RequestBodies != nil {
+	if components != nil && components.RequestBodies != nil {
 		for requestBodyPairs := components.RequestBodies.First(); requestBodyPairs != nil; requestBodyPairs = requestBodyPairs.Next() {
 			rbValue := requestBodyPairs.Value()
 			key := requestBodyPairs.Key()
@@ -112,7 +112,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Responses != nil {
+	if components != nil && components.Responses != nil {
 		for responsePairs := components.Responses.First(); responsePairs != nil; responsePairs = responsePairs.Next() {
 			rValue := responsePairs.Value()
 			key := responsePairs.Key()
@@ -126,7 +126,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Examples != nil {
+	if components != nil && components.Examples != nil {
 		for examplePairs := components.Examples.First(); examplePairs != nil; examplePairs = examplePairs.Next() {
 			exampleValue := examplePairs.Value()
 			key := examplePairs.Key()
@@ -140,7 +140,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Callbacks != nil {
+	if components != nil && components.Callbacks != nil {
 		for callbackPairs := components.Examples.First(); callbackPairs != nil; callbackPairs = callbackPairs.Next() {
 			callbackValue := callbackPairs.Value()
 			key := callbackPairs.Key()
@@ -154,7 +154,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Headers != nil {
+	if components != nil && components.Headers != nil {
 		for headerPair := components.Examples.First(); headerPair != nil; headerPair = headerPair.Next() {
 			headerValue := headerPair.Value()
 			key := headerPair.Key()
@@ -168,7 +168,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.Links != nil {
+	if components != nil && components.Links != nil {
 		for linkPair := components.Examples.First(); linkPair != nil; linkPair = linkPair.Next() {
 			linkValue := linkPair.Value()
 			key := linkPair.Key()
@@ -183,7 +183,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		}
 	}
 
-	if components.SecuritySchemes != nil {
+	if components != nil && components.SecuritySchemes != nil {
 		for securitySchemePair := components.Examples.First(); securitySchemePair != nil; securitySchemePair = securitySchemePair.Next() {
 			ssValue := securitySchemePair.Value()
 			key := securitySchemePair.Key()
