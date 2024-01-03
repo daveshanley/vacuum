@@ -4,6 +4,7 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/datamodel"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -77,6 +78,9 @@ func NewRuleResultSetPointer(results []*RuleFunctionResult) *RuleResultSet {
 	}
 }
 
+var paramRegex = regexp.MustCompile(`(\w+)\['([\w{}/:_-]+)'`)
+var indexRegex = regexp.MustCompile(`(\w+)\[(\d+)]`)
+
 // GenerateSpectralReport will return a Spectral compatible report structure, easily serializable
 func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.SpectralReport {
 
@@ -107,6 +111,18 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 		pathArr := strings.Split(result.Path, ".")
 		for _, pItem := range pathArr {
 			if pItem != "$" {
+
+				p := paramRegex.FindStringSubmatch(pItem)
+				i := indexRegex.FindStringSubmatch(pItem)
+				if len(p) == 3 {
+					path = append(path, p[1], p[2])
+					continue
+				}
+				if len(i) == 3 {
+					path = append(path, i[1], i[2])
+					continue
+				}
+
 				path = append(path, pItem)
 			}
 		}

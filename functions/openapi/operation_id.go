@@ -45,7 +45,7 @@ func (oId OperationId) RunRule(nodes []*yaml.Node, context model.RuleFunctionCon
 						method, path),
 					StartNode: methodNode.Node,
 					EndNode:   lastNode,
-					Path:      fmt.Sprintf("$.paths.%s.%s", path, method),
+					Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
 					Rule:      context.Rule,
 				})
 			}

@@ -3,7 +3,7 @@ package owasp
 import (
 	"fmt"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"strconv"
 	"strings"
 
@@ -27,7 +27,7 @@ func (m message) String() string {
 		oout += "{" + strings.Join(headerSet, ", ") + "} "
 	}
 
-	return fmt.Sprintf(`Response with code %d, must contain one of the defined 'headers': {%s}`, m.responseCode, oout)
+	return fmt.Sprintf("response with code `%d`, must contain one of the defined headers: `%s`", m.responseCode, oout)
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the HeaderDefinition rule.
@@ -36,31 +36,33 @@ func (cd HeaderDefinition) GetSchema() model.RuleFunctionSchema {
 }
 
 // RunRule will execute the HeaderDefinition rule, based on supplied context and a supplied []*yaml.Node slice.
-func (cd HeaderDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	if len(nodes) == 0 {
-		return nil
-	}
+func (cd HeaderDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	var headers [][]string
-	methodsMap := utils.ExtractValueFromInterfaceMap("headers", context.Options)
-	if castedHeaders, ok := methodsMap.([][]string); ok {
-		headers = castedHeaders
-	}
-
-	//var responseCode = -1
 	var results []model.RuleFunctionResult
 
-	doc := context.Document
-	if doc == nil {
+	if context.DrDocument == nil {
 		return results
 	}
 
-	if doc.GetSpecInfo().VersionNumeric <= 2 {
-		return results
+	var headers []string
+	methodsMap := utils.ExtractValueFromInterfaceMap("headers", context.Options)
+	if castedHeaders, ok := methodsMap.([]interface{}); ok {
+		for _, header := range castedHeaders {
+			headers = append(headers, header.(string))
+		}
 	}
-	m, _ := doc.BuildV3Model()
+	if castedHeaders, ok := methodsMap.([]string); ok {
+		for _, header := range castedHeaders {
+			headers = append(headers, header)
+		}
+	}
+	// compose header sets from header inputs
+	var headerSets [][]string
+	for _, header := range headers {
+		headerSets = append(headerSets, strings.Split(header, "||"))
+	}
 
-	for pathPairs := m.Model.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+	for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
 		for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
 			opValue := opPairs.Value()
 			responses := opValue.Responses.Codes
@@ -73,7 +75,7 @@ func (cd HeaderDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 
 				if code >= 200 && code < 300 || code >= 400 && code < 500 {
 
-					lowCodes := opValue.Responses.GoLow().Codes
+					lowCodes := opValue.Responses.Value.GoLow().Codes
 					for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
 						lowCodeKey := lowCodePairs.Key()
 						codeCodeVal, _ := strconv.Atoi(lowCodeKey.KeyNode.Value)
@@ -82,21 +84,18 @@ func (cd HeaderDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 						}
 					}
 					if resp.Headers != nil {
-						result := cd.getResult(code, node, resp, context, headers)
+						result := cd.getResult(code, resp, context, headerSets)
 						results = append(results, result...)
 					} else {
 
 						results = append(results, model.RuleFunctionResult{
-							Message:   message{responseCode: code, headersSets: headers}.String(),
+							Message:   message{responseCode: code, headersSets: headerSets}.String(),
 							StartNode: node,
 							EndNode:   node,
-							Path: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-								fmt.Sprintf("$.paths.responses.%d", code)),
-							Rule: context.Rule,
+							Path:      vacuumUtils.SuppliedOrDefault(context.Rule.Message, resp.GenerateJSONPath()),
+							Rule:      context.Rule,
 						})
-
 					}
-
 				}
 			}
 		}
@@ -104,13 +103,13 @@ func (cd HeaderDefinition) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 	return results
 }
 
-func (cd HeaderDefinition) getResult(responseCode int, codeNode *yaml.Node,
-	response *v3.Response, context model.RuleFunctionContext, headersSets [][]string) []model.RuleFunctionResult {
+func (cd HeaderDefinition) getResult(responseCode int,
+	response *drV3.Response, context model.RuleFunctionContext, headersSets [][]string) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
 	numberOfHeaders := 0
 
-	headers := response.GoLow().Headers
+	headers := response.Value.GoLow().Headers
 	var headerKeys []string
 
 	for headerPairs := headers.Value.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
@@ -130,7 +129,7 @@ func (cd HeaderDefinition) getResult(responseCode int, codeNode *yaml.Node,
 			Message:   message{responseCode: responseCode, headersSets: headersSets}.String(),
 			StartNode: headers.KeyNode,
 			EndNode:   headers.KeyNode,
-			Path:      fmt.Sprintf("$.paths.responses.%d.headers", responseCode),
+			Path:      fmt.Sprintf("%s.headers", response.GenerateJSONPath()),
 			Rule:      context.Rule,
 		})
 	}

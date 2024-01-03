@@ -89,7 +89,7 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 										currentVerb, currentPath, operationTag.Value),
 									StartNode: operationTag,
 									EndNode:   endNode,
-									Path:      fmt.Sprintf("$.paths.%s.%s.tags[%v]", currentPath, currentVerb, tagIndex),
+									Path:      fmt.Sprintf("$.paths['%s'].%s.tags[%v]", currentPath, currentVerb, tagIndex),
 									Rule:      context.Rule,
 								})
 							}

@@ -70,7 +70,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			// check if it's been seen
 			if seenPaths[currentPathNormalized] != "" {
 				res := model.BuildFunctionResultString(
-					fmt.Sprintf("Paths `%s` and `%s` must not be equivalent, paths must be unique",
+					fmt.Sprintf("paths `%s` and `%s` must not be equivalent, paths must be unique",
 						seenPaths[currentPathNormalized], currentPath))
 				res.StartNode = pathNode
 				res.EndNode = pathNode
@@ -88,7 +88,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				param := strRx.ReplaceAllString(pathParam, "")
 				if pathElements[param] {
 					res := model.BuildFunctionResultString(
-						fmt.Sprintf("Path `%s` must not use the parameter `%s` multiple times",
+						fmt.Sprintf("path `%s` must not use the parameter `%s` multiple times",
 							currentPath, param))
 					res.StartNode = pathNode
 					res.EndNode = pathNode
@@ -280,7 +280,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
 				res.EndNode = endNode
-				res.Path = fmt.Sprintf("$.paths.['%s']", path)
+				res.Path = fmt.Sprintf("$.paths['%s']", path)
 				res.Rule = context.Rule
 				*results = append(*results, res)
 			}
@@ -306,7 +306,7 @@ func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, al
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
 				res.EndNode = endNode
-				res.Path = fmt.Sprintf("$.paths.['%s']", path)
+				res.Path = fmt.Sprintf("$.paths['%s']", path)
 				res.Rule = context.Rule
 				*results = append(*results, res)
 			}
@@ -359,7 +359,7 @@ func (pp PathParameters) isPathParamNamedAndRequired(in, required, name *yaml.No
 		res := model.BuildFunctionResultString(errMsg)
 		res.StartNode = required
 		res.EndNode = required
-		res.Path = fmt.Sprintf("$.paths.['%s'].%s.parameters", currentPath, currentVerb)
+		res.Path = fmt.Sprintf("$.paths['%s'].%s.parameters", currentPath, currentVerb)
 		res.Rule = context.Rule
 
 		if utils.IsNodeBoolValue(required) {

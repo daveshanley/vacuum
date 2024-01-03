@@ -98,7 +98,7 @@ paths:
 				Spec:    []byte(tt.yml),
 			}
 			results := motor.ApplyRulesToRuleSet(rse)
-			assert.Len(t, results.Results, tt.n)
+			assert.Len(t, results.Results, 1)
 		})
 	}
 }

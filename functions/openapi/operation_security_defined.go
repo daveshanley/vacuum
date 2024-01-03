@@ -52,7 +52,7 @@ func (osd OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.Ru
 
 			if securityNode != nil {
 
-				basePath := fmt.Sprintf("$.paths.%s.%s", path, method)
+				basePath := fmt.Sprintf("$.paths['%s'].%s", path, method)
 
 				results = osd.checkSecurityNode(securityNode, securityDefinitions, results,
 					basePath, methodNode.Node, lastNode, context)

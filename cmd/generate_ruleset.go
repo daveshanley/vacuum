@@ -39,14 +39,14 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			// check for file args
 			if len(args) < 1 {
-				errText := "please supply 'recommended' or 'all' and a file path to output the ruleset"
+				errText := "please supply 'recommended', 'owasp' or 'all' and a file path to output the ruleset"
 				pterm.Error.Println(errText)
 				pterm.Println()
 				return errors.New(errText)
 			}
 
-			if args[0] != "recommended" && args[0] != "all" {
-				errText := fmt.Sprintf("please use 'all' or 'recommended' your choice '%s' is not valid", args[0])
+			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" {
+				errText := fmt.Sprintf("please use 'all', 'owasp' or 'recommended' your choice '%s' is not valid", args[0])
 				pterm.Error.Println(errText)
 				pterm.Println()
 				return errors.New(errText)
@@ -69,6 +69,10 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			if args[0] == "all" {
 				selectedRuleSet = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+			}
+
+			if args[0] == "owasp" {
+				selectedRuleSet = rulesets.GenerateOWASPOpenAPIRuleSet()
 			}
 
 			// this bit needs a re-think, but it works for now.

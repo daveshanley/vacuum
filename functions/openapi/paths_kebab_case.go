@@ -39,14 +39,14 @@ func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				opPath = op.Value
 				continue
 			}
-			path := fmt.Sprintf("$.paths.%s", opPath)
+			path := fmt.Sprintf("$.paths['%s']", opPath)
 			if opPath == "/" {
 				continue
 			}
 			notKebab, segments := checkPathCase(opPath)
 			if notKebab {
 				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("Path segments `%s` do not use kebab-case", strings.Join(segments, "`, `")),
+					Message:   fmt.Sprintf("path segments `%s` do not use kebab-case", strings.Join(segments, "`, `")),
 					StartNode: op,
 					EndNode:   op,
 					Path:      path,

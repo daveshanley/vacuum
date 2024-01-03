@@ -48,7 +48,7 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 							"duplicate operationId '%s'", method, path, operationId.Value),
 						StartNode: methodNode.Node,
 						EndNode:   lastNode,
-						Path:      fmt.Sprintf("$.paths.%s.%s", path, method),
+						Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
 						Rule:      context.Rule,
 					})
 				} else {

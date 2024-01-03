@@ -14,9 +14,9 @@ import (
 	"time"
 )
 
-var totalRules = 53
+var totalRules = 54
 var totalOwaspRules = 23
-var totalRecommendedRules = 42
+var totalRecommendedRules = 43
 
 func TestBuildDefaultRuleSets(t *testing.T) {
 
@@ -545,7 +545,7 @@ rules:
 	rs, err := CreateRuleSetFromData([]byte(yamlA))
 	assert.NoError(t, err)
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 44)
+	assert.Len(t, override.Rules, 45)
 	assert.Len(t, override.RuleDefinitions, 2)
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.NotNil(t, rs.Rules["dong"])
@@ -734,7 +734,7 @@ func TestRuleSet_GetExtendsLocalSpec_Multi_Chain(t *testing.T) {
 	rs, err := CreateRuleSetFromData([]byte(yaml))
 	assert.NoError(t, err)
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 54)
+	assert.Len(t, override.Rules, 55)
 	assert.Len(t, override.RuleDefinitions, 1)
 
 }

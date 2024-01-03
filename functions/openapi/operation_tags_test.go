@@ -87,8 +87,8 @@ func TestOperationTags_RunRule_NoTags(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Tags for `post` operation at path `/hello` are missing", res[0].Message)
-	assert.Equal(t, "$.paths./hello.post", res[0].Path)
+	assert.Equal(t, "tags for `post` operation at path `/hello` are missing", res[0].Message)
+	assert.Equal(t, "$.paths['/hello'].post", res[0].Path)
 
 }
 
@@ -124,8 +124,8 @@ func TestOperationTags_RunRule_EmptyTags(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Tags for `get` operation at path `/hello` are empty", res[0].Message)
-	assert.Equal(t, "$.paths./hello.get", res[0].Path)
+	assert.Equal(t, "tags for `get` operation at path `/hello` are empty", res[0].Message)
+	assert.Equal(t, "$.paths['/hello'].get", res[0].Path)
 
 }
 

@@ -1088,10 +1088,10 @@ func GetOAS2DiscriminatorRule() *model.Rule {
 // GetOAS3ExamplesRule will check the entire spec for correct example use.
 func GetOAS3ExamplesRule() *model.Rule {
 	return &model.Rule{
-		Name:         "Check all examples",
+		Name:         "Check all example schemas are valid",
 		Id:           Oas3ValidSchemaExample,
 		Formats:      model.OAS3AllFormat,
-		Description:  "Examples must be present and valid for operations and components",
+		Description:  "If an example has been used, check the schema is valid",
 		Given:        "$",
 		Resolved:     false,
 		Recommended:  true,
@@ -1099,31 +1099,69 @@ func GetOAS3ExamplesRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "oasExample",
+			Function: "oasExampleSchema",
+		},
+		HowToFix: oas3ExamplesFix,
+	}
+}
+
+func GetOAS3ExamplesMissingRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check schemas, headers, parameters and media types all have examples present.",
+		Id:           Oas3ExampleMissingCheck,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Ensure everything that can have an example, contains one",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryExamples],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "oasExampleMissing",
+		},
+		HowToFix: oas3ExamplesFix,
+	}
+}
+
+func GetOAS3ExamplesExternalCheck() *model.Rule {
+	return &model.Rule{
+		Name:         "Check schemas, headers, parameters and media types use either 'example' or 'externalValue' but not both.",
+		Id:           Oas3ExampleExternalCheck,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Examples cannot use both `value` and `externalValue` together.",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryExamples],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "oasExampleExternal",
 		},
 		HowToFix: oas3ExamplesFix,
 	}
 }
 
 // GetOAS2ExamplesRule will check the entire spec for correct example use.
-func GetOAS2ExamplesRule() *model.Rule {
-	return &model.Rule{
-		Name:         "Check all examples",
-		Id:           Oas2ValidSchemaExample,
-		Formats:      model.OAS2Format,
-		Description:  "Examples must be present and valid for operations and components",
-		Given:        "$",
-		Resolved:     false,
-		Recommended:  true,
-		RuleCategory: model.RuleCategories[model.CategoryExamples],
-		Type:         Validation,
-		Severity:     model.SeverityWarn,
-		Then: model.RuleAction{
-			Function: "oasExample",
-		},
-		HowToFix: oas3ExamplesFix,
-	}
-}
+//func GetOAS2ExamplesRule() *model.Rule {
+//	return &model.Rule{
+//		Name:         "Check all examples",
+//		Id:           Oas2ValidSchemaExample,
+//		Formats:      model.OAS2Format,
+//		Description:  "Examples must be present and valid for operations and components",
+//		Given:        "$",
+//		Resolved:     false,
+//		Recommended:  true,
+//		RuleCategory: model.RuleCategories[model.CategoryExamples],
+//		Type:         Validation,
+//		Severity:     model.SeverityWarn,
+//		Then: model.RuleAction{
+//			Function: "oasExample",
+//		},
+//		HowToFix: oas3ExamplesFix,
+//	}
+//}
 
 // NoAmbiguousPaths will check for paths that are ambiguous with one another
 func NoAmbiguousPaths() *model.Rule {

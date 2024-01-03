@@ -1,8 +1,6 @@
 package rulesets
 
 import (
-	"regexp"
-
 	"github.com/daveshanley/vacuum/model"
 )
 
@@ -66,10 +64,6 @@ func GetOWASPNoAPIKeysInURLRule() *model.Rule {
 }
 
 func GetOWASPNoCredentialsInURLRule() *model.Rule {
-
-	// create a schema to match against.
-	comp, _ := regexp.Compile(`(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`)
-
 	return &model.Rule{
 		Name:         "Security credentials detected in path parameter",
 		Id:           OwaspNoCredentialsInURL,
@@ -84,8 +78,7 @@ func GetOWASPNoCredentialsInURLRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspNoCredentialsInUrl",
 		},
-		PrecompiledPattern: comp,
-		HowToFix:           owaspNoCredentialsInURLFix,
+		HowToFix: owaspNoCredentialsInURLFix,
 	}
 }
 
@@ -207,7 +200,7 @@ func GetOWASPProtectionGlobalSafeRule() *model.Rule {
 func GetOWASPDefineErrorValidationRule() *model.Rule {
 
 	opts := make(map[string]interface{})
-	opts["codes"] = []string{"400", "422", "4XX"}
+	opts["codes"] = []interface{}{"400", "422", "4XX"}
 
 	return &model.Rule{
 		Name:         "Missing error response of either `400`, `422` or `4XX`",
@@ -280,8 +273,7 @@ func GetOWASPRateLimitRule() *model.Rule {
 	var (
 		xRatelimitLimit = "X-RateLimit-Limit"
 		xRateLimitLimit = "X-Rate-Limit-Limit"
-		ratelimitLimit  = "RateLimit-Limit"
-		ratelimitReset  = "RateLimit-Reset"
+		ratelimitLimit  = "RateLimit-Limit||RateLimit-Reset"
 	)
 
 	return &model.Rule{
@@ -298,10 +290,10 @@ func GetOWASPRateLimitRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspHeaderDefinition",
 			FunctionOptions: map[string]interface{}{
-				"headers": [][]string{
-					{xRatelimitLimit},
-					{xRateLimitLimit},
-					{ratelimitLimit, ratelimitReset},
+				"headers": []string{
+					xRatelimitLimit,
+					xRateLimitLimit,
+					ratelimitLimit,
 				},
 			},
 		},

@@ -39,11 +39,11 @@ func (vp VerbsInPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionCon
 				opPath = op.Value
 				continue
 			}
-			path := fmt.Sprintf("$.paths.%s", opPath)
+			path := fmt.Sprintf("$.paths['%s']", opPath)
 			containsVerb, verb := checkPath(opPath)
 			if containsVerb {
 				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("Path `%s` contains an HTTP Verb `%s`", opPath, verb),
+					Message:   fmt.Sprintf("path `%s` contains an HTTP Verb `%s`", opPath, verb),
 					StartNode: op,
 					EndNode:   op,
 					Path:      path,

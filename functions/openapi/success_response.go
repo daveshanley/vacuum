@@ -101,10 +101,10 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 							if !responseSeen {
 								results = append(results, model.RuleFunctionResult{
-									Message:   fmt.Sprintf("Operation `%s` must define at least a single `2xx` or `3xx` response", name),
+									Message:   fmt.Sprintf("operation `%s` must define at least a single `2xx` or `3xx` response", name),
 									StartNode: fieldNode,
 									EndNode:   endNode,
-									Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
+									Path:      fmt.Sprintf("$.paths['%s'].%s.%s", currentPath, currentVerb, context.RuleAction.Field),
 									Rule:      context.Rule,
 								})
 							}
@@ -112,11 +112,11 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 							if responseInvalidType {
 								for i := range invalidCodes {
 									results = append(results, model.RuleFunctionResult{
-										Message: fmt.Sprintf("Operation `%s` uses an `integer` instead of a `string` "+
+										Message: fmt.Sprintf("operation `%s` uses an `integer` instead of a `string` "+
 											"for response code `%d`", name, invalidCodes[i]),
 										StartNode: fieldNode,
 										EndNode:   endNode,
-										Path:      fmt.Sprintf("$.paths.%s.%s.%s", currentPath, currentVerb, context.RuleAction.Field),
+										Path:      fmt.Sprintf("$.paths['%s'].%s.%s", currentPath, currentVerb, context.RuleAction.Field),
 										Rule:      context.Rule,
 									})
 								}

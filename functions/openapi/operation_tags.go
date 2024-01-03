@@ -83,10 +83,10 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 					endNode := utils.FindLastChildNodeWithLevel(verbNode, 0)
 					var msg string
 					if opTagsNode == nil {
-						msg = fmt.Sprintf("Tags for `%s` operation at path `%s` are missing",
+						msg = fmt.Sprintf("tags for `%s` operation at path `%s` are missing",
 							currentVerb, currentPath)
 					} else {
-						msg = fmt.Sprintf("Tags for `%s` operation at path `%s` are empty",
+						msg = fmt.Sprintf("tags for `%s` operation at path `%s` are empty",
 							currentVerb, currentPath)
 					}
 
@@ -94,7 +94,7 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						Message:   msg,
 						StartNode: verbMapNode,
 						EndNode:   endNode,
-						Path:      fmt.Sprintf("$.paths.%s.%s", currentPath, currentVerb),
+						Path:      fmt.Sprintf("$.paths['%s'].%s", currentPath, currentVerb),
 						Rule:      context.Rule,
 					})
 				}
