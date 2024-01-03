@@ -118,7 +118,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// generate html report
 			report := html_report.NewHTMLReport(specIndex, specInfo, resultSet, stats, disableTimestamp)
 
-			generatedBytes := report.GenerateReport(false)
+			generatedBytes := report.GenerateReport(false, Version)
 			//generatedBytes := report.GenerateReport(true) // test mode
 
 			err = os.WriteFile(reportOutput, generatedBytes, 0664)

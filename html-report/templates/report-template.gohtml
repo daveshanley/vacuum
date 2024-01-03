@@ -9,7 +9,7 @@
                 <a href="https://quobix.com/vacuum" class="no-style">vacuum report</a>
             </div>
         </header>
-        <div class="generated"> {{- if not .DisableTimestamp -}}Generated: {{ timeGenerated .Generated }}{{- end -}}</div>
+        <div class="generated"> [{{ .Version }}] {{ if not .DisableTimestamp -}}Generated: {{ timeGenerated .Generated }}{{- end -}}</div>
         <div class="mobile-warning">
             The mobile experience is still being developed. This may look/feel a bit odd for now.
         </div>
