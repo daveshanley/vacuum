@@ -53,7 +53,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 			currentVerb := method
 			currentPath := path
 
-			resultPath := fmt.Sprintf("$.paths.%s.%s.parameters", path, currentVerb)
+			resultPath := fmt.Sprintf("$.paths['%s'].%s.parameters", path, currentVerb)
 
 			for _, params := range methodNode {
 				for _, param := range params {

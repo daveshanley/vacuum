@@ -49,7 +49,7 @@ func (ost OperationSingleTag) RunRule(nodes []*yaml.Node, context model.RuleFunc
 						"than one tag (%d is too many)'", method, path, len(tags)),
 					StartNode: tagsNode,
 					EndNode:   lastNode,
-					Path:      fmt.Sprintf("$.paths.%s.%s", path, method),
+					Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
 					Rule:      context.Rule,
 				})
 			}

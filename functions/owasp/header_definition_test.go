@@ -2,6 +2,7 @@ package owasp
 
 import (
 	"fmt"
+	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"testing"
 
@@ -60,16 +61,17 @@ paths:
 		panic(fmt.Sprintf("cannot create new document: %e", err))
 	}
 
-	document.BuildV3Model()
+	m, _ := document.BuildV3Model()
 	path := "$"
 
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	rule := buildOpenApiTestRuleAction(path, "header_definition", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
-		"headers": [][]string{{"Accept", "Cache-Control"}, {"Content-Type"}},
+		"headers": []string{"Accept||Cache-Control", "Content-Type"},
 	})
-	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
 	def := HeaderDefinition{}
 	ctx.Rule = &rule
 

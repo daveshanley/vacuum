@@ -68,7 +68,7 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 						if in != nil {
 							if desc == nil || desc.Value == "" {
-								pathString := fmt.Sprintf("$.paths.%s.%s.parameters", path, method)
+								pathString := fmt.Sprintf("$.paths['%s'].%s.parameters", path, method)
 								results = append(results, model.RuleFunctionResult{
 									Message:   fmt.Sprintf(msg, pName),
 									StartNode: param.Node,

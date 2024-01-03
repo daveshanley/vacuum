@@ -30,7 +30,11 @@ func (cd DefineErrorDefinition) RunRule(_ []*yaml.Node, context model.RuleFuncti
 	}
 
 	// iterate through all paths looking for responses
-	codes := utils.ExtractValueFromInterfaceMap("codes", context.Options).([]string)
+	rawCodes := utils.ExtractValueFromInterfaceMap("codes", context.Options).([]interface{})
+	codes := make([]string, len(rawCodes))
+	for i, v := range rawCodes {
+		codes[i] = v.(string)
+	}
 
 	if context.DrDocument == nil {
 		return results

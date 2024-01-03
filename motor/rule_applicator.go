@@ -88,9 +88,8 @@ const CircularReferencesFix string = "Circular references are created by schemas
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
 // uses a message structure, to allow the signature to grow, without breaking anything.
 func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
-	fmt.Println("applying rules")
-	nowa := time.Now()
 
+	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
 	var ruleWaitGroup sync.WaitGroup
@@ -144,6 +143,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfig.Logger = execution.Logger
 	}
 
+	indexConfig.Logger.Debug("applying rules to rule set")
+
 	if execution.Base != "" {
 		// check if this is a URL or not
 		u, e := url.Parse(execution.Base)
@@ -189,8 +190,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// otherwise update the configuration with the supplied document.
 	// and build it.
 
-	fmt.Println("building docs")
-	nowb := time.Now()
+	indexConfig.Logger.Debug("building documents")
+	nowDocs := time.Now()
 
 	var specInfo, specInfoUnresolved *datamodel.SpecInfo
 	if docResolved == nil {
@@ -247,8 +248,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfigUnresolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
 	}
 
-	thenb := time.Since(nowb).Milliseconds()
-	fmt.Printf("built docs in %d ms\n", thenb)
+	timeTaken := time.Since(nowDocs).Milliseconds()
+	indexConfig.Logger.Debug("building docs completed", "ms", timeTaken)
 
 	// build model
 	var resolvedModelErrors []error
@@ -262,8 +263,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
 
-	fmt.Println("building model")
-	nowc := time.Now()
+	indexConfig.Logger.Debug("building document models")
+	nowModel := time.Now()
 
 	var v3DocumentModel *v3.Document
 	//var v2DocumentModel *v2.Swagger
@@ -296,27 +297,24 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 		case '3':
 
-			fmt.Println("building resolved model")
-			nowd := time.Now()
-
+			now = time.Now()
 			var mod *libopenapi.DocumentModel[v3.Document]
 			_, resolvedModelErrors = docResolved.BuildV3Model()
 
 			rolodexResolved = docResolved.GetRolodex()
 
-			then := time.Since(nowd).Milliseconds()
-			fmt.Printf("built resolved model in %d ms\n", then)
-			fmt.Println("building unresolved model")
+			then := time.Since(now).Milliseconds()
+			indexConfig.Logger.Debug("built resolved model", "ms", then)
 
-			nowc = time.Now()
+			now = time.Now()
 			mod, _ = docUnresolved.BuildV3Model()
 			if mod != nil {
 				v3DocumentModel = &mod.Model
 			}
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
-			then = time.Since(nowd).Milliseconds()
-			fmt.Printf("built unresolved model in %d ms\n", then)
+			then = time.Since(now).Milliseconds()
+			indexConfig.Logger.Debug("built unresolved model", "ms", then)
 
 			indexResolved = rolodexResolved.GetRootIndex()
 			indexUnresolved = rolodexUnresolved.GetRootIndex()
@@ -329,11 +327,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			})
 			wg.Go(func() {
 				// we only resolve one.
-				fmt.Println("resolving")
-				now := time.Now()
+				resolvedTime := time.Now()
 				rolodexResolved.Resolve()
-				then = time.Since(now).Milliseconds()
-				fmt.Printf("resolved in %d ms\n", then)
+				resolvedTaken := time.Since(resolvedTime).Milliseconds()
+				indexConfig.Logger.Debug("resolved model", "ms", resolvedTaken)
 			})
 			wg.Wait()
 			specResolved = rolodexResolved.GetRootIndex().GetRootNode()
@@ -382,8 +379,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	}
 
-	then := time.Since(nowc).Milliseconds()
-	fmt.Printf("built model in %d ms\n", then)
+	then := time.Since(nowModel).Milliseconds()
+	indexConfig.Logger.Debug("built model", "ms", then)
 
 	for i := range resolvedModelErrors {
 		var m *index.ResolvingError
@@ -505,30 +502,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	}
 
-	// build the dr document
-	//var drDocument *doctor.DrDocument
-	//if version != "" {
-	//	switch version[0] {
-	//	case '2':
-	//		// TODO: change to swagger
-	//		if v2DocumentModel != nil {
-	//			drDocument = &doctor.DrDocument{}
-	//			drDocument.walkV3(v3DocumentModel)
-	//		}
-	//	case '3':
-	//		if v3DocumentModel != nil {
-	//
-	//		}
-	//
-	//	}
-	//}
-
 	if execution.RuleSet != nil {
 
 		totalRules := len(execution.RuleSet.Rules)
 		done := make(chan bool)
-		fmt.Println("running rules")
-		now := time.Now()
+		indexConfig.Logger.Debug("running rules", "total", totalRules)
+		now = time.Now()
 		for _, rule := range execution.RuleSet.Rules {
 
 			go func(rule *model.Rule, done chan bool) {
@@ -589,14 +568,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			<-done
 			completed++
 		}
-		then := time.Since(now).Milliseconds()
-		fmt.Printf("ran %d rules in %d ms\n", totalRules, then)
+		then = time.Since(now).Milliseconds()
+		indexConfig.Logger.Debug("rules completed", "totalRules", totalRules, "ms", then)
 	}
 
 	ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
 
-	theb := time.Since(nowa).Milliseconds()
-	fmt.Printf("applied rules in %d ms\n", theb)
+	then = time.Since(now).Milliseconds()
+	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
 
 	return &RuleSetExecutionResult{
 		RuleSetExecution: execution,

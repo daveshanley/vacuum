@@ -62,11 +62,9 @@ paths:
 
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
-	assert.Equal(t, "missing response code '401' for 'GET'", res[0].Message)
-	assert.Equal(t, "$.paths./.get.responses", res[0].Path)
-	assert.Equal(t, "missing schema for '401' response on 'GET'", res[1].Message)
-	assert.Equal(t, "$.paths./.get.responses", res[1].Path)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "missing response code `401` for `GET`", res[0].Message)
+	assert.Equal(t, "$.paths['/'].get.responses", res[0].Path)
 }
 
 func TestCheckErrorResponse_ErrorDefinitionMissing_Pass(t *testing.T) {
@@ -152,6 +150,6 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "missing schema for '401' response on 'GET'", res[0].Message)
-	assert.Equal(t, "$.paths./.get.responses", res[0].Path)
+	assert.Equal(t, "missing schema for `401` response on `GET`", res[0].Message)
+	assert.Equal(t, "$.paths['/'].get.responses['401']", res[0].Path)
 }

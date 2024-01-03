@@ -30,7 +30,7 @@ func TestCreateReportStatistics(t *testing.T) {
 	assert.Equal(t, 9, stats.Parameters)
 }
 
-func TestCreateReportStatistics_Perfect(t *testing.T) {
+func TestCreateReportStatistics_AlmostPerfect(t *testing.T) {
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
@@ -44,7 +44,9 @@ func TestCreateReportStatistics_Perfect(t *testing.T) {
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
-	assert.Equal(t, 100, stats.OverallScore)
+	//assert.Equal(t, 100, stats.OverallScore)
+	// new missing examples function is now strict / correct
+	assert.Equal(t, 95, stats.OverallScore)
 
 }
 

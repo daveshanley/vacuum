@@ -48,7 +48,7 @@ paths:
 	nodes, _ := utils.FindNodes([]byte(yml), path)
 
 	opts := make(map[string]interface{})
-	opts["codes"] = []string{"400", "4XX"}
+	opts["codes"] = []interface{}{"400", "4XX"}
 
 	rule := buildOpenApiTestRuleAction(path, "define_error_definition", "", opts)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)

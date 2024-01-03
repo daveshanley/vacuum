@@ -37,7 +37,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	// does the 'servers' node exist?
 	if rootServersNode == nil && rootServers == nil {
 		results = append(results, model.RuleFunctionResult{
-			Message:   "No servers defined for the specification",
+			Message:   "no servers defined for the specification",
 			StartNode: context.Index.GetRootNode(),
 			EndNode:   utils.FindLastChildNodeWithLevel(context.Index.GetRootNode(), 0),
 			Path:      "$.servers",
@@ -48,7 +48,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	// check that we actually have something defined by the node.
 	if rootServersNode != nil && len(rootServers) < 1 {
 		results = append(results, model.RuleFunctionResult{
-			Message:   "Servers definition is empty, contains no servers!",
+			Message:   "servers definition is empty, contains no servers!",
 			StartNode: rootServersNode,
 			EndNode:   rootServersNode,
 			Path:      "$.servers",
@@ -61,7 +61,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		urlLabelNode, urlNode := utils.FindKeyNode("url", serverRef.Node.Content)
 		if urlNode == nil {
 			results = append(results, model.RuleFunctionResult{
-				Message:   "Server definition is missing a URL",
+				Message:   "server definition is missing a URL",
 				StartNode: serverRef.Node,
 				EndNode:   utils.FindLastChildNodeWithLevel(serverRef.Node, 0),
 				Path:      fmt.Sprintf("$.servers[%d]", i),
@@ -79,7 +79,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		parsed, err := url.Parse(urlNode.Value)
 		if err != nil {
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Server URL cannot be parsed: %s", err.Error()),
+				Message:   fmt.Sprintf("server URL cannot be parsed: %s", err.Error()),
 				StartNode: urlLabelNode,
 				EndNode:   urlNode,
 				Path:      fmt.Sprintf("$.servers[%d].url", i),

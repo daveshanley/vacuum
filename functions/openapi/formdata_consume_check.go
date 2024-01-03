@@ -72,7 +72,7 @@ func (fd FormDataConsumeCheck) paramCheck(paramMap map[string][]*index.Reference
 				Message:   fmt.Sprintf("parameter value for '%s' is empty / missing", paramName),
 				StartNode: consumesNode,
 				EndNode:   consumesNode,
-				Path:      fmt.Sprintf("$.%s.%s.parameters", path, method),
+				Path:      fmt.Sprintf("$.paths['%s'].%s.parameters", path, method),
 				Rule:      context.Rule,
 			})
 			continue
@@ -82,9 +82,9 @@ func (fd FormDataConsumeCheck) paramCheck(paramMap map[string][]*index.Reference
 			inNodeStart, inNode := utils.FindKeyNode("in", paramNode[r].Node.Content)
 			if inNode != nil && inNode.Value == "formData" {
 
-				pathString := fmt.Sprintf("$.%s.%s.parameters", path, method)
+				pathString := fmt.Sprintf("$.paths['%s'].%s.parameters", path, method)
 				if top {
-					pathString = fmt.Sprintf("$.%s.parameters", path)
+					pathString = fmt.Sprintf("$.paths['%s'].parameters", path)
 				}
 
 				// using formData without a consumes sequence.

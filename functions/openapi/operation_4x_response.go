@@ -61,7 +61,7 @@ func (or Operation4xResponse) RunRule(nodes []*yaml.Node, context model.RuleFunc
 				}
 				if !seen {
 					results = append(results, model.RuleFunctionResult{
-						Message:   "Operation must define at least one 4xx error response",
+						Message:   "operation must define at least one 4xx error response",
 						StartNode: method,
 						EndNode:   utils.FindLastChildNodeWithLevel(method, 0),
 						Path:      basePath,

@@ -9,6 +9,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
+	"regexp"
 )
 
 type NoCredentialsInUrl struct{}
@@ -17,6 +18,8 @@ type NoCredentialsInUrl struct{}
 func (c NoCredentialsInUrl) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_credentials_in_url"}
 }
+
+var noCredsRxp, _ = regexp.Compile(`(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`)
 
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (c NoCredentialsInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
@@ -33,7 +36,7 @@ func (c NoCredentialsInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionCo
 	for _, param := range params {
 		if param.Value.In == "query" || param.Value.In == "path" {
 
-			if context.Rule.PrecompiledPattern.MatchString(param.Value.Name) {
+			if noCredsRxp.MatchString(param.Value.Name) {
 				node := param.Value.GoLow().Name.KeyNode
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
