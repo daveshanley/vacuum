@@ -37,7 +37,6 @@ paths:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := NoNumericIds{}
 	ctx.Document = document
@@ -76,7 +75,6 @@ components:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := NoNumericIds{}
 	ctx.Document = document
@@ -116,7 +114,6 @@ paths:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := NoNumericIds{}
 	ctx.Document = document
@@ -156,7 +153,6 @@ paths:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := NoNumericIds{}
 	ctx.Document = document

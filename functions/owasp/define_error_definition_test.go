@@ -54,7 +54,7 @@ paths:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
 
 	drDocument := drModel.NewDrDocument(m)
-	
+
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
 

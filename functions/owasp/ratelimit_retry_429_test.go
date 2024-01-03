@@ -44,7 +44,7 @@ paths:
 	def := RatelimitRetry429{}
 	ctx.Document = document
 	drDocument := drModel.NewDrDocument(m)
-	
+
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
 
@@ -85,7 +85,7 @@ paths:
 	def := RatelimitRetry429{}
 	ctx.Document = document
 	drDocument := drModel.NewDrDocument(m)
-	
+
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
 

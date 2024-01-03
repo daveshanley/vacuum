@@ -30,7 +30,6 @@ components:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := IntegerFormat{}
 	ctx.Document = document
@@ -64,7 +63,6 @@ components:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := IntegerFormat{}
 	ctx.Document = document
@@ -98,7 +96,6 @@ components:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := IntegerFormat{}
 	ctx.Document = document
@@ -129,7 +126,6 @@ components:
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	def := IntegerFormat{}
 	ctx.Document = document

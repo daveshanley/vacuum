@@ -49,7 +49,6 @@ components:
 	path := "$"
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -100,7 +99,6 @@ components:
 	path := "$"
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -147,7 +145,6 @@ components:
 	path := "$"
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -184,7 +181,6 @@ paths:
 	path := "$"
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -223,7 +219,6 @@ paths:
 	path := "$"
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
@@ -269,7 +264,6 @@ components:
 	path := "$"
 
 	drDocument := drModel.NewDrDocument(m)
-	
 
 	rule := buildOpenApiTestRuleAction(path, "check_security", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{

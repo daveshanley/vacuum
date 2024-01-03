@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ExamplesMissing wi
+// ExamplesMissing will check anything that can have an example, has one.
 type ExamplesMissing struct {
 }
 
