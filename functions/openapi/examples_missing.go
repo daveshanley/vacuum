@@ -40,12 +40,24 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		return result
 	}
 
+	isExampleNodeNull := func(nodes []*yaml.Node) bool {
+		if len(nodes) <= 0 {
+			return true
+		}
+		for i, _ := range nodes {
+			if nodes[i] == nil || nodes[i].Tag == "!!null" {
+				return true
+			}
+		}
+		return false
+	}
+
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			s := context.DrDocument.Schemas[i]
-			if s.Value.Examples == nil && s.Value.Example == nil {
+			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
 				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing examples"),
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 						s.GenerateJSONPath(),
 						s.Value.ParentProxy.GetSchemaKeyNode(), s))
 
@@ -56,9 +68,9 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Parameters != nil {
 		for i := range context.DrDocument.Parameters {
 			p := context.DrDocument.Parameters[i]
-			if p.Value.Examples.Len() <= 0 {
+			if p.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{p.Value.Example}) {
 				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing examples"),
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing `examples` or `example`"),
 						p.GenerateJSONPath(),
 						p.Value.GoLow().RootNode, p))
 			}
@@ -68,9 +80,9 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Headers != nil {
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
-			if h.Value.Examples.Len() <= 0 {
+			if h.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{h.Value.Example}) {
 				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "header is missing examples"),
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "header is missing `examples` or `example`"),
 						h.GenerateJSONPath(),
 						h.Value.GoLow().RootNode, h))
 			}
@@ -79,12 +91,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 	if context.DrDocument.MediaTypes != nil {
 		for i := range context.DrDocument.MediaTypes {
-			h := context.DrDocument.MediaTypes[i]
-			if h.Value.Examples.Len() <= 0 {
+			mt := context.DrDocument.MediaTypes[i]
+			if mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
 				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing examples"),
-						h.GenerateJSONPath(),
-						h.Value.GoLow().RootNode, h))
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
+						mt.GenerateJSONPath(),
+						mt.Value.GoLow().RootNode, mt))
 			}
 		}
 	}
