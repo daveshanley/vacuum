@@ -74,7 +74,9 @@ func MapBuiltinFunctions() Functions {
 		funcs["duplicatedEnum"] = openapi_functions.DuplicatedEnum{}
 		funcs["noEvalDescription"] = openapi_functions.NoEvalInDescriptions{}
 		funcs["oasUnusedComponent"] = openapi_functions.UnusedComponent{}
-		funcs["oasExample"] = openapi_functions.Examples{}
+		funcs["oasExampleMissing"] = openapi_functions.ExamplesMissing{}
+		funcs["oasExampleExternal"] = openapi_functions.ExamplesExternalCheck{}
+		funcs["oasExampleSchema"] = openapi_functions.ExamplesSchema{}
 		funcs["oasSchema"] = core.Schema{} // can't see a reason to duplicate this yet.
 		funcs["oasDescriptions"] = openapi_functions.OperationDescription{}
 		funcs["oasDescriptionDuplication"] = openapi_functions.DescriptionDuplication{}

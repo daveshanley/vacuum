@@ -57,7 +57,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
-	assert.Equal(t, "schema is missing examples", res[0].Message)
+	assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
 	assert.Contains(t, res[0].Path, "$.paths['/pizza'].get.requestBody.content['application/json']")
 }
 
@@ -95,7 +95,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 3)
-	assert.Equal(t, "schema is missing examples", res[0].Message)
+	assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
 	assert.Contains(t, res[1].Path, "$.components.schemas['Pizza'].properties")
 }
 
@@ -131,7 +131,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "header is missing examples", res[0].Message)
+	assert.Equal(t, "header is missing `examples` or `example`", res[0].Message)
 	assert.Equal(t, "$.paths['/cake'].get.responses['200'].headers['bingo']", res[0].Path)
 
 }
@@ -164,7 +164,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "header is missing examples", res[0].Message)
+	assert.Equal(t, "header is missing `examples` or `example`", res[0].Message)
 	assert.Equal(t, "$.components.headers['Cake']", res[0].Path)
 
 }
@@ -200,7 +200,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "media type is missing examples", res[0].Message)
+	assert.Equal(t, "media type is missing `examples` or `example`", res[0].Message)
 	assert.Equal(t, "$.paths['/herbs'].get.requestBody.content['application/json']", res[0].Path)
 
 }
@@ -235,7 +235,43 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "media type is missing examples", res[0].Message)
+	assert.Equal(t, "media type is missing `examples` or `example`", res[0].Message)
 	assert.Equal(t, "$.components.requestBodies['Herbs'].content['slapsication/json']", res[0].Path)
+
+}
+
+func TestExamplesMissing_MediaType_EmptyArray(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Herby:
+      type: object
+      examples:
+        -
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['Herby']", res[0].Path)
 
 }
