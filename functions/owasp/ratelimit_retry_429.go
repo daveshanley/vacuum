@@ -41,26 +41,28 @@ func (r RatelimitRetry429) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 				if respCode == "429" {
 
 					var node *yaml.Node
-					foundHeader := resp.Headers.GetOrZero("Retry-After")
-					if foundHeader == nil {
-						lowCodes := opValue.Responses.Value.GoLow().Codes
-						for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
-							lowCodeKey := lowCodePairs.Key()
-							codeCodeVal := lowCodeKey.KeyNode.Value
-							if codeCodeVal == "429" {
-								node = lowCodeKey.KeyNode
+					if resp.Headers != nil {
+						foundHeader := resp.Headers.GetOrZero("Retry-After")
+						if foundHeader == nil {
+							lowCodes := opValue.Responses.Value.GoLow().Codes
+							for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
+								lowCodeKey := lowCodePairs.Key()
+								codeCodeVal := lowCodeKey.KeyNode.Value
+								if codeCodeVal == "429" {
+									node = lowCodeKey.KeyNode
+								}
 							}
+							result := model.RuleFunctionResult{
+								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+									"missing 'Retry-After' header for 429 error response"),
+								StartNode: node,
+								EndNode:   node,
+								Path:      fmt.Sprintf("$.paths.%s.%s.responses.429", pathPairs.Key(), opType),
+								Rule:      context.Rule,
+							}
+							resp.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+							results = append(results, result)
 						}
-						result := model.RuleFunctionResult{
-							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-								"missing 'Retry-After' header for 429 error response"),
-							StartNode: node,
-							EndNode:   node,
-							Path:      fmt.Sprintf("$.paths.%s.%s.responses.429", pathPairs.Key(), opType),
-							Rule:      context.Rule,
-						}
-						resp.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-						results = append(results, result)
 					}
 				}
 			}
