@@ -44,7 +44,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		if len(nodes) <= 0 {
 			return true
 		}
-		for i, _ := range nodes {
+		for i := range nodes {
 			if nodes[i] == nil || nodes[i].Tag == "!!null" {
 				return true
 			}

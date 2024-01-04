@@ -43,7 +43,7 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			// iterate through duplicate results and add results.
 			for _, res := range duplicates {
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("enum contains a duplicate: %s", res.Value),
+					Message:   fmt.Sprintf("enum contains a duplicate: `%s`", res.Value),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "enum"),
