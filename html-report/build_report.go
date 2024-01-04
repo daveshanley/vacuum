@@ -197,10 +197,12 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 	cats := model.RuleCategoriesOrdered
 
 	var catsFiltered []*model.RuleCategory
-	for i := range cats {
-		res := html.results.GetResultsByRuleCategory(cats[i].Id)
-		if len(res) >= 1 {
-			catsFiltered = append(catsFiltered, cats[i])
+	if html.results != nil {
+		for i := range cats {
+			res := html.results.GetResultsByRuleCategory(cats[i].Id)
+			if len(res) >= 1 {
+				catsFiltered = append(catsFiltered, cats[i])
+			}
 		}
 	}
 	n := []*model.RuleCategory{model.RuleCategories[model.CategoryAll]}

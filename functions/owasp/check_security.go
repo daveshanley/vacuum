@@ -114,7 +114,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 			}
 
 			if !nullable && len(opValue.Security) >= 1 {
-				for i, _ := range opValue.Security {
+				for i := range opValue.Security {
 					if opValue.Security[i].Value.Requirements == nil || opValue.Security[i].Value.Requirements.Len() <= 0 {
 						securityNode := opValue.Security[i].Value.GoLow().Requirements.ValueNode
 						result := model.RuleFunctionResult{

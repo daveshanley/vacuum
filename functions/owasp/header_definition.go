@@ -52,9 +52,8 @@ func (cd HeaderDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 		}
 	}
 	if castedHeaders, ok := methodsMap.([]string); ok {
-		for _, header := range castedHeaders {
-			headers = append(headers, header)
-		}
+		headers = append(headers, castedHeaders...)
+
 	}
 	// compose header sets from header inputs
 	var headerSets [][]string

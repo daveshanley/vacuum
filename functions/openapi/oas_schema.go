@@ -63,7 +63,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
 			}
 			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Schema: %v", validationErrors[i].SchemaValidationErrors[y].Reason),
+				Message:   fmt.Sprintf("schema invalid: %v", validationErrors[i].SchemaValidationErrors[y].Reason),
 				StartNode: n,
 				EndNode:   n,
 				Path:      location,

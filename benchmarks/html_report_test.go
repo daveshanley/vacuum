@@ -33,7 +33,7 @@ func BenchmarkHtmlReport_GenerateReport(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		// generate html report
 		report := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, false)
-		report.GenerateReport(true)
+		report.GenerateReport(true, "")
 
 	}
 
@@ -60,10 +60,10 @@ func BenchmarkHtmlReport_GenerateReportIdentical(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		// generate html reports and compare hash
 		reportA := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
-		reportABytes := reportA.GenerateReport(false)
+		reportABytes := reportA.GenerateReport(false, "")
 
 		reportB := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
-		reportBBytes := reportB.GenerateReport(false)
+		reportBBytes := reportB.GenerateReport(false, "")
 
 		hashA := sha256.Sum256(reportABytes)
 		hashB := sha256.Sum256(reportBBytes)
@@ -93,16 +93,16 @@ func TestHtmlReport_GenerateReportIdenticalRun200(t *testing.T) {
 	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
 	reportZero := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
-	reportZeroBytes := reportZero.GenerateReport(false)
+	reportZeroBytes := reportZero.GenerateReport(false, "")
 	hashZero := sha256.Sum256(reportZeroBytes)
 
 	for n := 0; n < 200; n++ {
 		// generate html reports and compare hash
 		reportA := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
-		reportABytes := reportA.GenerateReport(false)
+		reportABytes := reportA.GenerateReport(false, "")
 
 		reportB := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
-		reportBBytes := reportB.GenerateReport(false)
+		reportBBytes := reportB.GenerateReport(false, "")
 
 		hashA := sha256.Sum256(reportABytes)
 		hashB := sha256.Sum256(reportBBytes)

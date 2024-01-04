@@ -278,7 +278,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			rolodexResolved = docResolved.GetRolodex()
 
 			docUnresolved.BuildV2Model()
-			//v2DocumentModel = &mod.Model
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
 			indexResolved = rolodexResolved.GetRootIndex()
@@ -299,6 +298,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			now = time.Now()
 			var mod *libopenapi.DocumentModel[v3.Document]
+
 			_, resolvedModelErrors = docResolved.BuildV3Model()
 
 			rolodexResolved = docResolved.GetRolodex()
