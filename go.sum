@@ -150,10 +150,10 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
-github.com/pb33f/doctor v0.0.0-20231227220919-69d2670deefa h1:+rSCiDiViNBTjR7gMXpFqQ9+9lPIunJc354xu5R7KFQ=
-github.com/pb33f/doctor v0.0.0-20231227220919-69d2670deefa/go.mod h1:obGeUAMA+aZ3GAEJmhrF8WLv0lGvHlXXLlYyRWCE6Uc=
-github.com/pb33f/libopenapi v0.14.4 h1:NbcYaBbG/6pnJM8lw4F6b5e54HandyKF452HUl4+9j4=
-github.com/pb33f/libopenapi v0.14.4/go.mod h1:m+4Pwri31UvcnZjuP8M7TlbR906DXJmMvYsbis234xg=
+github.com/pb33f/doctor v0.0.1 h1:Pz0G6LIyzAOk/2wvFq2eCueB8aGeFK06Q2qA9D+67U4=
+github.com/pb33f/doctor v0.0.1/go.mod h1:z5Z/PiideJICcskE7W7LhvwjsfvuvGhmNNabyrZmTlc=
+github.com/pb33f/libopenapi v0.14.5 h1:BOwqHe99CWQWDAkbJEY2joWiJ8+jqKBC065wqYrFXBs=
+github.com/pb33f/libopenapi v0.14.5/go.mod h1:m+4Pwri31UvcnZjuP8M7TlbR906DXJmMvYsbis234xg=
 github.com/pb33f/libopenapi-validator v0.0.37 h1:nD6c010yxaFs3hJC+I5esAXf0VE6QLV1iTGkpCXz7W4=
 github.com/pb33f/libopenapi-validator v0.0.37/go.mod h1:nWO4jDe3dJwRskfEl2SAtV9LlCJ5ClCB+OBw2E7splo=
 github.com/pelletier/go-toml/v2 v2.1.0 h1:FnwAJ4oYMvbT/34k9zzHuZNrhlz48GB3/s6at6/MHO4=
@@ -168,8 +168,8 @@ github.com/pterm/pterm v0.12.31/go.mod h1:32ZAWZVXD7ZfG0s8qqHXePte42kdz8ECtRyEej
 github.com/pterm/pterm v0.12.33/go.mod h1:x+h2uL+n7CP/rel9+bImHD5lF3nM9vJj80k9ybiiTTE=
 github.com/pterm/pterm v0.12.36/go.mod h1:NjiL09hFhT/vWjQHSj1athJpx6H8cjpHXNAK5bUw8T8=
 github.com/pterm/pterm v0.12.40/go.mod h1:ffwPLwlbXxP+rxT0GsgDTzS3y3rmpAO1NMjUkGTYf8s=
-github.com/pterm/pterm v0.12.72 h1:1W7Oqi5yjEvrI0QroBqUefqXKJW4aD8/wAuqqd5qj0Q=
-github.com/pterm/pterm v0.12.72/go.mod h1:+M33aZWQVpmLmLbvjykyGZ4gAfeebznRo8JMbabaxQU=
+github.com/pterm/pterm v0.12.74 h1:fPsds9KisCyJh4NyY6bv8QJt3FLHceb5DxI6W0An9cc=
+github.com/pterm/pterm v0.12.74/go.mod h1:+M33aZWQVpmLmLbvjykyGZ4gAfeebznRo8JMbabaxQU=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.4 h1:8TfxU8dW6PdqD27gjM8MVNuicgxIjxpm4K7x4jp8sis=
 github.com/rivo/uniseg v0.4.4/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
