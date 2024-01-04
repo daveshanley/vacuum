@@ -54,6 +54,7 @@ func GetLintCommand() *cobra.Command {
 			noMessage, _ := cmd.Flags().GetBool("no-message")
 			allResults, _ := cmd.Flags().GetBool("all-results")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -103,6 +104,24 @@ func GetLintCommand() *cobra.Command {
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 			customFunctions, _ := LoadCustomFunctions(functionsFlag)
+
+			// HARD MODE
+			if hardModeFlag {
+				selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+
+				// extract all OWASP Rules
+				owaspRules := rulesets.GetAllOWASPRules()
+				allRules := selectedRS.Rules
+				for k, v := range owaspRules {
+					allRules[k] = v
+				}
+				if !silent {
+					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
+					pterm.Println()
+				}
+			}
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
@@ -269,6 +288,7 @@ type lintFileRequest struct {
 	totalFiles       int
 	fileIndex        int
 	timeoutFlag      int
+	hardModeFlag     bool
 	defaultRuleSets  rulesets.RuleSets
 	selectedRS       *rulesets.RuleSet
 	functions        map[string]model.RuleFunction

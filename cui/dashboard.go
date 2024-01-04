@@ -91,19 +91,30 @@ func (dash *Dashboard) Render() error {
 	defer ui.Close()
 
 	// extract categories and calculate coverage.
+
 	var gauges []CategoryGauge
-	var cats []*model.RuleCategory
-	for _, cat := range model.RuleCategoriesOrdered {
+	cats := model.RuleCategoriesOrdered
+
+	var catsFiltered []*model.RuleCategory
+	if dash.resultSet != nil {
+		for i := range cats {
+			res := dash.resultSet.GetResultsByRuleCategory(cats[i].Id)
+			if len(res) >= 1 {
+				catsFiltered = append(catsFiltered, cats[i])
+			}
+		}
+	}
+
+	for _, cat := range catsFiltered {
 		score := dash.resultSet.CalculateCategoryHealth(cat.Id)
 		gauges = append(gauges, NewCategoryGauge(cat.Name, score, cat))
-		cats = append(cats, cat)
 	}
 
 	// todo: create a formula for this.
 	gauges = append(gauges, NewCategoryGauge("Overall Health", 12, model.RuleCategoriesOrdered[0]))
 
 	dash.categoryHealthGauge = gauges
-	dash.ruleCategories = cats
+	dash.ruleCategories = catsFiltered
 
 	dash.grid = ui.NewGrid()
 	termWidth, termHeight := ui.TerminalDimensions()

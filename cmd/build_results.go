@@ -10,15 +10,19 @@ import (
 )
 
 func BuildResults(
+	silent bool,
+	hardMode bool,
 	rulesetFlag string,
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
 	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(rulesetFlag, specBytes, customFunctions, base, false, timeout)
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, false, timeout)
 }
 
 func BuildResultsWithDocCheckSkip(
+	silent bool,
+	hardMode bool,
 	rulesetFlag string,
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
@@ -31,6 +35,24 @@ func BuildResultsWithDocCheckSkip(
 
 	// default is recommended rules, based on spectral (for now anyway)
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+	// HARD MODE
+	if hardMode {
+		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+
+		// extract all OWASP Rules
+		owaspRules := rulesets.GetAllOWASPRules()
+		allRules := selectedRS.Rules
+		for k, v := range owaspRules {
+			allRules[k] = v
+		}
+		if !silent {
+			box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+			box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+			box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
+			pterm.Println()
+		}
+	}
 
 	// if ruleset has been supplied, lets make sure it exists, then load it in
 	// and see if it's valid. If so - let's go!

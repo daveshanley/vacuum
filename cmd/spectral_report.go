@@ -45,6 +45,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -105,6 +106,25 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			// default is recommended rules, based on spectral (for now anyway)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+			// HARD MODE
+			if hardModeFlag {
+				selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+
+				// extract all OWASP Rules
+				owaspRules := rulesets.GetAllOWASPRules()
+				allRules := selectedRS.Rules
+				for k, v := range owaspRules {
+					allRules[k] = v
+				}
+				if !stdIn && !stdOut {
+					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
+					pterm.Println()
+				}
+
+			}
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 			var customFunctions map[string]model.RuleFunction
