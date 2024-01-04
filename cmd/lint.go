@@ -288,7 +288,6 @@ type lintFileRequest struct {
 	totalFiles       int
 	fileIndex        int
 	timeoutFlag      int
-	hardModeFlag     bool
 	defaultRuleSets  rulesets.RuleSets
 	selectedRS       *rulesets.RuleSet
 	functions        map[string]model.RuleFunction
