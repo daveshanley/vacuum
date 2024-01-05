@@ -102,7 +102,13 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.6+` 🔥 : **Sharable / distributed rulesets**  now available.
+🔥 **New in** `v0.7+` 🔥 : **Hard Mode**.
+
+Want to lint your spec with the most strict ruleset possible? Now you can! Use the `-z` / `--hard-mode` flag to enable
+
+---
+
+`v0.6+` : **Sharable / distributed rulesets**  now available.
 
 Want to share / extend / distribute your own rulesets? Now you can!
 
