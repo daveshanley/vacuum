@@ -306,7 +306,7 @@ func GetOWASPRateLimitRetryAfterRule() *model.Rule {
 	return &model.Rule{
 		Name:         "A `429` response should define a `Retry-After` header",
 		Id:           OwaspRateLimitRetryAfter,
-		Description:  "Ensure that any `429` response, contains a `Retry-After` header.  ",
+		Description:  "Ensure that any `429` response, contains a `Retry-After` header.",
 		Given:        `$`,
 		Resolved:     true,
 		Formats:      model.OAS3AllFormat,
@@ -348,7 +348,7 @@ func GetOWASPDefineErrorResponses429Rule() *model.Rule {
 func GetOWASPArrayLimitRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Schema of type array must specify maxItems",
-		Id:           OwaspDefineErrorResponses429,
+		Id:           OwaspArrayLimit,
 		Description:  "Array size should be limited to mitigate resource exhaustion attacks.",
 		Given:        `$`,
 		Resolved:     false,
