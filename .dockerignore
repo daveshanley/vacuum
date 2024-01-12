@@ -1,4 +1,3 @@
 ui/dist
 go.work
-go.work.sum:w
-:q
+go.work.sum
