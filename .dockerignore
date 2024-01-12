@@ -1,0 +1,4 @@
+ui/dist
+go.work
+go.work.sum:w
+:q
