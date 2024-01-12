@@ -163,10 +163,10 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		for i := range context.DrDocument.Parameters {
 			p := context.DrDocument.Parameters[i]
 			wg.Go(func() {
-				if p.Value.Examples.Len() >= 1 {
+				if p.Value.Examples.Len() >= 1 && p.SchemaProxy != nil {
 					results = append(results, parseExamples(p.SchemaProxy.Schema, p, p.Value.Examples)...)
 				} else {
-					if p.Value.Example != nil {
+					if p.Value.Example != nil && p.SchemaProxy != nil {
 						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example)...)
 					}
 				}
@@ -178,10 +178,10 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
 			wg.Go(func() {
-				if h.Value.Examples.Len() >= 1 {
+				if h.Value.Examples.Len() >= 1 && h.SchemaProxy != nil {
 					results = append(results, parseExamples(h.SchemaProxy.Schema, h, h.Value.Examples)...)
 				} else {
-					if h.Value.Example != nil {
+					if h.Value.Example != nil && h.SchemaProxy != nil {
 						results = append(results, parseExample(h.SchemaProxy.Schema, h.Value.Example)...)
 					}
 				}
@@ -193,10 +193,10 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		for i := range context.DrDocument.MediaTypes {
 			mt := context.DrDocument.MediaTypes[i]
 			wg.Go(func() {
-				if mt.Value.Examples.Len() >= 1 {
+				if mt.Value.Examples.Len() >= 1 && mt.SchemaProxy != nil {
 					results = append(results, parseExamples(mt.SchemaProxy.Schema, mt, mt.Value.Examples)...)
 				} else {
-					if mt.Value.Example != nil {
+					if mt.Value.Example != nil && mt.SchemaProxy != nil {
 						results = append(results, parseExample(mt.SchemaProxy.Schema, mt.Value.Example)...)
 					}
 				}
