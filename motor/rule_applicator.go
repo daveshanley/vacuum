@@ -106,10 +106,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
-	indexConfig.AvoidCircularReferenceCheck = true
+	//indexConfig.AvoidCircularReferenceCheck = true
 
 	docConfig := datamodel.NewDocumentConfiguration()
-	docConfig.SkipCircularReferenceCheck = true
+	//docConfig.SkipCircularReferenceCheck = true
 
 	// add new pretty logger.
 	if execution.Logger == nil {
@@ -337,7 +337,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			specUnresolved = rolodexUnresolved.GetRootIndex().GetRootNode()
 
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
-				resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
+				//resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
 				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 			}
 

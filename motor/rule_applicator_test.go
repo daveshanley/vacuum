@@ -1882,7 +1882,7 @@ components:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "infinite circular reference detected: #/components/schemas/one: one -> two -> one [14:7]",
+	assert.Equal(t, "infinite circular reference detected: one: one -> two -> one [14:7]",
 		results.Results[0].Message)
 	assert.Equal(t, "resolving-references", results.Results[0].RuleId)
 }
