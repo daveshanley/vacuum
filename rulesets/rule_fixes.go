@@ -153,6 +153,8 @@ const (
 	operationsErrorResponseFix string = "Make sure each operation defines at least one 4xx error response. 4xx Errors are " +
 		"used to inform clients they are using the API incorrectly, with bad input, or malformed requests. An API with no errors" +
 		"defined is really hard to navigate."
+
+	schemaTypeFix string = "Make sure each schema has a value type defined. Without a type, the schema is useless"
 )
 
 const (
