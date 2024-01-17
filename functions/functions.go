@@ -96,6 +96,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["noVerbsInPath"] = openapi_functions.VerbsInPaths{}
 		funcs["pathsKebabCase"] = openapi_functions.PathsKebabCase{}
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
+		funcs["schemaTypeCheck"] = openapi_functions.SchemaTypeCheck{}
 
 		// add owasp functions used by the owasp rules
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}

@@ -1242,3 +1242,23 @@ func GetOperationErrorResponseRule() *model.Rule {
 		HowToFix: operationsErrorResponseFix,
 	}
 }
+
+// GetSchemaTypeCheckRule will check that all schemas have a valid type defined
+func GetSchemaTypeCheckRule() *model.Rule {
+	return &model.Rule{
+		Name:         "schemas must have a valid type defined",
+		Id:           OasSchemaCheck,
+		Formats:      model.OAS3AllFormat,
+		Description:  "All document schemas must have a valid type defined",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "schemaTypeCheck",
+		},
+		HowToFix: schemaTypeFix,
+	}
+}
