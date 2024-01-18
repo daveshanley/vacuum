@@ -125,6 +125,9 @@ func countPropsInterface(options map[string]interface{}, numProps int) int {
 		if _, ok := v.(int); ok {
 			numProps++
 		}
+		if _, ok := v.(float64); ok {
+			numProps++
+		}
 		if _, ok := v.(bool); ok {
 			numProps++
 		}

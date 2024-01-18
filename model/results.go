@@ -56,9 +56,9 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 		Results:     pointerResults,
 		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
 	}
-	defer rrs.GetErrorCount()
-	defer rrs.GetInfoCount()
-	defer rrs.GetWarnCount()
+	rrs.GetErrorCount()
+	rrs.GetInfoCount()
+	rrs.GetWarnCount()
 	return rrs
 }
 
@@ -94,6 +94,8 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 		case SeverityInfo:
 			sev = 2
 		case SeverityHint:
+			sev = 3
+		default:
 			sev = 3
 		}
 
@@ -220,6 +222,10 @@ func (rr *RuleResultSet) GetWarningsByRuleCategory(category string) []*RuleFunct
 		case SeverityWarn:
 			filtered = append(filtered, cat)
 		}
+		// by default rules with no severity, are warnings.
+		if cat.Rule.Severity == "" {
+			filtered = append(filtered, cat)
+		}
 	}
 	return filtered
 }
@@ -300,8 +306,12 @@ func (rr *RuleResultSet) GetResultsForCategoryWithLimit(category string, limit i
 func getCount(rr *RuleResultSet, severity string) int {
 	c := 0
 	for _, res := range rr.Results {
-		if res.Rule != nil && res.Rule.Severity != "" {
+		if res.Rule != nil {
 			if res.Rule.Severity == severity {
+				c++
+			}
+			// if there is no severity, mark it as a warning by default.
+			if res.Rule.Severity == "" && severity == SeverityWarn {
 				c++
 			}
 		}
