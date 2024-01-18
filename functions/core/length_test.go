@@ -415,3 +415,32 @@ tags:
 	assert.Len(t, res, 0) // should just do nothing.
 
 }
+
+func TestLength_RunRule_TestPathAllTags(t *testing.T) {
+
+	sampleYaml := `
+tags:
+  - name: "taggy"
+    description: 10.12
+  - name: "tiggy"
+    description: 1.22`
+
+	path := "$.tags[*]"
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
+	ops := make(map[string]string)
+	ops["max"] = "1"
+	ops["min"] = "0"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "length", "name", ops)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	le := Length{}
+	res := le.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 2)
+
+}
