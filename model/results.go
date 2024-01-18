@@ -92,10 +92,6 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 		case SeverityError:
 			sev = 0
 		case SeverityInfo:
-			sev = 2
-		case SeverityHint:
-			sev = 3
-		default:
 			sev = 3
 		}
 
