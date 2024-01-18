@@ -74,7 +74,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				continue
 			}
 
-			basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
+			basePath := fmt.Sprintf("$.paths['%s'].%s", opPath, opMethod)
 			descKey, descNode := utils.FindKeyNodeTop("description", method.Content)
 			_, summNode := utils.FindKeyNodeTop("summary", method.Content)
 			requestBodyKey, requestBodyNode := utils.FindKeyNodeTop("requestBody", method.Content)
