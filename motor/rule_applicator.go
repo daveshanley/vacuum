@@ -630,43 +630,41 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 
 		if givenPath != "$" {
 
-			// create a timeout on this, if we can't get a result within 100ms, then
+			// create a timeout on this, if we can't get a result within 2s, then
 			// try again, but with the unresolved spec.
-			lookupCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond*500)
+			lookupCtx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 			defer cancel()
 			nodesChan := make(chan []*yaml.Node)
 			errChan := make(chan error)
-			//cancelChan := make(chan bool)
 
 			go findNodes(ctx.specNode, givenPath, errChan, nodesChan)
-			//topBreak:
+		topBreak:
 			select {
 			case nodes = <-nodesChan:
 				break
 			case err = <-errChan:
-				fmt.Println("giving up finding nodes")
+				ctx.logger.Error("error looking for nodes", "path", givenPath, "rule", ctx.rule.Id, "error", err)
 				break
 			case <-lookupCtx.Done():
 				ctx.logger.Warn("timeout looking for nodes, trying again with unresolved spec.", "path", givenPath)
-				break
-				//
-				//// ok, this timed out, let's try again with the unresolved spec.
-				//lookupCtxFinal, finalCancel := context.WithTimeout(context.Background(), time.Millisecond*100)
-				//defer finalCancel()
-				//
-				//go findNodes(ctx.specNodeUnresolved, givenPath, errChan, nodesChan)
-				//
-				//select {
-				//case nodes = <-nodesChan:
-				//	break
-				//case err = <-errChan:
-				//	break
-				//case <-lookupCtxFinal.Done():
-				//	err = fmt.Errorf("timed out looking for nodes using path '%s'", givenPath)
-				//	ctx.logger.Error("timeout looking for unresolved nodes, giving up.", "path", givenPath, "rule",
-				//		ctx.rule.Id)
-				//	break topBreak
-				//}
+
+				// ok, this timed out, let's try again with the unresolved spec.
+				lookupCtxFinal, finalCancel := context.WithTimeout(context.Background(), time.Second*2)
+				defer finalCancel()
+
+				go findNodes(ctx.specNodeUnresolved, givenPath, errChan, nodesChan)
+
+				select {
+				case nodes = <-nodesChan:
+					break
+				case err = <-errChan:
+					break
+				case <-lookupCtxFinal.Done():
+					err = fmt.Errorf("timed out looking for nodes using path '%s'", givenPath)
+					ctx.logger.Error("timeout looking for unresolved nodes, giving up.", "path", givenPath, "rule",
+						ctx.rule.Id)
+					break topBreak
+				}
 			}
 
 		} else {
