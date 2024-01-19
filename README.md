@@ -102,7 +102,20 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.7+` 🔥 : **Hard Mode**.
+🔥 **New in** `v0.8+` 🔥 : **OpenAPI Bundler**.
+
+A new command is available `bundle` will bundle all external references for an OpenAPI file into a single file.
+
+[Learn more about the bundle command](https://quobix.com/vacuum/commands/bundle/)
+
+A new linting rule is available `oas-schema-check` will perform type checks and validation on all schemas in your
+OpenAPI file. It's enabled by default in the recommended ruleset.
+
+[oas-schema-check rule docs](https://quobix.com/vacuum/rules/schemas/oas-schema-check/)
+
+---
+
+`v0.7+` : **Hard Mode**.
 
 Want to lint your spec with the most strict ruleset possible? Now you can! Use the `-z` / `--hard-mode` flag to enable
 
