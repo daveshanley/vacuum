@@ -174,6 +174,7 @@ See all the documentation at https://quobix.com/vacuum
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
   - [dashboard](https://quobix.com/vacuum/commands/dashboard/)
   - [html-report](https://quobix.com/vacuum/commands/html-report/)
+  - [bundle](https://quobix.com/vacuum/commands/bundle/)
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
