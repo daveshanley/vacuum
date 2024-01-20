@@ -353,7 +353,7 @@ components:
   schemas:
     Gum:
      type: number
-     maximum: 0`
+     maximum: 50`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
