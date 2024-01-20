@@ -282,6 +282,70 @@ components:
 	assert.Equal(t, "$.components.schemas['Gum'].minimum", res[0].Path)
 }
 
+func TestSchemaType_Minimum_Zero(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: number
+     minimum: 0`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_Maximum_Zero(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: number
+     maximum: 0`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestSchemaType_Maximum(t *testing.T) {
 
 	yml := `openapi: 3.1
@@ -289,7 +353,39 @@ components:
   schemas:
     Gum:
      type: number
-     maximum: -2`
+     maximum: 0`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_Maximum_Negative(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: number
+     maximum: -50`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
@@ -385,6 +481,38 @@ components:
 	assert.Equal(t, "$.components.schemas['Gum'].exclusiveMinimum", res[0].Path)
 }
 
+func TestSchemaType_ExclusiveMinimum_Zero(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: number
+     exclusiveMinimum: 0`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 0)
+
+}
+
 func TestSchemaType_ExclusiveMaximum(t *testing.T) {
 
 	yml := `openapi: 3.1
@@ -417,6 +545,38 @@ components:
 	assert.Len(t, res, 1)
 	assert.Equal(t, "`exclusiveMaximum` should be a number greater than or equal to `0`", res[0].Message)
 	assert.Equal(t, "$.components.schemas['Gum'].exclusiveMaximum", res[0].Path)
+}
+
+func TestSchemaType_ExclusiveMaximum_Zero(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: number
+     exclusiveMaximum: 0`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
 }
 
 func TestSchemaType_ExclusiveMinMaximum(t *testing.T) {

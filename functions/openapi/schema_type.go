@@ -83,7 +83,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 	}
 
 	if schema.Value.Minimum != nil {
-		if *schema.Value.Minimum <= 0 {
+		if *schema.Value.Minimum < 0 {
 			result := st.buildResult("`minimum` should be a number greater than or equal to `0`",
 				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "minimum"),
 				schema, schema.Value.GoLow().Minimum.KeyNode, context)
@@ -92,7 +92,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 	}
 
 	if schema.Value.Maximum != nil {
-		if *schema.Value.Maximum <= 0 {
+		if *schema.Value.Maximum < 0 {
 			result := st.buildResult("`maximum` should be a number greater than or equal to `0`",
 				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maximum"),
 				schema, schema.Value.GoLow().Maximum.KeyNode, context)
@@ -109,7 +109,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 	}
 
 	if schema.Value.ExclusiveMinimum != nil {
-		if schema.Value.ExclusiveMinimum.IsB() && schema.Value.ExclusiveMinimum.B <= 0 {
+		if schema.Value.ExclusiveMinimum.IsB() && schema.Value.ExclusiveMinimum.B < 0 {
 			result := st.buildResult("`exclusiveMinimum` should be a number greater than or equal to `0`",
 				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "exclusiveMinimum"),
 				schema, schema.Value.GoLow().ExclusiveMinimum.KeyNode, context)
@@ -118,7 +118,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 	}
 
 	if schema.Value.ExclusiveMaximum != nil {
-		if schema.Value.ExclusiveMaximum.IsB() && schema.Value.ExclusiveMaximum.B <= 0 {
+		if schema.Value.ExclusiveMaximum.IsB() && schema.Value.ExclusiveMaximum.B < 0 {
 			result := st.buildResult("`exclusiveMaximum` should be a number greater than or equal to `0`",
 				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "exclusiveMaximum"),
 				schema, schema.Value.GoLow().ExclusiveMaximum.KeyNode, context)
