@@ -53,6 +53,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			case "object":
 				errs := st.validateObject(schema, &context)
 				results = append(results, errs...)
+			case "null":
 			default:
 				result := model.RuleFunctionResult{
 					Message:   fmt.Sprintf("unknown schema type: `%s`", t),
