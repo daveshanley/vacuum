@@ -960,3 +960,34 @@ components:
 	assert.Equal(t, "`required` field `hello` is not defined in `properties`", res[0].Message)
 	assert.Equal(t, "$.components.schemas['Gum'].required[0]", res[0].Path)
 }
+
+func TestSchemaType_Null(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: null`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Empty(t, res)
+}
