@@ -30,23 +30,25 @@ func (ak NoApiKeyInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionContex
 
 	doc := context.DrDocument
 
-	security := doc.V3Document.Components.SecuritySchemes
-	for securityPairs := security.First(); securityPairs != nil; securityPairs = securityPairs.Next() {
-		securityScheme := securityPairs.Value()
-		if strings.ToLower(securityScheme.Value.Type) == "apikey" {
-			if strings.ToLower(securityScheme.Value.In) == "query" || strings.ToLower(securityScheme.Value.In) == "path" {
-				node := securityScheme.Value.GoLow().In.KeyNode
-				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("API keys must not be passed via URL parameters (`%s`)",
-							securityScheme.Value.In)),
-					StartNode: node,
-					EndNode:   node,
-					Path:      fmt.Sprintf("%s.%s", securityScheme.GenerateJSONPath(), "in"),
-					Rule:      context.Rule,
+	if doc.V3Document != nil && doc.V3Document.Components != nil {
+		security := doc.V3Document.Components.SecuritySchemes
+		for securityPairs := security.First(); securityPairs != nil; securityPairs = securityPairs.Next() {
+			securityScheme := securityPairs.Value()
+			if strings.ToLower(securityScheme.Value.Type) == "apikey" {
+				if strings.ToLower(securityScheme.Value.In) == "query" || strings.ToLower(securityScheme.Value.In) == "path" {
+					node := securityScheme.Value.GoLow().In.KeyNode
+					result := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							fmt.Sprintf("API keys must not be passed via URL parameters (`%s`)",
+								securityScheme.Value.In)),
+						StartNode: node,
+						EndNode:   node,
+						Path:      fmt.Sprintf("%s.%s", securityScheme.GenerateJSONPath(), "in"),
+						Rule:      context.Rule,
+					}
+					securityScheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
 				}
-				securityScheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-				results = append(results, result)
 			}
 		}
 	}

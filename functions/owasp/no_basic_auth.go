@@ -28,23 +28,24 @@ func (ba NoBasicAuth) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 		return results
 	}
 
-	ss := context.DrDocument.V3Document.Components.SecuritySchemes
-	for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
-
-		scheme := schemePairs.Value()
-		if scheme.Value.Type == "http" {
-			if strings.ToLower(scheme.Value.Scheme) == "basic" || strings.ToLower(scheme.Value.Scheme) == "negotiate" {
-				node := scheme.Value.GoLow().Scheme.KeyNode
-				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						"security scheme uses HTTP Basic Auth, which is an insecure practice"),
-					StartNode: node,
-					EndNode:   node,
-					Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
-					Rule:      context.Rule,
+	if context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Components != nil {
+		ss := context.DrDocument.V3Document.Components.SecuritySchemes
+		for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
+			scheme := schemePairs.Value()
+			if scheme.Value.Type == "http" {
+				if strings.ToLower(scheme.Value.Scheme) == "basic" || strings.ToLower(scheme.Value.Scheme) == "negotiate" {
+					node := scheme.Value.GoLow().Scheme.KeyNode
+					result := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							"security scheme uses HTTP Basic Auth, which is an insecure practice"),
+						StartNode: node,
+						EndNode:   node,
+						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
+						Rule:      context.Rule,
+					}
+					scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
 				}
-				scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-				results = append(results, result)
 			}
 		}
 	}

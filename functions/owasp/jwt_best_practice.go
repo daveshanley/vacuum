@@ -28,23 +28,25 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 		return results
 	}
 
-	ss := context.DrDocument.V3Document.Components.SecuritySchemes
-	for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
+	if context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Components != nil {
+		ss := context.DrDocument.V3Document.Components.SecuritySchemes
+		for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
 
-		scheme := schemePairs.Value()
-		if scheme.Value.Type == "oauth2" || strings.ToLower(scheme.Value.BearerFormat) == "jwt" {
-			if !strings.Contains(scheme.Value.Description, "RFC8725") {
-				node := scheme.Value.GoLow().Description.KeyNode
-				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						"JWTs must explicitly declare support for `RFC8725` in the description"),
-					StartNode: node,
-					EndNode:   node,
-					Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "description"),
-					Rule:      context.Rule,
+			scheme := schemePairs.Value()
+			if scheme.Value.Type == "oauth2" || strings.ToLower(scheme.Value.BearerFormat) == "jwt" {
+				if !strings.Contains(scheme.Value.Description, "RFC8725") {
+					node := scheme.Value.GoLow().Description.KeyNode
+					result := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							"JWTs must explicitly declare support for `RFC8725` in the description"),
+						StartNode: node,
+						EndNode:   node,
+						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "description"),
+						Rule:      context.Rule,
+					}
+					scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
 				}
-				scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-				results = append(results, result)
 			}
 		}
 	}

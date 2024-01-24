@@ -42,92 +42,95 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	drDoc := context.DrDocument.V3Document
 	globalSecurity := drDoc.Security
 
-	for pathPairs := drDoc.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
-		path := pathPairs.Key()
-		pathItem := pathPairs.Value()
-		for opPairs := pathItem.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
-			opValue := opPairs.Value()
-			opType := opPairs.Key()
+	if drDoc.Paths != nil && drDoc.Paths.PathItems != nil {
 
-			if !slices.Contains(methods, opType) {
-				continue
-			}
+		for pathPairs := drDoc.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+			path := pathPairs.Key()
+			pathItem := pathPairs.Value()
+			for opPairs := pathItem.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+				opValue := opPairs.Value()
+				opType := opPairs.Key()
 
-			var opNode *yaml.Node
-			var op *drV3.Operation
-
-			switch opType {
-			case v3.GetLabel:
-				opNode = pathPairs.Value().Value.GoLow().Get.KeyNode
-				op = pathPairs.Value().Get
-			case v3.PutLabel:
-				opNode = pathPairs.Value().Value.GoLow().Put.KeyNode
-				op = pathPairs.Value().Put
-			case v3.PostLabel:
-				opNode = pathPairs.Value().Value.GoLow().Post.KeyNode
-				op = pathPairs.Value().Post
-			case v3.DeleteLabel:
-				opNode = pathPairs.Value().Value.GoLow().Delete.KeyNode
-				op = pathPairs.Value().Delete
-			case v3.OptionsLabel:
-				opNode = pathPairs.Value().Value.GoLow().Options.KeyNode
-				op = pathPairs.Value().Options
-			case v3.HeadLabel:
-				opNode = pathPairs.Value().Value.GoLow().Head.KeyNode
-				op = pathPairs.Value().Head
-			case v3.PatchLabel:
-				opNode = pathPairs.Value().Value.GoLow().Patch.KeyNode
-				op = pathPairs.Value().Patch
-			case v3.TraceLabel:
-				opNode = pathPairs.Value().Value.GoLow().Trace.KeyNode
-				op = pathPairs.Value().Trace
-			}
-
-			if opValue.Security == nil && globalSecurity == nil {
-
-				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType)),
-					StartNode: opNode,
-					EndNode:   opNode,
-					Path:      op.GenerateJSONPath(),
-					Rule:      context.Rule,
+				if !slices.Contains(methods, opType) {
+					continue
 				}
-				pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-				results = append(results, result)
-				continue
 
-			}
+				var opNode *yaml.Node
+				var op *drV3.Operation
 
-			if len(opValue.Security) <= 0 && globalSecurity != nil &&
-				(globalSecurity[0].Value.Requirements == nil || globalSecurity[0].Value.Requirements.Len() <= 0) {
-				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType)),
-					StartNode: opNode,
-					EndNode:   opNode,
-					Path:      op.GenerateJSONPath(),
-					Rule:      context.Rule,
+				switch opType {
+				case v3.GetLabel:
+					opNode = pathPairs.Value().Value.GoLow().Get.KeyNode
+					op = pathPairs.Value().Get
+				case v3.PutLabel:
+					opNode = pathPairs.Value().Value.GoLow().Put.KeyNode
+					op = pathPairs.Value().Put
+				case v3.PostLabel:
+					opNode = pathPairs.Value().Value.GoLow().Post.KeyNode
+					op = pathPairs.Value().Post
+				case v3.DeleteLabel:
+					opNode = pathPairs.Value().Value.GoLow().Delete.KeyNode
+					op = pathPairs.Value().Delete
+				case v3.OptionsLabel:
+					opNode = pathPairs.Value().Value.GoLow().Options.KeyNode
+					op = pathPairs.Value().Options
+				case v3.HeadLabel:
+					opNode = pathPairs.Value().Value.GoLow().Head.KeyNode
+					op = pathPairs.Value().Head
+				case v3.PatchLabel:
+					opNode = pathPairs.Value().Value.GoLow().Patch.KeyNode
+					op = pathPairs.Value().Patch
+				case v3.TraceLabel:
+					opNode = pathPairs.Value().Value.GoLow().Trace.KeyNode
+					op = pathPairs.Value().Trace
 				}
-				opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-				results = append(results, result)
-			}
 
-			if !nullable && len(opValue.Security) >= 1 {
-				for i := range opValue.Security {
-					if opValue.Security[i].Value.Requirements == nil || opValue.Security[i].Value.Requirements.Len() <= 0 {
-						securityNode := opValue.Security[i].Value.GoLow().Requirements.ValueNode
-						result := model.RuleFunctionResult{
-							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-								fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
-							StartNode: securityNode,
-							EndNode:   securityNode,
-							Path:      opValue.Security[i].GenerateJSONPath(),
-							Rule:      context.Rule,
+				if opValue.Security == nil && globalSecurity == nil {
+
+					result := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType)),
+						StartNode: opNode,
+						EndNode:   opNode,
+						Path:      op.GenerateJSONPath(),
+						Rule:      context.Rule,
+					}
+					pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
+					continue
+
+				}
+
+				if len(opValue.Security) <= 0 && globalSecurity != nil &&
+					(globalSecurity[0].Value.Requirements == nil || globalSecurity[0].Value.Requirements.Len() <= 0) {
+					result := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType)),
+						StartNode: opNode,
+						EndNode:   opNode,
+						Path:      op.GenerateJSONPath(),
+						Rule:      context.Rule,
+					}
+					opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
+				}
+
+				if !nullable && len(opValue.Security) >= 1 {
+					for i := range opValue.Security {
+						if opValue.Security[i].Value.Requirements == nil || opValue.Security[i].Value.Requirements.Len() <= 0 {
+							securityNode := opValue.Security[i].Value.GoLow().Requirements.ValueNode
+							result := model.RuleFunctionResult{
+								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+									fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
+								StartNode: securityNode,
+								EndNode:   securityNode,
+								Path:      opValue.Security[i].GenerateJSONPath(),
+								Rule:      context.Rule,
+							}
+							pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+							results = append(results, result)
+							continue
 						}
-						pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-						results = append(results, result)
-						continue
 					}
 				}
 			}

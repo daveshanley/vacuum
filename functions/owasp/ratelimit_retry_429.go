@@ -28,40 +28,42 @@ func (r RatelimitRetry429) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 		return results
 	}
 
-	for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
-		for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
-			opValue := opPairs.Value()
-			opType := opPairs.Key()
+	if context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Paths != nil {
+		for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+			for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+				opValue := opPairs.Value()
+				opType := opPairs.Key()
 
-			responses := opValue.Responses.Codes
+				responses := opValue.Responses.Codes
 
-			for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
-				resp := respPairs.Value()
-				respCode := respPairs.Key()
-				if respCode == "429" {
+				for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
+					resp := respPairs.Value()
+					respCode := respPairs.Key()
+					if respCode == "429" {
 
-					var node *yaml.Node
-					if resp.Headers != nil {
-						foundHeader := resp.Headers.GetOrZero("Retry-After")
-						if foundHeader == nil {
-							lowCodes := opValue.Responses.Value.GoLow().Codes
-							for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
-								lowCodeKey := lowCodePairs.Key()
-								codeCodeVal := lowCodeKey.KeyNode.Value
-								if codeCodeVal == "429" {
-									node = lowCodeKey.KeyNode
+						var node *yaml.Node
+						if resp.Headers != nil {
+							foundHeader := resp.Headers.GetOrZero("Retry-After")
+							if foundHeader == nil {
+								lowCodes := opValue.Responses.Value.GoLow().Codes
+								for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
+									lowCodeKey := lowCodePairs.Key()
+									codeCodeVal := lowCodeKey.KeyNode.Value
+									if codeCodeVal == "429" {
+										node = lowCodeKey.KeyNode
+									}
 								}
+								result := model.RuleFunctionResult{
+									Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+										"missing 'Retry-After' header for 429 error response"),
+									StartNode: node,
+									EndNode:   node,
+									Path:      fmt.Sprintf("$.paths.%s.%s.responses.429", pathPairs.Key(), opType),
+									Rule:      context.Rule,
+								}
+								resp.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+								results = append(results, result)
 							}
-							result := model.RuleFunctionResult{
-								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-									"missing 'Retry-After' header for 429 error response"),
-								StartNode: node,
-								EndNode:   node,
-								Path:      fmt.Sprintf("$.paths.%s.%s.responses.429", pathPairs.Key(), opType),
-								Rule:      context.Rule,
-							}
-							resp.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-							results = append(results, result)
 						}
 					}
 				}

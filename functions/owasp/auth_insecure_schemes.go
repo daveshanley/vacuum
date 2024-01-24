@@ -28,24 +28,24 @@ func (is AuthInsecureSchemes) RunRule(_ []*yaml.Node, context model.RuleFunction
 		return results
 	}
 
-	ss := context.DrDocument.V3Document.Components.SecuritySchemes
-	for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
-
-		scheme := schemePairs.Value()
-		if scheme.Value.Type == "http" {
-			if strings.ToLower(scheme.Value.Scheme) == "negotiate" ||
-				strings.ToLower(scheme.Value.Scheme) == "oauth" {
-				node := scheme.Value.GoLow().Scheme.KeyNode
-				result := model.RuleFunctionResult{
-					Message:   utils.SuppliedOrDefault(context.Rule.Message, "authentication scheme is considered outdated or insecure"),
-					StartNode: node,
-					EndNode:   node,
-					Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
-					Rule:      context.Rule,
+	if context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Components != nil {
+		ss := context.DrDocument.V3Document.Components.SecuritySchemes
+		for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
+			scheme := schemePairs.Value()
+			if scheme.Value.Type == "http" {
+				if strings.ToLower(scheme.Value.Scheme) == "negotiate" ||
+					strings.ToLower(scheme.Value.Scheme) == "oauth" {
+					node := scheme.Value.GoLow().Scheme.KeyNode
+					result := model.RuleFunctionResult{
+						Message:   utils.SuppliedOrDefault(context.Rule.Message, "authentication scheme is considered outdated or insecure"),
+						StartNode: node,
+						EndNode:   node,
+						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
+						Rule:      context.Rule,
+					}
+					scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					results = append(results, result)
 				}
-				scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-				results = append(results, result)
-
 			}
 		}
 	}

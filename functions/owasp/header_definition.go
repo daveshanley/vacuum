@@ -61,39 +61,41 @@ func (cd HeaderDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 		headerSets = append(headerSets, strings.Split(header, "||"))
 	}
 
-	for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
-		for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
-			opValue := opPairs.Value()
-			responses := opValue.Responses.Codes
-			var node *yaml.Node
+	if context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Paths != nil && context.DrDocument.V3Document.Paths.PathItems != nil {
+		for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+			for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+				opValue := opPairs.Value()
+				responses := opValue.Responses.Codes
+				var node *yaml.Node
 
-			for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
-				resp := respPairs.Value()
-				respCode := respPairs.Key()
-				code, _ := strconv.Atoi(respCode)
+				for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
+					resp := respPairs.Value()
+					respCode := respPairs.Key()
+					code, _ := strconv.Atoi(respCode)
 
-				if code >= 200 && code < 300 || code >= 400 && code < 500 {
+					if code >= 200 && code < 300 || code >= 400 && code < 500 {
 
-					lowCodes := opValue.Responses.Value.GoLow().Codes
-					for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
-						lowCodeKey := lowCodePairs.Key()
-						codeCodeVal, _ := strconv.Atoi(lowCodeKey.KeyNode.Value)
-						if codeCodeVal == code {
-							node = lowCodeKey.KeyNode
+						lowCodes := opValue.Responses.Value.GoLow().Codes
+						for lowCodePairs := lowCodes.First(); lowCodePairs != nil; lowCodePairs = lowCodePairs.Next() {
+							lowCodeKey := lowCodePairs.Key()
+							codeCodeVal, _ := strconv.Atoi(lowCodeKey.KeyNode.Value)
+							if codeCodeVal == code {
+								node = lowCodeKey.KeyNode
+							}
 						}
-					}
-					if resp.Headers != nil {
-						result := cd.getResult(code, resp, context, headerSets)
-						results = append(results, result...)
-					} else {
+						if resp.Headers != nil {
+							result := cd.getResult(code, resp, context, headerSets)
+							results = append(results, result...)
+						} else {
 
-						results = append(results, model.RuleFunctionResult{
-							Message:   message{responseCode: code, headersSets: headerSets}.String(),
-							StartNode: node,
-							EndNode:   node,
-							Path:      vacuumUtils.SuppliedOrDefault(context.Rule.Message, resp.GenerateJSONPath()),
-							Rule:      context.Rule,
-						})
+							results = append(results, model.RuleFunctionResult{
+								Message:   message{responseCode: code, headersSets: headerSets}.String(),
+								StartNode: node,
+								EndNode:   node,
+								Path:      vacuumUtils.SuppliedOrDefault(context.Rule.Message, resp.GenerateJSONPath()),
+								Rule:      context.Rule,
+							})
+						}
 					}
 				}
 			}
