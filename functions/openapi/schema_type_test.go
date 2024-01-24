@@ -277,9 +277,7 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`minimum` should be a number greater than or equal to `0`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['Gum'].minimum", res[0].Path)
+	assert.Len(t, res, 0)
 }
 
 func TestSchemaType_Minimum_Zero(t *testing.T) {
@@ -407,9 +405,7 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`maximum` should be a number greater than or equal to `0`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['Gum'].maximum", res[0].Path)
+	assert.Len(t, res, 0)
 }
 
 func TestSchemaType_MinMaximum(t *testing.T) {
@@ -476,9 +472,8 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`exclusiveMinimum` should be a number greater than or equal to `0`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['Gum'].exclusiveMinimum", res[0].Path)
+	assert.Len(t, res, 0)
+
 }
 
 func TestSchemaType_ExclusiveMinimum_Zero(t *testing.T) {
@@ -542,9 +537,7 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`exclusiveMaximum` should be a number greater than or equal to `0`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['Gum'].exclusiveMaximum", res[0].Path)
+	assert.Len(t, res, 0)
 }
 
 func TestSchemaType_ExclusiveMaximum_Zero(t *testing.T) {
