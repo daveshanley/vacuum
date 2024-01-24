@@ -65,6 +65,9 @@ type RuleSetExecution struct {
 	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
 	Logger            *slog.Logger                  // A custom logger.
 	Timeout           time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
+
+	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
+	IgnoreCircularArrayRef bool // Ignore array circular references
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -110,6 +113,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	docConfig := datamodel.NewDocumentConfiguration()
 	//docConfig.SkipCircularReferenceCheck = true
+
+	if execution.IgnoreCircularArrayRef {
+		docConfig.IgnoreArrayCircularReferences = true
+	}
 
 	// add new pretty logger.
 	if execution.Logger == nil {

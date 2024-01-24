@@ -1887,6 +1887,49 @@ components:
 	assert.Equal(t, "resolving-references", results.Results[0].RuleId)
 }
 
+func TestRuleSet_InfiniteCircularLoop_AllowArrayRecursion(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /one:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arr'
+components:
+  schemas:
+    arr:
+      type: array
+      items:
+        $ref: '#/components/schemas/obj'
+    obj:
+      type: object
+      properties:
+        self:
+          $ref: '#/components/schemas/obj'`
+
+	rules := make(map[string]*model.Rule)
+	rules["openapi-tags-alphabetical"] = rulesets.GetOpenApiTagsAlphabeticalRule()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet:                rs,
+		Spec:                   []byte(yml),
+		IgnoreCircularArrayRef: true,
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Errors, 0)
+
+	assert.NotNil(t, results)
+	assert.Len(t, results.Results, 0)
+}
+
 func TestApplyRules_TestRules_Custom_Document_Pattern(t *testing.T) {
 
 	yaml := `rules:
