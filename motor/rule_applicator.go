@@ -67,7 +67,8 @@ type RuleSetExecution struct {
 	Timeout           time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
-	IgnoreCircularArrayRef bool // Ignore array circular references
+	IgnoreCircularArrayRef       bool // Ignore array circular references
+	IgnoreCircularPolymorphicRef bool // Ignore polymorphic circular references
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -116,6 +117,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	if execution.IgnoreCircularArrayRef {
 		docConfig.IgnoreArrayCircularReferences = true
+	}
+
+	if execution.IgnoreCircularPolymorphicRef {
+		docConfig.IgnorePolymorphicCircularReferences = true
 	}
 
 	// add new pretty logger.
