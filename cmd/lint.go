@@ -56,6 +56,7 @@ func GetLintCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -177,29 +178,30 @@ func GetLintCommand() *cobra.Command {
 					}
 
 					lfr := lintFileRequest{
-						fileName:             arg,
-						baseFlag:             baseFlag,
-						remote:               remoteFlag,
-						multiFile:            mf,
-						skipCheckFlag:        skipCheckFlag,
-						silent:               silent,
-						detailsFlag:          detailsFlag,
-						timeFlag:             timeFlag,
-						failSeverityFlag:     failSeverityFlag,
-						categoryFlag:         categoryFlag,
-						snippetsFlag:         snippetsFlag,
-						errorsFlag:           errorsFlag,
-						noMessageFlag:        noMessage,
-						allResultsFlag:       allResults,
-						totalFiles:           len(args),
-						fileIndex:            i,
-						defaultRuleSets:      defaultRuleSets,
-						selectedRS:           selectedRS,
-						functions:            customFunctions,
-						lock:                 &printLock,
-						logger:               logger,
-						timeoutFlag:          timeoutFlag,
-						ignoreArrayCircleRef: ignoreArrayCircleRef,
+						fileName:                 arg,
+						baseFlag:                 baseFlag,
+						remote:                   remoteFlag,
+						multiFile:                mf,
+						skipCheckFlag:            skipCheckFlag,
+						silent:                   silent,
+						detailsFlag:              detailsFlag,
+						timeFlag:                 timeFlag,
+						failSeverityFlag:         failSeverityFlag,
+						categoryFlag:             categoryFlag,
+						snippetsFlag:             snippetsFlag,
+						errorsFlag:               errorsFlag,
+						noMessageFlag:            noMessage,
+						allResultsFlag:           allResults,
+						totalFiles:               len(args),
+						fileIndex:                i,
+						defaultRuleSets:          defaultRuleSets,
+						selectedRS:               selectedRS,
+						functions:                customFunctions,
+						lock:                     &printLock,
+						logger:                   logger,
+						timeoutFlag:              timeoutFlag,
+						ignoreArrayCircleRef:     ignoreArrayCircleRef,
+						ignorePolymorphCircleRef: ignorePolymorphCircleRef,
 					}
 					fs, fp, err := lintFile(lfr)
 
@@ -246,6 +248,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("all-results", "a", false, "Render out all results, regardless of the number when using -d")
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
+	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 
 	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
 		model.CategoryAll,
@@ -274,29 +277,30 @@ func GetLintCommand() *cobra.Command {
 }
 
 type lintFileRequest struct {
-	fileName             string
-	baseFlag             string
-	multiFile            bool
-	remote               bool
-	skipCheckFlag        bool
-	silent               bool
-	detailsFlag          bool
-	timeFlag             bool
-	noMessageFlag        bool
-	allResultsFlag       bool
-	failSeverityFlag     string
-	categoryFlag         string
-	snippetsFlag         bool
-	errorsFlag           bool
-	totalFiles           int
-	fileIndex            int
-	timeoutFlag          int
-	ignoreArrayCircleRef bool
-	defaultRuleSets      rulesets.RuleSets
-	selectedRS           *rulesets.RuleSet
-	functions            map[string]model.RuleFunction
-	lock                 *sync.Mutex
-	logger               *slog.Logger
+	fileName                 string
+	baseFlag                 string
+	multiFile                bool
+	remote                   bool
+	skipCheckFlag            bool
+	silent                   bool
+	detailsFlag              bool
+	timeFlag                 bool
+	noMessageFlag            bool
+	allResultsFlag           bool
+	failSeverityFlag         string
+	categoryFlag             string
+	snippetsFlag             bool
+	errorsFlag               bool
+	totalFiles               int
+	fileIndex                int
+	timeoutFlag              int
+	ignoreArrayCircleRef     bool
+	ignorePolymorphCircleRef bool
+	defaultRuleSets          rulesets.RuleSets
+	selectedRS               *rulesets.RuleSet
+	functions                map[string]model.RuleFunction
+	lock                     *sync.Mutex
+	logger                   *slog.Logger
 }
 
 func lintFile(req lintFileRequest) (int64, int, error) {
