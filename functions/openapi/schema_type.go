@@ -252,6 +252,13 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 
 	if len(schema.Value.Required) > 0 {
 		for i, required := range schema.Value.Required {
+			if schema.Value.Properties == nil {
+			  result := st.buildResult("object contains `required` fields but no `properties`",
+					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
+					schema, schema.Value.GoLow().Required.KeyNode, context)
+				results = append(results, result)
+				break
+			}
 			if schema.Value.Properties.GetOrZero(required) == nil {
 				result := st.buildResult(fmt.Sprintf("`required` field `%s` is not defined in `properties`", required),
 					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
