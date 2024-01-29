@@ -2,9 +2,10 @@ package owasp
 
 import (
 	"fmt"
+	"testing"
+
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
-	"testing"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/stretchr/testify/assert"
@@ -75,15 +76,16 @@ func TestCheckSecurity_SecurityMissingOnOneOperation(t *testing.T) {
 info:
   version: "1.2.3"
   title: "securitySchemes"
+security:
+  - BasicAuth: []
 paths:
   /insecure:
     put:
       responses: {}
+      security: []
   /secure:
     put:
       responses: {}
-      security:
-        - BasicAuth: []
 components:
   securitySchemes:
     BasicAuth:
@@ -112,7 +114,7 @@ components:
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "`security` was not defined for path `/insecure` in method `put`", res[0].Message)
+	assert.Equal(t, "`security` is empty for path `/insecure` in method `put`", res[0].Message)
 	assert.Equal(t, "$.paths['/insecure'].put", res[0].Path)
 }
 
