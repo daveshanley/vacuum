@@ -242,8 +242,7 @@ func TestCheckSecurity_SecurityGlobalDefined_Empty(t *testing.T) {
 info:
   version: "1.2.3"
   title: "securitySchemes"
-security:
- - {}
+security: []
 paths:
   /insecure:
     put:
@@ -279,8 +278,8 @@ components:
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
-	assert.Equal(t, "`security` is empty for path `/insecure` in method `put`", res[0].Message)
+	assert.Equal(t, "`security` was not defined for path `/insecure` in method `put`", res[0].Message)
 	assert.Equal(t, "$.paths['/insecure'].put", res[0].Path)
-	assert.Equal(t, "`security` is empty for path `/secure` in method `put`", res[1].Message)
+	assert.Equal(t, "`security` was not defined for path `/secure` in method `put`", res[1].Message)
 	assert.Equal(t, "$.paths['/secure'].put", res[1].Path)
 }
