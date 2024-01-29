@@ -11,7 +11,7 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/doctor v0.0.3
+	github.com/pb33f/doctor v0.0.4
 	github.com/pb33f/libopenapi v0.15.2
 	github.com/pb33f/libopenapi-validator v0.0.40
 	github.com/pterm/pterm v0.12.75
@@ -69,5 +69,3 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/pb33f/doctor => ../doctor
