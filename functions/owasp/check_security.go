@@ -2,6 +2,8 @@ package owasp
 
 import (
 	"fmt"
+	"slices"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
@@ -9,7 +11,6 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
-	"slices"
 )
 
 type CheckSecurity struct {
@@ -86,7 +87,6 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				}
 
 				if opValue.Security == nil && globalSecurity == nil {
-
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType)),
@@ -101,8 +101,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 
 				}
 
-				if len(opValue.Security) <= 0 && globalSecurity != nil &&
-					(globalSecurity[0].Value.Requirements == nil || globalSecurity[0].Value.Requirements.Len() <= 0) {
+				if opValue.Security != nil && len(opValue.Security) <= 0 {
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType)),
