@@ -150,8 +150,8 @@ github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1y
 github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
 github.com/onsi/gomega v1.19.0 h1:4ieX6qQjPP/BfC3mpsAtIGGlxTWPeA3Inl/7DtXw1tw=
 github.com/onsi/gomega v1.19.0/go.mod h1:LY+I3pBVzYsTBU1AnDwOSxaYi9WoWiqgwooUqq9yPro=
-github.com/pb33f/doctor v0.0.3 h1:EeZhRssFoqIgRswVyGYAK0l+AQRQ3akrRCDJEa5z+Yg=
-github.com/pb33f/doctor v0.0.3/go.mod h1:yBs5hFHAoo/eeFvKN9sWwmHmgEPJ2SaotYOJc05GdMU=
+github.com/pb33f/doctor v0.0.4 h1:+JVwBsVwwMR0Um13mODlQ/h/HpFpyNPKieQXk/sEf2c=
+github.com/pb33f/doctor v0.0.4/go.mod h1:yBs5hFHAoo/eeFvKN9sWwmHmgEPJ2SaotYOJc05GdMU=
 github.com/pb33f/libopenapi v0.15.2 h1:Jit99QiDVgrYgTbEeBmzlUnrR/oewH6K24OTVPRbYaU=
 github.com/pb33f/libopenapi v0.15.2/go.mod h1:m+4Pwri31UvcnZjuP8M7TlbR906DXJmMvYsbis234xg=
 github.com/pb33f/libopenapi-validator v0.0.40 h1:oS/kPLnzX0GgtjrQkwsaqN2m/xHiYONWqRQ57gQ2K5U=
