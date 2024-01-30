@@ -250,6 +250,8 @@ paths:
   /secure:
     put:
       responses: {}
+      security:
+        - BasicAuth: []
 components:
   securitySchemes:
     BasicAuth:
@@ -277,9 +279,7 @@ components:
 
 	res := CheckSecurity{}.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.Equal(t, "`security` was not defined for path `/insecure` in method `put`", res[0].Message)
 	assert.Equal(t, "$.paths['/insecure'].put", res[0].Path)
-	assert.Equal(t, "`security` was not defined for path `/secure` in method `put`", res[1].Message)
-	assert.Equal(t, "$.paths['/secure'].put", res[1].Path)
 }
