@@ -132,6 +132,25 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						}
 					}
 				}
+
+				if !nullable && opValue.Security == nil && len(globalSecurity) >= 1 {
+					for i := range globalSecurity {
+						if globalSecurity[i].Value.Requirements == nil || globalSecurity[i].Value.Requirements.Len() <= 0 {
+							securityNode := globalSecurity[i].Value.GoLow().Requirements.ValueNode
+							result := model.RuleFunctionResult{
+								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+									fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
+								StartNode: securityNode,
+								EndNode:   securityNode,
+								Path:      globalSecurity[i].GenerateJSONPath(),
+								Rule:      context.Rule,
+							}
+							pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+							results = append(results, result)
+							continue
+						}
+					}
+				}
 			}
 		}
 	}
