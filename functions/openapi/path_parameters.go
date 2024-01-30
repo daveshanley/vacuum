@@ -208,20 +208,6 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					continue
 				}
 				if isVerb(r) {
-					if len(topLevelParams) <= 0 {
-						if verbLevelParams[r] == nil {
-							for pe := range pathElements {
-								err := fmt.Sprintf("`%s` must define parameter `%s` as expected by path `%s`",
-									strings.ToUpper(r), pe, currentPath)
-								res := model.BuildFunctionResultString(err)
-								res.StartNode = startNode
-								res.EndNode = endNode
-								res.Path = fmt.Sprintf("$.paths['%s'].%s", currentPath, r)
-								res.Rule = context.Rule
-								results = append(results, res)
-							}
-						}
-					}
 					pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams,
 						pathElements, &results, startNode, endNode, context, r)
 				}
@@ -291,25 +277,22 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string]map[string][]string,
 	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
 	context model.RuleFunctionContext, verb string) {
-	var top map[string][]string
-
+	var topParams map[string][]string
+	var verbParams map[string][]string
 	if allPathParams != nil {
-		top = allPathParams["top"]
+		topParams = allPathParams["top"]
+		verbParams = allPathParams[verb]
 	}
-	for k, e := range allPathParams {
-		if k == "top" {
-			continue
-		}
-		for p := range pathElements {
-			if !pp.segmentExistsInPathParams(p, e, top) {
-				err := fmt.Sprintf("`%s` must define parameter `%s` as expected by path `%s`", strings.ToUpper(verb), p, path)
-				res := model.BuildFunctionResultString(err)
-				res.StartNode = startNode
-				res.EndNode = endNode
-				res.Path = fmt.Sprintf("$.paths['%s']", path)
-				res.Rule = context.Rule
-				*results = append(*results, res)
-			}
+	// For each expected path parameter, check the top and verb-level defined parameters
+	for p := range pathElements {
+		if !pp.segmentExistsInPathParams(p, verbParams, topParams) {
+			err := fmt.Sprintf("`%s` must define parameter `%s` as expected by path `%s`", strings.ToUpper(verb), p, path)
+			res := model.BuildFunctionResultString(err)
+			res.StartNode = startNode
+			res.EndNode = endNode
+			res.Path = fmt.Sprintf("$.paths['%s']", path)
+			res.Rule = context.Rule
+			*results = append(*results, res)
 		}
 	}
 }

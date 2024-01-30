@@ -20,6 +20,72 @@ func TestPathParameters_RunRule(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
+func TestPathParameters_RunRule_AllParamsInTop(t *testing.T) {
+
+	yml := `paths:
+  /pizza/{type}/{topping}:
+    parameters:
+      - name: type
+        in: path
+    get:
+      operationId: get_pizza`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := PathParameters{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`GET` must define parameter `topping` as expected by path `/pizza/{type}/{topping}`", res[0].Message)
+}
+
+func TestPathParameters_RunRule_VerbsWithDifferentParams(t *testing.T) {
+
+	yml := `paths:
+  /pizza/{type}/{topping}:
+    parameters:
+      - name: type
+        in: path
+    get:
+      parameters:
+        - name: topping
+          in: path
+      operationId: get_pizza
+    post:
+      operationId: make_pizza
+`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := PathParameters{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`POST` must define parameter `topping` as expected by path `/pizza/{type}/{topping}`", res[0].Message)
+}
+
 func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
 	yml := `paths:
