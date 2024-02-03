@@ -55,31 +55,33 @@ func processCodes(codes []string, drDoc *v3.Document, context model.RuleFunction
 			for opPairs := pathPairs.Value().GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
 				opValue := opPairs.Value()
 
-				responses := opValue.Responses.Codes
-				seen := make(map[string]bool)
+				if opValue.Responses != nil && opValue.Responses.Codes != nil {
+					responses := opValue.Responses.Codes
+					seen := make(map[string]bool)
 
-				var node *yaml.Node
+					var node *yaml.Node
 
-				for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
-					respCode := respPairs.Key()
-					if slices.Contains(codes, respCode) {
-						seen[respCode] = true
+					for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
+						respCode := respPairs.Key()
+						if slices.Contains(codes, respCode) {
+							seen[respCode] = true
+						}
 					}
-				}
-				node = opValue.Value.GoLow().Responses.KeyNode
+					node = opValue.Value.GoLow().Responses.KeyNode
 
-				if len(seen) <= 0 {
-					code := strings.Join(codes, "`, `")
-					result := model.RuleFunctionResult{
-						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("missing one of `%s` response codes", code)),
-						StartNode: node,
-						EndNode:   node,
-						Path:      fmt.Sprintf("%s.%s", opValue.GenerateJSONPath(), "responses"),
-						Rule:      context.Rule,
+					if len(seen) <= 0 {
+						code := strings.Join(codes, "`, `")
+						result := model.RuleFunctionResult{
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("missing one of `%s` response codes", code)),
+							StartNode: node,
+							EndNode:   node,
+							Path:      fmt.Sprintf("%s.%s", opValue.GenerateJSONPath(), "responses"),
+							Rule:      context.Rule,
+						}
+						opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						results = append(results, result)
 					}
-					opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
 				}
 			}
 		}
