@@ -2038,7 +2038,7 @@ custom:
   id: "1234"
 `
 	// load custom functions
-	pm, err := plugin.LoadFunctions("../plugin/sample/js")
+	pm, err := plugin.LoadFunctions("../plugin/sample/js", false)
 	assert.NoError(t, err)
 
 	// create a new document.
@@ -2084,7 +2084,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction(t *testi
 notCustom: true"
 `
 	// load custom functions
-	pm, err := plugin.LoadFunctions("../plugin/sample/js")
+	pm, err := plugin.LoadFunctions("../plugin/sample/js", false)
 	assert.NoError(t, err)
 
 	// create a new document.
@@ -2136,7 +2136,7 @@ paths:
     patch: something
 `
 	// load custom functions
-	pm, err := plugin.LoadFunctions("../plugin/sample/js")
+	pm, err := plugin.LoadFunctions("../plugin/sample/js", false)
 	assert.NoError(t, err)
 
 	// create a new document.
@@ -2182,7 +2182,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction_Function
 notCustom: true"
 `
 	// load custom functions
-	pm, err := plugin.LoadFunctions("../plugin/sample/js")
+	pm, err := plugin.LoadFunctions("../plugin/sample/js", false)
 	assert.NoError(t, err)
 
 	// create a new document.

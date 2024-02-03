@@ -15,7 +15,7 @@ import (
 )
 
 // LoadFunctions will load custom functions found in the supplied path
-func LoadFunctions(path string) (*Manager, error) {
+func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 	dirEntries, err := os.ReadDir(path)
 	if err != nil {
@@ -29,8 +29,9 @@ func LoadFunctions(path string) (*Manager, error) {
 			fPath := filepath.Join(path, entry.Name())
 
 			// found something
-			pterm.Info.Printf("Located custom function plugin: %s\n", fPath)
-
+			if !silence {
+				pterm.Info.Printf("Located custom function plugin: %s\n", fPath)
+			}
 			// let's try and open it.
 			p, e := plugin.Open(fPath)
 			if e != nil {
@@ -65,8 +66,9 @@ func LoadFunctions(path string) (*Manager, error) {
 			function := javascript.NewJSRuleFunction(fName, string(p))
 
 			// found something
-			pterm.Info.Printf("Located custom javascript function: '%s'\n", function.GetSchema().Name)
-
+			if !silence {
+				pterm.Info.Printf("Located custom javascript function: '%s'\n", function.GetSchema().Name)
+			}
 			// check if the function is valid
 			sErr := function.CheckScript()
 

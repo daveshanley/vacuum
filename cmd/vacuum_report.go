@@ -134,7 +134,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
 
-				customFunctions, _ = LoadCustomFunctions(functionsFlag)
+				customFunctions, _ = LoadCustomFunctions(functionsFlag, true)
 
 				rsBytes, rsErr := os.ReadFile(rulesetFlag)
 				if rsErr != nil {
