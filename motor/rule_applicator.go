@@ -189,6 +189,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfig.AllowRemoteLookup = true
 		indexConfigUnresolved.AllowRemoteLookup = true
 		docConfig.AllowRemoteReferences = true
+		docConfig.AllowFileReferences = true
 	}
 
 	if execution.SkipDocumentCheck {
