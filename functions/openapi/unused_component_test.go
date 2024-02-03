@@ -299,3 +299,62 @@ components:
 
 	assert.Len(t, res, 0)
 }
+
+func TestUnusedComponent_RunRule_Success_PolymorphicCheckAllOf(t *testing.T) {
+
+	yml := `paths:
+  "/naughty/{puppy}":
+    get:
+      responses:
+        "200":
+          description: The naughty pup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dog"
+components:
+  schemas:
+    Dog:
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/Pet"
+      required:
+        - breed
+      properties:
+        breed:
+          $ref: "#/components/schemas/Breed"
+    Pet:
+      type: object
+      properties:
+        id:
+          type: String
+          description: Unique identifier of the Pet
+      age:
+        type: integer
+        format: int64
+    Breed:
+      type: object
+      properties:
+        name:
+          type: String
+        category:
+          type: String`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "unused_component", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := UnusedComponent{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}

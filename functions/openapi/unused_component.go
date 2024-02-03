@@ -43,6 +43,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	securitySchemes := context.Index.GetAllSecuritySchemes()
 	links := context.Index.GetAllLinks()
 	callbacks := context.Index.GetAllCallbacks()
+	mappedRefs := context.Index.GetMappedReferences()
 
 	// extract securityRequirements from swagger. These are not mapped as they are not $refs
 	// so, we need to map them as if they were.
@@ -116,6 +117,10 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 				found := false
 				// check poly refs if the reference can't be found
 				if oneOfRefs[key] != nil || allOfRefs[key] != nil || anyOfRefs[key] != nil {
+					found = true
+				}
+
+				if mappedRefs[key] != nil {
 					found = true
 				}
 
