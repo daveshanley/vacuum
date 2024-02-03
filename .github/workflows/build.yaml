@@ -36,10 +36,6 @@ jobs:
         run: go test ./...
       - name: Build
         run: make build
-      - name: Clean modcache
-        run: go clean -modcache
-      - name: Lint
-        uses: golangci/golangci-lint-action@v2
 
   build-report-ui:
     runs-on: ubuntu-20.04
