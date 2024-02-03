@@ -44,6 +44,7 @@ func GetDashboardCommand() *cobra.Command {
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
+			silent, _ := cmd.Flags().GetBool("silent")
 
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
@@ -61,7 +62,7 @@ func GetDashboardCommand() *cobra.Command {
 			if vacuumReport == nil {
 
 				functionsFlag, _ := cmd.Flags().GetString("functions")
-				customFunctions, _ := LoadCustomFunctions(functionsFlag)
+				customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,

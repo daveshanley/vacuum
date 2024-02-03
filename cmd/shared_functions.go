@@ -82,10 +82,10 @@ func PrintBanner() {
 }
 
 // LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
-func LoadCustomFunctions(functionsFlag string) (map[string]model.RuleFunction, error) {
+func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.RuleFunction, error) {
 	// check custom functions
 	if functionsFlag != "" {
-		pm, err := plugin.LoadFunctions(functionsFlag)
+		pm, err := plugin.LoadFunctions(functionsFlag, silence)
 		if err != nil {
 			pterm.Error.Printf("Unable to open custom functions: %v\n", err)
 			pterm.Println()

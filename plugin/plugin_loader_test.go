@@ -7,20 +7,20 @@ import (
 )
 
 func TestLoadFunctions_Nowhere(t *testing.T) {
-	pm, err := LoadFunctions("nowhere")
+	pm, err := LoadFunctions("nowhere", false)
 	assert.Nil(t, pm)
 	assert.Error(t, err)
 }
 
 func TestLoadFunctions(t *testing.T) {
-	pm, err := LoadFunctions("../model/test_files")
+	pm, err := LoadFunctions("../model/test_files", false)
 	assert.NotNil(t, pm)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, pm.LoadedFunctionCount())
 }
 
 func TestLoadFunctions_JavaScript_OK(t *testing.T) {
-	pm, err := LoadFunctions("sample/js")
+	pm, err := LoadFunctions("sample/js", false)
 	assert.NotNil(t, pm)
 	assert.NoError(t, err)
 	assert.Equal(t, 5, pm.LoadedFunctionCount())
@@ -31,7 +31,7 @@ func TestLoadFunctions_JavaScript_OK(t *testing.T) {
 }
 
 func TestLoadFunctions_Sample(t *testing.T) {
-	pm, err := LoadFunctions("sample")
+	pm, err := LoadFunctions("sample", false)
 	if runtime.GOOS != "windows" { // windows does not support this feature, at all.
 		assert.NotNil(t, pm)
 		assert.NoError(t, err)
@@ -40,7 +40,7 @@ func TestLoadFunctions_Sample(t *testing.T) {
 }
 
 func TestLoadFunctions_TestCompile(t *testing.T) {
-	pm, err := LoadFunctions("sample")
+	pm, err := LoadFunctions("sample", false)
 	if runtime.GOOS != "windows" { // windows does not support this feature, at all.
 		assert.NotNil(t, pm)
 		assert.NoError(t, err)

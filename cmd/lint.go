@@ -105,7 +105,7 @@ func GetLintCommand() *cobra.Command {
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-			customFunctions, _ := LoadCustomFunctions(functionsFlag)
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
 
 			// HARD MODE
 			if hardModeFlag {
