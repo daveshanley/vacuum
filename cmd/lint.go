@@ -6,13 +6,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
-	"github.com/dustin/go-humanize"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -20,10 +13,19 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/utils"
+	"github.com/dustin/go-humanize"
+	"github.com/pterm/pterm"
+	"github.com/spf13/cobra"
 )
 
 func GetLintCommand() *cobra.Command {
 
+	validFileExtensions := []string{"yaml", "yml", "json"}
 	cmd := &cobra.Command{
 		SilenceUsage: true,
 		Use:          "lint <your-openapi-file.yaml>",
@@ -33,10 +35,11 @@ func GetLintCommand() *cobra.Command {
 			if len(args) != 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
-			return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
+			return validFileExtensions, cobra.ShellCompDirectiveFilterFileExt
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			globPattern, _ := cmd.PersistentFlags().GetString("globbed-files")
 			detailsFlag, _ := cmd.Flags().GetBool("details")
 			timeFlag, _ := cmd.Flags().GetBool("time")
 			snippetsFlag, _ := cmd.Flags().GetBool("snippets")
@@ -70,8 +73,18 @@ func GetLintCommand() *cobra.Command {
 				PrintBanner()
 			}
 
-			// check for file args
-			if len(args) < 1 {
+			filesToLint := getFilesToLint(globPattern, args)
+			for _, file := range filesToLint {
+				// Verify that the each file has a valid extension
+				if !hasValidExtension(file, validFileExtensions) {
+					pterm.Error.Println("File " + file + " has an invalid extension")
+					pterm.Println()
+					return fmt.Errorf("invalid file extension")
+				}
+			}
+
+			// verify that there is at least one file to lint
+			if len(filesToLint) < 1 {
 				pterm.Error.Println("Please supply an OpenAPI specification to lint")
 				pterm.Println()
 				return fmt.Errorf("no file supplied")
@@ -80,7 +93,7 @@ func GetLintCommand() *cobra.Command {
 			var errs []error
 
 			mf := false
-			if len(args) > 1 {
+			if len(filesToLint) > 1 {
 				mf = true
 			}
 
@@ -147,17 +160,17 @@ func GetLintCommand() *cobra.Command {
 
 			doneChan := make(chan bool)
 
-			if len(args) <= 1 {
+			if len(filesToLint) <= 1 {
 				if !silent {
-					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", args[0], len(selectedRS.Rules),
+					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", filesToLint[0], len(selectedRS.Rules),
 						selectedRS.DocumentationURI)
 					pterm.Println()
 				}
 			}
 
-			if len(args) > 1 {
+			if len(filesToLint) > 1 {
 				if !silent {
-					pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(args), len(selectedRS.Rules),
+					pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(filesToLint), len(selectedRS.Rules),
 						selectedRS.DocumentationURI)
 					pterm.Println()
 				}
@@ -168,18 +181,18 @@ func GetLintCommand() *cobra.Command {
 			var filesProcessedSize int64
 			var filesProcessed int
 			var size int64
-			for i, arg := range args {
+			for i, fileName := range filesToLint {
 
-				go func(c chan bool, i int, arg string) {
-
+				go func(c chan bool, i int, fileName string) {
+					fmt.Println(fileName)
 					// get size
-					s, _ := os.Stat(arg)
+					s, _ := os.Stat(fileName)
 					if s != nil {
 						size = size + s.Size()
 					}
 
 					lfr := utils.LintFileRequest{
-						FileName:                 arg,
+						FileName:                 fileName,
 						BaseFlag:                 baseFlag,
 						Remote:                   remoteFlag,
 						MultiFile:                mf,
@@ -193,7 +206,7 @@ func GetLintCommand() *cobra.Command {
 						ErrorsFlag:               errorsFlag,
 						NoMessageFlag:            noMessage,
 						AllResultsFlag:           allResults,
-						TotalFiles:               len(args),
+						TotalFiles:               len(filesToLint),
 						FileIndex:                i,
 						DefaultRuleSets:          defaultRuleSets,
 						SelectedRS:               selectedRS,
@@ -211,11 +224,11 @@ func GetLintCommand() *cobra.Command {
 
 					errs = append(errs, err)
 					doneChan <- true
-				}(doneChan, i, arg)
+				}(doneChan, i, fileName)
 			}
 
 			completed := 0
-			for completed < len(args) {
+			for completed < len(filesToLint) {
 				<-doneChan
 				completed++
 			}
@@ -250,6 +263,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
+	cmd.PersistentFlags().String("globbed-files", "", "Glob pattern of files to lint")
 
 	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
 		model.CategoryAll,
@@ -576,4 +590,51 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 
 	}
 
+}
+
+func getFilesToLint(globPattern string, filenames []string) []string {
+	// The user may pass in filenames (the args), a glob pattern, or both
+	// We simply concatenate them together, and remove any duplicates we may find
+	filesToLint := filenames
+
+	dir, err := os.Getwd()
+	if err != nil {
+		pterm.Error.Println(err)
+		os.Exit(1)
+	}
+	if globPattern != "" {
+		// Removing leading './' and '/' if present
+		globPattern = strings.TrimPrefix(globPattern, "./")
+		globPattern = strings.TrimPrefix(globPattern, "/")
+		matches, err := filepath.Glob(fmt.Sprintf("%s/%s", dir, globPattern))
+		if err != nil {
+			pterm.Error.Println(err)
+			os.Exit(1)
+		}
+		filesToLint = append(filesToLint, matches...)
+	}
+	filesToLint = deduplicate(filesToLint)
+
+	return filesToLint
+}
+
+func deduplicate(input []string) []string {
+	seen := make(map[string]bool)
+	deduplicated := []string{}
+	for _, val := range input {
+		if _, alreadySeen := seen[val]; !alreadySeen {
+			seen[val] = true
+			deduplicated = append(deduplicated, val)
+		}
+	}
+	return deduplicated
+}
+
+func hasValidExtension(filename string, extensions []string) bool {
+	for _, ext := range extensions {
+		if strings.HasSuffix(filename, ext) {
+			return true
+		}
+	}
+	return false
 }
