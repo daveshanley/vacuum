@@ -1,5 +1,17 @@
-// Copyright 2023 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
+// https://pb33f.io
+// https://quobix.com/vacuum
+//
+// This code was originally written by KDanisme (https://github.com/KDanisme) and was submitted as a PR
+// to the vacuum project. It then was modified by Dave Shanley to fit the needs of the vacuum project.
+// The original code can be found here:
+// https://github.com/KDanisme/vacuum/tree/language-server
+//
+// I (Dave Shanley) do not know what happened to KDasnime, or why the PR was
+// closed, but I am grateful for the contribution.
+//
+// This feature is why I built vacuum. This is the reason for its existence.
 
 package languageserver
 
@@ -12,7 +24,6 @@ import (
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	glspserv "github.com/tliron/glsp/server"
 	"log/slog"
-	"time"
 )
 
 var serverName = "vacuum"
@@ -20,22 +31,29 @@ var serverName = "vacuum"
 type ServerState struct {
 	server        *glspserv.Server
 	documentStore *DocumentStore
+	logger        *slog.Logger
 }
 
 func NewServer(version string, logger *slog.Logger) *ServerState {
 	handler := protocol.Handler{}
-	server := glspserv.NewServer(&handler, serverName, false)
+	server := glspserv.NewServer(&handler, serverName, true)
+
 	state := &ServerState{
 		server:        server,
+		logger:        logger,
 		documentStore: newDocumentStore(),
 	}
 	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
-		logger.Info("Initializing vacuum language server")
 		if params.Trace != nil {
 			protocol.SetTraceValue(*params.Trace)
 		}
+
+		serverCapabilities := handler.CreateServerCapabilities()
+		serverCapabilities.TextDocumentSync = protocol.TextDocumentSyncKindIncremental
+		serverCapabilities.CompletionProvider = &protocol.CompletionOptions{}
+
 		return protocol.InitializeResult{
-			Capabilities: handler.CreateServerCapabilities(),
+			Capabilities: serverCapabilities,
 			ServerInfo: &protocol.InitializeResultServerInfo{
 				Name:    serverName,
 				Version: &version,
@@ -47,13 +65,11 @@ func NewServer(version string, logger *slog.Logger) *ServerState {
 		return nil
 	}
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
-		logger.Info("document opened")
 		doc := state.documentStore.Add(params.TextDocument.URI, params.TextDocument.Text)
 		state.runDiagnostic(doc, context.Notify, false)
 		return nil
 	}
 	handler.TextDocumentDidChange = func(context *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
-		logger.Info("document changed")
 		doc, ok := state.documentStore.Get(params.TextDocument.URI)
 		if !ok {
 			return nil
@@ -72,7 +88,6 @@ func NewServer(version string, logger *slog.Logger) *ServerState {
 	}
 
 	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
-		logger.Info("document closed")
 		state.documentStore.Remove(params.TextDocument.URI)
 
 		return nil
@@ -85,28 +100,19 @@ func (s *ServerState) Run() error {
 }
 
 func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay bool) {
-	if doc.RunningDiagnostic {
-		return
-	}
 
-	doc.RunningDiagnostic = true
 	go func() {
-		if delay {
-			time.Sleep(1 * time.Second)
-		}
-		doc.RunningDiagnostic = false
-
 		var diagnostics []protocol.Diagnostic
 		defaultRuleSets := rulesets.BuildDefaultRuleSets()
-
 		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 			RuleSet:           selectedRS,
 			Spec:              []byte(doc.Content),
-			CustomFunctions:   nil,
-			Base:              "",
 			SkipDocumentCheck: false,
+			Logger:            s.logger,
 		})
+
 		for _, vacuumResult := range result.Results {
 			severity := getDiagnosticSeverityFromRule(vacuumResult.Rule)
 			diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s,", model.WebsiteUrl,
@@ -124,6 +130,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 				CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
 				Message:         vacuumResult.Message,
 			})
+
 		}
 		if len(diagnostics) > 0 {
 			go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
@@ -143,5 +150,5 @@ func getDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity
 	case model.SeverityInfo:
 		return protocol.DiagnosticSeverityInformation
 	}
-	return -1
+	return protocol.DiagnosticSeverityError
 }
