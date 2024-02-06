@@ -44,7 +44,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
-			EndNode:   node,
+			EndNode:   vacuumUtils.BuildEndNode(node),
 			Path:      path,
 			Rule:      context.Rule,
 		}

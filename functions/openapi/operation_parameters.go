@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -59,7 +60,6 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 				for _, param := range params {
 					_, paramInNode := utils.FindKeyNode("in", param.Node.Content)
 					startNode := param.Node
-					endNode := utils.FindLastChildNodeWithLevel(startNode, 0)
 					if paramInNode != nil {
 						if seenParamInLocations[paramInNode.Value] {
 							if paramInNode.Value == "body" {
@@ -67,7 +67,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 									Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
 										"duplicate param in:body definition", currentVerb, currentPath),
 									StartNode: startNode,
-									EndNode:   endNode,
+									EndNode:   vacuumUtils.BuildEndNode(startNode),
 									Path:      resultPath,
 									Rule:      context.Rule,
 								})
@@ -80,7 +80,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 											"contains parameters using both in:body and in:formData",
 											currentVerb, currentPath),
 										StartNode: startNode,
-										EndNode:   endNode,
+										EndNode:   vacuumUtils.BuildEndNode(startNode),
 										Path:      resultPath,
 										Rule:      context.Rule,
 									})
@@ -93,7 +93,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 							Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
 								"parameter with no `in` value", currentVerb, currentPath),
 							StartNode: startNode,
-							EndNode:   endNode,
+							EndNode:   vacuumUtils.BuildEndNode(startNode),
 							Path:      resultPath,
 							Rule:      context.Rule,
 						}

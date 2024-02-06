@@ -35,7 +35,7 @@ func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 						"schema of type `string` must specify `maxLength`, `const` or `enum`"),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}

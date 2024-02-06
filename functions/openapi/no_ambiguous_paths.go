@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 	"regexp"
 	"strings"
@@ -48,7 +49,7 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					results = append(results, model.RuleFunctionResult{
 						Message:   fmt.Sprintf("paths are ambiguous with one another: `%s` and `%s`", p, opPath),
 						StartNode: op,
-						EndNode:   op,
+						EndNode:   vacuumUtils.BuildEndNode(op),
 						Path:      path,
 						Rule:      context.Rule,
 					})

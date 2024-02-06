@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -39,7 +40,6 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 		for method, methodNode := range methodMap {
 
 			_, operationId := utils.FindKeyNode("operationId", methodNode.Node.Content)
-			lastNode := utils.FindLastChildNodeWithLevel(methodNode.Node, 0)
 
 			if operationId != nil {
 				if seenIds[operationId.Value] {
@@ -47,7 +47,7 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 						Message: fmt.Sprintf("the '%s' operation at path '%s' contains a "+
 							"duplicate operationId '%s'", method, path, operationId.Value),
 						StartNode: methodNode.Node,
-						EndNode:   lastNode,
+						EndNode:   vacuumUtils.BuildEndNode(methodNode.Node),
 						Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
 						Rule:      context.Rule,
 					})

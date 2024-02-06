@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -36,7 +37,7 @@ func (pm PolymorphicAnyOf) RunRule(nodes []*yaml.Node, context model.RuleFunctio
 		results = append(results, model.RuleFunctionResult{
 			Message:   fmt.Sprintf("`anyOf` polymorphic reference: %s", context.Rule.Description),
 			StartNode: ref.Node,
-			EndNode:   ref.Node,
+			EndNode:   vacuumUtils.BuildEndNode(ref.Node),
 			Path:      ref.Path,
 			Rule:      context.Rule,
 		})

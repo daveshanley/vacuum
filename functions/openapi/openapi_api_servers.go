@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"net/url"
@@ -38,8 +39,8 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	if rootServersNode == nil && rootServers == nil {
 		results = append(results, model.RuleFunctionResult{
 			Message:   "no servers defined for the specification",
-			StartNode: context.Index.GetRootNode(),
-			EndNode:   utils.FindLastChildNodeWithLevel(context.Index.GetRootNode(), 0),
+			StartNode: context.Index.GetRootNode().Content[0],
+			EndNode:   vacuumUtils.BuildEndNode(context.Index.GetRootNode().Content[0]),
 			Path:      "$.servers",
 			Rule:      context.Rule,
 		})
@@ -50,7 +51,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		results = append(results, model.RuleFunctionResult{
 			Message:   "servers definition is empty, contains no servers!",
 			StartNode: rootServersNode,
-			EndNode:   rootServersNode,
+			EndNode:   vacuumUtils.BuildEndNode(rootServersNode),
 			Path:      "$.servers",
 			Rule:      context.Rule,
 		})
@@ -63,7 +64,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			results = append(results, model.RuleFunctionResult{
 				Message:   "server definition is missing a URL",
 				StartNode: serverRef.Node,
-				EndNode:   utils.FindLastChildNodeWithLevel(serverRef.Node, 0),
+				EndNode:   vacuumUtils.BuildEndNode(serverRef.Node),
 				Path:      fmt.Sprintf("$.servers[%d]", i),
 				Rule:      context.Rule,
 			})
@@ -81,7 +82,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("server URL cannot be parsed: %s", err.Error()),
 				StartNode: urlLabelNode,
-				EndNode:   urlNode,
+				EndNode:   vacuumUtils.BuildEndNode(urlLabelNode),
 				Path:      fmt.Sprintf("$.servers[%d].url", i),
 				Rule:      context.Rule,
 			})
@@ -94,7 +95,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			results = append(results, model.RuleFunctionResult{
 				Message:   msg,
 				StartNode: urlLabelNode,
-				EndNode:   urlNode,
+				EndNode:   vacuumUtils.BuildEndNode(urlLabelNode),
 				Path:      fmt.Sprintf("$.servers[%d].url", i),
 				Rule:      context.Rule,
 			})
@@ -107,7 +108,7 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			results = append(results, model.RuleFunctionResult{
 				Message:   msg,
 				StartNode: urlLabelNode,
-				EndNode:   urlNode,
+				EndNode:   vacuumUtils.BuildEndNode(urlLabelNode),
 				Path:      fmt.Sprintf("$.servers[%d].url", i),
 				Rule:      context.Rule,
 			})

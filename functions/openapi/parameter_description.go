@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vutils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -40,7 +41,7 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 		// only check if the param has an 'in' property.
 		_, in := utils.FindKeyNodeTop("in", param.Node.Content)
 		_, desc := utils.FindKeyNodeTop("description", param.Node.Content)
-		lastNode := utils.FindLastChildNodeWithLevel(param.Node, 0)
+		//lastNode := utils.FindLastChildNodeWithLevel(param.Node, 0)
 
 		if in != nil {
 			if desc == nil || desc.Value == "" {
@@ -48,7 +49,7 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				results = append(results, model.RuleFunctionResult{
 					Message:   fmt.Sprintf(msg, id),
 					StartNode: param.Node,
-					EndNode:   lastNode,
+					EndNode:   vutils.BuildEndNode(param.Node),
 					Path:      path,
 					Rule:      context.Rule,
 				})
@@ -64,7 +65,7 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					if param != nil && param.Node != nil {
 						_, in := utils.FindKeyNodeTop("in", param.Node.Content)
 						_, desc := utils.FindKeyNodeTop("description", param.Node.Content)
-						lastNode := utils.FindLastChildNodeWithLevel(param.Node, 0)
+						//lastNode := utils.FindLastChildNodeWithLevel(param.Node, 0)
 
 						if in != nil {
 							if desc == nil || desc.Value == "" {
@@ -72,7 +73,7 @@ func (pd ParameterDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 								results = append(results, model.RuleFunctionResult{
 									Message:   fmt.Sprintf(msg, pName),
 									StartNode: param.Node,
-									EndNode:   lastNode,
+									EndNode:   vutils.BuildEndNode(param.Node),
 									Path:      pathString,
 									Rule:      context.Rule,
 								})

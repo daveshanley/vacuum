@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -63,7 +64,7 @@ func (or Operation4xResponse) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					results = append(results, model.RuleFunctionResult{
 						Message:   "operation must define at least one 4xx error response",
 						StartNode: method,
-						EndNode:   utils.FindLastChildNodeWithLevel(method, 0),
+						EndNode:   vacuumUtils.BuildEndNode(method),
 						Path:      basePath,
 						Rule:      context.Rule,
 					})

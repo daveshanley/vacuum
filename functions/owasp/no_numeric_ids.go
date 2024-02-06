@@ -31,23 +31,25 @@ func (ni NoNumericIds) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 	}
 
 	checkParam := func(param *drV3.Parameter) {
-		if strings.ToLower(param.Value.Name) == "id" ||
-			strings.HasSuffix(strings.ToLower(param.Value.Name), "_id") ||
-			strings.HasSuffix(strings.ToLower(param.Value.Name), "id") ||
-			strings.HasSuffix(strings.ToLower(param.Value.Name), "-id") {
-			if param.Value.Schema != nil {
-				if slices.Contains(param.SchemaProxy.Schema.Value.Type, "integer") {
-					node := param.SchemaProxy.Schema.Value.GoLow().Type.KeyNode
-					result := model.RuleFunctionResult{
-						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							"don't use numeric IDs, use random IDs that cannot be guessed like UUIDs"),
-						StartNode: node,
-						EndNode:   node,
-						Path:      fmt.Sprintf("%s.%s", param.SchemaProxy.Schema.GenerateJSONPath(), "type"),
-						Rule:      context.Rule,
+		if param != nil && param.Value != nil {
+			if strings.ToLower(param.Value.Name) == "id" ||
+				strings.HasSuffix(strings.ToLower(param.Value.Name), "_id") ||
+				strings.HasSuffix(strings.ToLower(param.Value.Name), "id") ||
+				strings.HasSuffix(strings.ToLower(param.Value.Name), "-id") {
+				if param.Value.Schema != nil {
+					if slices.Contains(param.SchemaProxy.Schema.Value.Type, "integer") {
+						node := param.SchemaProxy.Schema.Value.GoLow().Type.KeyNode
+						result := model.RuleFunctionResult{
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								"don't use numeric IDs, use random IDs that cannot be guessed like UUIDs"),
+							StartNode: node,
+							EndNode:   vacuumUtils.BuildEndNode(node),
+							Path:      fmt.Sprintf("%s.%s", param.SchemaProxy.Schema.GenerateJSONPath(), "type"),
+							Rule:      context.Rule,
+						}
+						param.SchemaProxy.Schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						results = append(results, result)
 					}
-					param.SchemaProxy.Schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
 				}
 			}
 		}

@@ -37,7 +37,7 @@ func (i IntegerFormat) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 						"schema of type `integer` must specify a format of `int32` or `int64`"),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}

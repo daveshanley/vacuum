@@ -48,55 +48,57 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 				opValue := opPairs.Value()
 				opType := opPairs.Key()
 
-				responses := opValue.Responses.Codes
-				found := false
-				schemaMissing := true
-				var node *yaml.Node
+				if opValue.Responses != nil && opValue.Responses.Codes != nil {
+					responses := opValue.Responses.Codes
+					found := false
+					schemaMissing := true
+					var node *yaml.Node
 
-				for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
-					resp := respPairs.Value()
-					respCode := respPairs.Key()
-					if respCode == code {
-						found = true
-						node = resp.Value.GoLow().Content.KeyNode
-						if resp.Content.First() != nil {
-							if resp.Content.First().Value().Value.Schema != nil {
-								schemaMissing = false
+					for respPairs := responses.First(); respPairs != nil; respPairs = respPairs.Next() {
+						resp := respPairs.Value()
+						respCode := respPairs.Key()
+						if respCode == code {
+							found = true
+							node = resp.Value.GoLow().Content.KeyNode
+							if resp.Content.First() != nil {
+								if resp.Content.First().Value().Value.Schema != nil {
+									schemaMissing = false
+								}
 							}
 						}
 					}
-				}
-				if node == nil {
-					n := responses.GetOrZero(code)
-					if n != nil {
-						node = n.Value.GoLow().RootNode
-					} else {
-						node = opValue.Responses.Value.GoLow().KeyNode
+					if node == nil {
+						n := responses.GetOrZero(code)
+						if n != nil {
+							node = n.Value.GoLow().RootNode
+						} else {
+							node = opValue.Responses.Value.GoLow().KeyNode
+						}
 					}
-				}
-				if !found {
-					result := model.RuleFunctionResult{
-						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("missing response code `%s` for `%s`", code, strings.ToUpper(opType))),
-						StartNode: node,
-						EndNode:   node,
-						Path:      fmt.Sprintf("$.paths['%s'].%s.responses", pathPairs.Key(), opType),
-						Rule:      context.Rule,
+					if !found {
+						result := model.RuleFunctionResult{
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("missing response code `%s` for `%s`", code, strings.ToUpper(opType))),
+							StartNode: node,
+							EndNode:   vacuumUtils.BuildEndNode(node),
+							Path:      fmt.Sprintf("$.paths['%s'].%s.responses", pathPairs.Key(), opType),
+							Rule:      context.Rule,
+						}
+						opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						results = append(results, result)
 					}
-					opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
-				}
-				if schemaMissing && found {
-					result := model.RuleFunctionResult{
-						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("missing schema for `%s` response on `%s`", code, strings.ToUpper(opType))),
-						StartNode: node,
-						EndNode:   node,
-						Path:      fmt.Sprintf("$.paths['%s'].%s.responses['%s']", pathPairs.Key(), opType, code),
-						Rule:      context.Rule,
+					if schemaMissing && found {
+						result := model.RuleFunctionResult{
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("missing schema for `%s` response on `%s`", code, strings.ToUpper(opType))),
+							StartNode: node,
+							EndNode:   vacuumUtils.BuildEndNode(node),
+							Path:      fmt.Sprintf("$.paths['%s'].%s.responses['%s']", pathPairs.Key(), opType, code),
+							Rule:      context.Rule,
+						}
+						opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						results = append(results, result)
 					}
-					opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
-					results = append(results, result)
 				}
 			}
 		}

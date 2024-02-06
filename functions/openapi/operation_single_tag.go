@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -42,13 +43,12 @@ func (ost OperationSingleTag) RunRule(nodes []*yaml.Node, context model.RuleFunc
 			if len(tags) > 1 {
 
 				tagsNode, _ := utils.FindKeyNode("tags", methodNode.Node.Content)
-				lastNode := utils.FindLastChildNodeWithLevel(tagsNode, 0)
 
 				results = append(results, model.RuleFunctionResult{
 					Message: fmt.Sprintf("the `%s` operation at path `%s` contains more "+
 						"than one tag (%d is too many)'", method, path, len(tags)),
 					StartNode: tagsNode,
-					EndNode:   lastNode,
+					EndNode:   vacuumUtils.BuildEndNode(tagsNode),
 					Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
 					Rule:      context.Rule,
 				})

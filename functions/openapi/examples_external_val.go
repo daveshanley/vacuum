@@ -32,7 +32,7 @@ func (eec ExamplesExternalCheck) RunRule(_ []*yaml.Node, context model.RuleFunct
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
-			EndNode:   node,
+			EndNode:   vacuumUtils.BuildEndNode(node),
 			Path:      path,
 			Rule:      context.Rule,
 		}

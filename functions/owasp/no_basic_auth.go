@@ -39,7 +39,7 @@ func (ba NoBasicAuth) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							"security scheme uses HTTP Basic Auth, which is an insecure practice"),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
 						Rule:      context.Rule,
 					}

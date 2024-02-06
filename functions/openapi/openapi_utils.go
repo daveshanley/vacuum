@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -50,7 +51,7 @@ func GetComponentsFromRoot(nodes []*yaml.Node) []*yaml.Node {
 func createDescriptionResult(msg, path string, start *yaml.Node, end *yaml.Node) model.RuleFunctionResult {
 	res := model.BuildFunctionResultString(msg)
 	res.StartNode = start
-	res.EndNode = end
+	res.EndNode = vacuumUtils.BuildEndNode(end)
 	res.Path = path
 	return res
 }

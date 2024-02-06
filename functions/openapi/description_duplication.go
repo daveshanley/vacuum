@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -77,7 +78,7 @@ func checkSummaries(seenSummaries map[string]*copyPasta, md5String string, summa
 		res := model.BuildFunctionResultString(fmt.Sprintf("Summary at line `%d` is a duplicate of line `%d`",
 			summary.Line, seenSummaries[md5String].node.Line))
 		res.StartNode = summary
-		res.EndNode = summary
+		res.EndNode = vacuumUtils.BuildEndNode(summary)
 		res.Path = path
 		res.Rule = context.Rule
 		*results = append(*results, res)
@@ -95,7 +96,7 @@ func checkDescriptions(seenDescriptions map[string]*copyPasta, md5String string,
 		res := model.BuildFunctionResultString(fmt.Sprintf("Description at line `%d` is a duplicate of line `%d`",
 			description.Line, seenDescriptions[md5String].node.Line))
 		res.StartNode = description
-		res.EndNode = description
+		res.EndNode = vacuumUtils.BuildEndNode(description)
 		res.Path = path
 		res.Rule = context.Rule
 		*results = append(*results, res)

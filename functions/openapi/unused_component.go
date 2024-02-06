@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -146,7 +147,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		results = append(results, model.RuleFunctionResult{
 			Message:   fmt.Sprintf("`%s` is potentially unused or has been orphaned", key),
 			StartNode: ref.Node,
-			EndNode:   utils.FindLastChildNodeWithLevel(ref.Node, 0),
+			EndNode:   vacuumUtils.BuildEndNode(ref.Node),
 			Path:      path,
 			Rule:      context.Rule,
 		})
@@ -159,7 +160,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 			results = append(results, model.RuleFunctionResult{
 				Message:   rErr.Err.Error(),
 				StartNode: rErr.Node,
-				EndNode:   rErr.Node,
+				EndNode:   vacuumUtils.BuildEndNode(rErr.Node),
 				Path:      rErr.Path,
 				Rule:      context.Rule,
 			})

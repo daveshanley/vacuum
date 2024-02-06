@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"fmt"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"strconv"
 
 	"github.com/daveshanley/vacuum/model"
@@ -69,7 +70,7 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		typeResults := utils.AreValuesCorrectlyTyped(enumType, typeArray)
 
 		startNode := enum.Node
-		endNode := enum.Node
+		endNode := vacuumUtils.BuildEndNode(enum.Node)
 
 		// iterate through type results and add to rule output.
 		for _, res := range typeResults {

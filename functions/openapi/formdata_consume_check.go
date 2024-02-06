@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -71,7 +72,7 @@ func (fd FormDataConsumeCheck) paramCheck(paramMap map[string][]*index.Reference
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("parameter value for '%s' is empty / missing", paramName),
 				StartNode: consumesNode,
-				EndNode:   consumesNode,
+				EndNode:   vacuumUtils.BuildEndNode(consumesNode),
 				Path:      fmt.Sprintf("$.paths['%s'].%s.parameters", path, method),
 				Rule:      context.Rule,
 			})
@@ -92,7 +93,7 @@ func (fd FormDataConsumeCheck) paramCheck(paramMap map[string][]*index.Reference
 					results = append(results, model.RuleFunctionResult{
 						Message:   fmt.Sprintf("in:formData param '%s' used without 'consumes' defined", paramName),
 						StartNode: inNodeStart,
-						EndNode:   inNode,
+						EndNode:   vacuumUtils.BuildEndNode(inNodeStart),
 						Path:      pathString,
 						Rule:      context.Rule,
 					})
@@ -115,7 +116,7 @@ func (fd FormDataConsumeCheck) paramCheck(paramMap map[string][]*index.Reference
 						Message: fmt.Sprintf("in:formData param '%s' parameter must include 'application/x-www-form-urlencoded'"+
 							" or 'multipart/form-data' in their 'consumes' property", paramName),
 						StartNode: inNodeStart,
-						EndNode:   inNode,
+						EndNode:   vacuumUtils.BuildEndNode(inNodeStart),
 						Path:      pathString,
 						Rule:      context.Rule,
 					})

@@ -34,7 +34,7 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 				result := model.RuleFunctionResult{
 					Message:   utils.SuppliedOrDefault(context.Rule.Message, "schema of type `array` must specify `maxItems`"),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   utils.BuildEndNode(node),
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}

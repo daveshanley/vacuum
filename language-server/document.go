@@ -1,5 +1,16 @@
-// Copyright 2023 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
+// https://pb33f.io
+//
+// This code was originally written by KDanisme (https://github.com/KDanisme) and was submitted as a PR
+// to the vacuum project. It then was modified by Dave Shanley to fit the needs of the vacuum project.
+// The original code can be found here:
+// https://github.com/KDanisme/vacuum/tree/language-server
+//
+// I (Dave Shanley) do not know what happened to KDasnime, or why the PR was
+// closed, but I am grateful for the contribution.
+//
+// This feature is why I built vacuum. This is the reason for its existence.
 
 package languageserver
 

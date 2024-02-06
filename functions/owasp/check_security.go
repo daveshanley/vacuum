@@ -91,7 +91,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType)),
 						StartNode: opNode,
-						EndNode:   opNode,
+						EndNode:   vacuumUtils.BuildEndNode(opNode),
 						Path:      op.GenerateJSONPath(),
 						Rule:      context.Rule,
 					}
@@ -106,7 +106,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType)),
 						StartNode: opNode,
-						EndNode:   opNode,
+						EndNode:   vacuumUtils.BuildEndNode(opNode),
 						Path:      op.GenerateJSONPath(),
 						Rule:      context.Rule,
 					}
@@ -122,7 +122,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 									fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
 								StartNode: securityNode,
-								EndNode:   securityNode,
+								EndNode:   vacuumUtils.BuildEndNode(securityNode),
 								Path:      opValue.Security[i].GenerateJSONPath(),
 								Rule:      context.Rule,
 							}
@@ -141,7 +141,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 									fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
 								StartNode: securityNode,
-								EndNode:   securityNode,
+								EndNode:   vacuumUtils.BuildEndNode(securityNode),
 								Path:      globalSecurity[i].GenerateJSONPath(),
 								Rule:      context.Rule,
 							}

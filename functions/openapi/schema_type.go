@@ -5,6 +5,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
@@ -58,7 +59,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				result := model.RuleFunctionResult{
 					Message:   fmt.Sprintf("unknown schema type: `%s`", t),
 					StartNode: schema.Value.GoLow().Type.KeyNode,
-					EndNode:   schema.Value.GoLow().Type.KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(schema.Value.GoLow().Type.KeyNode),
 					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "type"),
 					Rule:      context.Rule,
 				}
@@ -213,7 +214,7 @@ func (st SchemaTypeCheck) buildResult(message, path string, schema *base.Schema,
 	result := model.RuleFunctionResult{
 		Message:   message,
 		StartNode: node,
-		EndNode:   node,
+		EndNode:   vacuumUtils.BuildEndNode(node),
 		Path:      path,
 		Rule:      context.Rule,
 	}
@@ -253,7 +254,7 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 	if len(schema.Value.Required) > 0 {
 		for i, required := range schema.Value.Required {
 			if schema.Value.Properties == nil {
-			  result := st.buildResult("object contains `required` fields but no `properties`",
+				result := st.buildResult("object contains `required` fields but no `properties`",
 					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
 					schema, schema.Value.GoLow().Required.KeyNode, context)
 				results = append(results, result)
