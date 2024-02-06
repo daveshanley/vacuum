@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -158,9 +159,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	indexConfig.Logger.Debug("applying rules to rule set")
 
 	if execution.Base != "" {
+
 		// check if this is a URL or not
-		u, e := url.Parse(execution.Base)
-		if e == nil && u.Scheme != "" && u.Host != "" {
+		if strings.HasPrefix(execution.Base, "http") {
+
+			if !strings.HasSuffix(execution.Base, "/") {
+				execution.Base = execution.Base + "/"
+			}
+			u, _ := url.Parse(execution.Base)
 			indexConfig.BaseURL = u
 			indexConfig.BasePath = ""
 			indexConfigUnresolved.BaseURL = u
@@ -439,6 +445,24 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			"The schema must be fixed, follow the error message to find the specific problem.",
 	}
 
+	// checks if an index was created for the document or not (could be parsed)
+	indexBuildRule := &model.Rule{
+		Name:         "Check that an index can be created from the document",
+		Id:           "build-index",
+		Description:  "vacuum must be able to index the document, if it cannot then it cannot be linted",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         "validation",
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "blank",
+		},
+		HowToFix: "An index is required to use vacuum. If an index cannot be created then the file cannot be read, or the OpenAPI version is not supported." +
+			" Check your version of OpenAPI to start and if that looks correct, check the syntax of the document.",
+	}
+
 	// add all circular reference errors to the results.
 	circularRefRule := &model.Rule{
 		Name:         "Circular References",
@@ -483,18 +507,20 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		ruleResults = append(ruleResults, res)
 	}
 
-	for _, er := range indexResolved.GetReferenceIndexErrors() {
-		var idxError *index.IndexingError
-		errors.As(er, &idxError)
-		res := model.RuleFunctionResult{
-			RuleId:    "resolving-references",
-			Rule:      resolvingRule,
-			StartNode: idxError.Node,
-			EndNode:   idxError.Node,
-			Message:   idxError.Error(),
-			Path:      idxError.Path,
+	if indexResolved != nil {
+		for _, er := range indexResolved.GetReferenceIndexErrors() {
+			var idxError *index.IndexingError
+			errors.As(er, &idxError)
+			res := model.RuleFunctionResult{
+				RuleId:    "resolving-references",
+				Rule:      resolvingRule,
+				StartNode: idxError.Node,
+				EndNode:   idxError.Node,
+				Message:   idxError.Error(),
+				Path:      idxError.Path,
+			}
+			ruleResults = append(ruleResults, res)
 		}
-		ruleResults = append(ruleResults, res)
 	}
 
 	// run all rules.
@@ -515,7 +541,20 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	}
 
-	if execution.RuleSet != nil {
+	// if there is no index, report an error.
+	if indexUnresolved == nil {
+		res := model.RuleFunctionResult{
+			RuleId:    "index-failure",
+			Rule:      indexBuildRule,
+			StartNode: &yaml.Node{Line: 1, Column: 1},
+			EndNode:   &yaml.Node{Line: 1, Column: 2},
+			Message:   "unable to parse the document, no index was created, check the syntax or version of the document.",
+			Path:      "$",
+		}
+		ruleResults = append(ruleResults, res)
+	}
+
+	if execution.RuleSet != nil && indexUnresolved != nil {
 
 		totalRules := len(execution.RuleSet.Rules)
 		done := make(chan bool)
@@ -533,7 +572,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					ruleSpec = specUnresolved
 					ruleIndex = indexUnresolved
 				}
-
 				// this list of things is most likely going to grow a bit, so we use a nice clean message design.
 				ctx := ruleContext{
 					rule:               rule,
@@ -585,7 +623,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfig.Logger.Debug("rules completed", "totalRules", totalRules, "ms", then)
 	}
 
-	ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
+	filesProcessed := 0
+	fileSize := int64(0)
+
+	if indexResolved != nil && rolodexResolved != nil {
+		filesProcessed = rolodexResolved.RolodexTotalFiles()
+		fileSize = rolodexResolved.RolodexFileSize()
+		ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
+	}
 
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
@@ -596,8 +641,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Index:            indexResolved,
 		SpecInfo:         specInfo,
 		Errors:           errs,
-		FilesProcessed:   rolodexResolved.RolodexTotalFiles(),
-		FileSize:         rolodexResolved.RolodexFileSize(),
+		FilesProcessed:   filesProcessed,
+		FileSize:         fileSize,
 	}
 }
 
