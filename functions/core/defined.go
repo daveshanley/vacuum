@@ -51,7 +51,7 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)),
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})

@@ -52,7 +52,7 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined]",
 					ruleMessage, val)),
 				StartNode: fieldNode,
-				EndNode:   fieldNode,
+				EndNode:   vacuumUtils.BuildEndNode(fieldNode),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})

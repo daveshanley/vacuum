@@ -68,7 +68,7 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 					fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
 						node.Value, values)),
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})

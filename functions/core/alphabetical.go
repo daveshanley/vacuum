@@ -65,7 +65,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
 						node.Value, a.GetSchema().ErrorMessage)),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      pathValue,
 					Rule:      context.Rule,
 				})
@@ -182,7 +182,7 @@ func compareStringArray(node *yaml.Node, strArr []string, context model.RuleFunc
 				results = append(results, model.RuleFunctionResult{
 					Rule:      context.Rule,
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
 						context.Rule.Description,
 						strArr[x+1], strArr[x])),
@@ -234,7 +234,7 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 			results = append(results, model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
 			})
 		}
@@ -251,7 +251,7 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 			results = append(results, model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
 			})
 		}

@@ -69,7 +69,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
 					StartNode: node,
-					EndNode:   endNode,
+					EndNode:   vacuumUtils.BuildEndNode(endNode),
 					Path:      pathValue,
 					Rule:      context.Rule,
 				})
