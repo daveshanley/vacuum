@@ -157,7 +157,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			results = append(results, model.RuleFunctionResult{
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType)),
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})
@@ -180,7 +180,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
 					nodes[0].Value, casingType)),
 				StartNode: nodes[0],
-				EndNode:   nodes[0],
+				EndNode:   vacuumUtils.BuildEndNode(nodes[0]),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})

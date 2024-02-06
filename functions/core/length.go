@@ -5,6 +5,7 @@ package core
 
 import (
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -114,7 +115,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				if float64(minVal) > 0 && fValue < float64(minVal) {
 					res := createMinError(ruleMessage, p.Value, minVal)
 					res.StartNode = node
-					res.EndNode = node
+					res.EndNode = vacuumUtils.BuildEndNode(node)
 					res.Path = pathValue
 					res.Rule = context.Rule
 					results = append(results, res)
@@ -123,7 +124,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				if float64(maxVal) > 0 && fValue > float64(maxVal) {
 					res := createMaxError(ruleMessage, p.Value, maxVal)
 					res.StartNode = node
-					res.EndNode = node
+					res.EndNode = vacuumUtils.BuildEndNode(node)
 					res.Path = pathValue
 					res.Rule = context.Rule
 					results = append(results, res)
@@ -134,7 +135,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			if minVal > 0 && valueCheck < minVal {
 				res := createMinError(ruleMessage, p.Value, minVal)
 				res.StartNode = node
-				res.EndNode = node
+				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = pathValue
 				res.Rule = context.Rule
 				results = append(results, res)
@@ -143,7 +144,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			if maxVal > 0 && valueCheck > maxVal {
 				res := createMaxError(ruleMessage, p.Value, maxVal)
 				res.StartNode = node
-				res.EndNode = node
+				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = pathValue
 				res.Rule = context.Rule
 				results = append(results, res)
@@ -172,7 +173,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				}
 				res := createMinError(ruleMessage, fv, minVal)
 				res.StartNode = node
-				res.EndNode = node
+				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = pathValue
 				res.Rule = context.Rule
 				results = append(results, res)
@@ -189,7 +190,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				}
 				res := createMaxError(ruleMessage, fv, maxVal)
 				res.StartNode = node
-				res.EndNode = node
+				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = pathValue
 				res.Rule = context.Rule
 				results = append(results, res)

@@ -82,7 +82,7 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` and `%s` must not be both defined or undefined",
 					ruleMessage, properties[0], properties[1])),
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})

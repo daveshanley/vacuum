@@ -106,7 +106,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						fmt.Sprintf("%s: `%s` cannot be compiled into a regular expression [`%s`]",
 							ruleMessage, p.match, err.Error())),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      expPath,
 					Rule:      context.Rule,
 				})
@@ -117,7 +117,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 							fmt.Sprintf("%s: `%s` does not match the expression `%s`", ruleMessage,
 								node.Value, p.match)),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      expPath,
 						Rule:      context.Rule,
 					})
@@ -135,7 +135,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						fmt.Sprintf("%s: cannot be compiled into a regular expression [`%s`]",
 							ruleMessage, err.Error())),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      expPath,
 					Rule:      context.Rule,
 				})
@@ -145,7 +145,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Message: vacuumUtils.SuppliedOrDefault(message,
 							fmt.Sprintf("%s: matches the expression `%s`", ruleMessage, p.notMatch)),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      expPath,
 						Rule:      context.Rule,
 					})

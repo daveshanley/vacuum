@@ -5,6 +5,7 @@ package core
 
 import (
 	"fmt"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
@@ -49,7 +50,7 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("%s: `%s` must be falsy", ruleMessage, context.RuleAction.Field),
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})
