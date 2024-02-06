@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -52,7 +53,7 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("description contains content with `%s`, forbidden", pattern),
 				StartNode: startNode,
-				EndNode:   endNode,
+				EndNode:   vacuumUtils.BuildEndNode(endNode),
 				Path:      desc.Path,
 				Rule:      context.Rule,
 			})

@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -44,7 +45,7 @@ func (od OAS2Discriminator) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 				results = append(results, model.RuleFunctionResult{
 					Message:   fmt.Sprintf("the schema '%s' uses a non string discriminator", id),
 					StartNode: discriminator,
-					EndNode:   dv,
+					EndNode:   vacuumUtils.BuildEndNode(dv),
 					Path:      path,
 					Rule:      context.Rule,
 				})
@@ -60,7 +61,7 @@ func (od OAS2Discriminator) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 					Message: fmt.Sprintf("schema '%s' uses a discriminator but has no "+
 						"'required' property set", id),
 					StartNode: discriminator,
-					EndNode:   dv,
+					EndNode:   vacuumUtils.BuildEndNode(dv),
 					Path:      path,
 					Rule:      context.Rule,
 				})
@@ -80,7 +81,7 @@ func (od OAS2Discriminator) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 					Message: fmt.Sprintf("schema '%s' uses a discriminator but is not "+
 						"included in 'required' properties", id),
 					StartNode: discriminator,
-					EndNode:   dv,
+					EndNode:   vacuumUtils.BuildEndNode(dv),
 					Path:      path,
 					Rule:      context.Rule,
 				})

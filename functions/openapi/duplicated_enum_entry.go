@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -45,7 +46,7 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				result := model.RuleFunctionResult{
 					Message:   fmt.Sprintf("enum contains a duplicate: `%s`", res.Value),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "enum"),
 					Rule:      context.Rule,
 				}

@@ -43,7 +43,7 @@ func (c NoCredentialsInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionCo
 						fmt.Sprintf("URL parameters must not contain credentials, passwords, or secrets (`%s`)",
 							param.Value.Name)),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      fmt.Sprintf("%s.%s", param.GenerateJSONPath(), "name"),
 					Rule:      context.Rule,
 				}

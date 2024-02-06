@@ -39,7 +39,7 @@ func (st StringRestricted) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 						"schema of type `string` must specify `format`, `const`, `enum` or `pattern`"),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}

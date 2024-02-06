@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -45,7 +46,7 @@ func (vp VerbsInPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionCon
 				results = append(results, model.RuleFunctionResult{
 					Message:   fmt.Sprintf("path `%s` contains an HTTP Verb `%s`", opPath, verb),
 					StartNode: op,
-					EndNode:   op,
+					EndNode:   vacuumUtils.BuildEndNode(op),
 					Path:      path,
 					Rule:      context.Rule,
 				})

@@ -103,7 +103,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 								results = append(results, model.RuleFunctionResult{
 									Message:   fmt.Sprintf("operation `%s` must define at least a single `2xx` or `3xx` response", name),
 									StartNode: fieldNode,
-									EndNode:   endNode,
+									EndNode:   &yaml.Node{Line: fieldNode.Line, Column: fieldNode.Column + len(fieldNode.Value), Kind: fieldNode.Kind, Value: fieldNode.Value},
 									Path:      fmt.Sprintf("$.paths['%s'].%s.%s", currentPath, currentVerb, context.RuleAction.Field),
 									Rule:      context.Rule,
 								})
@@ -115,7 +115,7 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 										Message: fmt.Sprintf("operation `%s` uses an `integer` instead of a `string` "+
 											"for response code `%d`", name, invalidCodes[i]),
 										StartNode: fieldNode,
-										EndNode:   endNode,
+										EndNode:   fieldNode,
 										Path:      fmt.Sprintf("$.paths['%s'].%s.%s", currentPath, currentVerb, context.RuleAction.Field),
 										Rule:      context.Rule,
 									})

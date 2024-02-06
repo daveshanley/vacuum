@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
@@ -80,7 +81,7 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				}
 
 				if opTagsNode == nil || len(opTagsNode.Content) <= 0 {
-					endNode := utils.FindLastChildNodeWithLevel(verbNode, 0)
+
 					var msg string
 					if opTagsNode == nil {
 						msg = fmt.Sprintf("tags for `%s` operation at path `%s` are missing",
@@ -93,7 +94,7 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 					results = append(results, model.RuleFunctionResult{
 						Message:   msg,
 						StartNode: verbMapNode,
-						EndNode:   endNode,
+						EndNode:   vacuumUtils.BuildEndNode(verbMapNode),
 						Path:      fmt.Sprintf("$.paths['%s'].%s", currentPath, currentVerb),
 						Rule:      context.Rule,
 					})

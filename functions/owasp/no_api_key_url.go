@@ -42,7 +42,7 @@ func (ak NoApiKeyInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionContex
 							fmt.Sprintf("API keys must not be passed via URL parameters (`%s`)",
 								securityScheme.Value.In)),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      fmt.Sprintf("%s.%s", securityScheme.GenerateJSONPath(), "in"),
 						Rule:      context.Rule,
 					}

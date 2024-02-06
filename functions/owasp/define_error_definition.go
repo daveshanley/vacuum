@@ -75,7 +75,7 @@ func processCodes(codes []string, drDoc *v3.Document, context model.RuleFunction
 							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 								fmt.Sprintf("missing one of `%s` response codes", code)),
 							StartNode: node,
-							EndNode:   node,
+							EndNode:   vacuumUtils.BuildEndNode(node),
 							Path:      fmt.Sprintf("%s.%s", opValue.GenerateJSONPath(), "responses"),
 							Rule:      context.Rule,
 						}

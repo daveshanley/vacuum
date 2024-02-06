@@ -40,7 +40,7 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							"JWTs must explicitly declare support for `RFC8725` in the description"),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "description"),
 						Rule:      context.Rule,
 					}

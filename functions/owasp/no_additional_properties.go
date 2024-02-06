@@ -36,7 +36,7 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							"`additionalProperties` should not be set, or set to `false`"),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      schema.GenerateJSONPath(),
 						Rule:      context.Rule,
 					}

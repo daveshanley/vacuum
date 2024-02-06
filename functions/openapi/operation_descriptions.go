@@ -146,6 +146,9 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 						opCodeNode = response
 						continue
 					}
+					if strings.HasPrefix(opCode, "x-") {
+						continue
+					}
 
 					descKey, descNode = utils.FindKeyNodeTop("description", response.Content)
 					_, summNode = utils.FindKeyNodeTop("summary", response.Content)

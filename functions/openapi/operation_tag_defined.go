@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -76,19 +77,15 @@ func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 				if opTagsNode != nil {
 
 					tagIndex := 0
-					for j, operationTag := range opTagsNode.Content {
+					for _, operationTag := range opTagsNode.Content {
 						if operationTag.Tag == "!!str" {
 							if !seenGlobalTags[operationTag.Value] {
-								endNode := utils.FindLastChildNodeWithLevel(operationTag, 0)
-								if j+1 < len(opTagsNode.Content) {
-									endNode = opTagsNode.Content[j+1]
-								}
 								results = append(results, model.RuleFunctionResult{
 									Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
 										"tag `%s`, that is not defined in the global document tags",
 										currentVerb, currentPath, operationTag.Value),
 									StartNode: operationTag,
-									EndNode:   endNode,
+									EndNode:   vacuumUtils.BuildEndNode(operationTag),
 									Path:      fmt.Sprintf("$.paths['%s'].%s.tags[%v]", currentPath, currentVerb, tagIndex),
 									Rule:      context.Rule,
 								})

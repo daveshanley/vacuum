@@ -36,7 +36,7 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 					Message: utils.SuppliedOrDefault(context.Rule.Message,
 						"schema should also define `maxProperties` when `additionalProperties` is an object"),
 					StartNode: node,
-					EndNode:   node,
+					EndNode:   utils.BuildEndNode(node),
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}

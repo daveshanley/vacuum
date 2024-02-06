@@ -39,7 +39,7 @@ func (is AuthInsecureSchemes) RunRule(_ []*yaml.Node, context model.RuleFunction
 					result := model.RuleFunctionResult{
 						Message:   utils.SuppliedOrDefault(context.Rule.Message, "authentication scheme is considered outdated or insecure"),
 						StartNode: node,
-						EndNode:   node,
+						EndNode:   utils.BuildEndNode(node),
 						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
 						Rule:      context.Rule,
 					}

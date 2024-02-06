@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
@@ -59,7 +60,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	if pathNodes == nil {
 		return results
 	}
-	for j, pathNode := range pathNodes.Content {
+	for _, pathNode := range pathNodes.Content {
 
 		if utils.IsNodeStringValue(pathNode) {
 			// replace any params with an invalid char (%) so we can perform a path
@@ -73,7 +74,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					fmt.Sprintf("paths `%s` and `%s` must not be equivalent, paths must be unique",
 						seenPaths[currentPathNormalized], currentPath))
 				res.StartNode = pathNode
-				res.EndNode = pathNode
+				res.EndNode = vacuumUtils.BuildEndNode(pathNode)
 				res.Path = fmt.Sprintf("$.paths.['%s']", currentPath)
 				res.Rule = context.Rule
 				results = append(results, res)
@@ -91,7 +92,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 						fmt.Sprintf("path `%s` must not use the parameter `%s` multiple times",
 							currentPath, param))
 					res.StartNode = pathNode
-					res.EndNode = pathNode
+					res.EndNode = vacuumUtils.BuildEndNode(pathNode)
 					res.Path = fmt.Sprintf("$.paths.['%s']", currentPath)
 					res.Rule = context.Rule
 					results = append(results, res)
@@ -101,10 +102,10 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 			}
 		}
-
+		oprefs := context.Index.GetOperationParameterReferences()
 		if utils.IsNodeMap(pathNode) {
 
-			topLevelParametersNode := context.Index.GetOperationParameterReferences()[currentPath]["top"]
+			topLevelParametersNode := oprefs[currentPath]["top"]
 			//_, topLevelParametersNode := utils.FindKeyNodeTop("parameters", operationNode.Content)
 			// look for top level params
 			//if topLevelParametersNode != nil {
@@ -148,9 +149,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				}
 
 				// use index to locate params.
-				verbParametersNode := context.Index.GetOperationParameterReferences()[currentPath][currentVerb]
-
-				//if verbParametersNode != nil {
+				verbParametersNode := oprefs[currentPath][currentVerb]
 				for _, verbParams := range verbParametersNode {
 
 					if verbParams == nil {
@@ -179,7 +178,6 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 						c++
 					}
 				}
-				//}
 			}
 
 			// blend together all our params and check they all match up!
@@ -196,11 +194,6 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 
 			startNode := pathNode
-			endNode := utils.FindLastChildNodeWithLevel(startNode, 0)
-			if j+1 < len(pathNodes.Content) {
-				endNode = pathNodes.Content[j+1]
-			}
-
 			r := ""
 			for i, verbMapNode := range pathNode.Content {
 				if i%2 == 0 {
@@ -209,11 +202,11 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				}
 				if isVerb(r) {
 					pp.ensureAllExpectedParamsInPathAreDefined(currentPath, allPathParams,
-						pathElements, &results, startNode, endNode, context, r)
+						pathElements, &results, startNode, context, r)
 				}
 			}
 			pp.ensureAllDefinedPathParamsAreUsedInPath(currentPath, allPathParams,
-				pathElements, &results, startNode, endNode, context)
+				pathElements, &results, startNode, context)
 
 			// reset for the next run.
 			pathElements = make(map[string]bool)
@@ -230,7 +223,7 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		idxErr := err.(*index.IndexingError)
 		res := model.BuildFunctionResultString(idxErr.Error())
 		res.StartNode = idxErr.Node
-		res.EndNode = idxErr.Node
+		res.EndNode = vacuumUtils.BuildEndNode(idxErr.Node)
 		res.Path = idxErr.Path
 		res.Rule = context.Rule
 		results = append(results, res)
@@ -249,7 +242,7 @@ func isVerb(verb string) bool {
 }
 
 func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, allPathParams map[string]map[string][]string,
-	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
+	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode *yaml.Node,
 	context model.RuleFunctionContext) {
 
 	for _, item := range allPathParams {
@@ -265,7 +258,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 				err := fmt.Sprintf("parameter `%s` must be used in path `%s`", param, path)
 				res := model.BuildFunctionResultString(err)
 				res.StartNode = startNode
-				res.EndNode = endNode
+				res.EndNode = vacuumUtils.BuildEndNode(startNode)
 				res.Path = fmt.Sprintf("$.paths['%s']", path)
 				res.Rule = context.Rule
 				*results = append(*results, res)
@@ -275,7 +268,7 @@ func (pp PathParameters) ensureAllDefinedPathParamsAreUsedInPath(path string, al
 }
 
 func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, allPathParams map[string]map[string][]string,
-	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode, endNode *yaml.Node,
+	pathElements map[string]bool, results *[]model.RuleFunctionResult, startNode *yaml.Node,
 	context model.RuleFunctionContext, verb string) {
 	var topParams map[string][]string
 	var verbParams map[string][]string
@@ -289,7 +282,7 @@ func (pp PathParameters) ensureAllExpectedParamsInPathAreDefined(path string, al
 			err := fmt.Sprintf("`%s` must define parameter `%s` as expected by path `%s`", strings.ToUpper(verb), p, path)
 			res := model.BuildFunctionResultString(err)
 			res.StartNode = startNode
-			res.EndNode = endNode
+			res.EndNode = vacuumUtils.BuildEndNode(startNode)
 			res.Path = fmt.Sprintf("$.paths['%s']", path)
 			res.Rule = context.Rule
 			*results = append(*results, res)

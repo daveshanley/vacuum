@@ -40,7 +40,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
-			EndNode:   node,
+			EndNode:   vacuumUtils.BuildEndNode(node),
 			Path:      path,
 			Rule:      context.Rule,
 		}

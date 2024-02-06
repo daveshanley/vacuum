@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
@@ -57,6 +58,12 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			if _, ok := seen[hashResult(validationErrors[i].SchemaValidationErrors[y])]; ok {
 				continue
 			}
+			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-else failed" {
+				continue
+			}
+			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-then failed" {
+				continue
+			}
 			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].Location)
 			n := &yaml.Node{
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
@@ -65,7 +72,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("schema invalid: %v", validationErrors[i].SchemaValidationErrors[y].Reason),
 				StartNode: n,
-				EndNode:   n,
+				EndNode:   vacuumUtils.BuildEndNode(n),
 				Path:      location,
 				Rule:      context.Rule,
 			})

@@ -34,7 +34,7 @@ func (hh HostsHttps) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 			result := model.RuleFunctionResult{
 				Message:   "server URLs should use TLS (https)",
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 					fmt.Sprintf("%s.%s", server.GenerateJSONPath(), "url")),
 				Rule: context.Rule,

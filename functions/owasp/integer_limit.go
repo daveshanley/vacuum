@@ -36,7 +36,7 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 					"schema of type `string` must specify `minimum` and `maximum` or "+
 						"`exclusiveMinimum` and `exclusiveMaximum`"),
 				StartNode: node,
-				EndNode:   node,
+				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      schema.GenerateJSONPath(),
 				Rule:      context.Rule,
 			}

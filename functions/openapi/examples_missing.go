@@ -32,7 +32,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
-			EndNode:   node,
+			EndNode:   &yaml.Node{Line: node.Line, Column: node.Column + len(node.Value), Kind: node.Kind, Value: node.Value},
 			Path:      path,
 			Rule:      context.Rule,
 		}
