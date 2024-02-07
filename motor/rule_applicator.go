@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/sourcegraph/conc"
 	"io"
@@ -499,8 +500,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		res := model.RuleFunctionResult{
 			RuleId:    "circular-references",
 			Rule:      circularRefRule,
-			StartNode: cr.Start.Node,
-			EndNode:   cr.LoopPoint.Node,
+			StartNode: cr.ParentNode,
+			EndNode:   vacuumUtils.BuildEndNode(cr.ParentNode),
 			Message:   fmt.Sprintf("circular reference detected from %s", cr.Start.Definition),
 			Path:      cr.GenerateJourneyPath(),
 		}

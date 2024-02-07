@@ -92,6 +92,10 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 
 		return nil
 	}
+
+	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
+		return nil, nil
+	}
 	return state
 }
 
