@@ -102,7 +102,19 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.8+` 🔥 : **OpenAPI Bundler**.
+🔥 **New in** `v0.9+` 🔥 : **Built in Language Server**.
+
+A new command is available `language-server`. This starts vacuum as an LSP compatible language server. Run vacuum
+in your favorite IDE and get linting and validation as you type, in realtime.
+
+Will support any LSP compatible editor, like VSCode, Sublime, vim, etc.
+
+[Learn more about the language-server command](https://quobix.com/vacuum/commands/language-server/)
+
+
+---
+
+`v0.8+` : **OpenAPI Bundler**.
 
 A new command is available `bundle` will bundle all external references for an OpenAPI file into a single file.
 
