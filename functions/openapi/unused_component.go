@@ -121,7 +121,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 					found = true
 				}
 
-				if mappedRefs[key] != nil {
+				if mappedRefs[key] != nil || mappedRefs[keyAlt] != nil {
 					found = true
 				}
 
