@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -56,7 +57,7 @@ func GetLintCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
-			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -177,31 +178,31 @@ func GetLintCommand() *cobra.Command {
 						size = size + s.Size()
 					}
 
-					lfr := lintFileRequest{
-						fileName:                 arg,
-						baseFlag:                 baseFlag,
-						remote:                   remoteFlag,
-						multiFile:                mf,
-						skipCheckFlag:            skipCheckFlag,
-						silent:                   silent,
-						detailsFlag:              detailsFlag,
-						timeFlag:                 timeFlag,
-						failSeverityFlag:         failSeverityFlag,
-						categoryFlag:             categoryFlag,
-						snippetsFlag:             snippetsFlag,
-						errorsFlag:               errorsFlag,
-						noMessageFlag:            noMessage,
-						allResultsFlag:           allResults,
-						totalFiles:               len(args),
-						fileIndex:                i,
-						defaultRuleSets:          defaultRuleSets,
-						selectedRS:               selectedRS,
-						functions:                customFunctions,
-						lock:                     &printLock,
-						logger:                   logger,
-						timeoutFlag:              timeoutFlag,
-						ignoreArrayCircleRef:     ignoreArrayCircleRef,
-						ignorePolymorphCircleRef: ignorePolymorphCircleRef,
+					lfr := utils.LintFileRequest{
+						FileName:                 arg,
+						BaseFlag:                 baseFlag,
+						Remote:                   remoteFlag,
+						MultiFile:                mf,
+						SkipCheckFlag:            skipCheckFlag,
+						Silent:                   silent,
+						DetailsFlag:              detailsFlag,
+						TimeFlag:                 timeFlag,
+						FailSeverityFlag:         failSeverityFlag,
+						CategoryFlag:             categoryFlag,
+						SnippetsFlag:             snippetsFlag,
+						ErrorsFlag:               errorsFlag,
+						NoMessageFlag:            noMessage,
+						AllResultsFlag:           allResults,
+						TotalFiles:               len(args),
+						FileIndex:                i,
+						DefaultRuleSets:          defaultRuleSets,
+						SelectedRS:               selectedRS,
+						Functions:                customFunctions,
+						Lock:                     &printLock,
+						Logger:                   logger,
+						TimeoutFlag:              timeoutFlag,
+						IgnoreArrayCircleRef:     ignoreArrayCircleRef,
+						IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 					}
 					fs, fp, err := lintFile(lfr)
 
@@ -276,66 +277,40 @@ func GetLintCommand() *cobra.Command {
 	return cmd
 }
 
-type lintFileRequest struct {
-	fileName                 string
-	baseFlag                 string
-	multiFile                bool
-	remote                   bool
-	skipCheckFlag            bool
-	silent                   bool
-	detailsFlag              bool
-	timeFlag                 bool
-	noMessageFlag            bool
-	allResultsFlag           bool
-	failSeverityFlag         string
-	categoryFlag             string
-	snippetsFlag             bool
-	errorsFlag               bool
-	totalFiles               int
-	fileIndex                int
-	timeoutFlag              int
-	ignoreArrayCircleRef     bool
-	ignorePolymorphCircleRef bool
-	defaultRuleSets          rulesets.RuleSets
-	selectedRS               *rulesets.RuleSet
-	functions                map[string]model.RuleFunction
-	lock                     *sync.Mutex
-	logger                   *slog.Logger
-}
-
-func lintFile(req lintFileRequest) (int64, int, error) {
+func lintFile(req utils.LintFileRequest) (int64, int, error) {
 	// read file.
-	specBytes, ferr := os.ReadFile(req.fileName)
+	specBytes, ferr := os.ReadFile(req.FileName)
 
 	// split up file into an array with lines.
 	specStringData := strings.Split(string(specBytes), "\n")
 
 	if ferr != nil {
 
-		pterm.Error.Printf("Unable to read file '%s': %s\n", req.fileName, ferr.Error())
+		pterm.Error.Printf("Unable to read file '%s': %s\n", req.FileName, ferr.Error())
 		pterm.Println()
 		return 0, 0, ferr
 
 	}
 
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:                req.selectedRS,
-		Spec:                   specBytes,
-		SpecFileName:           req.fileName,
-		CustomFunctions:        req.functions,
-		Base:                   req.baseFlag,
-		AllowLookup:            req.remote,
-		SkipDocumentCheck:      req.skipCheckFlag,
-		Logger:                 req.logger,
-		Timeout:                time.Duration(req.timeoutFlag) * time.Second,
-		IgnoreCircularArrayRef: req.ignoreArrayCircleRef,
+		RuleSet:                      req.SelectedRS,
+		Spec:                         specBytes,
+		SpecFileName:                 req.FileName,
+		CustomFunctions:              req.Functions,
+		Base:                         req.BaseFlag,
+		AllowLookup:                  req.Remote,
+		SkipDocumentCheck:            req.SkipCheckFlag,
+		Logger:                       req.Logger,
+		Timeout:                      time.Duration(req.TimeoutFlag) * time.Second,
+		IgnoreCircularArrayRef:       req.IgnoreArrayCircleRef,
+		IgnoreCircularPolymorphicRef: req.IgnorePolymorphCircleRef,
 	})
 
 	results := result.Results
 
 	if len(result.Errors) > 0 {
 		for _, err := range result.Errors {
-			pterm.Error.Printf("unable to process spec '%s', error: %s", req.fileName, err.Error())
+			pterm.Error.Printf("unable to process spec '%s', error: %s", req.FileName, err.Error())
 			pterm.Println()
 		}
 		return result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
@@ -346,31 +321,31 @@ func lintFile(req lintFileRequest) (int64, int, error) {
 	warnings := resultSet.GetWarnCount()
 	errs := resultSet.GetErrorCount()
 	informs := resultSet.GetInfoCount()
-	req.lock.Lock()
-	defer req.lock.Unlock()
-	if !req.detailsFlag {
-		RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
-		return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
+	req.Lock.Lock()
+	defer req.Lock.Unlock()
+	if !req.DetailsFlag {
+		RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
+		return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 	}
 
-	abs, _ := filepath.Abs(req.fileName)
+	abs, _ := filepath.Abs(req.FileName)
 
 	if len(resultSet.Results) > 0 {
 		processResults(
 			resultSet.Results,
 			specStringData,
-			req.snippetsFlag,
-			req.errorsFlag,
-			req.silent,
-			req.noMessageFlag,
-			req.allResultsFlag,
+			req.SnippetsFlag,
+			req.ErrorsFlag,
+			req.Silent,
+			req.NoMessageFlag,
+			req.AllResultsFlag,
 			abs,
-			req.fileName)
+			req.FileName)
 	}
 
-	RenderSummary(resultSet, req.silent, req.totalFiles, req.fileIndex, req.fileName, req.failSeverityFlag)
+	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
 
-	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.failSeverityFlag, errs, warnings, informs)
+	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 }
 
 func processResults(results []*model.RuleFunctionResult,
