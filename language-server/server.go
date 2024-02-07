@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
-	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	glspserv "github.com/tliron/glsp/server"
-	"log/slog"
+	"time"
 )
 
 var serverName = "vacuum"
@@ -31,16 +31,16 @@ var serverName = "vacuum"
 type ServerState struct {
 	server        *glspserv.Server
 	documentStore *DocumentStore
-	logger        *slog.Logger
+	lintRequest   *utils.LintFileRequest
 }
 
-func NewServer(version string, logger *slog.Logger) *ServerState {
+func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
 	handler := protocol.Handler{}
 	server := glspserv.NewServer(&handler, serverName, true)
 
 	state := &ServerState{
 		server:        server,
-		logger:        logger,
+		lintRequest:   lintRequest,
 		documentStore: newDocumentStore(),
 	}
 	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
@@ -103,14 +103,18 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 
 	go func() {
 		var diagnostics []protocol.Diagnostic
-		defaultRuleSets := rulesets.BuildDefaultRuleSets()
-		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-			RuleSet:           selectedRS,
-			Spec:              []byte(doc.Content),
-			SkipDocumentCheck: false,
-			Logger:            s.logger,
+			RuleSet:                      s.lintRequest.SelectedRS,
+			Timeout:                      time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
+			CustomFunctions:              s.lintRequest.Functions,
+			IgnoreCircularArrayRef:       s.lintRequest.IgnoreArrayCircleRef,
+			IgnoreCircularPolymorphicRef: s.lintRequest.IgnorePolymorphCircleRef,
+			AllowLookup:                  s.lintRequest.Remote,
+			Base:                         s.lintRequest.BaseFlag,
+			Spec:                         []byte(doc.Content),
+			SkipDocumentCheck:            s.lintRequest.SkipCheckFlag,
+			Logger:                       s.lintRequest.Logger,
 		})
 
 		for _, vacuumResult := range result.Results {
