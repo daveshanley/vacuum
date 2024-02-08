@@ -28,7 +28,7 @@ changelog:
       - '^docs:'
       - '^test:'
 brews:
-  - tap:
+  - repository:
       owner: daveshanley
       name: homebrew-vacuum
 
