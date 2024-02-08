@@ -184,7 +184,6 @@ func GetLintCommand() *cobra.Command {
 			for i, fileName := range filesToLint {
 
 				go func(c chan bool, i int, fileName string) {
-					fmt.Println(fileName)
 					// get size
 					s, _ := os.Stat(fileName)
 					if s != nil {
@@ -593,25 +592,54 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 }
 
 func getFilesToLint(globPattern string, filenames []string) []string {
-	// The user may pass in filenames (the args), a glob pattern, or both
-	// We simply concatenate them together, and remove any duplicates we may find
-	filesToLint := filenames
-
 	dir, err := os.Getwd()
 	if err != nil {
 		pterm.Error.Println(err)
 		os.Exit(1)
 	}
-	if globPattern != "" {
-		// Removing leading './' and '/' if present
-		globPattern = strings.TrimPrefix(globPattern, "./")
-		globPattern = strings.TrimPrefix(globPattern, "/")
-		matches, err := filepath.Glob(fmt.Sprintf("%s/%s", dir, globPattern))
+	// The user may pass in filenames (the args), a glob pattern, or both.
+	// We simply concatenate them together, and remove any duplicates we may find.
+	var filesToLint []string
+	for _, filename := range filenames {
+		absFilepath, err := filepath.Abs(filename)
 		if err != nil {
 			pterm.Error.Println(err)
 			os.Exit(1)
 		}
-		filesToLint = append(filesToLint, matches...)
+		cleanedRelFilepath, err := filepath.Rel(dir, filepath.Clean(absFilepath))
+		if err != nil {
+			pterm.Error.Println(err)
+			os.Exit(1)
+		}
+		filesToLint = append(filesToLint, cleanedRelFilepath)
+	}
+
+	if globPattern != "" {
+		// Removing leading './' and '/' if present
+		// Unsure whether leading '/' should be removed (what if the user wants to glob starting from their root dir?)
+		globPattern = strings.TrimPrefix(globPattern, "./")
+		globPattern = strings.TrimPrefix(globPattern, "/")
+		matches, err := filepath.Glob(globPattern)
+		if err != nil {
+			pterm.Error.Println(err)
+			os.Exit(1)
+		}
+		var relMatches []string
+		for _, match := range matches {
+			absMatch, err := filepath.Abs(match)
+			if err != nil {
+				pterm.Error.Println(err)
+				os.Exit(1)
+			}
+			cleanedRelFilepath, err := filepath.Rel(dir, filepath.Clean(absMatch))
+			if err != nil {
+				pterm.Error.Println(err)
+				os.Exit(1)
+			}
+			relMatches = append(relMatches, cleanedRelFilepath)
+		}
+
+		filesToLint = append(filesToLint, relMatches...)
 	}
 	filesToLint = deduplicate(filesToLint)
 
