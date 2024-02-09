@@ -58,32 +58,34 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		example any) []model.RuleFunctionResult {
 
 		var rx []model.RuleFunctionResult
-		valid, validationErrors := validator.ValidateSchemaObject(s.Value, example)
-		if !valid {
-			var path string
-			if iKey == nil && sKey == "" {
-				path = fmt.Sprintf("%s.%s", obj.(base.Foundational).GenerateJSONPath(), label)
-			}
-			if iKey != nil && sKey == "" {
-				path = fmt.Sprintf("%s.%s[%d]", obj.(base.Foundational).GenerateJSONPath(), label, *iKey)
-			}
-			if iKey == nil && sKey != "" {
-				path = fmt.Sprintf("%s.%s['%s']", obj.(base.Foundational).GenerateJSONPath(), label, sKey)
-			}
-			for _, r := range validationErrors {
-				for _, err := range r.SchemaValidationErrors {
-					result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, err.Reason),
-						path, node, obj)
+		if s != nil && s.Value != nil {
+			valid, validationErrors := validator.ValidateSchemaObject(s.Value, example)
+			if !valid {
+				var path string
+				if iKey == nil && sKey == "" {
+					path = fmt.Sprintf("%s.%s", obj.(base.Foundational).GenerateJSONPath(), label)
+				}
+				if iKey != nil && sKey == "" {
+					path = fmt.Sprintf("%s.%s[%d]", obj.(base.Foundational).GenerateJSONPath(), label, *iKey)
+				}
+				if iKey == nil && sKey != "" {
+					path = fmt.Sprintf("%s.%s['%s']", obj.(base.Foundational).GenerateJSONPath(), label, sKey)
+				}
+				for _, r := range validationErrors {
+					for _, err := range r.SchemaValidationErrors {
+						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, err.Reason),
+							path, node, obj)
 
-					banned := false
-					for g := range bannedErrors {
-						if strings.Contains(err.Reason, bannedErrors[g]) {
-							banned = true
-							continue
+						banned := false
+						for g := range bannedErrors {
+							if strings.Contains(err.Reason, bannedErrors[g]) {
+								banned = true
+								continue
+							}
 						}
-					}
-					if !banned {
-						rx = append(rx, result)
+						if !banned {
+							rx = append(rx, result)
+						}
 					}
 				}
 			}
@@ -91,7 +93,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return rx
 	}
 
-	if context.DrDocument.Schemas != nil {
+	if context.DrDocument != nil && context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			s := context.DrDocument.Schemas[i]
 			wg.Go(func() {
@@ -159,7 +161,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return rx
 	}
 
-	if context.DrDocument.Parameters != nil {
+	if context.DrDocument != nil && context.DrDocument.Parameters != nil {
 		for i := range context.DrDocument.Parameters {
 			p := context.DrDocument.Parameters[i]
 			wg.Go(func() {
@@ -174,7 +176,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 
-	if context.DrDocument.Headers != nil {
+	if context.DrDocument != nil && context.DrDocument.Headers != nil {
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
 			wg.Go(func() {
@@ -189,7 +191,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 
-	if context.DrDocument.MediaTypes != nil {
+	if context.DrDocument != nil && context.DrDocument.MediaTypes != nil {
 		for i := range context.DrDocument.MediaTypes {
 			mt := context.DrDocument.MediaTypes[i]
 			wg.Go(func() {
