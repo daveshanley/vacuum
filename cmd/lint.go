@@ -39,7 +39,7 @@ func GetLintCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			globPattern, _ := cmd.PersistentFlags().GetString("globbed-files")
+			globPattern, _ := cmd.Flags().GetString("globbed-files")
 			detailsFlag, _ := cmd.Flags().GetBool("details")
 			timeFlag, _ := cmd.Flags().GetBool("time")
 			snippetsFlag, _ := cmd.Flags().GetBool("snippets")
