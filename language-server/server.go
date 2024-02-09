@@ -23,6 +23,7 @@ import (
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	glspserv "github.com/tliron/glsp/server"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -109,13 +110,17 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 	go func() {
 		var diagnostics []protocol.Diagnostic
 
+		if s.lintRequest.BaseFlag == "" {
+			s.lintRequest.BaseFlag = filepath.Dir(strings.TrimPrefix(doc.URI, "file://"))
+		}
+
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 			RuleSet:                      s.lintRequest.SelectedRS,
 			Timeout:                      time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
 			CustomFunctions:              s.lintRequest.Functions,
 			IgnoreCircularArrayRef:       s.lintRequest.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef: s.lintRequest.IgnorePolymorphCircleRef,
-			AllowLookup:                  s.lintRequest.Remote,
+			AllowLookup:                  true,
 			Base:                         s.lintRequest.BaseFlag,
 			Spec:                         []byte(doc.Content),
 			SkipDocumentCheck:            s.lintRequest.SkipCheckFlag,
