@@ -73,19 +73,13 @@ func GetLintCommand() *cobra.Command {
 				PrintBanner()
 			}
 
-			filesToLint, err := getFilesToLint(globPattern, args)
-			if err != nil {
+			filesToLint, err := getFilesToLint(globPattern, args, validFileExtensions)
+			// If the user has specifically asked for --globbed-files and it throws an error, they should know about it.
+			// However if they have not, then they should expect the default behavior.
+			if cmd.Flags().Changed("globbed-files") && err != nil {
 				pterm.Error.Printf("Error getting files to lint: %v\n", err)
 				pterm.Println()
 				return err
-			}
-			for _, file := range filesToLint {
-				// Verify that the each file has a valid extension
-				if !hasValidExtension(file, validFileExtensions) {
-					pterm.Error.Println("File " + file + " has an invalid extension")
-					pterm.Println()
-					return fmt.Errorf("invalid file extension")
-				}
 			}
 
 			// verify that there is at least one file to lint
@@ -596,51 +590,33 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 
 }
 
-func getFilesToLint(globPattern string, filenames []string) ([]string, error) {
-	dir, err := os.Getwd()
+// The user may pass in filenames, a glob pattern, or both.
+// We simply concatenate them together, and remove any duplicates we may find.
+func getFilesToLint(globPattern string, filepaths []string, validFileExtensions []string) ([]string, error) {
+	// Note that if some of the paths are absolute and the others are relative,
+	// then we turn all paths into relative ones.
+	if globPattern == "" {
+		return deduplicate(filepaths), nil
+	}
+
+	var filesToLint = filepaths
+
+	// Get all files that match the glob pattern
+	matches, err := filepath.Glob(globPattern)
 	if err != nil {
 		return []string{}, err
 	}
-	// The user may pass in filenames (the args), a glob pattern, or both.
-	// We simply concatenate them together, and remove any duplicates we may find.
-	var filesToLint []string
-	for _, filename := range filenames {
-		absFilepath, err := filepath.Abs(filename)
-		if err != nil {
-			return []string{}, err
-		}
-		cleanedRelFilepath, err := filepath.Rel(dir, filepath.Clean(absFilepath))
-		if err != nil {
-			return []string{}, err
-		}
-		filesToLint = append(filesToLint, cleanedRelFilepath)
-	}
+	filesToLint = append(filesToLint, matches...)
 
-	if globPattern != "" {
-		// Removing leading './' and '/' if present
-		// Unsure whether leading '/' should be removed (what if the user wants to glob starting from their root dir?)
-		globPattern = strings.TrimPrefix(globPattern, "./")
-		globPattern = strings.TrimPrefix(globPattern, "/")
-		matches, err := filepath.Glob(globPattern)
-		if err != nil {
-			return []string{}, err
-		}
-		var relMatches []string
-		for _, match := range matches {
-			absMatch, err := filepath.Abs(match)
-			if err != nil {
-				return []string{}, err
-			}
-			cleanedRelFilepath, err := filepath.Rel(dir, filepath.Clean(absMatch))
-			if err != nil {
-				return []string{}, err
-			}
-			relMatches = append(relMatches, cleanedRelFilepath)
-		}
-
-		filesToLint = append(filesToLint, relMatches...)
-	}
+	// Remove any duplicates
 	filesToLint = deduplicate(filesToLint)
+
+	// Ensure that all files have valid file extensions
+	for _, file := range filesToLint {
+		if !hasValidExtension(file, validFileExtensions) {
+			return []string{}, fmt.Errorf("File %q has an invalid file extension. Only %v are supported.\n", file, validFileExtensions)
+		}
+	}
 
 	return filesToLint, nil
 }
