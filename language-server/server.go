@@ -23,6 +23,7 @@ import (
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	glspserv "github.com/tliron/glsp/server"
+	"strings"
 	"time"
 )
 
@@ -123,8 +124,8 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 
 		for _, vacuumResult := range result.Results {
 			severity := getDiagnosticSeverityFromRule(vacuumResult.Rule)
-			diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s,", model.WebsiteUrl,
-				vacuumResult.Rule.RuleCategory.Id, vacuumResult.Rule.Id)
+			diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
+				vacuumResult.Rule.RuleCategory.Id, strings.ReplaceAll(vacuumResult.Rule.Id, "$", ""))
 			diagnostics = append(diagnostics, protocol.Diagnostic{
 				Range: protocol.Range{
 					Start: protocol.Position{Line: protocol.UInteger(vacuumResult.StartNode.Line - 1),
