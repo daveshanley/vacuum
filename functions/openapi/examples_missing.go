@@ -8,6 +8,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
+	"slices"
 )
 
 // ExamplesMissing will check anything that can have an example, has one.
@@ -55,6 +56,9 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			s := context.DrDocument.Schemas[i]
+			if isSchemaBoolean(s) {
+				continue
+			}
 			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
@@ -68,6 +72,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Parameters != nil {
 		for i := range context.DrDocument.Parameters {
 			p := context.DrDocument.Parameters[i]
+			if p.SchemaProxy != nil && isSchemaBoolean(p.SchemaProxy.Schema) {
+				continue
+			}
+			if p.SchemaProxy != nil && (p.SchemaProxy.Schema.Value.Examples != nil || p.SchemaProxy.Schema.Value.Example != nil) {
+				continue
+			}
 			if p.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{p.Value.Example}) {
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing `examples` or `example`"),
@@ -80,6 +90,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Headers != nil {
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
+			if h.SchemaProxy != nil && isSchemaBoolean(h.SchemaProxy.Schema) {
+				continue
+			}
+			if h.SchemaProxy != nil && (h.SchemaProxy.Schema.Value.Examples != nil || h.SchemaProxy.Schema.Value.Example != nil) {
+				continue
+			}
 			if h.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{h.Value.Example}) {
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "header is missing `examples` or `example`"),
@@ -102,4 +118,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	}
 
 	return results
+}
+
+func isSchemaBoolean(schema *base.Schema) bool {
+	if slices.Contains(schema.Value.Type, "boolean") {
+		return true
+	}
+	return false
 }

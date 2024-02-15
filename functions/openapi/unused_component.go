@@ -144,10 +144,17 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		// roll back node by one, so we have the actual start.
 		//rolledBack := *ref.Node
 		//rolledBack.Line = ref.Node.Line - 1
+		var node *yaml.Node
+		if ref.Node != nil {
+			node = ref.Node
+		}
+		if ref.KeyNode != nil {
+			node = ref.KeyNode
+		}
 		results = append(results, model.RuleFunctionResult{
 			Message:   fmt.Sprintf("`%s` is potentially unused or has been orphaned", key),
-			StartNode: ref.Node,
-			EndNode:   vacuumUtils.BuildEndNode(ref.Node),
+			StartNode: node,
+			EndNode:   vacuumUtils.BuildEndNode(node),
 			Path:      path,
 			Rule:      context.Rule,
 		})

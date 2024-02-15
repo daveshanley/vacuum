@@ -488,7 +488,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			RuleId:    "resolving-references",
 			Rule:      resolvingRule,
 			StartNode: er.Node,
-			EndNode:   er.Node,
+			EndNode:   vacuumUtils.BuildEndNode(er.Node),
 			Message:   er.Error(),
 			Path:      er.Path,
 		}
@@ -516,7 +516,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				RuleId:    "resolving-references",
 				Rule:      resolvingRule,
 				StartNode: idxError.Node,
-				EndNode:   idxError.Node,
+				EndNode:   vacuumUtils.BuildEndNode(idxError.KeyNode),
 				Message:   idxError.Error(),
 				Path:      idxError.Path,
 			}
@@ -534,7 +534,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				RuleId:    "schema-build-failure",
 				Rule:      schemaBuildRule,
 				StartNode: er.SchemaProxy.GoLow().GetKeyNode(),
-				EndNode:   er.SchemaProxy.GoLow().GetKeyNode(),
+				EndNode:   vacuumUtils.BuildEndNode(er.SchemaProxy.GoLow().GetValueNode()),
 				Message:   er.Error.Error(),
 				Path:      er.DrSchemaProxy.GenerateJSONPath(),
 			}

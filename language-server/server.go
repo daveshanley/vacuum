@@ -130,7 +130,8 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 		for _, vacuumResult := range result.Results {
 			severity := getDiagnosticSeverityFromRule(vacuumResult.Rule)
 			diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
-				vacuumResult.Rule.RuleCategory.Id, strings.ReplaceAll(vacuumResult.Rule.Id, "$", ""))
+				strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
+				strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
 			diagnostics = append(diagnostics, protocol.Diagnostic{
 				Range: protocol.Range{
 					Start: protocol.Position{Line: protocol.UInteger(vacuumResult.StartNode.Line - 1),
