@@ -33,7 +33,7 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 			node := schema.Value.GoLow().Type.KeyNode
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-					"schema of type `string` must specify `minimum` and `maximum` or "+
+					"schema of type `integer` must specify `minimum` and `maximum` or "+
 						"`exclusiveMinimum` and `exclusiveMaximum`"),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),

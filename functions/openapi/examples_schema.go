@@ -36,11 +36,11 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return results
 	}
 
-	buildResult := func(message, path string, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, key, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
 		result := model.RuleFunctionResult{
 			Message:   message,
-			StartNode: node,
-			EndNode:   vacuumUtils.BuildEndNode(node),
+			StartNode: key,
+			EndNode:   vacuumUtils.BuildEndNode(key),
 			Path:      path,
 			Rule:      context.Rule,
 		}
@@ -55,6 +55,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		s *base.Schema,
 		obj base.AcceptsRuleResults,
 		node *yaml.Node,
+		keyNode *yaml.Node,
 		example any) []model.RuleFunctionResult {
 
 		var rx []model.RuleFunctionResult
@@ -74,7 +75,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
 						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, err.Reason),
-							path, node, obj)
+							path, keyNode, node, obj)
 
 						banned := false
 						for g := range bannedErrors {
@@ -104,7 +105,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 						_ = ex.Decode(&example)
 
 						result := validateSchema(&x, "", "examples",
-							s, s, s.Value.GoLow().Examples.Value[x].ValueNode, example)
+							s, s, s.Value.GoLow().Examples.Value[x].ValueNode,
+							s.Value.GoLow().Examples.GetKeyNode(), example)
 
 						if result != nil {
 							results = append(results, result...)
@@ -116,7 +118,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					var example interface{}
 					_ = s.Value.Example.Decode(&example)
 
-					result := validateSchema(nil, "", "example", s, s, s.Value.Example, example)
+					result := validateSchema(nil, "", "example", s, s, s.Value.Example,
+						s.Value.GoLow().Example.GetKeyNode(), example)
 					if result != nil {
 						results = append(results, result...)
 					}
@@ -139,7 +142,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			var ex any
 			if example.Value != nil {
 				_ = example.Value.Decode(&ex)
-				result := validateSchema(nil, exampleKey, "examples", s, obj, example.Value, ex)
+				result := validateSchema(nil, exampleKey, "examples", s, obj, example.Value, example.GoLow().KeyNode, ex)
 				if result != nil {
 					rx = append(rx, result...)
 				}
@@ -148,13 +151,13 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return rx
 	}
 
-	parseExample := func(s *base.Schema, node *yaml.Node) []model.RuleFunctionResult {
+	parseExample := func(s *base.Schema, node, key *yaml.Node) []model.RuleFunctionResult {
 
 		var rx []model.RuleFunctionResult
 		var ex any
 		_ = node.Decode(&ex)
 
-		result := validateSchema(nil, "", "example", s, s, node, ex)
+		result := validateSchema(nil, "", "example", s, s, node, key, ex)
 		if result != nil {
 			rx = append(rx, result...)
 		}
@@ -169,7 +172,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					results = append(results, parseExamples(p.SchemaProxy.Schema, p, p.Value.Examples)...)
 				} else {
 					if p.Value.Example != nil && p.SchemaProxy != nil {
-						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example)...)
+						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
+							p.Value.GoLow().Example.GetKeyNode())...)
 					}
 				}
 			})
@@ -184,7 +188,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					results = append(results, parseExamples(h.SchemaProxy.Schema, h, h.Value.Examples)...)
 				} else {
 					if h.Value.Example != nil && h.SchemaProxy != nil {
-						results = append(results, parseExample(h.SchemaProxy.Schema, h.Value.Example)...)
+						results = append(results, parseExample(h.SchemaProxy.Schema, h.Value.Example,
+							h.Value.GoLow().Example.GetKeyNode())...)
 					}
 				}
 			})
@@ -199,7 +204,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					results = append(results, parseExamples(mt.SchemaProxy.Schema, mt, mt.Value.Examples)...)
 				} else {
 					if mt.Value.Example != nil && mt.SchemaProxy != nil {
-						results = append(results, parseExample(mt.SchemaProxy.Schema, mt.Value.Example)...)
+						results = append(results, parseExample(mt.SchemaProxy.Schema, mt.Value.Example,
+							mt.Value.GoLow().Example.GetKeyNode())...)
 					}
 				}
 			})
