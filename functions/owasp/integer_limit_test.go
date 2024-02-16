@@ -39,7 +39,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema of type `string` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
+	assert.Equal(t, "schema of type `integer` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
 		"and `exclusiveMaximum`", res[0].Message)
 	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }
@@ -71,7 +71,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema of type `string` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
+	assert.Equal(t, "schema of type `integer` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
 		"and `exclusiveMaximum`", res[0].Message)
 	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }
@@ -132,7 +132,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema of type `string` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
+	assert.Equal(t, "schema of type `integer` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
 		"and `exclusiveMaximum`", res[0].Message)
 	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }
@@ -165,7 +165,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema of type `string` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
+	assert.Equal(t, "schema of type `integer` must specify `minimum` and `maximum` or `exclusiveMinimum` "+
 		"and `exclusiveMaximum`", res[0].Message)
 	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }

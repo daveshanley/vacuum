@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -74,11 +75,12 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 			schemaValue := schemaPairs.Value()
 			key := schemaPairs.Key()
 
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Schemas.Value)
 			checkDescription(schemaValue.Schema.Value.Description,
 				key,
 				"schemas",
 				schemaValue.GenerateJSONPath(),
-				schemaValue.Value.GetSchemaKeyNode(),
+				k.GetKeyNode(),
 				schemaValue)
 		}
 	}
@@ -87,12 +89,12 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		for paramPairs := components.Parameters.First(); paramPairs != nil; paramPairs = paramPairs.Next() {
 			paramValue := paramPairs.Value()
 			key := paramPairs.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Parameters.Value)
 			checkDescription(paramValue.Value.Description,
 				key,
 				"parameters",
 				paramValue.GenerateJSONPath(),
-				paramValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				paramValue)
 
 		}
@@ -102,12 +104,12 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		for requestBodyPairs := components.RequestBodies.First(); requestBodyPairs != nil; requestBodyPairs = requestBodyPairs.Next() {
 			rbValue := requestBodyPairs.Value()
 			key := requestBodyPairs.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().RequestBodies.Value)
 			checkDescription(rbValue.Value.Description,
 				key,
 				"requestBodies",
 				rbValue.GenerateJSONPath(),
-				rbValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				rbValue)
 		}
 	}
@@ -116,12 +118,12 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		for responsePairs := components.Responses.First(); responsePairs != nil; responsePairs = responsePairs.Next() {
 			rValue := responsePairs.Value()
 			key := responsePairs.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Responses.Value)
 			checkDescription(rValue.Value.Description,
 				key,
 				"responses",
 				rValue.GenerateJSONPath(),
-				rValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				rValue)
 		}
 	}
@@ -130,69 +132,55 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		for examplePairs := components.Examples.First(); examplePairs != nil; examplePairs = examplePairs.Next() {
 			exampleValue := examplePairs.Value()
 			key := examplePairs.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Examples.Value)
 			checkDescription(exampleValue.Value.Description,
 				key,
 				"examples",
 				exampleValue.GenerateJSONPath(),
-				exampleValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				exampleValue)
 		}
 	}
 
-	if components != nil && components.Callbacks != nil {
-		for callbackPairs := components.Examples.First(); callbackPairs != nil; callbackPairs = callbackPairs.Next() {
-			callbackValue := callbackPairs.Value()
-			key := callbackPairs.Key()
-
-			checkDescription(callbackValue.Value.Description,
-				key,
-				"callbacks",
-				callbackValue.GenerateJSONPath(),
-				callbackValue.Value.GoLow().RootNode,
-				callbackValue)
-		}
-	}
-
 	if components != nil && components.Headers != nil {
-		for headerPair := components.Examples.First(); headerPair != nil; headerPair = headerPair.Next() {
+		for headerPair := components.Headers.First(); headerPair != nil; headerPair = headerPair.Next() {
 			headerValue := headerPair.Value()
 			key := headerPair.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Headers.Value)
 			checkDescription(headerValue.Value.Description,
 				key,
 				"headers",
 				headerValue.GenerateJSONPath(),
-				headerValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				headerValue)
 		}
 	}
 
 	if components != nil && components.Links != nil {
-		for linkPair := components.Examples.First(); linkPair != nil; linkPair = linkPair.Next() {
+		for linkPair := components.Links.First(); linkPair != nil; linkPair = linkPair.Next() {
 			linkValue := linkPair.Value()
 			key := linkPair.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Links.Value)
 			checkDescription(linkValue.Value.Description,
 				key,
 				"links",
 				linkValue.GenerateJSONPath(),
-				linkValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				linkValue)
 
 		}
 	}
 
 	if components != nil && components.SecuritySchemes != nil {
-		for securitySchemePair := components.Examples.First(); securitySchemePair != nil; securitySchemePair = securitySchemePair.Next() {
+		for securitySchemePair := components.SecuritySchemes.First(); securitySchemePair != nil; securitySchemePair = securitySchemePair.Next() {
 			ssValue := securitySchemePair.Value()
 			key := securitySchemePair.Key()
-
+			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().SecuritySchemes.Value)
 			checkDescription(ssValue.Value.Description,
 				key,
 				"securitySchemes",
 				ssValue.GenerateJSONPath(),
-				ssValue.Value.GoLow().RootNode,
+				k.GetKeyNode(),
 				ssValue)
 
 		}

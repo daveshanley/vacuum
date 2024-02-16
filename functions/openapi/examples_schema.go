@@ -10,7 +10,9 @@ import (
 	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/sourcegraph/conc"
 	"gopkg.in/yaml.v3"
 	"strings"
@@ -101,6 +103,18 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				if s.Value.Examples != nil {
 					for x, ex := range s.Value.Examples {
 
+						isRef, _, _ := utils.IsNodeRefValue(ex)
+						if isRef {
+							// extract node
+							fNode, _, _, _ := low.LocateRefNodeWithContext(s.Value.ParentProxy.GoLow().GetContext(),
+								ex, context.Index)
+							if fNode != nil {
+								ex = fNode
+							} else {
+								continue
+							}
+						}
+
 						var example map[string]interface{}
 						_ = ex.Decode(&example)
 
@@ -115,8 +129,20 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				}
 
 				if s.Value.Example != nil {
+
+					isRef, _, _ := utils.IsNodeRefValue(s.Value.Example)
+					ref := s.Value.Example
+					if isRef {
+						// extract node
+						fNode, _, _, _ := low.LocateRefNodeWithContext(s.Value.ParentProxy.GoLow().GetContext(),
+							s.Value.Example, context.Index)
+						if fNode != nil {
+							ref = fNode
+						}
+					}
+
 					var example interface{}
-					_ = s.Value.Example.Decode(&example)
+					_ = ref.Decode(&example)
 
 					result := validateSchema(nil, "", "example", s, s, s.Value.Example,
 						s.Value.GoLow().Example.GetKeyNode(), example)
