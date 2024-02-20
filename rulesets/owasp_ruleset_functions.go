@@ -274,7 +274,7 @@ func GetOWASPRateLimitRule() *model.Rule {
 		xRatelimitLimit = "X-RateLimit-Limit"
 		xRateLimitLimit = "X-Rate-Limit-Limit"
 		ratelimitLimit  = "RateLimit-Limit||RateLimit-Reset"
-		ratelimit       = "RateLimit-Limit"
+		ratelimit       = "RateLimit"
 	)
 
 	return &model.Rule{
