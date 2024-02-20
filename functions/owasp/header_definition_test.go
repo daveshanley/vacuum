@@ -80,3 +80,57 @@ paths:
 	assert.Len(t, res, 4)
 
 }
+
+func TestHeaderDefinition_RateLimit(t *testing.T) {
+
+	yml := `openapi: 3.1'
+paths:
+  /pizza/:
+    get:
+      responses:
+        499:
+          headers:
+            "Rate-Limit":
+              schema:
+                type: string
+        461:
+          headers:
+            "Content-Type":
+              schema:
+                type: string
+        450:
+          headers:
+            "Accept":
+              schema:
+                type: string
+            "Cache-Control":
+              schema:
+                type: string
+`
+
+	// create a new document from specification bytes
+	document, err := libopenapi.NewDocument([]byte(yml))
+	// if anything went wrong, an error is thrown
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "header_definition", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), map[string]interface{}{
+		"headers": []string{"Accept||Cache-Control", "Content-Type", "Rate-Limit"},
+	})
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	def := HeaderDefinition{}
+	ctx.Rule = &rule
+
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+
+}
