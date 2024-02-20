@@ -56,16 +56,18 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 
 	// look through summaries
 	for _, summary := range summaries {
-		data := []byte(summary.Node.Value)
-		md5String := fmt.Sprintf("%x", md5.Sum(data))
-		cp := copyPasta{
-			value: summary.Node.Value,
-			node:  summary.Node,
-		}
+		if summary.Node != nil {
+			data := []byte(summary.Node.Value)
+			md5String := fmt.Sprintf("%x", md5.Sum(data))
+			cp := copyPasta{
+				value: summary.Node.Value,
+				node:  summary.Node,
+			}
 
-		checkSummaries(seenSummaries, md5String, summary.Node, &results, cp, summary.Path, context)
-		if len(seenDescriptions) > 0 {
-			checkDescriptions(seenDescriptions, md5String, summary.Node, &results, cp, summary.Path, context)
+			checkSummaries(seenSummaries, md5String, summary.Node, &results, cp, summary.Path, context)
+			if len(seenDescriptions) > 0 {
+				checkDescriptions(seenDescriptions, md5String, summary.Node, &results, cp, summary.Path, context)
+			}
 		}
 	}
 	return results
