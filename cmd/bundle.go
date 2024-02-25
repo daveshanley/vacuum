@@ -10,12 +10,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"log/slog"
-	"os"
 )
 
 func GetBundleCommand() *cobra.Command {
@@ -39,6 +40,7 @@ func GetBundleCommand() *cobra.Command {
 			stdOut, _ := cmd.Flags().GetBool("stdout")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -112,6 +114,7 @@ func GetBundleCommand() *cobra.Command {
 				BasePath:                baseFlag,
 				ExtractRefsSequentially: true,
 				Logger:                  logger,
+				AllowRemoteReferences:   remoteFlag,
 			}
 
 			bundled, err := bundler.BundleBytes(specBytes, docConfig)
