@@ -11,5 +11,10 @@ func BuildEndNode(node *yaml.Node) *yaml.Node {
 	if node == nil {
 		return nil
 	}
-	return &yaml.Node{Line: node.Line, Column: node.Column + len(node.Value), Kind: node.Kind, Value: node.Value}
+	modifier := 0
+	// quotes need to be accounted for
+	if node.Style == yaml.DoubleQuotedStyle || node.Style == yaml.SingleQuotedStyle {
+		modifier = 2
+	}
+	return &yaml.Node{Line: node.Line, Column: node.Column + len(node.Value) + modifier, Kind: node.Kind, Value: node.Value}
 }
