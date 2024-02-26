@@ -91,7 +91,6 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 
 	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 		state.documentStore.Remove(params.TextDocument.URI)
-
 		return nil
 	}
 
@@ -108,7 +107,6 @@ func (s *ServerState) Run() error {
 func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay bool) {
 
 	go func() {
-		var diagnostics []protocol.Diagnostic
 
 		if s.lintRequest.BaseFlag == "" {
 			s.lintRequest.BaseFlag = filepath.Dir(strings.TrimPrefix(doc.URI, "file://"))
@@ -126,27 +124,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 			SkipDocumentCheck:            s.lintRequest.SkipCheckFlag,
 			Logger:                       s.lintRequest.Logger,
 		})
-
-		for _, vacuumResult := range result.Results {
-			severity := getDiagnosticSeverityFromRule(vacuumResult.Rule)
-			diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
-				strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
-				strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
-			diagnostics = append(diagnostics, protocol.Diagnostic{
-				Range: protocol.Range{
-					Start: protocol.Position{Line: protocol.UInteger(vacuumResult.StartNode.Line - 1),
-						Character: protocol.UInteger(vacuumResult.StartNode.Column - 1)},
-					End: protocol.Position{Line: protocol.UInteger(vacuumResult.EndNode.Line - 1),
-						Character: protocol.UInteger(vacuumResult.EndNode.Column + len(vacuumResult.EndNode.Value) - 1)},
-				},
-				Severity:        &severity,
-				Source:          &serverName,
-				Code:            &protocol.IntegerOrString{Value: vacuumResult.Rule.Id},
-				CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
-				Message:         vacuumResult.Message,
-			})
-
-		}
+		diagnostics := ConvertResultsIntoDiagnostics(result)
 		if len(diagnostics) > 0 {
 			go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
 				URI:         doc.URI,
@@ -156,7 +134,50 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 	}()
 }
 
-func getDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity {
+func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
+	var diagnostics []protocol.Diagnostic
+	for _, vacuumResult := range result.Results {
+		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
+
+	}
+	return diagnostics
+}
+
+func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protocol.Diagnostic {
+	severity := GetDiagnosticSeverityFromRule(vacuumResult.Rule)
+	diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
+		strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
+		strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
+
+	startLine := 1
+	startChar := 1
+	endLine := 1
+	endChar := 1
+	if vacuumResult.StartNode.Line > 0 {
+		startLine = vacuumResult.StartNode.Line - 1
+		startChar = vacuumResult.StartNode.Column - 1
+	}
+	if vacuumResult.EndNode.Line > 0 {
+		endLine = vacuumResult.EndNode.Line - 1
+		endChar = vacuumResult.EndNode.Column - 1
+	}
+
+	return protocol.Diagnostic{
+		Range: protocol.Range{
+			Start: protocol.Position{Line: protocol.UInteger(startLine),
+				Character: protocol.UInteger(startChar)},
+			End: protocol.Position{Line: protocol.UInteger(endLine),
+				Character: protocol.UInteger(endChar)},
+		},
+		Severity:        &severity,
+		Source:          &serverName,
+		Code:            &protocol.IntegerOrString{Value: vacuumResult.Rule.Id},
+		CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
+		Message:         vacuumResult.Message,
+	}
+}
+
+func GetDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity {
 	switch rule.Severity {
 	case model.SeverityError:
 		return protocol.DiagnosticSeverityError
