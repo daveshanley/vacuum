@@ -82,7 +82,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing `examples` or `example`"),
 						p.GenerateJSONPath(),
-						p.Value.GoLow().RootNode, p))
+						p.Value.GoLow().KeyNode, p))
 			}
 		}
 	}
@@ -112,7 +112,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
 						mt.GenerateJSONPath(),
-						mt.Value.GoLow().RootNode, mt))
+						mt.Value.GoLow().KeyNode, mt))
 			}
 		}
 	}
