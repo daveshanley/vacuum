@@ -871,7 +871,11 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 		stopNowPlease:
 			for _, line := range r {
 				if result.StartNode == nil {
-					panic("wtf")
+					if idx.GetLogger() != nil {
+						idx.GetLogger().Error("[rule-applicator] start node is nil, no line numbers available", "rule", result.RuleId,
+							"message", result.Message)
+					}
+					continue
 				}
 
 				if line.location == fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column) &&
