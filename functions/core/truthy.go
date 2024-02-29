@@ -9,6 +9,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"sort"
 )
 
 // Truthy is a rule that will determine if something is seen as 'true' (could be a 1 or "pizza", or actually 'true')
@@ -59,17 +60,29 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			}
 
 			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) && !utils.IsNodeMap(fieldNodeValue) {
-				var endNode *yaml.Node
-				if len(node.Content) > 0 {
-					endNode = node.Content[len(node.Content)-1]
-				} else {
-					endNode = node
+				origin := context.Index.FindNodeOrigin(node)
+				if origin.Line > 1 {
+					nm := context.Index.GetNodeMap()
+					var keys []int
+					for k := range nm {
+						keys = append(keys, k)
+					}
+
+					// Sort the keys slice.
+					sort.Ints(keys)
+
+					np := nm[origin.Line-1][keys[0]]
+
+					if np != nil {
+						node = np
+					}
 				}
+
 				results = append(results, model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
 					StartNode: node,
-					EndNode:   vacuumUtils.BuildEndNode(endNode),
+					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      pathValue,
 					Rule:      context.Rule,
 				})
