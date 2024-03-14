@@ -139,7 +139,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 	// for every orphan, build a result.
 	for key, ref := range notUsed {
-		_, path := utils.ConvertComponentIdIntoPath(ref.Definition)
+		_, path := utils.ConvertComponentIdIntoFriendlyPathSearch(key)
 
 		// roll back node by one, so we have the actual start.
 		//rolledBack := *ref.Node
@@ -149,7 +149,9 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 			node = ref.Node
 		}
 		if ref.KeyNode != nil {
-			node = ref.KeyNode
+			if ref.KeyNode.Line == ref.Node.Line-1 {
+				node = ref.KeyNode
+			}
 		}
 		results = append(results, model.RuleFunctionResult{
 			Message:   fmt.Sprintf("`%s` is potentially unused or has been orphaned", key),
