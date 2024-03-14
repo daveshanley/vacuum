@@ -79,10 +79,16 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 			if p.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{p.Value.Example}) {
+				n := p.Value.GoLow().RootNode
+				if p.Value.GoLow().KeyNode != nil {
+					if p.Value.GoLow().KeyNode.Line == n.Line-1 {
+						n = p.Value.GoLow().KeyNode
+					}
+				}
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing `examples` or `example`"),
 						p.GenerateJSONPath(),
-						p.Value.GoLow().KeyNode, p))
+						n, p))
 			}
 		}
 	}
@@ -97,10 +103,16 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 			if h.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{h.Value.Example}) {
+				n := h.Value.GoLow().RootNode
+				if h.Value.GoLow().KeyNode != nil {
+					if h.Value.GoLow().KeyNode.Line == n.Line-1 {
+						n = h.Value.GoLow().KeyNode
+					}
+				}
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "header is missing `examples` or `example`"),
 						h.GenerateJSONPath(),
-						h.Value.GoLow().RootNode, h))
+						n, h))
 			}
 		}
 	}
@@ -109,10 +121,17 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		for i := range context.DrDocument.MediaTypes {
 			mt := context.DrDocument.MediaTypes[i]
 			if mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
+
+				n := mt.Value.GoLow().RootNode
+				if mt.Value.GoLow().KeyNode != nil {
+					if mt.Value.GoLow().KeyNode.Line == n.Line-1 {
+						n = mt.Value.GoLow().KeyNode
+					}
+				}
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
 						mt.GenerateJSONPath(),
-						mt.Value.GoLow().KeyNode, mt))
+						n, mt))
 			}
 		}
 	}
