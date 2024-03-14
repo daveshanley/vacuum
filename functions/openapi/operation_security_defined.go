@@ -90,9 +90,9 @@ func (osd OperationSecurityDefined) checkSecurityNode(securityNode *yaml.Node,
 
 					results = append(results, model.RuleFunctionResult{
 						Message: fmt.Sprintf("Security definition points a non-existent "+
-							"securityScheme '%s'", name.Value),
-						StartNode: startNode,
-						EndNode:   vacuumUtils.BuildEndNode(startNode),
+							"securityScheme `%s`", name.Value),
+						StartNode: name,
+						EndNode:   vacuumUtils.BuildEndNode(name),
 						Path:      fmt.Sprintf("%s.security[%d]", basePath, i),
 						Rule:      context.Rule,
 					})
