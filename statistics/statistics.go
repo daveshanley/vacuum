@@ -11,6 +11,11 @@ import (
 // that reduces churn on building stats over and over for different interfaces.
 func CreateReportStatistics(index *index.SpecIndex, info *datamodel.SpecInfo, results *model.RuleResultSet) *reports.ReportStatistics {
 
+	// don't go looking for stats if we don't have the necessary data
+	if index == nil || info == nil || results == nil {
+		return nil
+	}
+
 	opPCount := index.GetOperationsParameterCount()
 	cPCount := index.GetComponentParameterCount()
 
@@ -49,6 +54,13 @@ func CreateReportStatistics(index *index.SpecIndex, info *datamodel.SpecInfo, re
 	if results.GetErrorCount() <= 0 && score < 0 {
 		// floor at 25% if there are no errors, but a ton of warnings lowering the score
 		score = 25.0
+	}
+
+	// if there are any oas-schema rile violations, bottom out the score, an invalid schema is a big deal.
+	for _, result := range results.Results {
+		if result.Rule.Id == "oas3-schema" {
+			score = score - 90
+		}
 	}
 
 	if score < 0 {
