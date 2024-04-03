@@ -630,7 +630,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	if indexResolved != nil && rolodexResolved != nil {
 		filesProcessed = rolodexResolved.RolodexTotalFiles()
 		fileSize = rolodexResolved.RolodexFileSize()
-		ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
+		//ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
 	}
 
 	then = time.Since(now).Milliseconds()
