@@ -647,7 +647,8 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
 	assert.Len(t, results.Results, 1)
-	assert.Equal(t, "'length' needs 'min' or 'max' (or both) properties being set to operate: minimum property number not met (1)", results.Results[0].Message)
+	assert.Equal(t, "'length' needs 'min' or 'max' (or both) properties being set to operate: minimum property number not met (1)",
+		results.Results[0].Message)
 
 }
 
