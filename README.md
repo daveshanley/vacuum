@@ -109,7 +109,9 @@ in your favorite IDE and get linting and validation as you type, in realtime.
 
 Will support any LSP compatible editor, like VSCode, Sublime, vim, etc.
 
+[Install the VSCode extension](https://marketplace.visualstudio.com/items?itemName=pb33f.vacuum)
 [Learn more about the language-server command](https://quobix.com/vacuum/commands/language-server/)
+
 
 
 ---
