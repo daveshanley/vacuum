@@ -76,12 +76,14 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 			key := schemaPairs.Key()
 
 			k, _ := low.FindItemInOrderedMapWithKey(key, components.Value.GoLow().Schemas.Value)
-			checkDescription(schemaValue.Schema.Value.Description,
-				key,
-				"schemas",
-				schemaValue.GenerateJSONPath(),
-				k.GetKeyNode(),
-				schemaValue)
+			if schemaValue.Schema != nil && schemaValue.Schema.Value != nil {
+				checkDescription(schemaValue.Schema.Value.Description,
+					key,
+					"schemas",
+					schemaValue.GenerateJSONPath(),
+					k.GetKeyNode(),
+					schemaValue)
+			}
 		}
 	}
 
