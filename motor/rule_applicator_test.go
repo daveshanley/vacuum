@@ -646,7 +646,8 @@ func TestApplyRules_Length_Description_BadConfig(t *testing.T) {
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
-	assert.Len(t, results.Results, 0)
+	assert.Len(t, results.Results, 1)
+	assert.Equal(t, "'length' needs 'min' or 'max' (or both) properties being set to operate: minimum property number not met (1)", results.Results[0].Message)
 
 }
 
@@ -2058,7 +2059,7 @@ custom:
 
 	assert.Len(t, results.Results, 1)
 	assert.Equal(t, "name 'hello' and id '1234' are not 'some_name' or 'some_id'", results.Results[0].Message)
-	assert.Equal(t, "my-custom-js-rule", results.Results[0].RuleId)
+	assert.Equal(t, "my-custom-js-rule", results.Results[0].Rule.Id)
 	assert.Equal(t, 3, results.Results[0].Range.Start.Line)
 }
 
@@ -2104,7 +2105,7 @@ notCustom: true"
 
 	assert.Len(t, results.Results, 2)
 	assert.Equal(t, "core me up: `custom` must be set", results.Results[0].Message)
-	assert.Equal(t, "my-custom-js-rule", results.Results[0].RuleId)
+	assert.Equal(t, "my-custom-js-rule", results.Results[0].Rule.Id)
 	assert.Equal(t, "this is a message, added after truthy was called", results.Results[1].Message)
 	assert.Equal(t, 2, results.Results[0].Range.Start.Line)
 }
@@ -2202,7 +2203,7 @@ notCustom: true"
 
 	assert.Len(t, results.Results, 1)
 	assert.Equal(t, "someOption is set to someValue", results.Results[0].Message)
-	assert.Equal(t, "my-custom-js-rule", results.Results[0].RuleId)
+	assert.Equal(t, "my-custom-js-rule", results.Results[0].Rule.Id)
 	assert.Equal(t, 2, results.Results[0].Range.Start.Line)
 }
 

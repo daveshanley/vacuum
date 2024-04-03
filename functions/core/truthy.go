@@ -60,24 +60,25 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			}
 
 			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) && !utils.IsNodeMap(fieldNodeValue) {
-				origin := context.Index.FindNodeOrigin(node)
-				if origin.Line > 1 {
-					nm := context.Index.GetNodeMap()
-					var keys []int
-					for k := range nm {
-						keys = append(keys, k)
-					}
+				if context.Index != nil {
+					origin := context.Index.FindNodeOrigin(node)
+					if origin != nil && origin.Line > 1 {
+						nm := context.Index.GetNodeMap()
+						var keys []int
+						for k := range nm {
+							keys = append(keys, k)
+						}
 
-					// Sort the keys slice.
-					sort.Ints(keys)
+						// Sort the keys slice.
+						sort.Ints(keys)
 
-					np := nm[origin.Line-1][keys[0]]
+						np := nm[origin.Line-1][keys[0]]
 
-					if np != nil {
-						node = np
+						if np != nil {
+							node = np
+						}
 					}
 				}
-
 				results = append(results, model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
