@@ -264,7 +264,7 @@ func GetLintCommand() *cobra.Command {
 	// TODO: Add globbed-files flag to other commands as well
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
-	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
+	if regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
 		model.CategoryAll,
 		model.CategoryDescriptions,
 		model.CategoryExamples,
@@ -274,16 +274,14 @@ func GetLintCommand() *cobra.Command {
 		model.CategorySecurity,
 		model.CategoryTags,
 		model.CategoryValidation,
-	}, cobra.ShellCompDirectiveNoFileComp))
-	if regErr != nil {
+	}, cobra.ShellCompDirectiveNoFileComp)); regErr != nil {
 		panic(regErr)
 	}
-	regErr = cmd.RegisterFlagCompletionFunc("fail-severity", cobra.FixedCompletions([]string{
+	if regErr := cmd.RegisterFlagCompletionFunc("fail-severity", cobra.FixedCompletions([]string{
 		model.SeverityInfo,
 		model.SeverityWarn,
 		model.SeverityError,
-	}, cobra.ShellCompDirectiveNoFileComp))
-	if regErr != nil {
+	}, cobra.ShellCompDirectiveNoFileComp)); regErr != nil {
 		panic(regErr)
 	}
 
