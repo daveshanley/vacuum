@@ -454,7 +454,7 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 		Given:        `$`,
 		Resolved:     false,
 		Formats:      append(model.OAS2Format, model.OAS3Format...),
-		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
