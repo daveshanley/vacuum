@@ -65,16 +65,14 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
 	rootCmd.PersistentFlags().BoolP("hard-mode", "z", false, "Enable all the built-in rules, even the OWASP ones. This is the level to beat!")
 
-	regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
+	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
-	))
-	if regErr != nil {
+	)); regErr != nil {
 		panic(regErr)
 	}
-	regErr = rootCmd.RegisterFlagCompletionFunc("ruleset", cobra.FixedCompletions(
+	if regErr := rootCmd.RegisterFlagCompletionFunc("ruleset", cobra.FixedCompletions(
 		[]string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt,
-	))
-	if regErr != nil {
+	)); regErr != nil {
 		panic(regErr)
 	}
 
