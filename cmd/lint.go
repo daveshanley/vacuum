@@ -284,6 +284,9 @@ func GetLintCommand() *cobra.Command {
 	}, cobra.ShellCompDirectiveNoFileComp)); regErr != nil {
 		panic(regErr)
 	}
+	if regErr := cmd.RegisterFlagCompletionFunc("globbed-files", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
 
 	return cmd
 }
