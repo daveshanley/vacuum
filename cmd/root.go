@@ -75,6 +75,9 @@ func GetRootCommand() *cobra.Command {
 	)); regErr != nil {
 		panic(regErr)
 	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("timeout", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
 
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
