@@ -115,9 +115,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 							}
 						}
 
-						var example map[string]interface{}
+						var example any
 						_ = ex.Decode(&example)
-
 						result := validateSchema(&x, "", "examples",
 							s, s, s.Value.GoLow().Examples.Value[x].ValueNode,
 							s.Value.GoLow().Examples.GetKeyNode(), example)
