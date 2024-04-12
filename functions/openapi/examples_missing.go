@@ -7,6 +7,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/libopenapi/datamodel/high"
+	"github.com/pb33f/libopenapi/datamodel/low"
 	"gopkg.in/yaml.v3"
 	"slices"
 )
@@ -53,21 +55,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		return false
 	}
 
-	if context.DrDocument.Schemas != nil {
-		for i := range context.DrDocument.Schemas {
-			s := context.DrDocument.Schemas[i]
-			if isSchemaBoolean(s) {
-				continue
-			}
-			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
-				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
-						s.GenerateJSONPath(),
-						s.Value.ParentProxy.GetSchemaKeyNode(), s))
-
-			}
-		}
-	}
+	seen := make(map[[32]byte]bool)
 
 	if context.DrDocument.Parameters != nil {
 		for i := range context.DrDocument.Parameters {
@@ -89,6 +77,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing `examples` or `example`"),
 						p.GenerateJSONPath(),
 						n, p))
+			} else {
+				// add to seen elements, so when checking schemas we can mark them as good.
+				h := p.Value.GoLow().Hash()
+				if _, ok := seen[h]; !ok {
+					seen[h] = true
+				}
 			}
 		}
 	}
@@ -113,6 +107,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "header is missing `examples` or `example`"),
 						h.GenerateJSONPath(),
 						n, h))
+			} else {
+				// add to seen elements, so when checking schemas we can mark them as good.
+				hs := h.Value.GoLow().Hash()
+				if _, ok := seen[hs]; !ok {
+					seen[hs] = true
+				}
 			}
 		}
 	}
@@ -132,11 +132,49 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
 						mt.GenerateJSONPath(),
 						n, mt))
+			} else {
+				// add to seen elements, so when checking schemas we can mark them as good.
+				h := mt.Value.GoLow().Hash()
+				if _, ok := seen[h]; !ok {
+					seen[h] = true
+				}
 			}
 		}
 	}
 
+	if context.DrDocument.Schemas != nil {
+		for i := range context.DrDocument.Schemas {
+			s := context.DrDocument.Schemas[i]
+			if isSchemaBoolean(s) {
+				continue
+			}
+			parentHash := extractHash(s)
+			if _, ok := seen[parentHash]; ok {
+				continue
+			}
+			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
+				results = append(results,
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
+						s.GenerateJSONPath(),
+						s.Value.ParentProxy.GetSchemaKeyNode(), s))
+
+			}
+		}
+	}
 	return results
+}
+
+func extractHash(s *base.Schema) [32]byte {
+	if s != nil && s.Parent != nil {
+		if p := s.Parent.(base.Foundational).GetParent(); p != nil {
+			if v := p.(base.HasValue).GetValue(); v != nil {
+				if g, ok := v.(high.GoesLowUntyped); ok {
+					return g.GoLowUntyped().(low.Hashable).Hash()
+				}
+			}
+		}
+	}
+	return [32]byte{}
 }
 
 func isSchemaBoolean(schema *base.Schema) bool {
