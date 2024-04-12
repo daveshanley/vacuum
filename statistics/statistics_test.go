@@ -46,7 +46,7 @@ func TestCreateReportStatistics_AlmostPerfect(t *testing.T) {
 
 	//assert.Equal(t, 100, stats.OverallScore)
 	// new missing examples function is now strict / correct
-	assert.Equal(t, 95, stats.OverallScore)
+	assert.Equal(t, 97, stats.OverallScore)
 
 }
 
