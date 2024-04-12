@@ -96,8 +96,6 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
-	//assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
-	//assert.Contains(t, res[0].Path, "$.paths['/pizza'].get.requestBody.content['application/json']")
 }
 
 func TestExamplesMissing_Alt(t *testing.T) {
