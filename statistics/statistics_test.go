@@ -79,5 +79,4 @@ func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
 	case <-d:
 		break
 	}
-
 }

@@ -407,13 +407,6 @@ func processResults(results []*model.RuleFunctionResult,
 			break
 		}
 
-		if snippets {
-			tableData = [][]string{{"Location", "Severity", "Message", "Rule", "Category", "Path"}}
-		}
-		if noMessage {
-			tableData = [][]string{{"Location", "Severity", "Rule", "Category", "Path"}}
-		}
-
 		startLine := 0
 		startCol := 0
 		if r.StartNode != nil {
