@@ -121,10 +121,14 @@ func SniffOutAllExternalRules(
 
 	// iterate over the remote ruleset and add the rules in
 	for ruleName, ruleValue := range drs.Rules {
+		rs.mutex.Lock()
 		rs.Rules[ruleName] = ruleValue
+		rs.mutex.Unlock()
 	}
 	for ruleName, ruleValue := range drs.RuleDefinitions {
+		rs.mutex.Lock()
 		rs.RuleDefinitions[ruleName] = ruleValue
+		rs.mutex.Unlock()
 	}
 
 	visited = append(visited, location)
@@ -138,10 +142,14 @@ func SniffOutAllExternalRules(
 		// suck in all recommended rules
 		recommended := rsm.GenerateOpenAPIRecommendedRuleSet()
 		for k, v := range recommended.Rules {
+			rs.mutex.Lock()
 			rs.Rules[k] = v
+			rs.mutex.Unlock()
 		}
 		for k, v := range recommended.RuleDefinitions {
+			rs.mutex.Lock()
 			rs.RuleDefinitions[k] = v
+			rs.mutex.Unlock()
 		}
 	}
 
@@ -150,7 +158,9 @@ func SniffOutAllExternalRules(
 		// suck in all rules
 		allRules := rsm.openAPIRuleSet
 		for k, v := range allRules.Rules {
+			rs.mutex.Lock()
 			rs.Rules[k] = v
+			rs.mutex.Unlock()
 		}
 		for k, v := range allRules.RuleDefinitions {
 			rs.RuleDefinitions[k] = v

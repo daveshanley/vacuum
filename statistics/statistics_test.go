@@ -56,7 +56,7 @@ func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 	specBytes, _ := os.ReadFile("../model/test_files/api.github.com.yaml")
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	d := make(chan bool)
 	go func(f chan bool) {

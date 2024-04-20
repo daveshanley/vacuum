@@ -2,17 +2,15 @@ package motor
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/plugin"
-	"os"
-	"testing"
-	"time"
-
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
+	"os"
+	"testing"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -1609,9 +1607,10 @@ components:
     none:
       type: int`)
 
-	panicRan := false
+	panicChan := make(chan bool)
+
 	saveMePlease := func(r any) {
-		panicRan = true
+		panicChan <- true
 	}
 
 	ApplyRulesToRuleSet(
@@ -1625,8 +1624,7 @@ components:
 		})
 
 	//nolint:staticcheck // ignore this linting issue, it's not a bug, it's on purpose.
-	time.Sleep(100)
-	assert.True(t, panicRan)
+	<-panicChan
 
 }
 
@@ -2280,4 +2278,35 @@ func Benchmark_StripeSpecAgainstDefaultRuleSet(b *testing.B) {
 		assert.Len(b, results.Errors, 0)
 		assert.NotNil(b, results)
 	}
+}
+
+func Test_Issue486(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /hi:
+    get:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/schemas/v3.0/schema.json"
+`
+
+	rules := make(map[string]*model.Rule)
+	rules["oas3-host-not-example"] = rulesets.GetOAS3HostNotExampleRule()
+
+	rs := &rulesets.RuleSet{
+		Rules: rules,
+	}
+
+	rse := &RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        []byte(yml),
+		AllowLookup: true,
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Errors, 0)
+	assert.Len(t, results.Results, 4)
+
 }

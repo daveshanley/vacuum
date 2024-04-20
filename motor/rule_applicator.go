@@ -561,6 +561,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		done := make(chan bool)
 		indexConfig.Logger.Debug("running rules", "total", totalRules)
 		now = time.Now()
+
+		if execution.Timeout <= 0 {
+			execution.Timeout = time.Second * 5 // default
+		}
+
 		for _, rule := range execution.RuleSet.Rules {
 
 			go func(rule *model.Rule, done chan bool) {
@@ -592,10 +597,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
-				}
-
-				if execution.Timeout <= 0 {
-					execution.Timeout = time.Second * 5 // default
 				}
 
 				timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
