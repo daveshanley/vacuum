@@ -138,14 +138,14 @@ func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.Rul
 		}
 	}
 
-	if schema.Value.Format != "" {
+	if schema.Value.Pattern != "" {
 		vm := goja.New()
-		script := strings.Replace("const regex = new RegExp('{format}');", "{format}", schema.Value.Format, 1)
+		script := strings.Replace("const regex = new RegExp('{pattern}');", "{pattern}", schema.Value.Pattern, 1)
 		_, err := vm.RunString(script)
 		if err != nil {
-			result := st.buildResult("schema `format` should be a ECMA-262 regular expression dialect",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "format"),
-				schema, schema.Value.GoLow().Format.KeyNode, context)
+			result := st.buildResult("schema `pattern` should be a ECMA-262 regular expression dialect",
+				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "pattern"),
+				schema, schema.Value.GoLow().Pattern.KeyNode, context)
 			results = append(results, result)
 		}
 	}

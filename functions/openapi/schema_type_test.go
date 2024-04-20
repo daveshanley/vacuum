@@ -148,14 +148,14 @@ components:
 	assert.Equal(t, "$.components.schemas['Gum'].maxLength", res[0].Path)
 }
 
-func TestSchemaType_InvalidFormat(t *testing.T) {
+func TestSchemaType_InvalidPattern(t *testing.T) {
 
 	yml := `openapi: 3.1
 components:
   schemas:
     Gum:
      type: string
-     format: (*&@(*&@(*&@#*&@`
+     pattern: (*&@(*&@(*&@#*&@`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
@@ -178,18 +178,18 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema `format` should be a ECMA-262 regular expression dialect", res[0].Message)
-	assert.Equal(t, "$.components.schemas['Gum'].format", res[0].Path)
+	assert.Equal(t, "schema `pattern` should be a ECMA-262 regular expression dialect", res[0].Message)
+	assert.Equal(t, "$.components.schemas['Gum'].pattern", res[0].Path)
 }
 
-func TestSchemaType_ValidFormat(t *testing.T) {
+func TestSchemaType_ValidPattern(t *testing.T) {
 
 	yml := `openapi: 3.1
 components:
   schemas:
     Gum:
      type: string
-     format: hello`
+     pattern: hello`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
