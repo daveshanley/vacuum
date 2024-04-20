@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
@@ -274,6 +275,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 
 	// now all the base rules are in, let's run through the raw definitions and decide
 	// what we need to add, enable, disable, replace or change severity on.
+	rs.mutex.Lock()
 	for k, v := range rs.RuleDefinitions {
 
 		// let's try to cast to a string first (enable/disable/severity)
@@ -345,6 +347,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			rs.Rules[k] = &nr
 		}
 	}
+	rs.mutex.Unlock()
 	return rs
 }
 
@@ -492,6 +495,7 @@ type RuleSet struct {
 	Rules            map[string]*model.Rule `json:"-" yaml:"-"`
 	Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	extendsMeta      map[string]string
+	mutex            sync.Mutex
 }
 
 // GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be

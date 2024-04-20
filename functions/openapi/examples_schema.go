@@ -16,6 +16,7 @@ import (
 	"github.com/sourcegraph/conc"
 	"gopkg.in/yaml.v3"
 	"strings"
+	"sync"
 )
 
 // ExamplesSchema will check anything that has an example, has a schema and it's valid.
@@ -50,6 +51,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return result
 	}
 	wg := conc.WaitGroup{}
+	var expLock sync.Mutex
 
 	validator := schema_validation.NewSchemaValidator()
 	validateSchema := func(iKey *int,
@@ -122,7 +124,9 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 							s.Value.GoLow().Examples.GetKeyNode(), example)
 
 						if result != nil {
+							expLock.Lock()
 							results = append(results, result...)
+							expLock.Unlock()
 						}
 					}
 				}
@@ -146,7 +150,9 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					result := validateSchema(nil, "", "example", s, s, s.Value.Example,
 						s.Value.GoLow().Example.GetKeyNode(), example)
 					if result != nil {
+						expLock.Lock()
 						results = append(results, result...)
+						expLock.Unlock()
 					}
 				}
 			})
@@ -194,11 +200,15 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			p := context.DrDocument.Parameters[i]
 			wg.Go(func() {
 				if p.Value.Examples.Len() >= 1 && p.SchemaProxy != nil {
+					expLock.Lock()
 					results = append(results, parseExamples(p.SchemaProxy.Schema, p, p.Value.Examples)...)
+					expLock.Unlock()
 				} else {
 					if p.Value.Example != nil && p.SchemaProxy != nil {
+						expLock.Lock()
 						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
 							p.Value.GoLow().Example.GetKeyNode())...)
+						expLock.Unlock()
 					}
 				}
 			})
@@ -210,11 +220,15 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			h := context.DrDocument.Headers[i]
 			wg.Go(func() {
 				if h.Value.Examples.Len() >= 1 && h.SchemaProxy != nil {
+					expLock.Lock()
 					results = append(results, parseExamples(h.SchemaProxy.Schema, h, h.Value.Examples)...)
+					expLock.Unlock()
 				} else {
 					if h.Value.Example != nil && h.SchemaProxy != nil {
+						expLock.Lock()
 						results = append(results, parseExample(h.SchemaProxy.Schema, h.Value.Example,
 							h.Value.GoLow().Example.GetKeyNode())...)
+						expLock.Unlock()
 					}
 				}
 			})
@@ -222,19 +236,25 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 	}
 
 	if context.DrDocument != nil && context.DrDocument.MediaTypes != nil {
+
 		for i := range context.DrDocument.MediaTypes {
 			mt := context.DrDocument.MediaTypes[i]
 			wg.Go(func() {
 				if mt.Value.Examples.Len() >= 1 && mt.SchemaProxy != nil {
+					expLock.Lock()
 					results = append(results, parseExamples(mt.SchemaProxy.Schema, mt, mt.Value.Examples)...)
+					expLock.Unlock()
 				} else {
 					if mt.Value.Example != nil && mt.SchemaProxy != nil {
+						expLock.Lock()
 						results = append(results, parseExample(mt.SchemaProxy.Schema, mt.Value.Example,
 							mt.Value.GoLow().Example.GetKeyNode())...)
+						expLock.Unlock()
 					}
 				}
 			})
 		}
+
 	}
 	wg.Wait()
 	return results
