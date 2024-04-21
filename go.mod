@@ -4,26 +4,26 @@ go 1.21.5
 
 require (
 	github.com/alecthomas/chroma v0.10.0
-	github.com/dop251/goja v0.0.0-20231027120936-b396bb4c349d
-	github.com/dop251/goja_nodejs v0.0.0-20231122114759-e84d9a924c5c
+	github.com/dop251/goja v0.0.0-20240220182346-e401ed450204
+	github.com/dop251/goja_nodejs v0.0.0-20240418154818-2aae10d4cbcf
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ghodss/yaml v1.0.0
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/doctor v0.0.5
-	github.com/pb33f/libopenapi v0.15.15
-	github.com/pb33f/libopenapi-validator v0.0.47
+	github.com/pb33f/doctor v0.0.6
+	github.com/pb33f/libopenapi v0.16.1
+	github.com/pb33f/libopenapi-validator v0.0.49
 	github.com/pterm/pterm v0.12.79
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
-	github.com/stretchr/testify v1.8.4
-	github.com/tliron/glsp v0.2.1
+	github.com/stretchr/testify v1.9.0
+	github.com/tliron/glsp v0.2.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	golang.org/x/exp v0.0.0-20240213143201-ec583247a57a
+	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -76,7 +76,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sync v0.6.0 // indirect
+	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
