@@ -61,6 +61,53 @@ paths:
 	assert.Contains(t, res[0].Path, "$.paths['/pizza'].get.requestBody.content['application/json']")
 }
 
+func TestExamples_ContentOK(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  parameters:
+    ParameterA:     
+      name: paramA     
+      required: false
+      in: query
+      description: “some random text” 
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+              example: hey
+            example:
+              “a”: “5
+          examples:
+            ParameterA:
+              value:
+                Key: “value”`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestExamplesMissing_TrainTravel(t *testing.T) {
 
 	yml := `openapi: 3.1

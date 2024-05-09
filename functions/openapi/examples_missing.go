@@ -58,6 +58,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	seen := make(map[[32]byte]bool)
 
 	if context.DrDocument.Parameters != nil {
+	paramClear:
 		for i := range context.DrDocument.Parameters {
 			p := context.DrDocument.Parameters[i]
 			if p.SchemaProxy != nil && isSchemaBoolean(p.SchemaProxy.Schema) {
@@ -66,6 +67,22 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			if p.SchemaProxy != nil && (p.SchemaProxy.Schema.Value.Examples != nil || p.SchemaProxy.Schema.Value.Example != nil) {
 				continue
 			}
+
+			// check if the parameter has any content defined with examples
+			if p.Content.Len() > 0 {
+				for con := p.Content.First(); con != nil; con = con.Next() {
+					v := con.Value()
+					if v.Examples != nil && p.Examples.Len() >= 0 {
+						// add to seen elements, so when checking schemas we can mark them as good.
+						h := p.Value.GoLow().Hash()
+						if _, ok := seen[h]; !ok {
+							seen[h] = true
+						}
+						break paramClear
+					}
+				}
+			}
+
 			if p.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{p.Value.Example}) {
 				n := p.Value.GoLow().RootNode
 				if p.Value.GoLow().KeyNode != nil {
