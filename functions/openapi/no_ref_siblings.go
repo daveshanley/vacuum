@@ -15,6 +15,11 @@ import (
 type NoRefSiblings struct {
 }
 
+// GetCategory returns the category of the NoRefSiblings rule.
+func (nrs NoRefSiblings) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the NoRefSiblings rule.
 func (nrs NoRefSiblings) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{

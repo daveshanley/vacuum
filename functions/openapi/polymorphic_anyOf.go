@@ -21,6 +21,11 @@ func (pm PolymorphicAnyOf) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the PolymorphicAnyOf rule.
+func (pm PolymorphicAnyOf) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the PolymorphicAnyOf rule, based on supplied context and a supplied []*yaml.Node slice.
 func (pm PolymorphicAnyOf) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

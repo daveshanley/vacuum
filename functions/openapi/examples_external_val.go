@@ -19,6 +19,11 @@ func (eec ExamplesExternalCheck) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "examples_missing"}
 }
 
+// GetCategory returns the category of the ComponentDescription rule.
+func (eec ExamplesExternalCheck) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.
 func (eec ExamplesExternalCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

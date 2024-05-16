@@ -18,6 +18,11 @@ func (pm PolymorphicOneOf) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the PolymorphicOneOf rule.
+func (pm PolymorphicOneOf) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the PolymorphicOneOf rule, based on supplied context and a supplied []*yaml.Node slice.
 func (pm PolymorphicOneOf) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

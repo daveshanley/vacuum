@@ -18,8 +18,13 @@ type OperationId struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationId rule.
 func (oId OperationId) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "operation_id",
+		Name: "oasOpId",
 	}
+}
+
+// GetCategory returns the category of the OperationId rule.
+func (oId OperationId) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the OperationId rule, based on supplied context and a supplied []*yaml.Node slice.

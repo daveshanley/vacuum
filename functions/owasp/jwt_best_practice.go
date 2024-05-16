@@ -19,6 +19,11 @@ func (jwt JWTBestPractice) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "jwt_best_practice"}
 }
 
+// GetCategory returns the category of the JWTBestPractice rule.
+func (jwt JWTBestPractice) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

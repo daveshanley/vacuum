@@ -18,6 +18,11 @@ func (na NoAdditionalProperties) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_additional_properties"}
 }
 
+// GetCategory returns the category of the NoAdditionalProperties rule.
+func (na NoAdditionalProperties) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

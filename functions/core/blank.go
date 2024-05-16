@@ -23,3 +23,8 @@ func (b Blank) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 	// return right away, nothing to do in here.
 	return nil
 }
+
+// GetCategory returns the category of the Blank rule.
+func (b Blank) GetCategory() string {
+	return model.FunctionCategoryCore
+}

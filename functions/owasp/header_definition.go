@@ -26,8 +26,12 @@ func (m message) String() string {
 	for _, headerSet := range m.headersSets {
 		oout += "{" + strings.Join(headerSet, ", ") + "} "
 	}
-
 	return fmt.Sprintf("response with code `%d`, must contain one of the defined headers: `%s`", m.responseCode, oout)
+}
+
+// GetCategory returns the category of the HeaderDefinition rule.
+func (cd HeaderDefinition) GetCategory() string {
+	return model.FunctionCategoryOWASP
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the HeaderDefinition rule.

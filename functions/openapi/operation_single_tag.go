@@ -18,8 +18,13 @@ type OperationSingleTag struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationSingleTag rule.
 func (ost OperationSingleTag) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "operation_single_tag",
+		Name: "oasOpSingleTag",
 	}
+}
+
+// GetCategory returns the category of the OperationSingleTag rule.
+func (ost OperationSingleTag) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the OperationSingleTag rule, based on supplied context and a supplied []*yaml.Node slice.

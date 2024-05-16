@@ -21,6 +21,11 @@ func (vp PathsKebabCase) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "pathsKebabCase"}
 }
 
+// GetCategory returns the category of the VerbsInPath rule.
+func (vp PathsKebabCase) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the PathsKebabCase rule, based on supplied context and a supplied []*yaml.Node slice.
 func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

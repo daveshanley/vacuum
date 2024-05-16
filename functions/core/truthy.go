@@ -23,6 +23,11 @@ func (t Truthy) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Truthy rule.
+func (t Truthy) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Truthy rule, based on supplied context and a supplied []*yaml.Node slice.
 func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

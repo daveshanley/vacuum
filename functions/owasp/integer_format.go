@@ -18,6 +18,11 @@ func (i IntegerFormat) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "integer_format"}
 }
 
+// GetCategory returns the category of the IntegerFormat rule.
+func (i IntegerFormat) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (i IntegerFormat) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

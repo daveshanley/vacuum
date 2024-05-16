@@ -20,6 +20,11 @@ func (ne NoEvalInDescriptions) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_eval_descriptions"}
 }
 
+// GetCategory returns the category of the NoEvalInDescriptions rule.
+func (ne NoEvalInDescriptions) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the NoEvalInDescriptions rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

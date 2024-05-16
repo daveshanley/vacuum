@@ -19,6 +19,11 @@ func (ak NoApiKeyInUrl) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_api_key_in_url"}
 }
 
+// GetCategory returns the category of the NoApiKeyInUrl rule.
+func (ak NoApiKeyInUrl) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ak NoApiKeyInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

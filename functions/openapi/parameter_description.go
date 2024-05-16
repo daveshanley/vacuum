@@ -18,8 +18,13 @@ type ParameterDescription struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ParameterDescription rule.
 func (pd ParameterDescription) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "oas2_parameter_description",
+		Name: "parameter_description",
 	}
+}
+
+// GetCategory returns the category of the ParameterDescription rule.
+func (pd ParameterDescription) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the ParameterDescription rule, based on supplied context and a supplied []*yaml.Node slice.

@@ -36,6 +36,11 @@ func (pp PathParameters) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the PathParameters rule.
+func (pp PathParameters) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the PathParameters rule, based on supplied context and a supplied []*yaml.Node slice.
 func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

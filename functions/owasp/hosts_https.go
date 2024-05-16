@@ -19,6 +19,11 @@ func (hh HostsHttps) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "hosts_https"}
 }
 
+// GetCategory returns the category of the HostsHttps rule.
+func (hh HostsHttps) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (hh HostsHttps) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

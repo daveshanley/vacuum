@@ -23,6 +23,11 @@ func (te TypedEnum) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the TypedEnum rule.
+func (te TypedEnum) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the TypedEnum rule, based on supplied context and a supplied []*yaml.Node slice.
 func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	if len(nodes) <= 0 {

@@ -18,6 +18,11 @@ func (il IntegerLimit) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "integer_limit"}
 }
 
+// GetCategory returns the category of the IntegerLimit rule.
+func (il IntegerLimit) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

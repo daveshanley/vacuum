@@ -24,6 +24,11 @@ func (uc UnusedComponent) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the UnusedComponent rule.
+func (uc UnusedComponent) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the UnusedComponent rule, based on supplied context and a supplied []*yaml.Node slice.
 func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

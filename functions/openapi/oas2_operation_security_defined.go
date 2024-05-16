@@ -23,6 +23,11 @@ func (sd OAS2OperationSecurityDefined) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the UniqueOperationId rule.
+func (sd OAS2OperationSecurityDefined) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the OAS2OperationSecurityDefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (sd OAS2OperationSecurityDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

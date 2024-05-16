@@ -26,6 +26,11 @@ func (od OperationDescription) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "operation_description"}
 }
 
+// GetCategory returns the category of the OperationDescription rule.
+func (od OperationDescription) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the OperationDescription rule, based on supplied context and a supplied []*yaml.Node slice.
 func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

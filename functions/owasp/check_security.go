@@ -21,6 +21,11 @@ func (cd CheckSecurity) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "check_security"}
 }
 
+// GetCategory returns the category of the CheckSecurity rule.
+func (cd CheckSecurity) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the CheckSecurity rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var nullable bool

@@ -21,6 +21,11 @@ func (ap AmbiguousPaths) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "ambiguousPaths"}
 }
 
+// GetCategory returns the category of the AmbiguousPaths rule.
+func (ap AmbiguousPaths) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the AmbiguousPaths rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

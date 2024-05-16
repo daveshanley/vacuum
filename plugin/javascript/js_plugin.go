@@ -22,6 +22,7 @@ type JSEnabledRuleFunction interface {
 	CheckScript() error
 	RunScript() error
 	RegisterCoreFunction(name string, function CoreFunction)
+	GetCategory() string
 }
 
 type JSRuleFunction struct {
@@ -60,6 +61,10 @@ func (j *JSRuleFunction) RunScript() error {
 	}
 	j.scriptParsed = true
 	return nil
+}
+
+func (j *JSRuleFunction) GetCategory() string {
+	return model.FunctionCategoryCustomJS
 }
 
 func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {

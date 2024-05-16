@@ -21,6 +21,11 @@ func (ni NoNumericIds) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_numeric_ids"}
 }
 
+// GetCategory returns the category of the NoNumericIds rule.
+func (ni NoNumericIds) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ni NoNumericIds) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

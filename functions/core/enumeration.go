@@ -32,6 +32,11 @@ func (e Enumeration) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Enumeration rule.
+func (e Enumeration) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Enumeration rule, based on supplied context and a supplied []*yaml.Node slice.
 func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

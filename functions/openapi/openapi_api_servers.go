@@ -23,6 +23,11 @@ func (as APIServers) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the APIServers rule.
+func (as APIServers) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the APIServers rule, based on supplied context and a supplied []*yaml.Node slice.
 func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
