@@ -28,6 +28,11 @@ func (es ExamplesSchema) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "examples_missing"}
 }
 
+// GetCategory returns the category of the ExamplesMissing rule.
+func (es ExamplesSchema) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}
 
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.

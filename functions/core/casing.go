@@ -70,6 +70,12 @@ func (c Casing) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Casing rule.
+func (c Casing) GetCategory() string {
+	return model.FunctionCategoryCore
+
+}
+
 // RunRule will execute the Casing rule, based on supplied context and a supplied []*yaml.Node slice.
 func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

@@ -17,6 +17,11 @@ import (
 type ExamplesMissing struct {
 }
 
+// GetCategory returns the category of the ExamplesMissing rule.
+func (em ExamplesMissing) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
 func (em ExamplesMissing) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "examples_missing"}

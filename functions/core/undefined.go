@@ -22,6 +22,11 @@ func (u Undefined) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Undefined rule.
+func (u Undefined) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Undefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

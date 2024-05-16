@@ -23,6 +23,11 @@ func (d Defined) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Defined rule.
+func (d Defined) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Defined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

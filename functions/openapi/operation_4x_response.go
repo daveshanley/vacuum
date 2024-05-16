@@ -21,6 +21,11 @@ func (or Operation4xResponse) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "operation_4xx_response"}
 }
 
+// GetCategory returns the category of the SuccessResponse rule.
+func (or Operation4xResponse) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the Operation4xResponse rule, based on supplied context and a supplied []*yaml.Node slice.
 func (or Operation4xResponse) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

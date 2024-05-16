@@ -18,6 +18,11 @@ func (st StringRestricted) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "string_restricted"}
 }
 
+// GetCategory returns the category of the StringRestricted rule.
+func (st StringRestricted) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (st StringRestricted) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

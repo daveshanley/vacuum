@@ -16,6 +16,11 @@ import (
 type VerbsInPaths struct {
 }
 
+// GetCategory returns the category of the VerbsInPath rule.
+func (vp VerbsInPaths) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the VerbsInPath rule.
 func (vp VerbsInPaths) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "noVerbsInPath"}

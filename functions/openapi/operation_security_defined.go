@@ -16,6 +16,11 @@ import (
 type OperationSecurityDefined struct {
 }
 
+// GetCategory returns the category of the OperationSecurityDefined rule.
+func (osd OperationSecurityDefined) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationSecurityDefined rule.
 func (osd OperationSecurityDefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{

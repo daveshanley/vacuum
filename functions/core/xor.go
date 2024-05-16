@@ -34,6 +34,11 @@ func (x Xor) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Xor rule.
+func (x Xor) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Xor rule, based on supplied context and a supplied []*yaml.Node slice.
 func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

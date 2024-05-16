@@ -82,6 +82,7 @@ type RuleResultSet struct {
 type RuleFunction interface {
 	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult // The place where logic is run
 	GetSchema() RuleFunctionSchema                                                // How to use the function and its details.
+	GetCategory() string                                                          // Returns the category the function is a part of.
 }
 
 // RuleAction is what to do, on what field, and what options are to be used.

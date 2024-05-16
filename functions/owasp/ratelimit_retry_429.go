@@ -19,6 +19,11 @@ func (r RatelimitRetry429) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "ratelimit_retry_429"}
 }
 
+// GetCategory returns the category of the RatelimitRetry429 rule.
+func (r RatelimitRetry429) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (r RatelimitRetry429) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

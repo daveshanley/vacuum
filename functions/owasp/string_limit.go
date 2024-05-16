@@ -18,6 +18,11 @@ func (st StringLimit) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "string_limit"}
 }
 
+// GetCategory returns the category of the StringLimit rule.
+func (st StringLimit) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

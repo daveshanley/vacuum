@@ -19,6 +19,11 @@ func (c NoCredentialsInUrl) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_credentials_in_url"}
 }
 
+// GetCategory returns the category of the NoCredentialsInUrl rule.
+func (c NoCredentialsInUrl) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 var noCredsRxp, _ = regexp.Compile(`(?i)^.*(client_?secret|token|access_?token|refresh_?token|id_?token|password|secret|api-?key).*$`)
 
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.

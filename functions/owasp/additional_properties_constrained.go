@@ -18,6 +18,11 @@ func (ad AdditionalPropertiesConstrained) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "additional_properties_constrained"}
 }
 
+// GetCategory returns the category of the DefineError rule.
+func (ad AdditionalPropertiesConstrained) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

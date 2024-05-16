@@ -29,6 +29,11 @@ func (sch Schema) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the OperationParameters rule.
+func (sch Schema) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Schema function
 func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

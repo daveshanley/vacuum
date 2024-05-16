@@ -39,6 +39,11 @@ func (p Pattern) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Pattern rule.
+func (p Pattern) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Pattern rule, based on supplied context and a supplied []*yaml.Node slice.
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

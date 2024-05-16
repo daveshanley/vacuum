@@ -21,6 +21,11 @@ func (td TagDefined) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the TagDefined rule.
+func (td TagDefined) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the TagDefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

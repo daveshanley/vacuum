@@ -19,6 +19,11 @@ func (ba NoBasicAuth) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "no_basic_auth"}
 }
 
+// GetCategory returns the category of the NoBasicAuth rule.
+func (ba NoBasicAuth) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ba NoBasicAuth) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

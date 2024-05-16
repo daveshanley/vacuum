@@ -19,6 +19,11 @@ func (is AuthInsecureSchemes) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "jwt_best_practice"}
 }
 
+// GetCategory returns the category of the AuthInsecureSchemes rule.
+func (is AuthInsecureSchemes) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (is AuthInsecureSchemes) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

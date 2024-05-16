@@ -18,7 +18,12 @@ type PostResponseSuccess struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PostResponseSuccess rule.
 func (prs PostResponseSuccess) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "operation_response_success"}
+	return model.RuleFunctionSchema{Name: "post_response_success"}
+}
+
+// GetCategory returns the category of the PostResponseSuccess rule.
+func (prs PostResponseSuccess) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the PostResponseSuccess rule, based on supplied context and a supplied []*yaml.Node slice.

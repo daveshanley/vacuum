@@ -34,6 +34,11 @@ func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Alphabetical rule.
+func (a Alphabetical) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Alphabetical rule, based on supplied context and a supplied []*yaml.Node slice.
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult

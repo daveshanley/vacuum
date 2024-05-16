@@ -19,8 +19,13 @@ type UniqueOperationId struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the UniqueOperationId rule.
 func (oId UniqueOperationId) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "unique_operation_id",
+		Name: "oasOpIdUnique",
 	}
+}
+
+// GetCategory returns the category of the UniqueOperationId rule.
+func (oId UniqueOperationId) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the UniqueOperationId rule, based on supplied context and a supplied []*yaml.Node slice.

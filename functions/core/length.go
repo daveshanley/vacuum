@@ -36,6 +36,11 @@ func (l Length) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Length rule.
+func (l Length) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Length rule, based on supplied context and a supplied []*yaml.Node slice.
 func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult

@@ -23,6 +23,11 @@ func (de DuplicatedEnum) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the DuplicatedEnum rule.
+func (de DuplicatedEnum) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the DuplicatedEnum rule, based on supplied context and a supplied []*yaml.Node slice.
 func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

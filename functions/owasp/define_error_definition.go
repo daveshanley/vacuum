@@ -20,6 +20,11 @@ func (cd DefineErrorDefinition) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "define_error_definition"}
 }
 
+// GetCategory returns the category of the DefineErrorDefinition rule.
+func (cd DefineErrorDefinition) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd DefineErrorDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

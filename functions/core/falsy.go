@@ -23,6 +23,11 @@ func (f Falsy) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the Falsy rule.
+func (f Falsy) GetCategory() string {
+	return model.FunctionCategoryCore
+}
+
 // RunRule will execute the Falsy rule, based on supplied context and a supplied []*yaml.Node slice.
 func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

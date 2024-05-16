@@ -27,6 +27,11 @@ func (os OASSchema) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the OASSchema rule.
+func (os OASSchema) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the OASSchema rule, based on supplied context and a supplied []*yaml.Node slice.
 func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

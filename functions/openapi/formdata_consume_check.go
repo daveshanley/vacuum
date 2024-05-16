@@ -23,6 +23,11 @@ func (fd FormDataConsumeCheck) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the FormDataConsumeCheck rule.
+func (fd FormDataConsumeCheck) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the FormDataConsumeCheck rule, based on supplied context and a supplied []*yaml.Node slice.
 func (fd FormDataConsumeCheck) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

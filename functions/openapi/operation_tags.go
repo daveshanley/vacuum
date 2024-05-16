@@ -22,6 +22,11 @@ func (ot OperationTags) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the TagDefined rule.
+func (ot OperationTags) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the OperationTags rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

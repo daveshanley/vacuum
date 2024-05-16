@@ -17,7 +17,12 @@ type SuccessResponse struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the SuccessResponse rule.
 func (sr SuccessResponse) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "success_response"}
+	return model.RuleFunctionSchema{Name: "oasOpSuccessResponse"}
+}
+
+// GetCategory returns the category of the SuccessResponse rule.
+func (sr SuccessResponse) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the SuccessResponse rule, based on supplied context and a supplied []*yaml.Node slice.

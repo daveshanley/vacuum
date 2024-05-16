@@ -25,6 +25,11 @@ func (dd DescriptionDuplication) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "description_duplication"}
 }
 
+// GetCategory returns the category of the DescriptionDuplication rule.
+func (dd DescriptionDuplication) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the DescriptionDuplication rule, based on supplied context and a supplied []*yaml.Node slice.
 func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

@@ -23,6 +23,11 @@ func (op OperationParameters) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+// GetCategory returns the category of the OperationParameters rule.
+func (op OperationParameters) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the OperationParameters rule, based on supplied context and a supplied []*yaml.Node slice.
 func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

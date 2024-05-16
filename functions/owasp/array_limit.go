@@ -18,6 +18,11 @@ func (ar ArrayLimit) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "array_limit"}
 }
 
+// GetCategory returns the category of the ArrayLimit rule.
+func (ar ArrayLimit) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

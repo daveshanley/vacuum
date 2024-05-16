@@ -14,6 +14,11 @@ import (
 // OAS2Discriminator checks swagger schemas are using discriminators properly.
 type OAS2Discriminator struct{}
 
+// GetCategory returns the category of the OperationSingleTag rule.
+func (od OAS2Discriminator) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationSingleTag rule.
 func (od OAS2Discriminator) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{

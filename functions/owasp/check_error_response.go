@@ -21,6 +21,11 @@ func (er CheckErrorResponse) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "check_error_response"}
 }
 
+// GetCategory returns the category of the CheckErrorResponse rule.
+func (er CheckErrorResponse) GetCategory() string {
+	return model.FunctionCategoryOWASP
+}
+
 // RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
 func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 

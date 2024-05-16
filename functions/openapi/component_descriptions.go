@@ -24,6 +24,11 @@ func (cd ComponentDescription) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "component_description"}
 }
 
+// GetCategory returns the category of the ComponentDescription rule.
+func (cd ComponentDescription) GetCategory() string {
+	return model.FunctionCategoryOpenAPI
+}
+
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.
 func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
