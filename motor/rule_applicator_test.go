@@ -102,7 +102,7 @@ func TestApplyRules_PostResponseFailure(t *testing.T) {
       "type": "style",
       "given": "$.paths.*.post.responses",
       "then": {
-        "function": "post-response-success",
+        "function": "postResponseSuccess",
 		"functionOptions" : { 
 			"properties": [
 				"900", "300", "750", "600" 
@@ -1572,6 +1572,10 @@ func (t *testRule) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+func (t *testRule) GetCategory() string {
+	return model.CategoryValidation
+}
+
 func (t *testRule) RunRule(nodes []*yaml.Node,
 	context model.RuleFunctionContext,
 ) []model.RuleFunctionResult {
@@ -1695,6 +1699,10 @@ components:
 
 type testRuleNotResolved struct{}
 
+func (t *testRuleNotResolved) GetCategory() string {
+	return model.CategoryValidation
+}
+
 func (r *testRuleNotResolved) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	paths := context.Index.GetAllPaths()
 	oneRef := paths["/one"]["get"].Node.Content[1].Content[1].Content[1].Content[1].Content[1].Content[0].Value
@@ -1717,6 +1725,10 @@ func (r *testRuleNotResolved) GetSchema() model.RuleFunctionSchema {
 }
 
 type testRuleResolved struct{}
+
+func (r *testRuleResolved) GetCategory() string {
+	return model.CategoryValidation
+}
 
 func (r *testRuleResolved) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	paths := context.Index.GetAllPaths()

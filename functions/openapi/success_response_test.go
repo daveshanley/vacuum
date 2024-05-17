@@ -13,7 +13,7 @@ import (
 
 func TestSuccessResponse_GetSchema(t *testing.T) {
 	def := SuccessResponse{}
-	assert.Equal(t, "success_response", def.GetSchema().Name)
+	assert.Equal(t, "oasOpSuccessResponse", def.GetSchema().Name)
 }
 
 func TestSuccessResponse_RunRule(t *testing.T) {

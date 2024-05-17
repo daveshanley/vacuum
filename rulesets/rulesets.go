@@ -106,6 +106,7 @@ const (
 	OwaspNoAdditionalProperties          = "owasp-no-additionalProperties"
 	OwaspConstrainedAdditionalProperties = "owasp-constrained-additionalProperties"
 	OwaspSecurityHostsHttpsOAS3          = "owasp-security-hosts-https-oas3"
+	PostResponseSuccess                  = "post-response-success"
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
@@ -423,6 +424,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas3ExampleMissingCheck] = GetOAS3ExamplesMissingRule()
 	rules[Oas3ExampleExternalCheck] = GetOAS3ExamplesExternalCheck()
 	rules[OasSchemaCheck] = GetSchemaTypeCheckRule()
+	rules[PostResponseSuccess] = GetPostSuccessResponseRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()

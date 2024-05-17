@@ -481,7 +481,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "owaspAdditionalPropertiesConstrained",
+			Function: "owaspNoAdditionalPropertiesConstrained",
 		},
 		HowToFix: owaspNoAdditionalPropertiesFix,
 	}

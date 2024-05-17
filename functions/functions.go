@@ -61,7 +61,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["schema"] = core.Schema{}
 
 		// add known OpenAPI rules
-		funcs["post-response-success"] = openapi_functions.PostResponseSuccess{}
+		funcs["postResponseSuccess"] = openapi_functions.PostResponseSuccess{}
 		funcs["oasOpSuccessResponse"] = openapi_functions.SuccessResponse{}
 		funcs["oasOpIdUnique"] = openapi_functions.UniqueOperationId{}
 		funcs["oasOpId"] = openapi_functions.OperationId{}
@@ -116,7 +116,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspIntegerLimit"] = owasp.IntegerLimit{}
 		funcs["owaspIntegerFormat"] = owasp.IntegerFormat{}
 		funcs["owaspNoAdditionalProperties"] = owasp.NoAdditionalProperties{}
-		funcs["owaspAdditionalPropertiesConstrained"] = owasp.AdditionalPropertiesConstrained{}
+		funcs["owaspNoAdditionalPropertiesConstrained"] = owasp.AdditionalPropertiesConstrained{}
 		funcs["owaspHostsHttps"] = owasp.HostsHttps{}
 
 	})
