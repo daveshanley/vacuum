@@ -367,7 +367,7 @@ func GetOAS3HostTrailingSlashRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check server url for trailing slash",
 		Id:           Oas3HostTrailingSlash,
-		Formats:      model.OAS3Format,
+		Formats:      model.OAS3AllFormat,
 		Description:  "server URL should not contain a trailing slash",
 		Given:        "$.servers[*]",
 		Resolved:     false,
@@ -1260,5 +1260,28 @@ func GetSchemaTypeCheckRule() *model.Rule {
 			Function: "schemaTypeCheck",
 		},
 		HowToFix: schemaTypeFix,
+	}
+}
+
+// GetPostSuccessResponseRule will check that all POST operations have a success response defined.
+func GetPostSuccessResponseRule() *model.Rule {
+	opts := make(map[string][]string)
+	opts["properties"] = []string{"2XX", "3XX", "200", "201", "202", "204", "205", "206", "207", "208", "226", "300", "301", "302", "303", "304", "305", "306", "307", "308"}
+	return &model.Rule{
+		Name:         "Check POST operations for success response",
+		Id:           Oas3HostNotExample,
+		Formats:      model.OAS3AllFormat,
+		Description:  "POST Operations should have a success response defined",
+		Given:        "$.paths.*.post.responses",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  false,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function:        "postResponseSuccess",
+			FunctionOptions: opts,
+		},
+		HowToFix: oas3HostNotExampleFix,
 	}
 }

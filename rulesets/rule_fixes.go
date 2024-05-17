@@ -155,6 +155,8 @@ const (
 		"defined is really hard to navigate."
 
 	schemaTypeFix string = "Make sure each schema has a value type defined. Without a type, the schema is useless"
+
+	postSuccessResponseFix string = "Make sure your POST operations return a 'success' response via 2xx or 3xx response code. "
 )
 
 const (

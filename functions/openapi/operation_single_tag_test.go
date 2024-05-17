@@ -10,7 +10,7 @@ import (
 
 func TestOperationSingleTag_GetSchema(t *testing.T) {
 	def := OperationSingleTag{}
-	assert.Equal(t, "operation_single_tag", def.GetSchema().Name)
+	assert.Equal(t, "oasOpSingleTag", def.GetSchema().Name)
 }
 
 func TestOperationSingleTag_RunRule(t *testing.T) {

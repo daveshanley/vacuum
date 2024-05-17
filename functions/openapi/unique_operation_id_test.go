@@ -10,7 +10,7 @@ import (
 
 func TestUniqueOperationId_GetSchema(t *testing.T) {
 	def := UniqueOperationId{}
-	assert.Equal(t, "unique_operation_id", def.GetSchema().Name)
+	assert.Equal(t, "oasOpIdUnique", def.GetSchema().Name)
 }
 
 func TestUniqueOperationId_RunRule(t *testing.T) {

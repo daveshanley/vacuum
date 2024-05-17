@@ -317,11 +317,19 @@ func (df dummyFunc) GetSchema() RuleFunctionSchema {
 	}
 }
 
+func (df dummyFunc) GetCategory() string {
+	return "dummy"
+}
+
 func (df dummyFunc) RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult {
 	return nil
 }
 
 type dummyFuncMinMax struct {
+}
+
+func (df dummyFuncMinMax) GetCategory() string {
+	return "dummy"
 }
 
 func (df dummyFuncMinMax) GetSchema() RuleFunctionSchema {

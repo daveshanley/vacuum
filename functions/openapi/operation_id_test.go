@@ -10,7 +10,7 @@ import (
 
 func TestOperationId_GetSchema(t *testing.T) {
 	def := OperationId{}
-	assert.Equal(t, "operation_id", def.GetSchema().Name)
+	assert.Equal(t, "oasOpId", def.GetSchema().Name)
 }
 
 func TestOperationId_RunRule(t *testing.T) {

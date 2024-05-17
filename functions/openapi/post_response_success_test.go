@@ -9,7 +9,7 @@ import (
 
 func TestPostResponseSuccess_GetSchema(t *testing.T) {
 	def := PostResponseSuccess{}
-	assert.Equal(t, "operation_response_success", def.GetSchema().Name)
+	assert.Equal(t, "post_response_success", def.GetSchema().Name)
 }
 
 func TestPostResponseSuccess_RunRule(t *testing.T) {
@@ -37,7 +37,7 @@ func TestPostResponseSuccess_RunRule_Success(t *testing.T) {
 	opts := make(map[string][]string)
 	opts["properties"] = []string{"200", "201", "202"}
 
-	rule := buildOpenApiTestRuleAction(path, "post_response_success", "", opts)
+	rule := buildOpenApiTestRuleAction(path, "postResponseSuccess", "", opts)
 	ctx := model.RuleFunctionContext{
 		RuleAction: model.CastToRuleAction(rule.Then),
 		Options:    opts,
@@ -68,7 +68,7 @@ func TestPostResponseSuccess_RunRule_Fail(t *testing.T) {
 	opts := make(map[string][]string)
 	opts["properties"] = []string{"200", "201", "202"}
 
-	rule := buildOpenApiTestRuleAction(path, "post_response_success", "", opts)
+	rule := buildOpenApiTestRuleAction(path, "postResponseSuccess", "", opts)
 	ctx := model.RuleFunctionContext{
 		RuleAction: model.CastToRuleAction(rule.Then),
 		Options:    opts,
