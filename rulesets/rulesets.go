@@ -23,7 +23,10 @@ import (
 )
 
 //go:embed schemas/ruleset.schema.json
-var rulesetSchema string
+var RulesetSchema string
+
+//go:embed schemas/rule.schema.json
+var RuleSchema string
 
 const (
 	Style                                = "style"
@@ -537,13 +540,12 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	}
 
 	compiler := jsonschema.NewCompiler()
-	_ = compiler.AddResource("schema.json", strings.NewReader(rulesetSchema))
+	_ = compiler.AddResource("schema.json", strings.NewReader(RulesetSchema))
 	jsch, _ := compiler.Compile("schema.json")
 
 	var data map[string]interface{}
 	_ = json.Unmarshal(jsonData, &data)
 
-	// 4. validate the object against the schema
 	scErrs := jsch.Validate(data)
 
 	if scErrs != nil {
