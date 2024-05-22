@@ -23,11 +23,12 @@ func (x Xor) GetSchema() model.RuleFunctionSchema {
 		Required: []string{"properties"},
 		Properties: []model.RuleFunctionProperty{
 			{
-				Name:        "properties",
-				Description: "'xor' requires two values",
+				Name: "properties",
+				Description: "'xor' requires two values, examples of valid options are 'a, b'" +
+					" or '1, 2' etc (do not include quotes)",
 			},
 		},
-		MinProperties: 2,
+		MinProperties: 1,
 		MaxProperties: 2,
 		ErrorMessage: "'xor' function has invalid options supplied. Example valid options are 'properties' = 'a, b'" +
 			" or 'properties' = '1, 2'",
