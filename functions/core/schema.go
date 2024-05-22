@@ -25,7 +25,28 @@ type Schema struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationParameters rule.
 func (sch Schema) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "oas_schema",
+		Name:          "schema",
+		Required:      []string{"schema"},
+		MinProperties: 1,
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "schema",
+				Description: "A valid JSON Schema object that will be used to validate",
+			},
+			{
+				Name:        "unpack",
+				Description: "Treat the parent node as a document node and unpack it (default is false)",
+			},
+			{
+				Name:        "forceValidation",
+				Description: "Force a failure if the field is not found (default is false)",
+			},
+			{
+				Name:        "forceValidationOnCurrentNode",
+				Description: "Ignore the field value of the action, and validate the current node from JSON Path (default is false)",
+			},
+		},
+		ErrorMessage: "`schema` function needs a `schema` property to be supplied at a minimum",
 	}
 }
 
