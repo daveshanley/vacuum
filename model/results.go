@@ -373,8 +373,10 @@ func (rr *RuleResultSet) PrepareForSerialization(info *datamodel.SpecInfo) {
 			Start: start,
 			End:   end,
 		}
-		result.RuleId = result.Rule.Id
-		result.RuleSeverity = result.Rule.Severity
+		if result.Rule != nil {
+			result.RuleId = result.Rule.Id
+			result.RuleSeverity = result.Rule.Severity
+		}
 		wg.Done()
 	}
 
