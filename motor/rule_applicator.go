@@ -805,7 +805,15 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		if !res {
 			for _, e := range errs {
 				lock.Lock()
-				*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{Message: e})
+				*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
+					Message:      e,
+					Rule:         ctx.rule,
+					StartNode:    &yaml.Node{},
+					EndNode:      &yaml.Node{},
+					RuleId:       ctx.rule.Id,
+					RuleSeverity: ctx.rule.Severity,
+					Path:         fmt.Sprint(ctx.rule.Given),
+				})
 				lock.Unlock()
 			}
 		} else {
