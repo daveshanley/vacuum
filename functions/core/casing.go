@@ -44,8 +44,9 @@ var casingTypes = []string{flat, camel, pascal, kebab, cobol, snake, macro}
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the Casing rule.
 func (c Casing) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name:     "casing",
-		Required: []string{"type"},
+		Name:          "casing",
+		Required:      []string{"type"},
+		MinProperties: 1,
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name: "type",
