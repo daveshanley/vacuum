@@ -18,7 +18,7 @@ type PostResponseSuccess struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PostResponseSuccess rule.
 func (prs PostResponseSuccess) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "post_response_success"}
+	return model.RuleFunctionSchema{Name: "post-response-success"}
 }
 
 // GetCategory returns the category of the PostResponseSuccess rule.
