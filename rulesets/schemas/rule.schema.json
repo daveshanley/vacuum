@@ -1,0 +1,153 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://quobix.com/vacuum/schemas/rule.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "type": "string"
+    },
+    "howToFix": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "category": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "documentationUrl": {
+      "type": "string",
+      "format": "url",
+      "errorMessage": "must be a valid URL"
+    },
+    "recommended": {
+      "type": "boolean"
+    },
+    "given": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "resolved": {
+      "type": "boolean"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity"
+    },
+    "message": {
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "formats": {
+      "$ref": "#/$defs/Formats"
+    },
+    "then": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Then"
+        },
+        {
+          "items": {
+            "$ref": "#/$defs/Then"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "type": {
+      "enum": ["style", "validation"],
+      "type": "string",
+      "errorMessage": "allowed types are \"style\" and \"validation\""
+    }
+  },
+  "required": ["given", "then"],
+  "$defs": {
+    "Format": {
+      "$anchor": "format",
+      "spectral-runtime": "spectral-format",
+      "errorMessage": "must be a valid format"
+    },
+    "DiagnosticSeverity": {
+      "enum": [-1, 0, 1, 2, 3]
+    },
+    "Functions": {
+      "$anchor": "functions",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "Then": {
+      "type": "object",
+      "allOf": [
+        {
+          "properties": {
+            "field": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "spectral-runtime": "ruleset-function",
+          "required": ["function"]
+        }
+      ]
+    },
+    "Formats": {
+      "$anchor": "formats",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Format"
+      },
+      "errorMessage": "must be an array of formats"
+    },
+    "HumanReadableSeverity": {
+      "enum": ["error", "warn", "info", "hint", "off"]
+    },
+    "Severity": {
+      "$anchor": "severity",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/DiagnosticSeverity"
+        },
+        {
+          "$ref": "#/$defs/HumanReadableSeverity"
+        }
+      ],
+      "errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
+    }
+  }
+}
