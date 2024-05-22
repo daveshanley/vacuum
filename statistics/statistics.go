@@ -58,7 +58,7 @@ func CreateReportStatistics(index *index.SpecIndex, info *datamodel.SpecInfo, re
 
 	// if there are any oas-schema rile violations, bottom out the score, an invalid schema is a big deal.
 	for _, result := range results.Results {
-		if result.Rule.Id == "oas3-schema" {
+		if result.Rule != nil && result.Rule.Id == "oas3-schema" {
 			score = score - 90
 		}
 	}
