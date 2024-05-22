@@ -1269,7 +1269,7 @@ func GetPostSuccessResponseRule() *model.Rule {
 	opts["properties"] = []string{"2XX", "3XX", "200", "201", "202", "204", "205", "206", "207", "208", "226", "300", "301", "302", "303", "304", "305", "306", "307", "308"}
 	return &model.Rule{
 		Name:         "Check POST operations for success response",
-		Id:           Oas3HostNotExample,
+		Id:           PostResponseSuccess,
 		Formats:      model.OAS3AllFormat,
 		Description:  "POST Operations should have a success response defined",
 		Given:        "$.paths.*.post.responses",
