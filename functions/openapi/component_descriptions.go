@@ -21,7 +21,16 @@ type ComponentDescription struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
 func (cd ComponentDescription) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "component_description"}
+	return model.RuleFunctionSchema{
+		Name: "oasComponentDescriptions",
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "minWords",
+				Description: "Minimum number of words required in a description, defaults to '0'",
+			},
+		},
+		ErrorMessage: "'oasComponentDescriptions' function has invalid options supplied. Set the 'minWords' property to a valid integer",
+	}
 }
 
 // GetCategory returns the category of the ComponentDescription rule.

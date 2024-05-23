@@ -15,7 +15,7 @@ type IntegerLimit struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (il IntegerLimit) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "integer_limit"}
+	return model.RuleFunctionSchema{Name: "owaspIntegerLimit"}
 }
 
 // GetCategory returns the category of the IntegerLimit rule.

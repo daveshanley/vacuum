@@ -153,6 +153,11 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 	startChar := 1
 	endLine := 1
 	endChar := 1
+
+	if vacuumResult.StartNode == nil {
+		panic("StartNode is nil")
+	}
+
 	if vacuumResult.StartNode.Line > 0 {
 		startLine = vacuumResult.StartNode.Line - 1
 		startChar = vacuumResult.StartNode.Column - 1

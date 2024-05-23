@@ -15,7 +15,7 @@ type ArrayLimit struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (ar ArrayLimit) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "array_limit"}
+	return model.RuleFunctionSchema{Name: "owaspArrayLimit"}
 }
 
 // GetCategory returns the category of the ArrayLimit rule.

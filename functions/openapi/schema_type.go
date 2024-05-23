@@ -19,7 +19,7 @@ type SchemaTypeCheck struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DuplicatedEnum rule.
 func (st SchemaTypeCheck) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "schema-type-check",
+		Name: "schemaTypeCheck",
 	}
 }
 

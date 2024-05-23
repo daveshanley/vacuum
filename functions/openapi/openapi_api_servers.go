@@ -13,13 +13,13 @@ import (
 	"strings"
 )
 
-// APIServers checks that each operation only has a single tag.
+// APIServers checks that the servers property of the document has been set
 type APIServers struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the APIServers rule.
 func (as APIServers) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "api_servers",
+		Name: "oasAPIServers",
 	}
 }
 

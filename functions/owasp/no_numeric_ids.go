@@ -18,7 +18,7 @@ type NoNumericIds struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (ni NoNumericIds) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "no_numeric_ids"}
+	return model.RuleFunctionSchema{Name: "owaspNoNumericIds"}
 }
 
 // GetCategory returns the category of the NoNumericIds rule.

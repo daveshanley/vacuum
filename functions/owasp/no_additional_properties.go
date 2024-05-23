@@ -15,7 +15,7 @@ type NoAdditionalProperties struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (na NoAdditionalProperties) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "no_additional_properties"}
+	return model.RuleFunctionSchema{Name: "owaspNoAdditionalProperties"}
 }
 
 // GetCategory returns the category of the NoAdditionalProperties rule.

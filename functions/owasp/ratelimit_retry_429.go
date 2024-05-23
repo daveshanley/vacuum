@@ -16,7 +16,7 @@ type RatelimitRetry429 struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (r RatelimitRetry429) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "ratelimit_retry_429"}
+	return model.RuleFunctionSchema{Name: "owaspRatelimitRetryAfter"}
 }
 
 // GetCategory returns the category of the RatelimitRetry429 rule.

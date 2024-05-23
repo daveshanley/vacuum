@@ -17,7 +17,18 @@ type NoEvalInDescriptions struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the NoEvalInDescriptions rule.
 func (ne NoEvalInDescriptions) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "no_eval_descriptions"}
+	return model.RuleFunctionSchema{
+		Name:          "noEvalDescription",
+		Required:      []string{"pattern"},
+		MinProperties: 1,
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "pattern",
+				Description: "Regular expression to match against the description content. ",
+			},
+		},
+		ErrorMessage: "'noEvalDescription' function has invalid options supplied. Set the 'pattern' property to a valid regular expression",
+	}
 }
 
 // GetCategory returns the category of the NoEvalInDescriptions rule.

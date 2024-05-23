@@ -16,7 +16,7 @@ type HostsHttps struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (hh HostsHttps) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "hosts_https"}
+	return model.RuleFunctionSchema{Name: "owaspHostsHttps"}
 }
 
 // GetCategory returns the category of the HostsHttps rule.

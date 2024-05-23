@@ -23,7 +23,16 @@ type OperationDescription struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationDescription rule.
 func (od OperationDescription) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "operation_description"}
+	return model.RuleFunctionSchema{
+		Name: "oasDescriptions",
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "minWords",
+				Description: "Minimum number of words required in a description, defaults to '0'",
+			},
+		},
+		ErrorMessage: "'oasDescriptions' function has invalid options supplied. Set the 'minWords' property to a valid integer",
+	}
 }
 
 // GetCategory returns the category of the OperationDescription rule.

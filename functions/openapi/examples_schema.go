@@ -25,7 +25,7 @@ type ExamplesSchema struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
 func (es ExamplesSchema) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "examples_missing"}
+	return model.RuleFunctionSchema{Name: "oasExampleSchema"}
 }
 
 // GetCategory returns the category of the ExamplesMissing rule.

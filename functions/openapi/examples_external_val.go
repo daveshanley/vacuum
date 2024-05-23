@@ -16,7 +16,7 @@ type ExamplesExternalCheck struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
 func (eec ExamplesExternalCheck) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "examples_missing"}
+	return model.RuleFunctionSchema{Name: "oasExampleExternal"}
 }
 
 // GetCategory returns the category of the ComponentDescription rule.

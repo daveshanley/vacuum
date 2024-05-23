@@ -1177,7 +1177,7 @@ func NoAmbiguousPaths() *model.Rule {
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Function: "ambiguousPaths",
+			Function: "noAmbiguousPaths",
 		},
 		HowToFix: ambiguousPathsFix,
 	}

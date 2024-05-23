@@ -19,7 +19,7 @@ type DuplicatedEnum struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DuplicatedEnum rule.
 func (de DuplicatedEnum) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "duplicated_enum",
+		Name: "duplicatedEnum",
 	}
 }
 

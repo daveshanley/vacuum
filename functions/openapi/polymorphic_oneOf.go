@@ -14,7 +14,7 @@ type PolymorphicOneOf struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PolymorphicOneOf rule.
 func (pm PolymorphicOneOf) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "polymorphic_oneOf",
+		Name: "oasPolymorphicOneOf",
 	}
 }
 

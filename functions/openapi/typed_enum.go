@@ -19,7 +19,7 @@ type TypedEnum struct{}
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the TypedEnum rule.
 func (te TypedEnum) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "typed_enum",
+		Name: "typedEnum",
 	}
 }
 

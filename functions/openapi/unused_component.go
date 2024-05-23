@@ -20,7 +20,7 @@ type UnusedComponent struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the UnusedComponent rule.
 func (uc UnusedComponent) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "unused_component",
+		Name: "oasUnusedComponent",
 	}
 }
 

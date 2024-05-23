@@ -35,7 +35,7 @@ func (p Pattern) GetSchema() model.RuleFunctionSchema {
 		},
 		MinProperties: 1,
 		MaxProperties: 2,
-		ErrorMessage:  "'pattern' needs 'match' or 'notMatch' properties being set to operate",
+		ErrorMessage:  "'pattern' needs 'match' or 'notMatch' function options being set to operate",
 	}
 }
 

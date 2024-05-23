@@ -15,7 +15,7 @@ type AdditionalPropertiesConstrained struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (ad AdditionalPropertiesConstrained) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "additional_properties_constrained"}
+	return model.RuleFunctionSchema{Name: "owaspNoAdditionalPropertiesConstrained"}
 }
 
 // GetCategory returns the category of the DefineError rule.

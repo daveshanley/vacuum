@@ -36,7 +36,7 @@ func (cd HeaderDefinition) GetCategory() string {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the HeaderDefinition rule.
 func (cd HeaderDefinition) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "header_definition"}
+	return model.RuleFunctionSchema{Name: "owaspHeaderDefinition"}
 }
 
 // RunRule will execute the HeaderDefinition rule, based on supplied context and a supplied []*yaml.Node slice.

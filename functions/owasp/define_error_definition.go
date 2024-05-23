@@ -17,7 +17,17 @@ type DefineErrorDefinition struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (cd DefineErrorDefinition) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "define_error_definition"}
+	return model.RuleFunctionSchema{
+		Name:     "owaspDefineErrorDefinition",
+		Required: []string{"codes"},
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "codes",
+				Description: "Array of HTTP Response code to search against",
+			},
+		},
+		ErrorMessage: "'owaspDefineErrorDefinition' function has invalid options supplied. Set the 'codes' property to a valid integer",
+	}
 }
 
 // GetCategory returns the category of the DefineErrorDefinition rule.
@@ -35,7 +45,13 @@ func (cd DefineErrorDefinition) RunRule(_ []*yaml.Node, context model.RuleFuncti
 	}
 
 	// iterate through all paths looking for responses
-	rawCodes := utils.ExtractValueFromInterfaceMap("codes", context.Options).([]interface{})
+	rawCodesValue := utils.ExtractValueFromInterfaceMap("codes", context.Options)
+	if rawCodesValue == nil {
+		return results
+	}
+
+	rawCodes := rawCodesValue.([]interface{})
+
 	codes := make([]string, len(rawCodes))
 	for i, v := range rawCodes {
 		codes[i] = v.(string)

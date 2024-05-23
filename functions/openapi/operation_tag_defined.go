@@ -17,7 +17,7 @@ type TagDefined struct{}
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the TagDefined rule.
 func (td TagDefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "tag_defined",
+		Name: "oasTagDefined",
 	}
 }
 

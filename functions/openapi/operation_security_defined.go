@@ -24,16 +24,7 @@ func (osd OperationSecurityDefined) GetCategory() string {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationSecurityDefined rule.
 func (osd OperationSecurityDefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "operation_security_defined",
-		Properties: []model.RuleFunctionProperty{
-			{
-				Name:        "schemesPath",
-				Description: "operation_security_defined requires a schemesPath in which to look up security definitions",
-			},
-		},
-		MinProperties: 1,
-		MaxProperties: 1,
-		ErrorMessage:  "operation_security_defined requires a 'schemesPath'",
+		Name: "oasOpSecurityDefined",
 	}
 }
 

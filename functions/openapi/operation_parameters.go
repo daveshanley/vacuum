@@ -19,7 +19,7 @@ type OperationParameters struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationParameters rule.
 func (op OperationParameters) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "operation_parameters",
+		Name: "oasOpParams",
 	}
 }
 

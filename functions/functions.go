@@ -84,7 +84,6 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasOperationTags"] = openapi_functions.OperationTags{}
 		funcs["oasOpFormDataConsumeCheck"] = openapi_functions.FormDataConsumeCheck{}
 		funcs["oasDiscriminator"] = openapi_functions.OAS2Discriminator{}
-		funcs["oasDiscriminator"] = openapi_functions.OAS2Discriminator{}
 		funcs["oasParamDescriptions"] = openapi_functions.ParameterDescription{}
 		funcs["oasOpSecurityDefined"] = openapi_functions.OperationSecurityDefined{}
 		funcs["oas2OpSecurityDefined"] = openapi_functions.OAS2OperationSecurityDefined{}

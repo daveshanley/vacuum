@@ -23,7 +23,7 @@ func (nrs NoRefSiblings) GetCategory() string {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the NoRefSiblings rule.
 func (nrs NoRefSiblings) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "no_ref_siblings",
+		Name: "refSiblings",
 	}
 }
 

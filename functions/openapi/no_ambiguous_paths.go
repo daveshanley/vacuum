@@ -18,7 +18,7 @@ type AmbiguousPaths struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the AmbiguousPaths rule.
 func (ap AmbiguousPaths) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "ambiguousPaths"}
+	return model.RuleFunctionSchema{Name: "noAmbiguousPaths"}
 }
 
 // GetCategory returns the category of the AmbiguousPaths rule.

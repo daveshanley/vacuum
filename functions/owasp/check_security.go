@@ -18,7 +18,7 @@ type CheckSecurity struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the CheckSecurity rule.
 func (cd CheckSecurity) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "check_security"}
+	return model.RuleFunctionSchema{Name: "owaspCheckSecurity"}
 }
 
 // GetCategory returns the category of the CheckSecurity rule.

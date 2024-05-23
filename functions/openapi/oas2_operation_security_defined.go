@@ -19,7 +19,7 @@ type OAS2OperationSecurityDefined struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the UniqueOperationId rule.
 func (sd OAS2OperationSecurityDefined) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "oas2_operation_security_defined",
+		Name: "oas2OpSecurityDefined",
 	}
 }
 

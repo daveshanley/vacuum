@@ -15,7 +15,7 @@ type IntegerFormat struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (i IntegerFormat) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "integer_format"}
+	return model.RuleFunctionSchema{Name: "owaspIntegerFormat"}
 }
 
 // GetCategory returns the category of the IntegerFormat rule.
