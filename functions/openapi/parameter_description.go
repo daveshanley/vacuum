@@ -18,7 +18,7 @@ type ParameterDescription struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ParameterDescription rule.
 func (pd ParameterDescription) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "parameter_description",
+		Name: "oasParamDescriptions",
 	}
 }
 

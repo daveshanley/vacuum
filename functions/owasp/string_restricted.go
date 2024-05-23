@@ -15,7 +15,7 @@ type StringRestricted struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (st StringRestricted) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "string_restricted"}
+	return model.RuleFunctionSchema{Name: "owaspStringRestricted"}
 }
 
 // GetCategory returns the category of the StringRestricted rule.

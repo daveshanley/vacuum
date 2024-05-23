@@ -17,7 +17,7 @@ type PolymorphicAnyOf struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PolymorphicAnyOf rule.
 func (pm PolymorphicAnyOf) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "polymorphic_anyOf",
+		Name: "oasPolymorphicAnyOf",
 	}
 }
 

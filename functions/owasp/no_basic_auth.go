@@ -16,7 +16,7 @@ type NoBasicAuth struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (ba NoBasicAuth) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "no_basic_auth"}
+	return model.RuleFunctionSchema{Name: "owaspNoBasicAuth"}
 }
 
 // GetCategory returns the category of the NoBasicAuth rule.

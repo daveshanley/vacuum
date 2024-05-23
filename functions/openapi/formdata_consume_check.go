@@ -19,7 +19,7 @@ type FormDataConsumeCheck struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the FormDataConsumeCheck rule.
 func (fd FormDataConsumeCheck) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "formData_consume_check",
+		Name: "oasOpFormDataConsumeCheck",
 	}
 }
 

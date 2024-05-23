@@ -18,7 +18,17 @@ type CheckErrorResponse struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (er CheckErrorResponse) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "check_error_response"}
+	return model.RuleFunctionSchema{
+		Name:     "owaspCheckErrorResponse",
+		Required: []string{"code"},
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "code",
+				Description: "HTTP Response code to search against",
+			},
+		},
+		ErrorMessage: "'owaspCheckErrorResponse' function has invalid options supplied. Set the 'code' property to a valid integer",
+	}
 }
 
 // GetCategory returns the category of the CheckErrorResponse rule.
@@ -30,7 +40,11 @@ func (er CheckErrorResponse) GetCategory() string {
 func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	// iterate through all paths looking for responses
-	code := utils.ExtractValueFromInterfaceMap("code", context.Options).(string)
+	codeValue := utils.ExtractValueFromInterfaceMap("code", context.Options)
+	if codeValue == nil {
+		return nil
+	}
+	code := fmt.Sprintf("%v", codeValue)
 
 	var results []model.RuleFunctionResult
 

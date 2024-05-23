@@ -18,7 +18,17 @@ type PostResponseSuccess struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PostResponseSuccess rule.
 func (prs PostResponseSuccess) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "post-response-success"}
+	return model.RuleFunctionSchema{
+		Name:          "postResponseSuccess",
+		MinProperties: 1,
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "properties",
+				Description: "A list of response codes that are considered successful",
+			},
+		},
+		ErrorMessage: "'postResponseSuccess' function has invalid options supplied. Example valid options are 'properties' = [200,201,300]",
+	}
 }
 
 // GetCategory returns the category of the PostResponseSuccess rule.

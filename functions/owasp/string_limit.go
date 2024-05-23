@@ -15,7 +15,7 @@ type StringLimit struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (st StringLimit) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "string_limit"}
+	return model.RuleFunctionSchema{Name: "owaspStringLimit"}
 }
 
 // GetCategory returns the category of the StringLimit rule.

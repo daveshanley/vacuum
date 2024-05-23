@@ -32,9 +32,9 @@ const (
 )
 
 type RuleCategory struct {
-	Id          string `json:"id" yaml:"id"`                   // The category ID
-	Name        string `json:"name" yaml:"name"`               // The name of the category
-	Description string `json:"description" yaml:"description"` // What is the category all about?
+	Id          string `json:"id" yaml:"id"`                             // The category ID
+	Name        string `json:"name,omitempty" yaml:"name"`               // The name of the category
+	Description string `json:"description,omitempty" yaml:"description"` // What is the category all about?
 }
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.

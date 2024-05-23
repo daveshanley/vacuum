@@ -16,7 +16,7 @@ type NoApiKeyInUrl struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (ak NoApiKeyInUrl) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "no_api_key_in_url"}
+	return model.RuleFunctionSchema{Name: "owaspNoApiKeyInUrl"}
 }
 
 // GetCategory returns the category of the NoApiKeyInUrl rule.

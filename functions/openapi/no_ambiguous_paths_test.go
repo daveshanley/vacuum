@@ -11,7 +11,7 @@ import (
 
 func TestNoAmbiguousPaths_GetSchema(t *testing.T) {
 	def := AmbiguousPaths{}
-	assert.Equal(t, "ambiguousPaths", def.GetSchema().Name)
+	assert.Equal(t, "noAmbiguousPaths", def.GetSchema().Name)
 }
 
 func TestNoAmbiguousPaths_RunRule(t *testing.T) {

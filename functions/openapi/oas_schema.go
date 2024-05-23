@@ -23,7 +23,7 @@ type OASSchema struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OASSchema rule.
 func (os OASSchema) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "oas_schema",
+		Name: "oasSchema",
 	}
 }
 

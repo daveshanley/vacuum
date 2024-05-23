@@ -18,7 +18,7 @@ type Operation4xResponse struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the SuccessResponse rule.
 func (or Operation4xResponse) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "operation_4xx_response"}
+	return model.RuleFunctionSchema{Name: "oasOpErrorResponse"}
 }
 
 // GetCategory returns the category of the SuccessResponse rule.

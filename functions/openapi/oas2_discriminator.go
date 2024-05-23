@@ -22,7 +22,7 @@ func (od OAS2Discriminator) GetCategory() string {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationSingleTag rule.
 func (od OAS2Discriminator) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "oas2_discriminator",
+		Name: "oasDiscriminator",
 	}
 }
 

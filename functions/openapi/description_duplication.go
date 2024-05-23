@@ -22,7 +22,7 @@ type DescriptionDuplication struct {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DescriptionDuplication rule.
 func (dd DescriptionDuplication) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "description_duplication"}
+	return model.RuleFunctionSchema{Name: "oasDescriptionDuplication"}
 }
 
 // GetCategory returns the category of the DescriptionDuplication rule.

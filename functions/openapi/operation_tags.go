@@ -18,7 +18,7 @@ type OperationTags struct{}
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the TagDefined rule.
 func (ot OperationTags) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "operation_tags",
+		Name: "oasOperationTags",
 	}
 }
 

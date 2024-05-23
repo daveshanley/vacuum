@@ -32,7 +32,7 @@ func (l Length) GetSchema() model.RuleFunctionSchema {
 		},
 		MinProperties: 1,
 		MaxProperties: 2,
-		ErrorMessage:  "'length' needs 'min' or 'max' (or both) properties being set to operate",
+		ErrorMessage:  "'length' needs 'min' or 'max' (or both) function options being set to operate",
 	}
 }
 

@@ -24,7 +24,7 @@ func (em ExamplesMissing) GetCategory() string {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
 func (em ExamplesMissing) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "examples_missing"}
+	return model.RuleFunctionSchema{Name: "oasExampleMissing"}
 }
 
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.

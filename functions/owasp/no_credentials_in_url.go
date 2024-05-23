@@ -16,7 +16,7 @@ type NoCredentialsInUrl struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (c NoCredentialsInUrl) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "no_credentials_in_url"}
+	return model.RuleFunctionSchema{Name: "owaspNoCredentialsInUrl"}
 }
 
 // GetCategory returns the category of the NoCredentialsInUrl rule.

@@ -32,7 +32,7 @@ type PathParameters struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PathParameters rule.
 func (pp PathParameters) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "path_parameters",
+		Name: "oasPathParam",
 	}
 }
 

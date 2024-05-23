@@ -16,7 +16,7 @@ type JWTBestPractice struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
 func (jwt JWTBestPractice) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "jwt_best_practice"}
+	return model.RuleFunctionSchema{Name: "owaspJWTBestPractice"}
 }
 
 // GetCategory returns the category of the JWTBestPractice rule.
