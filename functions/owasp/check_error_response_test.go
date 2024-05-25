@@ -14,7 +14,7 @@ import (
 
 func TestCheckErrorResponse_GetSchema(t *testing.T) {
 	def := DefineErrorDefinition{}
-	assert.Equal(t, "define_error_definition", def.GetSchema().Name)
+	assert.Equal(t, "owaspDefineErrorDefinition", def.GetSchema().Name)
 }
 
 func TestCheckErrorResponse_RunRule(t *testing.T) {

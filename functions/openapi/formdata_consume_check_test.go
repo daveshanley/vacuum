@@ -10,7 +10,7 @@ import (
 
 func TestFormDataConsumeCheck_GetSchema(t *testing.T) {
 	def := FormDataConsumeCheck{}
-	assert.Equal(t, "formData_consume_check", def.GetSchema().Name)
+	assert.Equal(t, "oasOpFormDataConsumeCheck", def.GetSchema().Name)
 }
 
 func TestFormDataConsumeCheck_RunRule(t *testing.T) {

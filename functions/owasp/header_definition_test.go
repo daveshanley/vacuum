@@ -13,7 +13,7 @@ import (
 
 func TestHeaderDefinition_GetSchema(t *testing.T) {
 	def := HeaderDefinition{}
-	assert.Equal(t, "header_definition", def.GetSchema().Name)
+	assert.Equal(t, "owaspHeaderDefinition", def.GetSchema().Name)
 }
 
 func TestHeaderDefinition_RunRule(t *testing.T) {

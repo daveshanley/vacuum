@@ -10,7 +10,7 @@ import (
 
 func TestOAS2ParameterDescription_GetSchema(t *testing.T) {
 	def := ParameterDescription{}
-	assert.Equal(t, "parameter_description", def.GetSchema().Name)
+	assert.Equal(t, "oasParamDescriptions", def.GetSchema().Name)
 }
 
 func TestOAS2ParameterDescription_RunRule(t *testing.T) {

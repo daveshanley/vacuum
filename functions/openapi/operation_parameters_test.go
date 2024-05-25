@@ -11,7 +11,7 @@ import (
 
 func TestOperationParameters_GetSchema(t *testing.T) {
 	def := OperationParameters{}
-	assert.Equal(t, "operation_parameters", def.GetSchema().Name)
+	assert.Equal(t, "oasOpParams", def.GetSchema().Name)
 }
 
 func TestOperationParameters_RunRule(t *testing.T) {

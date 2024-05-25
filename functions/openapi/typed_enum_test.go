@@ -12,7 +12,7 @@ import (
 
 func TestTypedEnum_GetSchema(t *testing.T) {
 	def := TypedEnum{}
-	assert.Equal(t, "typed_enum", def.GetSchema().Name)
+	assert.Equal(t, "typedEnum", def.GetSchema().Name)
 }
 
 func TestTypedEnum_RunRule(t *testing.T) {

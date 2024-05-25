@@ -10,7 +10,7 @@ import (
 
 func TestOperationSecurityDefined_GetSchema(t *testing.T) {
 	def := OperationSecurityDefined{}
-	assert.Equal(t, "operation_security_defined", def.GetSchema().Name)
+	assert.Equal(t, "oasOpSecurityDefined", def.GetSchema().Name)
 }
 
 func TestOperationSecurityDefined_RunRule(t *testing.T) {

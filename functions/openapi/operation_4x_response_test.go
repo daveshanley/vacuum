@@ -12,7 +12,7 @@ import (
 
 func TestOperation4xResponse_GetSchema(t *testing.T) {
 	def := Operation4xResponse{}
-	assert.Equal(t, "operation_4xx_response", def.GetSchema().Name)
+	assert.Equal(t, "oasOpErrorResponse", def.GetSchema().Name)
 }
 
 func TestOperation4xResponse_RunRule(t *testing.T) {

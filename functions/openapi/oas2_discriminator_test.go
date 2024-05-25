@@ -10,7 +10,7 @@ import (
 
 func TestOAS2Discriminator_GetSchema(t *testing.T) {
 	def := OAS2Discriminator{}
-	assert.Equal(t, "oas2_discriminator", def.GetSchema().Name)
+	assert.Equal(t, "oasDiscriminator", def.GetSchema().Name)
 }
 
 func TestOAS2Discriminator_RunRule(t *testing.T) {

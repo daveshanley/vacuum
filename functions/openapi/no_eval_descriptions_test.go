@@ -12,7 +12,7 @@ import (
 
 func TestNoEvalInDescriptions_GetSchema(t *testing.T) {
 	def := NoEvalInDescriptions{}
-	assert.Equal(t, "no_eval_descriptions", def.GetSchema().Name)
+	assert.Equal(t, "noEvalDescription", def.GetSchema().Name)
 }
 
 func TestNoEvalInDescriptions_RunRule(t *testing.T) {

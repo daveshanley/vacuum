@@ -11,7 +11,7 @@ import (
 
 func TestDescriptionDuplication_GetSchema(t *testing.T) {
 	def := DescriptionDuplication{}
-	assert.Equal(t, "description_duplication", def.GetSchema().Name)
+	assert.Equal(t, "oasDescriptionDuplication", def.GetSchema().Name)
 }
 
 func TestDescriptionDuplication_RunRule(t *testing.T) {

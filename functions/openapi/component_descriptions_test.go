@@ -11,7 +11,7 @@ import (
 
 func TestComponentDescription_GetSchema(t *testing.T) {
 	def := ComponentDescription{}
-	assert.Equal(t, "component_description", def.GetSchema().Name)
+	assert.Equal(t, "oasComponentDescriptions", def.GetSchema().Name)
 }
 
 func TestComponentDescription_RunRule(t *testing.T) {

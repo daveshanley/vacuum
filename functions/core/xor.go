@@ -28,7 +28,7 @@ func (x Xor) GetSchema() model.RuleFunctionSchema {
 					" or '1, 2' etc (do not include quotes)",
 			},
 		},
-		MinProperties: 1,
+		MinProperties: 2,
 		MaxProperties: 2,
 		ErrorMessage: "'xor' function has invalid options supplied. Example valid options are 'properties' = 'a, b'" +
 			" or 'properties' = '1, 2'",

@@ -10,7 +10,7 @@ import (
 
 func TestPolymorphicAnyOf_GetSchema(t *testing.T) {
 	def := PolymorphicAnyOf{}
-	assert.Equal(t, "polymorphic_anyOf", def.GetSchema().Name)
+	assert.Equal(t, "oasPolymorphicAnyOf", def.GetSchema().Name)
 }
 
 func TestPolymorphicAnyOf_RunRule(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 
 func TestOAS2Schema_GetSchema(t *testing.T) {
 	def := OASSchema{}
-	assert.Equal(t, "oas_schema", def.GetSchema().Name)
+	assert.Equal(t, "oasSchema", def.GetSchema().Name)
 }
 
 func TestOAS2Schema_RunRule(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 
 func TestOpenAPISchema_GetSchema(t *testing.T) {
 	def := Schema{}
-	assert.Equal(t, "oas_schema", def.GetSchema().Name)
+	assert.Equal(t, "schema", def.GetSchema().Name)
 }
 
 func TestOpenAPISchema_RunRule(t *testing.T) {

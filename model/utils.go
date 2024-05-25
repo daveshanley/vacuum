@@ -142,7 +142,7 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 						if !found {
 							valid = false
 							errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
-								schema.ErrorMessage, k), schema.Name)
+								schema.ErrorMessage, k, schema.Name))
 						}
 					}
 				}

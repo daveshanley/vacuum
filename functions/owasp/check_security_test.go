@@ -13,7 +13,7 @@ import (
 
 func TestCheckSecurity_GetSchema(t *testing.T) {
 	def := CheckSecurity{}
-	assert.Equal(t, "check_security", def.GetSchema().Name)
+	assert.Equal(t, "owaspCheckSecurity", def.GetSchema().Name)
 }
 
 func TestCheckSecurity_RunRule(t *testing.T) {
