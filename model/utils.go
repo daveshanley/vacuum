@@ -112,6 +112,44 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 		}
 	}
 
+	// check if the values submitted exist as properties
+	if len(schema.Properties) > 0 {
+		if options, ok := ctx.Options.(map[string]interface{}); ok {
+			for k := range options {
+				found := false
+				for _, prop := range schema.Properties {
+					if k == prop.Name {
+						found = true
+					}
+				}
+				if !found {
+					valid = false
+					errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
+						schema.ErrorMessage, k, schema.Name))
+				}
+			}
+		}
+		if options, ok := ctx.Options.([]interface{}); ok {
+			for _, v := range options {
+				if m, ko := v.(map[string]interface{}); ko {
+					for k := range m {
+						found := false
+						for _, prop := range schema.Properties {
+							if k == prop.Name {
+								found = true
+							}
+						}
+						if !found {
+							valid = false
+							errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
+								schema.ErrorMessage, k), schema.Name)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return valid, errs
 }
 
