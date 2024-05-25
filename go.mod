@@ -4,7 +4,7 @@ go 1.21.5
 
 require (
 	github.com/alecthomas/chroma v0.10.0
-	github.com/dop251/goja v0.0.0-20240220182346-e401ed450204
+	github.com/dop251/goja v0.0.0-20240516125602-ccbae20bcec2
 	github.com/dop251/goja_nodejs v0.0.0-20240418154818-2aae10d4cbcf
 	github.com/dustin/go-humanize v1.0.1
 	github.com/ghodss/yaml v1.0.0
@@ -12,8 +12,8 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.7
-	github.com/pb33f/libopenapi v0.16.5
-	github.com/pb33f/libopenapi-validator v0.0.53
+	github.com/pb33f/libopenapi v0.16.8
+	github.com/pb33f/libopenapi-validator v0.0.56
 	github.com/pterm/pterm v0.12.79
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/sourcegraph/conc v0.3.0
