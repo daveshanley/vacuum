@@ -14,7 +14,7 @@ import (
 
 func TestExamplesMissing_GetSchema(t *testing.T) {
 	def := ExamplesMissing{}
-	assert.Equal(t, "examples_missing", def.GetSchema().Name)
+	assert.Equal(t, "oasExampleMissing", def.GetSchema().Name)
 }
 
 func TestExamplesMissing_RunRule(t *testing.T) {

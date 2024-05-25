@@ -11,7 +11,7 @@ import (
 
 func TestDuplicatedEnum_GetSchema(t *testing.T) {
 	def := DuplicatedEnum{}
-	assert.Equal(t, "duplicated_enum", def.GetSchema().Name)
+	assert.Equal(t, "duplicatedEnum", def.GetSchema().Name)
 }
 
 func TestDuplicatedEnum_RunRule(t *testing.T) {

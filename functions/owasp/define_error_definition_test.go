@@ -13,7 +13,7 @@ import (
 
 func TestDefineErrorDefinition_GetSchema(t *testing.T) {
 	def := DefineErrorDefinition{}
-	assert.Equal(t, "define_error_definition", def.GetSchema().Name)
+	assert.Equal(t, "owaspDefineErrorDefinition", def.GetSchema().Name)
 }
 
 func TestDefineErrorDefinition_RunRule(t *testing.T) {

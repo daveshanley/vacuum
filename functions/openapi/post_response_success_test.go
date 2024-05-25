@@ -9,7 +9,7 @@ import (
 
 func TestPostResponseSuccess_GetSchema(t *testing.T) {
 	def := PostResponseSuccess{}
-	assert.Equal(t, "post_response_success", def.GetSchema().Name)
+	assert.Equal(t, "postResponseSuccess", def.GetSchema().Name)
 }
 
 func TestPostResponseSuccess_RunRule(t *testing.T) {

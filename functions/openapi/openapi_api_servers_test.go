@@ -11,7 +11,7 @@ import (
 
 func TestAPIServers_GetSchema(t *testing.T) {
 	def := APIServers{}
-	assert.Equal(t, "api_servers", def.GetSchema().Name)
+	assert.Equal(t, "oasAPIServers", def.GetSchema().Name)
 }
 
 func TestAPIServers_RunRule(t *testing.T) {

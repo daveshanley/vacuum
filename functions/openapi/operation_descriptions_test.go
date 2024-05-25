@@ -14,7 +14,7 @@ import (
 
 func TestOperationDescription_GetSchema(t *testing.T) {
 	def := OperationDescription{}
-	assert.Equal(t, "operation_description", def.GetSchema().Name)
+	assert.Equal(t, "oasDescriptions", def.GetSchema().Name)
 }
 
 func TestOperationDescription_RunRule(t *testing.T) {

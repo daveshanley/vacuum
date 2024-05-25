@@ -11,7 +11,7 @@ import (
 
 func TestPathParameters_GetSchema(t *testing.T) {
 	def := PathParameters{}
-	assert.Equal(t, "path_parameters", def.GetSchema().Name)
+	assert.Equal(t, "oasPathParam", def.GetSchema().Name)
 }
 
 func TestPathParameters_RunRule(t *testing.T) {

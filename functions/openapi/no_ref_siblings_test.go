@@ -11,7 +11,7 @@ import (
 
 func TestNoRefSiblings_GetSchema(t *testing.T) {
 	def := NoRefSiblings{}
-	assert.Equal(t, "no_ref_siblings", def.GetSchema().Name)
+	assert.Equal(t, "refSiblings", def.GetSchema().Name)
 }
 
 func TestNoRefSiblings_RunRule(t *testing.T) {

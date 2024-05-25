@@ -11,7 +11,7 @@ import (
 
 func TestOperd_GetSchema(t *testing.T) {
 	def := TagDefined{}
-	assert.Equal(t, "tag_defined", def.GetSchema().Name)
+	assert.Equal(t, "oasTagDefined", def.GetSchema().Name)
 }
 
 func TestTagDefined_RunRule(t *testing.T) {

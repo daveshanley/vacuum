@@ -11,7 +11,7 @@ import (
 
 func TestOperationTags_GetSchema(t *testing.T) {
 	def := OperationTags{}
-	assert.Equal(t, "operation_tags", def.GetSchema().Name)
+	assert.Equal(t, "oasOperationTags", def.GetSchema().Name)
 }
 
 func TestOperationTags_RunRule(t *testing.T) {

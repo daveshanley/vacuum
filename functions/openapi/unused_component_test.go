@@ -12,7 +12,7 @@ import (
 
 func TestUnusedComponent_GetSchema(t *testing.T) {
 	def := UnusedComponent{}
-	assert.Equal(t, "unused_component", def.GetSchema().Name)
+	assert.Equal(t, "oasUnusedComponent", def.GetSchema().Name)
 }
 
 func TestUnusedComponent_RunRule(t *testing.T) {
