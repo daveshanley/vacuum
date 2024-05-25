@@ -145,24 +145,23 @@ func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []proto
 
 func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protocol.Diagnostic {
 	severity := GetDiagnosticSeverityFromRule(vacuumResult.Rule)
-	diagnosticErrorHref := fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
-		strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
-		strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
 
+	diagnosticErrorHref := fmt.Sprintf("%s/rules/unknown", model.WebsiteUrl)
+	if vacuumResult.Rule.RuleCategory != nil {
+		diagnosticErrorHref = fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
+			strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
+			strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
+	}
 	startLine := 1
 	startChar := 1
 	endLine := 1
 	endChar := 1
 
-	if vacuumResult.StartNode == nil {
-		panic("StartNode is nil")
-	}
-
-	if vacuumResult.StartNode.Line > 0 {
+	if vacuumResult.StartNode != nil && vacuumResult.StartNode.Line > 0 {
 		startLine = vacuumResult.StartNode.Line - 1
 		startChar = vacuumResult.StartNode.Column - 1
 	}
-	if vacuumResult.EndNode.Line > 0 {
+	if vacuumResult.EndNode != nil && vacuumResult.EndNode.Line > 0 {
 		endLine = vacuumResult.EndNode.Line - 1
 		endChar = vacuumResult.EndNode.Column - 1
 	}
