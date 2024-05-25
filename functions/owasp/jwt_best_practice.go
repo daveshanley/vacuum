@@ -41,6 +41,9 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 			if scheme.Value.Type == "oauth2" || strings.ToLower(scheme.Value.BearerFormat) == "jwt" {
 				if !strings.Contains(scheme.Value.Description, "RFC8725") {
 					node := scheme.Value.GoLow().Description.KeyNode
+					if node == nil {
+						node = scheme.Value.GoLow().KeyNode
+					}
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							"JWTs must explicitly declare support for `RFC8725` in the description"),
