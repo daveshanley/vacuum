@@ -83,16 +83,6 @@ like our _very kind_ sponsors:
 
 [scalar](https://scalar.com)
 
-<a href="https://zuplo.link/vacuum">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/zuplo-dark.png">
-  <img alt="scalar" src=".github/sponsors/zuplo-light.png">
-</picture>
-</a>
-
-[zuplo](https://zuplo.link/vacuum)
-
-
 ---
 
 ## Come chat with us
@@ -102,7 +92,17 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.9+` 🔥 : **Built in Language Server**.
+🔥 **New in** `v0.10+` 🔥 : **Quality release**.
+
+v0.10 is a quality release, with a number of fixes and improvements to rule schemas, function names and more. 
+vacuum now powers [The OpenAPI doctor](https://pb33f.io/doctor/). To enable correct ruleset management and automation
+a number of functions have been renamed, interfaces have been upgraded and rule functions schemas are now accurate. 
+
+This is a breaking change for anyone using vacuum as a library with custom rules. 
+
+---
+
+`v0.9+` : **Built in Language Server**.
 
 A new command is available `language-server`. This starts vacuum as an LSP compatible language server. Run vacuum
 in your favorite IDE and get linting and validation as you type, in realtime.
@@ -111,8 +111,6 @@ Will support any LSP compatible editor, like VSCode, Sublime, vim, etc.
 
 [Install the VSCode extension](https://marketplace.visualstudio.com/items?itemName=pb33f.vacuum)
 [Learn more about the language-server command](https://quobix.com/vacuum/commands/language-server/)
-
-
 
 ---
 
