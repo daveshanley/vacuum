@@ -92,7 +92,7 @@
       "errorMessage": "allowed types are \"style\" and \"validation\""
     }
   },
-  "required": ["given", "then", "severity", "formats"],
+  "required": ["given", "then", "severity"],
   "$defs": {
     "Format": {
       "$anchor": "format",
