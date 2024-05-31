@@ -41,9 +41,11 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	var opPath string
 
 	if ops != nil {
+		var opNode *yaml.Node
 		for i, op := range ops.Content {
 			if i%2 == 0 {
 				opPath = op.Value
+				opNode = op
 				continue
 			}
 			path := fmt.Sprintf("$.paths['%s']", opPath)
@@ -53,8 +55,8 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 					results = append(results, model.RuleFunctionResult{
 						Message:   fmt.Sprintf("paths are ambiguous with one another: `%s` and `%s`", p, opPath),
-						StartNode: op,
-						EndNode:   vacuumUtils.BuildEndNode(op),
+						StartNode: opNode,
+						EndNode:   vacuumUtils.BuildEndNode(opNode),
 						Path:      path,
 						Rule:      context.Rule,
 					})
@@ -62,7 +64,6 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				}
 			}
 			seen = append(seen, opPath)
-
 		}
 	}
 	return results
