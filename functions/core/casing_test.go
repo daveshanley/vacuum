@@ -440,3 +440,80 @@ func TestCasing_GetSchema_Valid(t *testing.T) {
 	assert.True(t, res)
 
 }
+
+// This tests a recursive match on a field ('properties') and ensures that the objects that match have their fields
+// (for objects) or elements (for arrays) all satisfy the casing.
+func TestCasing_RunRule_MatchMapAndArray_Recursive_Success(t *testing.T) {
+
+	sampleYaml :=
+		`
+chicken:
+  properties:
+   - NAME
+   - AGE
+pork:
+  properties:
+    SIZE: large
+    GENDER: male
+    FROM:
+      properties:
+        COUNTRY: Canada
+        CITY: Guelph
+`
+
+	// Recursively match any object that has a 'properties' object
+	path := "$..properties"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 3, "expected 3 'properties' objects")
+
+	opts := make(map[string]string)
+	opts["type"] = "macro"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCasing_RunRule_MatchMapAndArray_Recursive_Fail(t *testing.T) {
+
+	sampleYaml :=
+		`
+chicken:
+  properties:
+   - NAME
+   - Age
+pork:
+  properties:
+    SIZE: large
+    Gender: male
+    FROM:
+      properties:
+        COUNTRY: Canada
+        city: Guelph
+`
+
+	path := "$..properties"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 3, "expected 3 'properties' objects")
+
+	opts := make(map[string]string)
+	opts["type"] = "macro"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 3, "expected all fields of 'properties' objects to be MACRO case")
+}

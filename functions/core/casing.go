@@ -79,10 +79,24 @@ func (c Casing) GetCategory() string {
 
 // RunRule will execute the Casing rule, based on supplied context and a supplied []*yaml.Node slice.
 func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
 
-	if len(nodes) != 1 { // there can only be a single node passed in to this function.
+	// We expect at least one node to be found from the match
+	if len(nodes) == 0 {
 		return nil
 	}
+
+	// If we matched more than one node (eg through a recursive JSONPATH search such as '$..properties')
+	// Then recursively apply the casing to all nodes and bubble up all the results
+	if len(nodes) > 1 {
+		for _, n := range nodes {
+			results = append(results, c.RunRule([]*yaml.Node{n}, context)...)
+		}
+		return results
+	}
+
+	// From here on out, we are processing a single node
+	node := nodes[0]
 
 	var casingType string
 
@@ -110,14 +124,13 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 	// if a separator is defined, and can be used as a leading char, and the node value is that
 	// char (rune, what ever), then we're done.
-	if len(nodes[0].Value) == 1 &&
+	if len(node.Value) == 1 &&
 		c.separatorChar != "" &&
 		c.separatorAllowLeading &&
-		c.separatorChar == nodes[0].Value {
+		c.separatorChar == node.Value {
 		return nil
 	}
 
-	var results []model.RuleFunctionResult
 	var pattern string
 
 	if !c.compiled {
@@ -151,26 +164,15 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		ruleMessage = context.Rule.Message
 	}
 
+	// If the matched node is an array or map, then we should apply the casing rule to all it's children nodes:
+	// For maps, it applies to all field names and for arrays, it applies to all elements.
+	nodesToMatch := c.unravelNode(node)
+
+	var rx *regexp.Regexp
 	if c.separatorChar == "" {
-		rx := regexp.MustCompile(fmt.Sprintf("^%s$", pattern))
-		node := nodes[0]
-		if utils.IsNodeMap(nodes[0]) || utils.IsNodeArray(nodes[0]) {
-			if len(nodes[0].Content) > 0 {
-				node = nodes[0].Content[0]
-			}
-		}
+		rx = regexp.MustCompile(fmt.Sprintf("^%s$", pattern))
 
-		if !rx.MatchString(node.Value) {
-			results = append(results, model.RuleFunctionResult{
-				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not %s case", ruleMessage, node.Value, casingType)),
-				StartNode: node,
-				EndNode:   vacuumUtils.BuildEndNode(node),
-				Path:      pathValue,
-				Rule:      context.Rule,
-			})
-		}
 	} else {
-
 		c.separatorPattern = fmt.Sprintf("[%s]", regexp.QuoteMeta(c.separatorChar))
 		var leadingSepPattern string
 		var leadingPattern string
@@ -181,13 +183,16 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			leadingPattern = fmt.Sprintf("^(?:%[1]s)+(?:%[2]s%[1]s)*$", pattern, c.separatorPattern)
 		}
 
-		rx := regexp.MustCompile(leadingPattern)
-		if !rx.MatchString(nodes[0].Value) {
+		rx = regexp.MustCompile(leadingPattern)
+	}
+
+	// Go through each node and check if the casing is correct
+	for _, n := range nodesToMatch {
+		if !rx.MatchString(n.Value) {
 			results = append(results, model.RuleFunctionResult{
-				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage,
-					nodes[0].Value, casingType)),
-				StartNode: nodes[0],
-				EndNode:   vacuumUtils.BuildEndNode(nodes[0]),
+				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage, n.Value, casingType)),
+				StartNode: n,
+				EndNode:   vacuumUtils.BuildEndNode(n),
 				Path:      pathValue,
 				Rule:      context.Rule,
 			})
@@ -195,6 +200,23 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	}
 
 	return results
+}
+
+// If a node refers to an object, return a list of it's fields. If a node refers to an array, return a list of it's elements
+func (c Casing) unravelNode(node *yaml.Node) []*yaml.Node {
+	var nodesToMatch []*yaml.Node
+
+	if utils.IsNodeMap(node) {
+		for ii := 0; ii < len(node.Content); ii += 2 {
+			nodesToMatch = append(nodesToMatch, node.Content[ii])
+		}
+	} else if utils.IsNodeArray(node) {
+		nodesToMatch = node.Content
+	} else {
+		nodesToMatch = append(nodesToMatch, node)
+	}
+
+	return nodesToMatch
 }
 
 func (c *Casing) compileExpressions() {
