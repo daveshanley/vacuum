@@ -14,13 +14,14 @@ import (
 )
 
 const (
-	flat   string = "flat"
-	camel  string = "camel"
-	pascal string = "pascal"
-	kebab  string = "kebab"
-	cobol  string = "cobol"
-	snake  string = "snake"
-	macro  string = "macro"
+	flat        string = "flat"
+	camel       string = "camel"
+	pascal      string = "pascal"
+	pascalKebab string = "pascal-kebab"
+	kebab       string = "kebab"
+	cobol       string = "cobol"
+	snake       string = "snake"
+	macro       string = "macro"
 )
 
 // Casing is a rule that will check the value of a node to ensure it meets the required casing type.
@@ -28,6 +29,7 @@ type Casing struct {
 	flat                  string
 	camel                 string
 	pascal                string
+	pascalKebab           string
 	kebab                 string
 	cobol                 string
 	snake                 string
@@ -142,6 +144,8 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		pattern = c.camel
 	case pascal:
 		pattern = c.pascal
+	case pascalKebab:
+		pattern = c.pascalKebab
 	case kebab:
 		pattern = c.kebab
 	case cobol:
@@ -229,6 +233,7 @@ func (c *Casing) compileExpressions() {
 	c.flat = fmt.Sprintf("[a-z][a-z%[1]s]*", digits)
 	c.camel = fmt.Sprintf("[a-z][a-z%[1]s]*(?:[A-Z%[1]s](?:[a-z%[1]s]+|$))*", digits)
 	c.pascal = fmt.Sprintf("[A-Z][a-z%[1]s]*(?:[A-Z%[1]s](?:[a-z%[1]s]+|$))*", digits)
+	c.pascalKebab = fmt.Sprintf("[A-Z][a-z%[1]s]*(-[A-Z][a-z%[1]s]*)*", digits)
 	c.kebab = fmt.Sprintf("[a-z%[1]s-]+", digits)
 	c.cobol = fmt.Sprintf("[A-Z%[1]s-]+", digits)
 	c.snake = fmt.Sprintf("[a-z%[1]s_]+", digits)

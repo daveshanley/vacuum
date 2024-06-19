@@ -144,6 +144,67 @@ func TestCasing_RunRule_KebabFail(t *testing.T) {
 	assert.Len(t, res, 1)
 }
 
+func TestCasing_RunRule_PascalKebabSuccess(t *testing.T) {
+
+	testCases := []string{
+		`melody: "Is-What-Makes-Life-Worth-Living"`,
+		`melody: "Is-Living"`,
+		`melody: "Living"`,
+	}
+
+	for _, sampleYaml := range testCases {
+
+		path := "$.melody"
+
+		nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+		assert.Len(t, nodes, 1)
+
+		opts := make(map[string]string)
+		opts["type"] = "pascal-kebab"
+
+		rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+		ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+		ctx.Given = path
+		ctx.Rule = &rule
+
+		def := &Casing{}
+		res := def.RunRule(nodes, ctx)
+
+		assert.Len(t, res, 0)
+	}
+}
+
+func TestCasing_RunRule_PascalKebabFail(t *testing.T) {
+
+	testCases := []string{
+		`melody: "Is-What-Makes-Life-Worth-living"`,
+		`melody: "Is-"`,
+		`melody: "Is-what"`,
+		`melody: "IS-WHAT"`,
+		`melody: "Is_What-Makes-life_worth-living"`,
+	}
+
+	for _, sampleYaml := range testCases {
+		path := "$.melody"
+
+		nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+		assert.Len(t, nodes, 1)
+
+		opts := make(map[string]string)
+		opts["type"] = "pascal-kebab"
+
+		rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+		ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+		ctx.Given = path
+		ctx.Rule = &rule
+
+		def := &Casing{}
+		res := def.RunRule(nodes, ctx)
+
+		assert.Len(t, res, 1, "test case: '%s'", sampleYaml)
+	}
+}
+
 func TestCasing_RunRule_CobolSuccess(t *testing.T) {
 
 	sampleYaml := `maddy: "THE-LITTLE-CHAMPION"`
