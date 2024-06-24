@@ -130,49 +130,49 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 			if operation.Get != nil {
 				checkOperation(operation.Get.Value.Description, operation.Get.Value.Summary, path, http.MethodGet,
-					atPath, atRequest, operation.Get.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Get.GenerateJSONPath(), operation.Get.Value.GoLow().KeyNode,
 					operation.Get.RequestBody, operation.Get.Responses, operation.Get)
 			}
 
 			if operation.Post != nil {
 				checkOperation(operation.Post.Value.Description, operation.Post.Value.Summary, path, http.MethodPost,
-					atPath, atRequest, operation.Post.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Post.GenerateJSONPath(), operation.Post.Value.GoLow().KeyNode,
 					operation.Post.RequestBody, operation.Post.Responses, operation.Post)
 			}
 
 			if operation.Put != nil {
 				checkOperation(operation.Put.Value.Description, operation.Put.Value.Summary, path, http.MethodPut,
-					atPath, atRequest, operation.Put.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Put.GenerateJSONPath(), operation.Put.Value.GoLow().KeyNode,
 					operation.Put.RequestBody, operation.Put.Responses, operation.Put)
 			}
 
 			if operation.Delete != nil {
 				checkOperation(operation.Delete.Value.Description, operation.Delete.Value.Summary, path, http.MethodDelete,
-					atPath, atRequest, operation.Delete.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Delete.GenerateJSONPath(), operation.Delete.Value.GoLow().KeyNode,
 					operation.Delete.RequestBody, operation.Delete.Responses, operation.Delete)
 			}
 
 			if operation.Head != nil {
 				checkOperation(operation.Head.Value.Description, operation.Head.Value.Summary, path, http.MethodHead,
-					atPath, atRequest, operation.Head.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Head.GenerateJSONPath(), operation.Head.Value.GoLow().KeyNode,
 					operation.Head.RequestBody, operation.Head.Responses, operation.Head)
 			}
 
 			if operation.Patch != nil {
 				checkOperation(operation.Patch.Value.Description, operation.Patch.Value.Summary, path, http.MethodPatch,
-					atPath, atRequest, operation.Patch.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Patch.GenerateJSONPath(), operation.Patch.Value.GoLow().KeyNode,
 					operation.Patch.RequestBody, operation.Patch.Responses, operation.Patch)
 			}
 
 			if operation.Options != nil {
 				checkOperation(operation.Options.Value.Description, operation.Options.Value.Summary, path, http.MethodOptions,
-					atPath, atRequest, operation.Options.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Options.GenerateJSONPath(), operation.Options.Value.GoLow().KeyNode,
 					operation.Options.RequestBody, operation.Options.Responses, operation.Options)
 			}
 
 			if operation.Trace != nil {
 				checkOperation(operation.Trace.Value.Description, operation.Trace.Value.Summary, path, http.MethodTrace,
-					atPath, atRequest, operation.Trace.GenerateJSONPath(), operation.Value.GoLow().KeyNode,
+					atPath, atRequest, operation.Trace.GenerateJSONPath(), operation.Trace.Value.GoLow().KeyNode,
 					operation.Trace.RequestBody, operation.Trace.Responses, operation.Trace)
 			}
 
