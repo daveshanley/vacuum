@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/libopenapi/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OperationId is a rule that will check if each operation provides an operationId
@@ -30,29 +31,33 @@ func (oId OperationId) GetCategory() string {
 // RunRule will execute the OperationId rule, based on supplied context and a supplied []*yaml.Node slice.
 func (oId OperationId) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) <= 0 {
-		return nil
-	}
-
 	var results []model.RuleFunctionResult
 
-	paths := context.Index.GetAllPaths()
+	if context.DrDocument == nil {
+		return results
+	}
 
-	for path, methodMap := range paths {
+	paths := context.DrDocument.V3Document.Paths
 
-		for method, methodNode := range methodMap {
+	for pathItemPairs := paths.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
+		path := pathItemPairs.Key()
+		v := pathItemPairs.Value()
 
-			_, operationId := utils.FindKeyNode("operationId", methodNode.Node.Content)
+		for opPairs := v.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+			method := opPairs.Key()
+			op := opPairs.Value()
 
-			if operationId == nil {
-				results = append(results, model.RuleFunctionResult{
-					Message: fmt.Sprintf("the '%s' operation at path '%s' does not contain an operationId",
-						method, path),
-					StartNode: methodNode.Node,
-					EndNode:   vacuumUtils.BuildEndNode(methodNode.Node),
+			if op.Value.OperationId == "" {
+				res := model.RuleFunctionResult{
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("the `%s` operation does not contain an `operationId`",
+						strings.ToUpper(method))),
+					StartNode: op.Value.GoLow().KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().KeyNode),
 					Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
 					Rule:      context.Rule,
-				})
+				}
+				results = append(results, res)
+				op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 			}
 		}
 	}
