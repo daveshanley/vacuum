@@ -74,7 +74,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			}
 
 			// check if the parameter has any content defined with examples
-			if p.Content.Len() > 0 {
+			if p.Content != nil && p.Content.Len() > 0 {
 				for con := p.Content.First(); con != nil; con = con.Next() {
 					v := con.Value()
 					if v.Examples != nil && p.Examples.Len() >= 0 {
@@ -200,6 +200,9 @@ func extractHash(s *base.Schema) [32]byte {
 }
 
 func isSchemaBoolean(schema *base.Schema) bool {
+	if schema == nil || schema.Value == nil {
+		return false
+	}
 	if slices.Contains(schema.Value.Type, "boolean") {
 		return true
 	}
