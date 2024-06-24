@@ -56,6 +56,13 @@ Alternatively, you can pull it from
 [Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
 To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the above commands.
 
+## Run with Go
+
+If you have go >= 1.16 installed, you can use `go run` to build and run it:
+
+```
+go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
+```
 
 ---
 
