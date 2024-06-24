@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
-	"github.com/pb33f/libopenapi/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OperationTags is a rule that checks operations are using tags and they are not empty.
@@ -35,75 +35,32 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	}
 
 	var results []model.RuleFunctionResult
-	pathsNode := context.Index.GetPathsNode()
 
-	if pathsNode == nil {
+	if context.DrDocument == nil {
 		return results
 	}
 
-	for x, operationNode := range pathsNode.Content {
-		var currentPath string
-		var currentVerb string
-		if operationNode.Tag == "!!str" {
-			currentPath = operationNode.Value
+	paths := context.DrDocument.V3Document.Paths
 
-			var verbNode *yaml.Node
-			if x+1 == len(pathsNode.Content) {
-				verbNode = pathsNode.Content[x]
-			} else {
-				verbNode = pathsNode.Content[x+1]
-			}
-			skip := false
-			for y, verbMapNode := range verbNode.Content {
+	for pathItemPairs := paths.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
+		path := pathItemPairs.Key()
+		v := pathItemPairs.Value()
 
-				if verbMapNode.Tag == "!!str" {
-					currentVerb = verbMapNode.Value
-				} else {
-					continue
+		for opPairs := v.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+			method := opPairs.Key()
+			op := opPairs.Value()
+
+			if len(op.Value.Tags) <= 0 {
+				res := model.RuleFunctionResult{
+					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("tags for `%s` operation at are missing",
+						strings.ToUpper(method))),
+					StartNode: op.Value.GoLow().KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().KeyNode),
+					Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
+					Rule:      context.Rule,
 				}
-				// skip non-operations
-				switch currentVerb {
-				case
-					// No v2.*Label here, they're duplicates
-					v3.GetLabel, v3.PutLabel, v3.PostLabel, v3.DeleteLabel, v3.OptionsLabel, v3.HeadLabel, v3.PatchLabel, v3.TraceLabel:
-					// Ok, an operation
-				default:
-					skip = true
-					continue
-				}
-				if skip {
-					skip = false
-					continue
-				}
-				var opTagsNode *yaml.Node
-
-				if y+1 < len(verbNode.Content) {
-					verbDataNode := verbNode.Content[y+1]
-					_, opTagsNode = utils.FindKeyNode("tags", verbDataNode.Content)
-				} else {
-					verbDataNode := verbNode.Content[y]
-					_, opTagsNode = utils.FindKeyNode("tags", verbDataNode.Content)
-				}
-
-				if opTagsNode == nil || len(opTagsNode.Content) <= 0 {
-
-					var msg string
-					if opTagsNode == nil {
-						msg = fmt.Sprintf("tags for `%s` operation at path `%s` are missing",
-							currentVerb, currentPath)
-					} else {
-						msg = fmt.Sprintf("tags for `%s` operation at path `%s` are empty",
-							currentVerb, currentPath)
-					}
-
-					results = append(results, model.RuleFunctionResult{
-						Message:   msg,
-						StartNode: verbMapNode,
-						EndNode:   vacuumUtils.BuildEndNode(verbMapNode),
-						Path:      fmt.Sprintf("$.paths['%s'].%s", currentPath, currentVerb),
-						Rule:      context.Rule,
-					})
-				}
+				results = append(results, res)
+				op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 			}
 		}
 	}
