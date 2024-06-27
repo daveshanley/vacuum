@@ -142,6 +142,17 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.MediaTypes != nil {
 		for i := range context.DrDocument.MediaTypes {
 			mt := context.DrDocument.MediaTypes[i]
+
+			if mt.SchemaProxy != nil && isSchemaBoolean(mt.SchemaProxy.Schema) {
+				continue
+			}
+			if mt.SchemaProxy != nil &&
+				mt.SchemaProxy.Schema != nil &&
+				mt.SchemaProxy.Schema.Value != nil &&
+				(mt.SchemaProxy.Schema.Value.Examples != nil || mt.SchemaProxy.Schema.Value.Example != nil) {
+				continue
+			}
+
 			if mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
 
 				n := mt.Value.GoLow().RootNode
