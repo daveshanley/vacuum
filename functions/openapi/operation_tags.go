@@ -41,26 +41,27 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 	}
 
 	paths := context.DrDocument.V3Document.Paths
+	if paths != nil {
+		for pathItemPairs := paths.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
+			path := pathItemPairs.Key()
+			v := pathItemPairs.Value()
 
-	for pathItemPairs := paths.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
-		path := pathItemPairs.Key()
-		v := pathItemPairs.Value()
+			for opPairs := v.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+				method := opPairs.Key()
+				op := opPairs.Value()
 
-		for opPairs := v.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
-			method := opPairs.Key()
-			op := opPairs.Value()
-
-			if len(op.Value.Tags) <= 0 {
-				res := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("tags for `%s` operation at are missing",
-						strings.ToUpper(method))),
-					StartNode: op.Value.GoLow().KeyNode,
-					EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().KeyNode),
-					Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
-					Rule:      context.Rule,
+				if len(op.Value.Tags) <= 0 {
+					res := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("tags for `%s` operation at are missing",
+							strings.ToUpper(method))),
+						StartNode: op.Value.GoLow().KeyNode,
+						EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().KeyNode),
+						Path:      fmt.Sprintf("$.paths['%s'].%s", path, method),
+						Rule:      context.Rule,
+					}
+					results = append(results, res)
+					op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 				}
-				results = append(results, res)
-				op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 			}
 		}
 	}

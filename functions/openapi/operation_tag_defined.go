@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/libopenapi/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // TagDefined is a rule that checks if an operation uses a tag, it's also defined in the global tag definitions.
@@ -27,82 +28,45 @@ func (td TagDefined) GetCategory() string {
 }
 
 // RunRule will execute the TagDefined rule, based on supplied context and a supplied []*yaml.Node slice.
-func (td TagDefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
-	if len(nodes) <= 0 {
-		return nil
-	}
+func (td TagDefined) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
 
-	seenGlobalTags := make(map[string]bool)
-	tagsNode := context.Index.GetGlobalTagsNode()
-	pathsNode := context.Index.GetPathsNode()
-
-	if tagsNode != nil {
-		for _, tagNode := range tagsNode.Content {
-			_, tag := utils.FindKeyNode("name", []*yaml.Node{tagNode})
-			if tag != nil {
-				seenGlobalTags[tag.Value] = true
-			}
-		}
-	}
-
-	if pathsNode == nil {
+	if context.DrDocument == nil {
 		return results
 	}
 
-	for x, operationNode := range pathsNode.Content {
-		var currentPath string
-		var currentVerb string
-		if operationNode.Tag == "!!str" {
-			currentPath = operationNode.Value
-			var verbNode *yaml.Node
-			if x+1 == len(pathsNode.Content) {
-				verbNode = pathsNode.Content[x]
-			} else {
-				verbNode = pathsNode.Content[x+1]
-			}
-			for y, verbMapNode := range verbNode.Content {
+	globalTags := context.DrDocument.V3Document.Tags
+	globalTagMap := make(map[string]*base.Tag)
+	for _, tag := range globalTags {
+		globalTagMap[tag.Value.Name] = tag
+	}
 
-				if verbMapNode.Tag == "!!str" {
-					currentVerb = verbMapNode.Value
-				} else {
-					continue
-				}
-
-				var opTagsNode *yaml.Node
-				if y+1 < len(verbNode.Content) {
-					verbDataNode := verbNode.Content[y+1]
-					_, opTagsNode = utils.FindKeyNode("tags", verbDataNode.Content)
-				} else {
-					verbDataNode := verbNode.Content[y]
-					_, opTagsNode = utils.FindKeyNode("tags", verbDataNode.Content)
-				}
-				if opTagsNode != nil {
-
-					tagIndex := 0
-					for _, operationTag := range opTagsNode.Content {
-						if operationTag.Tag == "!!str" {
-							if !seenGlobalTags[operationTag.Value] {
-								results = append(results, model.RuleFunctionResult{
-									Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
-										"tag `%s`, that is not defined in the global document tags",
-										currentVerb, currentPath, operationTag.Value),
-									StartNode: operationTag,
-									EndNode:   vacuumUtils.BuildEndNode(operationTag),
-									Path:      fmt.Sprintf("$.paths['%s'].%s.tags[%v]", currentPath, currentVerb, tagIndex),
-									Rule:      context.Rule,
-								})
-							}
-							tagIndex++
-
+	paths := context.DrDocument.V3Document.Paths
+	if paths != nil && paths.PathItems != nil {
+		for pathItemPairs := paths.PathItems.First(); pathItemPairs != nil; pathItemPairs = pathItemPairs.Next() {
+			path := pathItemPairs.Key()
+			v := pathItemPairs.Value()
+			for opPairs := v.GetOperations().First(); opPairs != nil; opPairs = opPairs.Next() {
+				method := opPairs.Key()
+				op := opPairs.Value()
+				for i, tag := range op.Value.Tags {
+					if _, ok := globalTagMap[tag]; !ok {
+						res := model.RuleFunctionResult{
+							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("tag `%s` for `%s` operation is not defined as a global tag",
+									strings.ToUpper(tag), method)),
+							StartNode: op.Value.GoLow().Tags.Value[i].ValueNode,
+							EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().Tags.Value[i].ValueNode),
+							Path:      fmt.Sprintf("$.paths['%s'].%s.tags[%v]", path, method, i),
+							Rule:      context.Rule,
 						}
+						results = append(results, res)
+						op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 					}
 				}
 			}
 		}
 	}
 	return results
-
 }
