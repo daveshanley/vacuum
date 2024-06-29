@@ -3,6 +3,7 @@ package owasp
 import (
 	"fmt"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"strconv"
 	"strings"
@@ -36,7 +37,18 @@ func (cd HeaderDefinition) GetCategory() string {
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the HeaderDefinition rule.
 func (cd HeaderDefinition) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "owaspHeaderDefinition"}
+	return model.RuleFunctionSchema{
+		Name: "owaspHeaderDefinition",
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "headers",
+				Description: "Array of headers that must be present in the response",
+			},
+		},
+		MinProperties: 1,
+		ErrorMessage:  "Must include an array of headers to check for in the response",
+	}
+
 }
 
 // RunRule will execute the HeaderDefinition rule, based on supplied context and a supplied []*yaml.Node slice.
@@ -94,13 +106,15 @@ func (cd HeaderDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 								results = append(results, result...)
 							} else {
 
-								results = append(results, model.RuleFunctionResult{
+								res := model.RuleFunctionResult{
 									Message:   message{responseCode: code, headersSets: headerSets}.String(),
 									StartNode: node,
 									EndNode:   vacuumUtils.BuildEndNode(node),
 									Path:      vacuumUtils.SuppliedOrDefault(context.Rule.Message, resp.GenerateJSONPath()),
 									Rule:      context.Rule,
-								})
+								}
+								results = append(results, res)
+								resp.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 							}
 						}
 					}
