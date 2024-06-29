@@ -89,7 +89,7 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 					if node == nil {
 						n := responses.GetOrZero(code)
 						if n != nil {
-							node = n.Value.GoLow().RootNode
+							node = n.Value.GoLow().KeyNode
 						} else {
 							node = opValue.Responses.Value.GoLow().KeyNode
 						}
