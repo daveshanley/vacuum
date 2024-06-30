@@ -67,6 +67,7 @@ type RuleSetExecution struct {
 	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
 	Logger            *slog.Logger                  // A custom logger.
 	Timeout           time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
+	BuildGraph        bool                          // Build a graph of the document, powered by the doctor. (default is false)
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
 	IgnoreCircularArrayRef       bool // Ignore array circular references
@@ -327,9 +328,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexConfig.Logger.Debug("built resolved model", "ms", then)
 
 			now = time.Now()
-			mod, _ = docUnresolved.BuildV3Model()
+			var errs []error
+			mod, errs = docUnresolved.BuildV3Model()
 			if mod != nil {
 				v3DocumentModel = &mod.Model
+			} else {
+				execution.Logger.Error("unable to build unresolved model", "errors", errs)
 			}
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
@@ -342,7 +346,13 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			wg := conc.WaitGroup{}
 			wg.Go(func() {
 				if v3DocumentModel != nil {
-					drDocument = doctor.NewDrDocument(mod)
+					var drDoc *doctor.DrDocument
+					if !execution.BuildGraph {
+						drDoc = doctor.NewDrDocument(mod)
+					} else {
+						drDoc = doctor.NewDrDocumentAndGraph(mod)
+					}
+					execution.DrDocument = drDoc
 				}
 			})
 			wg.Go(func() {
@@ -534,7 +544,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				RuleId:    "schema-build-failure",
 				Rule:      schemaBuildRule,
 				StartNode: er.SchemaProxy.GoLow().GetKeyNode(),
-				EndNode:   vacuumUtils.BuildEndNode(er.SchemaProxy.GoLow().GetValueNode()),
+				EndNode:   vacuumUtils.BuildEndNode(er.SchemaProxy.GoLow().GetKeyNode()),
 				Message:   er.Error.Error(),
 				Path:      er.DrSchemaProxy.GenerateJSONPath(),
 			}
