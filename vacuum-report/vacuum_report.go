@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pb33f/libopenapi/datamodel"
@@ -22,6 +23,7 @@ type VacuumReport struct {
 	SpecInfo   *datamodel.SpecInfo       `json:"specInfo" yaml:"specInfo"`
 	Statistics *reports.ReportStatistics `json:"statistics" yaml:"statistics"`
 	ResultSet  *model.RuleResultSet      `json:"resultSet" yaml:"resultSet"`
+	Execution  *motor.RuleSetExecution   `json:"-" yaml:"-"`
 }
 
 // BuildVacuumReportFromFile will attempt (at great speed) to read in a file as a Vacuum Report. If successful a pointer
