@@ -17,25 +17,14 @@ func GetContactPropertiesRule() *model.Rule {
 		Id:           ContactProperties,
 		Formats:      model.AllFormats,
 		Description:  "Contact details are incomplete",
-		Given:        "$.info.contact",
+		Given:        "$",
 		Resolved:     true,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  false,
 		Type:         Validation,
 		Severity:     model.SeverityInfo,
-		Then: []model.RuleAction{
-			{
-				Field:    "name",
-				Function: "truthy",
-			},
-			{
-				Field:    "url",
-				Function: "truthy",
-			},
-			{
-				Field:    "email",
-				Function: "truthy",
-			},
+		Then: model.RuleAction{
+			Function: "infoContactProperties",
 		},
 		HowToFix: contactPropertiesFix,
 	}
@@ -49,15 +38,14 @@ func GetInfoContactRule() *model.Rule {
 		Id:           InfoContact,
 		Formats:      model.AllFormats,
 		Description:  "Info section is missing contact details",
-		Given:        "$.info",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Field:    "contact",
-			Function: "truthy",
+			Function: "infoContact",
 		},
 		HowToFix: contactFix,
 	}
@@ -71,15 +59,14 @@ func GetInfoDescriptionRule() *model.Rule {
 		Id:           InfoDescription,
 		Formats:      model.AllFormats,
 		Description:  "Info section is missing a description",
-		Given:        "$.info",
+		Given:        "$",
 		Resolved:     true,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Recommended:  true,
 		Type:         Validation,
 		Severity:     model.SeverityError,
 		Then: model.RuleAction{
-			Field:    "description",
-			Function: "truthy",
+			Function: "infoDescription",
 		},
 		HowToFix: infoDescriptionFix,
 	}
@@ -100,8 +87,7 @@ func GetInfoLicenseRule() *model.Rule {
 		Type:         Style,
 		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
-			Field:    "license",
-			Function: "truthy",
+			Function: "infoLicense",
 		},
 		HowToFix: infoLicenseFix,
 	}
@@ -122,8 +108,7 @@ func GetInfoLicenseUrlRule() *model.Rule {
 		Type:         Style,
 		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
-			Field:    "url",
-			Function: "truthy",
+			Function: "infoLicenseUrl",
 		},
 		HowToFix: infoLicenseUrlFix,
 	}
@@ -640,15 +625,14 @@ func GetTagDescriptionRequiredRule() *model.Rule {
 		Id:           TagDescription,
 		Formats:      model.AllFormats,
 		Description:  "Tag must have a description defined",
-		Given:        "$.tags",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         Validation,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Field:    "description",
-			Function: "truthy",
+			Function: "tagDescription",
 		},
 		HowToFix: tagDescriptionRequiredFix,
 	}
