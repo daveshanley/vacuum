@@ -1,0 +1,6 @@
+url-starts-with-major-version:
+  - $.paths['/burgers']
+  - $.paths['/burgers/{burgerId}']
+  - $.paths['/burgers/{burgerId}/dressings']
+  - $.paths['/dressings/{dressingId}']
+  - $.paths['/dressings']

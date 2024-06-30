@@ -1,0 +1,2 @@
+url-starts-with-major-version:
+    - $.paths['/api/hootsuite-analytics/resolved-conversation/table']

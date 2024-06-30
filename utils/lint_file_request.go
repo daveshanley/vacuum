@@ -30,6 +30,7 @@ type LintFileRequest struct {
 	TimeoutFlag              int
 	IgnoreArrayCircleRef     bool
 	IgnorePolymorphCircleRef bool
+	IgnoredResults           model.IgnoredItems
 	DefaultRuleSets          rulesets.RuleSets
 	SelectedRS               *rulesets.RuleSet
 	Functions                map[string]model.RuleFunction
