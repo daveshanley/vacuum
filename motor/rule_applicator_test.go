@@ -773,7 +773,7 @@ info:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "Info section is missing contact details: `contact` must be set", results.Results[0].Message)
+	assert.Equal(t, "`info` section must contain `contact` details", results.Results[0].Message)
 
 }
 
@@ -799,7 +799,7 @@ info:
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
-	assert.Equal(t, "Info section is missing a description: `description` must be set", results.Results[0].Message)
+	assert.Equal(t, "`info` section must have a `description`", results.Results[0].Message)
 
 }
 
@@ -826,7 +826,7 @@ info:
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
-	assert.Equal(t, "Info section should contain a license: `license` must be set", results.Results[0].Message)
+	assert.Equal(t, "`info` section must contain a `license`", results.Results[0].Message)
 
 }
 
@@ -857,7 +857,7 @@ info:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "License should contain a URL: `url` must be set", results.Results[0].Message)
+	assert.Equal(t, "`license` section must contain a `url`", results.Results[0].Message)
 }
 
 func TestRuleSet_NoEvalInMarkdown(t *testing.T) {
@@ -1258,7 +1258,8 @@ tags:
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
 	assert.Len(t, results.Results, 1)
-	assert.Equal(t, "Tag must have a description defined: `description` must be set", results.Results[0].Message)
+	assert.Equal(t, "tag `cinnamon` must have a description", results.Results[0].Message)
+	assert.Equal(t, 5, results.Results[0].StartNode.Line)
 
 }
 
