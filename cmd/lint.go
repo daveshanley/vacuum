@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -61,6 +62,7 @@ func GetLintCommand() *cobra.Command {
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -175,6 +177,25 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
+			if len(ignoreFile) > 1 {
+				if !silent {
+					pterm.Info.Printf("Using ignore file '%s'", ignoreFile)
+					pterm.Println()
+				}
+			}
+
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+			}
+
 			start := time.Now()
 
 			var filesProcessedSize int64
@@ -214,6 +235,7 @@ func GetLintCommand() *cobra.Command {
 						TimeoutFlag:              timeoutFlag,
 						IgnoreArrayCircleRef:     ignoreArrayCircleRef,
 						IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
+						IgnoredResults:           ignoredItems,
 					}
 					fs, fp, err := lintFile(lfr)
 
@@ -261,6 +283,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	// TODO: Add globbed-files flag to other commands as well
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
@@ -320,7 +343,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 		IgnoreCircularPolymorphicRef: req.IgnorePolymorphCircleRef,
 	})
 
-	results := result.Results
+	result.Results = filterIgnoredResults(result.Results, req.IgnoredResults)
 
 	if len(result.Errors) > 0 {
 		for _, err := range result.Errors {
@@ -330,7 +353,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 		return result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 	}
 
-	resultSet := model.NewRuleResultSet(results)
+	resultSet := model.NewRuleResultSet(result.Results)
 	resultSet.SortResultsByLineNumber()
 	warnings := resultSet.GetWarnCount()
 	errs := resultSet.GetErrorCount()
@@ -360,6 +383,42 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
 
 	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
+}
+
+// filterIgnoredResultsPtr filters the given results slice, taking out any (RuleID, Path) combos that were listed in the
+// ignore file
+func filterIgnoredResultsPtr(results []*model.RuleFunctionResult, ignored model.IgnoredItems) []*model.RuleFunctionResult {
+	var filteredResults []*model.RuleFunctionResult
+
+	for _, r := range results {
+
+		var found bool
+		for _, i := range ignored[r.Rule.Id] {
+			if r.Path == i {
+				found = true
+				break
+			}
+		}
+		if !found {
+			filteredResults = append(filteredResults, r)
+		}
+	}
+
+	return filteredResults
+}
+
+// filterIgnoredResults does the filtering of ignored results on non-pointer result elements
+func filterIgnoredResults(results []model.RuleFunctionResult, ignored model.IgnoredItems) []model.RuleFunctionResult {
+	resultsPtrs := make([]*model.RuleFunctionResult, 0, len(results))
+	for _, r := range results {
+		r := r // prevent loop memory aliasing
+		resultsPtrs = append(resultsPtrs, &r)
+	}
+	resultsFiltered := make([]model.RuleFunctionResult, 0, len(results))
+	for _, r := range filterIgnoredResultsPtr(resultsPtrs, ignored) {
+		resultsFiltered = append(resultsFiltered, *r)
+	}
+	return resultsFiltered
 }
 
 func processResults(results []*model.RuleFunctionResult,

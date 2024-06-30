@@ -190,3 +190,35 @@ func TestGetVacuumReportCommand_BadFile(t *testing.T) {
 	assert.Error(t, cmdErr)
 
 }
+
+func TestGetVacuumReport_WithIgnoreFile(t *testing.T) {
+
+	yaml := `
+extends: [[spectral:oas, recommended]]
+rules:
+    url-starts-with-major-version:
+        description: Major version must be the first URL component
+        message: All paths must start with a version number, eg /v1, /v2
+        given: $.paths
+        severity: error
+        then:
+            function: pattern
+            functionOptions:
+                match: "/v[0-9]+/"
+`
+
+	tmp, _ := os.CreateTemp("", "")
+	_, _ = io.WriteString(tmp, yaml)
+
+	cmd := GetVacuumReportCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+	cmd.SetArgs([]string{
+		"--ignore-file",
+		"../model/test_files/burgershop.ignorefile.yaml",
+		"-r",
+		tmp.Name(),
+		"../model/test_files/burgershop.openapi.yaml",
+	})
+	cmdErr := cmd.Execute()
+	assert.NoError(t, cmdErr)
+}
