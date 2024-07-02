@@ -45,8 +45,7 @@ func (cd HeaderDefinition) GetSchema() model.RuleFunctionSchema {
 				Description: "Array of headers that must be present in the response",
 			},
 		},
-		MinProperties: 1,
-		ErrorMessage:  "Must include an array of headers to check for in the response",
+		ErrorMessage: "Must include an array of headers to check for in the response",
 	}
 
 }
