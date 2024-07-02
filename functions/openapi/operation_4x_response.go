@@ -4,10 +4,9 @@
 package openapi
 
 import (
-	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/libopenapi/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
 	"strconv"
 )
@@ -27,52 +26,45 @@ func (or Operation4xResponse) GetCategory() string {
 }
 
 // RunRule will execute the Operation4xResponse rule, based on supplied context and a supplied []*yaml.Node slice.
-func (or Operation4xResponse) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
-	if len(nodes) <= 0 {
-		return nil
-	}
-
+func (or Operation4xResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
-	if context.Index.GetPathsNode() == nil {
+	if context.DrDocument == nil {
 		return results
 	}
-	ops := context.Index.GetPathsNode().Content
 
-	var opPath, opMethod string
-	for i, op := range ops {
-		if i%2 == 0 {
-			opPath = op.Value
-			continue
-		}
-		for m, method := range op.Content {
-			if m%2 == 0 {
-				opMethod = method.Value
-				continue
-			}
-			basePath := fmt.Sprintf("$.paths.%s.%s", opPath, opMethod)
-			_, responsesNode := utils.FindKeyNode("responses", method.Content)
+	for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
+		pathItem := pathPairs.Value()
 
-			if responsesNode != nil {
+		// extract operations
+		for methodPairs := pathItem.GetOperations().First(); methodPairs != nil; methodPairs = methodPairs.Next() {
+			operation := methodPairs.Value()
+
+			// check if operation has a 4xx response
+			if operation.Value.Responses != nil {
 				seen := false
-				for k, response := range responsesNode.Content {
-					if k%2 != 0 {
-						continue
-					}
-					responseCode, _ := strconv.Atoi(response.Value)
-					if responseCode >= 400 && responseCode <= 499 {
-						seen = true
+				for codePairs := operation.Responses.Codes.First(); codePairs != nil; codePairs = codePairs.Next() {
+					code := codePairs.Key()
+
+					// convert code to int
+					codeVal, er := strconv.Atoi(code)
+					if er == nil {
+						if codeVal >= 400 && codeVal < 500 {
+							seen = true
+							break
+						}
 					}
 				}
 				if !seen {
-					results = append(results, model.RuleFunctionResult{
+					res := model.RuleFunctionResult{
 						Message:   "operation must define at least one 4xx error response",
-						StartNode: method,
-						EndNode:   vacuumUtils.BuildEndNode(method),
-						Path:      basePath,
+						StartNode: operation.Responses.KeyNode,
+						EndNode:   vacuumUtils.BuildEndNode(operation.Responses.KeyNode),
+						Path:      operation.Responses.GenerateJSONPath(),
 						Rule:      context.Rule,
-					})
+					}
+					results = append(results, res)
+					operation.Responses.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 				}
 			}
 		}

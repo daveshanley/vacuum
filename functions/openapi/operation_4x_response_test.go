@@ -1,11 +1,11 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/utils"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"os"
 	"testing"
 )
@@ -25,17 +25,25 @@ func TestOperation4xResponse_RunRule_Success(t *testing.T) {
 
 	sampleYaml, _ := os.ReadFile("../../model/test_files/burgershop.openapi.yaml")
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
-	assert.NoError(t, mErr)
-	nodes, _ := utils.FindNodes(sampleYaml, "$")
-	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
+	document, err := libopenapi.NewDocument(sampleYaml)
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "responses", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := Operation4xResponse{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
@@ -44,17 +52,25 @@ func TestOperation4xResponse_RunRule_ExitEarly(t *testing.T) {
 
 	sampleYaml := []byte("hi: there")
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
-	assert.NoError(t, mErr)
-	nodes, _ := utils.FindNodes(sampleYaml, "$")
-	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
+	document, err := libopenapi.NewDocument(sampleYaml)
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "responses", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := Operation4xResponse{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
@@ -63,17 +79,25 @@ func TestOperation4xResponse_RunRule_Fail(t *testing.T) {
 
 	sampleYaml, _ := os.ReadFile("../../model/test_files/stripe.yaml")
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal(sampleYaml, &rootNode)
-	assert.NoError(t, mErr)
-	nodes, _ := utils.FindNodes(sampleYaml, "$")
-	rule := buildOpenApiTestRuleAction(GetAllOperationsJSONPath(), "xor", "responses", nil)
+	document, err := libopenapi.NewDocument(sampleYaml)
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "responses", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := Operation4xResponse{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 402)
 }
