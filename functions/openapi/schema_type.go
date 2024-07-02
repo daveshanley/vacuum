@@ -258,14 +258,52 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 
 	if len(schema.Value.Required) > 0 {
 		for i, required := range schema.Value.Required {
-			if schema.Value.Properties == nil {
+
+			// check for polymorphic schema props
+			// https://github.com/daveshanley/vacuum/issues/510
+			polyFound := false
+			polyDefined := false
+			if schema.Value.AnyOf != nil || schema.Value.OneOf != nil || schema.Value.AllOf != nil {
+				if schema.Value.AnyOf != nil {
+					for _, anyOf := range schema.Value.AnyOf {
+						if anyOf.Schema().Properties.Len() >= 0 {
+							polyFound = true
+						}
+						if anyOf.Schema().Properties.GetOrZero(required) != nil {
+							polyDefined = true
+						}
+					}
+				}
+				if schema.Value.OneOf != nil {
+					for _, oneOf := range schema.Value.OneOf {
+						if oneOf.Schema().Properties.Len() >= 0 {
+							polyFound = true
+						}
+						if oneOf.Schema().Properties.GetOrZero(required) != nil {
+							polyDefined = true
+						}
+					}
+				}
+				if schema.Value.AllOf != nil {
+					for _, allOf := range schema.Value.AllOf {
+						if allOf.Schema().Properties.Len() >= 0 {
+							polyFound = true
+						}
+						if allOf.Schema().Properties.GetOrZero(required) != nil {
+							polyDefined = true
+						}
+					}
+				}
+			}
+			if schema.Value.Properties == nil && !polyFound {
 				result := st.buildResult("object contains `required` fields but no `properties`",
 					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
 					schema, schema.Value.GoLow().Required.KeyNode, context)
 				results = append(results, result)
 				break
 			}
-			if schema.Value.Properties.GetOrZero(required) == nil {
+
+			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) == nil && !polyDefined {
 				result := st.buildResult(fmt.Sprintf("`required` field `%s` is not defined in `properties`", required),
 					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
 					schema, schema.Value.GoLow().Required.KeyNode, context)
@@ -275,6 +313,5 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 	}
 
 	// TODO: DependentRequired
-
 	return results
 }
