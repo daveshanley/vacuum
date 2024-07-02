@@ -353,6 +353,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 						drDoc = doctor.NewDrDocumentAndGraph(mod)
 					}
 					execution.DrDocument = drDoc
+					drDocument = drDoc
 				}
 			})
 			wg.Go(func() {
