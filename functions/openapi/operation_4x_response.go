@@ -33,6 +33,10 @@ func (or Operation4xResponse) RunRule(_ []*yaml.Node, context model.RuleFunction
 		return results
 	}
 
+	if context.DrDocument.V3Document == nil || context.DrDocument.V3Document.Paths == nil || context.DrDocument.V3Document.Paths.PathItems == nil {
+		return results
+	}
+
 	for pathPairs := context.DrDocument.V3Document.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
 		pathItem := pathPairs.Value()
 

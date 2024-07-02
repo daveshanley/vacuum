@@ -50,7 +50,7 @@ func TestOperation4xResponse_RunRule_Success(t *testing.T) {
 
 func TestOperation4xResponse_RunRule_ExitEarly(t *testing.T) {
 
-	sampleYaml := []byte("hi: there")
+	sampleYaml := []byte("openapi: 3.0.1\nhi: there")
 
 	document, err := libopenapi.NewDocument(sampleYaml)
 	if err != nil {
