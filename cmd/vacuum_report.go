@@ -16,6 +16,7 @@ import (
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"os"
 	"time"
 )
@@ -46,6 +47,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -100,6 +102,18 @@ func GetVacuumReportCommand() *cobra.Command {
 				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
 				pterm.Println()
 				return fileError
+			}
+
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
 			}
 
 			// read spec and parse to dashboard.
@@ -164,6 +178,8 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
 			resultSet.SortResultsByLineNumber()
+
+			resultSet.Results = filterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 
 			duration := time.Since(start)
 
@@ -262,5 +278,6 @@ func GetVacuumReportCommand() *cobra.Command {
 	cmd.Flags().BoolP("compress", "c", false, "Compress results using gzip")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	return cmd
 }

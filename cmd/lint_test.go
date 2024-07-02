@@ -507,3 +507,70 @@ rules:
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
 }
+
+func TestFilterIgnoredResults(t *testing.T) {
+
+	results := []model.RuleFunctionResult{
+		{Path: "a/b/c", Rule: &model.Rule{Id: "XXX"}},
+		{Path: "a/b", Rule: &model.Rule{Id: "XXX"}},
+		{Path: "a", Rule: &model.Rule{Id: "XXX"}},
+		{Path: "a/b/c", Rule: &model.Rule{Id: "YYY"}},
+		{Path: "a/b", Rule: &model.Rule{Id: "YYY"}},
+		{Path: "a", Rule: &model.Rule{Id: "YYY"}},
+		{Path: "a/b/c", Rule: &model.Rule{Id: "ZZZ"}},
+		{Path: "a/b", Rule: &model.Rule{Id: "ZZZ"}},
+		{Path: "a", Rule: &model.Rule{Id: "ZZZ"}},
+	}
+
+	igItems := model.IgnoredItems{
+		"XXX": []string{"a/b/c"},
+		"YYY": []string{"a/b"},
+	}
+
+	results = filterIgnoredResults(results, igItems)
+
+	expected := []model.RuleFunctionResult{
+		{Path: "a/b", Rule: &model.Rule{Id: "XXX"}},
+		{Path: "a", Rule: &model.Rule{Id: "XXX"}},
+		{Path: "a/b/c", Rule: &model.Rule{Id: "YYY"}},
+		{Path: "a", Rule: &model.Rule{Id: "YYY"}},
+		{Path: "a/b/c", Rule: &model.Rule{Id: "ZZZ"}},
+		{Path: "a/b", Rule: &model.Rule{Id: "ZZZ"}},
+		{Path: "a", Rule: &model.Rule{Id: "ZZZ"}},
+	}
+	assert.Len(t, results, 7)
+	assert.Equal(t, expected, expected)
+}
+
+func TestGetLintCommand_Details_WithIgnoreFile(t *testing.T) {
+
+	yaml := `
+extends: [[spectral:oas, recommended]]
+rules:
+    url-starts-with-major-version:
+        description: Major version must be the first URL component
+        message: All paths must start with a version number, eg /v1, /v2
+        given: $.paths
+        severity: error
+        then:
+            function: pattern
+            functionOptions:
+                match: "/v[0-9]+/"
+`
+
+	tmp, _ := os.CreateTemp("", "")
+	_, _ = io.WriteString(tmp, yaml)
+
+	cmd := GetLintCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+	cmd.SetArgs([]string{
+		"-d",
+		"--ignore-file",
+		"../model/test_files/burgershop.ignorefile.yaml",
+		"-r",
+		tmp.Name(),
+		"../model/test_files/burgershop.openapi.yaml",
+	})
+	cmdErr := cmd.Execute()
+	assert.NoError(t, cmdErr)
+}

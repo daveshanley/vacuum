@@ -68,6 +68,8 @@ type RuleFunctionResult struct {
 	ModelContext any `json:"-" yaml:"-"`
 }
 
+type IgnoredItems map[string][]string
+
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
