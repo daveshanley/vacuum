@@ -55,7 +55,7 @@ func (td TagDefined) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 						res := model.RuleFunctionResult{
 							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 								fmt.Sprintf("tag `%s` for `%s` operation is not defined as a global tag",
-									strings.ToUpper(tag), method)),
+									tag, strings.ToUpper(method))),
 							StartNode: op.Value.GoLow().Tags.Value[i].ValueNode,
 							EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().Tags.Value[i].ValueNode),
 							Path:      fmt.Sprintf("$.paths['%s'].%s.tags[%v]", path, method, i),

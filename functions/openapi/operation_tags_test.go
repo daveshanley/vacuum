@@ -1,11 +1,11 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/utils"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -22,7 +22,8 @@ func TestOperationTags_RunRule(t *testing.T) {
 
 func TestOperationTags_RunRule_Success(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hello:
     post:
       tags:
@@ -36,21 +37,25 @@ func TestOperationTags_RunRule_Success(t *testing.T) {
       tags:
        - b`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 	//assert.Equal(t, "the 'get' operation at path '/ember' contains a duplicate operationId 'littleSong'", res[0].Message)
@@ -58,7 +63,8 @@ func TestOperationTags_RunRule_Success(t *testing.T) {
 
 func TestOperationTags_RunRule_NoTags(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hello:
     post:
       description: hi
@@ -70,31 +76,36 @@ func TestOperationTags_RunRule_NoTags(t *testing.T) {
       tags:
        - b`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "tags for `post` operation at path `/hello` are missing", res[0].Message)
+	assert.Equal(t, "tags for `POST` operation are missing", res[0].Message)
 	assert.Equal(t, "$.paths['/hello'].post", res[0].Path)
 
 }
 
 func TestOperationTags_RunRule_EmptyTags(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hello:
     post:
       tags:
@@ -107,31 +118,36 @@ func TestOperationTags_RunRule_EmptyTags(t *testing.T) {
       tags:
        - b`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "tags for `get` operation at path `/hello` are empty", res[0].Message)
+	assert.Equal(t, "tags for `GET` operation are missing", res[0].Message)
 	assert.Equal(t, "$.paths['/hello'].get", res[0].Path)
 
 }
 
 func TestOperationTags_RunRule_IgnoreParameters(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hello:
     post:
       tags:
@@ -140,27 +156,32 @@ func TestOperationTags_RunRule_IgnoreParameters(t *testing.T) {
     parameters:
       - in: query`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
 
 func TestOperationTags_RunRule_IgnoreServers(t *testing.T) {
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hello:
     post:
       tags:
@@ -169,28 +190,33 @@ func TestOperationTags_RunRule_IgnoreServers(t *testing.T) {
     servers:
       - url: https://api.example.com/v1`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
 
 func TestOperationTags_RunRule_IgnoreExtensions(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /hello:
     post:
       tags:
@@ -201,21 +227,25 @@ func TestOperationTags_RunRule_IgnoreExtensions(t *testing.T) {
     parameters:
       - in: path`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
@@ -224,21 +254,25 @@ func TestOperationTags_RunRule_HandleNoPaths(t *testing.T) {
 
 	yml := `openapi: 3.0.3`
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_tags", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationTags{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
