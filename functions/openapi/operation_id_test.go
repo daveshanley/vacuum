@@ -1,10 +1,11 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/index"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -21,7 +22,8 @@ func TestOperationId_RunRule(t *testing.T) {
 
 func TestOperationId_RunRule_Fail(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.0.1
+paths:
   /melody:
     post:
       operationId: littleSong
@@ -31,27 +33,34 @@ func TestOperationId_RunRule_Fail(t *testing.T) {
     get:
       operationId: littleMenace`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "operation_id", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "responses", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationId{}
-	res := def.RunRule(rootNode.Content, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation at path '/maddox' does not contain an operationId", res[0].Message)
+	assert.Equal(t, "the `GET` operation does not contain an `operationId`", res[0].Message)
 }
 
 func TestOperationId_RunRule_Success(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.0.1
+paths:
   /melody:
     post:
       operationId: littleSong
@@ -62,20 +71,25 @@ func TestOperationId_RunRule_Success(t *testing.T) {
     get:
       operationId: littleMenace`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "unique_operation_id", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "responses", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := OperationId{}
-	res := def.RunRule(rootNode.Content, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 
