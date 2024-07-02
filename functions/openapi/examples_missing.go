@@ -77,7 +77,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			if p.Content != nil && p.Content.Len() > 0 {
 				for con := p.Content.First(); con != nil; con = con.Next() {
 					v := con.Value()
-					if v.Examples != nil && p.Examples.Len() >= 0 {
+					if v.Examples != nil && (p.Examples == nil || p.Examples.Len() >= 0) {
 						// add to seen elements, so when checking schemas we can mark them as good.
 						h := p.Value.GoLow().Hash()
 						if _, ok := seen[h]; !ok {
