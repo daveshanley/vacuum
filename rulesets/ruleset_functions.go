@@ -1214,7 +1214,7 @@ func GetOperationErrorResponseRule() *model.Rule {
 		Id:           OperationErrorResponse,
 		Formats:      model.AllFormats,
 		Description:  "Make sure operations return at least one `4xx` error response to help with bad requests",
-		Given:        "$.paths",
+		Given:        "$",
 		Resolved:     true,
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
