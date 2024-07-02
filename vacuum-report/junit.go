@@ -60,6 +60,8 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 
 	parsedTemplate, _ := template.New("failure").Parse(tmpl)
 
+	gf, gtc := 0, 0 // global failure count, global test cases count.
+
 	// try a category print out.
 	for _, val := range cats {
 		categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
@@ -72,6 +74,7 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 			_ = parsedTemplate.Execute(&sb, r)
 			if r.Rule.Severity == model.SeverityError || r.Rule.Severity == model.SeverityWarn {
 				f++
+				gf++
 			}
 			tc = append(tc, &TestCase{
 				Name:      fmt.Sprintf("Category: %s", val.Id),
@@ -96,10 +99,13 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 
 			suites = append(suites, ts)
 		}
+		gtc += len(tc)
 	}
 
 	allSuites := &TestSuites{
 		TestSuites: suites,
+		Tests:      gtc,
+		Failures:   gf,
 	}
 
 	b, _ := xml.MarshalIndent(allSuites, "", " ")
