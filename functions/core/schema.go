@@ -25,9 +25,8 @@ type Schema struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the OperationParameters rule.
 func (sch Schema) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name:          "schema",
-		Required:      []string{"schema"},
-		MinProperties: 1,
+		Name:     "schema",
+		Required: []string{"schema"},
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name:        "schema",
