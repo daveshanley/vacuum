@@ -1,7 +1,10 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
@@ -65,7 +68,8 @@ paths:
 
 func TestTagDefined_RunRule_Fail(t *testing.T) {
 
-	yml := `tags:
+	yml := `openapi: 3.0.1
+tags:
   - name: "princess"
   - name: "prince"
   - name: "hope"
@@ -86,23 +90,26 @@ paths:
       tags:
        - "such_a_naughty_dog"`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	drDocument := drModel.NewDrDocument(m)
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-
-	rule := buildOpenApiTestRuleAction(path, "tag_defined", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "tag-defined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := TagDefined{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the `get` operation at path `/ember` contains a tag `such_a_naughty_dog`, "+
-		"that is not defined in the global document tags", res[0].Message)
+	assert.Equal(t, "tag `such_a_naughty_dog` for `GET` operation is not defined as a global tag", res[0].Message)
 }

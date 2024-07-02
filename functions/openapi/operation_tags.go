@@ -30,10 +30,6 @@ func (ot OperationTags) GetCategory() string {
 // RunRule will execute the OperationTags rule, based on supplied context and a supplied []*yaml.Node slice.
 func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) <= 0 {
-		return nil
-	}
-
 	var results []model.RuleFunctionResult
 
 	if context.DrDocument == nil {
@@ -52,7 +48,7 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 
 				if len(op.Value.Tags) <= 0 {
 					res := model.RuleFunctionResult{
-						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("tags for `%s` operation at are missing",
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("tags for `%s` operation are missing",
 							strings.ToUpper(method))),
 						StartNode: op.Value.GoLow().KeyNode,
 						EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().KeyNode),
