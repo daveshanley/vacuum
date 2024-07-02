@@ -10,6 +10,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OperationParameters is a rule that checks for valid parameters and parameters combinations
@@ -70,7 +71,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 							if paramInNode.Value == "body" {
 								results = append(results, model.RuleFunctionResult{
 									Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
-										"duplicate param in:body definition", currentVerb, currentPath),
+										"duplicate param in:body definition", strings.ToUpper(currentVerb), currentPath),
 									StartNode: startNode,
 									EndNode:   vacuumUtils.BuildEndNode(startNode),
 									Path:      resultPath,
@@ -83,7 +84,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 									results = append(results, model.RuleFunctionResult{
 										Message: fmt.Sprintf("the `%s` operation at path `%s` "+
 											"contains parameters using both in:body and in:formData",
-											currentVerb, currentPath),
+											strings.ToUpper(currentVerb), currentPath),
 										StartNode: startNode,
 										EndNode:   vacuumUtils.BuildEndNode(startNode),
 										Path:      resultPath,
@@ -96,7 +97,7 @@ func (op OperationParameters) RunRule(nodes []*yaml.Node, context model.RuleFunc
 					} else {
 						rfr := model.RuleFunctionResult{
 							Message: fmt.Sprintf("the `%s` operation at path `%s` contains a "+
-								"parameter with no `in` value", currentVerb, currentPath),
+								"parameter with no `in` value", strings.ToUpper(currentVerb), currentPath),
 							StartNode: startNode,
 							EndNode:   vacuumUtils.BuildEndNode(startNode),
 							Path:      resultPath,

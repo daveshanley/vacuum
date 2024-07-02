@@ -85,7 +85,7 @@ func TestOperationParameters_RunRule_MissingName(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the 'get' operation parameter at path '/users/{id}', index 1 has no 'name' value", res[0].Message)
+	assert.Equal(t, "the `GET` operation parameter at path `/users/{id}`, index 1 has no `name` value", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateIdButDifferentInType(t *testing.T) {
@@ -146,7 +146,7 @@ func TestOperationParameters_RunRule_DuplicateIdSameInType(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the `get` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id` and `in` type", res[0].Message)
+	assert.Equal(t, "the `GET` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id` and `in` type", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateId_MultipleVerbsDifferentInTypes(t *testing.T) {
@@ -219,7 +219,7 @@ func TestOperationParameters_RunRule_DuplicateId_MultipleVerbs(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the `get` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id` and `in` type", res[0].Message)
+	assert.Equal(t, "the `GET` operation parameter at path `/users/{id}`, index 1 has a duplicate name `id` and `in` type", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {
@@ -250,7 +250,7 @@ func TestOperationParameters_RunRule_DuplicateInBody(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the `post` operation at path `/snakes/cakes` contains a duplicate param in:body definition", res[0].Message)
+	assert.Equal(t, "the `POST` operation at path `/snakes/cakes` contains a duplicate param in:body definition", res[0].Message)
 }
 
 func TestOperationParameters_RunRule_FormDataAndBody(t *testing.T) {
@@ -281,5 +281,5 @@ func TestOperationParameters_RunRule_FormDataAndBody(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "the `post` operation at path `/snakes/cakes` contains parameters using both in:body and in:formData", res[0].Message)
+	assert.Equal(t, "the `POST` operation at path `/snakes/cakes` contains parameters using both in:body and in:formData", res[0].Message)
 }
