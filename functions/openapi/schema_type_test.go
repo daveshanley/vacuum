@@ -954,6 +954,243 @@ components:
 	assert.Equal(t, "$.components.schemas['Gum'].required[0]", res[0].Path)
 }
 
+func TestSchemaType_RequiredPropertiesPolyAllOf(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: object
+     required:
+       - hello
+     properties:
+       goodbye:
+         type: string
+     allOf:
+       - type: object
+         properties:
+           hello:
+             type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_RequiredPropertiesPolyAllOf_NoProps(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: object
+     required:
+       - hello
+     allOf:
+       - type: object
+         properties:
+           hello:
+             type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_RequiredPropertiesPolyOneOf(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: object
+     required:
+       - hello
+     properties:
+       goodbye:
+         type: string
+     oneOf:
+       - type: object
+         properties:
+           hello:
+             type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_RequiredPropertiesPolyOneOf_NoProps(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: object
+     required:
+       - hello
+     oneOf:
+       - type: object
+         properties:
+           hello:
+             type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_RequiredPropertiesPolyAnyOf(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: object
+     required:
+       - hello
+     properties:
+       goodbye:
+         type: string
+     anyOf:
+       - type: object
+         properties:
+           hello:
+             type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_RequiredPropertiesPolyAnyOf_NoProps(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Gum:
+     type: object
+     required:
+       - hello
+     anyOf:
+       - type: object
+         properties:
+           hello:
+             type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestSchemaType_Null(t *testing.T) {
 
 	yml := `openapi: 3.1
