@@ -266,30 +266,30 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 			if schema.Value.AnyOf != nil || schema.Value.OneOf != nil || schema.Value.AllOf != nil {
 				if schema.Value.AnyOf != nil {
 					for _, anyOf := range schema.Value.AnyOf {
-						if anyOf.Schema().Properties.Len() >= 0 {
+						if anyOf.Schema() != nil && anyOf.Schema().Properties != nil && anyOf.Schema().Properties.Len() >= 0 {
 							polyFound = true
 						}
-						if anyOf.Schema().Properties.GetOrZero(required) != nil {
+						if anyOf.Schema() != nil && anyOf.Schema().Properties != nil && anyOf.Schema().Properties.GetOrZero(required) != nil {
 							polyDefined = true
 						}
 					}
 				}
 				if schema.Value.OneOf != nil {
 					for _, oneOf := range schema.Value.OneOf {
-						if oneOf.Schema().Properties.Len() >= 0 {
+						if oneOf.Schema() != nil && oneOf.Schema().Properties != nil && oneOf.Schema().Properties.Len() >= 0 {
 							polyFound = true
 						}
-						if oneOf.Schema().Properties.GetOrZero(required) != nil {
+						if oneOf.Schema() != nil && oneOf.Schema().Properties != nil && oneOf.Schema().Properties.GetOrZero(required) != nil {
 							polyDefined = true
 						}
 					}
 				}
 				if schema.Value.AllOf != nil {
 					for _, allOf := range schema.Value.AllOf {
-						if allOf.Schema().Properties.Len() >= 0 {
+						if allOf.Schema() != nil && allOf.Schema().Properties != nil && allOf.Schema().Properties.Len() >= 0 {
 							polyFound = true
 						}
-						if allOf.Schema().Properties.GetOrZero(required) != nil {
+						if allOf.Schema() != nil && allOf.Schema().Properties != nil && allOf.Schema().Properties.GetOrZero(required) != nil {
 							polyDefined = true
 						}
 					}
