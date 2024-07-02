@@ -747,7 +747,7 @@ info:
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
-	assert.Equal(t, "Contact details are incomplete: `url` must be set", results.Results[0].Message)
+	assert.Equal(t, "`contact` section must contain a `url`", results.Results[0].Message)
 
 }
 
