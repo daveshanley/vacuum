@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
@@ -561,6 +562,9 @@ rules:
 	tmp, _ := os.CreateTemp("", "")
 	_, _ = io.WriteString(tmp, yaml)
 
+	b := bytes.NewBufferString("")
+	pterm.SetDefaultOutput(b)
+
 	cmd := GetLintCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	cmd.SetArgs([]string{
@@ -573,4 +577,5 @@ rules:
 	})
 	cmdErr := cmd.Execute()
 	assert.NoError(t, cmdErr)
+	assert.Contains(t, b.String(), "Linting passed")
 }
