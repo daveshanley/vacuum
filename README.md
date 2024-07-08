@@ -365,6 +365,35 @@ recognizes a compressed report file and will deal with it automatically when rea
 
 > When using compression, the file name will be `vacuum-report-MM-DD-YY-HH_MM_SS.json.gz`. vacuum uses gzip internally.
 
+## Ignoring specific linting errors
+
+You can ignore specific linting errors by providing an `--ignore-file` argument to the `lint` and `report` commands.
+
+```
+./vacuum lint --ignore-file <path-to-ignore-file.yaml> -d <your-openapi-spec.yaml>
+```
+
+```
+./vacuum report --ignore-file <path-to-ignore-file.yaml> -c <your-openapi-spec.yaml> <report-prefix>
+```
+
+The ignore-file should point to a .yaml file that contains a list of errors to be ignored by vacuum. The structure of the
+yaml file is as follows:
+
+```
+<rule-id-1>:
+  - <json_path_to_error_or_warning_1>
+  - <json_path_to_error_or_warning_2>
+<rule-id-2>:
+  - <json_path_to_error_or_warning_1>
+  - <json_path_to_error_or_warning_2>
+  ...
+```
+
+Ignoring errors is useful for when you want to implement new rules to existing production APIs. In some cases, 
+correcting the lint errors would result in a breaking change. Having a way to ignore these errors allows you to implement
+the new rules for new APIs while maintaining backwards compatibility for existing ones.
+
 ---
 
 ## Try out the dashboard
