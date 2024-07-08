@@ -62,8 +62,8 @@ func (or Operation4xResponse) RunRule(_ []*yaml.Node, context model.RuleFunction
 				if !seen {
 					res := model.RuleFunctionResult{
 						Message:   "operation must define at least one 4xx error response",
-						StartNode: operation.Responses.KeyNode,
-						EndNode:   vacuumUtils.BuildEndNode(operation.Responses.KeyNode),
+						StartNode: operation.Value.GoLow().Responses.KeyNode,
+						EndNode:   vacuumUtils.BuildEndNode(operation.Value.GoLow().Responses.KeyNode),
 						Path:      operation.Responses.GenerateJSONPath(),
 						Rule:      context.Rule,
 					}
