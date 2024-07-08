@@ -333,7 +333,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			if mod != nil {
 				v3DocumentModel = &mod.Model
 			} else {
-				execution.Logger.Error("unable to build unresolved model", "errors", errs)
+				if execution.Logger != nil {
+					execution.Logger.Error("unable to build unresolved model", "errors", errs)
+				}
 			}
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
