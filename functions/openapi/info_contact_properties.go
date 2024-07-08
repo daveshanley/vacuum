@@ -17,7 +17,7 @@ type InfoContactProperties struct {
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the InfoContactProperties rule.
 func (id InfoContactProperties) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "InfoContactProperties",
+		Name: "infoContactProperties",
 	}
 }
 
