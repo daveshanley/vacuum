@@ -99,7 +99,21 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.10+` 🔥 : **Quality release**.
+
+🔥 **New in** `v0.11+` 🔥 : **Ignore Linting Errors/Violations**.
+
+v0.11 introduces the ability to ignore specific linting errors. This is useful for when you want to implement new 
+rules to existing production APIs. In some cases, correcting the lint errors would result in a breaking change. 
+
+Having a way to ignore these errors allows you to implement the new rules for new APIs while maintaining 
+backwards compatibility for existing ones.
+
+[Learn more about ignoring violations](https://quobix.com/vacuum/ignoring/)
+
+---
+
+
+`v0.10+` : **Quality release**.
 
 v0.10 is a quality release, with a number of fixes and improvements to rule schemas, function names and more. 
 vacuum now powers [The OpenAPI doctor](https://pb33f.io/doctor/). To enable correct ruleset management and automation
