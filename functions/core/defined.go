@@ -51,13 +51,18 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 	for _, node := range nodes {
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
+		locatedObject, err := context.DrDocument.LocateModel(node)
+		locatedPath := pathValue
+		if err == nil && locatedObject != nil {
+			locatedPath = locatedObject.GenerateJSONPath()
+		}
 		if fieldNode == nil {
 			results = append(results, model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Path:      pathValue,
+				Path:      locatedPath,
 				Rule:      context.Rule,
 			})
 		}

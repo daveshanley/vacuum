@@ -1,7 +1,11 @@
 package core
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -41,7 +45,8 @@ func TestDefined_RunRule_Success(t *testing.T) {
 
 func TestDefined_RunRule_Fail(t *testing.T) {
 
-	sampleYaml := `pizza:
+	sampleYaml := `openapi: 3.0.0
+pizza:
   noCake: "noFun"`
 
 	path := "$.pizza"
@@ -58,4 +63,54 @@ func TestDefined_RunRule_Fail(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
+}
+
+func TestDefined_RunRule_DrNodeLookup(t *testing.T) {
+
+	sampleYaml := `openapi: 3.0.0
+tags:
+  - name: "good"
+  - name: "noFun"
+  - name: "fridge"`
+
+	path := "$.tags[*]"
+
+	document, err := libopenapi.NewDocument([]byte(sampleYaml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 3)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "defined", "cake", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Given = path
+	ctx.Rule = &rule
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	def := Defined{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 3)
+	n, e := drDocument.LocateModelByLine(3)
+	assert.NoError(t, e)
+	assert.NotNil(t, n)
+	assert.Equal(t, "good", n.(*base.Tag).Value.Name)
+
+	n, e = drDocument.LocateModelByLine(4)
+	assert.NoError(t, e)
+	assert.NotNil(t, n)
+	assert.Equal(t, "noFun", n.(*base.Tag).Value.Name)
+
+	n, e = drDocument.LocateModelByLine(5)
+	assert.NoError(t, e)
+	assert.NotNil(t, n)
+	assert.Equal(t, "fridge", n.(*base.Tag).Value.Name)
+
 }

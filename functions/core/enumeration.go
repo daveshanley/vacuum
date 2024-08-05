@@ -68,13 +68,18 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := pathValue
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 			results = append(results, model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
 						node.Value, values)),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Path:      pathValue,
+				Path:      locatedPath,
 				Rule:      context.Rule,
 			})
 		}

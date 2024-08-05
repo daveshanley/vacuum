@@ -84,12 +84,17 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		}
 
 		if seenCount != 1 {
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := pathValue
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 			results = append(results, model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` and `%s` must not be both defined or undefined",
 					ruleMessage, properties[0], properties[1])),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Path:      pathValue,
+				Path:      locatedPath,
 				Rule:      context.Rule,
 			})
 		}

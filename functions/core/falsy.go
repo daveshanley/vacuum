@@ -52,11 +52,16 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if (fieldNode != nil && fieldNodeValue != nil) &&
 			(fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0" || (fieldNodeValue.Value == "" && fieldNodeValue.Content != nil)) {
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := pathValue
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("%s: `%s` must be falsy", ruleMessage, context.RuleAction.Field),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Path:      pathValue,
+				Path:      locatedPath,
 				Rule:      context.Rule,
 			})
 		}

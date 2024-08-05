@@ -64,14 +64,20 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 		}
 
 		if utils.IsNodeMap(node) {
-
 			if keyedBy == "" {
+
+				locatedObject, err := context.DrDocument.LocateModel(node)
+				locatedPath := pathValue
+				if err == nil && locatedObject != nil {
+					locatedPath = locatedObject.GenerateJSONPath()
+				}
+
 				results = append(results, model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
 						node.Value, a.GetSchema().ErrorMessage)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
-					Path:      pathValue,
+					Path:      locatedPath,
 					Rule:      context.Rule,
 				})
 				continue
@@ -184,9 +190,15 @@ func compareStringArray(node *yaml.Node, strArr []string, context model.RuleFunc
 		if x+1 < len(strArr) {
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
+				locatedObject, err := context.DrDocument.LocateModel(node)
+				locatedPath := ""
+				if err == nil && locatedObject != nil {
+					locatedPath = locatedObject.GenerateJSONPath()
+				}
 				results = append(results, model.RuleFunctionResult{
 					Rule:      context.Rule,
 					StartNode: node,
+					Path:      locatedPath,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
 						context.Rule.Description,
@@ -236,9 +248,15 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 	message := context.Rule.Message
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := ""
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 			results = append(results, model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
+				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
 			})
@@ -253,9 +271,15 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := ""
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 			results = append(results, model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
+				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
 			})

@@ -153,12 +153,19 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
 			if _, ko := forceValidation.(bool); ko {
 
+				locatedObject, err := context.DrDocument.LocateModel(node)
+				locatedPath := ""
+				if err == nil && locatedObject != nil {
+					locatedPath = locatedObject.GenerateJSONPath()
+				}
+
 				r := model.BuildFunctionResultString(
 					vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
 						fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field))))
 				r.StartNode = node
 				r.EndNode = vacuumUtils.BuildEndNode(node)
 				r.Rule = context.Rule
+				r.Path = locatedPath
 				if p, df := context.Given.(string); df {
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
@@ -196,12 +203,18 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	message := context.Rule.Message
 
 	for c := range schemaErrors {
+		locatedObject, err := context.DrDocument.LocateModel(field)
+		locatedPath := ""
+		if err == nil && locatedObject != nil {
+			locatedPath = locatedObject.GenerateJSONPath()
+		}
 
 		r := model.BuildFunctionResultString(vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
 			schemaErrors[c].Reason)))
 		r.StartNode = field
 		r.EndNode = vacuumUtils.BuildEndNode(field)
 		r.Rule = context.Rule
+		r.Path = locatedPath
 		if p, ok := context.Given.(string); ok {
 			r.Path = fmt.Sprintf("%s[%d]", p, x)
 		}
