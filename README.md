@@ -123,7 +123,6 @@ backwards compatibility for existing ones.
 
 ---
 
-
 `v0.10+` : **Quality release**.
 
 v0.10 is a quality release, with a number of fixes and improvements to rule schemas, function names and more. 
