@@ -214,9 +214,7 @@ paths:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "header is missing `examples` or `example`", res[0].Message)
-	assert.Equal(t, "$.paths['/cake'].get.responses['200'].headers['bingo']", res[0].Path)
+	assert.Len(t, res, 0) // no schema? no examples are valid.
 
 }
 
@@ -247,9 +245,7 @@ components:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "header is missing `examples` or `example`", res[0].Message)
-	assert.Equal(t, "$.components.headers['Cake']", res[0].Path)
+	assert.Len(t, res, 0) // no schema? no examples are possible.
 
 }
 
