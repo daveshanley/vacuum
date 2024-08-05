@@ -105,6 +105,12 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		// check for value lengths.
 		if utils.IsNodeStringValue(p) || utils.IsNodeIntValue(p) || utils.IsNodeFloatValue(p) {
 
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := pathValue
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
+
 			var valueCheck int
 			if utils.IsNodeStringValue(p) {
 				valueCheck = len(p.Value)
@@ -121,7 +127,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res := createMinError(ruleMessage, p.Value, minVal)
 					res.StartNode = node
 					res.EndNode = vacuumUtils.BuildEndNode(node)
-					res.Path = pathValue
+					res.Path = locatedPath
 					res.Rule = context.Rule
 					results = append(results, res)
 					continue
@@ -130,7 +136,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res := createMaxError(ruleMessage, p.Value, maxVal)
 					res.StartNode = node
 					res.EndNode = vacuumUtils.BuildEndNode(node)
-					res.Path = pathValue
+					res.Path = locatedPath
 					res.Rule = context.Rule
 					results = append(results, res)
 					continue
@@ -141,7 +147,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res := createMinError(ruleMessage, p.Value, minVal)
 				res.StartNode = node
 				res.EndNode = vacuumUtils.BuildEndNode(node)
-				res.Path = pathValue
+				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
 				continue
@@ -150,12 +156,18 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res := createMaxError(ruleMessage, p.Value, maxVal)
 				res.StartNode = node
 				res.EndNode = vacuumUtils.BuildEndNode(node)
-				res.Path = pathValue
+				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
 				continue
 			}
 		} else {
+
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := pathValue
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 
 			nodeCount := 0
 
@@ -179,7 +191,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res := createMinError(ruleMessage, fv, minVal)
 				res.StartNode = node
 				res.EndNode = vacuumUtils.BuildEndNode(node)
-				res.Path = pathValue
+				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
 				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
@@ -196,7 +208,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res := createMaxError(ruleMessage, fv, maxVal)
 				res.StartNode = node
 				res.EndNode = vacuumUtils.BuildEndNode(node)
-				res.Path = pathValue
+				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
 				//results = model.MapPathAndNodesToResults(pathValue, p, p, results)

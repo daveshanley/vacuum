@@ -84,12 +84,17 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						}
 					}
 				}
+				locatedObject, err := context.DrDocument.LocateModel(node)
+				locatedPath := pathValue
+				if err == nil && locatedObject != nil {
+					locatedPath = locatedObject.GenerateJSONPath()
+				}
 				results = append(results, model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
-					Path:      pathValue,
+					Path:      locatedPath,
 					Rule:      context.Rule,
 				})
 			}

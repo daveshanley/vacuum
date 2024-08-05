@@ -53,12 +53,17 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 			if context.RuleAction.Field != "" {
 				val = fmt.Sprintf("'%s' ", context.RuleAction.Field)
 			}
+			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedPath := pathValue
+			if err == nil && locatedObject != nil {
+				locatedPath = locatedObject.GenerateJSONPath()
+			}
 			results = append(results, model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined]",
 					ruleMessage, val)),
 				StartNode: fieldNode,
 				EndNode:   vacuumUtils.BuildEndNode(fieldNode),
-				Path:      pathValue,
+				Path:      locatedPath,
 				Rule:      context.Rule,
 			})
 		}
