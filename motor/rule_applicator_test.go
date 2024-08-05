@@ -1693,7 +1693,7 @@ components:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "component '#/components/schemas/one' does not exist in the specification",
+	assert.Equal(t, "component `#/components/schemas/one` does not exist in the specification",
 		results.Results[0].Message)
 	assert.Equal(t, "resolving-references", results.Results[0].RuleId)
 }
