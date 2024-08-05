@@ -60,6 +60,7 @@ func GetLintCommand() *cobra.Command {
 			allResults, _ := cmd.Flags().GetBool("all-results")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
+			noClipFlag, _ := cmd.Flags().GetBool("no-clip")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
@@ -233,6 +234,7 @@ func GetLintCommand() *cobra.Command {
 						Lock:                     &printLock,
 						Logger:                   logger,
 						TimeoutFlag:              timeoutFlag,
+						NoClip:                   noClipFlag,
 						IgnoreArrayCircleRef:     ignoreArrayCircleRef,
 						IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 						IgnoredResults:           ignoredItems,
@@ -284,6 +286,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths (no '...')")
 	// TODO: Add globbed-files flag to other commands as well
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
@@ -376,6 +379,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 			req.Silent,
 			req.NoMessageFlag,
 			req.AllResultsFlag,
+			req.NoClip,
 			abs,
 			req.FileName)
 	}
@@ -428,6 +432,7 @@ func processResults(results []*model.RuleFunctionResult,
 	silent,
 	noMessage,
 	allResults bool,
+	noClip bool,
 	abs, filename string) {
 
 	if allResults && len(results) > 1000 {
@@ -485,15 +490,16 @@ func processResults(results []*model.RuleFunctionResult,
 		m := r.Message
 		p := r.Path
 
-		if len(r.Path) > 60 {
-			p = fmt.Sprintf("%s...", r.Path[:60])
-		}
+		if !noClip {
+			if len(r.Path) > 60 {
+				p = fmt.Sprintf("%s...", r.Path[:60])
+			}
 
-		if len(r.Message) > 100 {
-			m = fmt.Sprintf("%s...", r.Message[:80])
+			if len(r.Message) > 100 {
+				m = fmt.Sprintf("%s...", r.Message[:80])
+			}
 		}
-
-		sev := "nope"
+		sev := "info"
 		if r.Rule != nil {
 			sev = r.Rule.Severity
 		}
