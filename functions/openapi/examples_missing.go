@@ -112,7 +112,10 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Headers != nil {
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
-			if h.SchemaProxy != nil && isSchemaBoolean(h.SchemaProxy.Schema) {
+			if h == nil || h.SchemaProxy == nil {
+				continue
+			}
+			if h.SchemaProxy.Schema != nil && isSchemaBoolean(h.SchemaProxy.Schema) {
 				continue
 			}
 			if h.SchemaProxy != nil && (h.SchemaProxy.Schema.Value.Examples != nil || h.SchemaProxy.Schema.Value.Example != nil) {
