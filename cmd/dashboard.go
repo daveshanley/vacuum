@@ -108,6 +108,13 @@ func GetDashboardCommand() *cobra.Command {
 				specInfo.Generated = vacuumReport.Generated
 			}
 
+			if len(resultSet.Results) <= 0 {
+				pterm.Println()
+				pterm.Success.Println("There is nothing to see, no results found - well done!")
+				pterm.Println()
+				return nil
+			}
+
 			dash := cui.CreateDashboard(resultSet, specIndex, specInfo)
 			dash.Version = Version
 			return dash.Render()
