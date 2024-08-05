@@ -99,8 +99,19 @@ come say hi!
 
 ## Documentation
 
+🔥 **New in** `v0.12+` 🔥 : **Core functions support JSON Path**.
 
-🔥 **New in** `v0.11+` 🔥 : **Ignore Linting Errors/Violations**.
+Now all **core** functions return the **correct and accurate JSON path for each linting result**. Previously this was not possible
+at all, but with some clever engineering, we have made it happen. It's a small thing, but with huge impact.
+
+This feature has been available on the OpenAPI functions for some time, however core functions were without a comparison.
+But no more! core functions have joined the party.
+
+A new `--no-clip` flag is available on the `lint` command. This prevents message/path truncation.
+
+---
+
+`v0.11+`: Ignore Linting Errors/Violations.
 
 v0.11 introduces the ability to ignore specific linting errors. This is useful for when you want to implement new 
 rules to existing production APIs. In some cases, correcting the lint errors would result in a breaking change. 
