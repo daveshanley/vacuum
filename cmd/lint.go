@@ -282,7 +282,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner / header output")
 	cmd.Flags().BoolP("no-message", "m", false, "Hide the message output when using -d to show details")
 	cmd.Flags().BoolP("all-results", "a", false, "Render out all results, regardless of the number when using -d")
-	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
+	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (e.g. 'info', 'warn', 'error')")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
