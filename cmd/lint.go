@@ -335,7 +335,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                      req.SelectedRS,
 		Spec:                         specBytes,
-		SpecFileName:                 req.FileName,
+		SpecFilePath:                 req.FileName,
 		CustomFunctions:              req.Functions,
 		Base:                         req.BaseFlag,
 		AllowLookup:                  req.Remote,
