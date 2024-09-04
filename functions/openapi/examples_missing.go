@@ -4,12 +4,11 @@
 package openapi
 
 import (
-	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/datamodel/high"
-	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
 	"gopkg.in/yaml.v3"
 	"slices"
 )
@@ -178,6 +177,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			}
 		}
 	}
+
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			s := context.DrDocument.Schemas[i]
@@ -204,12 +204,8 @@ func extractHash(s *base.Schema) [32]byte {
 	if s != nil && s.Parent != nil {
 		if p := s.Parent.(base.Foundational).GetParent(); p != nil {
 			if v := p.(base.HasValue).GetValue(); v != nil {
-				if g, ok := v.(high.GoesLow[*lowBase.Schema]); ok {
-					l := g.GoLow().RootNode
-					byteSlice := []byte(fmt.Sprintf("%d:%d", l.Line, l.Column))
-					var byteArray [32]byte
-					copy(byteArray[:], byteSlice)
-					return byteArray
+				if g, ok := v.(high.GoesLowUntyped); ok {
+					return g.GoLowUntyped().(low.Hashable).Hash()
 				}
 			}
 		}
