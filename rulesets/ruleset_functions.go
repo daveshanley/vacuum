@@ -72,6 +72,26 @@ func GetInfoDescriptionRule() *model.Rule {
 	}
 }
 
+// GetInfoLicenseSPDXRule will check that a license either has a URL OR an identifier, not both.
+func GetInfoLicenseSPDXRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check license object for URL or identifier, but not both",
+		Id:           InfoLicenseSPDX,
+		Formats:      model.AllFormats,
+		Description:  "License section cannot contain both an identifier and a URL, they are mutually exclusive.",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryInfo],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "infoLicenseURLSPDX",
+		},
+		HowToFix: infoLicenseSPDXFix,
+	}
+}
+
 // GetInfoLicenseRule will return a rule that uses the truthy function to check if the
 // info object contains a license
 func GetInfoLicenseRule() *model.Rule {

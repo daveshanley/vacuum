@@ -14,6 +14,8 @@ const (
 	infoDescriptionFix string = "The 'info' section is missing a description, surely you want people to know " +
 		"what this spec is all about, right?"
 
+	infoLicenseSPDXFix string = "A license can contain either a URL or an SPDX identifier, but not both, They are mutually exclusive and cannot both be present. Choose one or the other"
+
 	infoLicenseFix string = "The 'info' section is missing a 'license' object. Please add an appropriate one"
 
 	infoLicenseUrlFix string = "The 'info' section license URL is missing. If you add a license, you need to make sure " +

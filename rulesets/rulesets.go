@@ -46,6 +46,7 @@ const (
 	InfoContact                          = "info-contact"
 	InfoDescription                      = "info-description"
 	InfoLicense                          = "info-license"
+	InfoLicenseSPDX                      = "info-license-spdx"
 	LicenseUrl                           = "license-url"
 	OpenAPITagsAlphabetical              = "openapi-tags-alphabetical"
 	OpenAPITags                          = "openapi-tags"
@@ -383,6 +384,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[InfoContact] = GetInfoContactRule()
 	rules[InfoDescription] = GetInfoDescriptionRule()
 	rules[InfoLicense] = GetInfoLicenseRule()
+	rules[InfoLicenseSPDX] = GetInfoLicenseSPDXRule()
 	rules[LicenseUrl] = GetInfoLicenseUrlRule()
 	rules[OpenAPITagsAlphabetical] = GetOpenApiTagsAlphabeticalRule()
 	rules[OpenAPITags] = GetOpenApiTagsRule()
