@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// InfoLicenseURL will check that the info object has a contact object.
+// InfoLicenseURL will check that the license object contains a URL.
 type InfoLicenseURL struct {
 }
 
@@ -37,16 +37,16 @@ func (id InfoLicenseURL) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 
 	info := context.DrDocument.V3Document.Info
 
-	if info != nil && info.License != nil && info.License.Value.URL == "" {
+	if info != nil && info.License != nil && info.License.Value.URL == "" && info.License.Value.Identifier == "" {
 		res := model.RuleFunctionResult{
-			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` section must contain a `url`"),
+			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` section must contain a `url` or an `identifier`"),
 			StartNode: info.License.Value.GoLow().KeyNode,
 			EndNode:   vacuumUtils.BuildEndNode(info.License.Value.GoLow().KeyNode),
 			Path:      "$.info.license",
 			Rule:      context.Rule,
 		}
 		results = append(results, res)
-		info.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+		info.License.AddRuleFunctionResult(base.ConvertRuleResult(&res))
 	}
 
 	return results
