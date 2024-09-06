@@ -35,17 +35,23 @@ func (nrs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	}
 
 	var results []model.RuleFunctionResult
-	siblings := context.Index.GetReferencesWithSiblings()
-	for _, ref := range siblings {
 
-		key, val := utils.FindKeyNode("$ref", ref.Node.Content)
-		results = append(results, model.RuleFunctionResult{
-			Message:   "a `$ref` cannot be placed next to any other properties",
-			StartNode: key,
-			EndNode:   vacuumUtils.BuildEndNode(val),
-			Path:      ref.Path,
-			Rule:      context.Rule,
-		})
+	for _, idx := range context.Index.GetRolodex().GetIndexes() {
+		
+		siblings := idx.GetReferencesWithSiblings()
+		for _, ref := range siblings {
+
+			key, val := utils.FindKeyNode("$ref", ref.Node.Content)
+			results = append(results, model.RuleFunctionResult{
+				Message:   "a `$ref` cannot be placed next to any other properties",
+				StartNode: key,
+				Origin:    idx.FindNodeOrigin(val),
+				EndNode:   vacuumUtils.BuildEndNode(val),
+				Path:      ref.Path,
+				Rule:      context.Rule,
+			})
+		}
 	}
+
 	return results
 }
