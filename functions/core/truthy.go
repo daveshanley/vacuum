@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"sort"
@@ -89,14 +90,18 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				if err == nil && locatedObject != nil {
 					locatedPath = locatedObject.GenerateJSONPath()
 				}
-				results = append(results, model.RuleFunctionResult{
+				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
 					Rule:      context.Rule,
-				})
+				}
+				results = append(results, result)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}
