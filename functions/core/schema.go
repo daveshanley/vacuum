@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -170,6 +171,9 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
 				results = append(results, r)
+				if arr, kk := locatedObject.(base.AcceptsRuleResults); kk {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&r))
+				}
 			}
 		}
 	}
@@ -232,6 +236,9 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 		if !banned {
 			results = append(results, r)
+			if arr, kk := locatedObject.(base.AcceptsRuleResults); kk {
+				arr.AddRuleFunctionResult(base.ConvertRuleResult(&r))
+			}
 		}
 
 	}
