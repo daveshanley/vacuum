@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"regexp"
@@ -111,7 +112,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				if er == nil && locatedObject != nil {
 					locatedPath = locatedObject.GenerateJSONPath()
 				}
-				results = append(results, model.RuleFunctionResult{
+				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: `%s` cannot be compiled into a regular expression [`%s`]",
 							ruleMessage, p.match, err.Error())),
@@ -119,7 +120,11 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
 					Rule:      context.Rule,
-				})
+				}
+				results = append(results, result)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 			} else {
 				if !rx.MatchString(node.Value) {
 					locatedObject, er := context.DrDocument.LocateModel(node)
@@ -127,7 +132,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					if er == nil && locatedObject != nil {
 						locatedPath = locatedObject.GenerateJSONPath()
 					}
-					results = append(results, model.RuleFunctionResult{
+					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(message,
 							fmt.Sprintf("%s: `%s` does not match the expression `%s`", ruleMessage,
 								node.Value, p.match)),
@@ -135,7 +140,11 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      locatedPath,
 						Rule:      context.Rule,
-					})
+					}
+					results = append(results, result)
+					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					}
 				}
 			}
 		}
@@ -150,7 +159,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				if er == nil && locatedObject != nil {
 					locatedPath = locatedObject.GenerateJSONPath()
 				}
-				results = append(results, model.RuleFunctionResult{
+				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
 						fmt.Sprintf("%s: cannot be compiled into a regular expression [`%s`]",
 							ruleMessage, err.Error())),
@@ -158,7 +167,11 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
 					Rule:      context.Rule,
-				})
+				}
+				results = append(results, result)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 			} else {
 				if rx.MatchString(node.Value) {
 					locatedObject, er := context.DrDocument.LocateModel(node)
@@ -166,14 +179,18 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					if er == nil && locatedObject != nil {
 						locatedPath = locatedObject.GenerateJSONPath()
 					}
-					results = append(results, model.RuleFunctionResult{
+					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(message,
 							fmt.Sprintf("%s: matches the expression `%s`", ruleMessage, p.notMatch)),
 						StartNode: node,
 						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      locatedPath,
 						Rule:      context.Rule,
-					})
+					}
+					results = append(results, result)
+					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					}
 				}
 			}
 		}

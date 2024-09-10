@@ -10,24 +10,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// InfoLicenseURL will check that the license object contains a URL.
-type InfoLicenseURL struct {
+// InfoLicenseURLSPDX will check that the license object contains a URL OR an SPDX identifier, not both.
+type InfoLicenseURLSPDX struct {
 }
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the InfoLicenseURL rule.
-func (id InfoLicenseURL) GetSchema() model.RuleFunctionSchema {
+func (id InfoLicenseURLSPDX) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "infoLicenseURL",
+		Name: "infoLicenseURLSPDX",
 	}
 }
 
 // GetCategory returns the category of the InfoLicenseURL rule.
-func (id InfoLicenseURL) GetCategory() string {
+func (id InfoLicenseURLSPDX) GetCategory() string {
 	return model.FunctionCategoryOpenAPI
 }
 
 // RunRule will execute the InfoLicenseURL rule, based on supplied context and a supplied []*yaml.Node slice.
-func (id InfoLicenseURL) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (id InfoLicenseURLSPDX) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
 
@@ -37,9 +37,9 @@ func (id InfoLicenseURL) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 
 	info := context.DrDocument.V3Document.Info
 
-	if info != nil && info.License != nil && info.License.Value.URL == "" && info.License.Value.Identifier == "" {
+	if info != nil && info.License != nil && info.License.Value.Identifier != "" && info.License.Value.URL != "" {
 		res := model.RuleFunctionResult{
-			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` section must contain a `url` or an `identifier`"),
+			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` must contain either a `url` or an `identifier`, not both"),
 			StartNode: info.License.Value.GoLow().KeyNode,
 			EndNode:   vacuumUtils.BuildEndNode(info.License.Value.GoLow().KeyNode),
 			Path:      "$.info.license",

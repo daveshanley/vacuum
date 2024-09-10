@@ -857,7 +857,7 @@ info:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "`license` section must contain a `url`", results.Results[0].Message)
+	assert.Equal(t, "`license` section must contain a `url` or an `identifier`", results.Results[0].Message)
 }
 
 func TestRuleSet_NoEvalInMarkdown(t *testing.T) {

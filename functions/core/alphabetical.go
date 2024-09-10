@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"sort"
@@ -71,15 +72,18 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				if err == nil && locatedObject != nil {
 					locatedPath = locatedObject.GenerateJSONPath()
 				}
-
-				results = append(results, model.RuleFunctionResult{
+				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
 						node.Value, a.GetSchema().ErrorMessage)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
 					Rule:      context.Rule,
-				})
+				}
+				results = append(results, result)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 				continue
 			}
 
@@ -195,7 +199,7 @@ func compareStringArray(node *yaml.Node, strArr []string, context model.RuleFunc
 				if err == nil && locatedObject != nil {
 					locatedPath = locatedObject.GenerateJSONPath()
 				}
-				results = append(results, model.RuleFunctionResult{
+				result := model.RuleFunctionResult{
 					Rule:      context.Rule,
 					StartNode: node,
 					Path:      locatedPath,
@@ -203,7 +207,12 @@ func compareStringArray(node *yaml.Node, strArr []string, context model.RuleFunc
 					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
 						context.Rule.Description,
 						strArr[x+1], strArr[x])),
-				})
+				}
+				results = append(results, result)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
+
 			}
 		}
 	}
@@ -253,13 +262,17 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 			if err == nil && locatedObject != nil {
 				locatedPath = locatedObject.GenerateJSONPath()
 			}
-			results = append(results, model.RuleFunctionResult{
+			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
-			})
+			}
+			results = append(results, result)
+			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			}
 		}
 	}
 	return results
@@ -276,13 +289,17 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 			if err == nil && locatedObject != nil {
 				locatedPath = locatedObject.GenerateJSONPath()
 			}
-			results = append(results, model.RuleFunctionResult{
+			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
-			})
+			}
+			results = append(results, result)
+			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			}
 		}
 	}
 	return results

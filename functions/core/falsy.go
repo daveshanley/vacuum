@@ -6,6 +6,7 @@ package core
 import (
 	"fmt"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
@@ -57,13 +58,17 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 			if err == nil && locatedObject != nil {
 				locatedPath = locatedObject.GenerateJSONPath()
 			}
-			results = append(results, model.RuleFunctionResult{
+			result := model.RuleFunctionResult{
 				Message:   fmt.Sprintf("%s: `%s` must be falsy", ruleMessage, context.RuleAction.Field),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      locatedPath,
 				Rule:      context.Rule,
-			})
+			}
+			results = append(results, result)
+			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ package core
 import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"strconv"
@@ -130,6 +131,10 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.Path = locatedPath
 					res.Rule = context.Rule
 					results = append(results, res)
+					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					}
+
 					continue
 				}
 				if float64(maxVal) > 0 && fValue > float64(maxVal) {
@@ -139,6 +144,9 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.Path = locatedPath
 					res.Rule = context.Rule
 					results = append(results, res)
+					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					}
 					continue
 				}
 			}
@@ -159,6 +167,9 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				}
 				continue
 			}
 		} else {
@@ -194,6 +205,9 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				}
 				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue
 			}
@@ -211,6 +225,9 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.Path = locatedPath
 				res.Rule = context.Rule
 				results = append(results, res)
+				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				}
 				//results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue
 			}

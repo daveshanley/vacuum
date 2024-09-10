@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -57,14 +58,18 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			locatedPath = locatedObject.GenerateJSONPath()
 		}
 		if fieldNode == nil {
-			results = append(results, model.RuleFunctionResult{
+			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      locatedPath,
 				Rule:      context.Rule,
-			})
+			}
+			results = append(results, result)
+			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
+				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			}
 		}
 	}
 
