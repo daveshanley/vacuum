@@ -2,6 +2,8 @@ module sample
 
 go 1.23
 
+toolchain go1.23.0
+
 require (
 	github.com/daveshanley/vacuum v0.10.0
 	github.com/stretchr/testify v1.9.0
@@ -30,7 +32,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pb33f/doctor v0.0.12 // indirect
-	github.com/pb33f/libopenapi v0.17.0 // indirect
+	github.com/pb33f/libopenapi v0.16.14 // indirect
 	github.com/pb33f/libopenapi-validator v0.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/pterm/pterm v0.12.79 // indirect
