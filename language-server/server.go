@@ -17,15 +17,17 @@ package languageserver
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
-	"github.com/daveshanley/vacuum/utils"
-	"github.com/tliron/glsp"
-	protocol "github.com/tliron/glsp/protocol_3_16"
-	glspserv "github.com/tliron/glsp/server"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/utils"
+	"github.com/spf13/viper"
+	"github.com/tliron/glsp"
+	protocol "github.com/tliron/glsp/protocol_3_16"
+	glspserv "github.com/tliron/glsp/server"
 )
 
 var serverName = "vacuum"
@@ -101,6 +103,8 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 }
 
 func (s *ServerState) Run() error {
+	viper.OnConfigChange(s.onConfigChange)
+	viper.WatchConfig()
 	return s.server.RunStdio()
 }
 
