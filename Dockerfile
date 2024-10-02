@@ -7,7 +7,7 @@ WORKDIR /opt/vacuum
 COPY . ./
 
 RUN go mod download && go mod verify
-RUN go build -ldflags="-w -s" -v -o /vacuum vacuum.go
+RUN go build -ldflags="-w -s -X 'main.version=$(git describe --tags --abbrev=0)' -X 'main.date=$(date +%Y-%m-%dT%TZ)'" -v -o /vacuum vacuum.go
 
 FROM debian:bookworm-slim
 
