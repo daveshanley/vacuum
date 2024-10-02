@@ -36,7 +36,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        fetch-depth: 50
+        fetch-tags: true
+        show-progress: true
 
       - name: Set version
         id: vars
@@ -77,7 +80,10 @@ jobs:
       contents: read
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        fetch-depth: 50
+        fetch-tags: true
+        show-progress: true
 
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
