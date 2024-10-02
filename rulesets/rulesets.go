@@ -346,6 +346,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 				}
 			}
 
+			if nr.RuleCategory == nil && rs.Rules[k].RuleCategory != nil {
+				nr.RuleCategory = rs.Rules[k].RuleCategory
+			}
+
 			// default new rule to be resolved if not supplied.
 			if newRule["resolved"] == nil {
 				nr.Resolved = true
@@ -585,6 +589,14 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 			dErr := mapstructure.Decode(b, &rule)
 			if dErr != nil {
 				return nil, dErr
+			}
+			// check if rule has category.
+			if b["category"] != nil {
+				var cat model.RuleCategory
+				dErr = mapstructure.Decode(b["category"], &cat)
+				if dErr == nil {
+					rule.RuleCategory = &cat
+				}
 			}
 			rs.Rules[k] = &rule
 			rule.Resolved = true // default resolved.
