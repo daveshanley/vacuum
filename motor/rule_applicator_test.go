@@ -1005,7 +1005,7 @@ components:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: expected array, but got string",
+	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: got string, want array",
 		results.Results[0].Message)
 
 }
@@ -1042,7 +1042,7 @@ components:
 	assert.Len(t, results.Errors, 0)
 
 	assert.NotNil(t, results)
-	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: expected object, but got string",
+	assert.Equal(t, "Top level spec `tags` must not be empty, and must be an array: got string, want object",
 		results.Results[0].Message)
 
 }

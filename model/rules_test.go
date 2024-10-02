@@ -3,12 +3,11 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"os"
 	"sort"
-	"strings"
 	"testing"
 )
 
@@ -24,7 +23,12 @@ func TestRuleSchema(t *testing.T) {
 	_ = json.Unmarshal(goodRules, &rules)
 
 	compiler := jsonschema.NewCompiler()
-	_ = compiler.AddResource("schema.json", strings.NewReader(string(schemaMain)))
+	//_ = compiler.AddResource("schema.json", strings.NewReader(string(schemaMain)))
+
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(schemaMain), &parsed)
+	_ = compiler.AddResource("schema.json", parsed)
+
 	jsch, _ := compiler.Compile("schema.json")
 
 	err = jsch.Validate(rules)

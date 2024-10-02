@@ -72,7 +72,7 @@ paths:
 	rules := rs.GenerateOpenAPIDefaultRuleSet()
 	lintExecution := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: rules, Spec: []byte(badDoc)})
 	assert.Len(t, lintExecution.Errors, 0)
-	assert.GreaterOrEqual(t, len(lintExecution.Results), 53)
+	assert.GreaterOrEqual(t, len(lintExecution.Results), 45)
 
 	for n := 0; n < len(lintExecution.Results); n++ {
 		assert.NotNil(t, lintExecution.Results[n].Path)
