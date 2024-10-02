@@ -121,7 +121,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "additionalProperties 'name' not allowed", res[0].Message)
+	assert.Equal(t, "additional properties 'name' not allowed", res[0].Message)
 	assert.Equal(t, "$.components.schemas['Herbs'].examples[0]", res[0].Path)
 
 }
@@ -243,9 +243,9 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
-	assert.Equal(t, "value must be \"smoked\"", res[0].Message)
+	assert.Equal(t, "value must be 'smoked'", res[0].Message)
 	assert.Equal(t, "$.components.schemas['Herbs'].examples[0]", res[0].Path)
-	assert.Equal(t, "expected integer, but got string", res[1].Message)
+	assert.Equal(t, "got string, want integer", res[1].Message)
 	assert.Equal(t, "$.components.schemas['Herbs'].examples[0]", res[01].Path)
 
 }
@@ -327,9 +327,9 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
-	assert.Equal(t, "value must be \"smoked\"", res[0].Message)
+	assert.Equal(t, "value must be 'smoked'", res[0].Message)
 	assert.Equal(t, "$.components.schemas['Herbs'].example", res[0].Path)
-	assert.Equal(t, "expected integer, but got string", res[1].Message)
+	assert.Equal(t, "got string, want integer", res[1].Message)
 	assert.Equal(t, "$.components.schemas['Herbs'].example", res[1].Path)
 
 }
@@ -413,7 +413,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "value must be \"spicy\"", res[0].Message)
+	assert.Equal(t, "value must be 'spicy'", res[0].Message)
 	assert.Equal(t, "$.components.parameters['Herbs'].examples['sammich']", res[0].Path)
 
 }
@@ -457,7 +457,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "value must be \"tasty\"", res[0].Message)
+	assert.Equal(t, "value must be 'tasty'", res[0].Message)
 	assert.Equal(t, "$.paths['/herbs'].get.responses['200'].headers['Herbs'].examples['sammich']", res[0].Path)
 
 }
@@ -501,7 +501,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "value must be \"tasty\"", res[0].Message)
+	assert.Equal(t, "value must be 'tasty'", res[0].Message)
 	assert.Equal(t, "$.paths['/herbs'].get.responses['200'].content['application/json'].examples['sammich']", res[0].Path)
 
 }
