@@ -72,7 +72,7 @@ uniqueItems: true`
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "Enum values must not have duplicate entry: items at index 0 and 2 are equal", res[0].Message)
+	assert.Equal(t, "Enum values must not have duplicate entry: items at 0 and 2 are equal", res[0].Message)
 
 }
 
@@ -115,7 +115,7 @@ func TestOpenAPISchema_InvalidSchemaInteger(t *testing.T) {
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema must be valid: expected integer, but got string", res[0].Message)
+	assert.Equal(t, "schema must be valid: got string, want integer", res[0].Message)
 
 }
 
@@ -176,7 +176,7 @@ properties:
 	res := def.RunRule(nodes, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema must be valid: expected boolean, but got string", res[0].Message)
+	assert.Equal(t, "schema must be valid: got string, want boolean", res[0].Message)
 
 }
 

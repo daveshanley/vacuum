@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -19,7 +21,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 //go:embed schemas/ruleset.schema.json
@@ -344,6 +346,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 				}
 			}
 
+			if nr.RuleCategory == nil && rs.Rules[k].RuleCategory != nil {
+				nr.RuleCategory = rs.Rules[k].RuleCategory
+			}
+
 			// default new rule to be resolved if not supplied.
 			if newRule["resolved"] == nil {
 				nr.Resolved = true
@@ -542,7 +548,11 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	}
 
 	compiler := jsonschema.NewCompiler()
-	_ = compiler.AddResource("schema.json", strings.NewReader(RulesetSchema))
+
+	// schema needs to be parsed first
+	var parsed map[string]interface{}
+	_ = json.Unmarshal([]byte(RulesetSchema), &parsed)
+	_ = compiler.AddResource("schema.json", parsed)
 	jsch, _ := compiler.Compile("schema.json")
 
 	var data map[string]interface{}
@@ -556,7 +566,7 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 		// flatten the validationErrors
 		schFlatErrs := jk.BasicOutput().Errors
 		for q := range schFlatErrs {
-			buf.WriteString(schFlatErrs[q].Error)
+			buf.WriteString(schFlatErrs[q].Error.Kind.LocalizedString(message.NewPrinter(language.Tag{})))
 			if q+1 < len(schFlatErrs) {
 				buf.WriteString(", ")
 			}
@@ -579,6 +589,14 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 			dErr := mapstructure.Decode(b, &rule)
 			if dErr != nil {
 				return nil, dErr
+			}
+			// check if rule has category.
+			if b["category"] != nil {
+				var cat model.RuleCategory
+				dErr = mapstructure.Decode(b["category"], &cat)
+				if dErr == nil {
+					rule.RuleCategory = &cat
+				}
 			}
 			rs.Rules[k] = &rule
 			rule.Resolved = true // default resolved.
