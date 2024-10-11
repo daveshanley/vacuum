@@ -54,7 +54,7 @@ type ruleContext struct {
 // of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
 	RuleSet           *rulesets.RuleSet             // The RuleSet in which to apply
-	SpecFilePath      string                        // The path of the specification file, used to correctly label location
+	SpecFileName      string                        // The path of the specification file, used to correctly label location
 	Spec              []byte                        // The raw bytes of the OpenAPI specification.
 	SpecInfo          *datamodel.SpecInfo           // Pre-parsed spec-info.
 	CustomFunctions   map[string]model.RuleFunction // custom functions loaded from plugin.
@@ -109,16 +109,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// create new configurations
 	indexConfig := index.CreateClosedAPIIndexConfig()
-	indexConfig.SpecFilePath = execution.SpecFilePath
+	indexConfig.SpecFilePath = execution.SpecFileName
 	indexConfigUnresolved := index.CreateClosedAPIIndexConfig()
-	indexConfigUnresolved.SpecFilePath = execution.SpecFilePath
+	indexConfigUnresolved.SpecFilePath = execution.SpecFileName
 
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
 	//indexConfig.AvoidCircularReferenceCheck = true
 
 	docConfig := datamodel.NewDocumentConfiguration()
-	docConfig.SpecFilePath = execution.SpecFilePath
+	docConfig.SpecFilePath = execution.SpecFileName
 	//docConfig.SkipCircularReferenceCheck = true
 
 	if execution.IgnoreCircularArrayRef {
@@ -886,7 +886,7 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 				origin := idx.FindNodeOrigin(result.StartNode)
 				if origin != nil {
 					if filepath.Base(origin.AbsoluteLocation) == "root.yaml" {
-						origin.AbsoluteLocation = rse.SpecFilePath
+						origin.AbsoluteLocation = rse.SpecFileName
 					}
 					result.Origin = origin
 				}
@@ -917,7 +917,7 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 					origin := idx.FindNodeOrigin(result.StartNode)
 					if origin != nil {
 						if filepath.Base(origin.AbsoluteLocation) == "root.yaml" {
-							origin.AbsoluteLocation = rse.SpecFilePath
+							origin.AbsoluteLocation = rse.SpecFileName
 						}
 						result.Origin = origin
 					}
