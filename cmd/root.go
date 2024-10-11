@@ -54,7 +54,7 @@ func GetRootCommand() *cobra.Command {
 			return nil
 		},
 	}
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.yaml) ")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.conf.yaml) ")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
 	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
@@ -114,6 +114,7 @@ func useConfigFile(cmd *cobra.Command) error {
 	}
 	return err
 }
+
 func useDefaultConfigFile() error {
 	viper.SetConfigName("vacuum.conf")
 	viper.SetConfigType("yaml")
@@ -137,8 +138,9 @@ func useEnvironmentConfiguration() {
 	// Environment variables can't have dashes in them
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 }
+
 func useUserSuppliedConfigFile(configFilePath string) error {
-	viper.SetConfigFile(os.ExpandEnv(configFile))
+	viper.SetConfigFile(os.ExpandEnv(configFilePath))
 	return viper.ReadInConfig()
 }
 
@@ -146,7 +148,7 @@ func useUserSuppliedConfigFile(configFilePath string) error {
 func getXdgConfigHome() string {
 	xdgConfigHome, exists := os.LookupEnv("XDG_CONFIG_HOME")
 	if !exists {
-		xdgConfigHome = os.Getenv("HOME") + "/.config/vacuum.conf.yaml"
+		xdgConfigHome = os.Getenv("HOME") + "/.config"
 	}
 	return xdgConfigHome
 }

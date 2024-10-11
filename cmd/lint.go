@@ -255,7 +255,7 @@ func GetLintCommand() *cobra.Command {
 				completed++
 			}
 
-			if !detailsFlag {
+			if !detailsFlag && !silent {
 				pterm.Println()
 				pterm.Info.Println("To see full details of linting report, use the '-d' flag.")
 				pterm.Println()
@@ -614,6 +614,10 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 		if informs > 0 {
 			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
 				"Linting passed, %v informs reported", informsHuman)
+			return
+		}
+
+		if silent {
 			return
 		}
 

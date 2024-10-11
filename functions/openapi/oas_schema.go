@@ -12,7 +12,6 @@ import (
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
-	_ "github.com/santhosh-tekuri/jsonschema/v5/httploader"
 	"gopkg.in/yaml.v3"
 )
 
