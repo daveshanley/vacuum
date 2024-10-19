@@ -7,8 +7,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/datamodel/high"
-	"github.com/pb33f/libopenapi/datamodel/low"
 	"gopkg.in/yaml.v3"
 	"slices"
 )
@@ -112,13 +110,13 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Headers != nil {
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
-			if h == nil || h.SchemaProxy == nil {
+			if h == nil || h.Schema == nil {
 				continue
 			}
-			if h.SchemaProxy.Schema != nil && isSchemaBoolean(h.SchemaProxy.Schema) {
+			if h.Schema.Schema != nil && isSchemaBoolean(h.Schema.Schema) {
 				continue
 			}
-			if h.SchemaProxy != nil && (h.SchemaProxy.Schema.Value.Examples != nil || h.SchemaProxy.Schema.Value.Example != nil) {
+			if h.Schema != nil && (h.Schema.Schema.Value.Examples != nil || h.Schema.Schema.Value.Example != nil) {
 				continue
 			}
 			if h.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{h.Value.Example}) {
@@ -203,11 +201,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 func extractHash(s *base.Schema) [32]byte {
 	if s != nil && s.Parent != nil {
 		if p := s.Parent.(base.Foundational).GetParent(); p != nil {
-			if v := p.(base.HasValue).GetValue(); v != nil {
-				if g, ok := v.(high.GoesLowUntyped); ok {
-					return g.GoLowUntyped().(low.Hashable).Hash()
-				}
-			}
+			var arr [32]byte
+			copy(arr[:], p.GenerateJSONPath())
 		}
 	}
 	return [32]byte{}

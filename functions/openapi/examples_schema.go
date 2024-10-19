@@ -224,14 +224,14 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		for i := range context.DrDocument.Headers {
 			h := context.DrDocument.Headers[i]
 			wg.Go(func() {
-				if h.Value.Examples.Len() >= 1 && h.SchemaProxy != nil {
+				if h.Value.Examples.Len() >= 1 && h.Schema != nil {
 					expLock.Lock()
-					results = append(results, parseExamples(h.SchemaProxy.Schema, h, h.Value.Examples)...)
+					results = append(results, parseExamples(h.Schema.Schema, h, h.Value.Examples)...)
 					expLock.Unlock()
 				} else {
-					if h.Value.Example != nil && h.SchemaProxy != nil {
+					if h.Value.Example != nil && h.Schema != nil {
 						expLock.Lock()
-						results = append(results, parseExample(h.SchemaProxy.Schema, h.Value.Example,
+						results = append(results, parseExample(h.Schema.Schema, h.Value.Example,
 							h.Value.GoLow().Example.GetKeyNode())...)
 						expLock.Unlock()
 					}
