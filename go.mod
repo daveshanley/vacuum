@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/alecthomas/chroma v0.10.0
-	github.com/dop251/goja v0.0.0-20240927123429-241b342198c2
+	github.com/dop251/goja v0.0.0-20241009100908-5f46f2705ca3
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.7.0
@@ -12,8 +12,8 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/doctor v0.0.13
-	github.com/pb33f/libopenapi v0.18.2
+	github.com/pb33f/doctor v0.0.14
+	github.com/pb33f/libopenapi v0.18.3
 	github.com/pb33f/libopenapi-validator v0.2.0
 	github.com/pterm/pterm v0.12.79
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
@@ -24,8 +24,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tliron/glsp v0.2.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
-	golang.org/x/text v0.18.0
+	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
+	golang.org/x/text v0.19.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -36,7 +36,7 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
-	github.com/containerd/console v1.0.3 // indirect
+	github.com/containerd/console v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20240618133044-5a0af90af097 // indirect
@@ -79,7 +79,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/term v0.24.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
