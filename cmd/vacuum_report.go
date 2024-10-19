@@ -263,11 +263,14 @@ func GetVacuumReportCommand() *cobra.Command {
 				return err
 			}
 
-			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+			if len(args) > 0 {
+				pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+				fi, _ := os.Stat(args[0])
+				RenderTime(timeFlag, duration, fi.Size())
+			} else {
+				pterm.Success.Printf("Report generated, written to '%s'\n", reportOutputName)
+			}
 			pterm.Println()
-
-			fi, _ := os.Stat(args[0])
-			RenderTime(timeFlag, duration, fi.Size())
 
 			return nil
 		},
