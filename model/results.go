@@ -350,6 +350,9 @@ func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
 func (rr *RuleResultSet) PrepareForSerialization(info *datamodel.SpecInfo) {
 
 	var wg sync.WaitGroup
+	if rr == nil || info == nil {
+		return
+	}
 	wg.Add(len(rr.Results))
 
 	data := strings.Split(string(*info.SpecBytes), "\n")
