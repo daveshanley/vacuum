@@ -99,7 +99,14 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.12+` 🔥 : **Core functions support JSON Path**.
+🔥 **New in** `v0.14+` 🔥 : **Engine Speedup**.
+
+**Speed!** We've made some significant improvements to how efficiently large documents are walked
+Which means vacuum is now faster than ever.
+
+---
+
+`v0.12+` : Core functions support JSON Path.
 
 Now all **core** functions return the **correct and accurate JSON path for each linting result**. Previously this was not possible
 at all, but with some clever engineering, we have made it happen. It's a small thing, but with huge impact.
