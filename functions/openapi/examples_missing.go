@@ -77,7 +77,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					v := con.Value()
 					if v.Examples != nil && (p.Examples == nil || p.Examples.Len() >= 0) {
 						// add to seen elements, so when checking schemas we can mark them as good.
-						h := p.Value.GoLow().Hash()
+						var h [32]byte
+						copy(h[:], p.GenerateJSONPath())
 						if _, ok := seen[h]; !ok {
 							seen[h] = true
 						}
@@ -99,7 +100,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						n, p))
 			} else {
 				// add to seen elements, so when checking schemas we can mark them as good.
-				h := p.Value.GoLow().Hash()
+				var h [32]byte
+				copy(h[:], p.GenerateJSONPath())
 				if _, ok := seen[h]; !ok {
 					seen[h] = true
 				}
@@ -132,7 +134,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						n, h))
 			} else {
 				// add to seen elements, so when checking schemas we can mark them as good.
-				hs := h.Value.GoLow().Hash()
+				var hs [32]byte
+				copy(hs[:], h.GenerateJSONPath())
 				if _, ok := seen[hs]; !ok {
 					seen[hs] = true
 				}
@@ -168,7 +171,9 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						n, mt))
 			} else {
 				// add to seen elements, so when checking schemas we can mark them as good.
-				h := mt.Value.GoLow().Hash()
+				//h := mt.Value.GoLow().Hash()
+				var h [32]byte
+				copy(h[:], mt.GenerateJSONPath())
 				if _, ok := seen[h]; !ok {
 					seen[h] = true
 				}
@@ -203,6 +208,7 @@ func extractHash(s *base.Schema) [32]byte {
 		if p := s.Parent.(base.Foundational).GetParent(); p != nil {
 			var arr [32]byte
 			copy(arr[:], p.GenerateJSONPath())
+			return arr
 		}
 	}
 	return [32]byte{}
