@@ -84,7 +84,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
 						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, err.Reason),
-							path, keyNode, node, obj)
+							path, keyNode, node, s)
 
 						banned := false
 						for g := range bannedErrors {
