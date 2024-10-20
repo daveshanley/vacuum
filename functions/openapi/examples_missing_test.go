@@ -180,7 +180,7 @@ components:
 
 	assert.Len(t, res, 3)
 	assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
-	assert.Contains(t, res[1].Path, "$.components.schemas['Pizza'].properties")
+	assert.Contains(t, res[1].Path, "$.components.schemas['Pizza']")
 }
 
 func TestExamplesMissing_Header(t *testing.T) {

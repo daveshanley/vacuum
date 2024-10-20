@@ -4,11 +4,16 @@
 package openapi
 
 import (
+	"context"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/libopenapi/datamodel/high"
+	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
 	"slices"
+	"strings"
 )
 
 // ExamplesMissing will check anything that can have an example, has one.
@@ -34,6 +39,9 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		return results
 	}
 
+	// create a string buffer for caching seen schemas
+	var buf strings.Builder
+
 	buildResult := func(message, path string, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
 		result := model.RuleFunctionResult{
 			Message:   message,
@@ -58,7 +66,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		return false
 	}
 
-	seen := make(map[[32]byte]bool)
+	seen := make(map[string]bool)
 
 	if context.DrDocument.Parameters != nil {
 	paramClear:
@@ -77,11 +85,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					v := con.Value()
 					if v.Examples != nil && (p.Examples == nil || p.Examples.Len() >= 0) {
 						// add to seen elements, so when checking schemas we can mark them as good.
-						var h [32]byte
-						copy(h[:], p.GenerateJSONPath())
-						if _, ok := seen[h]; !ok {
-							seen[h] = true
+						buf.WriteString(fmt.Sprintf("%s:%d:%d", p.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
+							p.Value.GoLow().KeyNode.Line, p.Value.GoLow().KeyNode.Column))
+						if _, ok := seen[buf.String()]; !ok {
+							seen[buf.String()] = true
 						}
+						buf.Reset()
 						break paramClear
 					}
 				}
@@ -100,11 +109,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						n, p))
 			} else {
 				// add to seen elements, so when checking schemas we can mark them as good.
-				var h [32]byte
-				copy(h[:], p.GenerateJSONPath())
-				if _, ok := seen[h]; !ok {
-					seen[h] = true
+				buf.WriteString(fmt.Sprintf("%s:%d:%d", p.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
+					p.Value.GoLow().KeyNode.Line, p.Value.GoLow().KeyNode.Column))
+				if _, ok := seen[buf.String()]; !ok {
+					seen[buf.String()] = true
 				}
+				buf.Reset()
 			}
 		}
 	}
@@ -133,12 +143,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						h.GenerateJSONPath(),
 						n, h))
 			} else {
-				// add to seen elements, so when checking schemas we can mark them as good.
-				var hs [32]byte
-				copy(hs[:], h.GenerateJSONPath())
-				if _, ok := seen[hs]; !ok {
-					seen[hs] = true
+				buf.WriteString(fmt.Sprintf("%s:%d:%d", h.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
+					h.Value.GoLow().KeyNode.Line, h.Value.GoLow().KeyNode.Column))
+				if _, ok := seen[buf.String()]; !ok {
+					seen[buf.String()] = true
 				}
+				buf.Reset()
 			}
 		}
 	}
@@ -170,13 +180,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						mt.GenerateJSONPath(),
 						n, mt))
 			} else {
-				// add to seen elements, so when checking schemas we can mark them as good.
-				//h := mt.Value.GoLow().Hash()
-				var h [32]byte
-				copy(h[:], mt.GenerateJSONPath())
-				if _, ok := seen[h]; !ok {
-					seen[h] = true
+				buf.WriteString(fmt.Sprintf("%s:%d:%d", mt.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
+					mt.Value.GoLow().KeyNode.Line, mt.Value.GoLow().KeyNode.Column))
+				if _, ok := seen[buf.String()]; !ok {
+					seen[buf.String()] = true
 				}
+				buf.Reset()
 			}
 		}
 	}
@@ -200,18 +209,34 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			}
 		}
 	}
+	seen = nil
+	buf.Reset()
 	return results
 }
 
-func extractHash(s *base.Schema) [32]byte {
+type contextualPosition interface {
+	GetIndex() *index.SpecIndex
+	GetContext() context.Context
+	GetKeyNode() *yaml.Node
+}
+
+func extractHash(s *base.Schema) string {
 	if s != nil && s.Parent != nil {
 		if p := s.Parent.(base.Foundational).GetParent(); p != nil {
-			var arr [32]byte
-			copy(arr[:], p.GenerateJSONPath())
-			return arr
+			// check if p implements HasValue
+			if hv, ok := p.(base.HasValue); ok {
+				// check if hv.Value implements GoesLowUntyped
+				if gl, ko := hv.GetValue().(high.GoesLowUntyped); ko {
+					// check if gl.GoesLowUntyped() implements contextualPosition
+					if cp, kk := gl.GoLowUntyped().(contextualPosition); kk {
+						return fmt.Sprintf("%s:%d:%d", cp.GetIndex().GetSpecAbsolutePath(),
+							cp.GetKeyNode().Line, cp.GetKeyNode().Column)
+					}
+				}
+			}
 		}
 	}
-	return [32]byte{}
+	return ""
 }
 
 func isSchemaBoolean(schema *base.Schema) bool {
