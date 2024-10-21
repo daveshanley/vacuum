@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // uselessFunc is an example custom rule that does nothing.
@@ -14,6 +14,10 @@ func (s uselessFunc) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "uselessFunc",
 	}
+}
+
+func (s uselessFunc) GetCategory() string {
+	return "sample"
 }
 
 // RunRule will execute the Sample rule, based on supplied context and a supplied []*yaml.Node slice.
