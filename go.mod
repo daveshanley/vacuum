@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/alecthomas/chroma v0.10.0
-	github.com/dop251/goja v0.0.0-20241009100908-5f46f2705ca3
+	github.com/dop251/goja v0.0.0-20241024094426-79f3a7efcdbd
 	github.com/dop251/goja_nodejs v0.0.0-20240728170619-29b559befffc
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.7.0
@@ -13,7 +13,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.14
-	github.com/pb33f/libopenapi v0.18.4
+	github.com/pb33f/libopenapi v0.18.5
 	github.com/pb33f/libopenapi-validator v0.2.0
 	github.com/pterm/pterm v0.12.79
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1

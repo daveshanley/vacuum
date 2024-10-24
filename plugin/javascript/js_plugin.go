@@ -1,4 +1,4 @@
-// Copyright 2023 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2023-2004 Princess B33f Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 package javascript
@@ -12,6 +12,7 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v3"
+	"sync"
 )
 
 type CoreFunction func(input any, context model.RuleFunctionContext) []model.RuleFunctionResult
@@ -31,14 +32,11 @@ type JSRuleFunction struct {
 	scriptParsed  bool
 	runtime       *goja.Runtime
 	coreFunctions map[string]interface{}
+	l             sync.Mutex
 }
 
 func NewJSRuleFunction(ruleName, script string) JSEnabledRuleFunction {
-	rt := goja.New()
-	rt.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
-	reg := new(require.Registry)
-	reg.Enable(rt)
-	console.Enable(rt)
+	rt := BuildVM()
 
 	return &JSRuleFunction{
 		ruleName: ruleName,
@@ -113,14 +111,19 @@ func (j *JSRuleFunction) CheckScript() error {
 
 func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
+	// rule need their own runtime because these functions run async, the same runtime will become polluted.
+	rt := BuildVM()
+
 	var results []model.RuleFunctionResult
+	var runtimeErr error
 
 	for _, node := range nodes {
 
 		var enc interface{}
 		_ = node.Decode(&enc)
-
-		runtimeErr := j.runtime.Set("context", context)
+		j.l.Lock()
+		runtimeErr = rt.Set("context", context) // prevent any run time issues.
+		j.l.Unlock()
 		if runtimeErr != nil {
 			return []model.RuleFunctionResult{
 				{
@@ -134,9 +137,11 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 		}
 
+		_, runtimeErr = rt.RunString(j.script)
+
 		// register core functions
 		for name, function := range j.coreFunctions {
-			coreErr := j.runtime.Set(fmt.Sprintf("vacuum_%s", name), function)
+			coreErr := rt.Set(fmt.Sprintf("vacuum_%s", name), function)
 			if coreErr != nil {
 				return []model.RuleFunctionResult{
 					{
@@ -151,12 +156,12 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 		}
 
-		runRule, ok := goja.AssertFunction(j.runtime.Get("runRule"))
+		runRule, ok := goja.AssertFunction(rt.Get("runRule"))
 		if !ok {
 			return []model.RuleFunctionResult{
 				{
-					Message: fmt.Sprintf("'runRule' is not defined as a JavaScript function: '%s': %s ",
-						j.ruleName, runtimeErr.Error()),
+					Message: fmt.Sprintf("'runRule' is not defined as a JavaScript function: '%s'",
+						j.ruleName),
 					StartNode: node,
 					EndNode:   node,
 					Path:      fmt.Sprint(context.Given),
@@ -167,7 +172,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		var functionResults []model.RuleFunctionResult
 
 		// run JS rule!
-		runtimeValue := j.runtime.ToValue(enc)
+		runtimeValue := rt.ToValue(enc)
 		ruleOutput, rErr := runRule(goja.Undefined(), runtimeValue)
 		if rErr != nil {
 			if jserr, okE := rErr.(*goja.Exception); okE {
@@ -218,4 +223,13 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		results = append(results, functionResults...)
 	}
 	return results
+}
+
+func BuildVM() *goja.Runtime {
+	rt := goja.New()
+	rt.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
+	reg := new(require.Registry)
+	reg.Enable(rt)
+	console.Enable(rt)
+	return rt
 }
