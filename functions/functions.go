@@ -70,6 +70,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasTagDefined"] = openapi_functions.TagDefined{}
 		funcs["oasPathParam"] = openapi_functions.PathParameters{}
 		funcs["refSiblings"] = openapi_functions.NoRefSiblings{}
+		funcs["oasRefSiblings"] = openapi_functions.OASNoRefSiblings{}
 		funcs["typedEnum"] = openapi_functions.TypedEnum{}
 		funcs["duplicatedEnum"] = openapi_functions.DuplicatedEnum{}
 		funcs["noEvalDescription"] = openapi_functions.NoEvalInDescriptions{}

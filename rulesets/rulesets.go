@@ -9,14 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/mitchellh/mapstructure"
@@ -61,6 +62,7 @@ const (
 	PathNotIncludeQuery                  = "path-not-include-query"
 	TagDescription                       = "tag-description"
 	NoRefSiblings                        = "no-$ref-siblings"
+	Oas3NoRefSiblings                    = "oas3-no-$ref-siblings"
 	Oas3UnusedComponent                  = "oas3-unused-component"
 	Oas2UnusedDefinition                 = "oas2-unused-definition"
 	Oas2APIHost                          = "oas2-api-host"
@@ -403,6 +405,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[PathNotIncludeQuery] = GetPathNotIncludeQueryRule()
 	rules[TagDescription] = GetTagDescriptionRequiredRule()
 	rules[NoRefSiblings] = GetNoRefSiblingsRule()
+	rules[Oas3NoRefSiblings] = GetOAS3NoRefSiblingsRule()
 	rules[Oas3UnusedComponent] = GetOAS3UnusedComponentRule()
 	rules[Oas2UnusedDefinition] = GetOAS2UnusedComponentRule()
 	rules[Oas2APIHost] = GetOAS2APIHostRule()
