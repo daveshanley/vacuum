@@ -3,9 +3,10 @@ package model
 import (
 	_ "embed"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 )
 
 var OAS3_1Format = []string{OAS31}
+var AllExceptOAS3_1 = []string{OAS2, OAS3}
 var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31}
 var OAS2Format = []string{OAS2}

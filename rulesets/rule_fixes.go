@@ -121,6 +121,9 @@ const (
 	noRefSiblingsFix string = "$ref values must not be placed next to sibling nodes, There should only be a single node " +
 		" when using $ref. A common mistake is adding 'description' next to a $ref. This is wrong. remove all siblings!"
 
+	oas3noRefSiblingsFix string = "$ref values must not be placed next to sibling nodes, except `description` and `summary` nodes. " +
+		" This is wrong. remove all additional siblings!"
+
 	oas3UnusedComponentFix string = "Orphaned components are not used by anything. You might have plans to use them later, " +
 		"or they could be older schemas that never got cleaned up. A clean spec is a happy spec. Prune your orphaned components."
 

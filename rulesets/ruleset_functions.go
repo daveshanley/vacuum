@@ -4,9 +4,10 @@
 package rulesets
 
 import (
+	"regexp"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
-	"regexp"
 )
 
 // GetContactPropertiesRule will return a rule configured to look at contact properties of a spec.
@@ -970,7 +971,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check for siblings to $ref values",
 		Id:           NoRefSiblings,
-		Formats:      model.AllFormats,
+		Formats:      model.AllExceptOAS3_1,
 		Description:  "$ref values cannot be placed next to other properties (like a description)",
 		Given:        "$",
 		Resolved:     false,
@@ -982,6 +983,26 @@ func GetNoRefSiblingsRule() *model.Rule {
 			Function: "refSiblings",
 		},
 		HowToFix: noRefSiblingsFix,
+	}
+}
+
+// GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
+func GetOAS3NoRefSiblingsRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check for siblings to $ref values",
+		Id:           Oas3NoRefSiblings,
+		Formats:      model.OAS3_1Format,
+		Description:  "`$ref` values cannot be placed next to other properties, except `description` and `summary`",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "oasRefSiblings",
+		},
+		HowToFix: oas3noRefSiblingsFix,
 	}
 }
 
