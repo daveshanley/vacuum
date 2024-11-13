@@ -60,7 +60,7 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 				locatedPath = locatedObject.GenerateJSONPath()
 			}
 			result := model.RuleFunctionResult{
-				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined]",
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined",
 					ruleMessage, val)),
 				StartNode: fieldNode,
 				EndNode:   vacuumUtils.BuildEndNode(fieldNode),
