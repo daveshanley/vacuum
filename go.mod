@@ -13,7 +13,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.14
-	github.com/pb33f/libopenapi v0.18.5
+	github.com/pb33f/libopenapi v0.18.7
 	github.com/pb33f/libopenapi-validator v0.2.0
 	github.com/pterm/pterm v0.12.79
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
@@ -24,8 +24,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tliron/glsp v0.2.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
-	golang.org/x/text v0.19.0
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
+	golang.org/x/text v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
