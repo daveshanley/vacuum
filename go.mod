@@ -14,7 +14,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.14
 	github.com/pb33f/libopenapi v0.18.7
-	github.com/pb33f/libopenapi-validator v0.2.0
+	github.com/pb33f/libopenapi-validator v0.2.2
 	github.com/pterm/pterm v0.12.79
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
