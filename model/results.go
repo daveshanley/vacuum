@@ -110,6 +110,9 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 		var path []string
 		pathArr := strings.Split(result.Path, ".")
 		for _, pItem := range pathArr {
+			if pItem == "" {
+				path = append(path, "..") // https://github.com/daveshanley/vacuum/issues/583
+			}
 			if pItem != "$" {
 
 				p := paramRegex.FindStringSubmatch(pItem)
