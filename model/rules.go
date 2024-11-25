@@ -68,6 +68,7 @@ type RuleFunctionResult struct {
 	ModelContext any `json:"-" yaml:"-"`
 }
 
+// IgnoredItems is a map of the rule ID to an array of violation paths
 type IgnoredItems map[string][]string
 
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
