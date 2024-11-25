@@ -1307,6 +1307,26 @@ func GetPostSuccessResponseRule() *model.Rule {
 			Function:        "postResponseSuccess",
 			FunctionOptions: opts,
 		},
-		HowToFix: oas3HostNotExampleFix,
+		HowToFix: postSuccessResponseFix,
+	}
+}
+
+// GetNoRequestBodyRule will check that HTTP GET and DELETE do not accept request bodies
+func GetNoRequestBodyRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check GET and DELETE methods do not accept request bodies",
+		Id:           NoRequestBody,
+		Formats:      model.OAS3AllFormat,
+		Description:  "HTTP GET and DELETE should not accept request bodies",
+		Given:        "$",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         Style,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "noRequestBody",
+		},
+		HowToFix: noRequestBodyResponseFix,
 	}
 }
