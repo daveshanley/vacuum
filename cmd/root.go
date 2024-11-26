@@ -85,6 +85,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.AddCommand(GetHTMLReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
 	rootCmd.AddCommand(GetGenerateRulesetCommand())
+	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
 	rootCmd.AddCommand(GetGenerateVersionCommand())
 	rootCmd.AddCommand(GetLanguageServerCommand())
 	rootCmd.AddCommand(GetBundleCommand())
