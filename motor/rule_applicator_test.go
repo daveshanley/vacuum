@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -1843,7 +1844,8 @@ components:
 				},
 			},
 		},
-		Document: doc,
+		NodeLookupTimeout: 10 * time.Duration(time.Millisecond), // override the default 500ms.
+		Document:          doc,
 		CustomFunctions: map[string]model.RuleFunction{
 			"resolved": &testRuleResolved{},
 		},
@@ -1852,6 +1854,59 @@ components:
 	results := ApplyRulesToRuleSet(ex)
 	assert.Len(t, results.Errors, 0)
 	assert.Nil(t, results.Results)
+}
+
+func TestRuleSet_TestDocument_SetNodeLookupTimeout(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /one:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/one'
+components:
+  schemas:
+    one:
+      type: string`
+
+	config := datamodel.NewDocumentConfiguration()
+
+	doc, err := libopenapi.NewDocumentWithConfiguration([]byte(yml), config)
+	if err != nil {
+		panic(err)
+	}
+
+	ex := &RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"test": {
+					Id:           "test",
+					Resolved:     true,
+					Given:        "$..paths",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityError,
+					Then: model.RuleAction{
+						Function: "resolved",
+					},
+				},
+			},
+		},
+		NodeLookupTimeout: 1 * time.Duration(time.Nanosecond), // override the default 500ms to 1ns.(1ns is not enough to resolve the node)
+		Document:          doc,
+		CustomFunctions: map[string]model.RuleFunction{
+			"resolved": &testRuleResolved{},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(ex)
+	assert.Len(t, results.Errors, 1)
+	assert.Nil(t, results.Results)
+	assert.Equal(t, "node lookup timeout exceeded (1ns)", results.Errors[0].Error())
 }
 
 func TestRuleSet_InfiniteCircularLoop(t *testing.T) {
