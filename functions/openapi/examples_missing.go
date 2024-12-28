@@ -42,13 +42,19 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	// create a string buffer for caching seen schemas
 	var buf strings.Builder
 
-	buildResult := func(message, path string, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, node, valueNode *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+
+		origin := context.Document.GetRolodex().FindNodeOriginWithValue(node, valueNode, nil, "")
+		if origin == nil {
+			origin = context.Document.GetRolodex().FindNodeOrigin(valueNode)
+		}
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
 			EndNode:   vacuumUtils.BuildEndNode(node),
 			Path:      path,
 			Rule:      context.Rule,
+			Origin:    origin,
 		}
 		component.AddRuleFunctionResult(base.ConvertRuleResult(&result))
 		return result
@@ -106,7 +112,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "parameter is missing `examples` or `example`"),
 						p.GenerateJSONPath(),
-						n, p))
+						n, p.GetValueNode(), p))
 			} else {
 				// add to seen elements, so when checking schemas we can mark them as good.
 				buf.WriteString(fmt.Sprintf("%s:%d:%d", p.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
@@ -141,7 +147,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "header is missing `examples` or `example`"),
 						h.GenerateJSONPath(),
-						n, h))
+						n, h.GetValueNode(), h))
 			} else {
 				buf.WriteString(fmt.Sprintf("%s:%d:%d", h.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
 					h.Value.GoLow().KeyNode.Line, h.Value.GoLow().KeyNode.Column))
@@ -178,7 +184,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
 						mt.GenerateJSONPath(),
-						n, mt))
+						n, mt.ValueNode, mt))
 			} else {
 				buf.WriteString(fmt.Sprintf("%s:%d:%d", mt.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
 					mt.Value.GoLow().KeyNode.Line, mt.Value.GoLow().KeyNode.Column))
@@ -204,7 +210,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 						s.GenerateJSONPath(),
-						s.Value.ParentProxy.GetSchemaKeyNode(), s))
+						s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s))
 
 			}
 		}
