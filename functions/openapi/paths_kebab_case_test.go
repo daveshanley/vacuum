@@ -1,7 +1,10 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
@@ -40,22 +43,23 @@ paths:
     get:
       summary: should we complain? nah`
 
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+	m, _ := document.BuildV3Model()
 	path := "$"
 
-	var rootNode yaml.Node
-	err := yaml.Unmarshal([]byte(yml), &rootNode)
-
-	assert.NoError(t, err)
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	drDocument := drModel.NewDrDocument(m)
 
 	rule := buildOpenApiTestRuleAction(path, "pathsKebabCase", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Rule = &rule
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
 
 	def := PathsKebabCase{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
 
