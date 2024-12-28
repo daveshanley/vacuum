@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/base"
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
@@ -73,13 +74,37 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
 			}
-			results = append(results, model.RuleFunctionResult{
+			var allPaths []string
+			var modelByLine []base.Foundational
+			var modelErr error
+			if context.DrDocument != nil {
+				modelByLine, modelErr = context.DrDocument.LocateModelByLine(validationErrors[i].SchemaValidationErrors[y].Line + 1)
+				if modelErr == nil {
+					if modelByLine != nil && len(modelByLine) >= 1 {
+						allPaths = append(allPaths, location)
+						location = modelByLine[0].GenerateJSONPath()
+						for j := 0; j < len(modelByLine); j++ {
+							allPaths = append(allPaths, modelByLine[j].GenerateJSONPath())
+						}
+					}
+				}
+			}
+			res := model.RuleFunctionResult{
 				Message:   fmt.Sprintf("schema invalid: %v", validationErrors[i].SchemaValidationErrors[y].Reason),
 				StartNode: n,
 				EndNode:   vacuumUtils.BuildEndNode(n),
 				Path:      location,
 				Rule:      context.Rule,
-			})
+			}
+			if len(allPaths) > 1 {
+				res.Paths = allPaths
+			}
+			results = append(results, res)
+			if len(modelByLine) > 0 {
+				if arr, ok := modelByLine[0].(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				}
+			}
 			seen[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]
 		}
 	}
