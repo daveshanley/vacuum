@@ -381,7 +381,8 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 			req.AllResultsFlag,
 			req.NoClip,
 			abs,
-			req.FileName)
+			req.FileName,
+			req.CategoryFlag)
 	}
 
 	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
@@ -398,10 +399,19 @@ func filterIgnoredResultsPtr(results []*model.RuleFunctionResult, ignored model.
 
 		var found bool
 		for _, i := range ignored[r.Rule.Id] {
+			if len(r.Paths) > 0 {
+				for _, p := range r.Paths {
+					if p == i {
+						found = true
+						break
+					}
+				}
+			}
 			if r.Path == i {
 				found = true
 				break
 			}
+
 		}
 		if !found {
 			filteredResults = append(filteredResults, r)
@@ -433,7 +443,8 @@ func processResults(results []*model.RuleFunctionResult,
 	noMessage,
 	allResults bool,
 	noClip bool,
-	abs, filename string) {
+	abs, filename string,
+	categoryFlag string) {
 
 	if allResults && len(results) > 1000 {
 		pterm.Warning.Printf("Formatting %s results - this could take a moment to render out in the terminal",

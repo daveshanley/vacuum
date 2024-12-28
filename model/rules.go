@@ -54,10 +54,11 @@ type RuleFunctionContext struct {
 type RuleFunctionResult struct {
 	Message      string            `json:"message" yaml:"message"`                   // What failed and why?
 	Range        reports.Range     `json:"range" yaml:"range"`                       // Where did it happen?
-	Path         string            `json:"path" yaml:"path"`                         // the JSONPath to where it can be found
+	Path         string            `json:"path" yaml:"path"`                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
+	Paths        []string          `json:"paths,omitempty" yaml:"paths,omitempty"`   // the JSONPath(s) to where it can be found, if there are multiple.
 	RuleId       string            `json:"ruleId" yaml:"ruleId"`                     // The ID of the rule
 	RuleSeverity string            `json:"ruleSeverity" yaml:"ruleSeverity"`         // the severity of the rule used
-	Origin       *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"` // Where did the result come from?
+	Origin       *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"` // Where did the result come from (source)?
 	Rule         *Rule             `json:"-" yaml:"-"`                               // The rule used
 	StartNode    *yaml.Node        `json:"-" yaml:"-"`                               // Start of the violation
 	EndNode      *yaml.Node        `json:"-" yaml:"-"`                               // end of the violation
