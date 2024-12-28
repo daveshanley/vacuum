@@ -107,10 +107,16 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			rx, err := p.getPatternFromCache(p.match, context.Rule)
 			expPath := fmt.Sprintf("%s['%s']", pathValue, currentField)
 			if err != nil {
-				locatedObject, er := context.DrDocument.LocateModel(node)
+				locatedObjects, lErr := context.DrDocument.LocateModel(node)
 				locatedPath := expPath
-				if er == nil && locatedObject != nil {
-					locatedPath = locatedObject.GenerateJSONPath()
+				var allPaths []string
+				if lErr == nil && locatedObjects != nil {
+					for d, obj := range locatedObjects {
+						if d == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
@@ -121,16 +127,27 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
+				}
 				results = append(results, result)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					}
 				}
 			} else {
 				if !rx.MatchString(node.Value) {
-					locatedObject, er := context.DrDocument.LocateModel(node)
-					locatedPath := expPath
-					if er == nil && locatedObject != nil {
-						locatedPath = locatedObject.GenerateJSONPath()
+					locatedObjects, lErr := context.DrDocument.LocateModel(node)
+					locatedPath := pathValue
+					var allPaths []string
+					if lErr == nil && locatedObjects != nil {
+						for s, obj := range locatedObjects {
+							if s == 0 {
+								locatedPath = obj.GenerateJSONPath()
+							}
+							allPaths = append(allPaths, obj.GenerateJSONPath())
+						}
 					}
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(message,
@@ -141,9 +158,14 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Path:      locatedPath,
 						Rule:      context.Rule,
 					}
+					if len(allPaths) > 1 {
+						result.Paths = allPaths
+					}
 					results = append(results, result)
-					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if len(locatedObjects) > 0 {
+						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						}
 					}
 				}
 			}
@@ -154,10 +176,16 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			rx, err := p.getPatternFromCache(p.notMatch, context.Rule)
 			expPath := fmt.Sprintf("%s['%s']", pathValue, currentField)
 			if err != nil {
-				locatedObject, er := context.DrDocument.LocateModel(node)
+				locatedObjects, lErr := context.DrDocument.LocateModel(node)
 				locatedPath := expPath
-				if er == nil && locatedObject != nil {
-					locatedPath = locatedObject.GenerateJSONPath()
+				var allPaths []string
+				if lErr == nil && locatedObjects != nil {
+					for s, obj := range locatedObjects {
+						if s == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
@@ -168,17 +196,30 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
+				}
 				results = append(results, result)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					}
 				}
 			} else {
 				if rx.MatchString(node.Value) {
-					locatedObject, er := context.DrDocument.LocateModel(node)
-					locatedPath := expPath
-					if er == nil && locatedObject != nil {
-						locatedPath = locatedObject.GenerateJSONPath()
+
+					locatedObjects, lErr := context.DrDocument.LocateModel(node)
+					locatedPath := pathValue
+					var allPaths []string
+					if lErr == nil && locatedObjects != nil {
+						for s, obj := range locatedObjects {
+							if s == 0 {
+								locatedPath = obj.GenerateJSONPath()
+							}
+							allPaths = append(allPaths, obj.GenerateJSONPath())
+						}
 					}
+
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(message,
 							fmt.Sprintf("%s: matches the expression `%s`", ruleMessage, p.notMatch)),
@@ -187,9 +228,14 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						Path:      locatedPath,
 						Rule:      context.Rule,
 					}
+					if len(allPaths) > 1 {
+						result.Paths = allPaths
+					}
 					results = append(results, result)
-					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if len(locatedObjects) > 0 {
+						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						}
 					}
 				}
 			}

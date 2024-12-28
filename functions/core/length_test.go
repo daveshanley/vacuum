@@ -1,7 +1,10 @@
 package core
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -20,17 +23,27 @@ func TestLength_RunRule(t *testing.T) {
 
 func TestLength_RunRule_Pass(t *testing.T) {
 
-	sampleYaml := `
+	sampleYaml := `openapi: 3.1.0
 paths:
     /something:
         get:
+          description: "this is a description"
     /nothing:
         post:
+          description: "this is a description"
     /free:
-        patch:`
+        patch:
+          description: "this is a description"`
 
 	path := "$"
 
+	document, err := libopenapi.NewDocument([]byte(sampleYaml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
 	ops := make(map[string]string)
@@ -40,6 +53,8 @@ paths:
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), ops)
 	ctx.Rule = &rule
 	ctx.Given = path
+	ctx.Document = document
+	ctx.DrDocument = drDocument
 
 	le := Length{}
 	res := le.RunRule(nodes, ctx)

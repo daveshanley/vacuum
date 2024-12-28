@@ -53,10 +53,21 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if (fieldNode != nil && fieldNodeValue != nil) &&
 			(fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0" || (fieldNodeValue.Value == "" && fieldNodeValue.Content != nil)) {
-			locatedObject, err := context.DrDocument.LocateModel(node)
+
+			var locatedObjects []base.Foundational
+			var allPaths []string
+			var err error
 			locatedPath := pathValue
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
+			if context.DrDocument != nil {
+				locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
+				}
 			}
 			result := model.RuleFunctionResult{
 				Message:   fmt.Sprintf("%s: `%s` must be falsy", ruleMessage, context.RuleAction.Field),
@@ -65,9 +76,14 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 				Path:      locatedPath,
 				Rule:      context.Rule,
 			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
+			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}

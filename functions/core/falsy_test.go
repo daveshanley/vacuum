@@ -1,6 +1,9 @@
 package core
 
 import (
+	"fmt"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -10,7 +13,7 @@ import (
 
 func TestFalsy_RunRule_Fail(t *testing.T) {
 
-	sampleYaml := `
+	sampleYaml := `openapi: 3.1.0
 tags:
   - name: "non-falsy tag 1"
     description: true
@@ -24,13 +27,23 @@ tags:
 
 	path := "$.tags[*]"
 
+	document, err := libopenapi.NewDocument([]byte(sampleYaml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+
 	assert.Len(t, nodes, 4)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "falsy", "description", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 	ctx.Rule = &rule
+	ctx.Document = document
+	ctx.DrDocument = drDocument
 
 	tru := Falsy{}
 	res := tru.RunRule(nodes, ctx)

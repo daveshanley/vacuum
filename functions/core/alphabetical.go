@@ -66,23 +66,34 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 		if utils.IsNodeMap(node) {
 			if keyedBy == "" {
-
-				locatedObject, err := context.DrDocument.LocateModel(node)
+				locatedObjects, err := context.DrDocument.LocateModel(node)
 				locatedPath := pathValue
-				if err == nil && locatedObject != nil {
-					locatedPath = locatedObject.GenerateJSONPath()
+				var allPaths []string
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
 				}
 				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
-						node.Value, a.GetSchema().ErrorMessage)),
+					Message: vacuumUtils.SuppliedOrDefault(message,
+						fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
+							node.Value, a.GetSchema().ErrorMessage)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
+				}
 				results = append(results, result)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					}
 				}
 				continue
 			}
@@ -122,7 +133,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 	return results
 }
 
-func (a Alphabetical) processMap(node *yaml.Node, keyedBy string, context model.RuleFunctionContext) []string {
+func (a Alphabetical) processMap(node *yaml.Node, keyedBy string, _ model.RuleFunctionContext) []string {
 	var resultsFromKey []string
 	for x, v := range node.Content {
 		// run odd numbers for values.
@@ -173,7 +184,9 @@ func (a Alphabetical) isValidMapArray(arr *yaml.Node) bool {
 	return arr.Content[0].Tag == "!!map"
 }
 
-func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node,
+	context model.RuleFunctionContext) []model.RuleFunctionResult {
+
 	var strArr []string
 	for _, n := range arr.Content {
 		if n.Tag == "!!str" {
@@ -186,7 +199,9 @@ func (a Alphabetical) checkStringArrayIsSorted(arr *yaml.Node, context model.Rul
 	return compareStringArray(arr, strArr, context)
 }
 
-func compareStringArray(node *yaml.Node, strArr []string, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func compareStringArray(node *yaml.Node, strArr []string,
+	context model.RuleFunctionContext) []model.RuleFunctionResult {
+
 	var results []model.RuleFunctionResult
 	message := context.Rule.Message
 
@@ -194,23 +209,37 @@ func compareStringArray(node *yaml.Node, strArr []string, context model.RuleFunc
 		if x+1 < len(strArr) {
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
-				locatedObject, err := context.DrDocument.LocateModel(node)
+
+				locatedObjects, err := context.DrDocument.LocateModel(node)
 				locatedPath := ""
-				if err == nil && locatedObject != nil {
-					locatedPath = locatedObject.GenerateJSONPath()
+				var allPaths []string
+				if err == nil && locatedObjects != nil {
+					for v, obj := range locatedObjects {
+						if v == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
 				}
+
 				result := model.RuleFunctionResult{
 					Rule:      context.Rule,
 					StartNode: node,
 					Path:      locatedPath,
 					EndNode:   vacuumUtils.BuildEndNode(node),
-					Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
-						context.Rule.Description,
-						strArr[x+1], strArr[x])),
+					Message: vacuumUtils.SuppliedOrDefault(message,
+						fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
+							context.Rule.Description,
+							strArr[x+1], strArr[x])),
+				}
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
 				}
 				results = append(results, result)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					}
 				}
 
 			}
@@ -252,53 +281,83 @@ func (a Alphabetical) checkNumberArrayIsSorted(arr *yaml.Node, context model.Rul
 	return results
 }
 
-func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg string, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg string,
+	context model.RuleFunctionContext) []model.RuleFunctionResult {
+
 	var results []model.RuleFunctionResult
 	message := context.Rule.Message
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
-			locatedObject, err := context.DrDocument.LocateModel(node)
+
+			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := ""
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
+			var allPaths []string
+			if err == nil && locatedObjects != nil {
+				for x, obj := range locatedObjects {
+					if x == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
 			}
+
 			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
+				Message: vacuumUtils.SuppliedOrDefault(message,
+					fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
+			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
 			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}
 	return results
 }
 
-func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, errmsg string, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, errmsg string,
+	context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	message := context.Rule.Message
 
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
-			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := ""
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
+			var allPaths []string
+			if err == nil && locatedObjects != nil {
+				for x, obj := range locatedObjects {
+					if x == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
 			}
+
 			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
 				StartNode: node,
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg, context.Rule.Description, floatArray[x+1], floatArray[x])),
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg,
+					context.Rule.Description, floatArray[x+1], floatArray[x])),
+			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
 			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}

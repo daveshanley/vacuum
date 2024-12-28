@@ -101,16 +101,16 @@ tags:
 	n, e := drDocument.LocateModelByLine(3)
 	assert.NoError(t, e)
 	assert.NotNil(t, n)
-	assert.Equal(t, "good", n.(*base.Tag).Value.Name)
+	assert.Equal(t, "good", n[0].(*base.Tag).Value.Name)
 
 	n, e = drDocument.LocateModelByLine(4)
 	assert.NoError(t, e)
 	assert.NotNil(t, n)
-	assert.Equal(t, "noFun", n.(*base.Tag).Value.Name)
+	assert.Equal(t, "noFun", n[0].(*base.Tag).Value.Name)
 
 	n, e = drDocument.LocateModelByLine(5)
 	assert.NoError(t, e)
 	assert.NotNil(t, n)
-	assert.Equal(t, "fridge", n.(*base.Tag).Value.Name)
+	assert.Equal(t, "fridge", n[0].(*base.Tag).Value.Name)
 
 }
