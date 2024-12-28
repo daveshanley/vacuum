@@ -38,6 +38,10 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 
 	var results []model.RuleFunctionResult
 
+	if context.Document == nil || context.Document.GetRolodex() == nil {
+		return nil
+	}
+
 	// extract all references, and every single component, recursively
 	allRefs := context.Document.GetRolodex().GetAllReferences()
 	schemas := context.Index.GetAllComponentSchemas()
