@@ -77,21 +77,18 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// run through nodes
 	for _, node := range nodes {
 
-		var p *yaml.Node
+		var p, q *yaml.Node
 
 		// check field type, is it a map? is it an array?
 		if context.RuleAction.Field != "" {
-			_, p = utils.FindFirstKeyNode(context.RuleAction.Field, []*yaml.Node{node}, 0)
+			q, p = utils.FindFirstKeyNode(context.RuleAction.Field, []*yaml.Node{node}, 0)
 
 			// no luck? try again.
 			if p == nil {
-				_, p = utils.FindKeyNode(context.RuleAction.Field, []*yaml.Node{node})
+				q, p = utils.FindKeyNode(context.RuleAction.Field, []*yaml.Node{node})
 			}
 		} else {
-
-			if p == nil {
-				p = node
-			}
+			p = node
 		}
 
 		if p == nil {
@@ -103,14 +100,24 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			pathValue = path
 		}
 
+		var locatedObjects []base.Foundational
+		var allPaths []string
+		var err error
+		locatedPath := pathValue
+		if context.DrDocument != nil {
+			locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(q, p)
+			if err == nil && locatedObjects != nil {
+				for x, obj := range locatedObjects {
+					if x == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
+			}
+		}
+
 		// check for value lengths.
 		if utils.IsNodeStringValue(p) || utils.IsNodeIntValue(p) || utils.IsNodeFloatValue(p) {
-
-			locatedObject, err := context.DrDocument.LocateModel(node)
-			locatedPath := pathValue
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
-			}
 
 			var valueCheck int
 			if utils.IsNodeStringValue(p) {
@@ -130,11 +137,15 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.EndNode = vacuumUtils.BuildEndNode(node)
 					res.Path = locatedPath
 					res.Rule = context.Rule
-					results = append(results, res)
-					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					if len(allPaths) > 1 {
+						res.Paths = allPaths
 					}
-
+					results = append(results, res)
+					if len(locatedObjects) > 0 {
+						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+						}
+					}
 					continue
 				}
 				if float64(maxVal) > 0 && fValue > float64(maxVal) {
@@ -143,9 +154,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					res.EndNode = vacuumUtils.BuildEndNode(node)
 					res.Path = locatedPath
 					res.Rule = context.Rule
+					if len(allPaths) > 1 {
+						res.Paths = allPaths
+					}
 					results = append(results, res)
-					if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					if len(locatedObjects) > 0 {
+						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+						}
 					}
 					continue
 				}
@@ -157,6 +173,9 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = locatedPath
 				res.Rule = context.Rule
+				if len(allPaths) > 1 {
+					res.Paths = allPaths
+				}
 				results = append(results, res)
 				continue
 			}
@@ -166,19 +185,18 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = locatedPath
 				res.Rule = context.Rule
+				if len(allPaths) > 1 {
+					res.Paths = allPaths
+				}
 				results = append(results, res)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					}
 				}
 				continue
 			}
 		} else {
-
-			locatedObject, err := context.DrDocument.LocateModel(node)
-			locatedPath := pathValue
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
-			}
 
 			nodeCount := 0
 
@@ -204,9 +222,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = locatedPath
 				res.Rule = context.Rule
+				if len(allPaths) > 1 {
+					res.Paths = allPaths
+				}
 				results = append(results, res)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					}
 				}
 				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue
@@ -224,9 +247,14 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				res.EndNode = vacuumUtils.BuildEndNode(node)
 				res.Path = locatedPath
 				res.Rule = context.Rule
+				if len(allPaths) > 1 {
+					res.Paths = allPaths
+				}
 				results = append(results, res)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					}
 				}
 				//results = model.MapPathAndNodesToResults(pathValue, p, p, results)
 				continue

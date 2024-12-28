@@ -127,7 +127,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
 	if _, ok := forceValidationOnCurrentNode.(bool); ok && len(nodes) > 0 {
 		schema.GoLow().Index = context.Index
-		results = append(results, validateNodeAgainstSchema(&context, schema, nodes[0], context, 0)...)
+		results = append(results, validateNodeAgainstSchema(&context, schema, nil, nodes[0], context, 0)...)
 		return results
 	}
 
@@ -144,20 +144,31 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			no = node.Content
 		}
 
-		_, field := utils.FindKeyNodeTop(context.RuleAction.Field, no)
-		if field != nil {
+		fieldNode, fieldNodeValue := utils.FindKeyNodeTop(context.RuleAction.Field, no)
+		if fieldNodeValue != nil {
 			schema.GoLow().Index = context.Index
-			results = append(results, validateNodeAgainstSchema(&context, schema, field, context, x)...)
+			results = append(results, validateNodeAgainstSchema(&context, schema, fieldNode, fieldNodeValue, context, x)...)
 
 		} else {
 			// If the field is not found, and we're being strict, it's invalid.
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
 			if _, ko := forceValidation.(bool); ko {
 
-				locatedObject, err := context.DrDocument.LocateModel(node)
+				var locatedObjects []base.Foundational
+				var allPaths []string
+				var err error
 				locatedPath := ""
-				if err == nil && locatedObject != nil {
-					locatedPath = locatedObject.GenerateJSONPath()
+
+				if context.DrDocument != nil {
+					locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+					if err == nil && locatedObjects != nil {
+						for q, obj := range locatedObjects {
+							if q == 0 {
+								locatedPath = obj.GenerateJSONPath()
+							}
+							allPaths = append(allPaths, obj.GenerateJSONPath())
+						}
+					}
 				}
 
 				r := model.BuildFunctionResultString(
@@ -167,12 +178,17 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 				r.EndNode = vacuumUtils.BuildEndNode(node)
 				r.Rule = context.Rule
 				r.Path = locatedPath
+				if len(allPaths) > 1 {
+					r.Paths = allPaths
+				}
 				if p, df := context.Given.(string); df {
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
 				results = append(results, r)
-				if arr, kk := locatedObject.(base.AcceptsRuleResults); kk {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&r))
+				if len(locatedObjects) > 0 {
+					if arr, kk := locatedObjects[0].(base.AcceptsRuleResults); kk {
+						arr.AddRuleFunctionResult(base.ConvertRuleResult(&r))
+					}
 				}
 			}
 		}
@@ -182,7 +198,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}
 
-func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, field *yaml.Node,
+func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, fieldNode, fieldNodeValue *yaml.Node,
 	context model.RuleFunctionContext, x int) []model.RuleFunctionResult {
 
 	ruleMessage := context.Rule.Description
@@ -193,7 +209,7 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	var results []model.RuleFunctionResult
 
 	// validate using schema provided.
-	res, resErrors := parser.ValidateNodeAgainstSchema(ctx, schema, field, false)
+	res, resErrors := parser.ValidateNodeAgainstSchema(ctx, schema, fieldNodeValue, false)
 
 	if res {
 		return results
@@ -207,18 +223,44 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	message := context.Rule.Message
 
 	for c := range schemaErrors {
-		locatedObject, err := context.DrDocument.LocateModel(field)
+
+		var locatedObjects []base.Foundational
+		var allPaths []string
+		var err error
 		locatedPath := ""
-		if err == nil && locatedObject != nil {
-			locatedPath = locatedObject.GenerateJSONPath()
+		if fieldNode != nil {
+			if context.DrDocument != nil {
+				locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
+				}
+			}
+		} else {
+			locatedObjects, err = context.DrDocument.LocateModel(fieldNodeValue)
+			if err == nil && locatedObjects != nil {
+				for s, obj := range locatedObjects {
+					if s == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
+			}
 		}
 
 		r := model.BuildFunctionResultString(vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
 			schemaErrors[c].Reason)))
-		r.StartNode = field
-		r.EndNode = vacuumUtils.BuildEndNode(field)
+		r.StartNode = fieldNodeValue
+		r.EndNode = vacuumUtils.BuildEndNode(fieldNodeValue)
 		r.Rule = context.Rule
 		r.Path = locatedPath
+		if len(allPaths) > 1 {
+			r.Paths = allPaths
+		}
 		if p, ok := context.Given.(string); ok {
 			r.Path = fmt.Sprintf("%s[%d]", p, x)
 		}
@@ -236,8 +278,10 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 		if !banned {
 			results = append(results, r)
-			if arr, kk := locatedObject.(base.AcceptsRuleResults); kk {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&r))
+			if len(locatedObjects) > 0 {
+				if arr, kk := locatedObjects[0].(base.AcceptsRuleResults); kk {
+					arr.AddRuleFunctionResult(base.ConvertRuleResult(&r))
+				}
 			}
 		}
 
