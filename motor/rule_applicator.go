@@ -48,30 +48,38 @@ type ruleContext struct {
 	drDocument         *doctor.DrDocument
 	skipDocumentCheck  bool
 	logger             *slog.Logger
+	nodeLookupTimeout  time.Duration
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet           *rulesets.RuleSet             // The RuleSet in which to apply
-	SpecFileName      string                        // The path of the specification file, used to correctly label location
-	Spec              []byte                        // The raw bytes of the OpenAPI specification.
-	SpecInfo          *datamodel.SpecInfo           // Pre-parsed spec-info.
-	CustomFunctions   map[string]model.RuleFunction // custom functions loaded from plugin.
-	PanicFunction     func(p any)                   // In case of emergency, do this thing here.
-	SilenceLogs       bool                          // Prevent any warnings about rules/rule-sets being printed.
-	Base              string                        // The base path or URL of the specification, used for resolving relative or remote paths.
-	AllowLookup       bool                          // Allow remote lookup of files or links
-	Document          libopenapi.Document           // a ready to render model.
-	DrDocument        *doctor.DrDocument            // a high level, more powerful model, powered by the doctor.
-	SkipDocumentCheck bool                          // Skip the document check, useful for fragments and non openapi specs.
-	Logger            *slog.Logger                  // A custom logger.
-	Timeout           time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
-	BuildGraph        bool                          // Build a graph of the document, powered by the doctor. (default is false)
+	RuleSet                       *rulesets.RuleSet             // The RuleSet in which to apply
+	SpecFileName                  string                        // The path of the specification file, used to correctly label location
+	Spec                          []byte                        // The raw bytes of the OpenAPI specification.
+	SpecInfo                      *datamodel.SpecInfo           // Pre-parsed spec-info.
+	IndexUnresolved               *index.SpecIndex              // The unresolved index, even if a file is not an OpenAPI spec, it's still indexed.
+	IndexResolved                 *index.SpecIndex              // The resolved index, like the unresolved one, but with references resolved.
+	CustomFunctions               map[string]model.RuleFunction // custom functions loaded from plugin.
+	PanicFunction                 func(p any)                   // In case of emergency, do this thing here.
+	SilenceLogs                   bool                          // Prevent any warnings about rules/rule-sets being printed.
+	Base                          string                        // The base path or URL of the specification, used for resolving relative or remote paths.
+	AllowLookup                   bool                          // Allow remote lookup of files or links
+	Document                      libopenapi.Document           // a ready to render model.
+	DrDocument                    *doctor.DrDocument            // a high level, more powerful model, powered by the doctor.
+	SkipDocumentCheck             bool                          // Skip the document check, useful for fragments and non openapi specs.
+	Logger                        *slog.Logger                  // A custom logger.
+	Timeout                       time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
+	NodeLookupTimeout             time.Duration                 // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
+	BuildGraph                    bool                          // Build a graph of the document, powered by the doctor. (default is false)
+	ExtractReferencesSequentially bool                          // Extract references sequentially, defaults to false, can be slow.
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
 	IgnoreCircularArrayRef       bool // Ignore array circular references
 	IgnoreCircularPolymorphicRef bool // Ignore polymorphic circular references
+
+	// not generally used.
+	StorageRoot string // The root path for storage, used for storing files upstream by the doctor. You probably don't need this.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -201,6 +209,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfigUnresolved.AllowRemoteLookup = true
 		docConfig.AllowRemoteReferences = true
 		docConfig.AllowFileReferences = true
+	}
+
+	if execution.ExtractReferencesSequentially {
+		docConfig.ExtractRefsSequentially = true
 	}
 
 	if execution.SkipDocumentCheck {
@@ -352,6 +364,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			wg.Go(func() {
 				if v3DocumentModel != nil {
 					var drDoc *doctor.DrDocument
+					if execution.StorageRoot != "" {
+						mod.Model.GoLow().StorageRoot = execution.StorageRoot
+					}
 					if !execution.BuildGraph {
 						drDoc = doctor.NewDrDocument(mod)
 					} else {
@@ -397,9 +412,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		wg.Go(func() {
 			unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
 			rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig)
-			rolodexUnresolved.SetRootNode(unResInfo.RootNode)
-
-			_ = rolodexUnresolved.IndexTheRolodex()
+			if unResInfo != nil {
+				rolodexUnresolved.SetRootNode(unResInfo.RootNode)
+				_ = rolodexUnresolved.IndexTheRolodex()
+			}
 		})
 		wg.Wait()
 
@@ -417,6 +433,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	then := time.Since(nowModel).Milliseconds()
 	indexConfig.Logger.Debug("built model", "ms", then)
+
+	execution.IndexResolved = indexResolved
+	execution.IndexUnresolved = indexUnresolved
 
 	for i := range resolvedModelErrors {
 		var m *index.ResolvingError
@@ -594,6 +613,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					ruleSpec = specUnresolved
 					ruleIndex = indexUnresolved
 				}
+
+				// if there is no time out, set it to 500ms
+				if execution.NodeLookupTimeout <= 0 {
+					execution.NodeLookupTimeout = time.Millisecond * 500
+				}
+
 				// this list of things is most likely going to grow a bit, so we use a nice clean message design.
 				ctx := ruleContext{
 					rule:               rule,
@@ -610,6 +635,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					silenceLogs:        execution.SilenceLogs,
 					skipDocumentCheck:  execution.SkipDocumentCheck,
 					logger:             docConfig.Logger,
+					nodeLookupTimeout:  execution.NodeLookupTimeout,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -692,7 +718,7 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 	}
 
 	findNodes := func(node *yaml.Node, path string, errChan chan error, nodesChan chan []*yaml.Node) {
-		nodes, err := utils.FindNodesWithoutDeserializing(node, path)
+		nodes, err := utils.FindNodesWithoutDeserializingWithTimeout(node, path, ctx.nodeLookupTimeout)
 		if err != nil {
 			errChan <- err
 		}
