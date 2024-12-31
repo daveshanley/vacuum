@@ -199,7 +199,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	if execution.AllowLookup {
-		if indexConfig.BasePath == "" {
+		if indexConfig.BasePath == "" && indexConfig.BaseURL == nil {
 			indexConfig.BasePath = "."
 			docConfig.BasePath = "."
 		}
