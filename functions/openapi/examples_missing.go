@@ -84,6 +84,22 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			if p.SchemaProxy != nil && p.SchemaProxy.Schema != nil && p.SchemaProxy.Schema.Value != nil && (p.SchemaProxy.Schema.Value.Examples != nil || p.SchemaProxy.Schema.Value.Example != nil) {
 				continue
 			}
+			if p.SchemaProxy != nil && isSchemaBoolean(p.SchemaProxy.Schema) ||
+				isSchemaEnum(p.SchemaProxy.Schema) || isSchemaNumber(p.SchemaProxy.Schema) || isSchemaString(p.SchemaProxy.Schema) {
+				continue
+			}
+
+			if p.SchemaProxy != nil {
+				if len(p.SchemaProxy.Schema.Value.Type) <= 0 {
+					continue
+				}
+
+				if p.SchemaProxy.Schema.Value.Items != nil && p.SchemaProxy.Schema.Value.Items.IsA() && p.SchemaProxy.Schema.Value.Items.A != nil {
+					if len(p.SchemaProxy.Schema.Value.Items.A.Schema().Enum) > 0 {
+						continue
+					}
+				}
+			}
 
 			// check if the parameter has any content defined with examples
 			if p.Content != nil && p.Content.Len() > 0 {
@@ -137,6 +153,24 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			if h.Schema != nil && (h.Schema.Schema.Value.Examples != nil || h.Schema.Schema.Value.Example != nil) {
 				continue
 			}
+
+			if h.Schema != nil && isSchemaBoolean(h.Schema.Schema) ||
+				isSchemaEnum(h.Schema.Schema) || isSchemaNumber(h.Schema.Schema) || isSchemaString(h.Schema.Schema) {
+				continue
+			}
+
+			if h.Schema != nil {
+				if len(h.Schema.Schema.Value.Type) <= 0 {
+					continue
+				}
+
+				if h.Schema.Schema.Value.Items != nil && h.Schema.Schema.Value.Items.IsA() && h.Schema.Schema.Value.Items.A != nil {
+					if len(h.Schema.Schema.Value.Items.A.Schema().Enum) > 0 {
+						continue
+					}
+				}
+			}
+
 			if h.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{h.Value.Example}) {
 				n := h.Value.GoLow().RootNode
 				if h.Value.GoLow().KeyNode != nil {
@@ -173,6 +207,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
+			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil && (isSchemaBoolean(mt.SchemaProxy.Schema) ||
+				isSchemaEnum(mt.SchemaProxy.Schema) || isSchemaNumber(mt.SchemaProxy.Schema) || isSchemaString(mt.SchemaProxy.Schema)) {
+				continue
+			}
+
 			if mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
 
 				n := mt.Value.GoLow().RootNode
@@ -181,9 +220,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						n = mt.Value.GoLow().KeyNode
 					}
 				}
+				path := mt.GenerateJSONPath()
+				fmt.Println(path)
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
-						mt.GenerateJSONPath(),
+						path,
 						n, mt.ValueNode, mt))
 			} else {
 				buf.WriteString(fmt.Sprintf("%s:%d:%d", mt.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
@@ -199,14 +240,36 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			s := context.DrDocument.Schemas[i]
-			if isSchemaBoolean(s) {
+			if isSchemaBoolean(s) || isSchemaEnum(s) || isSchemaNumber(s) || isSchemaString(s) {
 				continue
 			}
-			parentHash := extractHash(s)
-			if _, ok := seen[parentHash]; ok {
+
+			if len(s.Value.Type) <= 0 {
 				continue
 			}
+
+			if s.Value.Items != nil && s.Value.Items.IsA() && s.Value.Items.A != nil {
+				if len(s.Value.Items.A.Schema().Enum) > 0 {
+					continue
+				}
+			}
+
+			hash := extractHash(s)
+			if _, ok := seen[hash]; ok {
+				continue
+
+			}
+			seen[hash] = true
+
+			// check if this schema has a parent, and if the parent is a schema
+			if s.Parent != nil {
+				if checkParent(s.Parent, 0) {
+					continue
+				}
+			}
+
 			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
+				println(s.GenerateJSONPath())
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 						s.GenerateJSONPath(),
@@ -218,6 +281,44 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	seen = nil
 	buf.Reset()
 	return results
+}
+
+func checkParent(s any, depth int) bool {
+	if depth > 10 {
+		return false
+	}
+	if sp, ok := s.(*base.SchemaProxy); ok {
+
+		// check the parent schema for an example
+		if sp.Parent != nil {
+
+			if pp, kk := sp.Parent.(*base.Schema); kk {
+				fmt.Println(pp.GenerateJSONPath())
+				if pp.Value != nil {
+					if pp.Value.Example != nil || pp.Value.Examples != nil {
+						return true
+					}
+
+					if isSchemaBoolean(pp) || isSchemaEnum(pp) || isSchemaNumber(pp) || isSchemaString(pp) {
+						return true
+					}
+
+					if len(pp.Value.Type) <= 0 {
+						return true
+					}
+
+					if pp.Value.Items != nil && pp.Value.Items.IsA() && pp.Value.Items.A != nil {
+						if len(pp.Value.Items.A.Schema().Enum) > 0 {
+							return true
+						}
+					}
+					depth++
+					return checkParent(pp, depth)
+				}
+			}
+		}
+	}
+	return false
 }
 
 type contextualPosition interface {
@@ -250,6 +351,39 @@ func isSchemaBoolean(schema *base.Schema) bool {
 		return false
 	}
 	if slices.Contains(schema.Value.Type, "boolean") {
+		return true
+	}
+	return false
+}
+
+func isSchemaString(schema *base.Schema) bool {
+	if schema == nil || schema.Value == nil {
+		return false
+	}
+	if slices.Contains(schema.Value.Type, "string") {
+		return true
+	}
+	return false
+}
+
+func isSchemaNumber(schema *base.Schema) bool {
+	if schema == nil || schema.Value == nil {
+		return false
+	}
+	if slices.Contains(schema.Value.Type, "number") {
+		return true
+	}
+	if slices.Contains(schema.Value.Type, "integer") {
+		return true
+	}
+	return false
+}
+
+func isSchemaEnum(schema *base.Schema) bool {
+	if schema == nil || schema.Value == nil {
+		return false
+	}
+	if len(schema.Value.Enum) > 0 {
 		return true
 	}
 	return false
