@@ -23,7 +23,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/mitchellh/mapstructure"
-	doctor "github.com/pb33f/doctor/model"
+	doctorModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
@@ -45,7 +45,7 @@ type ruleContext struct {
 	panicFunc          func(p any)
 	silenceLogs        bool
 	document           libopenapi.Document
-	drDocument         *doctor.DrDocument
+	drDocument         *doctorModel.DrDocument
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
@@ -66,12 +66,13 @@ type RuleSetExecution struct {
 	Base                          string                        // The base path or URL of the specification, used for resolving relative or remote paths.
 	AllowLookup                   bool                          // Allow remote lookup of files or links
 	Document                      libopenapi.Document           // a ready to render model.
-	DrDocument                    *doctor.DrDocument            // a high level, more powerful model, powered by the doctor.
+	DrDocument                    *doctorModel.DrDocument       // a high level, more powerful model, powered by the doctorModel.
 	SkipDocumentCheck             bool                          // Skip the document check, useful for fragments and non openapi specs.
 	Logger                        *slog.Logger                  // A custom logger.
 	Timeout                       time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
 	NodeLookupTimeout             time.Duration                 // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
-	BuildGraph                    bool                          // Build a graph of the document, powered by the doctor. (default is false)
+	BuildGraph                    bool                          // Build a graph of the document, powered by the doctorModel. (default is false)
+	BuildDeepGraph                bool                          // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
 	ExtractReferencesSequentially bool                          // Extract references sequentially, defaults to false, can be slow.
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
@@ -79,7 +80,7 @@ type RuleSetExecution struct {
 	IgnoreCircularPolymorphicRef bool // Ignore polymorphic circular references
 
 	// not generally used.
-	StorageRoot string // The root path for storage, used for storing files upstream by the doctor. You probably don't need this.
+	StorageRoot string // The root path for storage, used for storing files upstream by the doctorModel. You probably don't need this.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -305,7 +306,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var v3DocumentModel *v3.Document
 	//var v2DocumentModel *v2.Swagger
 
-	var drDocument *doctor.DrDocument
+	var drDocument *doctorModel.DrDocument
 
 	if version != "" {
 		switch version[0] {
@@ -363,15 +364,25 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			wg := conc.WaitGroup{}
 			wg.Go(func() {
 				if v3DocumentModel != nil {
-					var drDoc *doctor.DrDocument
+					var drDoc *doctorModel.DrDocument
 					if execution.StorageRoot != "" {
 						mod.Model.GoLow().StorageRoot = execution.StorageRoot
 					}
-					if !execution.BuildGraph {
-						drDoc = doctor.NewDrDocument(mod)
-					} else {
-						drDoc = doctor.NewDrDocumentAndGraph(mod)
+
+					buildGraph := false
+					useCache := true
+					if execution.BuildGraph {
+						buildGraph = true
 					}
+					if execution.BuildDeepGraph {
+						useCache = false
+					}
+
+					drDoc = doctorModel.NewDrDocumentWithConfig(mod, &doctorModel.DrConfig{
+						BuildGraph:     buildGraph,
+						UseSchemaCache: useCache,
+					})
+
 					execution.DrDocument = drDoc
 					drDocument = drDoc
 				}
