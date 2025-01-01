@@ -105,6 +105,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["infoLicenseURLSPDX"] = openapi_functions.InfoLicenseURLSPDX{}
 		funcs["infoContactProperties"] = openapi_functions.InfoContactProperties{}
 		funcs["noRequestBody"] = openapi_functions.NoRequestBody{}
+		funcs["pathItemReferences"] = openapi_functions.PathItemReferences{}
 
 		// add owasp functions used by the owasp rules
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}

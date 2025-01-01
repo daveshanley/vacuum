@@ -91,6 +91,7 @@ const (
 	Oas2Schema                           = "oas2-schema"
 	Oas3Schema                           = "oas3-schema"
 	OasSchemaCheck                       = "oas-schema-check"
+	PathItemReferences                   = "path-item-refs"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -441,6 +442,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[OasSchemaCheck] = GetSchemaTypeCheckRule()
 	rules[PostResponseSuccess] = GetPostSuccessResponseRule()
 	rules[NoRequestBody] = GetNoRequestBodyRule()
+	rules[PathItemReferences] = GetPathItemReferencesRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
