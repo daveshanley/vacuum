@@ -163,7 +163,7 @@ func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.Rule
 	if schema.Value.MinItems != nil {
 		if *schema.Value.MinItems < 0 {
 			result := st.buildResult("`minItems` should be a non-negative number",
-				schema.GenerateJSONPath(), "minItem", -1,
+				schema.GenerateJSONPath(), "minItems", -1,
 				schema, schema.Value.GoLow().MinItems.KeyNode, context)
 			results = append(results, result)
 		}
@@ -231,11 +231,21 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 					if violationProperty != "" {
 						if segment >= 0 {
 							p = fmt.Sprintf("%s.%s[%d]", p, violationProperty, segment)
+							path = p
 						} else {
 							p = fmt.Sprintf("%s.%s", p, violationProperty)
+							path = p
 						}
 						allPaths = append(allPaths, p)
 					}
+				}
+			}
+		} else {
+			if violationProperty != "" {
+				if segment >= 0 {
+					path = fmt.Sprintf("%s.%s[%d]", path, violationProperty, segment)
+				} else {
+					path = fmt.Sprintf("%s.%s", path, violationProperty)
 				}
 			}
 		}

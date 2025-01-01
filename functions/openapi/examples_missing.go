@@ -84,8 +84,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			if p.SchemaProxy != nil && p.SchemaProxy.Schema != nil && p.SchemaProxy.Schema.Value != nil && (p.SchemaProxy.Schema.Value.Examples != nil || p.SchemaProxy.Schema.Value.Example != nil) {
 				continue
 			}
-			if p.SchemaProxy != nil && isSchemaBoolean(p.SchemaProxy.Schema) ||
-				isSchemaEnum(p.SchemaProxy.Schema) || isSchemaNumber(p.SchemaProxy.Schema) || isSchemaString(p.SchemaProxy.Schema) {
+			if p.SchemaProxy != nil && (isSchemaBoolean(p.SchemaProxy.Schema) ||
+				isSchemaEnum(p.SchemaProxy.Schema) || isSchemaNumber(p.SchemaProxy.Schema) || isSchemaString(p.SchemaProxy.Schema)) {
 				continue
 			}
 
@@ -221,7 +221,6 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					}
 				}
 				path := mt.GenerateJSONPath()
-				fmt.Println(path)
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
 						path,
@@ -269,7 +268,6 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			}
 
 			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
-				println(s.GenerateJSONPath())
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 						s.GenerateJSONPath(),
@@ -293,7 +291,6 @@ func checkParent(s any, depth int) bool {
 		if sp.Parent != nil {
 
 			if pp, kk := sp.Parent.(*base.Schema); kk {
-				fmt.Println(pp.GenerateJSONPath())
 				if pp.Value != nil {
 					if pp.Value.Example != nil || pp.Value.Examples != nil {
 						return true

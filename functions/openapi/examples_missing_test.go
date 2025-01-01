@@ -178,9 +178,9 @@ components:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 3)
+	assert.Len(t, res, 1)
 	assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
-	assert.Contains(t, res[1].Path, "$.components.schemas['Pizza']")
+	assert.Contains(t, res[0].Path, "$.components.schemas['Pizza']")
 }
 
 func TestExamplesMissing_Header(t *testing.T) {
