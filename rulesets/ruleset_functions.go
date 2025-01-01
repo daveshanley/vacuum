@@ -1330,3 +1330,23 @@ func GetNoRequestBodyRule() *model.Rule {
 		HowToFix: noRequestBodyResponseFix,
 	}
 }
+
+// GetPathItemReferencesRule will check that path items have not used references, as they are not allowed.
+func GetPathItemReferencesRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check path items have not used references",
+		Id:           PathItemReferences,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Path items should not use references ($ref) values. They are technically not allowed.",
+		Given:        "$",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "pathItemReferences",
+		},
+		HowToFix: PathItemReferencesFix,
+	}
+}
