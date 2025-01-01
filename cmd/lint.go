@@ -332,6 +332,11 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 
 	}
 
+	deepGraph := false
+	if req.IgnoredResults != nil && len(req.IgnoredResults) > 0 {
+		deepGraph = true
+	}
+
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                      req.SelectedRS,
 		Spec:                         specBytes,
@@ -341,6 +346,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 		AllowLookup:                  req.Remote,
 		SkipDocumentCheck:            req.SkipCheckFlag,
 		Logger:                       req.Logger,
+		BuildDeepGraph:               deepGraph,
 		Timeout:                      time.Duration(req.TimeoutFlag) * time.Second,
 		IgnoreCircularArrayRef:       req.IgnoreArrayCircleRef,
 		IgnoreCircularPolymorphicRef: req.IgnorePolymorphCircleRef,
