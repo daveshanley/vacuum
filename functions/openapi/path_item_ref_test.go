@@ -42,7 +42,7 @@ pops:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "path `/pizza/{type}/{topping}` item uses a $ref, it's technically not allowed", res[0].Message)
+	assert.Equal(t, "path `/pizza/{type}/{topping}` item uses a $ref, it's technically allowed, but not a great idea", res[0].Message)
 	assert.Equal(t, "$.paths['/pizza/{type}/{topping}']", res[0].Path)
 
 }

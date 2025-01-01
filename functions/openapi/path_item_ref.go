@@ -46,7 +46,7 @@ func (id PathItemReferences) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 			if path.Value.GoLow().IsReference() {
 				res := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("path `%s` item uses a $ref, it's technically not allowed", path.Key)),
+						fmt.Sprintf("path `%s` item uses a $ref, it's technically allowed, but not a great idea", path.Key)),
 					StartNode: path.Value.GoLow().KeyNode,
 					EndNode:   vacuumUtils.BuildEndNode(path.Value.GoLow().KeyNode),
 					Path:      path.GenerateJSONPath(),

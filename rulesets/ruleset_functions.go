@@ -1343,7 +1343,7 @@ func GetPathItemReferencesRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOperations],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityWarn,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Function: "pathItemReferences",
 		},
