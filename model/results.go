@@ -121,11 +121,13 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 			},
 		}
 		var path []string
+		// check for double dots in the path, and collapse them.
+		// https://github.com/daveshanley/vacuum/issues/583
+		if strings.Contains(result.Path, "..") {
+			result.Path = strings.ReplaceAll(result.Path, "..", ".")
+		}
 		pathArr := strings.Split(result.Path, ".")
 		for _, pItem := range pathArr {
-			if pItem == "" {
-				path = append(path, "..") // https://github.com/daveshanley/vacuum/issues/583
-			}
 			if pItem != "$" {
 
 				p := paramRegex.FindStringSubmatch(pItem)
