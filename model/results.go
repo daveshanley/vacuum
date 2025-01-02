@@ -97,14 +97,27 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 			sev = 3
 		}
 
+		sLine := 0
+		sChar := 0
+		eLine := 0
+		eChar := 0
+		if result.StartNode != nil {
+			sLine = result.StartNode.Line
+			sChar = result.StartNode.Column
+		}
+		if result.EndNode != nil {
+			eLine = result.EndNode.Line
+			eChar = result.EndNode.Column
+		}
+
 		resultRange := reports.Range{
 			Start: reports.RangeItem{
-				Line: result.StartNode.Line,
-				Char: result.StartNode.Column,
+				Line: sLine,
+				Char: sChar,
 			},
 			End: reports.RangeItem{
-				Line: result.EndNode.Line,
-				Char: result.EndNode.Column,
+				Line: eLine,
+				Char: eChar,
 			},
 		}
 		var path []string
