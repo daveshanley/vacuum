@@ -1,4 +1,4 @@
-// Copyright 2022 Dave Shanley / Quobix
+// Copyright 2025 Dave Shanley / Quobix
 // SPDX-License-Identifier: MIT
 
 package openapi
