@@ -99,7 +99,16 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.14+` 🔥 : **Engine Speedup**.
+🔥 **New in** `v0.15+` 🔥 : **Fixes, New Rules, Functions and Command**.
+
+There is a new command `generate-ignorefile` that will generate an ignore file from a linting report.
+
+New rule `no-request-body` checks for incorrect request bodies in operations, and `path-item-refs` checks for
+$refs being used in path items.
+
+---
+
+v0.14+`: **Engine Speedup**.
 
 **Speed!** We've made some significant improvements to how efficiently large documents are walked
 Which means vacuum is now faster than ever.
