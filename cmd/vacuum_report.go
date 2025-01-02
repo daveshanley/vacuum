@@ -166,6 +166,11 @@ func GetVacuumReportCommand() *cobra.Command {
 				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
+			deepGraph := false
+			if ignoreFile != "" {
+				deepGraph = true
+			}
+
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet:           selectedRS,
 				Spec:              specBytes,
@@ -173,6 +178,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				SilenceLogs:       true,
 				Base:              baseFlag,
 				SkipDocumentCheck: skipCheckFlag,
+				BuildDeepGraph:    deepGraph,
 				Timeout:           time.Duration(timeoutFlag) * time.Second,
 			})
 
