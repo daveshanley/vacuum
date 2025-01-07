@@ -15,6 +15,6 @@ func TestBuildJUnitReport(t *testing.T) {
 	j.ResultSet.Results[0].Path = "$.somewhere.out.there"
 	j.ResultSet.Results[0].RuleId = "R0001"
 	f := time.Now().Add(-time.Millisecond * 5)
-	data := BuildJUnitReport(j.ResultSet, f)
+	data := BuildJUnitReport(j.ResultSet, f, []string{"test", "args"})
 	assert.GreaterOrEqual(t, len(data), 407)
 }
