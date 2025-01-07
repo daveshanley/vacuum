@@ -191,7 +191,7 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			// if we want jUnit output, then build the report and be done with it.
 			if junitFlag {
-				junitXML := vacuum_report.BuildJUnitReport(resultSet, start)
+				junitXML := vacuum_report.BuildJUnitReport(resultSet, start, args)
 				if stdOut {
 					fmt.Print(string(junitXML))
 					return nil

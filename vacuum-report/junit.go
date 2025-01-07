@@ -45,15 +45,17 @@ type TestCase struct {
 	Line       int         `xml:"line,attr,omitempty"`
 	Failure    *Failure    `xml:"failure,omitempty"`
 	Properties *Properties `xml:"properties,omitempty"`
+	File       string      `xml:"file,attr,omitempty"`
 }
 
 type Failure struct {
 	Message  string `xml:"message,attr,omitempty"`
 	Type     string `xml:"type,attr,omitempty"`
+	File     string `xml:"file,attr,omitempty"`
 	Contents string `xml:",innerxml"`
 }
 
-func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
+func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string) []byte {
 
 	since := time.Since(t)
 	var suites []*TestSuite
@@ -86,7 +88,8 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 				f++
 				gf++
 			}
-			tc = append(tc, &TestCase{
+
+			tCase := &TestCase{
 				Line:      r.StartNode.Line,
 				Name:      fmt.Sprintf("%s", val.Name),
 				ClassName: r.Rule.Id,
@@ -115,7 +118,27 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 						},
 					},
 				},
-			})
+			}
+
+			if r.Origin != nil && r.Origin.AbsoluteLocation != "" {
+				tCase.File = r.Origin.AbsoluteLocation
+				tCase.Properties.Properties = append(tCase.Properties.Properties, &Property{
+					Name:  "file",
+					Value: r.Origin.AbsoluteLocation,
+				})
+				tCase.Failure.File = r.Origin.AbsoluteLocation
+			} else {
+				if len(args) > 0 {
+					tCase.File = args[0]
+					tCase.Properties.Properties = append(tCase.Properties.Properties, &Property{
+						Name:  "file",
+						Value: args[0],
+					})
+					tCase.Failure.File = args[0]
+				}
+			}
+
+			tc = append(tc, tCase)
 		}
 
 		if len(tc) > 0 {
