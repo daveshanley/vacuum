@@ -51,23 +51,27 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	for _, node := range nodes {
-		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
+		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		var locatedObjects []base.Foundational
 		var allPaths []string
 		var err error
-		locatedPath := pathValue
-		if context.DrDocument != nil {
-			locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
-			if err == nil && locatedObjects != nil {
-				for x, obj := range locatedObjects {
-					if x == 0 {
-						locatedPath = obj.GenerateJSONPath()
+
+		if fieldNode == nil {
+
+			locatedPath := pathValue
+			if context.DrDocument != nil {
+				// Since the field is undefined, locate the parent node to be the locatedPath of infraction
+				locatedObjects, err = context.DrDocument.LocateModel(node)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
-					allPaths = append(allPaths, obj.GenerateJSONPath())
 				}
 			}
-		}
-		if fieldNode == nil {
+
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)),

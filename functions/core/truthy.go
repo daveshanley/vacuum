@@ -92,13 +92,18 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				var err error
 				locatedPath := pathValue
 				if context.DrDocument != nil {
-					locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+					if fieldNode == nil {
+						locatedObjects, err = context.DrDocument.LocateModel(node)
+					} else {
+						locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+					}
 					if err == nil && locatedObjects != nil {
 						for x, obj := range locatedObjects {
+							p := fmt.Sprintf("%s.%s", obj.GenerateJSONPath(), context.RuleAction.Field)
 							if x == 0 {
-								locatedPath = obj.GenerateJSONPath()
+								locatedPath = p
 							}
-							allPaths = append(allPaths, obj.GenerateJSONPath())
+							allPaths = append(allPaths, p)
 						}
 					}
 				}
