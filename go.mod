@@ -13,18 +13,18 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.18
-	github.com/pb33f/libopenapi v0.19.1
+	github.com/pb33f/libopenapi v0.20.0
 	github.com/pb33f/libopenapi-validator v0.3.0
 	github.com/pterm/pterm v0.12.80
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
+	github.com/speakeasy-api/jsonpath v0.3.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tliron/glsp v0.2.2
-	github.com/vmware-labs/yaml-jsonpath v0.3.2
-	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
+	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
 	golang.org/x/text v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -74,6 +74,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tliron/commonlog v0.2.19 // indirect
 	github.com/tliron/kutil v0.3.26 // indirect
+	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20240815153524-6ea36470d1bd // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/multierr v1.11.0 // indirect

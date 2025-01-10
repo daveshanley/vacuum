@@ -1,12 +1,12 @@
 package parser
 
 import (
+	"github.com/speakeasy-api/jsonpath/pkg/jsonpath"
 	"testing"
 
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,8 +41,8 @@ func TestConvertNode_Simple(t *testing.T) {
 	resolver := index.NewResolver(idx)
 	resolver.Resolve()
 
-	p, _ := yamlpath.NewPath("$.components.schemas.Citrus")
-	r, _ := p.Find(&node)
+	p, _ := jsonpath.NewPath("$.components.schemas.Citrus")
+	r := p.Query(&node)
 
 	schema, err := ConvertNodeIntoJSONSchema(r[0], idx)
 	assert.NoError(t, err)
@@ -95,8 +95,8 @@ func TestValidateExample_AllInvalid(t *testing.T) {
 	rslvr := index.NewResolver(idx)
 	rslvr.Resolve()
 
-	p, _ := yamlpath.NewPath("$.components.schemas.Savory")
-	r, _ := p.Find(&node)
+	p, _ := jsonpath.NewPath("$.components.schemas.Savory")
+	r := p.Query(&node)
 
 	schema, _ := ConvertNodeIntoJSONSchema(r[0], idx)
 
