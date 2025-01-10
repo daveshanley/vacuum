@@ -99,7 +99,13 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.15+` 🔥 : **Fixes, New Rules, Functions and Command**.
+🔥 **New in** `v0.16+` 🔥 : **JSON 9535 Compliant**.
+
+All JSON Paths are now compliant with [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535). Finally standardized!
+
+---
+
+`v0.15+`: **Fixes, New Rules, Functions and Command**.
 
 There is a new command `generate-ignorefile` that will generate an ignore file from a linting report.
 
