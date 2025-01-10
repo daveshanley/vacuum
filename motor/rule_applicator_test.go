@@ -182,7 +182,7 @@ func TestApplyRules_LengthTestFail(t *testing.T) {
       "description": "this is a test for checking the length function",
       "recommended": true,
       "type": "style",
-      "given": "$.paths./burgers.post.requestBody.content.application/json",
+      "given": "$.paths['/burgers'].post.requestBody.content['application/json']",
       "severity": "%s",
       "then": {
         "function": "length",
@@ -222,7 +222,7 @@ func TestApplyRules_LengthTestSuccess(t *testing.T) {
       "description": "this is a test for checking the length function",
       "recommended": true,
       "type": "style",
-      "given": "$.paths./burgers.post.requestBody.content.application/json",
+      "given": "$.paths['/burgers'].post.requestBody.content['application/json']",
       "severity": "%s",
       "then": {
         "function": "length",
