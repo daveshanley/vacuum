@@ -101,7 +101,7 @@ come say hi!
 
 🔥 **New in** `v0.16+` 🔥 : **JSON 9535 Compliant**.
 
-All JSON Paths are now compliant with [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535). Finally standardized!
+vacuum now expects JSON Path Queries to be [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) compliant. Finally standardized!
 
 ---
 
