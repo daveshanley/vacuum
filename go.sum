@@ -204,8 +204,8 @@ github.com/sourcegraph/conc v0.3.0 h1:OQTbbt6P72L20UqAkXXuLOj79LfEanQ+YQFNpLA9yS
 github.com/sourcegraph/conc v0.3.0/go.mod h1:Sdozi7LEKbFPqYX2/J+iBAM6HpqSLTASQIKqDmF7Mt0=
 github.com/sourcegraph/jsonrpc2 v0.2.0 h1:KjN/dC4fP6aN9030MZCJs9WQbTOjWHhrtKVpzzSrr/U=
 github.com/sourcegraph/jsonrpc2 v0.2.0/go.mod h1:ZafdZgk/axhT1cvZAPOhw+95nz2I/Ra5qMlU4gTRwIo=
-github.com/speakeasy-api/jsonpath v0.3.1 h1:YV3mPZAL0SnPUiI35aEumXiwlnJ85X5xzEQwjEnfqBs=
-github.com/speakeasy-api/jsonpath v0.3.1/go.mod h1:K8wDLioIFPtsN6AK7nJ6D41v2zQ7ovCBzfaJVQUe5Is=
+github.com/speakeasy-api/jsonpath v0.4.1 h1:hlU06CfNqImaMtiJdR+mBFnECZhFYlT4ZQ2e4yy5cRA=
+github.com/speakeasy-api/jsonpath v0.4.1/go.mod h1:ymb2iSkyOycmzKwbEAYPJV/yi2rSmvBCLZJcyD+VVWw=
 github.com/spf13/afero v1.11.0 h1:WJQKhtpdm3v2IzqG8VMqrr6Rf3UYpEF239Jy9wNepM8=
 github.com/spf13/afero v1.11.0/go.mod h1:GH9Y3pIexgf1MTIWtNGyogA5MwRIDXGUr+hbWNoBjkY=
 github.com/spf13/cast v1.7.0 h1:ntdiHjuueXFgm5nzDRdOS4yfT43P5Fnud6DH50rz/7w=
