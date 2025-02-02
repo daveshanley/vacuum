@@ -51,11 +51,11 @@ func (nrs OASNoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 	var results []model.RuleFunctionResult
 	siblings := context.Index.GetReferencesWithSiblings()
 	for _, ref := range siblings {
-		notAllowedKeys := notAllowedKeys(ref.Node)
-		if len(notAllowedKeys) != 0 {
+		keys := notAllowedKeys(ref.Node)
+		if len(keys) != 0 {
 			key, val := utils.FindKeyNode("$ref", ref.Node.Content)
 			results = append(results, model.RuleFunctionResult{
-				Message:   "a `$ref` can only be placed next to `summary` and `description` but got:" + strings.Join(notAllowedKeys, " ,"),
+				Message:   "a `$ref` can only be placed next to `summary` and `description` but got:" + strings.Join(keys, " ,"),
 				StartNode: key,
 				EndNode:   vacuumUtils.BuildEndNode(val),
 				Path:      ref.Path,
