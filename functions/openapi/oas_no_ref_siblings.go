@@ -27,7 +27,7 @@ func (nrs OASNoRefSiblings) GetSchema() model.RuleFunctionSchema {
 }
 
 func notAllowedKeys(node *yaml.Node) []string {
-	var notAllowedKeys []string
+	var keys []string
 
 	for i := 0; i < len(node.Content); i += 2 {
 		key := node.Content[i].Value
@@ -35,10 +35,10 @@ func notAllowedKeys(node *yaml.Node) []string {
 		case "$ref", "summary", "description":
 			continue
 		default:
-			notAllowedKeys = append(notAllowedKeys, key)
+			keys = append(keys, key)
 		}
 	}
-	return notAllowedKeys
+	return keys
 }
 
 // RunRule will execute the OASNoRefSiblings rule, based on supplied context and a supplied []*yaml.Node slice.
