@@ -505,3 +505,36 @@ paths:
 	assert.Equal(t, "$.paths['/herbs'].get.responses['200'].content['application/json'].examples['sammich']", res[0].Path)
 
 }
+
+func TestExamplesSchema_HandleJSONTime(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    badDate:
+      type: string
+      description: a bad time.
+      format: date-time
+      example: 2022-08-07T12:12:00Z`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}

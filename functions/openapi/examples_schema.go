@@ -270,6 +270,9 @@ func changeKeys(depth int, node *yaml.Node) {
 	if depth > 500 {
 		return
 	}
+	if node.Tag == "!!timestamp" {
+		node.Tag = "!!str"
+	}
 	for i, no := range node.Content {
 		if i%2 != 0 {
 			continue // keys only.
