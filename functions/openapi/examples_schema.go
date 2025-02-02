@@ -148,7 +148,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 							ref = fNode
 						}
 					}
-
+					changeKeys(0, ref)
 					var example interface{}
 					_ = ref.Decode(&example)
 
@@ -263,4 +263,23 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 	}
 	wg.Wait()
 	return results
+}
+
+// all keys need to be strings, anything else and we're going to have a bad time.
+func changeKeys(depth int, node *yaml.Node) {
+	if depth > 500 {
+		return
+	}
+	for i, no := range node.Content {
+		if i%2 != 0 {
+			continue // keys only.
+		}
+		if no.Tag != "!!str" {
+			no.Tag = "!!str"
+		}
+		if len(no.Content) > 0 {
+			depth++
+			changeKeys(depth, no)
+		}
+	}
 }
