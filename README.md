@@ -90,6 +90,16 @@ like our _very kind_ sponsors:
 
 [scalar](https://scalar.com)
 
+<a href="https://apideck.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/apideck-dark.png">
+  <img alt="apideck'" src=".github/sponsors/apideck-light.png">
+</picture>
+</a>
+
+[apideck](https://apideck.com)
+
+
 ---
 
 ## Come chat with us
