@@ -137,8 +137,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	if execution.IgnoreCircularPolymorphicRef {
 		docConfig.IgnorePolymorphicCircularReferences = true
 	}
-	if execution.ExtractReferencesFromExtensions {
-		indexConfig.ExcludeExtensionRefs = false
+	if !execution.ExtractReferencesFromExtensions {
+		indexConfig.ExcludeExtensionRefs = true
+		docConfig.ExcludeExtensionRefs = true
 	}
 
 	// add new pretty logger.
