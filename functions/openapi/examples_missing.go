@@ -89,6 +89,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
+			if (p.SchemaProxy != nil && p.SchemaProxy.Schema != nil && p.SchemaProxy.Schema.Value != nil) &&
+				(p.SchemaProxy.Schema.Value.Const != nil || p.SchemaProxy.Schema.Value.Default != nil) {
+				continue
+			}
+
 			if p.SchemaProxy != nil {
 				if len(p.SchemaProxy.Schema.Value.Type) <= 0 {
 					continue
@@ -159,6 +164,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
+			if (h.Schema != nil && h.Schema.Schema != nil && h.Schema.Schema.Value != nil) &&
+				(h.Schema.Schema.Value.Const != nil || h.Schema.Schema.Value.Default != nil) {
+				continue
+			}
+
 			if h.Schema != nil {
 				if len(h.Schema.Schema.Value.Type) <= 0 {
 					continue
@@ -212,7 +222,43 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
-			if mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
+			if (mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil && mt.SchemaProxy.Schema.Value != nil) &&
+				(mt.SchemaProxy.Schema.Value.Const != nil || mt.SchemaProxy.Schema.Value.Default != nil) {
+				continue
+			}
+
+			propErr := false
+			hasProps := false
+			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema.Properties != nil && mt.SchemaProxy.Schema.Properties.Len() > 0 {
+				hasProps = true
+				var prop *base.Schema
+				var propName string
+				for k, v := range mt.SchemaProxy.Schema.Properties.FromOldest() {
+					if !checkProps(v.Schema) {
+						propErr = true
+						prop = v.Schema
+						propName = k
+						break
+					}
+				}
+				if propErr {
+					path := prop.GenerateJSONPath()
+					results = append(results,
+						buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							fmt.Sprintf("media type schema property `%s` is missing `examples` or `example`", propName)),
+							path,
+							prop.KeyNode, mt.ValueNode, mt))
+				}
+			}
+
+			buf.WriteString(fmt.Sprintf("%s:%d:%d", mt.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
+				mt.Value.GoLow().KeyNode.Line, mt.Value.GoLow().KeyNode.Column))
+			if _, ok := seen[buf.String()]; !ok {
+				seen[buf.String()] = true
+			}
+			buf.Reset()
+
+			if hasProps && propErr && mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
 
 				n := mt.Value.GoLow().RootNode
 				if mt.Value.GoLow().KeyNode != nil {
@@ -225,13 +271,23 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
 						path,
 						n, mt.ValueNode, mt))
-			} else {
-				buf.WriteString(fmt.Sprintf("%s:%d:%d", mt.Value.GoLow().GetIndex().GetSpecAbsolutePath(),
-					mt.Value.GoLow().KeyNode.Line, mt.Value.GoLow().KeyNode.Column))
-				if _, ok := seen[buf.String()]; !ok {
-					seen[buf.String()] = true
+				continue
+			}
+
+			if !hasProps && mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
+
+				n := mt.Value.GoLow().RootNode
+				if mt.Value.GoLow().KeyNode != nil {
+					if mt.Value.GoLow().KeyNode.Line == n.Line-1 {
+						n = mt.Value.GoLow().KeyNode
+					}
 				}
-				buf.Reset()
+				path := mt.GenerateJSONPath()
+				results = append(results,
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "media type is missing `examples` or `example`"),
+						path,
+						n, mt.ValueNode, mt))
+				continue
 			}
 		}
 	}
@@ -243,12 +299,17 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
+			if (s.Value != nil) &&
+				(s.Value.Const != nil || s.Value.Default != nil) {
+				continue
+			}
+
 			if len(s.Value.Type) <= 0 {
 				continue
 			}
 
 			if s.Value.Items != nil && s.Value.Items.IsA() && s.Value.Items.A != nil {
-				if len(s.Value.Items.A.Schema().Enum) > 0 {
+				if s.Value.Items.A.Schema() != nil && len(s.Value.Items.A.Schema().Enum) > 0 {
 					continue
 				}
 			}
@@ -267,12 +328,42 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				}
 			}
 
-			if isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
+			propErr := false
+			hasProps := false
+			if s.Properties != nil && s.Properties.Len() > 0 {
+				hasProps = true
+				var prop *base.Schema
+				var propName string
+				for k, v := range s.Properties.FromOldest() {
+					if !checkProps(v.Schema) {
+						propErr = true
+						prop = v.Schema
+						propName = k
+						break
+					}
+				}
+				if propErr {
+					path := prop.GenerateJSONPath()
+					results = append(results,
+						buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							fmt.Sprintf("schema property `%s` is missing `examples` or `example`", propName)),
+							path,
+							prop.KeyNode, s.ValueNode, s))
+				}
+			}
+
+			if hasProps && propErr && isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
 				results = append(results,
 					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 						s.GenerateJSONPath(),
 						s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s))
+			}
 
+			if !hasProps && isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
+				results = append(results,
+					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
+						s.GenerateJSONPath(),
+						s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s))
 			}
 		}
 	}
@@ -281,6 +372,20 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	return results
 }
 
+func checkProps(s *base.Schema) bool {
+	if len(s.Value.Examples) > 0 {
+		return true
+	}
+	if s.Value.Example != nil {
+		return true
+	}
+	if s.Value.Properties != nil && s.Value.Properties.Len() > 0 {
+		for _, p := range s.Properties.FromOldest() {
+			return checkProps(p.Schema)
+		}
+	}
+	return false
+}
 func checkParent(s any, depth int) bool {
 	if depth > 10 {
 		return false

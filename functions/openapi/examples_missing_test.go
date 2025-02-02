@@ -56,7 +56,7 @@ paths:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.Equal(t, "media type is missing `examples` or `example`", res[0].Message)
 	assert.Contains(t, res[0].Path, "$.paths['/pizza'].get.requestBody.content['application/json']")
 }
@@ -178,8 +178,8 @@ components:
 	def := ExamplesMissing{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "schema is missing `examples` or `example`", res[0].Message)
+	assert.Len(t, res, 2)
+	assert.Equal(t, "schema property `id` is missing `examples` or `example`", res[0].Message)
 	assert.Contains(t, res[0].Path, "$.components.schemas['Pizza']")
 }
 
