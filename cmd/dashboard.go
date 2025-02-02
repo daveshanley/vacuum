@@ -45,6 +45,7 @@ func GetDashboardCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
+			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
@@ -100,6 +101,10 @@ func GetDashboardCommand() *cobra.Command {
 					}
 					config.AllowFileLookup = true
 					config.AllowRemoteLookup = true
+				}
+
+				if extensionRefsFlag {
+					config.ExcludeExtensionRefs = true
 				}
 
 				specIndex = index.NewSpecIndexWithConfig(&rootNode, config)

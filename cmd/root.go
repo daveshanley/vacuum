@@ -64,6 +64,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("debug", "w", false, "Turn on debug logging")
 	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
 	rootCmd.PersistentFlags().BoolP("hard-mode", "z", false, "Enable all the built-in rules, even the OWASP ones. This is the level to beat!")
+	rootCmd.PersistentFlags().BoolP("ext-refs", "", false, "Turn on $ref lookups and resolving for extensions (x-) objects")
 
 	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,

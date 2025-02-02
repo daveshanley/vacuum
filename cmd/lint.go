@@ -61,6 +61,7 @@ func GetLintCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			noClipFlag, _ := cmd.Flags().GetBool("no-clip")
+			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
@@ -238,6 +239,7 @@ func GetLintCommand() *cobra.Command {
 						IgnoreArrayCircleRef:     ignoreArrayCircleRef,
 						IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 						IgnoredResults:           ignoredItems,
+						ExtensionRefs:            extensionRefsFlag,
 					}
 					fs, fp, err := lintFile(lfr)
 
@@ -338,18 +340,19 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 	}
 
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:                      req.SelectedRS,
-		Spec:                         specBytes,
-		SpecFileName:                 req.FileName,
-		CustomFunctions:              req.Functions,
-		Base:                         req.BaseFlag,
-		AllowLookup:                  req.Remote,
-		SkipDocumentCheck:            req.SkipCheckFlag,
-		Logger:                       req.Logger,
-		BuildDeepGraph:               deepGraph,
-		Timeout:                      time.Duration(req.TimeoutFlag) * time.Second,
-		IgnoreCircularArrayRef:       req.IgnoreArrayCircleRef,
-		IgnoreCircularPolymorphicRef: req.IgnorePolymorphCircleRef,
+		RuleSet:                         req.SelectedRS,
+		Spec:                            specBytes,
+		SpecFileName:                    req.FileName,
+		CustomFunctions:                 req.Functions,
+		Base:                            req.BaseFlag,
+		AllowLookup:                     req.Remote,
+		SkipDocumentCheck:               req.SkipCheckFlag,
+		Logger:                          req.Logger,
+		BuildDeepGraph:                  deepGraph,
+		Timeout:                         time.Duration(req.TimeoutFlag) * time.Second,
+		IgnoreCircularArrayRef:          req.IgnoreArrayCircleRef,
+		IgnoreCircularPolymorphicRef:    req.IgnorePolymorphCircleRef,
+		ExtractReferencesFromExtensions: req.ExtensionRefs,
 	})
 
 	result.Results = filterIgnoredResults(result.Results, req.IgnoredResults)

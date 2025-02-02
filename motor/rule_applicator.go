@@ -54,26 +54,27 @@ type ruleContext struct {
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet                       *rulesets.RuleSet             // The RuleSet in which to apply
-	SpecFileName                  string                        // The path of the specification file, used to correctly label location
-	Spec                          []byte                        // The raw bytes of the OpenAPI specification.
-	SpecInfo                      *datamodel.SpecInfo           // Pre-parsed spec-info.
-	IndexUnresolved               *index.SpecIndex              // The unresolved index, even if a file is not an OpenAPI spec, it's still indexed.
-	IndexResolved                 *index.SpecIndex              // The resolved index, like the unresolved one, but with references resolved.
-	CustomFunctions               map[string]model.RuleFunction // custom functions loaded from plugin.
-	PanicFunction                 func(p any)                   // In case of emergency, do this thing here.
-	SilenceLogs                   bool                          // Prevent any warnings about rules/rule-sets being printed.
-	Base                          string                        // The base path or URL of the specification, used for resolving relative or remote paths.
-	AllowLookup                   bool                          // Allow remote lookup of files or links
-	Document                      libopenapi.Document           // a ready to render model.
-	DrDocument                    *doctorModel.DrDocument       // a high level, more powerful model, powered by the doctorModel.
-	SkipDocumentCheck             bool                          // Skip the document check, useful for fragments and non openapi specs.
-	Logger                        *slog.Logger                  // A custom logger.
-	Timeout                       time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
-	NodeLookupTimeout             time.Duration                 // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
-	BuildGraph                    bool                          // Build a graph of the document, powered by the doctorModel. (default is false)
-	BuildDeepGraph                bool                          // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
-	ExtractReferencesSequentially bool                          // Extract references sequentially, defaults to false, can be slow.
+	RuleSet                         *rulesets.RuleSet             // The RuleSet in which to apply
+	SpecFileName                    string                        // The path of the specification file, used to correctly label location
+	Spec                            []byte                        // The raw bytes of the OpenAPI specification.
+	SpecInfo                        *datamodel.SpecInfo           // Pre-parsed spec-info.
+	IndexUnresolved                 *index.SpecIndex              // The unresolved index, even if a file is not an OpenAPI spec, it's still indexed.
+	IndexResolved                   *index.SpecIndex              // The resolved index, like the unresolved one, but with references resolved.
+	CustomFunctions                 map[string]model.RuleFunction // custom functions loaded from plugin.
+	PanicFunction                   func(p any)                   // In case of emergency, do this thing here.
+	SilenceLogs                     bool                          // Prevent any warnings about rules/rule-sets being printed.
+	Base                            string                        // The base path or URL of the specification, used for resolving relative or remote paths.
+	AllowLookup                     bool                          // Allow remote lookup of files or links
+	Document                        libopenapi.Document           // a ready to render model.
+	DrDocument                      *doctorModel.DrDocument       // a high level, more powerful model, powered by the doctorModel.
+	SkipDocumentCheck               bool                          // Skip the document check, useful for fragments and non openapi specs.
+	Logger                          *slog.Logger                  // A custom logger.
+	Timeout                         time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
+	NodeLookupTimeout               time.Duration                 // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
+	BuildGraph                      bool                          // Build a graph of the document, powered by the doctorModel. (default is false)
+	BuildDeepGraph                  bool                          // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
+	ExtractReferencesSequentially   bool                          // Extract references sequentially, defaults to false, can be slow.
+	ExtractReferencesFromExtensions bool                          // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
 	IgnoreCircularArrayRef       bool // Ignore array circular references
@@ -118,17 +119,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// create new configurations
 	indexConfig := index.CreateClosedAPIIndexConfig()
+	indexConfig.ExcludeExtensionRefs = true // disable references in extensions being extracted by default
 	indexConfig.SpecFilePath = execution.SpecFileName
 	indexConfigUnresolved := index.CreateClosedAPIIndexConfig()
 	indexConfigUnresolved.SpecFilePath = execution.SpecFileName
 
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
-	//indexConfig.AvoidCircularReferenceCheck = true
 
 	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.SpecFilePath = execution.SpecFileName
-	//docConfig.SkipCircularReferenceCheck = true
 
 	if execution.IgnoreCircularArrayRef {
 		docConfig.IgnoreArrayCircularReferences = true
@@ -136,6 +136,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	if execution.IgnoreCircularPolymorphicRef {
 		docConfig.IgnorePolymorphicCircularReferences = true
+	}
+	if execution.ExtractReferencesFromExtensions {
+		indexConfig.ExcludeExtensionRefs = false
 	}
 
 	// add new pretty logger.

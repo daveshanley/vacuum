@@ -48,6 +48,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -172,14 +173,15 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet:           selectedRS,
-				Spec:              specBytes,
-				CustomFunctions:   customFunctions,
-				SilenceLogs:       true,
-				Base:              baseFlag,
-				SkipDocumentCheck: skipCheckFlag,
-				BuildDeepGraph:    deepGraph,
-				Timeout:           time.Duration(timeoutFlag) * time.Second,
+				RuleSet:                         selectedRS,
+				Spec:                            specBytes,
+				CustomFunctions:                 customFunctions,
+				SilenceLogs:                     true,
+				Base:                            baseFlag,
+				SkipDocumentCheck:               skipCheckFlag,
+				BuildDeepGraph:                  deepGraph,
+				Timeout:                         time.Duration(timeoutFlag) * time.Second,
+				ExtractReferencesFromExtensions: extensionRefsFlag,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
