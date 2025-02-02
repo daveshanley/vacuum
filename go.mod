@@ -13,18 +13,18 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.18
-	github.com/pb33f/libopenapi v0.20.0
+	github.com/pb33f/libopenapi v0.21.1
 	github.com/pb33f/libopenapi-validator v0.3.0
 	github.com/pterm/pterm v0.12.80
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
-	github.com/speakeasy-api/jsonpath v0.4.1
+	github.com/speakeasy-api/jsonpath v0.6.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	github.com/tliron/glsp v0.2.2
-	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/text v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
 )
