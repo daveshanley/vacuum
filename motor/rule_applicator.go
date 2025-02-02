@@ -538,6 +538,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			Message:   er.Error(),
 			Path:      er.Path,
 		}
+		if res.StartNode == nil {
+			res.StartNode = utils.CreateStringNode("")
+			res.StartNode.Line = 1
+			res.StartNode.Column = 1
+		}
+		if res.EndNode == nil {
+			res.EndNode = utils.CreateStringNode("")
+			res.EndNode.Line = 1
+			res.EndNode.Column = 1
+		}
 		ruleResults = append(ruleResults, res)
 	}
 
@@ -550,6 +560,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			EndNode:   vacuumUtils.BuildEndNode(cr.ParentNode),
 			Message:   fmt.Sprintf("circular reference detected from %s", cr.Start.Definition),
 			Path:      cr.GenerateJourneyPath(),
+		}
+		if res.StartNode == nil {
+			res.StartNode = utils.CreateStringNode("")
+			res.StartNode.Line = 1
+			res.StartNode.Column = 1
+		}
+		if res.EndNode == nil {
+			res.EndNode = utils.CreateStringNode("")
+			res.EndNode.Line = 1
+			res.EndNode.Column = 1
 		}
 		ruleResults = append(ruleResults, res)
 	}
@@ -566,6 +586,17 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				Message:   idxError.Error(),
 				Path:      idxError.Path,
 			}
+			if res.StartNode == nil {
+				res.StartNode = utils.CreateStringNode("")
+				res.StartNode.Line = 1
+				res.StartNode.Column = 1
+			}
+			if res.EndNode == nil {
+				res.EndNode = utils.CreateStringNode("")
+				res.EndNode.Line = 1
+				res.EndNode.Column = 1
+			}
+
 			ruleResults = append(ruleResults, res)
 		}
 	}

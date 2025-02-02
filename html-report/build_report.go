@@ -90,6 +90,9 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 		},
 		"sortResults": func(results []*model.RuleFunctionResult) []*model.RuleFunctionResult {
 			sort.Slice(results, func(i, j int) bool {
+				if results[i].StartNode == nil {
+					return false
+				}
 				if results[i].StartNode.Line < results[j].StartNode.Line {
 					return true
 				}
