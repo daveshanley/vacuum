@@ -582,7 +582,9 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	}
 
 	// unmarshal JSON into new RuleSet
-	rs := &RuleSet{}
+	rs := &RuleSet{
+		RuleDefinitions: map[string]any{},
+	}
 	uErr := json.Unmarshal(jsonData, rs)
 	if uErr != nil {
 		return nil, uErr
@@ -614,6 +616,7 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 			b.Resolved = true // default resolved
 		}
 	}
+
 	return rs, nil
 }
 

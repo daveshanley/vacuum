@@ -42,3 +42,16 @@ func TestDownloadRemoteRuleSet(t *testing.T) {
 	assert.NotNil(t, rs)
 	assert.NotNil(t, rs.RuleDefinitions["check-title-is-exactly-this"])
 }
+
+func TestLoadLocalCompositeRuleSet(t *testing.T) {
+
+	rs, err := LoadLocalRuleSet(ctx.Background(), "examples/composite-ruleset.yaml")
+
+	assert.NoError(t, err)
+	assert.Len(t, rs.RuleDefinitions, 2)
+	assert.Len(t, rs.Rules, 2)
+	assert.Contains(t, rs.Rules, "rule-from-subset-1")
+	assert.Contains(t, rs.Rules, "rule-from-subset-2")
+	assert.Contains(t, rs.RuleDefinitions, "rule-from-subset-1")
+	assert.Contains(t, rs.RuleDefinitions, "rule-from-subset-2")
+}
