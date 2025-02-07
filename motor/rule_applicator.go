@@ -643,8 +643,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexConfig.Logger.Debug("running rules", "total", totalRules)
 		now = time.Now()
 
+		// if there are no time outs, set them to defaults
 		if execution.Timeout <= 0 {
-			execution.Timeout = time.Second * 5 // default
+			execution.Timeout = time.Second * 5
+		}
+		if execution.NodeLookupTimeout <= 0 {
+			execution.NodeLookupTimeout = time.Millisecond * 500
 		}
 
 		for _, rule := range execution.RuleSet.Rules {
@@ -658,11 +662,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					info = specInfoUnresolved
 					ruleSpec = specUnresolved
 					ruleIndex = indexUnresolved
-				}
-
-				// if there is no time out, set it to 500ms
-				if execution.NodeLookupTimeout <= 0 {
-					execution.NodeLookupTimeout = time.Millisecond * 500
 				}
 
 				// this list of things is most likely going to grow a bit, so we use a nice clean message design.
