@@ -506,6 +506,20 @@ paths:
 
 }
 
+/*
+components:
+  schemas:
+    Test:
+      type: array
+      description: Test array with numbers
+      items:
+        type: number
+      example:
+        - 0 # <- This gives a warning
+        - 0
+        - 0
+*/
+
 func TestExamplesSchema_HandleJSONTime(t *testing.T) {
 	yml := `openapi: 3.1
 components:
@@ -515,6 +529,44 @@ components:
       description: a bad time.
       format: date-time
       example: 2022-08-07T12:12:00Z`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+// https://github.com/daveshanley/vacuum/issues/615
+func TestExamplesSchema_HandleArrays(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas: 
+    Test:
+      type: array
+      description: Test array with numbers
+      items:
+        type: number
+      example:          
+        - 0
+        - 0
+        - 0`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
