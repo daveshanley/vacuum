@@ -277,7 +277,7 @@ func changeKeys(depth int, node *yaml.Node) {
 		if i%2 != 0 {
 			continue // keys only.
 		}
-		if no.Tag != "!!str" {
+		if node.Tag != "!!seq" && no.Tag != "!!str" {
 			no.Tag = "!!str"
 		}
 		if len(no.Content) > 0 {
