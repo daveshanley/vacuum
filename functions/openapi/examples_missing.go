@@ -229,7 +229,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 			propErr := false
 			hasProps := false
-			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema.Properties != nil && mt.SchemaProxy.Schema.Properties.Len() > 0 {
+			if mt.SchemaProxy != nil &&
+				mt.SchemaProxy.Schema != nil &&
+				mt.SchemaProxy.Schema.Properties != nil &&
+				mt.SchemaProxy.Schema.Properties.Len() > 0 {
+
 				hasProps = true
 				var prop *base.Schema
 				var propName string
