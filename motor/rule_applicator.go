@@ -72,6 +72,7 @@ type RuleSetExecution struct {
 	Timeout                         time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
 	NodeLookupTimeout               time.Duration                 // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
 	BuildGraph                      bool                          // Build a graph of the document, powered by the doctorModel. (default is false)
+	RenderChanges                   bool                          // Not used by vacuum, used by the openapi doctor (defaults to false).
 	BuildDeepGraph                  bool                          // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
 	ExtractReferencesSequentially   bool                          // Extract references sequentially, defaults to false, can be slow.
 	ExtractReferencesFromExtensions bool                          // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
@@ -381,10 +382,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					if execution.BuildDeepGraph {
 						useCache = false
 					}
-
 					drDoc = doctorModel.NewDrDocumentWithConfig(mod, &doctorModel.DrConfig{
 						BuildGraph:     buildGraph,
 						UseSchemaCache: useCache,
+						RenderChanges:  execution.RenderChanges,
 					})
 
 					execution.DrDocument = drDoc

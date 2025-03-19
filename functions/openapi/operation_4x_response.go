@@ -4,11 +4,11 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"strconv"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "strconv"
 )
 
 // Operation4xResponse is a rule that checks if an operation returns a 4xx (user error) code.
@@ -68,7 +68,7 @@ func (or Operation4xResponse) RunRule(_ []*yaml.Node, context model.RuleFunction
 						Rule:      context.Rule,
 					}
 					results = append(results, res)
-					operation.Responses.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					operation.Responses.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 			}
 		}

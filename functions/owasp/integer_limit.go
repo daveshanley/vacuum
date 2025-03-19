@@ -4,11 +4,11 @@
 package owasp
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"slices"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "slices"
 )
 
 type IntegerLimit struct{}
@@ -47,7 +47,7 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 			}
 			if schema.Value.Minimum == nil && schema.Value.Maximum == nil &&
 				schema.Value.ExclusiveMinimum == nil && schema.Value.ExclusiveMaximum == nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
@@ -59,49 +59,49 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 
 			// we got nothing.
 			if _min == nil && _max == nil && _exMin == nil && _exMax == nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
 
 			// got a min but no max
 			if _min != nil && _max == nil && _exMax == nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
 
 			// got a max but no min
 			if _min == nil && _max != nil && _exMin == nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
 
 			// got an exclusive min but no max
 			if _min == nil && _max == nil && _exMin != nil && _exMax == nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
 
 			// got an exclusive max but no min
 			if _min == nil && _max == nil && _exMin == nil && _exMax != nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
 
 			// got a min but no exclusive max
 			if _min != nil && _max == nil && _exMax == nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}
 
 			// got an exclusive min, min and exclusive max
 			if _min != nil && _exMin != nil && _exMax != nil {
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 				continue
 			}

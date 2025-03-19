@@ -5,15 +5,15 @@
 package openapi
 
 import (
-	"crypto/sha256"
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi-validator/errors"
-	"github.com/pb33f/libopenapi-validator/schema_validation"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "crypto/sha256"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi-validator/errors"
+    "github.com/pb33f/libopenapi-validator/schema_validation"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 // OASSchema  will check that the document is a valid OpenAPI schema.
@@ -75,7 +75,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
 			}
 			var allPaths []string
-			var modelByLine []base.Foundational
+			var modelByLine []v3.Foundational
 			var modelErr error
 			if context.DrDocument != nil {
 				modelByLine, modelErr = context.DrDocument.LocateModelByLine(validationErrors[i].SchemaValidationErrors[y].Line + 1)
@@ -101,8 +101,8 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			}
 			results = append(results, res)
 			if len(modelByLine) > 0 {
-				if arr, ok := modelByLine[0].(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				if arr, ok := modelByLine[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 			}
 			seen[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]

@@ -4,12 +4,12 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 // DuplicatedEnum will check enum values match the types provided
@@ -55,7 +55,7 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "enum"),
 					Rule:      context.Rule,
 				}
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
 		}

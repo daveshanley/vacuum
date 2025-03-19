@@ -4,12 +4,12 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 type NoApiKeyInUrl struct{}
@@ -51,7 +51,7 @@ func (ak NoApiKeyInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionContex
 						Path:      fmt.Sprintf("%s.%s", securityScheme.GenerateJSONPath(), "in"),
 						Rule:      context.Rule,
 					}
-					securityScheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					securityScheme.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					results = append(results, result)
 				}
 			}
