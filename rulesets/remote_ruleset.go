@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -69,9 +70,8 @@ func DownloadRemoteRuleSet(_ context.Context, location string) (*RuleSet, error)
 	return downloadedRS, nil
 }
 
-// LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
-// returns an error if it cannot load the ruleset
-func LoadLocalRuleSet(_ context.Context, location string) (*RuleSet, error) {
+// loadLocalRuleSet loads a local ruleset but does not load it's extensions
+func loadLocalRuleSet(_ context.Context, location string) (*RuleSet, error) {
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot load ruleset, location is empty")
@@ -90,20 +90,27 @@ func LoadLocalRuleSet(_ context.Context, location string) (*RuleSet, error) {
 	if rsErr != nil {
 		return nil, rsErr
 	}
-
 	return downloadedRS, nil
+}
+
+// LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
+// returns an error if it cannot load the ruleset
+func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
+	return SniffOutAllExternalRules(ctx, nil, location, nil, nil, false)
+
 }
 
 // SniffOutAllExternalRules takes a ruleset and sniffs out all external rules
 // it will recursively sniff out all external rulesets and add them to the ruleset
 // it will return an error if it cannot sniff out the ruleset
+// If no root ruleset is provided, the ruleset from `location` is loaded and  used as the root
 func SniffOutAllExternalRules(
 	ctx context.Context,
 	rsm *ruleSetsModel,
 	location string,
 	visited []string,
 	rs *RuleSet,
-	remote bool) {
+	remote bool) (*RuleSet, error) {
 
 	var drs *RuleSet
 	var err error
@@ -111,12 +118,28 @@ func SniffOutAllExternalRules(
 	if remote {
 		drs, err = DownloadRemoteRuleSet(ctx, location)
 	} else {
-		drs, err = LoadLocalRuleSet(ctx, location)
+		// On recursive calls (loading of extensions), we need to make sure the location is relative to the root ruleset
+		if len(visited) > 0 && filepath.IsLocal(location) {
+			rootRulesetPath := visited[0]
+			rootRulestDir := filepath.Dir(rootRulesetPath)
+			location = filepath.Join(rootRulestDir, location)
+		}
+
+		drs, err = loadLocalRuleSet(ctx, location)
 	}
 	if err != nil {
 		rsm.logger.Error("cannot open external ruleset",
 			"location", location, "error", err.Error())
-		return
+		return rs, nil
+	}
+
+	// If not provided, assume the first loaded file is the root ruleset
+	if rsm == nil {
+		rsm = &ruleSetsModel{
+			openAPIRuleSet: drs,
+			logger:         slog.Default(),
+		}
+		rs = drs
 	}
 
 	// iterate over the remote ruleset and add the rules in
@@ -169,11 +192,11 @@ func SniffOutAllExternalRules(
 
 	// no rules!
 	if extends[SpectralOpenAPI] == SpectralOff {
-		if rs.DocumentationURI == "" {
-			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
+		if drs.DocumentationURI == "" {
+			drs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
 		}
-		rs.Rules = make(map[string]*model.Rule)
-		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
+		drs.Rules = make(map[string]*model.Rule)
+		drs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
 	// do we have extensions?
@@ -186,12 +209,17 @@ func SniffOutAllExternalRules(
 				if slices.Contains(visited, k) {
 					rsm.logger.Warn("ruleset links to its self, circular rulesets are not permitted",
 						"extends", k)
-					return
+					return rs, nil
 				}
 
-				// do down the rabbit hole.
-				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, remote)
+				// go down the rabbit hole.
+				_, err = SniffOutAllExternalRules(ctx, rsm, k, visited, rs, remote)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
+
+	return rs, nil
 }
