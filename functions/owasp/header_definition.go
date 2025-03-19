@@ -1,17 +1,16 @@
 package owasp
 
 import (
-	"fmt"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	drV3 "github.com/pb33f/doctor/model/high/v3"
-	"strconv"
-	"strings"
+    "fmt"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    drV3 "github.com/pb33f/doctor/model/high/v3"
+    "strconv"
+    "strings"
 
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
-	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/pb33f/libopenapi/utils"
+    "golang.org/x/exp/slices"
+    "gopkg.in/yaml.v3"
 )
 
 type message struct {
@@ -113,7 +112,7 @@ func (cd HeaderDefinition) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 									Rule:      context.Rule,
 								}
 								results = append(results, res)
-								resp.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+								resp.AddRuleFunctionResult(drV3.ConvertRuleResult(&res))
 							}
 						}
 					}

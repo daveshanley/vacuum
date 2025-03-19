@@ -1,14 +1,14 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	drModel "github.com/pb33f/doctor/model"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi"
-	"github.com/pb33f/libopenapi/utils"
-	"github.com/stretchr/testify/assert"
-	"testing"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    drModel "github.com/pb33f/doctor/model"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi"
+    "github.com/pb33f/libopenapi/utils"
+    "github.com/stretchr/testify/assert"
+    "testing"
 )
 
 func TestDefined_GetSchema(t *testing.T) {
@@ -129,16 +129,16 @@ tags:
 	n, e := drDocument.LocateModelByLine(3)
 	assert.NoError(t, e)
 	assert.NotNil(t, n)
-	assert.Equal(t, "good", n[0].(*base.Tag).Value.Name)
+	assert.Equal(t, "good", n[0].(*v3.Tag).Value.Name)
 
 	n, e = drDocument.LocateModelByLine(4)
 	assert.NoError(t, e)
 	assert.NotNil(t, n)
-	assert.Equal(t, "noFun", n[0].(*base.Tag).Value.Name)
+	assert.Equal(t, "noFun", n[0].(*v3.Tag).Value.Name)
 
 	n, e = drDocument.LocateModelByLine(5)
 	assert.NoError(t, e)
 	assert.NotNil(t, n)
-	assert.Equal(t, "fridge", n[0].(*base.Tag).Value.Name)
+	assert.Equal(t, "fridge", n[0].(*v3.Tag).Value.Name)
 
 }

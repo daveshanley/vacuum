@@ -4,13 +4,13 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 type CheckErrorResponse struct {
@@ -103,7 +103,7 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 							Path:      fmt.Sprintf("$.paths['%s'].%s.responses", pathPairs.Key(), opType),
 							Rule:      context.Rule,
 						}
-						opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						opValue.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						results = append(results, result)
 					}
 					if schemaMissing && found {
@@ -115,7 +115,7 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 							Path:      fmt.Sprintf("$.paths['%s'].%s.responses['%s']", pathPairs.Key(), opType, code),
 							Rule:      context.Rule,
 						}
-						opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						opValue.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						results = append(results, result)
 					}
 				}

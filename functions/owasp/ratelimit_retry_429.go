@@ -4,11 +4,11 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 type RatelimitRetry429 struct {
@@ -67,7 +67,7 @@ func (r RatelimitRetry429) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 										Path:      fmt.Sprintf("$.paths.%s.%s.responses.429", pathPairs.Key(), opType),
 										Rule:      context.Rule,
 									}
-									resp.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+									resp.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 									results = append(results, result)
 								}
 							}

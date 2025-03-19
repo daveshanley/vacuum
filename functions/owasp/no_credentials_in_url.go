@@ -4,12 +4,12 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"regexp"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "regexp"
 )
 
 type NoCredentialsInUrl struct{}
@@ -52,7 +52,7 @@ func (c NoCredentialsInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionCo
 					Path:      fmt.Sprintf("%s.%s", param.GenerateJSONPath(), "name"),
 					Rule:      context.Rule,
 				}
-				param.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				param.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
 		}

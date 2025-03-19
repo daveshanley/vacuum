@@ -4,13 +4,13 @@
 package core
 
 import (
-	"fmt"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
+    "fmt"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
 
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 // Falsy is a rule that will determine if something is seen as 'false' (could be a 0 or missing, or actually 'false')
@@ -54,7 +54,7 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 		if (fieldNode != nil && fieldNodeValue != nil) &&
 			(fieldNodeValue.Value != "" && fieldNodeValue.Value != "false" && fieldNodeValue.Value != "0" || (fieldNodeValue.Value == "" && fieldNodeValue.Content != nil)) {
 
-			var locatedObjects []base.Foundational
+			var locatedObjects []v3.Foundational
 			var allPaths []string
 			var err error
 			locatedPath := pathValue
@@ -81,8 +81,8 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 			}
 			results = append(results, result)
 			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				}
 			}
 		}

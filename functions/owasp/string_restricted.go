@@ -4,11 +4,11 @@
 package owasp
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"slices"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "slices"
 )
 
 type StringRestricted struct{}
@@ -48,7 +48,7 @@ func (st StringRestricted) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 					Path:      schema.GenerateJSONPath(),
 					Rule:      context.Rule,
 				}
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
 		}

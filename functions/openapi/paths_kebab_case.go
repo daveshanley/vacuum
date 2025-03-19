@@ -4,14 +4,14 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/model/reports"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"regexp"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/daveshanley/vacuum/model/reports"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "regexp"
+    "strings"
 )
 
 // PathsKebabCase Checks to ensure each segment of a path is using kebab case.
@@ -64,7 +64,7 @@ func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 							},
 						},
 					}
-					v.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					v.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					results = append(results, result)
 				}
 			}

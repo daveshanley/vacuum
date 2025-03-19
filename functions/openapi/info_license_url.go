@@ -4,10 +4,10 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 // InfoLicenseURL will check that the license object contains a URL.
@@ -46,7 +46,7 @@ func (id InfoLicenseURL) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			Rule:      context.Rule,
 		}
 		results = append(results, res)
-		info.License.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+		info.License.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 	}
 
 	return results

@@ -4,19 +4,19 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi-validator/schema_validation"
-	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/pb33f/libopenapi/datamodel/low"
-	"github.com/pb33f/libopenapi/orderedmap"
-	"github.com/pb33f/libopenapi/utils"
-	"github.com/sourcegraph/conc"
-	"gopkg.in/yaml.v3"
-	"strings"
-	"sync"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi-validator/schema_validation"
+    v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
+    "github.com/pb33f/libopenapi/datamodel/low"
+    "github.com/pb33f/libopenapi/orderedmap"
+    "github.com/pb33f/libopenapi/utils"
+    "github.com/sourcegraph/conc"
+    "gopkg.in/yaml.v3"
+    "strings"
+    "sync"
 )
 
 // ExamplesSchema will check anything that has an example, has a schema and it's valid.
@@ -44,7 +44,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return results
 	}
 
-	buildResult := func(message, path string, key, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, key, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: key,
@@ -52,7 +52,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			Path:      path,
 			Rule:      context.Rule,
 		}
-		component.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
 	wg := conc.WaitGroup{}
@@ -61,8 +61,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 	validator := schema_validation.NewSchemaValidator()
 	validateSchema := func(iKey *int,
 		sKey, label string,
-		s *base.Schema,
-		obj base.AcceptsRuleResults,
+		s *v3.Schema,
+		obj v3.AcceptsRuleResults,
 		node *yaml.Node,
 		keyNode *yaml.Node,
 		example any) []model.RuleFunctionResult {
@@ -73,13 +73,13 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			if !valid {
 				var path string
 				if iKey == nil && sKey == "" {
-					path = fmt.Sprintf("%s.%s", obj.(base.Foundational).GenerateJSONPath(), label)
+					path = fmt.Sprintf("%s.%s", obj.(v3.Foundational).GenerateJSONPath(), label)
 				}
 				if iKey != nil && sKey == "" {
-					path = fmt.Sprintf("%s.%s[%d]", obj.(base.Foundational).GenerateJSONPath(), label, *iKey)
+					path = fmt.Sprintf("%s.%s[%d]", obj.(v3.Foundational).GenerateJSONPath(), label, *iKey)
 				}
 				if iKey == nil && sKey != "" {
-					path = fmt.Sprintf("%s.%s['%s']", obj.(base.Foundational).GenerateJSONPath(), label, sKey)
+					path = fmt.Sprintf("%s.%s['%s']", obj.(v3.Foundational).GenerateJSONPath(), label, sKey)
 				}
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
@@ -164,8 +164,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 
-	parseExamples := func(s *base.Schema,
-		obj base.AcceptsRuleResults,
+	parseExamples := func(s *v3.Schema,
+		obj v3.AcceptsRuleResults,
 		examples *orderedmap.Map[string,
 			*v3Base.Example]) []model.RuleFunctionResult {
 
@@ -187,7 +187,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return rx
 	}
 
-	parseExample := func(s *base.Schema, node, key *yaml.Node) []model.RuleFunctionResult {
+	parseExample := func(s *v3.Schema, node, key *yaml.Node) []model.RuleFunctionResult {
 
 		var rx []model.RuleFunctionResult
 		var ex any
