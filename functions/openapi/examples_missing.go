@@ -377,6 +377,10 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 }
 
 func checkProps(s *base.Schema) bool {
+	if s == nil || s.Value == nil {
+		return false
+	}
+
 	if len(s.Value.Examples) > 0 {
 		return true
 	}
