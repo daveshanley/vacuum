@@ -1,13 +1,14 @@
 package model
 
 import (
-	"github.com/daveshanley/vacuum/model/reports"
-	"github.com/pb33f/libopenapi/datamodel"
 	"math"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/pb33f/libopenapi/datamodel"
 )
 
 // RuleResultsForCategory boils down result statistics for a linting category
@@ -221,6 +222,10 @@ func (rr *RuleResultSet) GetErrorsByRuleCategory(category string) []*RuleFunctio
 	var filtered []*RuleFunctionResult
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
+		if cat.RuleSeverity == SeverityError {
+			filtered = append(filtered, cat)
+			continue
+		}
 		switch cat.Rule.Severity {
 		case SeverityError:
 			filtered = append(filtered, cat)
@@ -234,6 +239,10 @@ func (rr *RuleResultSet) GetWarningsByRuleCategory(category string) []*RuleFunct
 	var filtered []*RuleFunctionResult
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
+		if cat.RuleSeverity == SeverityWarn {
+			filtered = append(filtered, cat)
+			continue
+		}
 		switch cat.Rule.Severity {
 		case SeverityWarn:
 			filtered = append(filtered, cat)
@@ -251,6 +260,10 @@ func (rr *RuleResultSet) GetInfoByRuleCategory(category string) []*RuleFunctionR
 	var filtered []*RuleFunctionResult
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
+		if cat.RuleSeverity == SeverityInfo {
+			filtered = append(filtered, cat)
+			continue
+		}
 		switch cat.Rule.Severity {
 		case SeverityInfo:
 			filtered = append(filtered, cat)
@@ -264,6 +277,10 @@ func (rr *RuleResultSet) GetHintByRuleCategory(category string) []*RuleFunctionR
 	var filtered []*RuleFunctionResult
 	allCats := rr.GetResultsByRuleCategory(category)
 	for _, cat := range allCats {
+		if cat.RuleSeverity == SeverityHint {
+			filtered = append(filtered, cat)
+			continue
+		}
 		switch cat.Rule.Severity {
 		case SeverityHint:
 			filtered = append(filtered, cat)
@@ -322,11 +339,15 @@ func (rr *RuleResultSet) GetResultsForCategoryWithLimit(category string, limit i
 func getCount(rr *RuleResultSet, severity string) int {
 	c := 0
 	for _, res := range rr.Results {
-		if res.Rule != nil {
+		if res.RuleSeverity == severity {
+			c++
+		}
+		if res.RuleSeverity == "" && res.Rule != nil {
+			// if there is no violation severity, use the rule severity.
 			if res.Rule.Severity == severity {
 				c++
 			}
-			// if there is no severity, mark it as a warning by default.
+			// if there is no violation severity, mark it as a warning by default.
 			if res.Rule.Severity == "" && severity == SeverityWarn {
 				c++
 			}
