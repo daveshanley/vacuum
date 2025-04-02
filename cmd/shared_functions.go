@@ -10,7 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
+	"os"
 	"time"
 )
 
@@ -21,8 +21,8 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 	// load in our user supplied ruleset and try to validate it.
 	userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
 	if userErr != nil {
-		pterm.Error.Printf("Unable to parse ruleset file: %s\n", userErr.Error())
-		pterm.Println()
+		fmt.Fprintf(os.Stderr, "Unable to parse ruleset file: %s\n", userErr.Error())
+		fmt.Println()
 		return nil, userErr
 
 	}
@@ -33,37 +33,35 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 // it will also render out how many files were processed.
 func RenderTimeAndFiles(timeFlag bool, duration time.Duration, fileSize int64, totalFiles int) {
 	if timeFlag {
-		pterm.Println()
+		fmt.Println()
 		l := "milliseconds"
 		d := fmt.Sprintf("%d", duration.Milliseconds())
 		if duration.Milliseconds() > 1000 {
 			l = "seconds"
 			d = humanize.FormatFloat("##.##", duration.Seconds())
 		}
-		pterm.Info.Println(fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
-			index.HumanFileSize(float64(fileSize)), totalFiles))
-		pterm.Println()
+		fmt.Printf("vacuum took %s %s to lint %s across %d files\n", d, l,
+			index.HumanFileSize(float64(fileSize)), totalFiles)
+		fmt.Println()
 	}
 }
 
 // RenderTime will render out the time taken to process a specification, and the size of the file in kb.
 func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	if timeFlag {
-		pterm.Println()
+		fmt.Println()
 		if (fi / 1000) <= 1024 {
-			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi/1000))
+			fmt.Printf("vacuum took %d milliseconds to lint %dkb\n", duration.Milliseconds(), fi/1000)
 		} else {
-			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000))
+			fmt.Printf("vacuum took %d milliseconds to lint %dmb\n", duration.Milliseconds(), fi/1000000)
 		}
-		pterm.Println()
+		fmt.Println()
 	}
 }
 
 func PrintBanner() {
-	pterm.Println()
+	fmt.Println()
 
-	//_ = pterm.DefaultBigText.WithLetters(
-	//	putils.LettersFromString(pterm.LightMagenta("vacuum"))).Render()
 	banner := `
 ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
 ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
@@ -73,12 +71,12 @@ func PrintBanner() {
   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝
 `
 
-	pterm.Println(pterm.LightMagenta(banner))
-	pterm.Println()
-	pterm.Printf("version: %s | compiled: %s\n", pterm.LightGreen(Version), pterm.LightGreen(Date))
-	pterm.Println(pterm.Cyan("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum"))
-	pterm.Println()
-	pterm.Println()
+	fmt.Println(banner)
+	fmt.Println()
+	fmt.Printf("version: %s | compiled: %s\n", Version, Date)
+	fmt.Println("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum")
+	fmt.Println()
+	fmt.Println()
 }
 
 // LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
@@ -87,11 +85,11 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 	if functionsFlag != "" {
 		pm, err := plugin.LoadFunctions(functionsFlag, silence)
 		if err != nil {
-			pterm.Error.Printf("Unable to open custom functions: %v\n", err)
-			pterm.Println()
+			fmt.Fprintf(os.Stderr, "Unable to open custom functions: %v\n", err)
+			fmt.Println()
 			return nil, err
 		}
-		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
+		fmt.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
 		return pm.GetCustomFunctions(), nil
 	}
 	return nil, nil
