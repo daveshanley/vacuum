@@ -5,16 +5,17 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -36,8 +37,7 @@ func GetDashboardCommand() *cobra.Command {
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: %s\n\n", errText)
 				return errors.New(errText)
 			}
 			baseFlag, _ := cmd.Flags().GetString("base")
@@ -50,7 +50,7 @@ func GetDashboardCommand() *cobra.Command {
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 			if len(specBytes) <= 0 {
-				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
+				fmt.Fprintf(os.Stderr, "Error: Failed to read specification: %v\n\n", args[0])
 				return err
 			}
 
@@ -69,7 +69,7 @@ func GetDashboardCommand() *cobra.Command {
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
 					baseFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
 				if err != nil {
-					pterm.Error.Printf("Failed to render dashboard: %v\n\n", err)
+					fmt.Fprintf(os.Stderr, "Error: Failed to render dashboard: %v\n\n", err)
 					return err
 				}
 				specIndex = ruleset.Index
@@ -85,8 +85,7 @@ func GetDashboardCommand() *cobra.Command {
 				var rootNode yaml.Node
 				err = yaml.Unmarshal(*vacuumReport.SpecInfo.SpecBytes, &rootNode)
 				if err != nil {
-					pterm.Error.Printf("Unable to read spec bytes from report file '%s': %s\n", args[0], err.Error())
-					pterm.Println()
+					fmt.Fprintf(os.Stderr, "Error: Unable to read spec bytes from report file '%s': %s\n\n", args[0], err.Error())
 					return err
 				}
 
@@ -114,9 +113,7 @@ func GetDashboardCommand() *cobra.Command {
 			}
 
 			if len(resultSet.Results) <= 0 {
-				pterm.Println()
-				pterm.Success.Println("There is nothing to see, no results found - well done!")
-				pterm.Println()
+				fmt.Println("\nSuccess: There is nothing to see, no results found - well done!\n")
 				return nil
 			}
 

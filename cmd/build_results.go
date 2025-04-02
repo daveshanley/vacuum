@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/pterm/pterm"
 	"os"
 	"time"
 )
@@ -47,10 +47,9 @@ func BuildResultsWithDocCheckSkip(
 			allRules[k] = v
 		}
 		if !silent {
-			box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-			box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-			box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
-			pterm.Println()
+			fmt.Println("\n=====================================")
+			fmt.Println("🚨 HARD MODE ENABLED 🚨")
+			fmt.Println("=====================================\n")
 		}
 	}
 
@@ -68,7 +67,7 @@ func BuildResultsWithDocCheckSkip(
 		}
 	}
 
-	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+	fmt.Printf("Info: Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           selectedRS,

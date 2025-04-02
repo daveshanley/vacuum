@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
+	"os"
 	"testing"
 )
 
@@ -95,7 +95,7 @@ func Test_JSPlugin_Bad_Rule_GoException(t *testing.T) {
 	f.RegisterCoreFunction("truthy", func(input any, context model.RuleFunctionContext) []model.RuleFunctionResult {
 		defer func() {
 			if r := recover(); r != nil {
-				pterm.Error.Printf("Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
+				fmt.Fprintf(os.Stderr, "Error: Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
 			}
 		}()
 		panic("our go function failed! " + fmt.Sprint(input))

@@ -8,7 +8,6 @@ import (
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"io"
 	"log/slog"
@@ -26,10 +25,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// setup logging to be discarded, it will invalidate the LSP protocol
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Writer: io.Discard,
-			})
-			logger := slog.New(handler)
+			logger := slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{
+				Level: slog.LevelError,
+			}))
 
 			// extract flags
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")

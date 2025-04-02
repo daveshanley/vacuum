@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
@@ -563,7 +562,7 @@ rules:
 	_, _ = io.WriteString(tmp, yaml)
 
 	b := bytes.NewBufferString("")
-	pterm.SetDefaultOutput(b)
+	os.Stdout = b
 
 	cmd := GetLintCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")

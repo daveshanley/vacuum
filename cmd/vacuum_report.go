@@ -14,7 +14,6 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"os"
@@ -53,8 +52,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				// No color or styling needed
 			}
 
 			if !stdIn && !stdOut {
@@ -64,8 +62,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// check for file args
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report, or use the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: %s\n\n", errText)
 				return errors.New(errText)
 			}
 
@@ -100,8 +97,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: Unable to read file '%s': %s\n\n", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -134,10 +130,9 @@ func GetVacuumReportCommand() *cobra.Command {
 				}
 
 				if !stdIn && !stdOut {
-					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
-					pterm.Println()
+					fmt.Println("\n=====================================")
+					fmt.Println("🚨 HARD MODE ENABLED 🚨")
+					fmt.Println("=====================================\n")
 				}
 
 			}
@@ -153,8 +148,7 @@ func GetVacuumReportCommand() *cobra.Command {
 
 				rsBytes, rsErr := os.ReadFile(rulesetFlag)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
+					fmt.Fprintf(os.Stderr, "Error: Unable to read ruleset file '%s': %s\n\n", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
@@ -164,7 +158,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			if !stdIn && !stdOut {
-				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				fmt.Printf("Info: Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			deepGraph := false
@@ -204,13 +198,11 @@ func GetVacuumReportCommand() *cobra.Command {
 
 					err := os.WriteFile(reportOutputName, junitXML, 0664)
 					if err != nil {
-						pterm.Error.Printf("Unable to write junit report file: '%s': %s\n", reportOutputName, err.Error())
-						pterm.Println()
+						fmt.Fprintf(os.Stderr, "Error: Unable to write junit report file: '%s': %s\n\n", reportOutputName, err.Error())
 						return err
 					}
 
-					pterm.Success.Printf("JUnit Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
-					pterm.Println()
+					fmt.Printf("Success: JUnit Report generated for '%s', written to '%s'\n\n", args[0], reportOutputName)
 					return nil
 				}
 			}
@@ -266,19 +258,18 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			err = os.WriteFile(reportOutputName, reportData, 0664)
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, err.Error())
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: Unable to write report file: '%s': %s\n\n", reportOutputName, err.Error())
 				return err
 			}
 
 			if len(args) > 0 {
-				pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+				fmt.Printf("Success: Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
 				fi, _ := os.Stat(args[0])
 				RenderTime(timeFlag, duration, fi.Size())
 			} else {
-				pterm.Success.Printf("Report generated, written to '%s'\n", reportOutputName)
+				fmt.Printf("Success: Report generated, written to '%s'\n", reportOutputName)
 			}
-			pterm.Println()
+			fmt.Println()
 
 			return nil
 		},

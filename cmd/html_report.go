@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -13,7 +14,6 @@ import (
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"os"
 	"time"
@@ -41,7 +41,8 @@ func GetHTMLReportCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			// noStyleFlag is no longer used, but keeping the flag for backward compatibility
+			_, _ = cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
@@ -50,18 +51,14 @@ func GetHTMLReportCommand() *cobra.Command {
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
-			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
-			}
+			// styling is now disabled by default
 
 			PrintBanner()
 
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: %s\n\n", errText)
 				return errors.New(errText)
 			}
 
@@ -78,7 +75,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 			if len(specBytes) <= 0 {
-				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
+				fmt.Fprintf(os.Stderr, "Error: Failed to read specification: %v\n\n", args[0])
 				return err
 			}
 
@@ -98,7 +95,7 @@ func GetHTMLReportCommand() *cobra.Command {
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
 					baseFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
 				if err != nil {
-					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
+					fmt.Fprintf(os.Stderr, "Error: Failed to generate report: %v\n\n", err)
 					return err
 				}
 				specIndex = ruleset.Index
@@ -126,13 +123,11 @@ func GetHTMLReportCommand() *cobra.Command {
 			err = os.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: Unable to write HTML report file: '%s': %s\n\n", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("HTML Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			fmt.Printf("Success: HTML Report generated for '%s', written to '%s'\n\n", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())

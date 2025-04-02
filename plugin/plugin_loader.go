@@ -5,7 +5,6 @@ import (
 	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin/javascript"
-	"github.com/pterm/pterm"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -30,7 +29,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			// found something
 			if !silence {
-				pterm.Info.Printf("Located custom function plugin: %s\n", fPath)
+				fmt.Printf("Info: Located custom function plugin: %s\n", fPath)
 			}
 			// let's try and open it.
 			p, e := plugin.Open(fPath)
@@ -49,7 +48,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			if bootFunc != nil {
 				bootFunc.(func(*Manager))(pm)
 			} else {
-				pterm.Error.Printf("Unable to boot plugin")
+				fmt.Fprintf(os.Stderr, "Error: Unable to boot plugin\n")
 			}
 		}
 
@@ -67,13 +66,13 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			// found something
 			if !silence {
-				pterm.Info.Printf("Located custom javascript function: '%s'\n", function.GetSchema().Name)
+				fmt.Printf("Info: Located custom javascript function: '%s'\n", function.GetSchema().Name)
 			}
 			// check if the function is valid
 			sErr := function.CheckScript()
 
 			if sErr != nil {
-				pterm.Error.Printf("Failed to load function '%s': %s\n", fName, sErr.Error())
+				fmt.Fprintf(os.Stderr, "Error: Failed to load function '%s': %s\n", fName, sErr.Error())
 			}
 
 			// register core functions with this custom function.
@@ -103,7 +102,7 @@ var extractInput = func(input any) *yaml.Node {
 
 var coreError = func() {
 	if r := recover(); r != nil {
-		pterm.Error.Printf("Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
+		fmt.Fprintf(os.Stderr, "Error: Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
 	}
 }
 

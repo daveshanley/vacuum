@@ -11,7 +11,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"os"
 	"time"
@@ -41,7 +40,8 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			stdIn, _ := cmd.Flags().GetBool("stdin")
 			stdOut, _ := cmd.Flags().GetBool("stdout")
-			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			// noStyleFlag is no longer used, but keeping the flag for backward compatibility
+			_, _ = cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
@@ -50,10 +50,7 @@ func GetSpectralReportCommand() *cobra.Command {
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
-			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
-			}
+			// styling is now disabled by default
 
 			if !stdIn && !stdOut {
 				PrintBanner()
@@ -63,8 +60,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a spectral report, or use " +
 					"the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: %s\n\n", errText)
 				return errors.New(errText)
 			}
 
@@ -95,8 +91,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: Unable to read file '%s': %s\n\n", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -119,10 +114,9 @@ func GetSpectralReportCommand() *cobra.Command {
 					allRules[k] = v
 				}
 				if !stdIn && !stdOut {
-					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
-					pterm.Println()
+					fmt.Println("\n====================================")
+					fmt.Println("🚨 HARD MODE ENABLED 🚨")
+					fmt.Println("===================================\n")
 				}
 
 			}
@@ -137,8 +131,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				customFunctions, _ = LoadCustomFunctions(functionsFlag, true)
 				rsBytes, rsErr := os.ReadFile(rulesetFlag)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
+					fmt.Fprintf(os.Stderr, "Error: Unable to read ruleset file '%s': %s\n\n", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
@@ -148,7 +141,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			}
 
 			if !stdIn && !stdOut {
-				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				fmt.Printf("Info: Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -191,13 +184,11 @@ func GetSpectralReportCommand() *cobra.Command {
 			err := os.WriteFile(reportOutput, data, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: Unable to write report file: '%s': %s\n\n", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			fmt.Printf("Success: Report generated for '%s', written to '%s'\n\n", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())

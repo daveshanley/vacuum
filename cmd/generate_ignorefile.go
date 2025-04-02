@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"io"
@@ -46,8 +45,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 			// check for report file args
 			if len(args) < 1 {
 				errText := "please supply the lint report file"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: %s\n\n", errText)
 				return errors.New(errText)
 			}
 
@@ -55,8 +53,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 			_, err := os.Stat(lintReportPath)
 			if os.IsNotExist(err) {
 				errText := fmt.Sprintf("cannot find lint report file at '%s'", lintReportPath)
-				pterm.Error.Println(errText)
-				pterm.Println()
+				fmt.Fprintf(os.Stderr, "Error: %s\n\n", errText)
 				return errors.New(errText)
 			}
 
@@ -65,8 +62,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 				outputFile = args[1]
 			}
 
-			pterm.Info.Printf("Generating Ignorefile from lint errors in: %s", lintReportPath)
-			pterm.Println()
+			fmt.Printf("Info: Generating Ignorefile from lint errors in: %s\n\n", lintReportPath)
 
 			// Read JSON file
 			jsonFile, err := os.Open(lintReportPath)
@@ -110,8 +106,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 				log.Fatalf("Failed to write YAML file: %v", err)
 			}
 
-			pterm.Success.Printf("Ingorefile generated at '%s'\n", outputFile)
-			pterm.Println()
+			fmt.Printf("Success: Ignorefile generated at '%s'\n\n", outputFile)
 
 			return nil
 		},
