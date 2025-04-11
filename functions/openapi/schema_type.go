@@ -4,12 +4,12 @@ package openapi
 
 import (
 	"fmt"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
 	"github.com/pb33f/doctor/model/high/base"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // SchemaTypeCheck will determine if document schemas contain the correct type
@@ -145,7 +145,7 @@ func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.Rul
 
 	if schema.Value.Pattern != "" {
 		vm := goja.New()
-		script := strings.Replace("const regex = new RegExp('{pattern}');", "{pattern}", schema.Value.Pattern, 1)
+		script := fmt.Sprintf("const regex = new RegExp(%q)", schema.Value.Pattern)
 		_, err := vm.RunString(script)
 		if err != nil {
 			result := st.buildResult("schema `pattern` should be a ECMA-262 regular expression dialect",

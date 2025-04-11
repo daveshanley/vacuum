@@ -5,11 +5,12 @@ package openapi
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestSchemaType_Invalid(t *testing.T) {
@@ -188,8 +189,11 @@ func TestSchemaType_ValidPattern(t *testing.T) {
 components:
   schemas:
     Gum:
-     type: string
-     pattern: hello`
+      type: string
+      pattern: hello
+    Apostrophe:
+      type: string
+      pattern: '[''"]'`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
