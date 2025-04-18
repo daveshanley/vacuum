@@ -5,15 +5,17 @@
 package openapi
 
 import (
-    "crypto/sha256"
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi-validator/errors"
-    "github.com/pb33f/libopenapi-validator/schema_validation"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
+	"crypto/sha256"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/helpers"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
+	"github.com/pb33f/libopenapi/utils"
+	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OASSchema  will check that the document is a valid OpenAPI schema.
@@ -89,8 +91,21 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 					}
 				}
 			}
+
+			var reason = validationErrors[i].SchemaValidationErrors[y].Reason
+			if reason == "validation failed" { // this is garbage, so let's look into the original error stack.
+
+				var helpfulMessages []string
+
+				// dive into the validation error and pull out something more meaningful!
+				helpers.DiveIntoValidationError(validationErrors[i].SchemaValidationErrors[y].OriginalError, &helpfulMessages)
+
+				// wrap the root cause in a string, with a welcoming tone.
+				reason = strings.Join(helpfulMessages, ". Also, ")
+			}
+
 			res := model.RuleFunctionResult{
-				Message:   fmt.Sprintf("schema invalid: %v", validationErrors[i].SchemaValidationErrors[y].Reason),
+				Message:   fmt.Sprintf("schema invalid: %v", reason),
 				StartNode: n,
 				EndNode:   vacuumUtils.BuildEndNode(n),
 				Path:      location,

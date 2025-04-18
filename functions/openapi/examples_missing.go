@@ -94,7 +94,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
-			if p.SchemaProxy != nil {
+			if p.SchemaProxy != nil && p.SchemaProxy.Schema != nil && p.SchemaProxy.Schema.Value != nil {
 				if len(p.SchemaProxy.Schema.Value.Type) <= 0 {
 					continue
 				}

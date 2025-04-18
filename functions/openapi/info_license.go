@@ -4,10 +4,10 @@
 package openapi
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"gopkg.in/yaml.v3"
 )
 
 // InfoLicense will check that the info object has a contact object.
@@ -43,6 +43,18 @@ func (id InfoLicense) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 			StartNode: info.Value.GoLow().KeyNode,
 			EndNode:   vacuumUtils.BuildEndNode(info.Value.GoLow().KeyNode),
 			Path:      "$.info",
+			Rule:      context.Rule,
+		}
+		results = append(results, res)
+		info.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
+	}
+
+	if info != nil && info.Value.License.Name == "" {
+		res := model.RuleFunctionResult{
+			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` section must contain a `name`"),
+			StartNode: info.License.Value.GoLow().KeyNode,
+			EndNode:   vacuumUtils.BuildEndNode(info.License.Value.GoLow().KeyNode),
+			Path:      "$.info.license",
 			Rule:      context.Rule,
 		}
 		results = append(results, res)
