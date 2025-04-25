@@ -53,6 +53,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	securitySchemes := context.Index.GetAllSecuritySchemes()
 	links := context.Index.GetAllLinks()
 	callbacks := context.Index.GetAllCallbacks()
+	pathItems := context.Index.GetAllComponentPathItems()
 	mappedRefs := context.Document.GetRolodex().GetAllMappedReferences()
 
 	// extract securityRequirements from swagger. These are not mapped as they are not $refs
@@ -106,6 +107,7 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 		requestBodies,
 		headers,
 		securitySchemes,
+		pathItems,
 		links,
 		callbacks,
 	}
