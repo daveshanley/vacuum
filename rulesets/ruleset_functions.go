@@ -685,7 +685,7 @@ func GetPathParamsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check path validity and definition",
 		Id:           PathParamsRule,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		Description:  "Path parameters must be defined and valid.",
 		Given:        "$",
 		Resolved:     true,
@@ -829,8 +829,8 @@ func GetOAS3SchemaRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check spec is valid OpenAPI 3",
 		Id:           Oas3Schema,
-		Formats:      model.OAS3Format,
-		Description:  "OpenAPI 3 specification is invalid",
+		Formats:      model.OAS3AllFormat,
+		Description:  "OpenAPI 3+ specification is invalid",
 		Given:        "$",
 		Resolved:     false,
 		Recommended:  true,
