@@ -246,12 +246,14 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					}
 				}
 				if propErr {
-					path := prop.GenerateJSONPath()
-					results = append(results,
-						buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("media type schema property `%s` is missing `examples` or `example`", propName)),
-							path,
-							prop.KeyNode, mt.ValueNode, mt))
+					if prop != nil {
+						path := prop.GenerateJSONPath()
+						results = append(results,
+							buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("media type schema property `%s` is missing `examples` or `example`", propName)),
+								path,
+								prop.KeyNode, mt.ValueNode, mt))
+					}
 				}
 			}
 
