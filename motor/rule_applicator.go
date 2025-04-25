@@ -87,13 +87,14 @@ type RuleSetExecution struct {
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
 type RuleSetExecutionResult struct {
-	RuleSetExecution *RuleSetExecution          // The execution struct that was used invoking the result.
-	Results          []model.RuleFunctionResult // The results of the execution.
-	Index            *index.SpecIndex           // The index that was created from the specification, used by the rules.
-	SpecInfo         *datamodel.SpecInfo        // A reference to the SpecInfo object, used by all the rules.
-	Errors           []error                    // Any errors that were returned.
-	FilesProcessed   int                        // number of files extracted by the rolodex
-	FileSize         int64                      // total filesize loaded by the rolodex
+	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
+	Results          []model.RuleFunctionResult       // The results of the execution.
+	Index            *index.SpecIndex                 // The index that was created from the specification, used by the rules.
+	SpecInfo         *datamodel.SpecInfo              // A reference to the SpecInfo object, used by all the rules.
+	Errors           []error                          // Any errors that were returned.
+	FilesProcessed   int                              // number of files extracted by the rolodex
+	FileSize         int64                            // total filesize loaded by the rolodex
+	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
 }
 
 // todo: move copy into virtual file system or some kind of map.
@@ -733,6 +734,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Errors:           errs,
 		FilesProcessed:   filesProcessed,
 		FileSize:         fileSize,
+		DocumentConfig:   docConfig,
 	}
 }
 
