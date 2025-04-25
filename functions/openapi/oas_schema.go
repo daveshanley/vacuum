@@ -98,12 +98,48 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				var helpfulMessages []string
 
 				// dive into the validation error and pull out something more meaningful!
-				helpers.DiveIntoValidationError(validationErrors[i].SchemaValidationErrors[y].OriginalError, &helpfulMessages)
+				helpers.DiveIntoValidationError(validationErrors[i].SchemaValidationErrors[y].OriginalError, &helpfulMessages,
+					strings.TrimPrefix(validationErrors[i].SchemaValidationErrors[y].Location, "/"))
+
+				// run through the helpful messages and remove any duplicates
+				seenMessages := make(map[string]string)
+				for _, message := range helpfulMessages {
+					h := helpers.HashString(message)
+					if _, exists := seenMessages[h]; !exists {
+						seenMessages[h] = message
+					}
+				}
+				var cleanedMessages []string
+				for _, message := range seenMessages {
+					cleanedMessages = append(cleanedMessages, message)
+				}
 
 				// wrap the root cause in a string, with a welcoming tone.
-				reason = strings.Join(helpfulMessages, ". Also, ")
+				// define a list of join phrases
+				joinPhrases := []string{
+					". Also, ",
+					", and ",
+					". And also ",
+					", as well as ",
+				}
+				// pick a random join phrase using a random index
+				reasonBuf := strings.Builder{}
+				r := 0
+				for q, message := range cleanedMessages {
+					if r > 3 {
+						r = 0
+					}
+					reasonBuf.WriteString(message)
+					if q < len(cleanedMessages)-1 {
+						reasonBuf.WriteString(joinPhrases[r])
+					}
+					r++
+				}
+				reason = reasonBuf.String()
 			}
-
+			if reason == "" {
+				reason = "multiple components failed validation"
+			}
 			res := model.RuleFunctionResult{
 				Message:   fmt.Sprintf("schema invalid: %v", reason),
 				StartNode: n,
