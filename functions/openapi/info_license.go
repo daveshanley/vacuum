@@ -49,7 +49,7 @@ func (id InfoLicense) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 		info.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 	}
 
-	if info != nil && info.Value.License.Name == "" {
+	if info != nil && info.Value != nil && info.Value.License != nil && info.Value.License.Name == "" {
 		res := model.RuleFunctionResult{
 			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` section must contain a `name`"),
 			StartNode: info.License.Value.GoLow().KeyNode,
