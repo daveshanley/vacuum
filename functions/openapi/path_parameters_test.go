@@ -590,3 +590,45 @@ paths:
 
 	assert.Len(t, res, 0)
 }
+
+func TestPathParameters_RunRule_CheckForPathParamInPost(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+    /test/two/{cakes}:
+        parameters:
+              - in: header
+                schema:
+                    type: string
+                name: yeah
+                example: fish
+                description: fingers
+        post: 
+          description: minty fresh
+          summary: crispy fresh  
+          parameters:
+            - name: cakes
+              in: path`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
