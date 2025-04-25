@@ -50,10 +50,15 @@ func BuildFunctionResultString(message string) RuleFunctionResult {
 // ValidateRuleFunctionContextAgainstSchema will perform run-time validation against a rule to ensure that
 // options being passed in are acceptable and meet the needs of the Rule schema
 func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx RuleFunctionContext) (bool, []string) {
+
 	valid := true
 	var errs []string
 	schema := ruleFunction.GetSchema()
 	numProps := 0
+
+	if schema.Name == "postResponseSuccess" {
+		println("here")
+	}
 
 	if options, ok := ctx.Options.(map[string]interface{}); ok {
 		numProps = countPropsInterface(options, numProps)
@@ -61,6 +66,10 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 
 	if options, ok := ctx.Options.(map[string]string); ok {
 		numProps = countPropsString(options, numProps)
+	}
+
+	if options, ok := ctx.Options.(map[string][]string); ok {
+		numProps = len(options)
 	}
 
 	if schema.MinProperties > 0 && numProps < schema.MinProperties {
@@ -150,6 +159,10 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 				}
 			}
 		}
+	}
+
+	if !valid {
+		println("fuck")
 	}
 
 	return valid, errs
