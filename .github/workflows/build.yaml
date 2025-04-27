@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v3
         with:
-          go-version: 1.23
+          go-version: 1.24
         id: go
 
       - name: Checkout code
@@ -42,7 +42,7 @@ jobs:
         run: make build
 
   build-report-ui:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [ 20.x ]
