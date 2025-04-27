@@ -19,11 +19,12 @@ import (
 // VacuumReport is a serialized, ready to re-replay linting report. It can be used on its own, or it
 // can be used as a replay model to re-render the report again. Time is now available to vacuum.
 type VacuumReport struct {
-	Generated  time.Time                 `json:"generated" yaml:"generated"`
-	SpecInfo   *datamodel.SpecInfo       `json:"specInfo" yaml:"specInfo"`
-	Statistics *reports.ReportStatistics `json:"statistics" yaml:"statistics"`
-	ResultSet  *model.RuleResultSet      `json:"resultSet" yaml:"resultSet"`
-	Execution  *motor.RuleSetExecution   `json:"-" yaml:"-"`
+	Generated      time.Time                        `json:"generated" yaml:"generated"`
+	SpecInfo       *datamodel.SpecInfo              `json:"specInfo" yaml:"specInfo"`
+	Statistics     *reports.ReportStatistics        `json:"statistics" yaml:"statistics"`
+	ResultSet      *model.RuleResultSet             `json:"resultSet" yaml:"resultSet"`
+	DocumentConfig *datamodel.DocumentConfiguration `json:"-" yaml:"-"`
+	Execution      *motor.RuleSetExecution          `json:"-" yaml:"-"`
 }
 
 // BuildVacuumReportFromFile will attempt (at great speed) to read in a file as a Vacuum Report. If successful a pointer
