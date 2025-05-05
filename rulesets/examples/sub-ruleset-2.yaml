@@ -1,0 +1,14 @@
+rules:
+  rule-from-subset-2:
+    description: Check the title of the spec is exactly, 'this specific thing'
+    severity: error
+    message: you have to make the title 'this specific thing'
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info
+    then:
+      field: title
+      function: pattern
+      functionOptions:
+        match: 'this specific thing'
+    howToFix: Make sure the title matches 'this specific thing'
