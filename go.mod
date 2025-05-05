@@ -12,7 +12,7 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/doctor v0.0.21
+	github.com/pb33f/doctor v0.0.25
 	github.com/pb33f/libopenapi v0.21.9
 	github.com/pb33f/libopenapi-validator v0.4.0
 	github.com/pterm/pterm v0.12.80

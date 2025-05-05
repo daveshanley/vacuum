@@ -56,10 +56,6 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	schema := ruleFunction.GetSchema()
 	numProps := 0
 
-	if schema.Name == "postResponseSuccess" {
-		println("here")
-	}
-
 	if options, ok := ctx.Options.(map[string]interface{}); ok {
 		numProps = countPropsInterface(options, numProps)
 	}
