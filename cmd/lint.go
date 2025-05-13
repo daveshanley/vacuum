@@ -6,6 +6,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/statistics"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"os"
@@ -65,6 +67,10 @@ func GetLintCommand() *cobra.Command {
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			minScore, _ := cmd.Flags().GetInt("min-score")
+
+			// https://github.com/daveshanley/vacuum/issues/636
+			showRules, _ := cmd.Flags().GetBool("show-rules")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -142,6 +148,33 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
+			if showRules {
+				pterm.Println("The following rules are being used:")
+				pterm.Println()
+
+				var rules []pterm.BulletListItem
+				x := 01
+				for _, rule := range selectedRS.Rules {
+					sp := ""
+					if x <= 9 {
+						sp = "  "
+					}
+					if x > 9 && x < 99 {
+						sp = " "
+					}
+					rules = append(rules, pterm.BulletListItem{
+						Level:       0,
+						Text:        fmt.Sprintf("%s: (%s)", rule.Id, rule.Name),
+						TextStyle:   pterm.NewStyle(pterm.FgLightMagenta),
+						BulletStyle: pterm.NewStyle(pterm.FgLightCyan),
+						Bullet:      fmt.Sprintf("► %s[%d]", sp, x),
+					})
+					x++
+				}
+				pterm.DefaultBulletList.WithItems(rules).Render()
+				pterm.Println()
+			}
+
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
@@ -203,6 +236,7 @@ func GetLintCommand() *cobra.Command {
 			var filesProcessedSize int64
 			var filesProcessed int
 			var size int64
+			var stats *reports.ReportStatistics
 			for i, fileName := range filesToLint {
 
 				go func(c chan bool, i int, fileName string) {
@@ -241,8 +275,11 @@ func GetLintCommand() *cobra.Command {
 						IgnoredResults:           ignoredItems,
 						ExtensionRefs:            extensionRefsFlag,
 					}
-					fs, fp, err := lintFile(lfr)
+					st, fs, fp, err := lintFile(lfr)
 
+					if s != nil {
+						stats = st
+					}
 					filesProcessedSize = filesProcessedSize + fs + size
 					filesProcessed = filesProcessed + fp + 1
 
@@ -267,6 +304,19 @@ func GetLintCommand() *cobra.Command {
 
 			RenderTimeAndFiles(timeFlag, duration, filesProcessedSize, filesProcessed)
 
+			if minScore > 10 {
+				// check overall-score is above the threshold
+				if stats != nil {
+					if stats.OverallScore < minScore {
+						box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+						box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+						box.Println(pterm.LightRed("🚨 SCORE THRESHOLD FAILED 🚨"))
+						pterm.Println()
+						return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", stats.OverallScore, minScore)
+					}
+				}
+			}
+
 			if len(errs) > 0 {
 				return errors.Join(errs...)
 			}
@@ -289,6 +339,9 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths (no '...')")
+	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
+	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
+
 	// TODO: Add globbed-files flag to other commands as well
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
@@ -319,7 +372,7 @@ func GetLintCommand() *cobra.Command {
 	return cmd
 }
 
-func lintFile(req utils.LintFileRequest) (int64, int, error) {
+func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int, error) {
 	// read file.
 	specBytes, ferr := os.ReadFile(req.FileName)
 
@@ -330,7 +383,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 
 		pterm.Error.Printf("Unable to read file '%s': %s\n", req.FileName, ferr.Error())
 		pterm.Println()
-		return 0, 0, ferr
+		return nil, 0, 0, ferr
 
 	}
 
@@ -362,7 +415,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 			pterm.Error.Printf("unable to process spec '%s', error: %s", req.FileName, err.Error())
 			pterm.Println()
 		}
-		return result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+		return nil, result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 	}
 
 	resultSet := model.NewRuleResultSet(result.Results)
@@ -370,11 +423,13 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 	warnings := resultSet.GetWarnCount()
 	errs := resultSet.GetErrorCount()
 	informs := resultSet.GetInfoCount()
+	stats := statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
+
 	req.Lock.Lock()
 	defer req.Lock.Unlock()
 	if !req.DetailsFlag {
 		RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
-		return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
+		return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 	}
 
 	abs, _ := filepath.Abs(req.FileName)
@@ -396,7 +451,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 
 	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
 
-	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
+	return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 }
 
 // filterIgnoredResultsPtr filters the given results slice, taking out any (RuleID, Path) combos that were listed in the

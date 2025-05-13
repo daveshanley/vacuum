@@ -49,6 +49,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			minScore, _ := cmd.Flags().GetInt("min-score")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -240,8 +241,27 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			reportData := data
 
+			checkThreshold := func(overall int) error {
+				if minScore > 10 {
+					// check overall-score is above the threshold
+					if stats != nil {
+						if stats.OverallScore < minScore {
+							return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", overall, minScore)
+						}
+					}
+				}
+				return nil
+			}
+
 			if stdOut {
 				fmt.Print(string(reportData))
+
+				if minScore > 10 {
+					// check overall-score is above the threshold
+					if e := checkThreshold(stats.OverallScore); e != nil {
+						return e
+					}
+				}
 				return nil
 			}
 
@@ -280,6 +300,12 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 			pterm.Println()
 
+			if minScore > 10 {
+				// check overall-score is above the threshold
+				if e := checkThreshold(stats.OverallScore); e != nil {
+					return e
+				}
+			}
 			return nil
 		},
 	}
@@ -290,5 +316,6 @@ func GetVacuumReportCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	return cmd
 }
