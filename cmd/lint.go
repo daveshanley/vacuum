@@ -277,7 +277,7 @@ func GetLintCommand() *cobra.Command {
 					}
 					st, fs, fp, err := lintFile(lfr)
 
-					if s != nil {
+					if st != nil {
 						stats = st
 					}
 					filesProcessedSize = filesProcessedSize + fs + size
