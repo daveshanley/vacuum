@@ -419,6 +419,53 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 	}
 
 	resultSet := model.NewRuleResultSet(result.Results)
+
+	var cats []*model.RuleCategory
+
+	if req.CategoryFlag != "" {
+		resultSet.ResetCounts()
+		switch req.CategoryFlag {
+		case model.CategoryDescriptions:
+			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
+		case model.CategoryExamples:
+			cats = append(cats, model.RuleCategories[model.CategoryExamples])
+		case model.CategoryInfo:
+			cats = append(cats, model.RuleCategories[model.CategoryInfo])
+		case model.CategorySchemas:
+			cats = append(cats, model.RuleCategories[model.CategorySchemas])
+		case model.CategorySecurity:
+			cats = append(cats, model.RuleCategories[model.CategorySecurity])
+		case model.CategoryValidation:
+			cats = append(cats, model.RuleCategories[model.CategoryValidation])
+		case model.CategoryOperations:
+			cats = append(cats, model.RuleCategories[model.CategoryOperations])
+		case model.CategoryTags:
+			cats = append(cats, model.RuleCategories[model.CategoryTags])
+		case model.CategoryOWASP:
+			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
+		default:
+			pterm.Warning.Printf("Category '%s' is unknown, all categories are being considered.\n", req.CategoryFlag)
+			pterm.Println()
+			cats = model.RuleCategoriesOrdered
+		}
+		// try a category print out.
+		for _, val := range cats {
+
+			categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
+
+			if len(categoryResults) > 0 {
+				if len(cats) > 1 {
+					resultSet.Results = append(resultSet.Results, categoryResults...)
+				} else {
+					resultSet.Results = categoryResults
+				}
+			}
+		}
+
+	} else {
+		cats = model.RuleCategoriesOrdered
+	}
+
 	resultSet.SortResultsByLineNumber()
 	warnings := resultSet.GetWarnCount()
 	errs := resultSet.GetErrorCount()
@@ -428,7 +475,7 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 	req.Lock.Lock()
 	defer req.Lock.Unlock()
 	if !req.DetailsFlag {
-		RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
+		RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag, cats)
 		return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 	}
 
@@ -449,7 +496,7 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 			req.CategoryFlag)
 	}
 
-	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
+	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag, cats)
 
 	return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 }
@@ -632,12 +679,12 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename, sev string) {
+func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename, sev string, cats []*model.RuleCategory) {
 
 	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
 		pterm.LightBlue("Info")}}
 
-	for _, cat := range model.RuleCategoriesOrdered {
+	for _, cat := range cats {
 		errors := rs.GetErrorsByRuleCategory(cat.Id)
 		warn := rs.GetWarningsByRuleCategory(cat.Id)
 		info := rs.GetInfoByRuleCategory(cat.Id)
@@ -681,7 +728,13 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 				msg = "failed with"
 			}
 
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgYellow)).WithMargin(10).Printf(
+			warningHeader := pterm.HeaderPrinter{
+				TextStyle:       pterm.NewStyle(pterm.FgBlack),
+				BackgroundStyle: pterm.NewStyle(pterm.BgYellow),
+				Margin:          10,
+			}
+
+			warningHeader.Printf(
 				"Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
 			return
 		}
