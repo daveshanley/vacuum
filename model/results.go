@@ -167,6 +167,12 @@ func (rr *RuleResultSet) GetErrorCount() int {
 	}
 }
 
+func (rr *RuleResultSet) ResetCounts() {
+	rr.ErrorCount = 0
+	rr.WarnCount = 0
+	rr.InfoCount = 0
+}
+
 // GetWarnCount will return the number of warnings returned by the rule results.
 func (rr *RuleResultSet) GetWarnCount() int {
 	if rr.WarnCount > 0 {
