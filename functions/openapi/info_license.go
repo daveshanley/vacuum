@@ -6,7 +6,7 @@ package openapi
 import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/doctor/model/high/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -46,7 +46,19 @@ func (id InfoLicense) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 			Rule:      context.Rule,
 		}
 		results = append(results, res)
-		info.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+		info.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
+	}
+
+	if info != nil && info.Value != nil && info.Value.License != nil && info.Value.License.Name == "" {
+		res := model.RuleFunctionResult{
+			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "`license` section must contain a `name`"),
+			StartNode: info.License.Value.GoLow().KeyNode,
+			EndNode:   vacuumUtils.BuildEndNode(info.License.Value.GoLow().KeyNode),
+			Path:      "$.info.license",
+			Rule:      context.Rule,
+		}
+		results = append(results, res)
+		info.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 	}
 
 	return results

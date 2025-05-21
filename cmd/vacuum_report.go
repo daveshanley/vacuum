@@ -48,6 +48,8 @@ func GetVacuumReportCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			minScore, _ := cmd.Flags().GetInt("min-score")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -166,14 +168,21 @@ func GetVacuumReportCommand() *cobra.Command {
 				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
+			deepGraph := false
+			if ignoreFile != "" {
+				deepGraph = true
+			}
+
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-				RuleSet:           selectedRS,
-				Spec:              specBytes,
-				CustomFunctions:   customFunctions,
-				SilenceLogs:       true,
-				Base:              baseFlag,
-				SkipDocumentCheck: skipCheckFlag,
-				Timeout:           time.Duration(timeoutFlag) * time.Second,
+				RuleSet:                         selectedRS,
+				Spec:                            specBytes,
+				CustomFunctions:                 customFunctions,
+				SilenceLogs:                     true,
+				Base:                            baseFlag,
+				SkipDocumentCheck:               skipCheckFlag,
+				BuildDeepGraph:                  deepGraph,
+				Timeout:                         time.Duration(timeoutFlag) * time.Second,
+				ExtractReferencesFromExtensions: extensionRefsFlag,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
@@ -185,7 +194,7 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			// if we want jUnit output, then build the report and be done with it.
 			if junitFlag {
-				junitXML := vacuum_report.BuildJUnitReport(resultSet, start)
+				junitXML := vacuum_report.BuildJUnitReport(resultSet, start, args)
 				if stdOut {
 					fmt.Print(string(junitXML))
 					return nil
@@ -232,8 +241,27 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			reportData := data
 
+			checkThreshold := func(overall int) error {
+				if minScore > 10 {
+					// check overall-score is above the threshold
+					if stats != nil {
+						if stats.OverallScore < minScore {
+							return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", overall, minScore)
+						}
+					}
+				}
+				return nil
+			}
+
 			if stdOut {
 				fmt.Print(string(reportData))
+
+				if minScore > 10 {
+					// check overall-score is above the threshold
+					if e := checkThreshold(stats.OverallScore); e != nil {
+						return e
+					}
+				}
 				return nil
 			}
 
@@ -263,12 +291,21 @@ func GetVacuumReportCommand() *cobra.Command {
 				return err
 			}
 
-			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+			if len(args) > 0 {
+				pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+				fi, _ := os.Stat(args[0])
+				RenderTime(timeFlag, duration, fi.Size())
+			} else {
+				pterm.Success.Printf("Report generated, written to '%s'\n", reportOutputName)
+			}
 			pterm.Println()
 
-			fi, _ := os.Stat(args[0])
-			RenderTime(timeFlag, duration, fi.Size())
-
+			if minScore > 10 {
+				// check overall-score is above the threshold
+				if e := checkThreshold(stats.OverallScore); e != nil {
+					return e
+				}
+			}
 			return nil
 		},
 	}
@@ -279,5 +316,6 @@ func GetVacuumReportCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	return cmd
 }

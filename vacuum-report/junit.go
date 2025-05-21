@@ -26,24 +26,36 @@ type TestSuite struct {
 	Name      string      `xml:"name,attr"`
 	Tests     int         `xml:"tests,attr"`
 	Failures  int         `xml:"failures,attr"`
-	Time      float64     `xml:"time,attr"`
 	TestCases []*TestCase `xml:"testcase"`
 }
 
+type Properties struct {
+	xml.Name   `xml:"properties"`
+	Properties []*Property `xml:"property"`
+}
+
+type Property struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:"value,attr"`
+}
+
 type TestCase struct {
-	Name      string   `xml:"name,attr"`
-	ClassName string   `xml:"classname,attr"`
-	Time      float64  `xml:"time,attr"`
-	Failure   *Failure `xml:"failure,omitempty"`
+	Name       string      `xml:"name,attr"`
+	ClassName  string      `xml:"classname,attr"`
+	Line       int         `xml:"line,attr,omitempty"`
+	Failure    *Failure    `xml:"failure,omitempty"`
+	Properties *Properties `xml:"properties,omitempty"`
+	File       string      `xml:"file,attr,omitempty"`
 }
 
 type Failure struct {
 	Message  string `xml:"message,attr,omitempty"`
 	Type     string `xml:"type,attr,omitempty"`
+	File     string `xml:"file,attr,omitempty"`
 	Contents string `xml:",innerxml"`
 }
 
-func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
+func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string) []byte {
 
 	since := time.Since(t)
 	var suites []*TestSuite
@@ -52,11 +64,11 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 
 	tmpl := `
 	{{ .Message }}
-	JSON Path: {{ .Path }}
+	
+    JSON Path: {{ .Path }}
 	Rule: {{ .Rule.Id }}
 	Severity: {{ .Rule.Severity }}
-	Start Line: {{ .StartNode.Line }}
-	End Line: {{ .EndNode.Line }}`
+	Line: {{ .StartNode.Line }}`
 
 	parsedTemplate, _ := template.New("failure").Parse(tmpl)
 
@@ -76,24 +88,69 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 				f++
 				gf++
 			}
-			tc = append(tc, &TestCase{
-				Name:      fmt.Sprintf("Category: %s", val.Id),
+
+			line := 1
+			if r.StartNode != nil {
+				line = r.StartNode.Line
+			}
+
+			tCase := &TestCase{
+				Line:      r.StartNode.Line,
+				Name:      fmt.Sprintf("%s", val.Name),
 				ClassName: r.Rule.Id,
-				Time:      since.Seconds(),
 				Failure: &Failure{
 					Message:  r.Message,
 					Type:     strings.ToUpper(r.Rule.Severity),
 					Contents: sb.String(),
 				},
-			})
+				Properties: &Properties{
+					Properties: []*Property{
+						{
+							Name:  "path",
+							Value: r.Path,
+						},
+						{
+							Name:  "rule",
+							Value: r.Rule.Id,
+						},
+						{
+							Name:  "severity",
+							Value: r.Rule.Severity,
+						},
+						{
+							Name:  "line",
+							Value: fmt.Sprintf("%d", line),
+						},
+					},
+				},
+			}
+
+			if r.Origin != nil && r.Origin.AbsoluteLocation != "" {
+				tCase.File = r.Origin.AbsoluteLocation
+				tCase.Properties.Properties = append(tCase.Properties.Properties, &Property{
+					Name:  "file",
+					Value: r.Origin.AbsoluteLocation,
+				})
+				tCase.Failure.File = r.Origin.AbsoluteLocation
+			} else {
+				if len(args) > 0 {
+					tCase.File = args[0]
+					tCase.Properties.Properties = append(tCase.Properties.Properties, &Property{
+						Name:  "file",
+						Value: args[0],
+					})
+					tCase.Failure.File = args[0]
+				}
+			}
+
+			tc = append(tc, tCase)
 		}
 
 		if len(tc) > 0 {
 			ts := &TestSuite{
-				Name:      fmt.Sprintf("Category: %s", val.Id),
+				Name:      fmt.Sprintf("%s", val.Name),
 				Tests:     len(categoryResults),
 				Failures:  f,
-				Time:      since.Seconds(),
 				TestCases: tc,
 			}
 
@@ -106,6 +163,7 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time) []byte {
 		TestSuites: suites,
 		Tests:      gtc,
 		Failures:   gf,
+		Time:       since.Seconds(),
 	}
 
 	b, _ := xml.MarshalIndent(allSuites, "", " ")

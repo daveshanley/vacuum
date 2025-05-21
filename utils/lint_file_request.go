@@ -20,6 +20,7 @@ type LintFileRequest struct {
 	DetailsFlag              bool
 	TimeFlag                 bool
 	NoMessageFlag            bool
+	ExtensionRefs            bool
 	AllResultsFlag           bool
 	FailSeverityFlag         string
 	CategoryFlag             string

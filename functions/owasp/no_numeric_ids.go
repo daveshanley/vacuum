@@ -4,14 +4,13 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	drV3 "github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
-	"slices"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    drV3 "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "slices"
+    "strings"
 )
 
 type NoNumericIds struct{}
@@ -52,7 +51,7 @@ func (ni NoNumericIds) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 							Path:      fmt.Sprintf("%s.%s", param.SchemaProxy.Schema.GenerateJSONPath(), "type"),
 							Rule:      context.Rule,
 						}
-						param.SchemaProxy.Schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						param.SchemaProxy.Schema.AddRuleFunctionResult(drV3.ConvertRuleResult(&result))
 						results = append(results, result)
 					}
 				}

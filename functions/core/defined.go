@@ -4,12 +4,12 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 // Defined is a rule that will determine if a field has been set on a node slice.
@@ -52,12 +52,26 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 	for _, node := range nodes {
 		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
-		locatedObject, err := context.DrDocument.LocateModel(node)
-		locatedPath := pathValue
-		if err == nil && locatedObject != nil {
-			locatedPath = locatedObject.GenerateJSONPath()
-		}
+		var locatedObjects []v3.Foundational
+		var allPaths []string
+		var err error
+
 		if fieldNode == nil {
+
+			locatedPath := pathValue
+			if context.DrDocument != nil {
+				// Since the field is undefined, locate the parent node to be the locatedPath of infraction
+				locatedObjects, err = context.DrDocument.LocateModel(node)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
+				}
+			}
+
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must be defined", ruleMessage, context.RuleAction.Field)),
@@ -66,9 +80,14 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				Path:      locatedPath,
 				Rule:      context.Rule,
 			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
+			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}

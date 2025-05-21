@@ -1,7 +1,10 @@
 package core
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -105,22 +108,50 @@ tags:
 
 func TestTruthy_RunRule_NoContent(t *testing.T) {
 
-	sampleYaml := `info: test`
+	sampleYaml :=
+		`openapi: 3.0.0
+paths:
+  /v1/cake:
+    get:
+      parameters:
+        - in: query
+          name: type
+          required: true
+        - in: query
+          name: flavor
+          required: false
+        - in: query
+          name: weight
+`
 
-	path := "$.info"
+	path := "$.paths.*.*.parameters[*]"
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
-	assert.Len(t, nodes, 1)
+	assert.Len(t, nodes, 3)
 
-	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "info", nil)
+	document, err := libopenapi.NewDocument([]byte(sampleYaml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "truthy", "required", nil)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Given = path
 	ctx.Rule = &rule
+	ctx.Document = document
+	ctx.DrDocument = drDocument
 
 	tru := Truthy{}
 	res := tru.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 1)
+	// Two of the three nodes should match because one has a truthy value
+	assert.Len(t, res, 2)
+	assert.Equal(t, res[0].Path, "$.paths['/v1/cake'].get.parameters[1].required")
+	assert.Equal(t, res[1].Path, "$.paths['/v1/cake'].get.parameters[2].required")
 }
 
 func TestTruthy_RunRule_ArrayTest(t *testing.T) {

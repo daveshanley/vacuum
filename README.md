@@ -81,6 +81,15 @@ like our _very kind_ sponsors:
 
 [Speakeasy](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
 
+<a href="https://bump.sh/?utm_source=quobix&utm_campaign=sponsor">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/bump-sh-dark.png">
+  <img alt="bump.sh'" src=".github/sponsors/bump-sh-light.png">
+</picture>
+</a>
+
+[bump.sh](https://bump.sh/?utm_source=quobix&utm_campaign=sponsor)
+
 <a href="https://scalar.com">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/scalar-dark.png">
@@ -89,6 +98,16 @@ like our _very kind_ sponsors:
 </a>
 
 [scalar](https://scalar.com)
+
+<a href="https://apideck.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/apideck-dark.png">
+  <img alt="apideck'" src=".github/sponsors/apideck-light.png">
+</picture>
+</a>
+
+[apideck](https://apideck.com)
+
 
 ---
 
@@ -99,7 +118,29 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.12+` 🔥 : **Core functions support JSON Path**.
+🔥 **New in** `v0.16+` 🔥 : **JSON 9535 Compliant**.
+
+vacuum now expects JSON Path Queries to be [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) compliant. Finally standardized!
+
+---
+
+`v0.15+`: **Fixes, New Rules, Functions and Command**.
+
+There is a new command `generate-ignorefile` that will generate an ignore file from a linting report.
+
+New rule `no-request-body` checks for incorrect request bodies in operations, and `path-item-refs` checks for
+$refs being used in path items.
+
+---
+
+v0.14+`: **Engine Speedup**.
+
+**Speed!** We've made some significant improvements to how efficiently large documents are walked
+Which means vacuum is now faster than ever.
+
+---
+
+`v0.12+` : Core functions support JSON Path.
 
 Now all **core** functions return the **correct and accurate JSON path for each linting result**. Previously this was not possible
 at all, but with some clever engineering, we have made it happen. It's a small thing, but with huge impact.

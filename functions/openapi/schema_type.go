@@ -7,9 +7,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
-	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/doctor/model/high/v3"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // SchemaTypeCheck will determine if document schemas contain the correct type
@@ -68,7 +67,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "type"),
 					Rule:      context.Rule,
 				}
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
 		}
@@ -77,13 +76,13 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	return results
 }
 
-func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateNumber(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MultipleOf != nil {
 		if *schema.Value.MultipleOf <= 0 {
 			result := st.buildResult("`multipleOf` should be a number greater than `0`",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "multipleOf"),
+				schema.GenerateJSONPath(), "multipleOf", -1,
 				schema, schema.Value.GoLow().MultipleOf.KeyNode, context)
 			results = append(results, result)
 		}
@@ -93,7 +92,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 		if schema.Value.Minimum != nil {
 			if *schema.Value.Maximum < *schema.Value.Minimum {
 				result := st.buildResult("`maximum` should be a number greater than or equal to `minimum`",
-					fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maximum"),
+					schema.GenerateJSONPath(), "maximum", -1,
 					schema, schema.Value.GoLow().Maximum.KeyNode, context)
 				results = append(results, result)
 			}
@@ -104,7 +103,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 		if schema.Value.ExclusiveMinimum != nil {
 			if schema.Value.ExclusiveMinimum.IsB() && schema.Value.ExclusiveMinimum.B > schema.Value.ExclusiveMaximum.B {
 				result := st.buildResult("`exclusiveMaximum` should be greater than or equal to `exclusiveMinimum`",
-					fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "exclusiveMaximum"),
+					schema.GenerateJSONPath(), "exclusiveMaximum", -1,
 					schema, schema.Value.GoLow().ExclusiveMaximum.KeyNode, context)
 				results = append(results, result)
 			}
@@ -114,13 +113,13 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 	return results
 }
 
-func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateString(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MinLength != nil {
 		if *schema.Value.MinLength < 0 {
 			result := st.buildResult("`minLength` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "minLength"),
+				schema.GenerateJSONPath(), "minLength", -1,
 				schema, schema.Value.GoLow().MinLength.KeyNode, context)
 			results = append(results, result)
 		}
@@ -129,14 +128,14 @@ func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.Rul
 	if schema.Value.MaxLength != nil {
 		if *schema.Value.MaxLength < 0 {
 			result := st.buildResult("`maxLength` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxLength"),
+				schema.GenerateJSONPath(), "maxLength", -1,
 				schema, schema.Value.GoLow().MaxLength.KeyNode, context)
 			results = append(results, result)
 		}
 		if schema.Value.MinLength != nil {
 			if *schema.Value.MinLength > *schema.Value.MaxLength {
 				result := st.buildResult("`maxLength` should be greater than or equal to `minLength`",
-					fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxLength"),
+					schema.GenerateJSONPath(), "maxLength", -1,
 					schema, schema.Value.GoLow().MaxLength.KeyNode, context)
 				results = append(results, result)
 			}
@@ -145,11 +144,11 @@ func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.Rul
 
 	if schema.Value.Pattern != "" {
 		vm := goja.New()
-		script := strings.Replace("const regex = new RegExp('{pattern}');", "{pattern}", schema.Value.Pattern, 1)
+		script := fmt.Sprintf("const regex = new RegExp(%q)", schema.Value.Pattern)
 		_, err := vm.RunString(script)
 		if err != nil {
 			result := st.buildResult("schema `pattern` should be a ECMA-262 regular expression dialect",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "pattern"),
+				schema.GenerateJSONPath(), "pattern", -1,
 				schema, schema.Value.GoLow().Pattern.KeyNode, context)
 			results = append(results, result)
 		}
@@ -157,13 +156,13 @@ func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.Rul
 	return results
 }
 
-func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateArray(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MinItems != nil {
 		if *schema.Value.MinItems < 0 {
 			result := st.buildResult("`minItems` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "minItems"),
+				schema.GenerateJSONPath(), "minItems", -1,
 				schema, schema.Value.GoLow().MinItems.KeyNode, context)
 			results = append(results, result)
 		}
@@ -172,14 +171,14 @@ func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.Rule
 	if schema.Value.MaxItems != nil {
 		if *schema.Value.MaxItems < 0 {
 			result := st.buildResult("`maxItems` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxItems"),
+				schema.GenerateJSONPath(), "maxItems", -1,
 				schema, schema.Value.GoLow().MaxItems.KeyNode, context)
 			results = append(results, result)
 		}
 		if schema.Value.MinItems != nil {
 			if *schema.Value.MinItems > *schema.Value.MaxItems {
 				result := st.buildResult("`maxItems` should be greater than or equal to `minItems`",
-					fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxItems"),
+					schema.GenerateJSONPath(), "maxItems", -1,
 					schema, schema.Value.GoLow().MaxItems.KeyNode, context)
 				results = append(results, result)
 			}
@@ -189,7 +188,7 @@ func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.Rule
 	if schema.Value.MinContains != nil {
 		if *schema.Value.MinContains < 0 {
 			result := st.buildResult("`minContains` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "minContains"),
+				schema.GenerateJSONPath(), "minContains", -1,
 				schema, schema.Value.GoLow().MinContains.KeyNode, context)
 			results = append(results, result)
 		}
@@ -198,14 +197,14 @@ func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.Rule
 	if schema.Value.MaxContains != nil {
 		if *schema.Value.MaxContains < 0 {
 			result := st.buildResult("`maxContains` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxContains"),
+				schema.GenerateJSONPath(), "maxContains", -1,
 				schema, schema.Value.GoLow().MaxContains.KeyNode, context)
 			results = append(results, result)
 		}
 		if schema.Value.MinContains != nil {
 			if *schema.Value.MinContains > *schema.Value.MaxContains {
 				result := st.buildResult("`maxContains` should be greater than or equal to `minContains`",
-					fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxContains"),
+					schema.GenerateJSONPath(), "maxContains", -1,
 					schema, schema.Value.GoLow().MaxContains.KeyNode, context)
 				results = append(results, result)
 			}
@@ -215,7 +214,41 @@ func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.Rule
 	return results
 }
 
-func (st SchemaTypeCheck) buildResult(message, path string, schema *base.Schema, node *yaml.Node, context *model.RuleFunctionContext) model.RuleFunctionResult {
+func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, segment int, schema *v3.Schema, node *yaml.Node, context *model.RuleFunctionContext) model.RuleFunctionResult {
+
+	// locate all paths that this model is referenced by
+	var allPaths []string
+	var modelByLine []v3.Foundational
+	var modelErr error
+	if context.DrDocument != nil {
+		modelByLine, modelErr = context.DrDocument.LocateModelByLine(node.Line + 1)
+		if modelErr == nil {
+			if modelByLine != nil && len(modelByLine) >= 1 {
+				for j := 0; j < len(modelByLine); j++ {
+					p := modelByLine[j].GenerateJSONPath()
+					allPaths = append(allPaths, p)
+					if violationProperty != "" {
+						if segment >= 0 {
+							p = fmt.Sprintf("%s.%s[%d]", p, violationProperty, segment)
+							path = p
+						} else {
+							p = fmt.Sprintf("%s.%s", p, violationProperty)
+							path = p
+						}
+						allPaths = append(allPaths, p)
+					}
+				}
+			}
+		} else {
+			if violationProperty != "" {
+				if segment >= 0 {
+					path = fmt.Sprintf("%s.%s[%d]", path, violationProperty, segment)
+				} else {
+					path = fmt.Sprintf("%s.%s", path, violationProperty)
+				}
+			}
+		}
+	}
 	result := model.RuleFunctionResult{
 		Message:   message,
 		StartNode: node,
@@ -223,17 +256,20 @@ func (st SchemaTypeCheck) buildResult(message, path string, schema *base.Schema,
 		Path:      path,
 		Rule:      context.Rule,
 	}
-	schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+	if len(allPaths) > 1 {
+		result.Paths = allPaths
+	}
+	schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 	return result
 }
 
-func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MinProperties != nil {
 		if *schema.Value.MinProperties < 0 {
 			result := st.buildResult("`minProperties` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "minProperties"),
+				schema.GenerateJSONPath(), "minProperties", -1,
 				schema, schema.Value.GoLow().MinProperties.KeyNode, context)
 			results = append(results, result)
 		}
@@ -242,14 +278,14 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 	if schema.Value.MaxProperties != nil {
 		if *schema.Value.MaxProperties < 0 {
 			result := st.buildResult("`maxProperties` should be a non-negative number",
-				fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxProperties"),
+				schema.GenerateJSONPath(), "maxProperties", -1,
 				schema, schema.Value.GoLow().MaxProperties.KeyNode, context)
 			results = append(results, result)
 		}
 		if schema.Value.MinProperties != nil {
 			if *schema.Value.MinProperties > *schema.Value.MaxProperties {
 				result := st.buildResult("`maxProperties` should be greater than or equal to `minProperties`",
-					fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "maxProperties"),
+					schema.GenerateJSONPath(), "maxProperties", -1,
 					schema, schema.Value.GoLow().MaxProperties.KeyNode, context)
 				results = append(results, result)
 			}
@@ -297,7 +333,7 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 			}
 			if schema.Value.Properties == nil && !polyFound {
 				result := st.buildResult("object contains `required` fields but no `properties`",
-					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
+					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
 				results = append(results, result)
 				break
@@ -305,7 +341,7 @@ func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.Rul
 
 			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) == nil && !polyDefined {
 				result := st.buildResult(fmt.Sprintf("`required` field `%s` is not defined in `properties`", required),
-					fmt.Sprintf("%s.%s[%d]", schema.GenerateJSONPath(), "required", i),
+					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
 				results = append(results, result)
 			}

@@ -345,9 +345,15 @@ func generateConsoleSnippet(r *model.RuleFunctionResult, specData []string, befo
 
 		buf.WriteString(fmt.Sprintf("%d |  %s\n", startLine+i, line))
 	}
+	var line string
 
 	// todo, fix this.
-	line := strings.ReplaceAll(specData[r.StartNode.Line-1], "[", "{")
+	if r.StartNode.Line-1 < 0 || r.StartNode.Line-1 >= len(specData) {
+		line = strings.ReplaceAll(specData[r.StartNode.Line], "[", "{")
+	} else {
+		line = strings.ReplaceAll(specData[r.StartNode.Line-1], "[", "{")
+	}
+
 	line = strings.ReplaceAll(line, "[", "}")
 
 	affectedLine := fmt.Sprintf("%s                                                        ", line)

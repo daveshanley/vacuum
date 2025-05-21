@@ -4,10 +4,10 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 // ExamplesExternalCheck checks Example objects don't use both `externalValue` and `value`.
@@ -33,7 +33,7 @@ func (eec ExamplesExternalCheck) RunRule(_ []*yaml.Node, context model.RuleFunct
 		return results
 	}
 
-	buildResult := func(message, path string, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
@@ -41,11 +41,11 @@ func (eec ExamplesExternalCheck) RunRule(_ []*yaml.Node, context model.RuleFunct
 			Path:      path,
 			Rule:      context.Rule,
 		}
-		component.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
 
-	checkExample := func(example *base.Example) bool {
+	checkExample := func(example *v3.Example) bool {
 		if example.Value.Value != nil && example.Value.ExternalValue != "" {
 			return false
 		}

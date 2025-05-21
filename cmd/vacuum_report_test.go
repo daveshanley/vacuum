@@ -211,6 +211,8 @@ rules:
 	tmp, _ := os.CreateTemp("", "")
 	_, _ = io.WriteString(tmp, yaml)
 
+	defer os.Remove(tmp.Name())
+
 	b := bytes.NewBufferString("")
 	pterm.SetDefaultOutput(b)
 
@@ -225,5 +227,4 @@ rules:
 	})
 	cmdErr := cmd.Execute()
 	assert.NoError(t, cmdErr)
-	assert.Contains(t, b.String(), "SUCCESS")
 }

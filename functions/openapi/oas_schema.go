@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/helpers"
+	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // OASSchema  will check that the document is a valid OpenAPI schema.
@@ -73,13 +76,86 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
 			}
-			results = append(results, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("schema invalid: %v", validationErrors[i].SchemaValidationErrors[y].Reason),
+			var allPaths []string
+			var modelByLine []v3.Foundational
+			var modelErr error
+			if context.DrDocument != nil {
+				modelByLine, modelErr = context.DrDocument.LocateModelByLine(validationErrors[i].SchemaValidationErrors[y].Line + 1)
+				if modelErr == nil {
+					if modelByLine != nil && len(modelByLine) >= 1 {
+						allPaths = append(allPaths, location)
+						location = modelByLine[0].GenerateJSONPath()
+						for j := 0; j < len(modelByLine); j++ {
+							allPaths = append(allPaths, modelByLine[j].GenerateJSONPath())
+						}
+					}
+				}
+			}
+
+			var reason = validationErrors[i].SchemaValidationErrors[y].Reason
+			if reason == "validation failed" { // this is garbage, so let's look into the original error stack.
+
+				var helpfulMessages []string
+
+				// dive into the validation error and pull out something more meaningful!
+				helpers.DiveIntoValidationError(validationErrors[i].SchemaValidationErrors[y].OriginalError, &helpfulMessages,
+					strings.TrimPrefix(validationErrors[i].SchemaValidationErrors[y].Location, "/"))
+
+				// run through the helpful messages and remove any duplicates
+				seenMessages := make(map[string]string)
+				for _, message := range helpfulMessages {
+					h := helpers.HashString(message)
+					if _, exists := seenMessages[h]; !exists {
+						seenMessages[h] = message
+					}
+				}
+				var cleanedMessages []string
+				for _, message := range seenMessages {
+					cleanedMessages = append(cleanedMessages, message)
+				}
+
+				// wrap the root cause in a string, with a welcoming tone.
+				// define a list of join phrases
+				joinPhrases := []string{
+					". Also, ",
+					", and ",
+					". And also ",
+					", as well as ",
+				}
+				// pick a random join phrase using a random index
+				reasonBuf := strings.Builder{}
+				r := 0
+				for q, message := range cleanedMessages {
+					if r > 3 {
+						r = 0
+					}
+					reasonBuf.WriteString(message)
+					if q < len(cleanedMessages)-1 {
+						reasonBuf.WriteString(joinPhrases[r])
+					}
+					r++
+				}
+				reason = reasonBuf.String()
+			}
+			if reason == "" {
+				reason = "multiple components failed validation"
+			}
+			res := model.RuleFunctionResult{
+				Message:   fmt.Sprintf("schema invalid: %v", reason),
 				StartNode: n,
 				EndNode:   vacuumUtils.BuildEndNode(n),
 				Path:      location,
 				Rule:      context.Rule,
-			})
+			}
+			if len(allPaths) > 1 {
+				res.Paths = allPaths
+			}
+			results = append(results, res)
+			if len(modelByLine) > 0 {
+				if arr, ok := modelByLine[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
+				}
+			}
 			seen[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]
 		}
 	}

@@ -41,6 +41,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
@@ -81,6 +82,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				IgnoreArrayCircleRef:     ignoreArrayCircleRef,
 				IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 				Logger:                   logger,
+				ExtensionRefs:            extensionRefsFlag,
 			}
 
 			return languageserver.NewServer(Version, &lfr).Run()

@@ -41,6 +41,7 @@ func GetBundleCommand() *cobra.Command {
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -115,6 +116,7 @@ func GetBundleCommand() *cobra.Command {
 				ExtractRefsSequentially: true,
 				Logger:                  logger,
 				AllowRemoteReferences:   remoteFlag,
+				ExcludeExtensionRefs:    extensionRefsFlag,
 			}
 
 			bundled, err := bundler.BundleBytes(specBytes, docConfig)

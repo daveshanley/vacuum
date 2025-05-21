@@ -11,7 +11,7 @@ git clone https://github.com/daveshanley/vacuum.git && cd vacuum/plugin/sample
 Once checked out, compile the plugin.
 
 ```bash
-go build -buildmode=plugin . 
+go build -buildmode=plugin boot.go check_single_path.go useless_func.go
 ```
 Go back up into the vacuum directory and compile vacuum
 

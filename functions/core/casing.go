@@ -4,14 +4,14 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"regexp"
-	"strconv"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "regexp"
+    "strconv"
 )
 
 const (
@@ -194,10 +194,16 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// Go through each node and check if the casing is correct
 	for _, n := range nodesToMatch {
 		if !rx.MatchString(n.Value) {
-			locatedObject, err := context.DrDocument.LocateModel(node)
+			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := pathValue
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
+			var allPaths []string
+			if err == nil && locatedObjects != nil {
+				for s, obj := range locatedObjects {
+					if s == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
 			}
 			result := model.RuleFunctionResult{
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage, n.Value, casingType)),
@@ -206,9 +212,14 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				Path:      locatedPath,
 				Rule:      context.Rule,
 			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
+			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}

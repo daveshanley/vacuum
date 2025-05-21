@@ -184,3 +184,27 @@ func TestPattern_RunRule_ContainMap(t *testing.T) {
 
 	assert.Len(t, res, 0)
 }
+
+func TestPattern_RunRule_Issue585(t *testing.T) {
+
+	sampleYaml := `no: 
+  sleep: 123.45`
+	path := "$.no"
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]string)
+	opts["match"] = `^(?=.{1,19}$)[0-9]{0,18}(?:\\.[0-9]{0,2})?$`
+
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "sleep", opts)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Pattern{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "test rule: `^(?=.{1,19}$)[0-9]{0,18}(?:\\\\.[0-9]{0,2})?$` cannot be compiled into a "+
+		"regular expression [`error parsing regexp: invalid or unsupported Perl syntax: `(?=``]", res[0].Message)
+}

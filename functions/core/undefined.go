@@ -4,12 +4,12 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 // Undefined is a rule that will check if a field has not been defined.
@@ -48,28 +48,44 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	for _, node := range nodes {
 
-		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
+		fieldNode, fieldNodeValue := utils.FindKeyNode(context.RuleAction.Field, node.Content)
 		if fieldNode != nil {
 			var val = ""
 			if context.RuleAction.Field != "" {
 				val = fmt.Sprintf("'%s' ", context.RuleAction.Field)
 			}
-			locatedObject, err := context.DrDocument.LocateModel(node)
+
+			var locatedObjects []v3.Foundational
+			var allPaths []string
+			var err error
 			locatedPath := pathValue
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
+			if context.DrDocument != nil {
+				locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
+					}
+				}
 			}
 			result := model.RuleFunctionResult{
-				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined]",
+				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` must be undefined",
 					ruleMessage, val)),
 				StartNode: fieldNode,
 				EndNode:   vacuumUtils.BuildEndNode(fieldNode),
 				Path:      locatedPath,
 				Rule:      context.Rule,
 			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
+			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}

@@ -40,6 +40,8 @@ const (
 
 	oas3HostNotExampleFix string = "Remove 'example.com from the 'servers' URL, it's not going to work."
 
+	PathItemReferencesFix string = "Path items should not use references for defining operations. It's technically allowed, but not great style"
+
 	oas2HostTrailingSlashFix string = "Remove the trailing slash from the host URL. This may cause some tools to incorrectly " +
 		"add a double slash to paths."
 
@@ -121,6 +123,9 @@ const (
 	noRefSiblingsFix string = "$ref values must not be placed next to sibling nodes, There should only be a single node " +
 		" when using $ref. A common mistake is adding 'description' next to a $ref. This is wrong. remove all siblings!"
 
+	oas3noRefSiblingsFix string = "$ref values must not be placed next to sibling nodes, except `description` and `summary` nodes. " +
+		" This is wrong. remove all additional siblings!"
+
 	oas3UnusedComponentFix string = "Orphaned components are not used by anything. You might have plans to use them later, " +
 		"or they could be older schemas that never got cleaned up. A clean spec is a happy spec. Prune your orphaned components."
 
@@ -159,6 +164,8 @@ const (
 	schemaTypeFix string = "Make sure each schema has a value type defined. Without a type, the schema is useless"
 
 	postSuccessResponseFix string = "Make sure your POST operations return a 'success' response via 2xx or 3xx response code. "
+
+	noRequestBodyResponseFix string = "Remove 'requestBody' from HTTP GET and DELETE methods"
 )
 
 const (

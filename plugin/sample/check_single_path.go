@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"gopkg.in/yaml.v3"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // checkSinglePathExists is an example custom rule that checks only a single path exists.
@@ -15,6 +15,10 @@ func (s checkSinglePathExists) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
 		Name: "checkSinglePathExists",
 	}
+}
+
+func (s checkSinglePathExists) GetCategory() string {
+	return "sample"
 }
 
 // RunRule will execute the Sample rule, based on supplied context and a supplied []*yaml.Node slice.

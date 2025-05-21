@@ -4,9 +4,10 @@
 package rulesets
 
 import (
+	"regexp"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/parser"
-	"regexp"
 )
 
 // GetContactPropertiesRule will return a rule configured to look at contact properties of a spec.
@@ -684,7 +685,7 @@ func GetPathParamsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check path validity and definition",
 		Id:           PathParamsRule,
-		Formats:      model.AllFormats,
+		Formats:      model.OAS3AllFormat,
 		Description:  "Path parameters must be defined and valid.",
 		Given:        "$",
 		Resolved:     true,
@@ -828,8 +829,8 @@ func GetOAS3SchemaRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check spec is valid OpenAPI 3",
 		Id:           Oas3Schema,
-		Formats:      model.OAS3Format,
-		Description:  "OpenAPI 3 specification is invalid",
+		Formats:      model.OAS3AllFormat,
+		Description:  "OpenAPI 3+ specification is invalid",
 		Given:        "$",
 		Resolved:     false,
 		Recommended:  true,
@@ -970,7 +971,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check for siblings to $ref values",
 		Id:           NoRefSiblings,
-		Formats:      model.AllFormats,
+		Formats:      model.AllExceptOAS3_1,
 		Description:  "$ref values cannot be placed next to other properties (like a description)",
 		Given:        "$",
 		Resolved:     false,
@@ -982,6 +983,26 @@ func GetNoRefSiblingsRule() *model.Rule {
 			Function: "refSiblings",
 		},
 		HowToFix: noRefSiblingsFix,
+	}
+}
+
+// GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
+func GetOAS3NoRefSiblingsRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check for siblings to $ref values",
+		Id:           Oas3NoRefSiblings,
+		Formats:      model.OAS3_1Format,
+		Description:  "`$ref` values cannot be placed next to other properties, except `description` and `summary`",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "oasRefSiblings",
+		},
+		HowToFix: oas3noRefSiblingsFix,
 	}
 }
 
@@ -1286,6 +1307,46 @@ func GetPostSuccessResponseRule() *model.Rule {
 			Function:        "postResponseSuccess",
 			FunctionOptions: opts,
 		},
-		HowToFix: oas3HostNotExampleFix,
+		HowToFix: postSuccessResponseFix,
+	}
+}
+
+// GetNoRequestBodyRule will check that HTTP GET and DELETE do not accept request bodies
+func GetNoRequestBodyRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check GET and DELETE methods do not accept request bodies",
+		Id:           NoRequestBody,
+		Formats:      model.OAS3AllFormat,
+		Description:  "HTTP GET and DELETE should not accept request bodies",
+		Given:        "$",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         Style,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "noRequestBody",
+		},
+		HowToFix: noRequestBodyResponseFix,
+	}
+}
+
+// GetPathItemReferencesRule will check that path items have not used references, as they are not allowed.
+func GetPathItemReferencesRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check path items have not used references",
+		Id:           PathItemReferences,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Path items should not use references ($ref) values. They are technically not allowed.",
+		Given:        "$",
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityInfo,
+		Then: model.RuleAction{
+			Function: "pathItemReferences",
+		},
+		HowToFix: PathItemReferencesFix,
 	}
 }

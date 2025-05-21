@@ -97,17 +97,35 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 			sev = 3
 		}
 
+		sLine := 0
+		sChar := 0
+		eLine := 0
+		eChar := 0
+		if result.StartNode != nil {
+			sLine = result.StartNode.Line
+			sChar = result.StartNode.Column
+		}
+		if result.EndNode != nil {
+			eLine = result.EndNode.Line
+			eChar = result.EndNode.Column
+		}
+
 		resultRange := reports.Range{
 			Start: reports.RangeItem{
-				Line: result.StartNode.Line,
-				Char: result.StartNode.Column,
+				Line: sLine,
+				Char: sChar,
 			},
 			End: reports.RangeItem{
-				Line: result.EndNode.Line,
-				Char: result.EndNode.Column,
+				Line: eLine,
+				Char: eChar,
 			},
 		}
 		var path []string
+		// check for double dots in the path, and collapse them.
+		// https://github.com/daveshanley/vacuum/issues/583
+		if strings.Contains(result.Path, "..") {
+			result.Path = strings.ReplaceAll(result.Path, "..", ".")
+		}
 		pathArr := strings.Split(result.Path, ".")
 		for _, pItem := range pathArr {
 			if pItem != "$" {
@@ -147,6 +165,12 @@ func (rr *RuleResultSet) GetErrorCount() int {
 		rr.ErrorCount = getCount(rr, SeverityError)
 		return rr.ErrorCount
 	}
+}
+
+func (rr *RuleResultSet) ResetCounts() {
+	rr.ErrorCount = 0
+	rr.WarnCount = 0
+	rr.InfoCount = 0
 }
 
 // GetWarnCount will return the number of warnings returned by the rule results.
@@ -350,6 +374,9 @@ func (rr *RuleResultSet) CalculateCategoryHealth(category string) int {
 func (rr *RuleResultSet) PrepareForSerialization(info *datamodel.SpecInfo) {
 
 	var wg sync.WaitGroup
+	if rr == nil || info == nil {
+		return
+	}
 	wg.Add(len(rr.Results))
 
 	data := strings.Split(string(*info.SpecBytes), "\n")

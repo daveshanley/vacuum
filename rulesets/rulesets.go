@@ -9,14 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/mitchellh/mapstructure"
@@ -61,6 +62,7 @@ const (
 	PathNotIncludeQuery                  = "path-not-include-query"
 	TagDescription                       = "tag-description"
 	NoRefSiblings                        = "no-$ref-siblings"
+	Oas3NoRefSiblings                    = "oas3-no-$ref-siblings"
 	Oas3UnusedComponent                  = "oas3-unused-component"
 	Oas2UnusedDefinition                 = "oas2-unused-definition"
 	Oas2APIHost                          = "oas2-api-host"
@@ -89,6 +91,7 @@ const (
 	Oas2Schema                           = "oas2-schema"
 	Oas3Schema                           = "oas3-schema"
 	OasSchemaCheck                       = "oas-schema-check"
+	PathItemReferences                   = "path-item-refs"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -113,6 +116,7 @@ const (
 	OwaspConstrainedAdditionalProperties = "owasp-constrained-additionalProperties"
 	OwaspSecurityHostsHttpsOAS3          = "owasp-security-hosts-https-oas3"
 	PostResponseSuccess                  = "post-response-success"
+	NoRequestBody                        = "no-request-body"
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
@@ -403,6 +407,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[PathNotIncludeQuery] = GetPathNotIncludeQueryRule()
 	rules[TagDescription] = GetTagDescriptionRequiredRule()
 	rules[NoRefSiblings] = GetNoRefSiblingsRule()
+	rules[Oas3NoRefSiblings] = GetOAS3NoRefSiblingsRule()
 	rules[Oas3UnusedComponent] = GetOAS3UnusedComponentRule()
 	rules[Oas2UnusedDefinition] = GetOAS2UnusedComponentRule()
 	rules[Oas2APIHost] = GetOAS2APIHostRule()
@@ -436,6 +441,8 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas3ExampleExternalCheck] = GetOAS3ExamplesExternalCheck()
 	rules[OasSchemaCheck] = GetSchemaTypeCheckRule()
 	rules[PostResponseSuccess] = GetPostSuccessResponseRule()
+	rules[NoRequestBody] = GetNoRequestBodyRule()
+	rules[PathItemReferences] = GetPathItemReferencesRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()

@@ -4,10 +4,10 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 // InfoContactProperties will check that the info object has a contact object.
@@ -52,7 +52,7 @@ func (id InfoContactProperties) RunRule(_ []*yaml.Node, context model.RuleFuncti
 						Path:      "$.info.contact",
 					}
 					results = append(results, res)
-					info.Contact.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					info.Contact.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 
 			case "url":
@@ -65,7 +65,7 @@ func (id InfoContactProperties) RunRule(_ []*yaml.Node, context model.RuleFuncti
 						Path:      "$.info.contact",
 					}
 					results = append(results, res)
-					info.Contact.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					info.Contact.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 			case "email":
 				if info.Value.Contact.Email == "" {
@@ -77,7 +77,7 @@ func (id InfoContactProperties) RunRule(_ []*yaml.Node, context model.RuleFuncti
 						Path:      "$.info.contact",
 					}
 					results = append(results, res)
-					info.Contact.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					info.Contact.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 			}
 		}

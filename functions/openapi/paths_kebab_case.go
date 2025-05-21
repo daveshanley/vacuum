@@ -4,12 +4,14 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"gopkg.in/yaml.v3"
-	"regexp"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/daveshanley/vacuum/model/reports"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "regexp"
+    "strings"
 )
 
 // PathsKebabCase Checks to ensure each segment of a path is using kebab case.
@@ -29,35 +31,42 @@ func (vp PathsKebabCase) GetCategory() string {
 // RunRule will execute the PathsKebabCase rule, based on supplied context and a supplied []*yaml.Node slice.
 func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) <= 0 {
-		return nil
-	}
-
 	var results []model.RuleFunctionResult
 
-	ops := context.Index.GetPathsNode()
+	if context.DrDocument == nil {
+		return results
+	}
 
-	var opPath string
+	paths := context.DrDocument.V3Document.Paths
 
-	if ops != nil {
-		for i, op := range ops.Content {
-			if i%2 == 0 {
-				opPath = op.Value
-				continue
-			}
-			path := fmt.Sprintf("$.paths['%s']", opPath)
-			if opPath == "/" {
-				continue
-			}
-			notKebab, segments := checkPathCase(opPath)
-			if notKebab {
-				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("path segments `%s` do not use kebab-case", strings.Join(segments, "`, `")),
-					StartNode: op,
-					EndNode:   vacuumUtils.BuildEndNode(op),
-					Path:      path,
-					Rule:      context.Rule,
-				})
+	if paths != nil {
+
+		for k, v := range paths.PathItems.FromOldest() {
+			if v != nil {
+				notKebab, segments := checkPathCase(k)
+				if notKebab {
+					n := v.Value.GoLow().KeyNode
+					endNode := vacuumUtils.BuildEndNode(n)
+					result := model.RuleFunctionResult{
+						Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("path segments `%s` do not use kebab-case", strings.Join(segments, "`, `"))),
+						StartNode: n,
+						EndNode:   endNode,
+						Path:      v.GenerateJSONPath(),
+						Rule:      context.Rule,
+						Range: reports.Range{
+							Start: reports.RangeItem{
+								Line: n.Line,
+								Char: n.Column,
+							},
+							End: reports.RangeItem{
+								Line: endNode.Line,
+								Char: endNode.Column,
+							},
+						},
+					}
+					v.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+					results = append(results, result)
+				}
 			}
 		}
 	}

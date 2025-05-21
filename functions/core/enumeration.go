@@ -4,13 +4,13 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 // Enumeration is a rule that will check that a set of values meet the supplied 'values' supplied via functionOptions.
@@ -69,11 +69,19 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {
-			locatedObject, err := context.DrDocument.LocateModel(node)
+
+			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := pathValue
-			if err == nil && locatedObject != nil {
-				locatedPath = locatedObject.GenerateJSONPath()
+			var allPaths []string
+			if err == nil && locatedObjects != nil {
+				for s, obj := range locatedObjects {
+					if s == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
 			}
+
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
 					fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
@@ -83,9 +91,14 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 				Path:      locatedPath,
 				Rule:      context.Rule,
 			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
+			}
 			results = append(results, result)
-			if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-				arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+				}
 			}
 		}
 	}

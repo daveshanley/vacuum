@@ -4,13 +4,13 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"sort"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "sort"
 )
 
 // Truthy is a rule that will determine if something is seen as 'true' (could be a 1 or "pizza", or actually 'true')
@@ -68,6 +68,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) && !utils.IsNodeMap(fieldNodeValue) {
 				if context.Index != nil {
 					origin := context.Index.FindNodeOrigin(node)
+
 					if origin != nil && origin.Line > 1 {
 						nm := context.Index.GetNodeMap()
 						var keys []int
@@ -85,10 +86,26 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 						}
 					}
 				}
-				locatedObject, err := context.DrDocument.LocateModel(node)
+
+				var locatedObjects []v3.Foundational
+				var allPaths []string
+				var err error
 				locatedPath := pathValue
-				if err == nil && locatedObject != nil {
-					locatedPath = locatedObject.GenerateJSONPath()
+				if context.DrDocument != nil {
+					if fieldNode == nil {
+						locatedObjects, err = context.DrDocument.LocateModel(node)
+					} else {
+						locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, fieldNodeValue)
+					}
+					if err == nil && locatedObjects != nil {
+						for x, obj := range locatedObjects {
+							p := fmt.Sprintf("%s.%s", obj.GenerateJSONPath(), context.RuleAction.Field)
+							if x == 0 {
+								locatedPath = p
+							}
+							allPaths = append(allPaths, p)
+						}
+					}
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
@@ -98,9 +115,14 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
+				}
 				results = append(results, result)
-				if arr, ok := locatedObject.(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if len(locatedObjects) > 0 {
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+					}
 				}
 			}
 		}

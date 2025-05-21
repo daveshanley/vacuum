@@ -3,9 +3,10 @@ package model
 import (
 	_ "embed"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 )
 
 var OAS3_1Format = []string{OAS31}
+var AllExceptOAS3_1 = []string{OAS2, OAS3}
 var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31}
 var OAS2Format = []string{OAS2}
@@ -48,6 +50,7 @@ func BuildFunctionResultString(message string) RuleFunctionResult {
 // ValidateRuleFunctionContextAgainstSchema will perform run-time validation against a rule to ensure that
 // options being passed in are acceptable and meet the needs of the Rule schema
 func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx RuleFunctionContext) (bool, []string) {
+
 	valid := true
 	var errs []string
 	schema := ruleFunction.GetSchema()
@@ -59,6 +62,10 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 
 	if options, ok := ctx.Options.(map[string]string); ok {
 		numProps = countPropsString(options, numProps)
+	}
+
+	if options, ok := ctx.Options.(map[string][]string); ok {
+		numProps = len(options)
 	}
 
 	if schema.MinProperties > 0 && numProps < schema.MinProperties {
@@ -148,6 +155,10 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 				}
 			}
 		}
+	}
+
+	if !valid {
+		println("fuck")
 	}
 
 	return valid, errs

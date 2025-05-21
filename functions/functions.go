@@ -70,6 +70,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasTagDefined"] = openapi_functions.TagDefined{}
 		funcs["oasPathParam"] = openapi_functions.PathParameters{}
 		funcs["refSiblings"] = openapi_functions.NoRefSiblings{}
+		funcs["oasRefSiblings"] = openapi_functions.OASNoRefSiblings{}
 		funcs["typedEnum"] = openapi_functions.TypedEnum{}
 		funcs["duplicatedEnum"] = openapi_functions.DuplicatedEnum{}
 		funcs["noEvalDescription"] = openapi_functions.NoEvalInDescriptions{}
@@ -103,6 +104,8 @@ func MapBuiltinFunctions() Functions {
 		funcs["infoLicenseUrl"] = openapi_functions.InfoLicenseURL{}
 		funcs["infoLicenseURLSPDX"] = openapi_functions.InfoLicenseURLSPDX{}
 		funcs["infoContactProperties"] = openapi_functions.InfoContactProperties{}
+		funcs["noRequestBody"] = openapi_functions.NoRequestBody{}
+		funcs["pathItemReferences"] = openapi_functions.PathItemReferences{}
 
 		// add owasp functions used by the owasp rules
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}
