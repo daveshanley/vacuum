@@ -6,6 +6,7 @@ package openapi
 import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 )
@@ -35,13 +36,29 @@ func (nrs NoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	}
 
 	var results []model.RuleFunctionResult
-	siblings := context.Index.GetReferencesWithSiblings()
+	results = applyNoRefSiblingRuleToIndex(context.Index, results, context)
+
+	rolodex := context.Index.GetRolodex()
+
+	if rolodex != nil {
+		for _, idx := range rolodex.GetIndexes() {
+			results = applyNoRefSiblingRuleToIndex(idx, results, context)
+		}
+	}
+
+	return results
+}
+
+// applyNoRefSiblingRuleToIndex is a helper that applies the NoRefSiblings rule to a given index and returns the results.
+func applyNoRefSiblingRuleToIndex(idx *index.SpecIndex, results []model.RuleFunctionResult, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	siblings := idx.GetReferencesWithSiblings()
 	for _, ref := range siblings {
 
 		key, val := utils.FindKeyNode("$ref", ref.Node.Content)
 		results = append(results, model.RuleFunctionResult{
 			Message:   "a `$ref` cannot be placed next to any other properties",
 			StartNode: key,
+			Origin:    idx.FindNodeOrigin(val),
 			EndNode:   vacuumUtils.BuildEndNode(val),
 			Path:      ref.Path,
 			Rule:      context.Rule,
