@@ -118,7 +118,14 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.16+` 🔥 : **JSON 9535 Compliant**.
+🔥 **New in** `v0.16.11` 🔥 : **Composed bundling mode**.
+
+A different way to bundle exploded OpenAPI specifications into a single file. [Read the docs](https://quobix.com/vacuum/commands/bundle/).
+
+---
+
+
+`v0.16+` : **JSON 9535 Compliant**.
 
 vacuum now expects JSON Path Queries to be [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) compliant. Finally standardized!
 

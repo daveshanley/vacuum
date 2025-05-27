@@ -26,7 +26,7 @@ func GetBundleCommand() *cobra.Command {
 		Use:          "bundle",
 		Short:        "Bundle an OpenAPI specification with external references into a single document.",
 		Long: "Bundle an OpenAPI specification with external references into a single document. All references will be resolved and " +
-			"the resulting document will be a valid OpenAPI specification, containing no references. It can then be used by any tool that does not support references.",
+			"the resulting document will be a valid OpenAPI specification, containing no external references. It can then be used by any tool that does not support references.",
 		Example: "vacuum bundle <my-exploded-openapi-spec.yaml> <bundled-openapi-spec.yaml>",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
@@ -42,6 +42,8 @@ func GetBundleCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			composed, _ := cmd.Flags().GetBool("composed")
+			delimiter, _ := cmd.Flags().GetString("delimiter")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -119,7 +121,15 @@ func GetBundleCommand() *cobra.Command {
 				ExcludeExtensionRefs:    extensionRefsFlag,
 			}
 
-			bundled, err := bundler.BundleBytes(specBytes, docConfig)
+			var bundled []byte
+			var err error
+			if !composed {
+				bundled, err = bundler.BundleBytes(specBytes, docConfig)
+			} else {
+				bundled, err = bundler.BundleBytesComposed(specBytes, docConfig, &bundler.BundleCompositionConfig{
+					Delimiter: delimiter,
+				})
+			}
 
 			if err != nil {
 				pterm.Error.Printf("Bundling had errors: %s\n", err.Error())
@@ -148,6 +158,8 @@ func GetBundleCommand() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolP("composed", "c", false, "Use composed mode, which will bundle all components into the root document, re-writing references to point to the components section.")
+	cmd.Flags().StringP("delimiter", "d", "__", "Delimiter used to separate clashing names in composed mode")
 	cmd.Flags().BoolP("stdin", "i", false, "Use stdin as input, instead of a file")
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
