@@ -16,7 +16,7 @@ require (
 	github.com/pb33f/libopenapi v0.22.0
 	github.com/pb33f/libopenapi-validator v0.4.6
 	github.com/pterm/pterm v0.12.80
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/speakeasy-api/jsonpath v0.6.2
 	github.com/spf13/cobra v1.9.1
