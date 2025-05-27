@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -261,4 +262,64 @@ func TestOASNoRefSiblings_RunRule_Fail_Single(t *testing.T) {
 
 	assert.Len(t, res, 1)
 
+}
+
+func TestOASNoRefSiblings_RunRule_MultiFile(t *testing.T) {
+	rootYML := `
+openapi: 3.0.0
+info: {title: api, version: 1.0.0}
+paths:
+  /item:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: './child.yaml#/components/schemas/External'
+components:
+  schemas:
+    RootBad:
+      type: object
+      $ref: '#/components/schemas/Ok'
+    Ok: {type: object}`
+
+	childYML := `
+components:
+  schemas:
+    ExternalBad:
+      type: object
+      $ref: '#/components/schemas/Ok2'
+    External: {type: object}
+    Ok2: {type: object}`
+
+	var rootNode, childNode yaml.Node
+	_ = yaml.Unmarshal([]byte(rootYML), &rootNode)
+	_ = yaml.Unmarshal([]byte(childYML), &childNode)
+
+	childCfg := index.CreateOpenAPIIndexConfig()
+	childCfg.BaseURL, _ = url.Parse("child.yaml")
+	childCfg.AllowFileLookup = false
+	childCfg.AllowRemoteLookup = false
+	childIdx := index.NewSpecIndexWithConfig(&childNode, childCfg)
+
+	rolodex := index.NewRolodex(childCfg)
+	rolodex.AddIndex(childIdx)
+
+	rootCfg := index.CreateOpenAPIIndexConfig()
+	rootCfg.Rolodex = rolodex
+	rootCfg.AllowFileLookup = false
+	rootCfg.AllowRemoteLookup = false
+	rootIdx := index.NewSpecIndexWithConfig(&rootNode, rootCfg)
+
+	rule := buildOpenApiTestRuleAction("$", "no_ref_siblings_multi_file", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = rootIdx
+
+	nodes, _ := utils.FindNodes([]byte(rootYML), "$")
+
+	var def OASNoRefSiblings
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 2)
 }
