@@ -158,7 +158,7 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 	}
 
 	if !valid {
-		println("fuck")
+		println("It is not valid")
 	}
 
 	return valid, errs
