@@ -7,15 +7,16 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/alecthomas/chroma"
-	html_format "github.com/alecthomas/chroma/formatters/html"
-	"github.com/alecthomas/chroma/lexers"
-	"github.com/alecthomas/chroma/styles"
+	"github.com/alecthomas/chroma/v2"
+	html_format "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
+	"github.com/pterm/pterm"
 	"sort"
 	"strings"
 	"text/template"
@@ -70,7 +71,7 @@ func NewHTMLReport(
 	results *model.RuleResultSet,
 	stats *reports.ReportStatistics,
 	disableTimestamp bool) HTMLReport {
-	return &htmlReport{index, info, results, stats, disableTimestamp}
+	return &htmlReport{index, info, results, stats, disableTimestamp, false}
 }
 
 type htmlReport struct {
@@ -79,6 +80,7 @@ type htmlReport struct {
 	results          *model.RuleResultSet
 	stats            *reports.ReportStatistics
 	disableTimestamp bool
+	disableSnippets  bool // disable code snippets in the report if the spec is on a single line
 }
 
 func (html htmlReport) GenerateReport(test bool, version string) []byte {
@@ -217,6 +219,15 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 		specStringData = strings.Split(string(*html.info.SpecBytes), "\n")
 	}
 
+	if len(specStringData) <= 2 {
+		// to prevent chroma from failing to render, we need to ensure the spec was not
+		// minimized, because we have less than 2 lines of code, it means there are no line breaks
+		pterm.Println()
+		pterm.Warning.Println("Specification was minified (compressed onto a single line), code snippets will not be rendered in the report.")
+		pterm.Println()
+		html.disableSnippets = true
+	}
+
 	reportData := &ReportData{
 		BundledJS:      bundledJS,
 		HydrateJS:      hydrateJS,
@@ -244,5 +255,8 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 }
 
 func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, specData []string, before, after int) string {
+	if html.disableSnippets {
+		return "code snippets disabled due to single line spec"
+	}
 	return utils.RenderCodeSnippet(r.StartNode, specData, before, after)
 }
