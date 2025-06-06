@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	github.com/alecthomas/chroma v0.10.0
+	github.com/alecthomas/chroma/v2 v2.18.0
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/dustin/go-humanize v1.0.1
