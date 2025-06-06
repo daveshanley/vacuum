@@ -68,18 +68,19 @@ func GetLintCommand() *cobra.Command {
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			minScore, _ := cmd.Flags().GetInt("min-score")
+			pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
 
 			// https://github.com/daveshanley/vacuum/issues/636
 			showRules, _ := cmd.Flags().GetBool("show-rules")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
-			if noStyleFlag {
+			if noStyleFlag || pipelineOutput {
 				pterm.DisableColor()
 				pterm.DisableStyling()
 			}
 
-			if !silent && !noBanner {
+			if !silent && !noBanner && !pipelineOutput {
 				PrintBanner()
 			}
 
@@ -140,7 +141,7 @@ func GetLintCommand() *cobra.Command {
 				for k, v := range owaspRules {
 					allRules[k] = v
 				}
-				if !silent {
+				if !silent && !pipelineOutput {
 					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
 					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
 					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
@@ -148,7 +149,7 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
-			if showRules {
+			if showRules && !pipelineOutput {
 				pterm.Println("The following rules are being used:")
 				pterm.Println()
 
@@ -197,7 +198,7 @@ func GetLintCommand() *cobra.Command {
 			doneChan := make(chan bool)
 
 			if len(filesToLint) <= 1 {
-				if !silent {
+				if !silent && !pipelineOutput {
 					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", filesToLint[0], len(selectedRS.Rules),
 						selectedRS.DocumentationURI)
 					pterm.Println()
@@ -205,7 +206,7 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			if len(filesToLint) > 1 {
-				if !silent {
+				if !silent && !pipelineOutput {
 					pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(filesToLint), len(selectedRS.Rules),
 						selectedRS.DocumentationURI)
 					pterm.Println()
@@ -213,7 +214,7 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			if len(ignoreFile) > 1 {
-				if !silent {
+				if !silent && !pipelineOutput {
 					pterm.Info.Printf("Using ignore file '%s'", ignoreFile)
 					pterm.Println()
 				}
@@ -274,6 +275,7 @@ func GetLintCommand() *cobra.Command {
 						IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 						IgnoredResults:           ignoredItems,
 						ExtensionRefs:            extensionRefsFlag,
+						PipelineOutput:           pipelineOutput,
 					}
 					st, fs, fp, err := lintFile(lfr)
 
@@ -294,7 +296,7 @@ func GetLintCommand() *cobra.Command {
 				completed++
 			}
 
-			if !detailsFlag && !silent {
+			if !detailsFlag && !silent && !pipelineOutput {
 				pterm.Println()
 				pterm.Info.Println("To see full details of linting report, use the '-d' flag.")
 				pterm.Println()
@@ -341,6 +343,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths (no '...')")
 	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
+	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines (e.g. GitHub Actions, GitLab, etc.)")
 
 	// TODO: Add globbed-files flag to other commands as well
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
@@ -475,7 +478,20 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 	req.Lock.Lock()
 	defer req.Lock.Unlock()
 	if !req.DetailsFlag {
-		RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag, cats)
+
+		rso := RenderSummaryOptions{
+			RuleResultSet:  resultSet,
+			RuleCategories: cats,
+			TotalFiles:     req.TotalFiles,
+			Severity:       req.FailSeverityFlag,
+			Filename:       req.FileName,
+			Silent:         req.Silent,
+			PipelineOutput: req.PipelineOutput,
+			RuleSet:        req.SelectedRS,
+			ReportStats:    stats,
+		}
+
+		RenderSummary(rso)
 		return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 	}
 
@@ -496,7 +512,18 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 			req.CategoryFlag)
 	}
 
-	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag, cats)
+	rso := RenderSummaryOptions{
+		RuleResultSet:  resultSet,
+		RuleCategories: cats,
+		TotalFiles:     req.TotalFiles,
+		Severity:       req.FailSeverityFlag,
+		Filename:       req.FileName,
+		Silent:         req.Silent,
+		PipelineOutput: req.PipelineOutput,
+		RuleSet:        req.SelectedRS,
+		ReportStats:    stats,
+	}
+	RenderSummary(rso)
 
 	return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 }
@@ -679,107 +706,16 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename, sev string, cats []*model.RuleCategory) {
-
-	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
-		pterm.LightBlue("Info")}}
-
-	for _, cat := range cats {
-		errors := rs.GetErrorsByRuleCategory(cat.Id)
-		warn := rs.GetWarningsByRuleCategory(cat.Id)
-		info := rs.GetInfoByRuleCategory(cat.Id)
-
-		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
-
-			tableData = append(tableData, []string{cat.Name, fmt.Sprintf("%v", humanize.Comma(int64(len(errors)))),
-				fmt.Sprintf("%v", humanize.Comma(int64(len(warn)))), fmt.Sprintf("%v", humanize.Comma(int64(len(info))))})
-		}
-
-	}
-
-	if len(rs.Results) > 0 {
-		if !silent {
-			err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-			if err != nil {
-				pterm.Error.Printf("error rendering table '%v'", err.Error())
-			}
-
-		}
-	}
-
-	errors := rs.GetErrorCount()
-	warnings := rs.GetWarnCount()
-	informs := rs.GetInfoCount()
-	errorsHuman := humanize.Comma(int64(rs.GetErrorCount()))
-	warningsHuman := humanize.Comma(int64(rs.GetWarnCount()))
-	informsHuman := humanize.Comma(int64(rs.GetInfoCount()))
-
-	if totalFiles <= 1 {
-
-		if errors > 0 {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
-				"Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
-			return
-		}
-		if warnings > 0 {
-			msg := "passed, but with"
-			switch sev {
-			case model.SeverityWarn:
-				msg = "failed with"
-			}
-
-			warningHeader := pterm.HeaderPrinter{
-				TextStyle:       pterm.NewStyle(pterm.FgBlack),
-				BackgroundStyle: pterm.NewStyle(pterm.BgYellow),
-				Margin:          10,
-			}
-
-			warningHeader.Printf(
-				"Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
-			return
-		}
-
-		if informs > 0 {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
-				"Linting passed, %v informs reported", informsHuman)
-			return
-		}
-
-		if silent {
-			return
-		}
-
-		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Println(
-			"Linting passed, A perfect score! well done!")
-
-	} else {
-
-		if errors > 0 {
-			pterm.Error.Printf("'%s' failed with %v errors, %v warnings and %v informs\n\n",
-				filename, errorsHuman, warningsHuman, informsHuman)
-			pterm.Println()
-			return
-		}
-		if warnings > 0 {
-			pterm.Warning.Printf(
-				"'%s' passed, but with %v warnings and %v informs\n\n", filename, warningsHuman, informsHuman)
-			pterm.Println()
-			return
-		}
-
-		if informs > 0 {
-			pterm.Success.Printf(
-				"'%s' passed, %v informs reported\n\n", filename, informsHuman)
-			pterm.Println()
-			return
-		}
-
-		pterm.Success.Printf(
-			"'%s' passed, A perfect score! well done!\n\n", filename)
-		pterm.Println()
-
-	}
-
+type RenderSummaryOptions struct {
+	RuleResultSet  *model.RuleResultSet
+	RuleSet        *rulesets.RuleSet
+	RuleCategories []*model.RuleCategory
+	TotalFiles     int
+	Severity       string
+	Filename       string
+	Silent         bool
+	PipelineOutput bool
+	ReportStats    *reports.ReportStatistics
 }
 
 // The user may pass in filenames, a glob pattern, or both.

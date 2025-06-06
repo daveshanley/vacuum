@@ -38,4 +38,5 @@ type LintFileRequest struct {
 	Functions                map[string]model.RuleFunction
 	Lock                     *sync.Mutex
 	Logger                   *slog.Logger
+	PipelineOutput           bool
 }
