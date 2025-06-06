@@ -3,7 +3,6 @@ module github.com/daveshanley/vacuum
 go 1.23.0
 
 require (
-	github.com/alecthomas/chroma v0.10.0
 	github.com/alecthomas/chroma/v2 v2.18.0
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
@@ -14,8 +13,8 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.28
-	github.com/pb33f/libopenapi v0.22.1
-	github.com/pb33f/libopenapi-validator v0.4.6
+	github.com/pb33f/libopenapi v0.22.3
+	github.com/pb33f/libopenapi-validator v0.4.7
 	github.com/pterm/pterm v0.12.80
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
@@ -26,7 +25,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tliron/glsp v0.2.2
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6
-	golang.org/x/text v0.25.0
+	golang.org/x/text v0.26.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
