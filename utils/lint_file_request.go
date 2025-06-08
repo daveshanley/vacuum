@@ -39,4 +39,5 @@ type LintFileRequest struct {
 	Lock                     *sync.Mutex
 	Logger                   *slog.Logger
 	PipelineOutput           bool
+	ShowRules                bool
 }
