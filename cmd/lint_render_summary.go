@@ -212,6 +212,7 @@ func RenderSummary(rso RenderSummaryOptions) {
 			buf.WriteString(fmt.Sprint("✅ You have a perfect score! **Congratulations, you're doing it right.**\n\n"))
 		}
 
+		buf.WriteString(fmt.Sprintf("> learn more about vacuum at [quobix.com/vacuum](https://quobix/vacuum/)\n"))
 		fmt.Print(buf.String())
 		return
 	}
