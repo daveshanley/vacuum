@@ -118,7 +118,16 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.16.11` 🔥 : **Composed bundling mode**.
+
+🔥 **New in** `v0.17` 🔥 : **Github Action**.
+
+vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
+in the [GitHub Marketplace](https://github.com/marketplace/actions/vacuum-openapi-linter-and-quality-analysis-tool).
+
+---
+
+
+`v0.16.11`: **Composed bundling mode**.
 
 A different way to bundle exploded OpenAPI specifications into a single file. [Read the docs](https://quobix.com/vacuum/commands/bundle/).
 
@@ -140,7 +149,7 @@ $refs being used in path items.
 
 ---
 
-v0.14+`: **Engine Speedup**.
+`v0.14+`: **Engine Speedup**.
 
 **Speed!** We've made some significant improvements to how efficiently large documents are walked
 Which means vacuum is now faster than ever.
