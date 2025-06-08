@@ -276,6 +276,7 @@ func GetLintCommand() *cobra.Command {
 						IgnoredResults:           ignoredItems,
 						ExtensionRefs:            extensionRefsFlag,
 						PipelineOutput:           pipelineOutput,
+						ShowRules:                showRules,
 					}
 					st, fs, fp, err := lintFile(lfr)
 
@@ -336,7 +337,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner / header output")
 	cmd.Flags().BoolP("no-message", "m", false, "Hide the message output when using -d to show details")
 	cmd.Flags().BoolP("all-results", "a", false, "Render out all results, regardless of the number when using -d")
-	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (e.g. 'info', 'warn', 'error')")
+	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (e.g. 'info', 'warn', 'error' or 'none')")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
@@ -365,6 +366,7 @@ func GetLintCommand() *cobra.Command {
 		model.SeverityInfo,
 		model.SeverityWarn,
 		model.SeverityError,
+		model.SeverityNone,
 	}, cobra.ShellCompDirectiveNoFileComp)); regErr != nil {
 		panic(regErr)
 	}
@@ -489,6 +491,7 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 			PipelineOutput: req.PipelineOutput,
 			RuleSet:        req.SelectedRS,
 			ReportStats:    stats,
+			RenderRules:    req.ShowRules,
 		}
 
 		RenderSummary(rso)
@@ -522,6 +525,7 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 		PipelineOutput: req.PipelineOutput,
 		RuleSet:        req.SelectedRS,
 		ReportStats:    stats,
+		RenderRules:    req.ShowRules,
 	}
 	RenderSummary(rso)
 
@@ -716,6 +720,7 @@ type RenderSummaryOptions struct {
 	Silent         bool
 	PipelineOutput bool
 	ReportStats    *reports.ReportStatistics
+	RenderRules    bool
 }
 
 // The user may pass in filenames, a glob pattern, or both.
