@@ -1,1 +1,1 @@
-extends: [[spectral:oas, off]]
+extends: [[vacuum:oas, off]]

@@ -455,7 +455,7 @@ func TestGetLintCommand_Details_NoCat_Snippets(t *testing.T) {
 
 func TestGetLintCommand_Details_ErrorOverride(t *testing.T) {
 
-	yaml := `extends: [[spectral:oas, recommended]]
+	yaml := `extends: [[vacuum:oas, recommended]]
 rules:
   oas3-valid-schema-example: error`
 
@@ -483,7 +483,7 @@ rules:
 
 func TestGetLintCommand_Details_Snippets(t *testing.T) {
 
-	yaml := `extends: [[spectral:oas, off]]
+	yaml := `extends: [[vacuum:oas, off]]
 rules:
   oas3-valid-schema-example: true`
 
@@ -546,7 +546,7 @@ func TestFilterIgnoredResults(t *testing.T) {
 func TestGetLintCommand_Details_WithIgnoreFile(t *testing.T) {
 
 	yaml := `
-extends: [[spectral:oas, recommended]]
+extends: [[vacuum:oas, recommended]]
 rules:
     url-starts-with-major-version:
         description: Major version must be the first URL component

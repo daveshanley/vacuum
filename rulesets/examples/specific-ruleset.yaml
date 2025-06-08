@@ -1,4 +1,4 @@
-extends: [[spectral:oas, off]]
+extends: [[vacuum:oas, off]]
 rules:
   oas3-valid-schema-example: true
   oas3-missing-example: true

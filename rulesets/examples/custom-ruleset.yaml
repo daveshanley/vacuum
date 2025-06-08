@@ -1,4 +1,4 @@
-extends: [[spectral:oas, off]]
+extends: [[vacuum:oas, off]]
 documentationUrl: https://quobix.com/vacuum/rulesets/custom-rulesets
 rules:
   check-title-is-exactly-this:
