@@ -118,7 +118,6 @@ come say hi!
 
 ## Documentation
 
-
 🔥 **New in** `v0.17` 🔥 : **Github Action**.
 
 vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
