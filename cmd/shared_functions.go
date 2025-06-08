@@ -98,6 +98,9 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 }
 
 func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int) error {
+	if failSeverityFlag == model.SeverityNone {
+		return nil
+	}
 	if failSeverityFlag != model.SeverityError {
 		switch failSeverityFlag {
 		case model.SeverityWarn:
