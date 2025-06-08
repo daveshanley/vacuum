@@ -311,10 +311,16 @@ func GetLintCommand() *cobra.Command {
 				// check overall-score is above the threshold
 				if stats != nil {
 					if stats.OverallScore < minScore {
-						box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-						box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-						box.Println(pterm.LightRed("🚨 SCORE THRESHOLD FAILED 🚨"))
-						pterm.Println()
+
+						if !pipelineOutput {
+							box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+							box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+							box.Println(pterm.LightRed("🚨 SCORE THRESHOLD FAILED 🚨"))
+							pterm.Println()
+						} else {
+							pterm.Println(pterm.LightRed("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n"))
+
+						}
 						return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", stats.OverallScore, minScore)
 					}
 				}
