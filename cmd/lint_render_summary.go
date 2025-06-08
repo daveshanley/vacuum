@@ -62,7 +62,7 @@ func RenderSummary(rso RenderSummaryOptions) {
 		buf.WriteString(fmt.Sprintf("\n> vacuum has graded this OpenAPI specification with a score of `%d` out of a possible 100\n\n", rso.ReportStats.OverallScore))
 
 		if errs > 0 {
-			buf.WriteString(fmt.Sprintf("### %s `%d` errors detected\n\n", errIcon, errs))
+			buf.WriteString(fmt.Sprintf("### %s `%d` errors detected 🚨\n\n", errIcon, errs))
 			buf.WriteString(fmt.Sprint("> vacuum detected **errors** in your OpenAPI specification, please review and address accordingly.\n\n"))
 
 			if warnings > 0 {
@@ -78,55 +78,58 @@ func RenderSummary(rso RenderSummaryOptions) {
 			buf.WriteString(fmt.Sprintf("ℹ️`%d` informs found\n\n", informs))
 		}
 
-		// sort the ruleset by severity
-		type ruleSevMap struct {
-			rule *model.Rule
-			sev  int // 0 = info, 1 = warn, 2 = error
-		}
-		var rules []ruleSevMap
-		if ruleset != nil && len(ruleset.Rules) > 0 {
-			for _, r := range ruleset.Rules {
-				s := 0
-				switch r.Severity {
-				case model.SeverityWarn:
-					s = 1
-				case model.SeverityError:
-					s = 2
+		if rso.RenderRules {
+
+			// sort the ruleset by severity
+			type ruleSevMap struct {
+				rule *model.Rule
+				sev  int // 0 = info, 1 = warn, 2 = error
+			}
+			var rules []ruleSevMap
+			if ruleset != nil && len(ruleset.Rules) > 0 {
+				for _, r := range ruleset.Rules {
+					s := 0
+					switch r.Severity {
+					case model.SeverityWarn:
+						s = 1
+					case model.SeverityError:
+						s = 2
+					}
+					rules = append(rules, ruleSevMap{
+						rule: r,
+						sev:  s,
+					})
 				}
-				rules = append(rules, ruleSevMap{
-					rule: r,
-					sev:  s,
-				})
 			}
-		}
 
-		sort.Slice(rules, func(i, j int) bool {
-			if rules[i].sev == rules[j].sev {
-				return rules[i].rule.Id > rules[j].rule.Id
-			}
-			return rules[i].sev > rules[j].sev
-		})
+			sort.Slice(rules, func(i, j int) bool {
+				if rules[i].sev == rules[j].sev {
+					return rules[i].rule.Id > rules[j].rule.Id
+				}
+				return rules[i].sev > rules[j].sev
+			})
 
-		buf.WriteString(fmt.Sprintf("<details><summary>vacuum ran against the following %d rules:</summary>\n\n", len(rules)))
-		for _, r := range rules {
-			sevIcon := "ℹ️"
-			switch r.rule.Severity {
-			case model.SeverityError:
-				sevIcon = errIcon
-			case model.SeverityWarn:
-				sevIcon = "⚠️"
+			buf.WriteString(fmt.Sprintf("<details><summary>vacuum ran against the following %d rules:</summary>\n\n", len(rules)))
+			for _, r := range rules {
+				sevIcon := "ℹ️"
+				switch r.rule.Severity {
+				case model.SeverityError:
+					sevIcon = errIcon
+				case model.SeverityWarn:
+					sevIcon = "⚠️"
+				}
+				n := strings.ReplaceAll(r.rule.Name, "<", "&lt;")
+				n = strings.ReplaceAll(n, ">", "&gt;")
+				buf.WriteString(fmt.Sprintf("- %s `%s` (_%s_)\n", sevIcon, r.rule.Id, n))
 			}
-			n := strings.ReplaceAll(r.rule.Name, "<", "&lt;")
-			n = strings.ReplaceAll(n, ">", "&gt;")
-			buf.WriteString(fmt.Sprintf("- %s `%s` (_%s_)\n", sevIcon, r.rule.Id, n))
+			buf.WriteString(fmt.Sprint("</details>\n\n"))
 		}
-		buf.WriteString(fmt.Sprint("</details>\n\n"))
 
 		summaryTableMarkdown := utils.RenderMarkdownTable(headers, rows)
 		buf.WriteString(fmt.Sprint("---\n\n"))
 
 		for _, cat := range cats {
-			errs := rs.GetErrorsByRuleCategory(cat.Id)
+			catErrs := rs.GetErrorsByRuleCategory(cat.Id)
 			warn := rs.GetWarningsByRuleCategory(cat.Id)
 			info := rs.GetInfoByRuleCategory(cat.Id)
 
@@ -142,7 +145,7 @@ func RenderSummary(rso RenderSummaryOptions) {
 				}
 			}
 
-			for _, e := range errs {
+			for _, e := range catErrs {
 				checkMap(e.Rule.Id, errorRuleMap)
 			}
 			for _, e := range warn {
@@ -152,19 +155,19 @@ func RenderSummary(rso RenderSummaryOptions) {
 				checkMap(e.Rule.Id, infoRuleMap)
 			}
 
-			if len(errs) == 0 && len(warn) == 0 && len(info) == 0 {
+			if len(catErrs) == 0 && len(warn) == 0 && len(info) == 0 {
 				continue // no violations for this category
 			}
 
 			buf.WriteString(fmt.Sprintf("### `%s` violations\n", cat.Name))
-			if len(errs) > 0 {
-				buf.WriteString(fmt.Sprintf("<details><summary>%s Errors: %s</summary>\n", errIcon, humanize.Comma(int64(len(errs)))))
+			if len(catErrs) > 0 {
+				buf.WriteString(fmt.Sprintf("<details><summary>%s Errors: %s</summary>\n", errIcon, humanize.Comma(int64(len(catErrs)))))
 				var errData [][]string
 				for ruleId, count := range errorRuleMap {
 					if count > 0 {
 						buf.WriteString(fmt.Sprintf("%s %s : %d\n\n", errIcon, ruleId, count))
 					}
-					for _, v := range errs {
+					for _, v := range catErrs {
 						errData = append(errData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
 					}
 					buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, errData)))
@@ -201,8 +204,14 @@ func RenderSummary(rso RenderSummaryOptions) {
 			}
 			buf.WriteString(fmt.Sprint("---\n\n"))
 		}
+		total := rso.ReportStats.TotalErrors + rso.ReportStats.TotalWarnings + rso.ReportStats.TotalInfo
 
-		buf.WriteString(fmt.Sprintln(summaryTableMarkdown))
+		if total > 0 {
+			buf.WriteString(fmt.Sprintln(summaryTableMarkdown))
+		} else {
+			buf.WriteString(fmt.Sprint("✅ You have a perfect score! **Congratulations, you're doing it right.**\n\n"))
+		}
+
 		fmt.Print(buf.String())
 		return
 	}
