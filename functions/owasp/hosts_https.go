@@ -4,12 +4,12 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 type HostsHttps struct{}
@@ -44,7 +44,7 @@ func (hh HostsHttps) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 					fmt.Sprintf("%s.%s", server.GenerateJSONPath(), "url")),
 				Rule: context.Rule,
 			}
-			server.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+			server.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 			results = append(results, result)
 		}
 	}

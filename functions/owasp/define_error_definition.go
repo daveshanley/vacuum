@@ -1,15 +1,14 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	v3 "github.com/pb33f/doctor/model/high/v3"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"slices"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    v3 "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "slices"
+    "strings"
 )
 
 type DefineErrorDefinition struct {
@@ -100,7 +99,7 @@ func processCodes(codes []string, drDoc *v3.Document, context model.RuleFunction
 							Path:      fmt.Sprintf("%s.%s", opValue.GenerateJSONPath(), "responses"),
 							Rule:      context.Rule,
 						}
-						opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						opValue.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						results = append(results, result)
 					}
 				}

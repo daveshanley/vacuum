@@ -4,13 +4,13 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"regexp"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "regexp"
 )
 
 // Pattern is a rule that will match or not match (or both) a regular expression.
@@ -132,8 +132,8 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				}
 				results = append(results, result)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					}
 				}
 			} else {
@@ -163,8 +163,8 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					}
 					results = append(results, result)
 					if len(locatedObjects) > 0 {
-						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-							arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						}
 					}
 				}
@@ -201,8 +201,8 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				}
 				results = append(results, result)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					}
 				}
 			} else {
@@ -233,8 +233,8 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					}
 					results = append(results, result)
 					if len(locatedObjects) > 0 {
-						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-							arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						}
 					}
 				}

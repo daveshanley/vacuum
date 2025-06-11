@@ -63,7 +63,7 @@ func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
 
 func TestRuleSet_GetExtendsValue_Single(t *testing.T) {
 
-	yaml := `extends: spectral:oas
+	yaml := `extends: vacuum:oas
 rules:
  fish-cakes:
    description: yummy sea food
@@ -78,7 +78,7 @@ rules:
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 1)
 	assert.NotNil(t, rs.GetExtendsValue())
-	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
+	assert.Equal(t, "vacuum:oas", rs.GetExtendsValue()["vacuum:oas"])
 
 }
 
@@ -86,7 +86,7 @@ func TestRuleSet_GetExtendsValue_Multi(t *testing.T) {
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - recommended
 rules:
  fish-cakes:
@@ -102,14 +102,14 @@ rules:
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 1)
 	assert.NotNil(t, rs.GetExtendsValue())
-	assert.Equal(t, "recommended", rs.GetExtendsValue()["spectral:oas"])
+	assert.Equal(t, "recommended", rs.GetExtendsValue()["vacuum:oas"])
 
 }
 
 func TestRuleSet_GetExtendsValue_Multi_Noflag(t *testing.T) {
 
 	yaml := `extends:
-  - spectral:oas
+  - vacuum:oas
 rules:
  fish-cakes:
    description: yummy sea food
@@ -124,8 +124,8 @@ rules:
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 1)
 	assert.NotNil(t, rs.GetExtendsValue())
-	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"])
-	assert.Equal(t, "spectral:oas", rs.GetExtendsValue()["spectral:oas"]) // idempotence state check.
+	assert.Equal(t, "vacuum:oas", rs.GetExtendsValue()["vacuum:oas"])
+	assert.Equal(t, "vacuum:oas", rs.GetExtendsValue()["vacuum:oas"]) // idempotence state check.
 
 }
 
@@ -145,7 +145,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_OverrideNotFound(t *testing
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - recommended
 rules:
  soda-pop: "off"`
@@ -161,7 +161,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_OverrideNotFound(t *testing
 
 	yaml := fmt.Sprintf(`extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - off
 rules:
  soda-pop: "%s"`, model.SeverityWarn)
@@ -178,7 +178,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_All_OverrideNotFound(t *testing
 
 	yaml := fmt.Sprintf(`extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - all
 rules:
  soda-pop: "%s"`, model.SeverityWarn)
@@ -194,7 +194,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_RemoveRule(t *testing.T) {
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - recommended
 rules:
  operation-success-response: "off"`
@@ -210,7 +210,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Rec_SeverityInfo(t *testing.T) 
 
 	yaml := fmt.Sprintf(`extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - recommended
 rules:
  operation-success-response: "%s"`, model.SeverityHint)
@@ -226,7 +226,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRules(t *testing.T) {
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - off
 rules:
  operation-success-response: true
@@ -245,7 +245,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRulesNotFound(t *test
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - off
 rules:
  chewy-dinner: true
@@ -263,7 +263,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRule(t *testing.T) {
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - all
 rules:
  fish-cakes:
@@ -288,7 +288,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRuleReplace(t *testing.T
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - all
 rules:
  info-contact:
@@ -313,7 +313,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_CustomRule(t *testing.T) {
 
 	yaml := `extends:
   -
-    - spectral:oas
+    - vacuum:oas
     - all
 rules:
  info-contact:
@@ -336,7 +336,7 @@ rules:
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_RuleCategory(t *testing.T) {
 
-	yaml := `extends: [[spectral:oas, off]]
+	yaml := `extends: [[vacuum:oas, off]]
 rules:
   check-title-is-exactly-this:
     description: Check the title of the spec is exactly, 'this specific thing'
@@ -363,7 +363,7 @@ rules:
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Oas_SpectralOwasp(t *testing.T) {
 
-	yaml := `extends: [[spectral:oas, all], [spectral:owasp, all]]`
+	yaml := `extends: [[vacuum:oas, all], [spectral:owasp, all]]`
 
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
@@ -374,7 +374,7 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_Oas_SpectralOwasp(t *testing.T)
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Oas_VacuumOwasp(t *testing.T) {
 
-	yaml := `extends: [[spectral:oas, all], [vacuum:owasp, all]]`
+	yaml := `extends: [[vacuum:oas, all], [vacuum:owasp, all]]`
 
 	def := BuildDefaultRuleSets()
 	rs, _ := CreateRuleSetFromData([]byte(yaml))
@@ -508,7 +508,7 @@ rules:
       field: title
       function: pattern
 `
-	yamlC := `extends: [[spectral:oas, recommended]]
+	yamlC := `extends: [[vacuum:oas, recommended]]
 rules:
   dong:
     description: dong
@@ -634,7 +634,7 @@ rules:
       field: title
       function: pattern
 `
-	yamlC := `extends: [[spectral:oas, recommended]]
+	yamlC := `extends: [[vacuum:oas, recommended]]
 rules:
   dong:
     description: dong

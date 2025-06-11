@@ -137,7 +137,8 @@ func SniffOutAllExternalRules(
 	extends := drs.GetExtendsValue()
 
 	// default and explicitly recommended
-	if extends[SpectralOpenAPI] == SpectralRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
+	if (extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI) ||
+		(extends[VacuumOpenAPI] == VacuumRecommended || extends[VacuumOpenAPI] == VacuumOpenAPI) {
 
 		// suck in all recommended rules
 		recommended := rsm.GenerateOpenAPIRecommendedRuleSet()
@@ -154,7 +155,7 @@ func SniffOutAllExternalRules(
 	}
 
 	// all rules
-	if extends[SpectralOpenAPI] == SpectralAll {
+	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
 		// suck in all rules
 		allRules := rsm.openAPIRuleSet
 		for k, v := range allRules.Rules {
@@ -168,7 +169,7 @@ func SniffOutAllExternalRules(
 	}
 
 	// no rules!
-	if extends[SpectralOpenAPI] == SpectralOff {
+	if extends[SpectralOpenAPI] == VacuumOff || extends[VacuumOpenAPI] == VacuumOff {
 		if rs.DocumentationURI == "" {
 			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
 		}

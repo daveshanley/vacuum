@@ -4,11 +4,11 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 // PathItemReferences will check that path items are not using references, as they are not allowed
@@ -53,7 +53,7 @@ func (id PathItemReferences) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 					Rule:      context.Rule,
 				}
 				results = append(results, res)
-				path.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+				path.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 			}
 		}
 	}

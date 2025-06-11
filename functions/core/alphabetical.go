@@ -4,15 +4,15 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"sort"
-	"strconv"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "sort"
+    "strconv"
+    "strings"
 )
 
 // Alphabetical is a rule that will check an array or object to determine if the values are in order.
@@ -91,8 +91,8 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				}
 				results = append(results, result)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					}
 				}
 				continue
@@ -237,8 +237,8 @@ func compareStringArray(node *yaml.Node, strArr []string,
 				}
 				results = append(results, result)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					}
 				}
 
@@ -314,8 +314,8 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 			}
 			results = append(results, result)
 			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				}
 			}
 		}
@@ -355,8 +355,8 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 			}
 			results = append(results, result)
 			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				}
 			}
 		}

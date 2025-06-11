@@ -4,13 +4,13 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"sort"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "sort"
 )
 
 // Truthy is a rule that will determine if something is seen as 'true' (could be a 1 or "pizza", or actually 'true')
@@ -87,7 +87,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					}
 				}
 
-				var locatedObjects []base.Foundational
+				var locatedObjects []v3.Foundational
 				var allPaths []string
 				var err error
 				locatedPath := pathValue
@@ -120,8 +120,8 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				}
 				results = append(results, result)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					}
 				}
 			}

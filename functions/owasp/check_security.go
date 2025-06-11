@@ -1,16 +1,15 @@
 package owasp
 
 import (
-	"fmt"
-	"slices"
+    "fmt"
+    "slices"
 
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	drV3 "github.com/pb33f/doctor/model/high/v3"
-	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    drV3 "github.com/pb33f/doctor/model/high/v3"
+    v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
 )
 
 type CheckSecurity struct {
@@ -100,7 +99,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						Path:      op.GenerateJSONPath(),
 						Rule:      context.Rule,
 					}
-					pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					pathItem.AddRuleFunctionResult(drV3.ConvertRuleResult(&result))
 					results = append(results, result)
 					continue
 
@@ -115,7 +114,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						Path:      op.GenerateJSONPath(),
 						Rule:      context.Rule,
 					}
-					opValue.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					opValue.AddRuleFunctionResult(drV3.ConvertRuleResult(&result))
 					results = append(results, result)
 				}
 
@@ -131,7 +130,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 								Path:      opValue.Security[i].GenerateJSONPath(),
 								Rule:      context.Rule,
 							}
-							pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+							pathItem.AddRuleFunctionResult(drV3.ConvertRuleResult(&result))
 							results = append(results, result)
 							continue
 						}
@@ -150,7 +149,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 								Path:      globalSecurity[i].GenerateJSONPath(),
 								Rule:      context.Rule,
 							}
-							pathItem.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+							pathItem.AddRuleFunctionResult(drV3.ConvertRuleResult(&result))
 							results = append(results, result)
 							continue
 						}

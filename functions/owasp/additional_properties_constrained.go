@@ -4,11 +4,11 @@
 package owasp
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"slices"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "slices"
 )
 
 type AdditionalPropertiesConstrained struct{}
@@ -49,7 +49,7 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 				if schema.Value.AdditionalProperties.IsA() {
 					if schema.Value.MaxProperties == nil {
 
-						schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						results = append(results, result)
 						continue
 					}
@@ -58,7 +58,7 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 
 					if schema.Value.MaxProperties == nil {
 
-						schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+						schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 						results = append(results, result)
 						continue
 					}

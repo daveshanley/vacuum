@@ -1,11 +1,11 @@
 package openapi
 
 import (
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/utils"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 	"testing"
 )
 
@@ -22,7 +22,8 @@ func TestPathParameters_RunRule(t *testing.T) {
 
 func TestPathParameters_RunRule_AllParamsInTop(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1
+paths:
   /pizza/{type}/{topping}:
     parameters:
       - name: type
@@ -32,27 +33,32 @@ func TestPathParameters_RunRule_AllParamsInTop(t *testing.T) {
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "`GET` must define parameter `topping` as expected by path `/pizza/{type}/{topping}`", res[0].Message)
+	assert.Equal(t, "parameter named `topping` must be defined as part of the path `/pizza/{type}/{topping}` definition, or in the `GET` operation(s)", res[0].Message)
 }
 
 func TestPathParameters_RunRule_VerbsWithDifferentParams(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1
+paths:
   /pizza/{type}/{topping}:
     parameters:
       - name: type
@@ -68,27 +74,32 @@ func TestPathParameters_RunRule_VerbsWithDifferentParams(t *testing.T) {
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "`POST` must define parameter `topping` as expected by path `/pizza/{type}/{topping}`", res[0].Message)
+	assert.Equal(t, "parameter named `topping` must be defined as part of the path `/pizza/{type}/{topping}` definition, or in the `POST` operation(s)", res[0].Message)
 }
 
 func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1
+paths:
   /pizza/{cake}/{limes}:
     parameters:
       - in: path
@@ -108,29 +119,32 @@ func TestPathParameters_RunRule_DuplicatePathCheck(t *testing.T) {
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
+	assert.Equal(t, "paths `/pizza/{cake}/{limes}` and `/pizza/{minty}/{tape}` must not be equivalent, paths must be unique", res[0].Message)
 
 }
 
 func TestPathParameters_RunRule_DuplicatePathParamCheck_MissingParam(t *testing.T) {
 
-	yml := `openapi: 3.0.1
-info:
-title: pizza-cake
+	yml := `openapi: 3.1.0
 paths:
   /pizza/{cake}/{cake}:
     parameters:
@@ -144,34 +158,37 @@ paths:
     parameters:
       - in: path
         name: minty
-    get:
-      parameters:          `
+    get:`
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
+	assert.Equal(t, "path `/pizza/{cake}/{cake}` must not use the parameter `cake` multiple times", res[0].Message)
+	assert.Equal(t, "`GET` parameter named `limes` does not exist in path `/pizza/{cake}/{cake}`", res[1].Message)
 
 }
 
 func TestPathParameters_RunRule_MissingParam_PeriodInParam(t *testing.T) {
 
-	yml := `openapi: 3.0.1
-info:
-title: pizza-cake
+	yml := `openapi: 3.1.0
 paths:
   /pizza/{cake}/{cake.id}:
     parameters:
@@ -185,61 +202,32 @@ paths:
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 
 }
 
-func TestPathParameters_RunRule_TopParameterCheck_MissingRequired(t *testing.T) {
-
-	yml := `paths:
- /musical/{melody}/{pizza}:
-   parameters:
-       - in: path
-         name: melody
-         required: fresh
-   get:
-     parameters:
-       - in: path
-         name: pizza
-         required: true`
-
-	path := "$"
-
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
-
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
-	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
-
-	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
-
-	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza} must have `required` parameter that is set to `true`", res[0].Message)
-}
-
 func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
  /musical/{melody}/{pizza}:
    parameters:
        - in: path
@@ -253,26 +241,32 @@ func TestPathParameters_RunRule_TopParameterCheck_RequiredShouldBeTrue(t *testin
 
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "/musical/{melody}/{pizza} must have `required` parameter that is set to `true`", res[0].Message)
+	assert.Equal(t, "path parameter named `melody` at `/musical/{melody}/{pizza}` must have `required` set to `true`", res[0].Message)
 }
 
 func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
  /musical/{melody}/{pizza}:
    parameters:
        - in: path
@@ -288,26 +282,34 @@ func TestPathParameters_RunRule_TopParameterCheck_MultipleDefinitionsOfParam(t *
 
 	path := "$"
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
+	assert.Equal(t, "path parameter named `melody` at `/musical/{melody}/{pizza}` is a duplicate of another parameter with the same name", res[0].Message)
+	assert.Equal(t, "`GET` parameter named `pizza` at `/musical/{melody}/{pizza}` is a duplicate of another parameter with the same name", res[1].Message)
+
 }
 
 func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
  /musical/{melody}/{pizza}:
    parameters:
        - in: path
@@ -319,26 +321,31 @@ func TestPathParameters_RunRule_TopParameterCheck(t *testing.T) {
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }
 
 func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1"
+paths:
  /musical/{melody}/{pizza}/{cake}:
    parameters:
        - in: path
@@ -352,28 +359,33 @@ func TestPathParameters_RunRule_TopParameterCheck_MissingParamDefInOp(t *testing
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "`GET` must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
+	assert.Equal(t, "parameter named `cake` must be defined as part of the path `/musical/{melody}/{pizza}/{cake}` definition, or in the `GET` operation(s)",
 		res[0].Message)
 }
 
 func TestPathParameters_RunRule_MultiplePaths_TopAndVerbParams(t *testing.T) {
 
-	yml := `components: 
+	yml := `openapi: 3.1.0
+components: 
   parameters:
     chicken:
       in: path
@@ -405,30 +417,32 @@ paths:
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-
-	// we need to resolve this
-	r := index.NewResolver(ctx.Index)
-	r.Resolve()
-	res := def.RunRule([]*yaml.Node{&rootNode}, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "`GET` must define parameter `cake` as expected by path `/musical/{melody}/{pizza}/{cake}`",
+	assert.Equal(t, "parameter named `cake` must be defined as part of the path `/musical/{melody}/{pizza}/{cake}` definition, or in the `GET` operation(s)",
 		res[0].Message)
 }
 
 func TestPathParameters_RunRule_NoParamsDefined(t *testing.T) {
 
-	yml := `
+	yml := `openapi: 3.1.0
 paths:
   /update/{somethings}:
     post:
@@ -455,30 +469,35 @@ components:
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 2)
-	assert.Equal(t, "`POST` must define parameter `somethings` as expected by path `/update/{somethings}`",
+	assert.Equal(t, "parameter named `somethings` must be defined as part of the path `/update/{somethings}` definition, or in the `POST` operation(s)",
 		res[0].Message)
-	assert.Equal(t, "`GET` must define parameter `somethings` as expected by path `/update/{somethings}`",
+	assert.Equal(t, "parameter named `somethings` must be defined as part of the path `/update/{somethings}` definition, or in the `GET` operation(s)",
 		res[1].Message)
 }
 
 func TestPathParameters_RunRule_NoParamsDefined_TopExists(t *testing.T) {
 
-	yml := `paths:
+	yml := `openapi: 3.1.0
+paths:
   /update/{somethings}:
     parameters:
       - in: path
@@ -512,19 +531,104 @@ components:
 
 	path := "$"
 
-	var rootNode yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
-	assert.NoError(t, mErr)
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
 
-	nodes, _ := utils.FindNodes([]byte(yml), path)
+	m, _ := document.BuildV3Model()
 
-	rule := buildOpenApiTestRuleAction(path, "path_parameters", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-	config := index.CreateOpenAPIIndexConfig()
-	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	def := PathParameters{}
-	res := def.RunRule(nodes, ctx)
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestPathParameters_RunRule_CheckOpHasParam(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+  /test/two/{cakes}:
+    parameters:
+      - in: header
+        name: yeah
+    get:
+      parameters:
+        - in: path
+          description:  hey
+          schema:
+            type: string
+          name: cakes`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestPathParameters_RunRule_CheckForPathParamInPost(t *testing.T) {
+
+	yml := `openapi: 3.1.0
+paths:
+    /test/two/{cakes}:
+        parameters:
+              - in: header
+                schema:
+                    type: string
+                name: yeah
+                example: fish
+                description: fingers
+        post: 
+          description: minty fresh
+          summary: crispy fresh  
+          parameters:
+            - name: cakes
+              in: path`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
 }

@@ -6,6 +6,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/statistics"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"os"
@@ -65,15 +67,20 @@ func GetLintCommand() *cobra.Command {
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			minScore, _ := cmd.Flags().GetInt("min-score")
+			pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
+
+			// https://github.com/daveshanley/vacuum/issues/636
+			showRules, _ := cmd.Flags().GetBool("show-rules")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
-			if noStyleFlag {
+			if noStyleFlag || pipelineOutput {
 				pterm.DisableColor()
 				pterm.DisableStyling()
 			}
 
-			if !silent && !noBanner {
+			if !silent && !noBanner && !pipelineOutput {
 				PrintBanner()
 			}
 
@@ -134,12 +141,39 @@ func GetLintCommand() *cobra.Command {
 				for k, v := range owaspRules {
 					allRules[k] = v
 				}
-				if !silent {
+				if !silent && !pipelineOutput {
 					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
 					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
 					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
 					pterm.Println()
 				}
+			}
+
+			if showRules && !pipelineOutput {
+				pterm.Println("The following rules are being used:")
+				pterm.Println()
+
+				var rules []pterm.BulletListItem
+				x := 01
+				for _, rule := range selectedRS.Rules {
+					sp := ""
+					if x <= 9 {
+						sp = "  "
+					}
+					if x > 9 && x < 99 {
+						sp = " "
+					}
+					rules = append(rules, pterm.BulletListItem{
+						Level:       0,
+						Text:        fmt.Sprintf("%s: (%s)", rule.Id, rule.Name),
+						TextStyle:   pterm.NewStyle(pterm.FgLightMagenta),
+						BulletStyle: pterm.NewStyle(pterm.FgLightCyan),
+						Bullet:      fmt.Sprintf("► %s[%d]", sp, x),
+					})
+					x++
+				}
+				pterm.DefaultBulletList.WithItems(rules).Render()
+				pterm.Println()
 			}
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
@@ -164,7 +198,7 @@ func GetLintCommand() *cobra.Command {
 			doneChan := make(chan bool)
 
 			if len(filesToLint) <= 1 {
-				if !silent {
+				if !silent && !pipelineOutput {
 					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n\n", filesToLint[0], len(selectedRS.Rules),
 						selectedRS.DocumentationURI)
 					pterm.Println()
@@ -172,7 +206,7 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			if len(filesToLint) > 1 {
-				if !silent {
+				if !silent && !pipelineOutput {
 					pterm.Info.Printf("Linting %d files against %d rules: %s\n\n", len(filesToLint), len(selectedRS.Rules),
 						selectedRS.DocumentationURI)
 					pterm.Println()
@@ -180,7 +214,7 @@ func GetLintCommand() *cobra.Command {
 			}
 
 			if len(ignoreFile) > 1 {
-				if !silent {
+				if !silent && !pipelineOutput {
 					pterm.Info.Printf("Using ignore file '%s'", ignoreFile)
 					pterm.Println()
 				}
@@ -203,6 +237,7 @@ func GetLintCommand() *cobra.Command {
 			var filesProcessedSize int64
 			var filesProcessed int
 			var size int64
+			var stats *reports.ReportStatistics
 			for i, fileName := range filesToLint {
 
 				go func(c chan bool, i int, fileName string) {
@@ -240,9 +275,14 @@ func GetLintCommand() *cobra.Command {
 						IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 						IgnoredResults:           ignoredItems,
 						ExtensionRefs:            extensionRefsFlag,
+						PipelineOutput:           pipelineOutput,
+						ShowRules:                showRules,
 					}
-					fs, fp, err := lintFile(lfr)
+					st, fs, fp, err := lintFile(lfr)
 
+					if st != nil {
+						stats = st
+					}
 					filesProcessedSize = filesProcessedSize + fs + size
 					filesProcessed = filesProcessed + fp + 1
 
@@ -257,7 +297,7 @@ func GetLintCommand() *cobra.Command {
 				completed++
 			}
 
-			if !detailsFlag && !silent {
+			if !detailsFlag && !silent && !pipelineOutput {
 				pterm.Println()
 				pterm.Info.Println("To see full details of linting report, use the '-d' flag.")
 				pterm.Println()
@@ -266,6 +306,25 @@ func GetLintCommand() *cobra.Command {
 			duration := time.Since(start)
 
 			RenderTimeAndFiles(timeFlag, duration, filesProcessedSize, filesProcessed)
+
+			if minScore > 10 {
+				// check overall-score is above the threshold
+				if stats != nil {
+					if stats.OverallScore < minScore {
+
+						if !pipelineOutput {
+							box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+							box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+							box.Println(pterm.LightRed("🚨 SCORE THRESHOLD FAILED 🚨"))
+							pterm.Println()
+						} else {
+							pterm.Println(pterm.LightRed("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n"))
+
+						}
+						return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", stats.OverallScore, minScore)
+					}
+				}
+			}
 
 			if len(errs) > 0 {
 				return errors.Join(errs...)
@@ -284,11 +343,15 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner / header output")
 	cmd.Flags().BoolP("no-message", "m", false, "Hide the message output when using -d to show details")
 	cmd.Flags().BoolP("all-results", "a", false, "Render out all results, regardless of the number when using -d")
-	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (e.g. 'info', 'warn', 'error')")
+	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (e.g. 'info', 'warn', 'error' or 'none')")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths (no '...')")
+	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
+	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
+	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines (e.g. GitHub Actions, GitLab, etc.)")
+
 	// TODO: Add globbed-files flag to other commands as well
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
@@ -309,6 +372,7 @@ func GetLintCommand() *cobra.Command {
 		model.SeverityInfo,
 		model.SeverityWarn,
 		model.SeverityError,
+		model.SeverityNone,
 	}, cobra.ShellCompDirectiveNoFileComp)); regErr != nil {
 		panic(regErr)
 	}
@@ -319,7 +383,7 @@ func GetLintCommand() *cobra.Command {
 	return cmd
 }
 
-func lintFile(req utils.LintFileRequest) (int64, int, error) {
+func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int, error) {
 	// read file.
 	specBytes, ferr := os.ReadFile(req.FileName)
 
@@ -330,7 +394,7 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 
 		pterm.Error.Printf("Unable to read file '%s': %s\n", req.FileName, ferr.Error())
 		pterm.Println()
-		return 0, 0, ferr
+		return nil, 0, 0, ferr
 
 	}
 
@@ -362,19 +426,82 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 			pterm.Error.Printf("unable to process spec '%s', error: %s", req.FileName, err.Error())
 			pterm.Println()
 		}
-		return result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+		return nil, result.FileSize, result.FilesProcessed, fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 	}
 
 	resultSet := model.NewRuleResultSet(result.Results)
+
+	var cats []*model.RuleCategory
+
+	if req.CategoryFlag != "" {
+		resultSet.ResetCounts()
+		switch req.CategoryFlag {
+		case model.CategoryDescriptions:
+			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
+		case model.CategoryExamples:
+			cats = append(cats, model.RuleCategories[model.CategoryExamples])
+		case model.CategoryInfo:
+			cats = append(cats, model.RuleCategories[model.CategoryInfo])
+		case model.CategorySchemas:
+			cats = append(cats, model.RuleCategories[model.CategorySchemas])
+		case model.CategorySecurity:
+			cats = append(cats, model.RuleCategories[model.CategorySecurity])
+		case model.CategoryValidation:
+			cats = append(cats, model.RuleCategories[model.CategoryValidation])
+		case model.CategoryOperations:
+			cats = append(cats, model.RuleCategories[model.CategoryOperations])
+		case model.CategoryTags:
+			cats = append(cats, model.RuleCategories[model.CategoryTags])
+		case model.CategoryOWASP:
+			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
+		default:
+			pterm.Warning.Printf("Category '%s' is unknown, all categories are being considered.\n", req.CategoryFlag)
+			pterm.Println()
+			cats = model.RuleCategoriesOrdered
+		}
+		// try a category print out.
+		for _, val := range cats {
+
+			categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
+
+			if len(categoryResults) > 0 {
+				if len(cats) > 1 {
+					resultSet.Results = append(resultSet.Results, categoryResults...)
+				} else {
+					resultSet.Results = categoryResults
+				}
+			}
+		}
+
+	} else {
+		cats = model.RuleCategoriesOrdered
+	}
+
 	resultSet.SortResultsByLineNumber()
 	warnings := resultSet.GetWarnCount()
 	errs := resultSet.GetErrorCount()
 	informs := resultSet.GetInfoCount()
+	stats := statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
+
 	req.Lock.Lock()
 	defer req.Lock.Unlock()
 	if !req.DetailsFlag {
-		RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
-		return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
+
+		rso := RenderSummaryOptions{
+			RuleResultSet:  resultSet,
+			RuleCategories: cats,
+			TotalFiles:     req.TotalFiles,
+			Severity:       req.FailSeverityFlag,
+			Filename:       req.FileName,
+			Silent:         req.Silent,
+			PipelineOutput: req.PipelineOutput,
+			RuleSet:        req.SelectedRS,
+			ReportStats:    stats,
+			RenderRules:    req.ShowRules,
+		}
+
+		RenderSummary(rso)
+		return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 	}
 
 	abs, _ := filepath.Abs(req.FileName)
@@ -394,9 +521,21 @@ func lintFile(req utils.LintFileRequest) (int64, int, error) {
 			req.CategoryFlag)
 	}
 
-	RenderSummary(resultSet, req.Silent, req.TotalFiles, req.FileIndex, req.FileName, req.FailSeverityFlag)
+	rso := RenderSummaryOptions{
+		RuleResultSet:  resultSet,
+		RuleCategories: cats,
+		TotalFiles:     req.TotalFiles,
+		Severity:       req.FailSeverityFlag,
+		Filename:       req.FileName,
+		Silent:         req.Silent,
+		PipelineOutput: req.PipelineOutput,
+		RuleSet:        req.SelectedRS,
+		ReportStats:    stats,
+		RenderRules:    req.ShowRules,
+	}
+	RenderSummary(rso)
 
-	return result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
+	return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 }
 
 // filterIgnoredResultsPtr filters the given results slice, taking out any (RuleID, Path) combos that were listed in the
@@ -577,101 +716,17 @@ func renderCodeSnippet(r *model.RuleFunctionResult, specData []string) {
 	}
 }
 
-func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex int, filename, sev string) {
-
-	tableData := [][]string{{"Category", pterm.LightRed("Errors"), pterm.LightYellow("Warnings"),
-		pterm.LightBlue("Info")}}
-
-	for _, cat := range model.RuleCategoriesOrdered {
-		errors := rs.GetErrorsByRuleCategory(cat.Id)
-		warn := rs.GetWarningsByRuleCategory(cat.Id)
-		info := rs.GetInfoByRuleCategory(cat.Id)
-
-		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
-
-			tableData = append(tableData, []string{cat.Name, fmt.Sprintf("%v", humanize.Comma(int64(len(errors)))),
-				fmt.Sprintf("%v", humanize.Comma(int64(len(warn)))), fmt.Sprintf("%v", humanize.Comma(int64(len(info))))})
-		}
-
-	}
-
-	if len(rs.Results) > 0 {
-		if !silent {
-			err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-			if err != nil {
-				pterm.Error.Printf("error rendering table '%v'", err.Error())
-			}
-
-		}
-	}
-
-	errors := rs.GetErrorCount()
-	warnings := rs.GetWarnCount()
-	informs := rs.GetInfoCount()
-	errorsHuman := humanize.Comma(int64(rs.GetErrorCount()))
-	warningsHuman := humanize.Comma(int64(rs.GetWarnCount()))
-	informsHuman := humanize.Comma(int64(rs.GetInfoCount()))
-
-	if totalFiles <= 1 {
-
-		if errors > 0 {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
-				"Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
-			return
-		}
-		if warnings > 0 {
-			msg := "passed, but with"
-			switch sev {
-			case model.SeverityWarn:
-				msg = "failed with"
-			}
-
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgYellow)).WithMargin(10).Printf(
-				"Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
-			return
-		}
-
-		if informs > 0 {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
-				"Linting passed, %v informs reported", informsHuman)
-			return
-		}
-
-		if silent {
-			return
-		}
-
-		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Println(
-			"Linting passed, A perfect score! well done!")
-
-	} else {
-
-		if errors > 0 {
-			pterm.Error.Printf("'%s' failed with %v errors, %v warnings and %v informs\n\n",
-				filename, errorsHuman, warningsHuman, informsHuman)
-			pterm.Println()
-			return
-		}
-		if warnings > 0 {
-			pterm.Warning.Printf(
-				"'%s' passed, but with %v warnings and %v informs\n\n", filename, warningsHuman, informsHuman)
-			pterm.Println()
-			return
-		}
-
-		if informs > 0 {
-			pterm.Success.Printf(
-				"'%s' passed, %v informs reported\n\n", filename, informsHuman)
-			pterm.Println()
-			return
-		}
-
-		pterm.Success.Printf(
-			"'%s' passed, A perfect score! well done!\n\n", filename)
-		pterm.Println()
-
-	}
-
+type RenderSummaryOptions struct {
+	RuleResultSet  *model.RuleResultSet
+	RuleSet        *rulesets.RuleSet
+	RuleCategories []*model.RuleCategory
+	TotalFiles     int
+	Severity       string
+	Filename       string
+	Silent         bool
+	PipelineOutput bool
+	ReportStats    *reports.ReportStatistics
+	RenderRules    bool
 }
 
 // The user may pass in filenames, a glob pattern, or both.

@@ -117,12 +117,16 @@ const (
 	OwaspSecurityHostsHttpsOAS3          = "owasp-security-hosts-https-oas3"
 	PostResponseSuccess                  = "post-response-success"
 	NoRequestBody                        = "no-request-body"
+	VacuumOpenAPI                        = "vacuum:oas"
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
-	SpectralRecommended                  = "recommended"
-	SpectralAll                          = "all"
-	SpectralOff                          = "off"
+	VacuumRecommended                    = "recommended"
+	VacuumAll                            = "all"
+	VacuumOff                            = "off"
+	SpectralRecommended                  = VacuumRecommended
+	SpectralAll                          = VacuumAll
+	SpectralOff                          = SpectralAll
 )
 
 type ruleSetsModel struct {
@@ -198,17 +202,22 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	}
 
 	// default and explicitly recommended
-	if extends[SpectralOpenAPI] == SpectralRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
+	if extends[VacuumOpenAPI] == VacuumRecommended || extends[VacuumOpenAPI] == VacuumOpenAPI {
+		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
+	}
+
+	// default and explicitly recommended
+	if extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
 	}
 
 	// all rules
-	if extends[SpectralOpenAPI] == SpectralAll {
+	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
 		rs = rsm.openAPIRuleSet
 	}
 
 	// no rules!
-	if extends[SpectralOpenAPI] == SpectralOff {
+	if extends[SpectralOpenAPI] == VacuumOff || extends[VacuumOpenAPI] == VacuumOff {
 		if rs.DocumentationURI == "" {
 			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
 		}
@@ -226,14 +235,14 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	}
 
 	// owasp rules with spectral and vacuum namespace
-	if extends[SpectralOwasp] == SpectralAll || extends[VacuumOwasp] == SpectralAll {
+	if extends[SpectralOwasp] == VacuumAll || extends[VacuumOwasp] == VacuumAll {
 		for ruleName, rule := range GetAllOWASPRules() {
 			rs.Rules[ruleName] = rule
 		}
 	}
 
 	// owasp rules with spectral and vacuum namespace (recommended)
-	if extends[SpectralOwasp] == SpectralRecommended || extends[VacuumOwasp] == SpectralRecommended {
+	if extends[SpectralOwasp] == VacuumRecommended || extends[VacuumOwasp] == VacuumRecommended {
 		for ruleName, rule := range GetRecommendedOWASPRules() {
 			rs.Rules[ruleName] = rule
 		}
@@ -304,7 +313,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 			switch evalStr {
 			case model.SeverityError, model.SeverityWarn, model.SeverityInfo, model.SeverityHint:
 				rs.Rules[k].Severity = evalStr
-			case SpectralOff:
+			case VacuumOff:
 				delete(rs.Rules, k) // remove it completely
 			}
 		}
@@ -372,7 +381,7 @@ func CreateRuleSetFromRuleMap(rules map[string]*model.Rule) *RuleSet {
 	rs := &RuleSet{
 		DocumentationURI: "https://quobix.com/vacuum/rulesets/understanding",
 		Formats:          []string{"oas2", "oas3"},
-		Extends:          map[string]string{SpectralOpenAPI: SpectralOff},
+		Extends:          map[string]string{VacuumOpenAPI: VacuumOff},
 		Description:      fmt.Sprintf("a custom ruleset composed of %d rules", len(rules)),
 		RuleDefinitions:  make(map[string]interface{}),
 		Rules:            rules,

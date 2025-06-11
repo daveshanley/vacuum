@@ -4,12 +4,12 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 // TagDefined is a rule that checks if an operation uses a tag, it's also defined in the global tag definitions.
@@ -37,7 +37,7 @@ func (td TagDefined) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	globalTags := context.DrDocument.V3Document.Tags
-	globalTagMap := make(map[string]*base.Tag)
+	globalTagMap := make(map[string]*v3.Tag)
 	for _, tag := range globalTags {
 		globalTagMap[tag.Value.Name] = tag
 	}
@@ -62,7 +62,7 @@ func (td TagDefined) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 							Rule:      context.Rule,
 						}
 						results = append(results, res)
-						op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+						op.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 					}
 				}
 			}

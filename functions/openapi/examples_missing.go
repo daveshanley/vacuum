@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
@@ -42,7 +42,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	// create a string buffer for caching seen schemas
 	var buf strings.Builder
 
-	buildResult := func(message, path string, node, valueNode *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, node, valueNode *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
 
 		origin := context.Document.GetRolodex().FindNodeOriginWithValue(node, valueNode, nil, "")
 		if origin == nil {
@@ -56,7 +56,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			Rule:      context.Rule,
 			Origin:    origin,
 		}
-		component.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
 
@@ -94,7 +94,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
-			if p.SchemaProxy != nil {
+			if p.SchemaProxy != nil && p.SchemaProxy.Schema != nil && p.SchemaProxy.Schema.Value != nil {
 				if len(p.SchemaProxy.Schema.Value.Type) <= 0 {
 					continue
 				}
@@ -235,7 +235,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				mt.SchemaProxy.Schema.Properties.Len() > 0 {
 
 				hasProps = true
-				var prop *base.Schema
+				var prop *v3.Schema
 				var propName string
 				for k, v := range mt.SchemaProxy.Schema.Properties.FromOldest() {
 					if !checkProps(v.Schema) {
@@ -246,12 +246,14 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					}
 				}
 				if propErr {
-					path := prop.GenerateJSONPath()
-					results = append(results,
-						buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("media type schema property `%s` is missing `examples` or `example`", propName)),
-							path,
-							prop.KeyNode, mt.ValueNode, mt))
+					if prop != nil {
+						path := prop.GenerateJSONPath()
+						results = append(results,
+							buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								fmt.Sprintf("media type schema property `%s` is missing `examples` or `example`", propName)),
+								path,
+								prop.KeyNode, mt.ValueNode, mt))
+					}
 				}
 			}
 
@@ -336,7 +338,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			hasProps := false
 			if s.Properties != nil && s.Properties.Len() > 0 {
 				hasProps = true
-				var prop *base.Schema
+				var prop *v3.Schema
 				var propName string
 				for k, v := range s.Properties.FromOldest() {
 					if !checkProps(v.Schema) {
@@ -376,7 +378,7 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	return results
 }
 
-func checkProps(s *base.Schema) bool {
+func checkProps(s *v3.Schema) bool {
 	if s == nil || s.Value == nil {
 		return false
 	}
@@ -398,12 +400,12 @@ func checkParent(s any, depth int) bool {
 	if depth > 10 {
 		return false
 	}
-	if sp, ok := s.(*base.SchemaProxy); ok {
+	if sp, ok := s.(*v3.SchemaProxy); ok {
 
 		// check the parent schema for an example
 		if sp.Parent != nil {
 
-			if pp, kk := sp.Parent.(*base.Schema); kk {
+			if pp, kk := sp.Parent.(*v3.Schema); kk {
 				if pp.Value != nil {
 					if pp.Value.Example != nil || pp.Value.Examples != nil {
 						return true
@@ -437,11 +439,11 @@ type contextualPosition interface {
 	GetKeyNode() *yaml.Node
 }
 
-func extractHash(s *base.Schema) string {
+func extractHash(s *v3.Schema) string {
 	if s != nil && s.Parent != nil {
-		if p := s.Parent.(base.Foundational).GetParent(); p != nil {
+		if p := s.Parent.(v3.Foundational).GetParent(); p != nil {
 			// check if p implements HasValue
-			if hv, ok := p.(base.HasValue); ok {
+			if hv, ok := p.(v3.HasValue); ok {
 				// check if hv.Value implements GoesLowUntyped
 				if gl, ko := hv.GetValue().(high.GoesLowUntyped); ko {
 					// check if gl.GoesLowUntyped() implements contextualPosition
@@ -456,7 +458,7 @@ func extractHash(s *base.Schema) string {
 	return ""
 }
 
-func isSchemaBoolean(schema *base.Schema) bool {
+func isSchemaBoolean(schema *v3.Schema) bool {
 	if schema == nil || schema.Value == nil {
 		return false
 	}
@@ -466,7 +468,7 @@ func isSchemaBoolean(schema *base.Schema) bool {
 	return false
 }
 
-func isSchemaString(schema *base.Schema) bool {
+func isSchemaString(schema *v3.Schema) bool {
 	if schema == nil || schema.Value == nil {
 		return false
 	}
@@ -476,7 +478,7 @@ func isSchemaString(schema *base.Schema) bool {
 	return false
 }
 
-func isSchemaNumber(schema *base.Schema) bool {
+func isSchemaNumber(schema *v3.Schema) bool {
 	if schema == nil || schema.Value == nil {
 		return false
 	}
@@ -489,7 +491,7 @@ func isSchemaNumber(schema *base.Schema) bool {
 	return false
 }
 
-func isSchemaEnum(schema *base.Schema) bool {
+func isSchemaEnum(schema *v3.Schema) bool {
 	if schema == nil || schema.Value == nil {
 		return false
 	}

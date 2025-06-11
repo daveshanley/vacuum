@@ -4,17 +4,16 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/model/reports"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	v3 "github.com/pb33f/doctor/model/high/v3"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"net/http"
-	"strconv"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    "github.com/daveshanley/vacuum/model/reports"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    v3 "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "net/http"
+    "strconv"
+    "strings"
 )
 
 // OperationDescription will check if an operation has a description, and if the description is useful
@@ -57,7 +56,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 	paths := context.DrDocument.V3Document.Paths
 
-	buildResult := func(message, path string, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
 		endNode := vacuumUtils.BuildEndNode(node)
 		result := model.RuleFunctionResult{
 			Message:   message,
@@ -76,11 +75,11 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				},
 			},
 		}
-		component.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
 
-	checkDescription := func(description string, method, location, missing, JSONPath string, node *yaml.Node, component base.AcceptsRuleResults) {
+	checkDescription := func(description string, method, location, missing, JSONPath string, node *yaml.Node, component v3.AcceptsRuleResults) {
 		if description == "" {
 			results = append(results,
 				buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
@@ -97,7 +96,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 	}
 
 	checkOperation := func(desc, summary, path, method, location, reqLocation, jsonPath string, node *yaml.Node,
-		requestBody *v3.RequestBody, responses *v3.Responses, op base.AcceptsRuleResults) {
+		requestBody *v3.RequestBody, responses *v3.Responses, op v3.AcceptsRuleResults) {
 
 		checkDescription(desc, method, location, "description", jsonPath, node, op)
 		checkDescription(summary, method, location, "summary", jsonPath, node, op)

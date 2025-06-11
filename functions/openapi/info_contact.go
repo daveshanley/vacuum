@@ -4,10 +4,10 @@
 package openapi
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 // InfoContact will check that the info object has a contact object.
@@ -46,7 +46,7 @@ func (id InfoContact) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 			Rule:      context.Rule,
 		}
 		results = append(results, res)
-		info.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+		info.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 	}
 
 	return results

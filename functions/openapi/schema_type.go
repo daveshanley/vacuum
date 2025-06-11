@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
-	"github.com/pb33f/doctor/model/high/base"
+	"github.com/pb33f/doctor/model/high/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -68,7 +68,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "type"),
 					Rule:      context.Rule,
 				}
-				schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
 		}
@@ -77,7 +77,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	return results
 }
 
-func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateNumber(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MultipleOf != nil {
@@ -114,7 +114,7 @@ func (st SchemaTypeCheck) validateNumber(schema *base.Schema, context *model.Rul
 	return results
 }
 
-func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateString(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MinLength != nil {
@@ -157,7 +157,7 @@ func (st SchemaTypeCheck) validateString(schema *base.Schema, context *model.Rul
 	return results
 }
 
-func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateArray(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MinItems != nil {
@@ -215,11 +215,11 @@ func (st SchemaTypeCheck) validateArray(schema *base.Schema, context *model.Rule
 	return results
 }
 
-func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, segment int, schema *base.Schema, node *yaml.Node, context *model.RuleFunctionContext) model.RuleFunctionResult {
+func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, segment int, schema *v3.Schema, node *yaml.Node, context *model.RuleFunctionContext) model.RuleFunctionResult {
 
 	// locate all paths that this model is referenced by
 	var allPaths []string
-	var modelByLine []base.Foundational
+	var modelByLine []v3.Foundational
 	var modelErr error
 	if context.DrDocument != nil {
 		modelByLine, modelErr = context.DrDocument.LocateModelByLine(node.Line + 1)
@@ -260,11 +260,11 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 	if len(allPaths) > 1 {
 		result.Paths = allPaths
 	}
-	schema.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+	schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 	return result
 }
 
-func (st SchemaTypeCheck) validateObject(schema *base.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.MinProperties != nil {

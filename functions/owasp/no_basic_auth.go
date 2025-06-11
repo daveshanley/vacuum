@@ -4,12 +4,12 @@
 package owasp
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 type NoBasicAuth struct{}
@@ -48,7 +48,7 @@ func (ba NoBasicAuth) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
 						Rule:      context.Rule,
 					}
-					scheme.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+					scheme.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 					results = append(results, result)
 				}
 			}

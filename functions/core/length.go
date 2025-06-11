@@ -4,12 +4,12 @@
 package core
 
 import (
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"strconv"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "strconv"
 )
 
 // TODO: come back and reduce the amount of code in here, it's not very efficient.
@@ -100,7 +100,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 			pathValue = path
 		}
 
-		var locatedObjects []base.Foundational
+		var locatedObjects []v3.Foundational
 		var allPaths []string
 		var err error
 		locatedPath := pathValue
@@ -142,8 +142,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					}
 					results = append(results, res)
 					if len(locatedObjects) > 0 {
-						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-							arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+						if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 						}
 					}
 					continue
@@ -159,8 +159,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 					}
 					results = append(results, res)
 					if len(locatedObjects) > 0 {
-						if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-							arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+						if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+							arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 						}
 					}
 					continue
@@ -190,8 +190,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				}
 				results = append(results, res)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 					}
 				}
 				continue
@@ -227,8 +227,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				}
 				results = append(results, res)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 					}
 				}
 				results = model.MapPathAndNodesToResults(pathValue, p, p, results)
@@ -252,8 +252,8 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				}
 				results = append(results, res)
 				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 					}
 				}
 				//results = model.MapPathAndNodesToResults(pathValue, p, p, results)

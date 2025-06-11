@@ -4,11 +4,11 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
 )
 
 // TagDescription will check that all tags have a description.
@@ -48,7 +48,7 @@ func (td TagDescription) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				Rule:      context.Rule,
 			}
 			results = append(results, res)
-			tag.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+			tag.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 		}
 	}
 	return results

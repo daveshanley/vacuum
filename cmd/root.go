@@ -56,7 +56,7 @@ func GetRootCommand() *cobra.Command {
 	}
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.conf.yaml) ")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
-	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Path to a spectral ruleset configuration")
+	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Location of a vacuum (or Spectral) ruleset")
 	rootCmd.PersistentFlags().StringP("functions", "f", "", "Path to custom functions")
 	rootCmd.PersistentFlags().StringP("base", "p", "", "Override Base URL or path to use for resolving local file based or remote references")
 	rootCmd.PersistentFlags().BoolP("remote", "u", true, "Allow local files and remote (http) references to be looked up")

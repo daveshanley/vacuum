@@ -4,13 +4,13 @@
 package core
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 // Enumeration is a rule that will check that a set of values meet the supplied 'values' supplied via functionOptions.
@@ -96,8 +96,8 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			}
 			results = append(results, result)
 			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(base.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				}
 			}
 		}

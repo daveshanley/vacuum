@@ -4,12 +4,12 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"gopkg.in/yaml.v3"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "gopkg.in/yaml.v3"
+    "strings"
 )
 
 // OperationTags is a rule that checks operations are using tags and they are not empty.
@@ -56,7 +56,7 @@ func (ot OperationTags) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 						Rule:      context.Rule,
 					}
 					results = append(results, res)
-					op.AddRuleFunctionResult(base.ConvertRuleResult(&res))
+					op.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 			}
 		}

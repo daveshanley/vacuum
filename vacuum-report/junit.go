@@ -89,6 +89,11 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string
 				gf++
 			}
 
+			line := 1
+			if r.StartNode != nil {
+				line = r.StartNode.Line
+			}
+
 			tCase := &TestCase{
 				Line:      r.StartNode.Line,
 				Name:      fmt.Sprintf("%s", val.Name),
@@ -114,7 +119,7 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string
 						},
 						{
 							Name:  "line",
-							Value: fmt.Sprintf("%d", r.StartNode.Line),
+							Value: fmt.Sprintf("%d", line),
 						},
 					},
 				},

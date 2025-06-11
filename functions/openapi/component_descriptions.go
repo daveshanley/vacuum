@@ -4,15 +4,15 @@
 package openapi
 
 import (
-	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/base"
-	"github.com/pb33f/libopenapi/datamodel/low"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"strconv"
-	"strings"
+    "fmt"
+    "github.com/daveshanley/vacuum/model"
+    vacuumUtils "github.com/daveshanley/vacuum/utils"
+    "github.com/pb33f/doctor/model/high/v3"
+    "github.com/pb33f/libopenapi/datamodel/low"
+    "github.com/pb33f/libopenapi/utils"
+    "gopkg.in/yaml.v3"
+    "strconv"
+    "strings"
 )
 
 // ComponentDescription will check through all components and determine if they are correctly described
@@ -55,7 +55,7 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 
 	components := context.DrDocument.V3Document.Components
 
-	buildResult := func(message, path string, node *yaml.Node, component base.AcceptsRuleResults) model.RuleFunctionResult {
+	buildResult := func(message, path string, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: node,
@@ -63,11 +63,11 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 			Path:      path,
 			Rule:      context.Rule,
 		}
-		component.AddRuleFunctionResult(base.ConvertRuleResult(&result))
+		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
 
-	checkDescription := func(description string, componentName, componentType, path string, node *yaml.Node, component base.AcceptsRuleResults) {
+	checkDescription := func(description string, componentName, componentType, path string, node *yaml.Node, component v3.AcceptsRuleResults) {
 		if description == "" {
 			results = append(results,
 				buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,

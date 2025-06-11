@@ -195,7 +195,7 @@ func TestGetVacuumReportCommand_BadFile(t *testing.T) {
 func TestGetVacuumReport_WithIgnoreFile(t *testing.T) {
 
 	yaml := `
-extends: [[spectral:oas, recommended]]
+extends: [[vacuum:oas, recommended]]
 rules:
     url-starts-with-major-version:
         description: Major version must be the first URL component
