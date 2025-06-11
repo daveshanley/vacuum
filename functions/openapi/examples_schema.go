@@ -4,19 +4,20 @@
 package openapi
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi-validator/schema_validation"
-    v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
-    "github.com/pb33f/libopenapi/datamodel/low"
-    "github.com/pb33f/libopenapi/orderedmap"
-    "github.com/pb33f/libopenapi/utils"
-    "github.com/sourcegraph/conc"
-    "gopkg.in/yaml.v3"
-    "strings"
-    "sync"
+	"fmt"
+	"strings"
+	"sync"
+
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
+	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
+	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/utils"
+	"github.com/sourcegraph/conc"
+	"gopkg.in/yaml.v3"
 )
 
 // ExamplesSchema will check anything that has an example, has a schema and it's valid.
@@ -34,6 +35,53 @@ func (es ExamplesSchema) GetCategory() string {
 }
 
 var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}
+
+// Helper function to check if a validation error should be filtered out for null values
+// Only applies to OpenAPI versions before 3.1 (which use nullable: true)
+func shouldFilterNullError(errorReason string, openAPIVersion string, schema *v3.Schema, example any) bool {
+	// Only filter null errors for OpenAPI versions before 3.1
+	// OpenAPI 3.1 uses JSON Schema draft 2019-09 which handles nullable differently
+	if !strings.HasPrefix(openAPIVersion, "3.0") {
+		return false
+	}
+
+	// Only filter if the error is about null values
+	if !strings.Contains(errorReason, "got null") {
+		return false
+	}
+
+	// Check if the schema itself is nullable
+	if schema != nil && schema.Value != nil &&
+		schema.Value.Nullable != nil && *schema.Value.Nullable {
+		return true
+	}
+
+	// Check if this is an object with nullable properties
+	if schema != nil && schema.Value != nil &&
+		schema.Value.Type != nil && len(schema.Value.Type) > 0 &&
+		schema.Value.Type[0] == "object" && schema.Value.Properties != nil {
+
+		if exampleMap, ok := example.(map[string]interface{}); ok {
+			// Check if any property in the example is null and that property is nullable
+			for propPair := schema.Value.Properties.First(); propPair != nil; propPair = propPair.Next() {
+				propName := propPair.Key()
+				propSchemaProxy := propPair.Value()
+
+				if propValue, exists := exampleMap[propName]; exists && propValue == nil {
+					if propSchemaProxy != nil {
+						// Get the actual schema from the proxy
+						propSchema := propSchemaProxy.Schema()
+						if propSchema != nil && propSchema.Nullable != nil && *propSchema.Nullable {
+							return true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
 
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.
 func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
@@ -59,6 +107,13 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 	var expLock sync.Mutex
 
 	validator := schema_validation.NewSchemaValidator()
+
+	// Get OpenAPI version from the document
+	var openAPIVersion string
+	if context.Document != nil && context.Document.GetVersion() != "" {
+		openAPIVersion = context.Document.GetVersion()
+	}
+
 	validateSchema := func(iKey *int,
 		sKey, label string,
 		s *v3.Schema,
@@ -83,6 +138,12 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				}
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
+						// Skip any error that mentions "got null" for OpenAPI versions before 3.1
+						// and only if the schema is actually marked as nullable
+						if shouldFilterNullError(err.Reason, openAPIVersion, s, example) {
+							continue
+						}
+
 						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, err.Reason),
 							path, keyNode, node, s)
 
