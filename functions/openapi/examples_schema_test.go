@@ -5,11 +5,12 @@ package openapi
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestExamplesSchema(t *testing.T) {
@@ -567,6 +568,86 @@ components:
         - 0
         - 0
         - 0`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestExamplesSchema_3_1_0_nullable(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas: 
+    Test:
+      type: object
+      description: Test OpenAPI 3.1 nullable field using type array
+      required:
+        - nullable_prop
+      properties:
+        nullable_prop:
+          type: ["string", "null"]
+          nullable: true
+      examples:
+        - nullable_prop: string val
+        - nullable_prop: null`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestExamplesSchema_3_0_0_nullable(t *testing.T) {
+	yml := `openapi: 3.0.0
+components:
+  schemas: 
+    Test:
+      type: object
+      description: Test OpenAPI 3.0 nullable field
+      required:
+        - nullable_prop
+      properties:
+        nullable_prop:
+          type: string
+          nullable: true
+      examples:
+        - nullable_prop: string val
+        - nullable_prop: null`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
