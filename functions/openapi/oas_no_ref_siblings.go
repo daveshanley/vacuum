@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"github.com/pb33f/libopenapi/index"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
@@ -49,7 +50,22 @@ func (nrs OASNoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 	}
 
 	var results []model.RuleFunctionResult
-	siblings := context.Index.GetReferencesWithSiblings()
+	results = applyOASNoRefSiblingRuleToIndex(context.Index, results, context)
+
+	rolodex := context.Index.GetRolodex()
+
+	if rolodex != nil {
+		for _, idx := range rolodex.GetIndexes() {
+			results = applyOASNoRefSiblingRuleToIndex(idx, results, context)
+		}
+	}
+
+	return results
+}
+
+// applyOASNoRefSiblingRuleToIndex is a helper that applies the OASNoRefSiblings rule to a given index and returns the results.
+func applyOASNoRefSiblingRuleToIndex(idx *index.SpecIndex, results []model.RuleFunctionResult, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	siblings := idx.GetReferencesWithSiblings()
 	for _, ref := range siblings {
 		keys := notAllowedKeys(ref.Node)
 		if len(keys) != 0 {
@@ -57,6 +73,7 @@ func (nrs OASNoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFuncti
 			results = append(results, model.RuleFunctionResult{
 				Message:   "a `$ref` can only be placed next to `summary` and `description` but got:" + strings.Join(keys, " ,"),
 				StartNode: key,
+				Origin:    idx.FindNodeOrigin(val),
 				EndNode:   vacuumUtils.BuildEndNode(val),
 				Path:      ref.Path,
 				Rule:      context.Rule,
