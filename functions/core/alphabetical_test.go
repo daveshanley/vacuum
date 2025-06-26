@@ -19,7 +19,7 @@ func TestAlphabetical_RunRule_FailStringArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -43,7 +43,7 @@ func TestAlphabetical_RunRule_PassStringArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -64,7 +64,7 @@ func TestAlphabetical_RunRule_FailIntegerArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -85,7 +85,7 @@ func TestAlphabetical_RunRule_FailFloatArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -106,7 +106,7 @@ func TestAlphabetical_RunRule_SuccessIntegerArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -127,7 +127,7 @@ func TestAlphabetical_RunRule_SuccessFloatArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -148,7 +148,7 @@ func TestAlphabetical_RunRule_IgnoreBooleanArray(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
@@ -175,7 +175,7 @@ func TestAlphabetical_RunRule_ObjectFail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["keyedBy"] = "nuggets"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
@@ -203,7 +203,7 @@ func TestAlphabetical_RunRule_ObjectSuccess(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["keyedBy"] = "heat"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
@@ -231,7 +231,7 @@ func TestAlphabetical_RunRule_ObjectIntegersSuccess(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["keyedBy"] = "heat"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
@@ -259,7 +259,7 @@ func TestAlphabetical_RunRule_ObjectIntegersFail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["keyedBy"] = "heat"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
@@ -287,7 +287,7 @@ func TestAlphabetical_RunRule_ObjectFailNoKeyedBy(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)

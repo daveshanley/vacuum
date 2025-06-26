@@ -16,7 +16,7 @@ func TestCasing_RunRule_CamelSuccess(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "camel"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -40,7 +40,7 @@ func TestCasing_RunRule_CamelFail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "camel"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -62,7 +62,7 @@ func TestCasing_RunRule_PascalSuccess(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "pascal"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -84,7 +84,7 @@ func TestCasing_RunRule_PascalFail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "pascal"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -107,7 +107,7 @@ func TestCasing_RunRule_KebabSuccess(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "kebab"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -130,7 +130,7 @@ func TestCasing_RunRule_KebabFail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "kebab"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -159,7 +159,7 @@ func TestCasing_RunRule_PascalKebabSuccess(t *testing.T) {
 		nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 		assert.Len(t, nodes, 1)
 
-		opts := make(map[string]string)
+		opts := make(map[string]any)
 		opts["type"] = "pascal-kebab"
 
 		rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -190,7 +190,7 @@ func TestCasing_RunRule_PascalKebabFail(t *testing.T) {
 		nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 		assert.Len(t, nodes, 1)
 
-		opts := make(map[string]string)
+		opts := make(map[string]any)
 		opts["type"] = "pascal-kebab"
 
 		rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -214,7 +214,7 @@ func TestCasing_RunRule_CobolSuccess(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "cobol"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -237,7 +237,7 @@ func TestCasing_RunRule_CobolFail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "cobol"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -260,7 +260,7 @@ func TestCasing_RunRule_SnakeSuccess(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -283,7 +283,7 @@ func TestCasing_RunRule_SnakeFail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -306,7 +306,7 @@ func TestCasing_RunRule_MacroSuccess(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "macro"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -329,7 +329,7 @@ func TestCasing_RunRule_MacroFail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "macro"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -352,7 +352,7 @@ func TestCasing_RunRule_CamelNoDigits_Success(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "camel"
 	opts["disallowDigits"] = "true"
 
@@ -376,7 +376,7 @@ func TestCasing_RunRule_CamelNoDigits_Fail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "camel"
 	opts["disallowDigits"] = "true"
 
@@ -400,7 +400,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Success(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 	opts["separator.char"] = ","
 
@@ -424,7 +424,7 @@ func TestCasing_RunRule_Snake_SeparatingChar_Fail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 	opts["separator.char"] = ","
 
@@ -448,7 +448,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Success(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 	opts["separator.char"] = ","
 	opts["separator.allowLeading"] = "true"
@@ -473,7 +473,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 	opts["separator.char"] = ","
 	opts["separator.allowLeading"] = "false"
@@ -491,7 +491,7 @@ func TestCasing_RunRule_Snake_AllowLeading_Fail(t *testing.T) {
 
 func TestCasing_GetSchema_Valid(t *testing.T) {
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "snake"
 
 	rf := &Casing{}
@@ -528,7 +528,7 @@ pork:
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 3, "expected 3 'properties' objects")
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "macro"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
@@ -565,7 +565,7 @@ pork:
 	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 3, "expected 3 'properties' objects")
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["type"] = "macro"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
