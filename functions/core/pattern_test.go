@@ -25,7 +25,7 @@ func TestPattern_RunRule_PatternMatchSuccess(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["match"] = "[abc]+"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", opts)
@@ -64,7 +64,7 @@ func TestPattern_RunRule_PatternNotMatchError(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["notMatch"] = "[[abc)"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "carpet", opts)
@@ -85,7 +85,7 @@ func TestPattern_RunRule_PatternMatchFail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["match"] = "[abc]+"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "carpet", opts)
@@ -106,7 +106,7 @@ func TestPattern_RunRule_PatternMatchError(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["match"] = "([abc]"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "carpet", opts)
@@ -127,7 +127,7 @@ func TestPattern_RunRule_PatternNotMatchFail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["notMatch"] = `\w{3}\d`
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "pizza", opts)
@@ -149,7 +149,7 @@ func TestPattern_RunRule_UseFieldName(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["match"] = "cake"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "sleep", opts)
@@ -171,7 +171,7 @@ func TestPattern_RunRule_ContainMap(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["match"] = "until"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "sleep", opts)
@@ -193,7 +193,7 @@ func TestPattern_RunRule_Issue585(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["match"] = `^(?=.{1,19}$)[0-9]{0,18}(?:\\.[0-9]{0,2})?$`
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "sleep", opts)

@@ -46,7 +46,7 @@ paths:
 	drDocument := drModel.NewDrDocument(m)
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["min"] = "3"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
@@ -77,7 +77,7 @@ paths:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["min"] = "4"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
@@ -106,7 +106,7 @@ paths:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["min"] = "4"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "length", "paths", ops)
@@ -133,7 +133,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["min"] = "6"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "length", "tags", ops)
@@ -160,7 +160,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "2"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "length", "tags", ops)
@@ -189,7 +189,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "4"
 	ops["min"] = "2"
 
@@ -218,7 +218,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "3"
 	ops["min"] = "2"
 
@@ -247,7 +247,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "9"
 	ops["min"] = "2"
 
@@ -278,7 +278,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "9"
 	ops["min"] = "2"
 
@@ -307,7 +307,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "9"
 	ops["min"] = "3"
 
@@ -336,7 +336,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "1"
 	ops["min"] = "0"
 
@@ -363,7 +363,7 @@ tags:`
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "9"
 	ops["min"] = "2"
 
@@ -444,7 +444,7 @@ tags:
 
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 
-	ops := make(map[string]string)
+	ops := make(map[string]any)
 	ops["max"] = "1"
 	ops["min"] = "0"
 
