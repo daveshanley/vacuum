@@ -25,7 +25,7 @@ func TestEnumeration_RunRule_Success(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["values"] = "turkey, sprouts, presents, ham"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", opts)
@@ -39,13 +39,53 @@ func TestEnumeration_RunRule_Success(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
+func TestEnumeration_RunRule_Array_Success(t *testing.T) {
+	sampleYaml := `christmas: "ham"`
+	path := "$.christmas"
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+	opts["values"] = []string{"turkey", "sprouts", "presents", "ham", ",,,,,,,"}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "pattern", "", opts)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Enumeration{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestEnumeration_RunRule_Array_Fail(t *testing.T) {
+	sampleYaml := `christmas: "arguments"`
+	path := "$.christmas"
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+	opts["values"] = []string{"turkey", "sprouts", "presents", "ham", ",,,,,,,"}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Enumeration{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+}
+
 func TestEnumeration_RunRule_Fail(t *testing.T) {
 	sampleYaml := `christmas: "arguments"`
 	path := "$.christmas"
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["values"] = "turkey, sprouts, presents, ham"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
@@ -65,7 +105,7 @@ func TestEnumeration_RunRule_FalseFail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string) // don't add opts.
+	opts := make(map[string]any) // don't add opts.
 
 	rule := buildCoreTestRule(path, model.SeverityError, "enumeration", "", opts)
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)

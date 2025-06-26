@@ -4,13 +4,12 @@
 package core
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "strings"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"gopkg.in/yaml.v3"
+	"strings"
 )
 
 // Enumeration is a rule that will check that a set of values meet the supplied 'values' supplied via functionOptions.
@@ -51,11 +50,23 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	message := context.Rule.Message
 
 	// check supplied values (required)
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
-	if props["values"] == "" {
+	m, ok := context.Options.(map[string]any)
+	if !ok {
 		return nil
 	}
-	values = strings.Split(props["values"], ",")
+	optValues, ok := m["values"]
+	if !ok {
+		return nil
+	}
+	switch value := optValues.(type) {
+	case string:
+		values = strings.Split(value, ",")
+	case []string:
+		values = []string{}
+		for i := range value {
+			values = append(values, value[i])
+		}
+	}
 
 	pathValue := "unknown"
 	if path, ok := context.Given.(string); ok {

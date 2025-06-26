@@ -2,7 +2,7 @@ package core
 
 import "github.com/daveshanley/vacuum/model"
 
-func buildCoreTestRule(given, severity, function, field string, functionOptions map[string]string) model.Rule {
+func buildCoreTestRule(given, severity, function, field string, functionOptions map[string]any) model.Rule {
 	return model.Rule{
 		Given:       given,
 		Severity:    severity,
@@ -15,7 +15,7 @@ func buildCoreTestRule(given, severity, function, field string, functionOptions 
 	}
 }
 
-func buildCoreTestContext(action *model.RuleAction, options map[string]string) model.RuleFunctionContext {
+func buildCoreTestContext(action *model.RuleAction, options map[string]any) model.RuleFunctionContext {
 	return model.RuleFunctionContext{
 		RuleAction: action,
 		Options:    options,

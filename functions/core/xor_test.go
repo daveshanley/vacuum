@@ -49,7 +49,7 @@ func TestXor_RunRule_Success(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["properties"] = "sparkles, rainbows"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
@@ -74,7 +74,7 @@ func TestXor_RunRule_NoProps(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 
 	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
 	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
@@ -98,7 +98,7 @@ func TestXor_RunRule_Fail(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["properties"] = "sparkles, shiny"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
@@ -123,7 +123,7 @@ func TestXor_RunRule_Fail_AllUndefined(t *testing.T) {
 	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
 	assert.Len(t, nodes, 1)
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["properties"] = "clouds, rain"
 
 	rule := buildCoreTestRule(path, model.SeverityError, "xor", "", opts)
@@ -139,7 +139,7 @@ func TestXor_RunRule_Fail_AllUndefined(t *testing.T) {
 
 func TestXor_GetSchema_Invalid_Min(t *testing.T) {
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["properties"] = ""
 
 	rf := &Xor{}
@@ -152,7 +152,7 @@ func TestXor_GetSchema_Invalid_Min(t *testing.T) {
 
 func TestXor_GetSchema_Invalid_Min_NotEnough(t *testing.T) {
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["properties"] = "notenough"
 
 	rf := &Xor{}
@@ -165,7 +165,7 @@ func TestXor_GetSchema_Invalid_Min_NotEnough(t *testing.T) {
 
 func TestXor_GetSchema_Invalid_Max(t *testing.T) {
 
-	opts := make(map[string]string)
+	opts := make(map[string]any)
 	opts["properties"] = "chip, chop, chap"
 
 	rf := &Xor{}
