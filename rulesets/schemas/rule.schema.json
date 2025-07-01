@@ -17,12 +17,12 @@
     "then": {
       "anyOf": [
         {
-          "$ref": "#/$defs/Then"
+          "$ref": "#/definitions/Then"
         },
         {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Then"
+            "$ref": "#/definitions/Then"
           }
         }
       ]
@@ -54,7 +54,7 @@
       "errorMessage": "must be a valid URL"
     },
     "formats": {
-      "$ref": "#/$defs/Formats"
+      "$ref": "#/definitions/Formats"
     },
     "given": {
       "oneOf": [
@@ -82,7 +82,7 @@
       "type": "boolean"
     },
     "severity": {
-      "$ref": "#/$defs/Severity"
+      "$ref": "#/definitions/Severity"
     },
     "tags": {
       "type": "array",
@@ -92,7 +92,7 @@
     }
   },
   "additionalProperties": false,
-  "$defs": {
+  "definitions": {
     "DiagnosticSeverity": {
       "enum": [ -1, 0, 1, 2, 3 ]
     },
@@ -105,7 +105,7 @@
       "$anchor": "formats",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Format"
+        "$ref": "#/definitions/Format"
       },
       "errorMessage": "must be an array of formats"
     },
@@ -123,10 +123,10 @@
       "$anchor": "severity",
       "oneOf": [
         {
-          "$ref": "#/$defs/DiagnosticSeverity"
+          "$ref": "#/definitions/DiagnosticSeverity"
         },
         {
-          "$ref": "#/$defs/HumanReadableSeverity"
+          "$ref": "#/definitions/HumanReadableSeverity"
         }
       ],
       "errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
