@@ -7,7 +7,7 @@
       "type": "string"
     },
     "extends": {
-      "$ref": "#/$defs/Extends"
+      "$ref": "#/definitions/Extends"
     },
     "aliases": {
       "type": "object",
@@ -37,10 +37,10 @@
                 "required": [ "formats", "given" ],
                 "properties": {
                   "formats": {
-                    "$ref": "#/$defs/Formats"
+                    "$ref": "#/definitions/Formats"
                   },
                   "given": {
-                    "$ref": "#/$defs/Given"
+                    "$ref": "#/definitions/Given"
                   }
                 },
                 "errorMessage": "a valid target must contain given and non-empty formats"
@@ -55,7 +55,7 @@
           }
         },
         "else": {
-          "$ref": "#/$defs/Given"
+          "$ref": "#/definitions/Given"
         }
       }
     },
@@ -65,13 +65,13 @@
       "errorMessage": "must be a valid URL"
     },
     "formats": {
-      "$ref": "#/$defs/Formats"
+      "$ref": "#/definitions/Formats"
     },
     "functions": {
-      "$ref": "#/$defs/Functions"
+      "$ref": "#/definitions/Functions"
     },
     "functionsDir": {
-      "$ref": "#/$defs/FunctionsDir"
+      "$ref": "#/definitions/FunctionsDir"
     },
     "overrides": {
       "type": "array",
@@ -101,7 +101,7 @@
             "rules": {
               "type": "object",
               "additionalProperties": {
-                "$ref": "#/$defs/Severity"
+                "$ref": "#/definitions/Severity"
               },
               "errorMessage": {
                 "enum": "must be a valid severity level"
@@ -153,7 +153,7 @@
                   "$ref": "#/properties/aliases"
                 },
                 "formats": {
-                  "$ref": "#/$defs/Formats"
+                  "$ref": "#/definitions/Formats"
                 },
                 "parserOptions": {
                   "$ref": "#/properties/parserOptions"
@@ -174,10 +174,10 @@
       "type": "object",
       "properties": {
         "duplicateKeys": {
-          "$ref": "#/$defs/Severity"
+          "$ref": "#/definitions/Severity"
         },
         "incompatibleValues": {
-          "$ref": "#/$defs/Severity"
+          "$ref": "#/definitions/Severity"
         }
       },
       "additionalProperties": false
@@ -203,12 +203,12 @@
               "then": {
                 "anyOf": [
                   {
-                    "$ref": "#/$defs/Then"
+                    "$ref": "#/definitions/Then"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "$ref": "#/$defs/Then"
+                      "$ref": "#/definitions/Then"
                     }
                   }
                 ]
@@ -240,7 +240,7 @@
                 "errorMessage": "must be a valid URL"
               },
               "formats": {
-                "$ref": "#/$defs/Formats"
+                "$ref": "#/definitions/Formats"
               },
               "given": {
                 "oneOf": [
@@ -268,7 +268,7 @@
                 "type": "boolean"
               },
               "severity": {
-                "$ref": "#/$defs/Severity"
+                "$ref": "#/definitions/Severity"
               },
               "tags": {
                 "type": "array",
@@ -283,7 +283,7 @@
             }
           },
           {
-            "$ref": "#/$defs/HumanReadableSeverity"
+            "$ref": "#/definitions/HumanReadableSeverity"
           },
           {
             "type": "boolean"
@@ -293,7 +293,7 @@
     }
   },
   "additionalProperties": false,
-  "$defs": {
+  "definitions": {
     "DiagnosticSeverity": {
       "enum": [ -1, 0, 1, 2, 3 ]
     },
@@ -338,7 +338,7 @@
       "$anchor": "formats",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/Format"
+        "$ref": "#/definitions/Format"
       },
       "errorMessage": "must be an array of formats"
     },
@@ -373,14 +373,14 @@
         "type": "array",
         "minItems": 1,
         "items": {
-          "$ref": "#/$defs/PathExpression"
+          "$ref": "#/definitions/PathExpression"
         },
         "errorMessage": {
           "minItems": "must be a non-empty array of expressions"
         }
       },
       "else": {
-        "$ref": "#/$defs/PathExpression"
+        "$ref": "#/definitions/PathExpression"
       }
     },
     "HumanReadableSeverity": {
@@ -396,10 +396,10 @@
       "$anchor": "severity",
       "oneOf": [
         {
-          "$ref": "#/$defs/DiagnosticSeverity"
+          "$ref": "#/definitions/DiagnosticSeverity"
         },
         {
-          "$ref": "#/$defs/HumanReadableSeverity"
+          "$ref": "#/definitions/HumanReadableSeverity"
         }
       ],
       "errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
