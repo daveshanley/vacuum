@@ -11,6 +11,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/sourcegraph/conc"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/url"
 	"os"
@@ -83,6 +84,7 @@ type RuleSetExecution struct {
 
 	// not generally used.
 	StorageRoot string // The root path for storage, used for storing files upstream by the doctorModel. You probably don't need this.
+	RolodexFS   fs.FS  // supply a custom local filesystem to be used by the rolodex, useful if you need fine grained control over local file references.
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -131,6 +133,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	docConfig := datamodel.NewDocumentConfiguration()
 	docConfig.SpecFilePath = execution.SpecFileName
+	docConfig.LocalFS = execution.RolodexFS
+	docConfig.RemoteFS = execution.RolodexFS
 
 	if execution.IgnoreCircularArrayRef {
 		docConfig.IgnoreArrayCircularReferences = true
@@ -419,19 +423,19 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 		wg.Go(func() {
 			// create an index for the unresolved spec.
-			rolodexResolved, _ = BuildRolodexFromIndexConfig(&resRoloConfig)
+			rolodexResolved, _ = BuildRolodexFromIndexConfig(&resRoloConfig, execution.RolodexFS)
 			rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
 
-			_ = rolodexResolved.IndexTheRolodex()
+			_ = rolodexResolved.IndexTheRolodex(context.Background())
 			rolodexResolved.Resolve()
 		})
 
 		wg.Go(func() {
 			unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
-			rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig)
+			rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig, execution.RolodexFS)
 			if unResInfo != nil {
 				rolodexUnresolved.SetRootNode(unResInfo.RootNode)
-				_ = rolodexUnresolved.IndexTheRolodex()
+				_ = rolodexUnresolved.IndexTheRolodex(context.Background())
 			}
 		})
 		wg.Wait()

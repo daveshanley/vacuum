@@ -5,10 +5,11 @@ package motor
 
 import (
 	"github.com/pb33f/libopenapi/index"
+	"io/fs"
 	"path/filepath"
 )
 
-func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig) (*index.Rolodex, error) {
+func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig, customFS fs.FS) (*index.Rolodex, error) {
 
 	// create a rolodex
 	rolodex := index.NewRolodex(indexConfig)
@@ -20,33 +21,46 @@ func BuildRolodexFromIndexConfig(indexConfig *index.SpecIndexConfig) (*index.Rol
 			return nil, absErr
 		}
 
-		// create a local filesystem
-		fsCfg := &index.LocalFSConfig{
-			BaseDirectory: cwd,
-			IndexConfig:   indexConfig,
-		}
-		fileFS, err := index.NewLocalFSWithConfig(fsCfg)
-		if err != nil {
-			return nil, err
-		}
+		if customFS == nil {
+			// create a local filesystem
+			fsCfg := &index.LocalFSConfig{
+				BaseDirectory: cwd,
+				IndexConfig:   indexConfig,
+			}
+			fileFS, err := index.NewLocalFSWithConfig(fsCfg)
+			if err != nil {
+				return nil, err
+			}
 
-		// add the filesystem to the rolodex
-		rolodex.AddLocalFS(cwd, fileFS)
+			// add the filesystem to the rolodex
+			rolodex.AddLocalFS(cwd, fileFS)
+		} else {
+			rolodex.AddLocalFS(cwd, customFS)
+		}
 	}
 
 	if indexConfig.AllowRemoteLookup {
 
-		// create a remote filesystem
-		remoteFS, err := index.NewRemoteFSWithConfig(indexConfig)
-		if err != nil {
-			return nil, err
-		}
+		if customFS == nil {
+			// create a remote filesystem
+			remoteFS, err := index.NewRemoteFSWithConfig(indexConfig)
+			if err != nil {
+				return nil, err
+			}
 
-		// add the filesystem to the rolodex
-		if indexConfig.BaseURL == nil {
-			rolodex.AddRemoteFS("root", remoteFS)
+			// add the filesystem to the rolodex
+			if indexConfig.BaseURL == nil {
+				rolodex.AddRemoteFS("root", remoteFS)
+			} else {
+				rolodex.AddRemoteFS(indexConfig.BaseURL.String(), remoteFS)
+			}
 		} else {
-			rolodex.AddRemoteFS(indexConfig.BaseURL.String(), remoteFS)
+			// add the custom filesystem to the rolodex
+			if indexConfig.BaseURL == nil {
+				rolodex.AddRemoteFS("root", customFS)
+			} else {
+				rolodex.AddRemoteFS(indexConfig.BaseURL.String(), customFS)
+			}
 		}
 	}
 
