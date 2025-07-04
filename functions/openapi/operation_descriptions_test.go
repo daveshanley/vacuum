@@ -57,13 +57,9 @@ paths:
 	def := OperationDescription{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 5)
-	assert.Equal(t, "operation method `GET` at path `/fish/paste` is missing a `description`", res[0].Message)
-	assert.Equal(t, "operation method `GET` at path `/fish/paste` is missing a `summary`", res[1].Message)
-	assert.Equal(t, "operation method `POST` at path `/fish/paste` is missing a `summary`", res[2].Message)
-	assert.Equal(t, "operation method `PUT` at path `/fish/paste` is missing a `description`", res[3].Message)
-	assert.Equal(t, "operation method `PUT` at path `/fish/paste` is missing a `summary`", res[4].Message)
-
+	assert.Len(t, res, 2)
+	assert.Equal(t, "operation method `GET` at path `/fish/paste` is missing a description or summary", res[0].Message)
+	assert.Equal(t, "operation method `PUT` at path `/fish/paste` is missing a description or summary", res[1].Message)
 }
 
 func TestOperationDescription_CheckDescriptionTooShort(t *testing.T) {
@@ -95,9 +91,8 @@ paths:
 	def := OperationDescription{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.Equal(t, "operation method `POST` at path `/fish/paste` has a `description` that must be at least `10` words long", res[0].Message)
-	assert.Equal(t, "operation method `POST` at path `/fish/paste` is missing a `summary`", res[1].Message)
 }
 
 func TestOperationDescription_SummaryButNoDescription(t *testing.T) {
@@ -168,10 +163,9 @@ paths:
 	def := OperationDescription{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "operation method `POST` at path `/fish/paste` is missing a `summary`", res[0].Message)
-	assert.Equal(t, "operation method `POST` `requestBody` at path `/fish/paste` is missing a `description`", res[1].Message)
+	assert.Equal(t, "operation method `POST` `requestBody` at path `/fish/paste` is missing a `description`", res[0].Message)
 
 }
 
@@ -210,10 +204,9 @@ paths:
 	def := OperationDescription{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 1)
 	assert.NotNil(t, res[0].Path)
-	assert.Equal(t, "operation method `POST` at path `/fish/paste` is missing a `summary`", res[0].Message)
-	assert.Equal(t, "operation method `POST` `requestBody` at path `/fish/paste` has a `description` that must be at least `5` words long", res[1].Message)
+	assert.Equal(t, "operation method `POST` `requestBody` at path `/fish/paste` has a `description` that must be at least `5` words long", res[0].Message)
 
 }
 
