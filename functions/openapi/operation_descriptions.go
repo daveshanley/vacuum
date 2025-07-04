@@ -79,14 +79,18 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 		return result
 	}
 
-	checkDescription := func(description string, method, location, missing, JSONPath string, node *yaml.Node, component v3.AcceptsRuleResults) {
-		if description == "" {
+	checkTextExists := func(text string, method, location, missing, JSONPath string, node *yaml.Node, component v3.AcceptsRuleResults) {
+		if text == "" {
 			results = append(results,
 				buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 					fmt.Sprintf("operation method `%s` %s is missing a `%s`", method, location, missing)),
 					JSONPath, node, component))
-		} else {
-			words := strings.Split(description, " ")
+		} 
+	}
+	
+	checkTextLength := func(text string, method, location, missing, JSONPath string, node *yaml.Node, component v3.AcceptsRuleResults) {
+		if text != "" {
+			words := strings.Split(text, " ")
 			if len(words) < minWords {
 				results = append(results, buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 					fmt.Sprintf("operation method `%s` %s has a `%s` that must be at least `%d` words long",
@@ -94,17 +98,28 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			}
 		}
 	}
+	
 
 	checkOperation := func(desc, summary, path, method, location, reqLocation, jsonPath string, node *yaml.Node,
 		requestBody *v3.RequestBody, responses *v3.Responses, op v3.AcceptsRuleResults) {
 
-		checkDescription(desc, method, location, "description", jsonPath, node, op)
-		checkDescription(summary, method, location, "summary", jsonPath, node, op)
+		if desc == "" && summary == "" { 
+			results = append(results,
+				buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+					fmt.Sprintf("operation method `%s` %s is missing a description or summary", method, location)),
+					jsonPath, node, op))
+		}
+
+		checkTextLength(desc, method, location, "description", jsonPath, node, op)
+		checkTextLength(summary, method, location, "summary", jsonPath, node, op)
 
 		// check request body
 		if requestBody != nil {
-			checkDescription(requestBody.Value.Description, method, reqLocation,
+			checkTextExists(requestBody.Value.Description, method, reqLocation,
 				"description", requestBody.GenerateJSONPath(), requestBody.Value.GoLow().KeyNode, op)
+			checkTextLength(requestBody.Value.Description, method, reqLocation,
+				"description", requestBody.GenerateJSONPath(), requestBody.Value.GoLow().KeyNode, op)
+					
 		}
 
 		// check responses
@@ -112,7 +127,9 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			for responsePairs := responses.Codes.First(); responsePairs != nil; responsePairs = responsePairs.Next() {
 				code := responsePairs.Key()
 				response := responsePairs.Value()
-				checkDescription(response.Value.Description, method, fmt.Sprintf("response code `%s` `responseBody` at path `%s`", code, path),
+				checkTextExists(response.Value.Description, method, fmt.Sprintf("response code `%s` `responseBody` at path `%s`", code, path),
+					"description", response.GenerateJSONPath(), response.Value.GoLow().KeyNode, response)
+				checkTextLength(response.Value.Description, method, fmt.Sprintf("response code `%s` `responseBody` at path `%s`", code, path),
 					"description", response.GenerateJSONPath(), response.Value.GoLow().KeyNode, response)
 			}
 		}
