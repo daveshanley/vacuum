@@ -9,7 +9,9 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
+	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -2377,4 +2379,100 @@ paths:
 	assert.Len(t, results.Errors, 0)
 	assert.Len(t, results.Results, 4)
 
+}
+
+func Test_EnsureConsistentDeterministicOutcome_Issue673(t *testing.T) {
+
+	// a glitch in the doctor was causing mayhem. This test ensures that the glitch stays dead.
+	//https://github.com/daveshanley/vacuum/issues/673
+
+	yml := []byte(`openapi: 3.0.3
+
+info:
+  title: API title
+  description: API description
+  version: 0.0.1
+
+servers:
+  - url: http://some.url
+
+tags:
+  - name: tag_a
+
+paths:
+  /a:
+    get:
+      summary: Summary of GET /a
+      description: Description of GET /a
+      tags:
+        - tag_a
+      operationId: operationA
+      responses:
+        "200":
+          description: Description of the 200 response to GET /a
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schema1'
+              examples:
+                Example1:
+                  value:
+                    a: foo
+                    b: bar
+
+components:
+  schemas:
+    Schema1:
+      type: object
+      description: Description of Schema1
+      properties:
+        a:
+          type: string
+          example: fieldA
+        b:
+          type: string
+          example: fieldB
+
+  securitySchemes:
+    Default:
+      description: Description of the securityScheme.
+      type: http
+      scheme: bearer
+
+security:
+  - Default: []
+`)
+
+	run := func(wg *sync.WaitGroup) {
+		docConf := &datamodel.DocumentConfiguration{}
+		d, err := libopenapi.NewDocumentWithConfiguration(yml, docConf)
+		if err != nil {
+			log.Fatalf("error: %v", err)
+		}
+		d.BuildV3Model()
+
+		ex := &RuleSetExecution{
+			RuleSet:  rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
+			Document: d,
+		}
+
+		results := ApplyRulesToRuleSet(ex)
+		assert.Len(t, results.Results, 4)
+		if wg != nil {
+			wg.Done()
+		}
+	}
+
+	// run it a thousand times to ensure that the results are consistent and deterministic.
+	for i := 0; i < 1000; i++ {
+		run(nil)
+	}
+
+	// now run it async
+	var wg sync.WaitGroup
+	wg.Add(1000)
+	for i := 0; i < 1000; i++ {
+		go run(&wg)
+	}
+	wg.Wait()
 }

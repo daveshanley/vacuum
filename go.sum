@@ -122,8 +122,8 @@ github.com/muesli/termenv v0.16.0/go.mod h1:ZRfOIKPFDYQoDFF4Olj7/QJbW60Ol/kL1pU3
 github.com/nsf/termbox-go v0.0.0-20190121233118-02980233997d/go.mod h1:IuKpRQcYE1Tfu+oAQqaLisqDeXgjyyltCfsaoYN18NQ=
 github.com/nsf/termbox-go v1.1.1 h1:nksUPLCb73Q++DwbYUBEglYBRPZyoXJdrj5L+TkjyZY=
 github.com/nsf/termbox-go v1.1.1/go.mod h1:T0cTdVuOwf7pHQNtfhnEbzHbcNyCEcVU4YPpouCbVxo=
-github.com/pb33f/doctor v0.0.28 h1:LuQVEyXJc/bzhfMk9CgXpm/PQdx0Le7cOTmJ3v5Kp8Q=
-github.com/pb33f/doctor v0.0.28/go.mod h1:h/U1svlBPRRRMbxb+9Bq49z1MnCiUk3xMo7peKO+SNk=
+github.com/pb33f/doctor v0.0.31 h1:TAMIxp6VAwY2pncI9HMZfVNjTli+MiSGTQR+FzxcCjA=
+github.com/pb33f/doctor v0.0.31/go.mod h1:h/U1svlBPRRRMbxb+9Bq49z1MnCiUk3xMo7peKO+SNk=
 github.com/pb33f/libopenapi v0.23.0 h1:gZP1zrtvMwk7spGDTZf4OufKgpOH8M9gHAZ77rf39Oo=
 github.com/pb33f/libopenapi v0.23.0/go.mod h1:utT5sD2/mnN7YK68FfZT5yEPbI1wwRBpSS4Hi0oOrBU=
 github.com/pb33f/libopenapi-validator v0.4.7 h1:sS6RvphkhlgMdad4WutRVd/yzNu/7QE4RdUTjxp0dY4=
