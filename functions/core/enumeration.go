@@ -9,6 +9,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"gopkg.in/yaml.v3"
+	"strconv"
 	"strings"
 )
 
@@ -60,10 +61,24 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	switch value := optValues.(type) {
 	case string:
 		values = strings.Split(value, ",")
-	case []string:
-		values = []string{}
+	case []any:
+		values = make([]string, 0, len(value))
 		for i := range value {
-			values = append(values, value[i])
+			switch v := value[i].(type) {
+			case string:
+				values = append(values, v)
+			case int:
+				values = append(values, strconv.Itoa(v))
+			case int64:
+				values = append(values, strconv.FormatInt(v, 10))
+			case float64:
+				values = append(values, strconv.FormatFloat(v, 'f', -1, 64))
+			case bool:
+				values = append(values, strconv.FormatBool(v))
+			default:
+				// Fallback to fmt.Sprintf for complex types
+				values = append(values, fmt.Sprintf("%v", v))
+			}
 		}
 	}
 
