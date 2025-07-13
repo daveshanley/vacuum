@@ -27,7 +27,6 @@ func (e Enumeration) GetSchema() model.RuleFunctionSchema {
 			},
 		},
 		MinProperties: 1,
-		MaxProperties: 10,
 		ErrorMessage:  "'enumerate' needs 'values' to operate. A valid example of 'values' are: 'cake, egg, milk'",
 	}
 }
