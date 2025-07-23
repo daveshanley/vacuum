@@ -5,11 +5,12 @@ package owasp
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestStringLimit_RunRule(t *testing.T) {
@@ -17,6 +18,14 @@ func TestStringLimit_RunRule(t *testing.T) {
 	yml := `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
 components:
   schemas:
     thing:
@@ -56,6 +65,14 @@ func TestStringLimit_RunRule_Valid(t *testing.T) {
 	yml := `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
 components:
   schemas:
     thing:
@@ -94,6 +111,14 @@ func TestStringLimit_RunRule_ValidConst(t *testing.T) {
 	yml := `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
 components:
   schemas:
     thing:

@@ -20,6 +20,14 @@ func TestRuleSet_OWASPStringLimit_Success(t *testing.T) {
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
@@ -31,6 +39,14 @@ components:
 			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
@@ -42,6 +58,14 @@ components:
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
@@ -53,6 +77,14 @@ components:
 			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
@@ -64,6 +96,14 @@ components:
 			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
