@@ -69,6 +69,9 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	checkOpenAPISecurity := func(key string) bool {
 		if strings.Contains(key, "securitySchemes") {
 			segs := strings.Split(key, "/")
+			if len(segs) == 0 {
+				return false
+			}
 			def := segs[len(segs)-1]
 			for r := range context.Index.GetSecurityRequirementReferences() {
 				if r == def {
