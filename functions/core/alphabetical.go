@@ -4,7 +4,6 @@
 package core
 
 import (
-    "fmt"
     "github.com/daveshanley/vacuum/model"
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
@@ -52,8 +51,8 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 	// extract a custom message
 	message := context.Rule.Message
 
-	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied type - use cached options to avoid repeated interface conversions
+	props := context.GetOptionsStringMap()
 	if props["keyedBy"] != "" {
 		keyedBy = props["keyedBy"]
 	}
@@ -79,8 +78,7 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
-						fmt.Sprintf("%s: `%s` is a map/object. %s", context.Rule.Description,
-							node.Value, a.GetSchema().ErrorMessage)),
+						model.GetStringTemplates().BuildTypeErrorMessage(context.Rule.Description, node.Value, "map/object", a.GetSchema().ErrorMessage)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
@@ -228,9 +226,7 @@ func compareStringArray(node *yaml.Node, strArr []string,
 					Path:      locatedPath,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Message: vacuumUtils.SuppliedOrDefault(message,
-						fmt.Sprintf("%s: `%s` must be placed before `%s` (alphabetical)",
-							context.Rule.Description,
-							strArr[x+1], strArr[x])),
+						model.GetStringTemplates().BuildAlphabeticalMessage(context.Rule.Description, strArr[x+1], strArr[x])),
 				}
 				if len(allPaths) > 1 {
 					result.Paths = allPaths
@@ -307,7 +303,8 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message: vacuumUtils.SuppliedOrDefault(message,
-					fmt.Sprintf(errmsg, context.Rule.Description, intArray[x+1], intArray[x])),
+					model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description, 
+						strconv.Itoa(intArray[x+1]), strconv.Itoa(intArray[x]))),
 			}
 			if len(allPaths) > 1 {
 				result.Paths = allPaths
@@ -347,8 +344,9 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 				StartNode: node,
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf(errmsg,
-					context.Rule.Description, floatArray[x+1], floatArray[x])),
+				Message: vacuumUtils.SuppliedOrDefault(message,
+					model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description,
+						strconv.FormatFloat(floatArray[x+1], 'g', -1, 64), strconv.FormatFloat(floatArray[x], 'g', -1, 64))),
 			}
 			if len(allPaths) > 1 {
 				result.Paths = allPaths

@@ -4,7 +4,6 @@
 package openapi
 
 import (
-	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
@@ -45,11 +44,11 @@ func (vp VerbsInPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionCon
 				opPath = op.Value
 				continue
 			}
-			path := fmt.Sprintf("$.paths['%s']", opPath)
+			path := model.GetStringTemplates().BuildQuotedPath("$.paths", opPath)
 			containsVerb, verb := checkPath(opPath)
 			if containsVerb {
 				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("path `%s` contains an HTTP Verb `%s`", opPath, verb),
+					Message:   model.GetStringTemplates().BuildHTTPVerbInPathMessage(opPath, verb),
 					StartNode: op,
 					EndNode:   vacuumUtils.BuildEndNode(op),
 					Path:      path,

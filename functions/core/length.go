@@ -56,7 +56,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	if context.Options == nil {
 		return results
 	}
-	if opts := utils.ConvertInterfaceIntoStringMap(context.Options); opts != nil {
+	if opts := context.GetOptionsStringMap(); opts != nil {
 		if v, ok := opts["min"]; ok {
 			minVal, _ = strconv.Atoi(v)
 		}
