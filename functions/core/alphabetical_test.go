@@ -297,5 +297,59 @@ func TestAlphabetical_RunRule_ObjectFailNoKeyedBy(t *testing.T) {
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
 
+	// Should fail because keys are not in alphabetical order: beach, desert, mountains
+	assert.Len(t, res, 1)
+}
+
+func TestAlphabetical_RunRule_MapKeysSortedSuccess(t *testing.T) {
+
+	sampleYaml := `places:
+ beach:
+  heat: hot
+ desert:
+  heat: very hot
+ mountains:
+  heat: cold`
+
+	path := "$.places"
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Alphabetical{}
+	res := def.RunRule(nodes, ctx)
+
+	// Should pass because keys are in alphabetical order: beach, desert, mountains
+	assert.Len(t, res, 0)
+}
+
+func TestAlphabetical_RunRule_MapKeysUnsortedFail(t *testing.T) {
+
+	sampleYaml := `config:
+ zebra: stripe
+ apple: fruit
+ banana: yellow`
+
+	path := "$.config"
+	nodes, _ := utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+
+	rule := buildCoreTestRule(path, model.SeverityError, "alphabetical", "", opts)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Alphabetical{}
+	res := def.RunRule(nodes, ctx)
+
+	// Should fail because keys are not in alphabetical order: zebra, apple, banana
 	assert.Len(t, res, 1)
 }
