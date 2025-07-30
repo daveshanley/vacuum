@@ -2350,6 +2350,20 @@ func Benchmark_StripeSpecAgainstDefaultRuleSet(b *testing.B) {
 	}
 }
 
+func Benchmark_PetStoreSpecAgainstDefaultRuleSet(b *testing.B) {
+	m, _ := os.ReadFile("../model/test_files/petstorev3.json")
+	rs := rulesets.BuildDefaultRuleSets()
+	for n := 0; n < b.N; n++ {
+		rse := &RuleSetExecution{
+			RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
+			Spec:    m,
+		}
+		results := ApplyRulesToRuleSet(rse)
+		assert.Len(b, results.Errors, 0)
+		assert.NotNil(b, results)
+	}
+}
+
 func Test_Issue486(t *testing.T) {
 
 	yml := `openapi: 3.1.0
