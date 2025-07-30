@@ -13,7 +13,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.31
-	github.com/pb33f/libopenapi v0.23.0
+	github.com/pb33f/libopenapi v0.24.0
 	github.com/pb33f/libopenapi-validator v0.4.7
 	github.com/pterm/pterm v0.12.81
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1

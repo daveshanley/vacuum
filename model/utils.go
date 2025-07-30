@@ -25,19 +25,66 @@ var AllFormats = []string{OAS3, OAS31, OAS2}
 const WebsiteUrl = "https://quobix.com/vacuum"
 const GithubUrl = "https://github.com/daveshanley/vacuum"
 
+// buildResultMessage efficiently builds a result message without fmt.Sprintf
+func buildResultMessage(key, message string, value interface{}) string {
+	var builder strings.Builder
+	// Pre-allocate reasonable capacity to avoid reallocations
+	builder.Grow(len(key) + len(message) + 20) // key + message + quotes + value estimate
+	builder.WriteByte('\'')
+	builder.WriteString(key)
+	builder.WriteString("' ")
+	builder.WriteString(message)
+	builder.WriteString(" '")
+	builder.WriteString(fmt.Sprintf("%v", value)) // Keep fmt for interface{} conversion
+	builder.WriteByte('\'')
+	return builder.String()
+}
+
+// buildResultMessageWithDescription efficiently builds a result message with description
+func buildResultMessageWithDescription(desc, key, message string, value interface{}) string {
+	var builder strings.Builder
+	// Pre-allocate reasonable capacity
+	builder.Grow(len(desc) + len(key) + len(message) + 25) // desc + key + message + separators + value estimate
+	builder.WriteString(desc)
+	builder.WriteString(": '")
+	builder.WriteString(key)
+	builder.WriteString("' ")
+	builder.WriteString(message)
+	builder.WriteString(" '")
+	builder.WriteString(fmt.Sprintf("%v", value)) // Keep fmt for interface{} conversion
+	builder.WriteByte('\'')
+	return builder.String()
+}
+
 // BuildFunctionResult will create a RuleFunctionResult from a key, message and value.
 // Deprecated: use BuildFunctionResultWithDescription instead.
 func BuildFunctionResult(key, message string, value interface{}) RuleFunctionResult {
 	return RuleFunctionResult{
-		Message: fmt.Sprintf("'%s' %s '%v'", key, message, value),
+		Message: buildResultMessage(key, message, value),
 	}
+}
+
+// BuildPooledFunctionResult will create a RuleFunctionResult from the pool for better performance.
+// The caller is responsible for returning the result to the pool when done.
+func BuildPooledFunctionResult(key, message string, value interface{}) *RuleFunctionResult {
+	result := GetPooledRuleFunctionResult()
+	result.Message = buildResultMessage(key, message, value)
+	return result
 }
 
 // BuildFunctionResultWithDescription will create a RuleFunctionResult from a description, key, message and value.
 func BuildFunctionResultWithDescription(desc, key, message string, value interface{}) RuleFunctionResult {
 	return RuleFunctionResult{
-		Message: fmt.Sprintf("%s: '%s' %s '%v'", desc, key, message, value),
+		Message: buildResultMessageWithDescription(desc, key, message, value),
 	}
+}
+
+// BuildPooledFunctionResultWithDescription will create a RuleFunctionResult from the pool for better performance.
+// The caller is responsible for returning the result to the pool when done.
+func BuildPooledFunctionResultWithDescription(desc, key, message string, value interface{}) *RuleFunctionResult {
+	result := GetPooledRuleFunctionResult()
+	result.Message = buildResultMessageWithDescription(desc, key, message, value)
+	return result
 }
 
 // BuildFunctionResultString will create a RuleFunctionResult from a string already parsed into a message.

@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -85,6 +86,18 @@ type RuleSetExecution struct {
 	// not generally used.
 	StorageRoot string // The root path for storage, used for storing files upstream by the doctorModel. You probably don't need this.
 	RolodexFS   fs.FS  // supply a custom local filesystem to be used by the rolodex, useful if you need fine grained control over local file references.
+}
+
+// buildLocationString efficiently builds a location string in format "line:column"
+// This replaces fmt.Sprintf("%d:%d", line, column) which was a performance bottleneck
+func buildLocationString(line, column int) string {
+	// Pre-allocate with reasonable capacity for most line numbers
+	var builder strings.Builder
+	builder.Grow(12) // Should handle most line:column combinations efficiently
+	builder.WriteString(strconv.Itoa(line))
+	builder.WriteByte(':')
+	builder.WriteString(strconv.Itoa(column))
+	return builder.String()
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -568,7 +581,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			Rule:      circularRefRule,
 			StartNode: cr.ParentNode,
 			EndNode:   vacuumUtils.BuildEndNode(cr.ParentNode),
-			Message:   fmt.Sprintf("circular reference detected from %s", cr.Start.Definition),
+			Message:   "circular reference detected from " + cr.Start.Definition,
 			Path:      cr.GenerateJourneyPath(),
 		}
 		if res.StartNode == nil {
@@ -957,7 +970,7 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 			if result.StartNode != nil {
 				seen[result.RuleId] = []*seenResult{
 					{
-						fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
+						buildLocationString(result.StartNode.Line, result.StartNode.Column),
 						result.Message,
 					},
 				}
@@ -981,14 +994,14 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 					continue
 				}
 
-				if line.location == fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column) &&
+				if line.location == buildLocationString(result.StartNode.Line, result.StartNode.Column) &&
 					line.message == result.Message {
 					break stopNowPlease
 				}
 				if result.StartNode != nil {
 					seen[result.RuleId] = []*seenResult{
 						{
-							fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
+							buildLocationString(result.StartNode.Line, result.StartNode.Column),
 							result.Message,
 						},
 					}

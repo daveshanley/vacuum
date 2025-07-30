@@ -4,7 +4,7 @@
 package owasp
 
 import (
-    "fmt"
+    
     "github.com/daveshanley/vacuum/model"
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
@@ -45,7 +45,7 @@ func (ba NoBasicAuth) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 							"security scheme uses HTTP Basic Auth, which is an insecure practice"),
 						StartNode: node,
 						EndNode:   vacuumUtils.BuildEndNode(node),
-						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "scheme"),
+						Path:      model.GetStringTemplates().BuildJSONPath(scheme.GenerateJSONPath(), "scheme"),
 						Rule:      context.Rule,
 					}
 					scheme.AddRuleFunctionResult(v3.ConvertRuleResult(&result))

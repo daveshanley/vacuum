@@ -4,7 +4,7 @@
 package owasp
 
 import (
-    "fmt"
+    
     "github.com/daveshanley/vacuum/model"
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
@@ -45,11 +45,10 @@ func (c NoCredentialsInUrl) RunRule(_ []*yaml.Node, context model.RuleFunctionCo
 				node := param.Value.GoLow().Name.KeyNode
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("URL parameters must not contain credentials, passwords, or secrets (`%s`)",
-							param.Value.Name)),
+						model.GetStringTemplates().BuildCredentialsMessage(param.Value.Name)),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
-					Path:      fmt.Sprintf("%s.%s", param.GenerateJSONPath(), "name"),
+					Path:      model.GetStringTemplates().BuildJSONPath(param.GenerateJSONPath(), "name"),
 					Rule:      context.Rule,
 				}
 				param.AddRuleFunctionResult(v3.ConvertRuleResult(&result))

@@ -8,9 +8,11 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
 	"log/slog"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -32,6 +34,13 @@ const (
 	CategoryAll          = "all"
 )
 
+// ruleFunctionResultPool is a sync.Pool for RuleFunctionResult objects to reduce allocations
+var ruleFunctionResultPool = sync.Pool{
+	New: func() interface{} {
+		return &RuleFunctionResult{}
+	},
+}
+
 type RuleCategory struct {
 	Id          string `json:"id" yaml:"id"`                             // The category ID
 	Name        string `json:"name,omitempty" yaml:"name"`               // The name of the category
@@ -49,6 +58,9 @@ type RuleFunctionContext struct {
 	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 	DrDocument *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
+	
+	// optionsCache caches the converted options map to avoid repeated interface conversions
+	optionsCache map[string]string `json:"-" yaml:"-"`
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
@@ -156,6 +168,69 @@ func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
 		}
 	}
 	return ""
+}
+
+// GetOptionsStringMap returns the cached options as a string map, converting from interface{} if needed.
+// This method caches the result to avoid repeated interface conversions during rule execution.
+func (ctx *RuleFunctionContext) GetOptionsStringMap() map[string]string {
+	if ctx.optionsCache != nil {
+		return ctx.optionsCache
+	}
+	
+	if ctx.Options == nil {
+		ctx.optionsCache = make(map[string]string)
+		return ctx.optionsCache
+	}
+	
+	// Convert interface{} to map[string]string using libopenapi utils and cache the result
+	ctx.optionsCache = utils.ConvertInterfaceIntoStringMap(ctx.Options)
+	if ctx.optionsCache == nil {
+		ctx.optionsCache = make(map[string]string)
+	}
+	
+	return ctx.optionsCache
+}
+
+// ClearOptionsCache clears the cached options map. This should be called when the context
+// is reused with different options to ensure cache consistency.
+func (ctx *RuleFunctionContext) ClearOptionsCache() {
+	ctx.optionsCache = nil
+}
+
+// GetPooledRuleFunctionResult gets a RuleFunctionResult from the pool.
+// This helps reduce allocations by reusing objects.
+func GetPooledRuleFunctionResult() *RuleFunctionResult {
+	result := ruleFunctionResultPool.Get().(*RuleFunctionResult)
+	// Reset the struct to ensure clean state
+	*result = RuleFunctionResult{}
+	return result
+}
+
+// ReturnPooledRuleFunctionResult returns a RuleFunctionResult to the pool for reuse.
+// This should be called when the result is no longer needed to reduce memory pressure.
+func ReturnPooledRuleFunctionResult(result *RuleFunctionResult) {
+	if result != nil {
+		// Clear any large fields before returning to pool
+		result.Paths = nil
+		result.StartNode = nil
+		result.EndNode = nil
+		result.Rule = nil
+		result.Origin = nil
+		result.Timestamp = nil
+		result.ModelContext = nil
+		ruleFunctionResultPool.Put(result)
+	}
+}
+
+// NewRuleFunctionResultFromPool creates a new RuleFunctionResult using the pool and
+// initializes it with the provided values.
+func NewRuleFunctionResultFromPool(message, path, ruleId, ruleSeverity string) *RuleFunctionResult {
+	result := GetPooledRuleFunctionResult()
+	result.Message = message
+	result.Path = path
+	result.RuleId = ruleId
+	result.RuleSeverity = ruleSeverity
+	return result
 }
 
 // ToJSON render out a rule to JSON.
