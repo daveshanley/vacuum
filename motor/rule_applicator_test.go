@@ -2466,8 +2466,9 @@ security:
 		d.BuildV3Model()
 
 		ex := &RuleSetExecution{
-			RuleSet:  rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
-			Document: d,
+			RuleSet:           rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
+			Document:          d,
+			NodeLookupTimeout: 2 * time.Second, // Increase timeout for CI/CD environments
 		}
 
 		results := ApplyRulesToRuleSet(ex)
