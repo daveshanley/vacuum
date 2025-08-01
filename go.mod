@@ -12,20 +12,20 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/doctor v0.0.31
-	github.com/pb33f/libopenapi v0.24.0
+	github.com/pb33f/doctor v0.0.32
+	github.com/pb33f/libopenapi v0.25.0
 	github.com/pb33f/libopenapi-validator v0.4.7
 	github.com/pterm/pterm v0.12.81
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/speakeasy-api/jsonpath v0.6.2
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tliron/glsp v0.2.2
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
-	golang.org/x/text v0.26.0
+	golang.org/x/text v0.27.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
