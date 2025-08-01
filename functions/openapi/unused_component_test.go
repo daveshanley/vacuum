@@ -263,6 +263,81 @@ components:
 	assert.Len(t, res, 0)
 }
 
+// TestUnusedComponent_RunRule_PanicWithSpaceInSchemaKey tests the fix for GitHub issue #682
+// where a schema key containing a space would cause an "index out of range [-1]" panic.
+// See: https://github.com/daveshanley/vacuum/issues/682
+func TestUnusedComponent_RunRule_PanicWithSpaceInSchemaKey(t *testing.T) {
+	yml := `{
+    "openapi": "3.1.0",
+    "info": {
+      "title": "API",
+      "description": "API Specification",
+      "termsOfService": "",
+      "contact": {
+        "email": ""
+      },
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "/v1/"
+      }
+    ],
+    "tags": [
+
+    ],
+    "paths": {
+    },
+    "components": {
+      "schemas": {
+        "Error Message": {
+          "title": "Error Message",
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string",
+              "description": "HTTP error",
+              "example": "Bad Request"
+            },
+            "message": {
+              "type": "string",
+              "description": "Error message",
+              "example": "Something horrific has happened!"
+            },
+            "path": {
+              "type": "string",
+              "description": "Request path",
+              "example": "/example/resource"
+            },
+            "status": {
+              "type": "integer",
+              "description": "HTTP status code",
+              "format": "int32",
+              "example": 400
+            },
+            "timestamp": {
+              "type": "string",
+              "description": "Timestamp. Indicates when the error message was created.",
+              "format": "date-time",
+              "example": "1970-01-01T12:00:00Z"
+            },
+            "trace": {
+              "type": "string",
+              "description": "Traceback (Not used)"
+            }
+          }
+        }
+      }
+    }
+  }`
+
+	// This should not panic and should complete successfully
+	res := setupUnusedComponentsTestContext(t, yml)
+
+	// The schema should be used (referenced in the response), so no unused components
+	assert.Len(t, res, 1)
+}
+
 func setupUnusedComponentsTestContext(t *testing.T, yml string) []model.RuleFunctionResult {
 	path := "$"
 

@@ -4,7 +4,6 @@
 package core
 
 import (
-    "fmt"
     "github.com/daveshanley/vacuum/model"
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
@@ -48,8 +47,8 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		return nil
 	}
 
-	// check supplied properties, there can only be two
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied properties, there can only be two - use cached options
+	props := context.GetOptionsStringMap()
 	var properties []string
 
 	if len(props) <= 0 {
@@ -97,8 +96,8 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 				}
 			}
 			result := model.RuleFunctionResult{
-				Message: vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` and `%s` must not be both defined or undefined",
-					ruleMessage, properties[0], properties[1])),
+				Message: vacuumUtils.SuppliedOrDefault(message,
+					model.GetStringTemplates().BuildBothDefinedMessage(ruleMessage, properties[0], properties[1])),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      locatedPath,

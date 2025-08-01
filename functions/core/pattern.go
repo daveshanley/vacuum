@@ -4,7 +4,6 @@
 package core
 
 import (
-    "fmt"
     "github.com/daveshanley/vacuum/model"
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
@@ -48,8 +47,8 @@ func (p Pattern) GetCategory() string {
 // RunRule will execute the Pattern rule, based on supplied context and a supplied []*yaml.Node slice.
 func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied type - use cached options to avoid repeated interface conversions
+	props := context.GetOptionsStringMap()
 
 	if props["match"] != "" {
 		p.match = props["match"] // TODO: there should be no state in here, clean this up.
@@ -105,7 +104,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		}
 		if p.match != "" {
 			rx, err := p.getPatternFromCache(p.match, context.Rule)
-			expPath := fmt.Sprintf("%s['%s']", pathValue, currentField)
+			expPath := model.GetStringTemplates().BuildQuotedPath(pathValue, currentField)
 			if err != nil {
 				locatedObjects, lErr := context.DrDocument.LocateModel(node)
 				locatedPath := expPath
@@ -120,8 +119,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
-						fmt.Sprintf("%s: `%s` cannot be compiled into a regular expression [`%s`]",
-							ruleMessage, p.match, err.Error())),
+						model.GetStringTemplates().BuildRegexCompileErrorMessage(ruleMessage, p.match, err.Error())),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
@@ -151,8 +149,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					}
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(message,
-							fmt.Sprintf("%s: `%s` does not match the expression `%s`", ruleMessage,
-								node.Value, p.match)),
+							model.GetStringTemplates().BuildPatternMessage(ruleMessage, node.Value, p.match)),
 						StartNode: node,
 						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      locatedPath,
@@ -174,7 +171,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		// not match
 		if p.notMatch != "" {
 			rx, err := p.getPatternFromCache(p.notMatch, context.Rule)
-			expPath := fmt.Sprintf("%s['%s']", pathValue, currentField)
+			expPath := model.GetStringTemplates().BuildQuotedPath(pathValue, currentField)
 			if err != nil {
 				locatedObjects, lErr := context.DrDocument.LocateModel(node)
 				locatedPath := expPath
@@ -189,8 +186,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
-						fmt.Sprintf("%s: cannot be compiled into a regular expression [`%s`]",
-							ruleMessage, err.Error())),
+						model.GetStringTemplates().BuildRegexCompileErrorMessage(ruleMessage, p.notMatch, err.Error())),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,
@@ -222,7 +218,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(message,
-							fmt.Sprintf("%s: matches the expression `%s`", ruleMessage, p.notMatch)),
+							model.GetStringTemplates().BuildPatternMatchMessage(ruleMessage, p.notMatch)),
 						StartNode: node,
 						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      locatedPath,

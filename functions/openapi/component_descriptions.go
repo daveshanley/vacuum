@@ -9,7 +9,6 @@ import (
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
     "github.com/pb33f/libopenapi/datamodel/low"
-    "github.com/pb33f/libopenapi/utils"
     "gopkg.in/yaml.v3"
     "strconv"
     "strings"
@@ -43,8 +42,8 @@ func (cd ComponentDescription) RunRule(_ []*yaml.Node, context model.RuleFunctio
 
 	var results []model.RuleFunctionResult
 
-	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied type - use cached options
+	props := context.GetOptionsStringMap()
 
 	minWordsString := props["minWords"]
 	minWords, _ := strconv.Atoi(minWordsString)

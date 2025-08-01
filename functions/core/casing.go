@@ -106,7 +106,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	message := context.Rule.Message
 
 	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	props := context.GetOptionsStringMap()
 	if props["type"] == "" {
 		return nil
 	}

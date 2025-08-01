@@ -61,10 +61,10 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			case "null":
 			default:
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("unknown schema type: `%s`", t),
+					Message:   model.GetStringTemplates().BuildUnknownSchemaTypeMessage(t),
 					StartNode: schema.Value.GoLow().Type.KeyNode,
 					EndNode:   vacuumUtils.BuildEndNode(schema.Value.GoLow().Type.KeyNode),
-					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "type"),
+					Path:      model.GetStringTemplates().BuildJSONPath(schema.GenerateJSONPath(), "type"),
 					Rule:      context.Rule,
 				}
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
@@ -229,10 +229,10 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 					allPaths = append(allPaths, p)
 					if violationProperty != "" {
 						if segment >= 0 {
-							p = fmt.Sprintf("%s.%s[%d]", p, violationProperty, segment)
+							p = model.GetStringTemplates().BuildPropertyArrayPath(p, violationProperty, segment)
 							path = p
 						} else {
-							p = fmt.Sprintf("%s.%s", p, violationProperty)
+							p = model.GetStringTemplates().BuildJSONPath(p, violationProperty)
 							path = p
 						}
 						allPaths = append(allPaths, p)
@@ -242,9 +242,9 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 		} else {
 			if violationProperty != "" {
 				if segment >= 0 {
-					path = fmt.Sprintf("%s.%s[%d]", path, violationProperty, segment)
+					path = model.GetStringTemplates().BuildPropertyArrayPath(path, violationProperty, segment)
 				} else {
-					path = fmt.Sprintf("%s.%s", path, violationProperty)
+					path = model.GetStringTemplates().BuildJSONPath(path, violationProperty)
 				}
 			}
 		}
@@ -340,7 +340,7 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 			}
 
 			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) == nil && !polyDefined {
-				result := st.buildResult(fmt.Sprintf("`required` field `%s` is not defined in `properties`", required),
+				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
 					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
 				results = append(results, result)
