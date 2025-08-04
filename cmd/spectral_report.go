@@ -47,6 +47,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -157,6 +158,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				CustomFunctions:                 customFunctions,
 				SilenceLogs:                     true,
 				Base:                            baseFlag,
+				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,

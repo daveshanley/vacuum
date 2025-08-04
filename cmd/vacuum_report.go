@@ -50,6 +50,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			minScore, _ := cmd.Flags().GetInt("min-score")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -179,6 +180,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				CustomFunctions:                 customFunctions,
 				SilenceLogs:                     true,
 				Base:                            baseFlag,
+				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,

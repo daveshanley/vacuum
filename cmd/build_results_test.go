@@ -6,11 +6,11 @@ import (
 )
 
 func TestBuildResults(t *testing.T) {
-	_, _, err := BuildResults(false, false, "nuggets", nil, nil, "", 5)
+	_, _, err := BuildResults(false, false, "nuggets", nil, nil, "", true, 5)
 	assert.Error(t, err)
 }
 
 func TestBuildResults_SkipCheck(t *testing.T) {
-	_, _, err := BuildResultsWithDocCheckSkip(false, false, "nuggets", nil, nil, "", true, 5)
+	_, _, err := BuildResultsWithDocCheckSkip(false, false, "nuggets", nil, nil, "", true, true, 5)
 	assert.Error(t, err)
 }
