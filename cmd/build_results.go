@@ -16,8 +16,9 @@ func BuildResults(
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
+	remote bool,
 	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, false, timeout)
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -27,6 +28,7 @@ func BuildResultsWithDocCheckSkip(
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
+	remote bool,
 	skipCheck bool,
 	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
@@ -76,7 +78,7 @@ func BuildResultsWithDocCheckSkip(
 		CustomFunctions:   customFunctions,
 		Base:              base,
 		SkipDocumentCheck: skipCheck,
-		AllowLookup:       true,
+		AllowLookup:       remote,
 		Timeout:           timeout,
 	})
 

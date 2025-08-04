@@ -47,6 +47,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -96,7 +97,7 @@ func GetHTMLReportCommand() *cobra.Command {
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					baseFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
+					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
 				if err != nil {
 					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
 					return err

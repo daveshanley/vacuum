@@ -46,6 +46,7 @@ func GetDashboardCommand() *cobra.Command {
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
@@ -67,7 +68,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					baseFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
+					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
 				if err != nil {
 					pterm.Error.Printf("Failed to render dashboard: %v\n\n", err)
 					return err
@@ -100,7 +101,7 @@ func GetDashboardCommand() *cobra.Command {
 						config.BasePath = baseFlag
 					}
 					config.AllowFileLookup = true
-					config.AllowRemoteLookup = true
+					config.AllowRemoteLookup = remoteFlag
 				}
 
 				if extensionRefsFlag {
