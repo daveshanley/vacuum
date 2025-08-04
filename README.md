@@ -35,9 +35,34 @@ yarn global add @quobix/vacuum
 
 ## Install using curl
 
-```
+```bash
 curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
 ```
+
+### For CI/CD environments 
+
+To avoid GitHub API rate limiting in automated environments, set a GitHub token:
+
+```bash
+# Using repository token (GitHub Actions)
+GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+
+# Using personal access token
+GITHUB_TOKEN=your_github_token curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+```
+
+#### GitHub Actions example
+
+```yaml
+- name: Install vacuum
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Increases rate limit from 60 to 5000 requests/hour
+  run: |
+    curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+```
+
+> **Note**: The GitHub token prevents intermittent installation failures in CI/CD environments caused by API rate limiting. 
+> No additional permissions are required, the token only accesses public repository information.
 
 ## Install using [Docker](https://hub.docker.com/r/dshanley/vacuum)
 
