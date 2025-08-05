@@ -72,6 +72,8 @@ The image is available at: https://hub.docker.com/r/dshanley/vacuum
 docker pull dshanley/vacuum
 ```
 
+> **Multi-platform support**: Docker images are available for both `linux/amd64` and `linux/arm64` architectures, including native ARM64 support for Apple Silicon Macs.
+
 To run, mount the current working dir to the container and use a relative path to your spec, like so
 
 ```
