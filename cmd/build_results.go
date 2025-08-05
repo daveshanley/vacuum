@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pterm/pterm"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -60,13 +63,26 @@ func BuildResultsWithDocCheckSkip(
 	// and see if it's valid. If so - let's go!
 	if rulesetFlag != "" {
 
-		rsBytes, rsErr := os.ReadFile(rulesetFlag)
-		if rsErr != nil {
-			return nil, nil, rsErr
-		}
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-		if rsErr != nil {
-			return nil, nil, rsErr
+		if strings.HasPrefix(rulesetFlag, "http") {
+			// Handle remote ruleset URL
+			if !remote {
+				return nil, nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
+			}
+			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag)
+			if rsErr != nil {
+				return nil, nil, rsErr
+			}
+			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(downloadedRS)
+		} else {
+			// Handle local ruleset file
+			rsBytes, rsErr := os.ReadFile(rulesetFlag)
+			if rsErr != nil {
+				return nil, nil, rsErr
+			}
+			selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
+			if rsErr != nil {
+				return nil, nil, rsErr
+			}
 		}
 	}
 

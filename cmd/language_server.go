@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"io"
 	"log/slog"
-	"os"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -60,12 +59,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			}
 
 			if rulesetFlag != "" {
-				rsBytes, rsErr := os.ReadFile(rulesetFlag)
-				if rsErr != nil {
-					return rsErr
-				}
-
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
+				remoteFlag, _ := cmd.Flags().GetBool("remote")
+				var rsErr error
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag)
 				if rsErr != nil {
 					return rsErr
 				}

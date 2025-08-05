@@ -180,15 +180,11 @@ func GetLintCommand() *cobra.Command {
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
 
-				rsBytes, rsErr := os.ReadFile(rulesetFlag)
+				var rsErr error
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
+					pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()
-					return rsErr
-				}
-
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-				if rsErr != nil {
 					return rsErr
 				}
 			}
