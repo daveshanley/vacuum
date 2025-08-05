@@ -24,10 +24,10 @@ func TestLoadFunctions_JavaScript_OK(t *testing.T) {
 	assert.NotNil(t, pm)
 	assert.NoError(t, err)
 	assert.Equal(t, 5, pm.LoadedFunctionCount())
-	assert.Equal(t, "useless_func_modified_name",
-		pm.GetCustomFunctions()["useless_func"].GetSchema().Name)
-	assert.Equal(t, "check_for_name_and_id",
-		pm.GetCustomFunctions()["check_for_name_and_id"].GetSchema().Name)
+	assert.Equal(t, "uselessFunc",
+		pm.GetCustomFunctions()["uselessFunc"].GetSchema().Name)
+	assert.Equal(t, "checkForNameAndId",
+		pm.GetCustomFunctions()["checkForNameAndId"].GetSchema().Name)
 }
 
 func TestLoadFunctions_Sample(t *testing.T) {
