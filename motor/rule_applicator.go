@@ -86,6 +86,9 @@ type RuleSetExecution struct {
 	// not generally used.
 	StorageRoot string // The root path for storage, used for storing files upstream by the doctorModel. You probably don't need this.
 	RolodexFS   fs.FS  // supply a custom local filesystem to be used by the rolodex, useful if you need fine grained control over local file references.
+
+	// HTTP client configuration for TLS/certificate support
+	HTTPClientConfig vacuumUtils.HTTPClientConfig // Configuration for custom HTTP client with certificate support
 }
 
 // buildLocationString efficiently builds a location string in format "line:column"
@@ -194,6 +197,17 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	indexConfig.Logger.Debug("applying rules to rule set")
+
+	// Configure custom HTTP client if TLS/certificate options are provided
+	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
+		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
+		if httpErr != nil {
+			return &RuleSetExecutionResult{Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}
+		}
+		
+		// Set the custom RemoteURLHandler for libopenapi
+		docConfig.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+	}
 
 	if execution.Base != "" {
 

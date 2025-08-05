@@ -36,7 +36,7 @@ func TestDownloadRemoteRuleSet(t *testing.T) {
 	server := mockRemote()
 	defer server.Close()
 
-	rs, err := DownloadRemoteRuleSet(ctx.Background(), server.URL)
+	rs, err := DownloadRemoteRuleSet(ctx.Background(), server.URL, nil)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, rs)

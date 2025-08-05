@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,6 +149,11 @@ type RuleSets interface {
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
+	
+	// GenerateRuleSetFromSuppliedRuleSetWithHTTPClient will generate a ready to run ruleset based on a supplied configuration. This
+	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
+	// It accepts an HTTP client for downloading remote rulesets with certificate authentication.
+	GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(config *RuleSet, httpClient *http.Client) *RuleSet
 }
 
 //var rulesetsSingleton *ruleSetsModel
@@ -189,6 +195,10 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
+	return rsm.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset, nil)
+}
+
+func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset *RuleSet, httpClient *http.Client) *RuleSet {
 
 	extends := ruleset.GetExtendsValue()
 
@@ -277,7 +287,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 					if strings.HasPrefix(k, "http") {
 						remote = true
 					}
-					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote)
+					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote, httpClient)
 				}
 			}
 			doneChan <- true
