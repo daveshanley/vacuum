@@ -2093,7 +2093,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc(t *testing.T) {
     given: $.custom
     severity: error
     then:
-      function: check_for_name_and_id
+      function: checkForNameAndId
 `
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -2140,7 +2140,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction(t *testi
     given: $
     severity: error
     then:
-      function: use_core_function
+      function: useCoreFunction
       field: "custom"
 `
 
@@ -2187,7 +2187,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CheckPaths(t *testing
     given: $.paths
     severity: error
     then:
-      function: check_single_path
+      function: checkSinglePath
 `
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -2236,7 +2236,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction_Function
     given: $
     severity: error
     then:
-      function: use_function_options
+      function: useFunctionOptions
       field: "custom"
       functionOptions:
          someOption: "someValue"
