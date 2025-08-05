@@ -84,11 +84,12 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			// register core functions with this custom function.
 			RegisterCoreFunctions(function)
 
-			// register this function with the plugin manager
-			pm.RegisterFunction(fName, function)
+			// register this function with the plugin manager using the schema name
+			schemaName := function.GetSchema().Name
+			pm.RegisterFunction(schemaName, function)
 			
 			if !silence {
-				pterm.Info.Printf("Registered custom function: '%s' -> available for use in rulesets\n", fName)
+				pterm.Info.Printf("Registered custom function: '%s' -> available for use in rulesets\n", schemaName)
 			}
 		}
 	}

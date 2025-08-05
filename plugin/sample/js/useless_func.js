@@ -3,7 +3,8 @@
 
 function getSchema() {
     return {
-        "name": "useless_func_modified_name",
+        "name": "uselessFunc",
+        "description": "A demo function that always returns multiple messages regardless of input",
         "properties": [
             {
                 "name": "mickey",
