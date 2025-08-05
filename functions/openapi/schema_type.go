@@ -348,6 +348,100 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 		}
 	}
 
-	// TODO: DependentRequired
+	// Validate DependentRequired
+	dependentRequiredResults := st.validateDependentRequired(schema, context)
+	results = append(results, dependentRequiredResults...)
+
 	return results
+}
+
+func (st SchemaTypeCheck) validateDependentRequired(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	// Check if DependentRequired is present
+	if schema.Value.DependentRequired == nil {
+		return results
+	}
+
+	// Iterate through all dependent required entries
+	for pair := schema.Value.DependentRequired.First(); pair != nil; pair = pair.Next() {
+		triggerProp := pair.Key()
+		requiredProps := pair.Value()
+
+		// Validate that trigger property exists in schema properties if properties are defined
+		if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(triggerProp) == nil {
+			// Check if the property exists in polymorphic schemas (anyOf, oneOf, allOf)
+			polyDefined := st.checkPolymorphicProperty(schema, triggerProp)
+			if !polyDefined {
+				result := st.buildResult(
+					fmt.Sprintf("property `%s` referenced in `dependentRequired` does not exist in schema `properties`", triggerProp),
+					schema.GenerateJSONPath(), "dependentRequired", -1,
+					schema, schema.Value.GoLow().DependentRequired.KeyNode, context)
+				results = append(results, result)
+			}
+		}
+
+		// Validate that all dependent properties exist in schema
+		for _, reqProp := range requiredProps {
+			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(reqProp) == nil {
+				// Check if the property exists in polymorphic schemas
+				polyDefined := st.checkPolymorphicProperty(schema, reqProp)
+				if !polyDefined {
+					result := st.buildResult(
+						fmt.Sprintf("property `%s` referenced in `dependentRequired` does not exist in schema `properties`", reqProp),
+						schema.GenerateJSONPath(), "dependentRequired", -1,
+						schema, schema.Value.GoLow().DependentRequired.KeyNode, context)
+					results = append(results, result)
+				}
+			}
+		}
+
+		// Validate no self-referential dependencies
+		for _, reqProp := range requiredProps {
+			if reqProp == triggerProp {
+				result := st.buildResult(
+					fmt.Sprintf("circular dependency detected: property `%s` requires itself in `dependentRequired`", triggerProp),
+					schema.GenerateJSONPath(), "dependentRequired", -1,
+					schema, schema.Value.GoLow().DependentRequired.KeyNode, context)
+				results = append(results, result)
+			}
+		}
+	}
+
+	return results
+}
+
+// checkPolymorphicProperty checks if a property is defined in anyOf, oneOf, or allOf schemas
+func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyName string) bool {
+	// Check in AnyOf schemas
+	if schema.Value.AnyOf != nil {
+		for _, anyOfSchema := range schema.Value.AnyOf {
+			if anyOfSchema.Schema() != nil && anyOfSchema.Schema().Properties != nil && 
+				anyOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
+				return true
+			}
+		}
+	}
+
+	// Check in OneOf schemas
+	if schema.Value.OneOf != nil {
+		for _, oneOfSchema := range schema.Value.OneOf {
+			if oneOfSchema.Schema() != nil && oneOfSchema.Schema().Properties != nil && 
+				oneOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
+				return true
+			}
+		}
+	}
+
+	// Check in AllOf schemas
+	if schema.Value.AllOf != nil {
+		for _, allOfSchema := range schema.Value.AllOf {
+			if allOfSchema.Schema() != nil && allOfSchema.Schema().Properties != nil && 
+				allOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
+				return true
+			}
+		}
+	}
+
+	return false
 }
