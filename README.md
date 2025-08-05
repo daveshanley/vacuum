@@ -6,7 +6,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
 [![Docs](https://img.shields.io/badge/godoc-reference-5fafd7)](https:/-/pkg.go.dev/github.com/daveshanley/vacuum)
-[![GitHub downloads](https://img.shields.io/github/downloads/daveshanley/vacuum/total?label=github%20downloads&style=flat-square)](https://github.com/daveshanley/vacuum/releases)
 [![npm](https://img.shields.io/npm/dm/@quobix/vacuum?style=flat-square&label=npm%20downloads)](https://www.npmjs.com/package/@quobix/vacuum)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
