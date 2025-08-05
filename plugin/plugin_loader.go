@@ -67,13 +67,18 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			// found something
 			if !silence {
-				pterm.Info.Printf("Located custom javascript function: '%s'\n", function.GetSchema().Name)
+				pterm.Info.Printf("Located custom javascript function: '%s' from file: %s\n", function.GetSchema().Name, fPath)
 			}
 			// check if the function is valid
 			sErr := function.CheckScript()
 
 			if sErr != nil {
 				pterm.Error.Printf("Failed to load function '%s': %s\n", fName, sErr.Error())
+				continue // Skip registering invalid functions
+			} else {
+				if !silence {
+					pterm.Success.Printf("Successfully validated JavaScript function: '%s'\n", fName)
+				}
 			}
 
 			// register core functions with this custom function.
@@ -81,6 +86,10 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			// register this function with the plugin manager
 			pm.RegisterFunction(fName, function)
+			
+			if !silence {
+				pterm.Info.Printf("Registered custom function: '%s' -> available for use in rulesets\n", fName)
+			}
 		}
 	}
 	return pm, nil

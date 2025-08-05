@@ -8,14 +8,14 @@ rules:
     formats: [oas2, oas3]
     given: $
     then:
-      function: uselessFunc
+      function: useless_func
     howToFix: You can't, it's just an example.
   sample-paths-rule:
     description: Load a custom function that checks for a single path
     severity: error
     recommended: true
     formats: [ oas2, oas3 ]
-    given: $
+    given: $.paths
     then:
-      function: checkSinglePathExists
+      function: check_single_path
     howToFix: use a spec with only a single path defined.
