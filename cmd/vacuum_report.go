@@ -145,13 +145,11 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
-			var customFunctions map[string]model.RuleFunction
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
-
-				customFunctions, _ = LoadCustomFunctions(functionsFlag, true)
 
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag)
