@@ -124,8 +124,19 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 			pterm.Println()
 			return nil, err
 		}
+		
+		customFunctions := pm.GetCustomFunctions()
 		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
-		return pm.GetCustomFunctions(), nil
+		
+		if !silence && len(customFunctions) > 0 {
+			pterm.Info.Println("Available custom functions:")
+			for funcName := range customFunctions {
+				pterm.Printf("  - %s\n", pterm.LightCyan(funcName))
+			}
+			pterm.Println()
+		}
+		
+		return customFunctions, nil
 	}
 	return nil, nil
 }

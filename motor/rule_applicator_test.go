@@ -2225,7 +2225,7 @@ paths:
 	results := ApplyRulesToRuleSet(rse)
 
 	assert.Len(t, results.Results, 1)
-	assert.Equal(t, "more than a single path exists, there are 3", results.Results[0].Message)
+	assert.Equal(t, "More than a single path exists, found 3 paths", results.Results[0].Message)
 }
 
 func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction_FunctionOptions(t *testing.T) {

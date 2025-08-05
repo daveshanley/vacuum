@@ -964,6 +964,38 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 
 		}
+	} else {
+		// Function not found - report detailed error
+		if !ctx.silenceLogs {
+			// Build list of available custom functions for debugging
+			var availableCustomFuncs []string
+			if ctx.customFunctions != nil {
+				for funcName := range ctx.customFunctions {
+					availableCustomFuncs = append(availableCustomFuncs, funcName)
+				}
+			}
+			
+			if len(availableCustomFuncs) > 0 {
+				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. Available custom functions: %v\n", 
+					ctx.rule.Id, ruleAction.Function, availableCustomFuncs)
+			} else {
+				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n", 
+					ctx.rule.Id, ruleAction.Function)
+			}
+		}
+		
+		// Add error result to make the missing function visible in reports
+		lock.Lock()
+		*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
+			Message:      fmt.Sprintf("Unknown function '%s' in rule '%s'", ruleAction.Function, ctx.rule.Id),
+			Rule:         ctx.rule,
+			StartNode:    &yaml.Node{},
+			EndNode:      &yaml.Node{},
+			RuleId:       ctx.rule.Id,
+			RuleSeverity: "error",
+			Path:         fmt.Sprint(ctx.rule.Given),
+		})
+		lock.Unlock()
 	}
 	return ctx.ruleResults
 }
