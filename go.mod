@@ -1,9 +1,11 @@
 module github.com/daveshanley/vacuum
 
-go 1.23.0
+go 1.24.0
+
+toolchain go1.24.3
 
 require (
-	github.com/alecthomas/chroma/v2 v2.19.0
+	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/dustin/go-humanize v1.0.1
@@ -13,7 +15,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pb33f/doctor v0.0.32
-	github.com/pb33f/libopenapi v0.25.0
+	github.com/pb33f/libopenapi v0.25.2
 	github.com/pb33f/libopenapi-validator v0.4.7
 	github.com/pterm/pterm v0.12.81
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
@@ -51,7 +53,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -59,6 +60,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/nsf/termbox-go v1.1.1 // indirect
+	github.com/pb33f/ordered-map/v2 v2.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/petermattis/goid v0.0.0-20250508124226-395b08cebbdb // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -73,7 +75,6 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tliron/commonlog v0.2.19 // indirect
 	github.com/tliron/kutil v0.3.26 // indirect
-	github.com/wk8/go-ordered-map/v2 v2.1.9-0.20240815153524-6ea36470d1bd // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
