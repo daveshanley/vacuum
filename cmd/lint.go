@@ -203,7 +203,7 @@ func GetLintCommand() *cobra.Command {
 					}
 					rules = append(rules, pterm.BulletListItem{
 						Level:       0,
-						Text:        fmt.Sprintf("%s: (%s)", rule.Id, rule.Name),
+						Text:        fmt.Sprintf("%s: (%s)", rule.Id, rule.Description),
 						TextStyle:   pterm.NewStyle(pterm.FgLightMagenta),
 						BulletStyle: pterm.NewStyle(pterm.FgLightCyan),
 						Bullet:      fmt.Sprintf("► %s[%d]", sp, x),
