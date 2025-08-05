@@ -231,10 +231,28 @@ func RenderSummary(rso RenderSummaryOptions) {
 		}
 	}
 
+	errorHeader := pterm.HeaderPrinter{
+		TextStyle:       pterm.NewStyle(pterm.FgWhite),
+		BackgroundStyle: pterm.NewStyle(pterm.BgRed),
+		Margin:          10,
+	}
+
+	successHeader := pterm.HeaderPrinter{
+		TextStyle:       pterm.NewStyle(pterm.FgBlack),
+		BackgroundStyle: pterm.NewStyle(pterm.BgGreen),
+		Margin:          10,
+	}
+
+	warningHeader := pterm.HeaderPrinter{
+		TextStyle:       pterm.NewStyle(pterm.FgBlack),
+		BackgroundStyle: pterm.NewStyle(pterm.BgYellow),
+		Margin:          10,
+	}
+
 	if totalFiles <= 1 {
 
 		if errs > 0 {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).WithMargin(10).Printf(
+			errorHeader.Printf(
 				"Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
 			return
 		}
@@ -245,19 +263,13 @@ func RenderSummary(rso RenderSummaryOptions) {
 				msg = "failed with"
 			}
 
-			warningHeader := pterm.HeaderPrinter{
-				TextStyle:       pterm.NewStyle(pterm.FgBlack),
-				BackgroundStyle: pterm.NewStyle(pterm.BgYellow),
-				Margin:          10,
-			}
-
 			warningHeader.Printf(
 				"Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
 			return
 		}
 
 		if informs > 0 {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Printf(
+			successHeader.Printf(
 				"Linting passed, %v informs reported", informsHuman)
 			return
 		}
@@ -266,7 +278,7 @@ func RenderSummary(rso RenderSummaryOptions) {
 			return
 		}
 
-		pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgGreen)).WithMargin(10).Println(
+		successHeader.Println(
 			"Linting passed, A perfect score! well done!")
 
 	} else {
@@ -285,13 +297,15 @@ func RenderSummary(rso RenderSummaryOptions) {
 		}
 
 		if informs > 0 {
-			pterm.Success.Printf(
+
+			successHeader.Printf(
 				"'%s' passed, %v informs reported\n\n", filename, informsHuman)
+
 			pterm.Println()
 			return
 		}
 
-		pterm.Success.Printf(
+		successHeader.Printf(
 			"'%s' passed, A perfect score! well done!\n\n", filename)
 		pterm.Println()
 

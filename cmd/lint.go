@@ -156,33 +156,6 @@ func GetLintCommand() *cobra.Command {
 				}
 			}
 
-			if showRules && !pipelineOutput {
-				pterm.Println("The following rules are being used:")
-				pterm.Println()
-
-				var rules []pterm.BulletListItem
-				x := 01
-				for _, rule := range selectedRS.Rules {
-					sp := ""
-					if x <= 9 {
-						sp = "  "
-					}
-					if x > 9 && x < 99 {
-						sp = " "
-					}
-					rules = append(rules, pterm.BulletListItem{
-						Level:       0,
-						Text:        fmt.Sprintf("%s: (%s)", rule.Id, rule.Name),
-						TextStyle:   pterm.NewStyle(pterm.FgLightMagenta),
-						BulletStyle: pterm.NewStyle(pterm.FgLightCyan),
-						Bullet:      fmt.Sprintf("► %s[%d]", sp, x),
-					})
-					x++
-				}
-				pterm.DefaultBulletList.WithItems(rules).Render()
-				pterm.Println()
-			}
-
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
@@ -211,6 +184,34 @@ func GetLintCommand() *cobra.Command {
 					pterm.Println()
 					return rsErr
 				}
+			}
+
+			// Show which rules are being used (after ruleset is fully loaded)
+			if showRules && !pipelineOutput {
+				pterm.Println("The following rules are being used:")
+				pterm.Println()
+
+				var rules []pterm.BulletListItem
+				x := 01
+				for _, rule := range selectedRS.Rules {
+					sp := ""
+					if x <= 9 {
+						sp = "  "
+					}
+					if x > 9 && x < 99 {
+						sp = " "
+					}
+					rules = append(rules, pterm.BulletListItem{
+						Level:       0,
+						Text:        fmt.Sprintf("%s: (%s)", rule.Id, rule.Name),
+						TextStyle:   pterm.NewStyle(pterm.FgLightMagenta),
+						BulletStyle: pterm.NewStyle(pterm.FgLightCyan),
+						Bullet:      fmt.Sprintf("► %s[%d]", sp, x),
+					})
+					x++
+				}
+				pterm.DefaultBulletList.WithItems(rules).Render()
+				pterm.Println()
 			}
 
 			var printLock sync.Mutex
