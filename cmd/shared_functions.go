@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
@@ -11,8 +12,11 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
+	"os"
+	"strings"
 	"time"
 )
+
 
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
@@ -27,6 +31,28 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 
 	}
 	return rs.GenerateRuleSetFromSuppliedRuleSet(userRS), nil
+}
+
+// BuildRuleSetFromUserSuppliedLocation creates a ready to run ruleset from a location (file path or URL)
+func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool) (*rulesets.RuleSet, error) {
+	if strings.HasPrefix(rulesetFlag, "http") {
+		// Handle remote ruleset URL directly
+		if !remote {
+			return nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
+		}
+		downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag)
+		if rsErr != nil {
+			return nil, rsErr
+		}
+		return rs.GenerateRuleSetFromSuppliedRuleSet(downloadedRS), nil
+	} else {
+		// Handle local ruleset file
+		rsBytes, rsErr := os.ReadFile(rulesetFlag)
+		if rsErr != nil {
+			return nil, rsErr
+		}
+		return BuildRuleSetFromUserSuppliedSet(rsBytes, rs)
+	}
 }
 
 // RenderTimeAndFiles  will render out the time taken to process a specification, and the size of the file in kb.
