@@ -65,6 +65,10 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
 	rootCmd.PersistentFlags().BoolP("hard-mode", "z", false, "Enable all the built-in rules, even the OWASP ones. This is the level to beat!")
 	rootCmd.PersistentFlags().BoolP("ext-refs", "", false, "Turn on $ref lookups and resolving for extensions (x-) objects")
+	rootCmd.PersistentFlags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
+	rootCmd.PersistentFlags().String("key-file", "", "Path to client private key file for HTTPS requests")
+	rootCmd.PersistentFlags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
+	rootCmd.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
 
 	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
@@ -77,6 +81,24 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("timeout", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("cert-file", cobra.FixedCompletions(
+		[]string{"crt", "pem", "cert"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("key-file", cobra.FixedCompletions(
+		[]string{"key", "pem"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("ca-file", cobra.FixedCompletions(
+		[]string{"crt", "pem", "cert"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("insecure", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 

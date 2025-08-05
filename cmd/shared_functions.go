@@ -12,6 +12,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -21,6 +22,12 @@ import (
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
 func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rulesets.RuleSet, error) {
+	return BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, rs, nil)
+}
+
+// BuildRuleSetFromUserSuppliedSetWithHTTPClient creates a ready to run ruleset, augmented or provided by a user
+// configured ruleset with HTTP client support for certificate authentication.
+func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.RuleSets, httpClient *http.Client) (*rulesets.RuleSet, error) {
 
 	// load in our user supplied ruleset and try to validate it.
 	userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
@@ -30,28 +37,28 @@ func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rul
 		return nil, userErr
 
 	}
-	return rs.GenerateRuleSetFromSuppliedRuleSet(userRS), nil
+	return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient), nil
 }
 
 // BuildRuleSetFromUserSuppliedLocation creates a ready to run ruleset from a location (file path or URL)
-func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool) (*rulesets.RuleSet, error) {
+func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool, httpClient *http.Client) (*rulesets.RuleSet, error) {
 	if strings.HasPrefix(rulesetFlag, "http") {
 		// Handle remote ruleset URL directly
 		if !remote {
 			return nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
 		}
-		downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag)
+		downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return rs.GenerateRuleSetFromSuppliedRuleSet(downloadedRS), nil
+		return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
 	} else {
 		// Handle local ruleset file
 		rsBytes, rsErr := os.ReadFile(rulesetFlag)
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return BuildRuleSetFromUserSuppliedSet(rsBytes, rs)
+		return BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, rs, httpClient)
 	}
 }
 

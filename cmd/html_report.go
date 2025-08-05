@@ -10,6 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/statistics"
+	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
@@ -96,8 +97,20 @@ func GetHTMLReportCommand() *cobra.Command {
 				customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+				
+				// Certificate/TLS configuration
+				certFile, _ := cmd.Flags().GetString("cert-file")
+				keyFile, _ := cmd.Flags().GetString("key-file")
+				caFile, _ := cmd.Flags().GetString("ca-file")
+				insecure, _ := cmd.Flags().GetBool("insecure")
+				
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
+					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
+						CertFile: certFile,
+						KeyFile:  keyFile,
+						CAFile:   caFile,
+						Insecure: insecure,
+					})
 				if err != nil {
 					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
 					return err

@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"io"
 	"log/slog"
+	"net/http"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -60,8 +61,31 @@ IDE and start linting your OpenAPI documents in real-time.`,
 
 			if rulesetFlag != "" {
 				remoteFlag, _ := cmd.Flags().GetBool("remote")
+				
+				// Certificate/TLS configuration for language server
+				certFile, _ := cmd.Flags().GetString("cert-file")
+				keyFile, _ := cmd.Flags().GetString("key-file")
+				caFile, _ := cmd.Flags().GetString("ca-file")
+				insecure, _ := cmd.Flags().GetBool("insecure")
+				
+				// Create HTTP client for remote ruleset downloads if needed
+				var httpClient *http.Client
+				httpClientConfig := utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+					var clientErr error
+					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
+					if clientErr != nil {
+						return clientErr
+					}
+				}
+				
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
 					return rsErr
 				}

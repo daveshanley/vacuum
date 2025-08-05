@@ -13,10 +13,12 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
+	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"net/http"
 	"os"
 	"time"
 )
@@ -75,6 +77,12 @@ func GetVacuumReportCommand() *cobra.Command {
 			noPretty, _ := cmd.Flags().GetBool("no-pretty")
 			compress, _ := cmd.Flags().GetBool("compress")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+
+			// Certificate/TLS configuration
+			certFile, _ := cmd.Flags().GetString("cert-file")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			caFile, _ := cmd.Flags().GetString("ca-file")
+			insecure, _ := cmd.Flags().GetBool("insecure")
 
 			extension := ".json"
 
@@ -151,8 +159,25 @@ func GetVacuumReportCommand() *cobra.Command {
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
 
+				// Create HTTP client for remote ruleset downloads if needed
+				var httpClient *http.Client
+				httpClientConfig := utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+					var clientErr error
+					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
+					if clientErr != nil {
+						pterm.Error.Printf("Failed to create custom HTTP client: %s\n", clientErr.Error())
+						return clientErr
+					}
+				}
+
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
 					pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()
@@ -180,6 +205,12 @@ func GetVacuumReportCommand() *cobra.Command {
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
+				HTTPClientConfig:                utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				},
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
