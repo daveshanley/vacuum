@@ -26,11 +26,11 @@ func (a Alphabetical) GetSchema() model.RuleFunctionSchema {
 		Properties: []model.RuleFunctionProperty{
 			{
 				Name:        "keyedBy",
-				Description: "this is the key of an object you want to use to sort objects",
+				Description: "this is the key of an object you want to use to sort objects. If not specified for maps, the map will be sorted by keys",
 			},
 		},
-		ErrorMessage: "'alphabetical' function has invalid options supplied. To sort objects use 'keyedBy'" +
-			"and decide which property on the array of objects you want to use.",
+		ErrorMessage: "'alphabetical' function has invalid options supplied. To sort objects by property use 'keyedBy'" +
+			" and decide which property on the array of objects you want to use. Maps without 'keyedBy' will be sorted by their keys.",
 	}
 }
 
@@ -48,9 +48,6 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 	var keyedBy string
 
-	// extract a custom message
-	message := context.Rule.Message
-
 	// check supplied type - use cached options to avoid repeated interface conversions
 	props := context.GetOptionsStringMap()
 	if props["keyedBy"] != "" {
@@ -65,32 +62,13 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 		if utils.IsNodeMap(node) {
 			if keyedBy == "" {
-				locatedObjects, err := context.DrDocument.LocateModel(node)
-				locatedPath := pathValue
-				var allPaths []string
-				if err == nil && locatedObjects != nil {
-					for x, obj := range locatedObjects {
-						if x == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(message,
-						model.GetStringTemplates().BuildTypeErrorMessage(context.Rule.Description, node.Value, "map/object", a.GetSchema().ErrorMessage)),
-					StartNode: node,
-					EndNode:   vacuumUtils.BuildEndNode(node),
-					Path:      locatedPath,
-					Rule:      context.Rule,
-				}
-				if len(allPaths) > 1 {
-					result.Paths = allPaths
-				}
-				results = append(results, result)
-				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+				// Sort by map keys when keyedBy is not provided
+				mapKeys := a.extractMapKeys(node)
+				if len(mapKeys) > 0 && !sort.StringsAreSorted(mapKeys) {
+					// Report one violation per unsorted map for deterministic behavior
+					rs := a.reportMapKeyViolation(node, mapKeys, context)
+					if rs != nil {
+						results = append(results, *rs)
 					}
 				}
 				continue
@@ -149,6 +127,55 @@ func (a Alphabetical) processMap(node *yaml.Node, keyedBy string, _ model.RuleFu
 		}
 	}
 	return resultsFromKey
+}
+
+func (a Alphabetical) extractMapKeys(node *yaml.Node) []string {
+	var keys []string
+	// For maps, Content contains alternating keys and values (key1, value1, key2, value2, ...)
+	for i := 0; i < len(node.Content); i += 2 {
+		if node.Content[i].Tag == "!!str" {
+			keys = append(keys, node.Content[i].Value)
+		}
+	}
+	return keys
+}
+
+func (a Alphabetical) reportMapKeyViolation(node *yaml.Node, mapKeys []string, context model.RuleFunctionContext) *model.RuleFunctionResult {
+	// Find the first out-of-order pair to create a deterministic error message
+	for i := 0; i < len(mapKeys)-1; i++ {
+		if strings.Compare(mapKeys[i], mapKeys[i+1]) > 0 {
+			locatedObjects, err := context.DrDocument.LocateModel(node)
+			locatedPath := ""
+			var allPaths []string
+			if err == nil && locatedObjects != nil {
+				for v, obj := range locatedObjects {
+					if v == 0 {
+						locatedPath = obj.GenerateJSONPath()
+					}
+					allPaths = append(allPaths, obj.GenerateJSONPath())
+				}
+			}
+
+			result := model.RuleFunctionResult{
+				Rule:      context.Rule,
+				StartNode: node,
+				Path:      locatedPath,
+				EndNode:   vacuumUtils.BuildEndNode(node),
+				Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+					model.GetStringTemplates().BuildAlphabeticalMessage(context.Rule.Description, mapKeys[i+1], mapKeys[i])),
+			}
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
+			}
+			if len(locatedObjects) > 0 {
+				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
+					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+				}
+			}
+			return &result
+		}
+	}
+	return nil
 }
 
 func (a Alphabetical) isValidArray(arr *yaml.Node) bool {
