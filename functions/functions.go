@@ -96,7 +96,9 @@ func MapBuiltinFunctions() Functions {
 		funcs["noVerbsInPath"] = openapi_functions.VerbsInPaths{}
 		funcs["pathsKebabCase"] = openapi_functions.PathsKebabCase{}
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
-		funcs["schemaTypeCheck"] = openapi_functions.SchemaTypeCheck{}
+        funcs["schemaTypeCheck"] = openapi_functions.SchemaTypeCheck{}
+        // naming: camelCase rule for schema properties
+        funcs["camelCaseProperties"] = openapi_functions.CamelCaseProperties{}
 		funcs["tagDescription"] = openapi_functions.TagDescription{}
 		funcs["infoDescription"] = openapi_functions.InfoDescription{}
 		funcs["infoContact"] = openapi_functions.InfoContact{}

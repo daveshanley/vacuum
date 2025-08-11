@@ -1288,6 +1288,26 @@ func GetSchemaTypeCheckRule() *model.Rule {
 	}
 }
 
+// GetCamelCasePropertiesRule validates that all schema property names use camelCase
+func GetCamelCasePropertiesRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Schema property names should be camelCase",
+		Id:           CamelCaseProperties,
+		Formats:      model.OAS3AllFormat,
+		Description:  "All object schema properties should be camelCase (single lowercase words are allowed). Vendor extensions are ignored.",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "camelCaseProperties",
+		},
+		HowToFix: camelCasePropertiesFix,
+	}
+}
+
 // GetPostSuccessResponseRule will check that all POST operations have a success response defined.
 func GetPostSuccessResponseRule() *model.Rule {
 	opts := make(map[string][]string)

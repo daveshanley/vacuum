@@ -166,6 +166,7 @@ const (
 	postSuccessResponseFix string = "Make sure your POST operations return a 'success' response via 2xx or 3xx response code. "
 
 	noRequestBodyResponseFix string = "Remove 'requestBody' from HTTP GET and DELETE methods"
+  camelCasePropertiesFix   string = "Schema property names should use camelCase. Rename properties to camelCase (single lowercase words are acceptable). Vendor extensions are ignored."
 )
 
 const (
