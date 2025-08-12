@@ -4,6 +4,7 @@
 package core
 
 import (
+    "fmt"
     "github.com/daveshanley/vacuum/model"
     vacuumUtils "github.com/daveshanley/vacuum/utils"
     "github.com/pb33f/doctor/model/high/v3"
