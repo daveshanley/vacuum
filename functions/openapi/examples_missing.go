@@ -6,14 +6,15 @@ package openapi
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
+	
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
-	"slices"
-	"strings"
 )
 
 // ExamplesMissing will check anything that can have an example, has one.
@@ -229,6 +230,13 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 			propErr := false
 			hasProps := false
+			hasArrayItemsWithExamples := false
+			
+			// Check for array items with examples
+			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil {
+				hasArrayItemsWithExamples = checkArrayItems(mt.SchemaProxy.Schema)
+			}
+			
 			if mt.SchemaProxy != nil &&
 				mt.SchemaProxy.Schema != nil &&
 				mt.SchemaProxy.Schema.Properties != nil &&
@@ -263,6 +271,11 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				seen[buf.String()] = true
 			}
 			buf.Reset()
+
+			// Skip if array items have examples
+			if hasArrayItemsWithExamples {
+				continue
+			}
 
 			if hasProps && propErr && mt.Value.Examples.Len() <= 0 && isExampleNodeNull([]*yaml.Node{mt.Value.Example}) {
 
@@ -336,6 +349,13 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 			propErr := false
 			hasProps := false
+			hasArrayItemsWithExamples := checkArrayItems(s)
+			
+			// Skip if array items have examples
+			if hasArrayItemsWithExamples {
+				continue
+			}
+			
 			if s.Properties != nil && s.Properties.Len() > 0 {
 				hasProps = true
 				var prop *v3.Schema
@@ -394,6 +414,58 @@ func checkProps(s *v3.Schema) bool {
 			return checkProps(p.Schema)
 		}
 	}
+	return false
+}
+
+// checkArrayItems checks if array items have examples in their properties
+func checkArrayItems(s *v3.Schema) bool {
+	if s == nil || s.Value == nil {
+		return false
+	}
+	
+	// Check if this is an array type
+	if !slices.Contains(s.Value.Type, "array") {
+		return false
+	}
+	
+	// Check if items exist
+	if s.Value.Items == nil {
+		return false
+	}
+	
+	// Check if items is a single schema (A) - OpenAPI 3.0 style
+	if s.Value.Items.IsA() && s.Value.Items.A != nil {
+		itemSchema := s.Value.Items.A.Schema()
+		if itemSchema != nil {
+			// Check examples directly on the item schema first
+			if itemSchema.Example != nil || len(itemSchema.Examples) > 0 {
+				return true
+			}
+			
+			// Check if all properties have examples
+			if itemSchema.Properties != nil && itemSchema.Properties.Len() > 0 {
+				allHaveExamples := true
+				for _, prop := range itemSchema.Properties.FromOldest() {
+					propSchema := prop.Schema()
+					if propSchema != nil {
+						if propSchema.Example == nil && len(propSchema.Examples) == 0 {
+							allHaveExamples = false
+							break
+						}
+					} else {
+						allHaveExamples = false
+						break
+					}
+				}
+				return allHaveExamples
+			}
+		}
+	}
+	
+	// Items.B is a boolean in OpenAPI 3.1, not an array of schemas
+	// In OpenAPI 3.1, Items can be either a schema or boolean
+	// We only need to handle the schema case (A), not B
+	
 	return false
 }
 func checkParent(s any, depth int) bool {
