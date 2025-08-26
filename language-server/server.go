@@ -103,6 +103,9 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 }
 
 func (s *ServerState) Run() error {
+	// Initialize configuration on startup
+	s.initializeConfig()
+	
 	viper.OnConfigChange(s.onConfigChange)
 	viper.WatchConfig()
 	return s.server.RunStdio()
@@ -111,9 +114,12 @@ func (s *ServerState) Run() error {
 func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay bool) {
 
 	go func() {
-
-		if s.lintRequest.BaseFlag == "" {
-			s.lintRequest.BaseFlag = filepath.Dir(strings.TrimPrefix(doc.URI, "file://"))
+		// Determine the base path for this document
+		// Priority: 1. Configured base, 2. Document's directory
+		baseForDoc := s.lintRequest.BaseFlag
+		if baseForDoc == "" {
+			// Use the document's directory as base if no global base is configured
+			baseForDoc = filepath.Dir(strings.TrimPrefix(doc.URI, "file://"))
 		}
 
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -123,7 +129,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 			IgnoreCircularArrayRef:       s.lintRequest.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef: s.lintRequest.IgnorePolymorphCircleRef,
 			AllowLookup:                  true,
-			Base:                         s.lintRequest.BaseFlag,
+			Base:                         baseForDoc,
 			Spec:                         []byte(doc.Content),
 			SkipDocumentCheck:            s.lintRequest.SkipCheckFlag,
 			Logger:                       s.lintRequest.Logger,
