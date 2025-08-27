@@ -255,12 +255,21 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				}
 				if propErr {
 					if prop != nil {
-						path := prop.GenerateJSONPath()
-						results = append(results,
-							buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-								model.GetStringTemplates().BuildMissingExampleMessage(propName)),
-								path,
-								prop.KeyNode, mt.ValueNode, mt))
+						// Find all locations where this property schema appears
+						locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop,
+							prop.Value.GoLow().Type.KeyNode, prop.Value.GoLow().Type.ValueNode)
+						
+						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							model.GetStringTemplates().BuildMissingExampleMessage(propName)),
+							locatedPath,
+							prop.KeyNode, mt.ValueNode, mt)
+						
+						// Set the Paths array if there are multiple locations
+						if len(allPaths) > 1 {
+							result.Paths = allPaths
+						}
+						
+						results = append(results, result)
 					}
 				}
 			}
@@ -369,27 +378,56 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					}
 				}
 				if propErr {
-					path := prop.GenerateJSONPath()
-					results = append(results,
-						buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("schema property `%s` is missing `examples` or `example`", propName)),
-							path,
-							prop.KeyNode, s.ValueNode, s))
+					// Find all locations where this property schema appears
+					locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop,
+						prop.Value.GoLow().Type.KeyNode, prop.Value.GoLow().Type.ValueNode)
+					
+					result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+						fmt.Sprintf("schema property `%s` is missing `examples` or `example`", propName)),
+						locatedPath,
+						prop.KeyNode, s.ValueNode, s)
+					
+					// Set the Paths array if there are multiple locations
+					if len(allPaths) > 1 {
+						result.Paths = allPaths
+					}
+					
+					results = append(results, result)
 				}
 			}
 
 			if hasProps && propErr && isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
-				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
-						s.GenerateJSONPath(),
-						s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s))
+				// Find all locations where this schema appears
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s,
+					s.Value.GoLow().Type.KeyNode, s.Value.GoLow().Type.ValueNode)
+				
+				result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
+					locatedPath,
+					s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s)
+				
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
+				}
+				
+				results = append(results, result)
 			}
 
 			if !hasProps && isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
-				results = append(results,
-					buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
-						s.GenerateJSONPath(),
-						s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s))
+				// Find all locations where this schema appears
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s,
+					s.Value.GoLow().Type.KeyNode, s.Value.GoLow().Type.ValueNode)
+				
+				result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
+					locatedPath,
+					s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s)
+				
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
+				}
+				
+				results = append(results, result)
 			}
 		}
 	}

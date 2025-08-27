@@ -60,13 +60,28 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results, errs...)
 			case "null":
 			default:
+				// Find all locations where this schema appears
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema,
+					schema.Value.GoLow().Type.KeyNode, schema.Value.GoLow().Type.ValueNode)
+				
 				result := model.RuleFunctionResult{
 					Message:   model.GetStringTemplates().BuildUnknownSchemaTypeMessage(t),
 					StartNode: schema.Value.GoLow().Type.KeyNode,
 					EndNode:   vacuumUtils.BuildEndNode(schema.Value.GoLow().Type.KeyNode),
-					Path:      model.GetStringTemplates().BuildJSONPath(schema.GenerateJSONPath(), "type"),
+					Path:      model.GetStringTemplates().BuildJSONPath(locatedPath, "type"),
 					Rule:      context.Rule,
 				}
+				
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					// Add .type suffix to all paths
+					typePaths := make([]string, len(allPaths))
+					for i, p := range allPaths {
+						typePaths[i] = model.GetStringTemplates().BuildJSONPath(p, "type")
+					}
+					result.Paths = typePaths
+				}
+				
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
@@ -216,44 +231,36 @@ func (st SchemaTypeCheck) validateArray(schema *v3.Schema, context *model.RuleFu
 
 func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, segment int, schema *v3.Schema, node *yaml.Node, context *model.RuleFunctionContext) model.RuleFunctionResult {
 
-	// locate all paths that this model is referenced by
-	var allPaths []string
-	var modelByLine []v3.Foundational
-	var modelErr error
-	if context.DrDocument != nil {
-		modelByLine, modelErr = context.DrDocument.LocateModelByLine(node.Line + 1)
-		if modelErr == nil {
-			if modelByLine != nil && len(modelByLine) >= 1 {
-				for j := 0; j < len(modelByLine); j++ {
-					p := modelByLine[j].GenerateJSONPath()
-					allPaths = append(allPaths, p)
-					if violationProperty != "" {
-						if segment >= 0 {
-							p = model.GetStringTemplates().BuildPropertyArrayPath(p, violationProperty, segment)
-							path = p
-						} else {
-							p = model.GetStringTemplates().BuildJSONPath(p, violationProperty)
-							path = p
-						}
-						allPaths = append(allPaths, p)
-					}
-				}
-			}
+	// Find all locations where this schema appears
+	locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(*context, schema, node, node)
+	
+	// Build the complete path with the violation property
+	if violationProperty != "" {
+		if segment >= 0 {
+			locatedPath = model.GetStringTemplates().BuildPropertyArrayPath(locatedPath, violationProperty, segment)
 		} else {
-			if violationProperty != "" {
+			locatedPath = model.GetStringTemplates().BuildJSONPath(locatedPath, violationProperty)
+		}
+		
+		// Update all paths with the violation property
+		if len(allPaths) > 1 {
+			updatedPaths := make([]string, len(allPaths))
+			for i, p := range allPaths {
 				if segment >= 0 {
-					path = model.GetStringTemplates().BuildPropertyArrayPath(path, violationProperty, segment)
+					updatedPaths[i] = model.GetStringTemplates().BuildPropertyArrayPath(p, violationProperty, segment)
 				} else {
-					path = model.GetStringTemplates().BuildJSONPath(path, violationProperty)
+					updatedPaths[i] = model.GetStringTemplates().BuildJSONPath(p, violationProperty)
 				}
 			}
+			allPaths = updatedPaths
 		}
 	}
+	
 	result := model.RuleFunctionResult{
 		Message:   message,
 		StartNode: node,
 		EndNode:   vacuumUtils.BuildEndNode(node),
-		Path:      path,
+		Path:      locatedPath,
 		Rule:      context.Rule,
 	}
 	if len(allPaths) > 1 {

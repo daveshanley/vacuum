@@ -6,9 +6,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/daveshanley/vacuum/model/reports"
-	"github.com/daveshanley/vacuum/statistics"
-	"gopkg.in/yaml.v3"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,6 +14,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/statistics"
+	"gopkg.in/yaml.v3"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -298,7 +299,7 @@ func GetLintCommand() *cobra.Command {
 						ExtensionRefs:            extensionRefsFlag,
 						PipelineOutput:           pipelineOutput,
 						ShowRules:                showRules,
-						HTTPClientConfig:         utils.HTTPClientConfig{
+						HTTPClientConfig: utils.HTTPClientConfig{
 							CertFile: certFile,
 							KeyFile:  keyFile,
 							CAFile:   caFile,

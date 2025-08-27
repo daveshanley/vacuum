@@ -14,8 +14,8 @@ require (
 	github.com/gizak/termui/v3 v3.1.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/pb33f/doctor v0.0.32
-	github.com/pb33f/libopenapi v0.25.2
+	github.com/pb33f/doctor v0.0.36
+	github.com/pb33f/libopenapi v0.25.8
 	github.com/pb33f/libopenapi-validator v0.4.7
 	github.com/pterm/pterm v0.12.81
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
@@ -24,7 +24,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/tliron/glsp v0.2.2
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
 	golang.org/x/text v0.27.0
@@ -77,9 +77,9 @@ require (
 	github.com/tliron/kutil v0.3.26 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
-	golang.org/x/net v0.40.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
+	golang.org/x/crypto v0.40.0 // indirect
+	golang.org/x/net v0.42.0 // indirect
+	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/term v0.33.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

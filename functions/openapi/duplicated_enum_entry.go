@@ -48,13 +48,28 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 
 			// iterate through duplicate results and add results.
 			for _, res := range duplicates {
+				// Find all locations where this schema appears
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema, 
+					schema.Value.GoLow().Type.KeyNode, schema.Value.GoLow().Type.ValueNode)
+				
 				result := model.RuleFunctionResult{
 					Message:   fmt.Sprintf("enum contains a duplicate: `%s`", res.Value),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
-					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "enum"),
+					Path:      fmt.Sprintf("%s.%s", locatedPath, "enum"),
 					Rule:      context.Rule,
 				}
+				
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					// Add .enum suffix to all paths
+					enumPaths := make([]string, len(allPaths))
+					for i, p := range allPaths {
+						enumPaths[i] = fmt.Sprintf("%s.%s", p, "enum")
+					}
+					result.Paths = enumPaths
+				}
+				
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}

@@ -45,6 +45,12 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 	}
 
 	buildResult := func(message, path string, key, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
+		// Try to find all paths for this node if it's a schema
+		var allPaths []string
+		if schema, ok := component.(*v3.Schema); ok {
+			_, allPaths = vacuumUtils.LocateSchemaPropertyPaths(context, schema, key, node)
+		}
+		
 		result := model.RuleFunctionResult{
 			Message:   message,
 			StartNode: key,
@@ -52,6 +58,12 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			Path:      path,
 			Rule:      context.Rule,
 		}
+		
+		// Set the Paths array if we found multiple locations
+		if len(allPaths) > 1 {
+			result.Paths = allPaths
+		}
+		
 		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
