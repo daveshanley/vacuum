@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"reflect"
+	"regexp"
+	"strings"
 )
 
 // MarshalingIssue represents a location where JSON marshaling will fail
@@ -35,7 +37,7 @@ func CheckJSONMarshaling(data interface{}, rootNode *yaml.Node) []MarshalingIssu
 	// The error usually contains "json: unsupported type: map[interface {}]interface {}"
 	// This means we have maps with non-string keys
 	if rootNode != nil {
-		findMarshalingIssues(rootNode, "", &issues)
+		findMarshalingIssues(rootNode, "$", &issues)
 	}
 	
 	return issues
@@ -46,9 +48,21 @@ func CheckJSONMarshaling(data interface{}, rootNode *yaml.Node) []MarshalingIssu
 func FindMarshalingIssuesInYAML(rootNode *yaml.Node) []MarshalingIssue {
 	var issues []MarshalingIssue
 	if rootNode != nil {
-		findMarshalingIssues(rootNode, "", &issues)
+		findMarshalingIssues(rootNode, "$", &issues)
 	}
 	return issues
+}
+
+// Regular expression to identify keys that need to be quoted in JSONPath
+var needsQuotingRegex = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
+// formatAsJSONPath formats a key for use in JSONPath notation.
+// Keys with special characters are wrapped in ['key'] notation.
+func formatAsJSONPath(key string) string {
+	if needsQuotingRegex.MatchString(key) {
+		return "['" + key + "']"
+	}
+	return "." + key
 }
 
 // findMarshalingIssues recursively walks the YAML AST to find marshaling problems
@@ -72,13 +86,14 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
 			
-			// Build path efficiently
+			// Build JSONPath efficiently
 			var keyPath string
-			if currentPath == "" {
-				keyPath = keyNode.Value
+			if currentPath == "$" {
+				// At root level, append directly after $
+				keyPath = "$" + formatAsJSONPath(keyNode.Value)
 			} else {
-				// Use more efficient string building for paths
-				keyPath = currentPath + "." + keyNode.Value
+				// Append to existing path
+				keyPath = currentPath + formatAsJSONPath(keyNode.Value)
 			}
 			
 			// Check if the key is not a string (this is a marshaling problem)
@@ -87,6 +102,23 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 				switch keyNode.Tag {
 				case "!!int":
 					keyType = "integer"
+					// Special case: HTTP status codes in responses should be treated as strings
+					// Check if the current path ends with ".responses" or "['responses']"
+					if strings.HasSuffix(currentPath, ".responses") || strings.HasSuffix(currentPath, "['responses']") {
+						// Treat as a string key (HTTP status code)
+						if currentPath == "$" {
+							keyPath = "$['" + keyNode.Value + "']"
+						} else {
+							keyPath = currentPath + "['" + keyNode.Value + "']"
+						}
+					} else {
+						// For other integer keys, use them as numeric indices without quotes
+						if currentPath == "$" {
+							keyPath = "$[" + keyNode.Value + "]"
+						} else {
+							keyPath = currentPath + "[" + keyNode.Value + "]"
+						}
+					}
 				case "!!float":
 					keyType = "float"  
 				case "!!bool":
