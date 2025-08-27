@@ -7,6 +7,8 @@ package openapi
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/helpers"
@@ -15,7 +17,6 @@ import (
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
 	"gopkg.in/yaml.v3"
-	"strings"
 )
 
 // OASSchema  will check that the document is a valid OpenAPI schema.
@@ -55,7 +56,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	// Don't depend on info.SpecJSON as it may be nil or in an inconsistent state
 	// This catches issues like maps with non-string keys that would cause validation to fail
 	var marshalingIssues []vacuumUtils.MarshalingIssue
-	
+
 	if info.RootNode != nil && info.SpecBytes != nil {
 		// Decode the YAML ourselves to check for marshaling issues
 		var yamlData interface{}
@@ -70,7 +71,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			marshalingIssues = vacuumUtils.FindMarshalingIssuesInYAML(info.RootNode)
 		}
 	}
-	
+
 	if len(marshalingIssues) > 0 {
 		// Report all marshaling issues
 		for _, issue := range marshalingIssues {
@@ -78,9 +79,9 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				Line:   issue.Line,
 				Column: issue.Column,
 			}
-			
+
 			result := model.RuleFunctionResult{
-				Message:   fmt.Sprintf("schema invalid: Cannot marshal: %s", issue.Reason),
+				Message:   fmt.Sprintf("schema invalid: cannot marshal: %s", issue.Reason),
 				StartNode: n,
 				EndNode:   vacuumUtils.BuildEndNode(n),
 				Path:      issue.Path,
