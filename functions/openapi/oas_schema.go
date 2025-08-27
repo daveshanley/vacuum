@@ -51,6 +51,48 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
+	// Always check if the document can be marshaled to JSON ourselves
+	// Don't depend on info.SpecJSON as it may be nil or in an inconsistent state
+	// This catches issues like maps with non-string keys that would cause validation to fail
+	var marshalingIssues []vacuumUtils.MarshalingIssue
+	
+	if info.RootNode != nil && info.SpecBytes != nil {
+		// Decode the YAML ourselves to check for marshaling issues
+		var yamlData interface{}
+		decoder := yaml.NewDecoder(strings.NewReader(string(*info.SpecBytes)))
+		if err := decoder.Decode(&yamlData); err == nil {
+			// Check if it can marshal to JSON
+			marshalingIssues = vacuumUtils.CheckJSONMarshaling(yamlData, info.RootNode)
+			// Clear the decoded data to free memory
+			yamlData = nil
+		} else {
+			// If we can't decode the YAML, check the AST directly for issues
+			marshalingIssues = vacuumUtils.FindMarshalingIssuesInYAML(info.RootNode)
+		}
+	}
+	
+	if len(marshalingIssues) > 0 {
+		// Report all marshaling issues
+		for _, issue := range marshalingIssues {
+			n := &yaml.Node{
+				Line:   issue.Line,
+				Column: issue.Column,
+			}
+			
+			result := model.RuleFunctionResult{
+				Message:   fmt.Sprintf("schema invalid: Cannot marshal: %s", issue.Reason),
+				StartNode: n,
+				EndNode:   vacuumUtils.BuildEndNode(n),
+				Path:      issue.Path,
+				Rule:      context.Rule,
+			}
+			results = append(results, result)
+		}
+		// Return marshaling errors without attempting schema validation
+		// since it would fail with unhelpful "got null, want object" errors
+		return results
+	}
+
 	// use libopenapi-validator
 	valid, validationErrors := schema_validation.ValidateOpenAPIDocument(context.Document)
 	if valid {
