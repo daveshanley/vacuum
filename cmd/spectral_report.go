@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -199,7 +200,15 @@ func GetSpectralReportCommand() *cobra.Command {
 			if stdIn {
 				source = "stdin"
 			} else {
-				source = args[0] // todo: convert to full path.
+				source = args[0]
+				// Make the path relative to current working directory for consistency
+				if absPath, err := filepath.Abs(source); err == nil {
+					if cwd, err := os.Getwd(); err == nil {
+						if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+							source = relPath
+						}
+					}
+				}
 			}
 			// serialize
 			spectralReport := resultSet.GenerateSpectralReport(source)

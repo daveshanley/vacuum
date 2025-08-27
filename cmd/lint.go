@@ -630,9 +630,16 @@ func processResults(results []*model.RuleFunctionResult,
 	}
 
 	if !silent {
-		pterm.Println(pterm.LightMagenta(fmt.Sprintf("\n%s", abs)))
-		underline := make([]string, len(abs))
-		for x := range abs {
+		// Make the header path relative to current working directory
+		displayPath := abs
+		if cwd, err := os.Getwd(); err == nil {
+			if relPath, err := filepath.Rel(cwd, abs); err == nil {
+				displayPath = relPath
+			}
+		}
+		pterm.Println(pterm.LightMagenta(fmt.Sprintf("\n%s", displayPath)))
+		underline := make([]string, len(displayPath))
+		for x := range displayPath {
 			underline[x] = "-"
 		}
 		pterm.Println(pterm.LightMagenta(strings.Join(underline, "")))
@@ -668,9 +675,26 @@ func processResults(results []*model.RuleFunctionResult,
 			startCol = r.StartNode.Column
 		}
 
+		// Start with the filename and make it relative
 		f := filename
+		if absPath, err := filepath.Abs(f); err == nil {
+			if cwd, err := os.Getwd(); err == nil {
+				if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+					f = relPath
+				}
+			}
+		}
+		
+		// If we have origin info, use that instead (and also make it relative)
 		if r.Origin != nil {
 			f = r.Origin.AbsoluteLocation
+			if absPath, err := filepath.Abs(f); err == nil {
+				if cwd, err := os.Getwd(); err == nil {
+					if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+						f = relPath
+					}
+				}
+			}
 			startLine = r.Origin.Line
 			startCol = r.Origin.Column
 		}
