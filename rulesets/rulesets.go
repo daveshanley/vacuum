@@ -122,6 +122,7 @@ const (
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
+	VacuumAllRulesets                    = "vacuum:all"  // Combined OpenAPI + OWASP rules
 	VacuumRecommended                    = "recommended"
 	VacuumAll                            = "all"
 	VacuumOff                            = "off"
@@ -224,6 +225,27 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 	// all rules
 	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
 		rs = rsm.openAPIRuleSet
+	}
+
+	// vacuum:all - combines both OpenAPI and OWASP rules
+	if extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
+		// Start with OpenAPI rules
+		rs = rsm.openAPIRuleSet
+		// Add all OWASP rules
+		for ruleName, rule := range GetAllOWASPRules() {
+			rs.Rules[ruleName] = rule
+		}
+		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/all-combined"
+		rs.Description = "All OpenAPI and OWASP rules combined"
+	}
+
+	// vacuum:all with off - start with empty ruleset
+	if extends[VacuumAllRulesets] == VacuumOff {
+		if rs.DocumentationURI == "" {
+			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
+		}
+		rs.Rules = make(map[string]*model.Rule)
+		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
 	// no rules!
@@ -332,11 +354,24 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		// otherwise it means delete it
 		if eval, ok := v.(bool); ok {
 			if eval {
-				if rsm.openAPIRuleSet.Rules[k] == nil {
-					rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
-					continue
+				// First check if it's in the OpenAPI ruleset
+				if rsm.openAPIRuleSet.Rules[k] != nil {
+					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
+				} else {
+					// Check if it's an OWASP rule when vacuum:all is used
+					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
+						allOWASPRules := GetAllOWASPRules()
+						if allOWASPRules[k] != nil {
+							rs.Rules[k] = allOWASPRules[k]
+						} else {
+							rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
+							continue
+						}
+					} else {
+						rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
+						continue
+					}
 				}
-				rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
 			} else {
 				delete(rs.Rules, k) // remove it completely
 			}
