@@ -23,6 +23,7 @@ type VacuumReport struct {
 	SpecInfo       *datamodel.SpecInfo              `json:"specInfo" yaml:"specInfo"`
 	Statistics     *reports.ReportStatistics        `json:"statistics" yaml:"statistics"`
 	ResultSet      *model.RuleResultSet             `json:"resultSet" yaml:"resultSet"`
+	Rules          map[string]*model.Rule           `json:"rules,omitempty" yaml:"rules,omitempty"` // Store rule definitions for custom rules
 	DocumentConfig *datamodel.DocumentConfiguration `json:"-" yaml:"-"`
 	Execution      *motor.RuleSetExecution          `json:"-" yaml:"-"`
 }
@@ -48,9 +49,25 @@ func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
 	// application has no idea that we're replaying and will perform normally. We want to go as fast as possible here,
 	// so for each result, run each re-build in a new thread.
 	var wg sync.WaitGroup
+	
+	// Build a map of rules, preferring embedded rules over default rules
+	rulesMap := make(map[string]*model.Rule)
+	
+	// First, add default rules as a fallback
 	de := rulesets.BuildDefaultRuleSets()
 	rs := de.GenerateOpenAPIDefaultRuleSet()
-	var rebuildNode = func(res *model.RuleFunctionResult, wg *sync.WaitGroup, rs *rulesets.RuleSet) {
+	for k, v := range rs.Rules {
+		rulesMap[k] = v
+	}
+	
+	// Then override with any rules stored in the report (including custom rules)
+	if vr.Rules != nil {
+		for k, v := range vr.Rules {
+			rulesMap[k] = v
+		}
+	}
+	
+	var rebuildNode = func(res *model.RuleFunctionResult, wg *sync.WaitGroup, rules map[string]*model.Rule) {
 		r := res.Range
 		res.StartNode = new(yaml.Node)
 		res.EndNode = new(yaml.Node)
@@ -58,14 +75,14 @@ func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
 		res.StartNode.Column = r.Start.Char
 		res.EndNode.Line = r.End.Line
 		res.EndNode.Column = r.End.Char
-		res.Rule = rs.Rules[res.RuleId]
+		res.Rule = rules[res.RuleId]
 		wg.Done()
 	}
 
 	wg.Add(len(vr.ResultSet.Results))
 	for _, res := range vr.ResultSet.Results {
 		// go fast!
-		go rebuildNode(res, &wg, rs)
+		go rebuildNode(res, &wg, rulesMap)
 	}
 	wg.Wait()
 	return vr, bytes, nil
