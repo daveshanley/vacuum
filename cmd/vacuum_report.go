@@ -253,12 +253,21 @@ func GetVacuumReportCommand() *cobra.Command {
 			// generate statistics
 			stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
+			// Extract all unique rules used in the results
+			usedRules := make(map[string]*model.Rule)
+			for _, result := range resultSet.Results {
+				if result.Rule != nil && result.RuleId != "" {
+					usedRules[result.RuleId] = result.Rule
+				}
+			}
+
 			// create vacuum report
 			vr := vacuum_report.VacuumReport{
 				Generated:  time.Now(),
 				SpecInfo:   ruleset.SpecInfo,
 				ResultSet:  resultSet,
 				Statistics: stats,
+				Rules:      usedRules,
 			}
 
 			if noPretty || compress {
