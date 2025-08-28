@@ -346,7 +346,19 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 				break
 			}
 
-			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) == nil && !polyDefined {
+			// Check if the required field is defined in properties (direct or polymorphic)
+			propertyExists := false
+			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) != nil {
+				propertyExists = true
+			}
+			
+			// If not in direct properties, check if it was found in polymorphic schemas
+			if !propertyExists && polyDefined {
+				propertyExists = true
+			}
+			
+			// Report error if property is not defined anywhere
+			if !propertyExists {
 				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
 					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
