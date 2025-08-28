@@ -72,5 +72,15 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 3)
+	// With the fix for issue #644, we now correctly detect ambiguities where
+	// a literal path segment can be confused with a variable segment
+	// The expected ambiguous pairs are:
+	// 1. /good/{id} vs /good/last (literal 'last' conflicts with variable {id})
+	// 2. /good/{id}/{pet} vs /good/last/{id} (literal 'last' conflicts with variable {id})
+	// 3. /good/{id} vs /{id}/ambiguous (literal 'good' conflicts with variable {id})
+	// 4. /{id}/ambiguous vs /ambiguous/{id} (literals/variables conflict)
+	// 5. /good/{id}/{pet} vs /{entity}/{id}/last (literal 'good' conflicts with variable {entity})
+	// 6. /good/last/{id} vs /{entity}/{id}/last (literal 'good' conflicts with variable {entity})
+	// 7. /{entity}/{id}/last vs /pet/first/{id} (literal 'pet' conflicts with variable {entity})
+	assert.Len(t, res, 7)
 }

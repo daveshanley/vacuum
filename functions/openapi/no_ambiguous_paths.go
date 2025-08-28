@@ -79,25 +79,34 @@ func checkPaths(pA, pB string) bool {
 		return false
 	}
 
-	a := 0
-	b := 0
-	amb := true
-	for i, part := range segsA {
-		aVar := reggie.MatchString(part)
+	// Two paths are considered ambiguous if they could match the same request URL
+	// This can happen in two scenarios:
+	// 1. Both paths have variables in the same positions and literals match (original behavior)
+	//    e.g., /{id}/ambiguous and /{entity}/ambiguous
+	// 2. One path has a variable where the other has a literal (issue #644)
+	//    e.g., /foo/{x} and /foo/bar
+	
+	hasConflict := false
+	for i := range segsA {
+		aVar := reggie.MatchString(segsA[i])
 		bVar := reggie.MatchString(segsB[i])
-		if aVar || bVar {
-			if aVar {
-				a++
-			}
-			if bVar {
-				b++
-			}
+		
+		if aVar && bVar {
+			// Both are variables - continue checking other segments
 			continue
-		} else {
+		} else if !aVar && !bVar {
+			// Both are literals - they must match
 			if segsA[i] != segsB[i] {
-				amb = false
+				return false
 			}
+		} else {
+			// One is a variable, one is a literal - this creates ambiguity
+			// Mark that we found a conflict, but keep checking other segments
+			hasConflict = true
 		}
 	}
-	return amb && a == b
+	
+	// Paths are ambiguous if we found at least one position where a variable 
+	// conflicts with a literal while all other segments are compatible
+	return hasConflict
 }
