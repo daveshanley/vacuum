@@ -332,6 +332,53 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	version := docResolved.GetVersion()
 
+	// When skip-check is enabled, the document version might not be detected
+	// but we still need to know if it's OAS2 or OAS3 for rule filtering
+	if version == "" && execution.SkipDocumentCheck && specInfo != nil {
+		// Try to detect the version from the spec directly
+		if specInfo.SpecType != "" {
+			if strings.HasPrefix(strings.ToLower(specInfo.SpecType), "swagger") {
+				version = "2.0"
+				specInfo.SpecFormat = model.OAS2
+				if specInfoUnresolved != nil {
+					specInfoUnresolved.SpecFormat = model.OAS2
+				}
+			} else if strings.HasPrefix(strings.ToLower(specInfo.SpecType), "openapi") {
+				// Try to get more specific version from SpecVersion field
+				if specInfo.Version != "" {
+					version = specInfo.Version
+					if strings.HasPrefix(specInfo.Version, "3.2") {
+						// Note: OAS 3.2 is set in specInfo when skip-check is NOT used,
+						// but libopenapi's BuildV3Model doesn't handle OAS32 yet, so we
+						// temporarily map it to OAS3 for model building while preserving
+						// the actual format for rule filtering
+						specInfo.SpecFormat = model.OAS32
+						if specInfoUnresolved != nil {
+							specInfoUnresolved.SpecFormat = model.OAS32
+						}
+					} else if strings.HasPrefix(specInfo.Version, "3.1") {
+						specInfo.SpecFormat = model.OAS31
+						if specInfoUnresolved != nil {
+							specInfoUnresolved.SpecFormat = model.OAS31
+						}
+					} else {
+						specInfo.SpecFormat = model.OAS3
+						if specInfoUnresolved != nil {
+							specInfoUnresolved.SpecFormat = model.OAS3
+						}
+					}
+				} else {
+					// Default to OAS3 if we know it's OpenAPI but not the specific version
+					version = "3.0"
+					specInfo.SpecFormat = model.OAS3
+					if specInfoUnresolved != nil {
+						specInfoUnresolved.SpecFormat = model.OAS3
+					}
+				}
+			}
+		}
+	}
+
 	var resolvingErrors []*index.ResolvingError
 	var circularReferences []*index.CircularReferenceResult
 

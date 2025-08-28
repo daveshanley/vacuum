@@ -14,14 +14,16 @@ const (
 	OAS2  = "oas2"
 	OAS3  = "oas3"
 	OAS31 = "oas3_1"
+	OAS32 = "oas3_2"
 )
 
 var OAS3_1Format = []string{OAS31}
+var OAS3_2Format = []string{OAS32}
 var AllExceptOAS3_1 = []string{OAS2, OAS3}
 var OAS3Format = []string{OAS3}
-var OAS3AllFormat = []string{OAS3, OAS31}
+var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
-var AllFormats = []string{OAS3, OAS31, OAS2}
+var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
 
 const WebsiteUrl = "https://quobix.com/vacuum"
 const GithubUrl = "https://github.com/daveshanley/vacuum"
