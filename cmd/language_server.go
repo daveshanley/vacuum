@@ -5,14 +5,18 @@
 package cmd
 
 import (
+	"fmt"
 	languageserver "github.com/daveshanley/vacuum/language-server"
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -40,8 +44,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
-			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
@@ -91,6 +96,18 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to parse ignore file: %w", ferr)
+				}
+			}
+
 			lfr := utils.LintFileRequest{
 				BaseFlag:                 baseFlag,
 				Remote:                   remoteFlag,
@@ -103,6 +120,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 				Logger:                   logger,
 				ExtensionRefs:            extensionRefsFlag,
+				IgnoredResults:           ignoredItems,
 			}
 
 			return languageserver.NewServer(Version, &lfr).Run()
@@ -110,5 +128,6 @@ IDE and start linting your OpenAPI documents in real-time.`,
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	return cmd
 }

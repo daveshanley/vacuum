@@ -6,9 +6,11 @@ package cmd
 import (
 	"errors"
 	html_report "github.com/daveshanley/vacuum/html-report"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
+	"gopkg.in/yaml.v3"
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
@@ -49,6 +51,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -90,6 +93,18 @@ func GetHTMLReportCommand() *cobra.Command {
 			var specInfo *datamodel.SpecInfo
 			var stats *reports.ReportStatistics
 
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to parse ignore file: %w", ferr)
+				}
+			}
+
 			// if we have a pre-compiled report, jump straight to the end and collect $500
 			if vacuumReport == nil {
 
@@ -110,7 +125,7 @@ func GetHTMLReportCommand() *cobra.Command {
 						KeyFile:  keyFile,
 						CAFile:   caFile,
 						Insecure: insecure,
-					})
+					}, ignoredItems)
 				if err != nil {
 					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
 					return err
@@ -124,6 +139,8 @@ func GetHTMLReportCommand() *cobra.Command {
 			} else {
 
 				resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
+				// Apply ignore filter to pre-compiled report results
+				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 				specInfo = vacuumReport.SpecInfo
 				stats = vacuumReport.Statistics
 				specInfo.Generated = vacuumReport.Generated
@@ -156,6 +173,7 @@ func GetHTMLReportCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 
 	return cmd
 }

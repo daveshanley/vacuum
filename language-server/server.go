@@ -134,6 +134,9 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 			SkipDocumentCheck:            s.lintRequest.SkipCheckFlag,
 			Logger:                       s.lintRequest.Logger,
 		})
+		// Filter ignored results before converting to diagnostics
+		filteredResults := utils.FilterIgnoredResults(result.Results, s.lintRequest.IgnoredResults)
+		result.Results = filteredResults
 		diagnostics := ConvertResultsIntoDiagnostics(result)
 		if len(diagnostics) > 0 {
 			go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
