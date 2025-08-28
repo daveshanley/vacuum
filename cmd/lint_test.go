@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -528,7 +529,7 @@ func TestFilterIgnoredResults(t *testing.T) {
 		"YYY": []string{"a/b"},
 	}
 
-	results = filterIgnoredResults(results, igItems)
+	results = utils.FilterIgnoredResults(results, igItems)
 
 	expected := []model.RuleFunctionResult{
 		{Path: "a/b", Rule: &model.Rule{Id: "XXX"}},

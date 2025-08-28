@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -16,12 +17,13 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"net/url"
+	"os"
 	"time"
 )
 
 func GetDashboardCommand() *cobra.Command {
 
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:     "dashboard",
 		Short:   "Show vacuum dashboard for linting report",
 		Long:    "Interactive console dashboard to explore linting report in detail",
@@ -48,6 +50,7 @@ func GetDashboardCommand() *cobra.Command {
 			silent, _ := cmd.Flags().GetBool("silent")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
@@ -60,6 +63,18 @@ func GetDashboardCommand() *cobra.Command {
 			var ruleset *motor.RuleSetExecutionResult
 			var specIndex *index.SpecIndex
 			var specInfo *datamodel.SpecInfo
+
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to parse ignore file: %w", ferr)
+				}
+			}
 
 			// if we have a pre-compiled report, jump straight to the end and collect $500
 			if vacuumReport == nil {
@@ -80,7 +95,7 @@ func GetDashboardCommand() *cobra.Command {
 						KeyFile:  keyFile,
 						CAFile:   caFile,
 						Insecure: insecure,
-					})
+					}, ignoredItems)
 				if err != nil {
 					pterm.Error.Printf("Failed to render dashboard: %v\n\n", err)
 					return err
@@ -92,6 +107,7 @@ func GetDashboardCommand() *cobra.Command {
 			} else {
 
 				resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
+				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 
 				// TODO: refactor dashboard to hold state and rendering as separate entities.
 				// dashboard will be slower because it needs an index
@@ -138,4 +154,6 @@ func GetDashboardCommand() *cobra.Command {
 			return dash.Render()
 		},
 	}
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	return cmd
 }

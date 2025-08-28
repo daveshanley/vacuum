@@ -448,7 +448,7 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 		HTTPClientConfig:                req.HTTPClientConfig,
 	})
 
-	result.Results = filterIgnoredResults(result.Results, req.IgnoredResults)
+	result.Results = utils.FilterIgnoredResults(result.Results, req.IgnoredResults)
 
 	if len(result.Errors) > 0 {
 		for _, err := range result.Errors {
@@ -567,50 +567,6 @@ func lintFile(req utils.LintFileRequest) (*reports.ReportStatistics, int64, int,
 	return stats, result.FileSize, result.FilesProcessed, CheckFailureSeverity(req.FailSeverityFlag, errs, warnings, informs)
 }
 
-// filterIgnoredResultsPtr filters the given results slice, taking out any (RuleID, Path) combos that were listed in the
-// ignore file
-func filterIgnoredResultsPtr(results []*model.RuleFunctionResult, ignored model.IgnoredItems) []*model.RuleFunctionResult {
-	var filteredResults []*model.RuleFunctionResult
-
-	for _, r := range results {
-
-		var found bool
-		for _, i := range ignored[r.Rule.Id] {
-			if len(r.Paths) > 0 {
-				for _, p := range r.Paths {
-					if p == i {
-						found = true
-						break
-					}
-				}
-			}
-			if r.Path == i {
-				found = true
-				break
-			}
-
-		}
-		if !found {
-			filteredResults = append(filteredResults, r)
-		}
-	}
-
-	return filteredResults
-}
-
-// filterIgnoredResults does the filtering of ignored results on non-pointer result elements
-func filterIgnoredResults(results []model.RuleFunctionResult, ignored model.IgnoredItems) []model.RuleFunctionResult {
-	resultsPtrs := make([]*model.RuleFunctionResult, 0, len(results))
-	for _, r := range results {
-		r := r // prevent loop memory aliasing
-		resultsPtrs = append(resultsPtrs, &r)
-	}
-	resultsFiltered := make([]model.RuleFunctionResult, 0, len(results))
-	for _, r := range filterIgnoredResultsPtr(resultsPtrs, ignored) {
-		resultsFiltered = append(resultsFiltered, *r)
-	}
-	return resultsFiltered
-}
 
 func processResults(results []*model.RuleFunctionResult,
 	specData []string,

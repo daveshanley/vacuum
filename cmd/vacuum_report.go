@@ -216,7 +216,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			resultSet := model.NewRuleResultSet(ruleset.Results)
 			resultSet.SortResultsByLineNumber()
 
-			resultSet.Results = filterIgnoredResultsPtr(resultSet.Results, ignoredItems)
+			resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 
 			duration := time.Since(start)
 

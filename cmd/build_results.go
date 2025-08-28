@@ -23,8 +23,9 @@ func BuildResults(
 	base string,
 	remote bool,
 	timeout time.Duration,
-	httpClientConfig utils.HTTPClientConfig) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, httpClientConfig)
+	httpClientConfig utils.HTTPClientConfig,
+	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, httpClientConfig, ignoredItems)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -37,7 +38,8 @@ func BuildResultsWithDocCheckSkip(
 	remote bool,
 	skipCheck bool,
 	timeout time.Duration,
-	httpClientConfig utils.HTTPClientConfig) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	httpClientConfig utils.HTTPClientConfig,
+	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -116,5 +118,6 @@ func BuildResultsWithDocCheckSkip(
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	resultSet.SortResultsByLineNumber()
+	resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 	return resultSet, ruleset, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
+	"gopkg.in/yaml.v3"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"net/http"
@@ -51,6 +52,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -108,6 +110,18 @@ func GetSpectralReportCommand() *cobra.Command {
 				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
 				pterm.Println()
 				return fileError
+			}
+
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to parse ignore file: %w", ferr)
+				}
 			}
 
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
@@ -194,6 +208,8 @@ func GetSpectralReportCommand() *cobra.Command {
 			resultSet := model.NewRuleResultSet(ruleset.Results)
 			resultSet.SortResultsByLineNumber()
 
+			resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
+
 			duration := time.Since(start)
 
 			var source string
@@ -246,6 +262,7 @@ func GetSpectralReportCommand() *cobra.Command {
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	return cmd
 
 }
