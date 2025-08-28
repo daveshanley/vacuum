@@ -218,6 +218,128 @@ components:
 	assert.Len(t, res, 0)
 }
 
+func TestSchemaType_Issue629_CronPattern(t *testing.T) {
+	// Test case from issue #629
+	// The pattern should be valid according to ECMA-262 regex specification
+	yml := `openapi: "3.0.3"
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    cronSchedule:
+      type: object
+      properties:
+        schedule:
+          type: string
+          default: "*/15 * * * *"
+          pattern: "(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\\d+(ns|us|µs|ms|s|m|h))+)|((((\\d+,)+\\d+|(\\d+(/|-)\\d+)|\\d+|\\*) ?){5,7})"
+          title: "Cron Schedule Pattern"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "schemaTypeCheck",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	st := SchemaTypeCheck{}
+	res := st.RunRule(nil, ctx)
+
+	// The pattern should be valid - no errors expected
+	assert.Empty(t, res)
+}
+
+func TestSchemaType_Issue629_InvalidPattern(t *testing.T) {
+	// Test with an actually invalid regex pattern to ensure error detection works
+	yml := `openapi: "3.0.3"
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    badPattern:
+      type: string
+      pattern: "[unclosed"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "schemaTypeCheck",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	st := SchemaTypeCheck{}
+	res := st.RunRule(nil, ctx)
+
+	// Should detect the invalid pattern
+	assert.NotEmpty(t, res)
+	assert.Contains(t, res[0].Message, "pattern")
+	assert.Contains(t, res[0].Message, "ECMA-262")
+}
+
+func TestSchemaType_Issue629_PatternWithSpecialChars(t *testing.T) {
+	// Test patterns with various special characters that need proper escaping
+	yml := `openapi: "3.0.3"
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    specialChars:
+      type: string
+      pattern: '[''"]'
+    backslashes:
+      type: string
+      pattern: '\\d{3}-\\d{3}-\\d{4}'
+    unicodeChars:
+      type: string
+      pattern: '[\u0041-\u005A]+'`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "schemaTypeCheck",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	st := SchemaTypeCheck{}
+	res := st.RunRule(nil, ctx)
+
+	// All patterns should be valid - no errors expected
+	assert.Empty(t, res)
+}
+
 func TestSchemaType_MultipleOf(t *testing.T) {
 
 	yml := `openapi: 3.1
