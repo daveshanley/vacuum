@@ -238,8 +238,22 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	if execution.AllowLookup {
 		if indexConfig.BasePath == "" && indexConfig.BaseURL == nil {
-			indexConfig.BasePath = "."
-			docConfig.BasePath = "."
+			// Use the directory of the spec file as the base path if available
+			// This ensures relative references in the spec work correctly
+			if execution.SpecFileName != "" {
+				specDir := filepath.Dir(execution.SpecFileName)
+				if specDir != "" && specDir != "." {
+					indexConfig.BasePath = specDir
+					docConfig.BasePath = specDir
+					indexConfigUnresolved.BasePath = specDir
+				} else {
+					indexConfig.BasePath = "."
+					docConfig.BasePath = "."
+				}
+			} else {
+				indexConfig.BasePath = "."
+				docConfig.BasePath = "."
+			}
 		}
 		indexConfig.AllowFileLookup = true
 		indexConfigUnresolved.AllowFileLookup = true

@@ -1,0 +1,4 @@
+example:
+  message: This is a YAML file that can be parsed
+  code: |
+    echo "Hello World"

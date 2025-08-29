@@ -2,6 +2,14 @@ package motor
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -9,11 +17,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
-	"log"
-	"os"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -2491,4 +2494,86 @@ security:
 		go run(&wg)
 	}
 	wg.Wait()
+}
+
+// TestIssue523_ExtensionReferenceToNonYAMLFile tests that vacuum handles references
+// to non-YAML files (like .go files) in extensions when ext-refs flag is enabled
+// Issue: https://github.com/daveshanley/vacuum/issues/523
+func TestIssue523_ExtensionReferenceToNonYAMLFile(t *testing.T) {
+	// Load the test spec
+	testFile := "../model/test_files/issue523_spec.yaml"
+	specBytes, err := os.ReadFile(testFile)
+	assert.NoError(t, err)
+
+	// Test with ext-refs disabled (default behavior)
+	t.Run("ext-refs disabled", func(t *testing.T) {
+		// Load default rulesets
+		defaultRuleSets := rulesets.BuildDefaultRuleSets()
+		
+		// Use the recommended ruleset
+		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+		// Set base path to where the files are
+		execution := &RuleSetExecution{
+			RuleSet:                         selectedRS,
+			SpecFileName:                    testFile,
+			Spec:                            specBytes,
+			ExtractReferencesFromExtensions: false, // ext-refs disabled
+			Base:                            filepath.Dir(testFile),
+			AllowLookup:                     true,
+			SilenceLogs:                     true,
+		}
+
+		results := ApplyRulesToRuleSet(execution)
+
+		// With ext-refs disabled, references in extensions should be ignored
+		// so we shouldn't get errors about references in x-codeSamples
+		refErrors := 0
+		for _, res := range results.Results {
+			if res.Rule.Id == "resolving-references" && strings.Contains(res.Message, "issue523") {
+				refErrors++
+			}
+		}
+
+		// When ext-refs is disabled, references in extensions should be ignored
+		assert.Equal(t, 0, refErrors, "Should not have reference errors for files in x-codeSamples when ext-refs is disabled")
+	})
+
+	// Test with ext-refs enabled
+	t.Run("ext-refs enabled", func(t *testing.T) {
+		// Load default rulesets
+		defaultRuleSets := rulesets.BuildDefaultRuleSets()
+		
+		// Use the recommended ruleset
+		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+		// Set base path to where the files are
+		execution := &RuleSetExecution{
+			RuleSet:                         selectedRS,
+			SpecFileName:                    testFile,
+			Spec:                            specBytes,
+			ExtractReferencesFromExtensions: true, // ext-refs enabled
+			Base:                            filepath.Dir(testFile),
+			AllowLookup:                     true,
+			SilenceLogs:                     true,
+		}
+
+		results := ApplyRulesToRuleSet(execution)
+
+		// With ext-refs enabled and the fix applied, vacuum should now be able to
+		// find and load the referenced files without errors
+		refErrors := 0
+		for _, res := range results.Results {
+			// Look for any errors related to our test files
+			if strings.Contains(res.Message, "issue523_echo.go") || strings.Contains(res.Message, "issue523_test.yaml") {
+				if res.Rule.Id == "resolving-references" || res.Rule.Id == "oas3-unused-component" {
+					refErrors++
+				}
+			}
+		}
+
+		// After the fix, the files should be found and loaded successfully
+		// The rolodex can handle non-YAML files by creating a fake YAML node with the content
+		assert.Equal(t, 0, refErrors, "Should not have reference errors after fix - files are found and loaded")
+	})
 }
