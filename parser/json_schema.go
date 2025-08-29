@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
@@ -225,6 +226,26 @@ func ConvertNodeDefinitionIntoSchema(node *yaml.Node) (*Schema, error) {
 	}
 }
 
+// Global validator instance and mutex to ensure thread-safe schema validation
+// This fixes issue #512 where concurrent validations cause non-deterministic results
+var (
+	globalValidator     schema_validation.SchemaValidator
+	globalValidatorOnce sync.Once
+	globalValidatorMu   sync.Mutex
+)
+
+// getGlobalValidator returns a singleton validator instance
+func getGlobalValidator(ctx *model.RuleFunctionContext) schema_validation.SchemaValidator {
+	globalValidatorOnce.Do(func() {
+		if ctx != nil && ctx.Logger != nil {
+			globalValidator = schema_validation.NewSchemaValidatorWithLogger(ctx.Logger)
+		} else {
+			globalValidator = schema_validation.NewSchemaValidator()
+		}
+	})
+	return globalValidator
+}
+
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
 func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
 	// convert node to raw yaml first, then convert to json to be used in schema validation
@@ -252,11 +273,14 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	var decoded any
 	_ = json.Unmarshal(n, &decoded)
 
-	var validator schema_validation.SchemaValidator
-	if ctx != nil && ctx.Logger != nil {
-		validator = schema_validation.NewSchemaValidatorWithLogger(ctx.Logger)
-	} else {
-		validator = schema_validation.NewSchemaValidator()
-	}
+	// Use global validator with mutex protection to prevent concurrent schema mutations
+	// This ensures thread-safe validation when multiple goroutines validate schemas
+	validator := getGlobalValidator(ctx)
+	
+	// Lock to ensure only one validation happens at a time
+	// This prevents race conditions in schema.RenderInline() which mutates internal state
+	globalValidatorMu.Lock()
+	defer globalValidatorMu.Unlock()
+	
 	return validator.ValidateSchemaObject(schema, decoded)
 }
