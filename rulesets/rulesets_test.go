@@ -14,9 +14,9 @@ import (
 	"time"
 )
 
-var totalRules = 60
+var totalRules = 61
 var totalOwaspRules = 23
-var totalRecommendedRules = 48
+var totalRecommendedRules = 49
 
 func TestBuildDefaultRuleSets(t *testing.T) {
 

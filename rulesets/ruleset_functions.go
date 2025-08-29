@@ -1288,6 +1288,26 @@ func GetSchemaTypeCheckRule() *model.Rule {
 	}
 }
 
+// GetMissingTypeRule will check that all schemas and their properties have a type defined
+func GetMissingTypeRule() *model.Rule {
+	return &model.Rule{
+		Name:         "schemas and properties must have a type defined",
+		Id:           OasMissingType,
+		Formats:      model.OAS3AllFormat,
+		Description:  "All schemas and their properties should have a type field (unless using enum, const, or a composition)",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityInfo,
+		Then: model.RuleAction{
+			Function: "missingType",
+		},
+		HowToFix: "Add a `type` field to all schemas and properties. Valid types are: string, number, integer, boolean, array, object, or null.",
+	}
+}
+
 // GetPostSuccessResponseRule will check that all POST operations have a success response defined.
 func GetPostSuccessResponseRule() *model.Rule {
 	opts := make(map[string][]string)
