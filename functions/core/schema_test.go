@@ -233,3 +233,316 @@ properties:
 	assert.Equal(t, "schema must be valid: `lolly`, is missing and is required", res[0].Message)
 
 }
+
+// Test for Issue #490 - Auto-enable forceValidationOnCurrentNode for root validation
+func TestSchema_AutoEnableRootValidation_AdditionalProperties(t *testing.T) {
+	// Test case where additional properties should be rejected
+	yml := `consumers:
+  - name: Consumer 1
+    id: consumer-1
+services:
+  - name: Service 1
+    id: service-1`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	validate := `type: object
+properties:
+  consumers:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+additionalProperties: false`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			// No field specified - should auto-enable root validation
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Ensure only consumer entities allowed",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "additional properties 'services' not allowed")
+}
+
+func TestSchema_AutoEnableRootValidation_ValidDocument(t *testing.T) {
+	// Test case where document is valid
+	yml := `consumers:
+  - name: Consumer 1
+    id: consumer-1
+  - name: Consumer 2
+    id: consumer-2`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	validate := `type: object
+properties:
+  consumers:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+additionalProperties: false`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			// No field specified - should auto-enable root validation
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Ensure only consumer entities allowed",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0) // Should pass validation
+}
+
+func TestSchema_AutoEnableRootValidation_WithField(t *testing.T) {
+	// Test that auto-enable doesn't happen when a field is specified
+	yml := `consumers:
+  - name: Consumer 1
+    id: consumer-1
+extra: "should not matter"`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	validate := `type: array
+items:
+  type: object
+  properties:
+    name:
+      type: string
+    id:
+      type: string`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "consumers", // Field is specified
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Validate consumers field",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0) // Should pass - only validates consumers field
+}
+
+func TestSchema_AutoEnableRootValidation_NonRootPath(t *testing.T) {
+	// Test that auto-enable doesn't happen for non-root paths
+	yml := `root:
+  nested:
+    value: test
+    extra: field`
+
+	path := "$.root.nested"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	validate := `type: object
+properties:
+  value:
+    type: string
+additionalProperties: false`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+	// Need to explicitly enable forceValidationOnCurrentNode for non-root paths
+	opts["forceValidationOnCurrentNode"] = true
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			// No field, but path is not root - auto-enable won't trigger
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Validate nested object",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// Should fail because it validates the nested object
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "additional properties 'extra' not allowed")
+}
+
+func TestSchema_AutoEnableRootValidation_NonRootPath_NoAutoEnable(t *testing.T) {
+	// Test that auto-enable truly doesn't happen for non-root paths without explicit force
+	yml := `root:
+  nested:
+    someField:
+      value: test`
+
+	path := "$.root"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	validate := `type: object
+properties:
+  value:
+    type: string
+required: [value]`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "nested", // Looking for a field
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Validate nested field",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// Should fail - nested.someField doesn't have required 'value' property
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "missing property 'value'")
+}
+
+func TestSchema_ExplicitForceValidationOnCurrentNode(t *testing.T) {
+	// Test that explicit forceValidationOnCurrentNode still works
+	yml := `consumers:
+  - name: Consumer 1
+    id: consumer-1
+services:
+  - name: Service 1`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	validate := `type: object
+properties:
+  consumers:
+    type: array
+additionalProperties: false`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+	opts["forceValidationOnCurrentNode"] = true // Explicitly set
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "someField", // Even with field, explicit force should work
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Force validation on current node",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "additional properties 'services' not allowed")
+}
