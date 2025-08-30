@@ -60,7 +60,7 @@ func BuildResultsWithDocCheckSkip(
 		if !silent {
 			box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
 			box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-			box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
+			box.Println(pterm.LightRed(HardModeEnabled))
 			pterm.Println()
 		}
 	}
@@ -99,6 +99,16 @@ func BuildResultsWithDocCheckSkip(
 			selectedRS, rsErr = BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, defaultRuleSets, httpClient)
 			if rsErr != nil {
 				return nil, nil, rsErr
+			}
+		}
+
+		// Merge OWASP rules if hard mode is enabled
+		if MergeOWASPRulesToRuleSet(selectedRS, hardMode) {
+			if !silent {
+				box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+				box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+				box.Println(pterm.LightRed(HardModeWithCustomRuleset))
+				pterm.Println()
 			}
 		}
 	}

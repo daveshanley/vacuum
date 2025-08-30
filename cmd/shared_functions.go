@@ -18,6 +18,11 @@ import (
 	"time"
 )
 
+// Hard mode message constants
+const (
+	HardModeEnabled = "🚨 HARD MODE ENABLED 🚨"
+	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
+)
 
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
@@ -60,6 +65,29 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		}
 		return BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, rs, httpClient)
 	}
+}
+
+// MergeOWASPRulesToRuleSet merges OWASP rules into the provided ruleset when hard mode is enabled.
+// This fixes issue #552 where -z flag was ignored when using -r flag.
+// Returns true if OWASP rules were merged, false otherwise.
+func MergeOWASPRulesToRuleSet(selectedRS *rulesets.RuleSet, hardModeFlag bool) bool {
+	if !hardModeFlag || selectedRS == nil {
+		return false
+	}
+	
+	owaspRules := rulesets.GetAllOWASPRules()
+	if selectedRS.Rules == nil {
+		selectedRS.Rules = make(map[string]*model.Rule)
+	}
+	
+	for k, v := range owaspRules {
+		// Add OWASP rule if it doesn't already exist in the custom ruleset
+		if selectedRS.Rules[k] == nil {
+			selectedRS.Rules[k] = v
+		}
+	}
+	
+	return true
 }
 
 // RenderTimeAndFiles  will render out the time taken to process a specification, and the size of the file in kb.

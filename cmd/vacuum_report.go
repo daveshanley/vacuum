@@ -146,7 +146,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				if !stdIn && !stdOut {
 					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
 					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
+					box.Println(pterm.LightRed(HardModeEnabled))
 					pterm.Println()
 				}
 
@@ -182,6 +182,16 @@ func GetVacuumReportCommand() *cobra.Command {
 					pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
 					pterm.Println()
 					return rsErr
+				}
+
+				// Merge OWASP rules if hard mode is enabled
+				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
+					if !stdIn && !stdOut {
+						box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
+						box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
+						box.Println(pterm.LightRed(HardModeWithCustomRuleset))
+						pterm.Println()
+					}
 				}
 			}
 
