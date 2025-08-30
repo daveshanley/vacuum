@@ -1017,6 +1017,20 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
+				// Ensure RuleId and RuleSeverity are populated from the rule context
+				// This is necessary for programmatic API usage where these fields might not be set
+				for i := range runRuleResults {
+					if runRuleResults[i].RuleId == "" {
+						runRuleResults[i].RuleId = ctx.rule.Id
+					}
+					if runRuleResults[i].RuleSeverity == "" {
+						runRuleResults[i].RuleSeverity = ctx.rule.Severity
+					}
+					if runRuleResults[i].Rule == nil {
+						runRuleResults[i].Rule = ctx.rule
+					}
+				}
+
 				// because this function is running in multiple threads, we need to sync access to the final result
 				// list, otherwise things can get a bit random.
 				lock.Lock()
