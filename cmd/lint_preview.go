@@ -16,15 +16,33 @@ import (
 	"golang.org/x/term"
 )
 
+// FilterState represents the current filter mode for cycling through severities
+type FilterState int
+
+const (
+	FilterAll      FilterState = iota // Show all results
+	FilterErrors                      // Show only errors
+	FilterWarnings                    // Show only warnings
+	FilterInfo                        // Show only info messages
+)
+
 // TableLintModel holds the state for the interactive table view
 type TableLintModel struct {
-	table    table.Model
-	results  []*model.RuleFunctionResult
-	rows     []table.Row
-	fileName string
-	quitting bool
-	width    int
-	height   int
+	table           table.Model
+	allResults      []*model.RuleFunctionResult
+	filteredResults []*model.RuleFunctionResult
+	rows            []table.Row
+	fileName        string
+	quitting        bool
+	width           int
+	height          int
+	filterState     FilterState
+	categories      []string // Unique categories from results
+	categoryIndex   int      // Current category filter index (-1 = all)
+	categoryFilter  string   // Current category filter (empty = all)
+	rules           []string // Unique rule IDs from results
+	ruleIndex       int      // Current rule filter index (-1 = all)
+	ruleFilter      string   // Current rule filter (empty = all)
 }
 
 // ShowTableLintView displays results in an interactive table
@@ -70,14 +88,26 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 	s.Cell = s.Cell.Padding(0, 1)
 	t.SetStyles(s)
 
+	// Extract unique categories and rules
+	categories := extractCategories(results)
+	rules := extractRules(results)
+	
 	// Create and run model
 	m := TableLintModel{
-		table:    t,
-		results:  results,
-		rows:     rows,
-		fileName: fileName,
-		width:    width,
-		height:   height,
+		table:           t,
+		allResults:      results,
+		filteredResults: results,
+		rows:            rows,
+		fileName:        fileName,
+		width:           width,
+		height:          height,
+		filterState:     FilterAll,
+		categories:      categories,
+		categoryIndex:   -1, // -1 means "All"
+		categoryFilter:  "",
+		rules:           rules,
+		ruleIndex:       -1, // -1 means "All"
+		ruleFilter:      "",
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -89,39 +119,12 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 }
 
 func buildTableData(results []*model.RuleFunctionResult, fileName string, width int) ([]table.Column, []table.Row) {
-	// Calculate column widths
-	availableWidth := width - 12
-	locWidth := availableWidth * 25 / 100
-	sevWidth := 10
-	msgWidth := availableWidth * 35 / 100
-	ruleWidth := availableWidth * 15 / 100
-	catWidth := 12
-	pathWidth := availableWidth - locWidth - sevWidth - msgWidth - ruleWidth - catWidth
-
-	// Minimum widths
-	if locWidth < 25 {
-		locWidth = 25
-	}
-	if msgWidth < 40 {
-		msgWidth = 40
-	}
-	if ruleWidth < 15 {
-		ruleWidth = 15
-	}
-	if pathWidth < 20 {
-		pathWidth = 20
-	}
-
-	columns := []table.Column{
-		{Title: "Location", Width: locWidth},
-		{Title: "Severity", Width: sevWidth},
-		{Title: "Message", Width: msgWidth},
-		{Title: "Rule", Width: ruleWidth},
-		{Title: "Category", Width: catWidth},
-		{Title: "Path", Width: pathWidth},
-	}
-
 	rows := []table.Row{}
+	maxLocWidth := len("Location") // Start with header width
+	maxRuleWidth := len("Rule")
+	maxCatWidth := len("Category")
+	
+	// First pass: build rows and find max widths
 	for _, r := range results {
 		location := formatLocation(r, fileName)
 		severity := getSeverity(r)
@@ -134,6 +137,17 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 			ruleID = r.Rule.Id
 		}
 
+		// Track max widths
+		if len(location) > maxLocWidth {
+			maxLocWidth = len(location)
+		}
+		if len(ruleID) > maxRuleWidth {
+			maxRuleWidth = len(ruleID)
+		}
+		if len(category) > maxCatWidth {
+			maxCatWidth = len(category)
+		}
+
 		rows = append(rows, table.Row{
 			location,
 			severity,
@@ -142,6 +156,40 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 			category,
 			r.Path,
 		})
+	}
+
+	// Calculate column widths with minimal padding
+	locWidth := maxLocWidth + 1  // Minimal padding
+	sevWidth := 9                // Fixed for "warning" 
+	ruleWidth := maxRuleWidth + 1
+	catWidth := maxCatWidth + 1
+	
+	// Calculate remaining space for message and path columns
+	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
+	availableWidth := width - 8 // Account for borders/padding
+	
+	// Split remaining space between message (70%) and path (30%)
+	remainingWidth := availableWidth - fixedWidth
+	msgWidth := (remainingWidth * 70) / 100
+	pathWidth := remainingWidth - msgWidth
+	
+	// Ensure minimum widths
+	if msgWidth < 50 {
+		msgWidth = 50
+	}
+	if pathWidth < 25 {
+		pathWidth = 25
+		// Recalculate message width with minimum path
+		msgWidth = availableWidth - fixedWidth - pathWidth
+	}
+
+	columns := []table.Column{
+		{Title: "Location", Width: locWidth},
+		{Title: "Severity", Width: sevWidth},
+		{Title: "Message", Width: msgWidth},
+		{Title: "Rule", Width: ruleWidth},
+		{Title: "Category", Width: catWidth},
+		{Title: "Path", Width: pathWidth},
 	}
 
 	return columns, rows
@@ -189,6 +237,135 @@ func getSeverity(r *model.RuleFunctionResult) string {
 	return "info"
 }
 
+func (m *TableLintModel) applyFilter() {
+	// Start with severity filter
+	var filtered []*model.RuleFunctionResult
+	
+	switch m.filterState {
+	case FilterAll:
+		filtered = m.allResults
+	case FilterErrors:
+		for _, r := range m.allResults {
+			if r.Rule != nil && r.Rule.Severity == model.SeverityError {
+				filtered = append(filtered, r)
+			}
+		}
+	case FilterWarnings:
+		for _, r := range m.allResults {
+			if r.Rule != nil && r.Rule.Severity == model.SeverityWarn {
+				filtered = append(filtered, r)
+			}
+		}
+	case FilterInfo:
+		for _, r := range m.allResults {
+			if r.Rule != nil && r.Rule.Severity == model.SeverityInfo {
+				filtered = append(filtered, r)
+			}
+		}
+	}
+	
+	// Apply category filter on top of severity filter
+	if m.categoryFilter != "" {
+		var categoryFiltered []*model.RuleFunctionResult
+		for _, r := range filtered {
+			if r.Rule != nil && r.Rule.RuleCategory != nil && 
+			   r.Rule.RuleCategory.Name == m.categoryFilter {
+				categoryFiltered = append(categoryFiltered, r)
+			}
+		}
+		filtered = categoryFiltered
+	}
+	
+	// Apply rule filter on top of other filters
+	if m.ruleFilter != "" {
+		var ruleFiltered []*model.RuleFunctionResult
+		for _, r := range filtered {
+			if r.Rule != nil && r.Rule.Id == m.ruleFilter {
+				ruleFiltered = append(ruleFiltered, r)
+			}
+		}
+		filtered = ruleFiltered
+	}
+	
+	m.filteredResults = filtered
+	
+	// Rebuild table data with filtered results - recalculate column widths
+	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width)
+	m.rows = rows
+	
+	// Update table with new rows and columns for optimal width
+	m.table.SetRows(rows)
+	m.table.SetColumns(columns)
+	
+	// Reset cursor to top
+	m.table.SetCursor(0)
+}
+
+func getFilterName(state FilterState) string {
+	switch state {
+	case FilterAll:
+		return "All"
+	case FilterErrors:
+		return "Errors"
+	case FilterWarnings:
+		return "Warnings"
+	case FilterInfo:
+		return "Info"
+	default:
+		return "All"
+	}
+}
+
+func extractCategories(results []*model.RuleFunctionResult) []string {
+	categoryMap := make(map[string]bool)
+	for _, r := range results {
+		if r.Rule != nil && r.Rule.RuleCategory != nil {
+			categoryMap[r.Rule.RuleCategory.Name] = true
+		}
+	}
+	
+	categories := make([]string, 0, len(categoryMap))
+	for cat := range categoryMap {
+		categories = append(categories, cat)
+	}
+	
+	// Sort categories for consistent ordering
+	for i := 0; i < len(categories); i++ {
+		for j := i + 1; j < len(categories); j++ {
+			if categories[i] > categories[j] {
+				categories[i], categories[j] = categories[j], categories[i]
+			}
+		}
+	}
+	
+	return categories
+}
+
+func extractRules(results []*model.RuleFunctionResult) []string {
+	ruleMap := make(map[string]bool)
+	for _, r := range results {
+		if r.Rule != nil && r.Rule.Id != "" {
+			ruleMap[r.Rule.Id] = true
+		}
+	}
+	
+	rules := make([]string, 0, len(ruleMap))
+	for rule := range ruleMap {
+		rules = append(rules, rule)
+	}
+	
+	// Sort rules for consistent ordering
+	for i := 0; i < len(rules); i++ {
+		for j := i + 1; j < len(rules); j++ {
+			if rules[i] > rules[j] {
+				rules[i], rules[j] = rules[j], rules[i]
+			}
+		}
+	}
+	
+	return rules
+}
+
 func (m TableLintModel) Init() tea.Cmd {
 	return nil
 }
@@ -209,6 +386,33 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c", "esc":
 			m.quitting = true
 			return m, tea.Quit
+		case "tab":
+			// Cycle through severity filter states
+			m.filterState = (m.filterState + 1) % 4
+			m.applyFilter()
+			return m, nil
+		case "c":
+			// Cycle through category filters
+			m.categoryIndex = (m.categoryIndex + 1) % (len(m.categories) + 1)
+			if m.categoryIndex == -1 || m.categoryIndex == len(m.categories) {
+				m.categoryIndex = -1
+				m.categoryFilter = ""
+			} else {
+				m.categoryFilter = m.categories[m.categoryIndex]
+			}
+			m.applyFilter()
+			return m, nil
+		case "r":
+			// Cycle through rule filters
+			m.ruleIndex = (m.ruleIndex + 1) % (len(m.rules) + 1)
+			if m.ruleIndex == -1 || m.ruleIndex == len(m.rules) {
+				m.ruleIndex = -1
+				m.ruleFilter = ""
+			} else {
+				m.ruleFilter = m.rules[m.ruleIndex]
+			}
+			m.applyFilter()
+			return m, nil
 		}
 	}
 
@@ -223,11 +427,49 @@ func (m TableLintModel) View() string {
 
 	var builder strings.Builder
 
-	// Title
+	// Title with filter state
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#f83aff")).
 		Bold(true)
-	builder.WriteString(titleStyle.Render("📋 Linting Results (Interactive View)"))
+	
+	title := "📋 Linting Results (Interactive View)"
+	builder.WriteString(titleStyle.Render(title))
+	
+	// Show filter indicators
+	filterStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#62c4ff")).
+		Background(lipgloss.Color("#1a1a1a")).
+		Padding(0, 1).
+		Bold(true)
+	
+	// Show severity filter
+	if m.filterState != FilterAll {
+		builder.WriteString("  ")
+		builder.WriteString(filterStyle.Render("🔍 Severity: " + getFilterName(m.filterState)))
+	}
+	
+	// Show category filter
+	if m.categoryFilter != "" {
+		builder.WriteString("  ")
+		categoryStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#fddb00")).
+			Background(lipgloss.Color("#1a1a1a")).
+			Padding(0, 1).
+			Bold(true)
+		builder.WriteString(categoryStyle.Render("📂 Category: " + m.categoryFilter))
+	}
+	
+	// Show rule filter
+	if m.ruleFilter != "" {
+		builder.WriteString("  ")
+		ruleStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#00ff00")).
+			Background(lipgloss.Color("#1a1a1a")).
+			Padding(0, 1).
+			Bold(true)
+		builder.WriteString(ruleStyle.Render("📏 Rule: " + m.ruleFilter))
+	}
+	
 	builder.WriteString("\n\n")
 
 	// Apply colors to table output
@@ -239,11 +481,21 @@ func (m TableLintModel) View() string {
 	statusStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#4B5263"))
 
+	// Show filtered count vs total when any filter is active
+	resultsText := fmt.Sprintf("%d results", len(m.filteredResults))
+	if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
+		resultsText = fmt.Sprintf("%d/%d results", len(m.filteredResults), len(m.allResults))
+	}
+	
+	rowText := ""
+	if len(m.filteredResults) > 0 {
+		rowText = fmt.Sprintf(" • Row %d/%d", m.table.Cursor()+1, len(m.filteredResults))
+	}
+
 	status := statusStyle.Render(fmt.Sprintf(
-		" %d results • Row %d/%d • ↑↓/jk: navigate • pgup/pgdn: page • g/G: top/bottom • q: quit",
-		len(m.results),
-		m.table.Cursor()+1,
-		len(m.results)))
+		" %s%s • ↑↓/jk: nav • tab: severity • c: category • r: rule • pgup/pgdn: page • q: quit",
+		resultsText,
+		rowText))
 
 	builder.WriteString(status)
 
