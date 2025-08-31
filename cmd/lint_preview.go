@@ -66,7 +66,7 @@ func applyTableStyles(t *table.Model) {
 		BorderTop(false).
 		Foreground(neonPink).
 		Bold(true).
-		Padding(0, 1) // Add minimal padding for readability
+		Padding(0, 1) // Add padding for readability
 
 	// Selected row style with primary blue background and black text
 	s.Selected = lipgloss.NewStyle().
@@ -74,12 +74,12 @@ func applyTableStyles(t *table.Model) {
 		Background(lipgloss.Color("#62c4ff")). // Primary blue background
 		Padding(0, 0)
 
-	// Regular cells with column separators
+	// Regular cells with padding for readability
 	s.Cell = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(neonPink).
 		BorderRight(false). // Remove to avoid double borders
-		Padding(0, 1)
+		Padding(0, 1)       // Add padding for readability
 
 	t.SetStyles(s)
 }
@@ -174,39 +174,70 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 			maxCatWidth = len(category)
 		}
 
+		// Don't add spaces - let the table handle content as-is
 		rows = append(rows, table.Row{
 			location,
 			severity,
 			r.Message,
 			ruleID,
 			category,
-			r.Path,
+			":||:" + r.Path + ":||:", // Add delimiters to mark the path column
 		})
 	}
 
-	// Calculate column widths with no extra padding
-	locWidth := maxLocWidth   // No padding
-	sevWidth := 9             // Fixed for "warning"
-	ruleWidth := maxRuleWidth // No padding
-	catWidth := maxCatWidth   // No padding
+	// Calculate column widths
+	locWidth := maxLocWidth
+	sevWidth := 9 // Fixed for "warning"
+	ruleWidth := maxRuleWidth
+	catWidth := maxCatWidth
 
-	// Calculate remaining space for message and path columns
+	// Calculate fixed width (all columns except message and path)
 	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
-	availableWidth := width - 12 // Account for borders and column separators
 
-	// Split remaining space between message (70%) and path (30%)
+	// IMPORTANT: The table component adds padding via Cell style (Padding(0,1))
+	// This adds 2 chars per column (1 left, 1 right) = 12 chars total for 6 columns
+	// So the actual rendered width = sum(columnWidths) + 12
+	// We need: sum(columnWidths) = width - 12
+	totalPadding := 12
+	availableWidth := width - totalPadding
 	remainingWidth := availableWidth - fixedWidth
-	msgWidth := (remainingWidth * 70) / 100
-	pathWidth := remainingWidth - msgWidth
+
+	// Ensure we have positive remaining width
+	if remainingWidth < 100 {
+		remainingWidth = 100
+	}
+
+	// Split remaining space between message (60%) and path (40%)
+	msgWidth := (remainingWidth * 60) / 100
+	pathWidth := remainingWidth - msgWidth // Use all remaining width to avoid rounding issues
 
 	// Ensure minimum widths
 	if msgWidth < 50 {
 		msgWidth = 50
 	}
-	if pathWidth < 25 {
-		pathWidth = 25
+	if pathWidth < 35 { // Minimum path width
+		pathWidth = 35
 		// Recalculate message width with minimum path
 		msgWidth = availableWidth - fixedWidth - pathWidth
+	}
+
+	// CRITICAL: Ensure columns sum to EXACTLY (width - totalPadding)
+	// The table component doesn't stretch rows, so we need exact match
+	totalColWidth := locWidth + sevWidth + msgWidth + ruleWidth + catWidth + pathWidth
+	targetWidth := width - totalPadding // Account for the padding the Cell style adds
+	widthDiff := targetWidth - totalColWidth
+
+	// Add any difference to the path column (last column)
+	if widthDiff > 0 {
+		pathWidth += widthDiff
+	} else if widthDiff < 0 {
+		// If we're over, reduce path width
+		pathWidth += widthDiff // widthDiff is negative, so this reduces
+		if pathWidth < 35 {
+			// If path becomes too small, reduce message instead
+			msgWidth += widthDiff
+			pathWidth = 35
+		}
 	}
 
 	columns := []table.Column{
@@ -215,7 +246,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 		{Title: "Message", Width: msgWidth},
 		{Title: "Rule", Width: ruleWidth},
 		{Title: "Category", Width: catWidth},
-		{Title: "Path", Width: pathWidth},
+		{Title: ":||:Path:||:", Width: pathWidth}, // Add delimiters to header too
 	}
 
 	return columns, rows
@@ -511,7 +542,7 @@ func (m TableLintModel) View() string {
 	builder.WriteString("\n\n")
 
 	// Main content area - use consistent height for both states
-	contentHeight := m.height - 3 // Reserve space for title (1), blank line (1), and status bar (1)
+	contentHeight := m.height - 2 // Reserve space for title (1), blank line (1), and status bar (1)
 
 	if len(m.filteredResults) == 0 {
 		// Show empty state with ASCII art
@@ -659,20 +690,96 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		selectedLocation = rows[cursor][0]
 	}
 
+	// Define tertiary color - lighter gray options:
+	// tertiaryColor := "\033[38;2;128;128;128m" // Medium gray #808080
+	// tertiaryColor := "\033[38;2;160;160;160m" // Light gray #a0a0a0
+	// tertiaryColor := "\033[38;2;192;192;192m" // Silver #c0c0c0
+	tertiaryColor := "\033[38;2;144;144;144m" // Nice readable gray #909090
+	reset := "\033[0m"
+
 	var result strings.Builder
 	for i, line := range lines {
 		// Skip coloring for headers and selected row
 		isSelectedLine := selectedLocation != "" && strings.Contains(line, selectedLocation)
+
+		// First, handle the path column delimiters for all lines (including header)
+		if strings.Contains(line, ":||:") {
+			// Find content between delimiters and color it (unless it's the selected line)
+			start := strings.Index(line, ":||:")
+			if start != -1 {
+				// Look for the closing delimiter
+				end := strings.Index(line[start+4:], ":||:")
+				if end != -1 {
+					// Found both delimiters - extract content between them
+					end = start + 4 + end
+					pathContent := line[start+4 : end]
+
+					coloredPath := pathContent
+
+					// remove any truncated delimiter characters
+					if len(coloredPath) > 5 {
+
+						if strings.Contains(coloredPath, ":||") {
+							coloredPath = strings.Replace(coloredPath, ":||", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":||...", "", 1)
+						}
+						if strings.Contains(coloredPath, ":|") {
+							coloredPath = strings.Replace(coloredPath, ":|", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":|...", "", 1)
+						}
+						if strings.Contains(coloredPath, ":") {
+							coloredPath = strings.Replace(coloredPath, ":", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":...", "", 1)
+						}
+					}
+
+					// Color the path content if not selected
+					if !isSelectedLine && i > 0 { // Don't color header or selected rows
+						coloredPath = tertiaryColor + coloredPath + reset
+					}
+
+					// Replace the delimited content with colored version (removing delimiters)
+					line = line[:start] + coloredPath + line[end+4:]
+				} else {
+					// No closing delimiter found (likely truncated)
+					// Just remove the opening delimiter and color the rest
+					pathContent := line[start+4:]
+
+					// Color the path content if not selected
+					coloredPath := pathContent
+
+					// remove any truncated delimiter characters
+					if len(coloredPath) > 5 {
+
+						if strings.Contains(coloredPath, ":||") {
+							coloredPath = strings.Replace(coloredPath, ":||", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":||...", "", 1)
+						}
+						if strings.Contains(coloredPath, ":|") {
+							coloredPath = strings.Replace(coloredPath, ":|", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":|...", "", 1)
+						}
+						if strings.Contains(coloredPath, ":") {
+							coloredPath = strings.Replace(coloredPath, ":", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":...", "", 1)
+						}
+					}
+
+					if !isSelectedLine && i > 0 { // Don't color header or selected rows
+						coloredPath = tertiaryColor + coloredPath + reset
+					}
+
+					// Replace from delimiter to end of line
+					line = line[:start] + coloredPath
+				}
+			}
+		}
 
 		if i >= 1 && !isSelectedLine { // Start from line 1 (skip header row at 0)
 			// Apply severity colors
 			line = strings.Replace(line, " error ", " \033[31merror\033[0m ", -1)
 			line = strings.Replace(line, " warning ", " \033[33mwarning\033[0m ", -1)
 			line = strings.Replace(line, " info ", " \033[36minfo\033[0m ", -1)
-
-			// Color the path column (last column)
-			// For now, let's skip this as it's complex with the table formatting
-			// The path content might be truncated or wrapped by the table component
 		}
 
 		result.WriteString(line)
