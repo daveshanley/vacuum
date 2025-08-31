@@ -49,6 +49,7 @@ type TableLintModel struct {
 	rules           []string // Unique rule IDs from results
 	ruleIndex       int      // Current rule filter index (-1 = all)
 	ruleFilter      string   // Current rule filter (empty = all)
+	showPath        bool     // Toggle for showing/hiding path column
 }
 
 // applyTableStyles configures the table with neon pink theme
@@ -100,7 +101,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 	}
 
 	// Calculate column widths
-	columns, rows := buildTableData(results, fileName, width-TableWidthAdjustment)
+	columns, rows := buildTableData(results, fileName, width-TableWidthAdjustment, true) // Default to showing path
 
 	// Create table
 	t := table.New(
@@ -130,6 +131,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 		filterState:     FilterAll,
 		categories:      categories,
 		categoryIndex:   -1, // -1 means "All"
+		showPath:        true, // Default to showing path column
 		categoryFilter:  "",
 		rules:           rules,
 		ruleIndex:       -1, // -1 means "All"
@@ -144,7 +146,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 	return nil
 }
 
-func buildTableData(results []*model.RuleFunctionResult, fileName string, width int) ([]table.Column, []table.Row) {
+func buildTableData(results []*model.RuleFunctionResult, fileName string, width int, showPath bool) ([]table.Column, []table.Row) {
 	rows := []table.Row{}
 	maxLocWidth := len("Location") // Start with header width
 	maxRuleWidth := len("Rule")
@@ -174,15 +176,26 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 			maxCatWidth = len(category)
 		}
 
-		// Don't add spaces - let the table handle content as-is
-		rows = append(rows, table.Row{
-			location,
-			severity,
-			r.Message,
-			ruleID,
-			category,
-			":||:" + r.Path + ":||:", // Add delimiters to mark the path column
-		})
+		// Build row based on whether we're showing path column
+		if showPath {
+			rows = append(rows, table.Row{
+				location,
+				severity,
+				r.Message,
+				ruleID,
+				category,
+				":||:" + r.Path + ":||:", // Add delimiters to mark the path column
+			})
+		} else {
+			// No path column
+			rows = append(rows, table.Row{
+				location,
+				severity,
+				r.Message,
+				ruleID,
+				category,
+			})
+		}
 	}
 
 	// Calculate column widths
@@ -195,10 +208,13 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
 
 	// IMPORTANT: The table component adds padding via Cell style (Padding(0,1))
-	// This adds 2 chars per column (1 left, 1 right) = 12 chars total for 6 columns
-	// So the actual rendered width = sum(columnWidths) + 12
-	// We need: sum(columnWidths) = width - 12
-	totalPadding := 12
+	// This adds 2 chars per column (1 left, 1 right)
+	// Column count: 5 base columns + 1 if showPath = true
+	columnCount := 5
+	if showPath {
+		columnCount = 6
+	}
+	totalPadding := columnCount * 2
 	availableWidth := width - totalPadding
 	remainingWidth := availableWidth - fixedWidth
 
@@ -207,46 +223,74 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 		remainingWidth = 100
 	}
 
-	// Split remaining space between message (60%) and path (40%)
-	msgWidth := (remainingWidth * 60) / 100
-	pathWidth := remainingWidth - msgWidth // Use all remaining width to avoid rounding issues
+	var msgWidth, pathWidth int
+	
+	if showPath {
+		// Split remaining space between message (60%) and path (40%)
+		msgWidth = (remainingWidth * 60) / 100
+		pathWidth = remainingWidth - msgWidth // Use all remaining width to avoid rounding issues
 
-	// Ensure minimum widths
-	if msgWidth < 50 {
-		msgWidth = 50
-	}
-	if pathWidth < 35 { // Minimum path width
-		pathWidth = 35
-		// Recalculate message width with minimum path
-		msgWidth = availableWidth - fixedWidth - pathWidth
+		// Ensure minimum widths
+		if msgWidth < 50 {
+			msgWidth = 50
+		}
+		if pathWidth < 35 { // Minimum path width
+			pathWidth = 35
+			// Recalculate message width with minimum path
+			msgWidth = availableWidth - fixedWidth - pathWidth
+		}
+	} else {
+		// No path column - give all remaining space to message
+		msgWidth = remainingWidth
+		pathWidth = 0
 	}
 
 	// CRITICAL: Ensure columns sum to EXACTLY (width - totalPadding)
 	// The table component doesn't stretch rows, so we need exact match
-	totalColWidth := locWidth + sevWidth + msgWidth + ruleWidth + catWidth + pathWidth
+	var totalColWidth int
+	if showPath {
+		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth + pathWidth
+	} else {
+		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth
+	}
+	
 	targetWidth := width - totalPadding // Account for the padding the Cell style adds
 	widthDiff := targetWidth - totalColWidth
 
-	// Add any difference to the path column (last column)
+	// Add any difference to the message column (or path if shown)
 	if widthDiff > 0 {
-		pathWidth += widthDiff
-	} else if widthDiff < 0 {
-		// If we're over, reduce path width
-		pathWidth += widthDiff // widthDiff is negative, so this reduces
-		if pathWidth < 35 {
-			// If path becomes too small, reduce message instead
+		if showPath {
+			pathWidth += widthDiff
+		} else {
 			msgWidth += widthDiff
-			pathWidth = 35
+		}
+	} else if widthDiff < 0 {
+		// If we're over, reduce appropriate column
+		if showPath {
+			pathWidth += widthDiff // widthDiff is negative, so this reduces
+			if pathWidth < 35 {
+				// If path becomes too small, reduce message instead
+				msgWidth += widthDiff
+				pathWidth = 35
+			}
+		} else {
+			msgWidth += widthDiff
 		}
 	}
 
+	// Build columns array based on showPath
 	columns := []table.Column{
 		{Title: "Location", Width: locWidth},
 		{Title: "Severity", Width: sevWidth},
 		{Title: "Message", Width: msgWidth},
 		{Title: "Rule", Width: ruleWidth},
 		{Title: "Category", Width: catWidth},
-		{Title: ":||:Path:||:", Width: pathWidth}, // Add delimiters to header too
+	}
+	
+	if showPath {
+		columns = append(columns, table.Column{
+			Title: ":||:Path:||:", Width: pathWidth,
+		})
 	}
 
 	return columns, rows
@@ -347,7 +391,7 @@ func (m *TableLintModel) applyFilter() {
 	m.filteredResults = filtered
 
 	// Rebuild table data with filtered results - recalculate column widths
-	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width-TableWidthAdjustment)
+	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width-TableWidthAdjustment, m.showPath)
 	m.rows = rows
 
 	// Update table with new rows and columns for optimal width
@@ -439,7 +483,7 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		// Rebuild table with new dimensions
-		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width-TableWidthAdjustment)
+		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width-TableWidthAdjustment, m.showPath)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
 		m.table.SetWidth(msg.Width - TableWidthAdjustment) // Account for borders
@@ -481,6 +525,68 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.ruleFilter = m.rules[m.ruleIndex]
 			}
 			m.applyFilter()
+			return m, nil
+		case "p":
+			// Toggle path column visibility
+			m.showPath = !m.showPath
+			
+			// Store current cursor position
+			currentCursor := m.table.Cursor()
+			
+			// Calculate the cursor's position within the viewport
+			// We'll try to maintain this relative position
+			viewportHeight := m.table.Height()
+			
+			// Estimate where the viewport starts based on cursor position
+			// The table tries to keep the cursor in the middle third of the viewport
+			viewportStart := 0
+			if currentCursor > viewportHeight/2 {
+				viewportStart = currentCursor - viewportHeight/2
+			}
+			cursorOffsetInViewport := currentCursor - viewportStart
+			
+			// Rebuild table with new column configuration
+			columns, rows := buildTableData(m.filteredResults, m.fileName, m.width-TableWidthAdjustment, m.showPath)
+			m.rows = rows
+			
+			// Update the existing table with new columns and rows
+			// First clear the rows to avoid index issues
+			m.table.SetRows([]table.Row{})
+			m.table.SetColumns(columns)
+			m.table.SetRows(rows)
+			
+			// Reapply styles
+			applyTableStyles(&m.table)
+			
+			// Restore cursor position and viewport
+			if currentCursor < len(rows) {
+				// First go to top to reset viewport
+				m.table.GotoTop()
+				
+				// Move to where we want the viewport to start
+				targetCursor := currentCursor
+				
+				// If we were scrolled down, overshoot and come back to position cursor correctly
+				if viewportStart > 0 {
+					// Move past the target
+					overshoot := cursorOffsetInViewport
+					for i := 0; i < targetCursor + overshoot && i < len(rows)-1; i++ {
+						m.table.MoveDown(1)
+					}
+					// Then move back up to get cursor in right viewport position
+					for i := 0; i < overshoot; i++ {
+						m.table.MoveUp(1)
+					}
+				} else {
+					// Just move to cursor position
+					for i := 0; i < targetCursor; i++ {
+						m.table.MoveDown(1)
+					}
+				}
+			} else if len(rows) > 0 {
+				m.table.SetCursor(0)
+			}
+			
 			return m, nil
 		}
 	}
@@ -578,7 +684,7 @@ func (m TableLintModel) View() string {
 	}
 
 	status := statusStyle.Render(fmt.Sprintf(
-		" %s%s • ↑↓/jk: nav • tab: severity • c: category • r: rule • pgup/pgdn: page • q: quit",
+		" %s%s • ↑↓/jk: nav • tab: severity • c: category • r: rule • p: path • pgup/pgdn: page • q: quit",
 		resultsText,
 		rowText))
 
