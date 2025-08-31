@@ -45,6 +45,40 @@ type TableLintModel struct {
 	ruleFilter      string   // Current rule filter (empty = all)
 }
 
+// applyTableStyles configures the table with neon pink theme
+func applyTableStyles(t *table.Model) {
+	neonPink := lipgloss.Color("#f83aff")
+	s := table.DefaultStyles()
+	
+	// Header with pink text and separators
+	s.Header = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(neonPink).
+		BorderBottom(true).
+		BorderRight(true).
+		Foreground(neonPink).
+		Bold(true).
+		Padding(0, 1)
+	
+	// Selected row style with proper highlighting
+	s.Selected = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffffff")).
+		Background(lipgloss.Color("#3a3a3a")).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(neonPink).
+		BorderRight(true).
+		Padding(0, 1)
+	
+	// Regular cells with column separators
+	s.Cell = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(neonPink).
+		BorderRight(true).
+		Padding(0, 1)
+	
+	t.SetStyles(s)
+}
+
 // ShowTableLintView displays results in an interactive table
 func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) error {
 	if len(results) == 0 {
@@ -68,25 +102,12 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(height-4), // Leave room for title, blank, and status
-		table.WithWidth(width),
+		table.WithHeight(height-3), // Title (1), status (1), spacing (1)
+		table.WithWidth(width-3), // Account for borders
 	)
 
-	// Configure styles
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("#4B5263")).
-		BorderBottom(true).
-		Foreground(lipgloss.Color("#62c4ff")).
-		Bold(true)
-	
-	s.Selected = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#ffffff")).
-		Background(lipgloss.Color("#3a3a3a"))
-	
-	s.Cell = s.Cell.Padding(0, 1)
-	t.SetStyles(s)
+	// Apply table styles
+	applyTableStyles(&t)
 
 	// Extract unique categories and rules
 	categories := extractCategories(results)
@@ -166,7 +187,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 	
 	// Calculate remaining space for message and path columns
 	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
-	availableWidth := width - 8 // Account for borders/padding
+	availableWidth := width - 12 // Account for borders and column separators
 	
 	// Split remaining space between message (70%) and path (30%)
 	remainingWidth := availableWidth - fixedWidth
@@ -297,6 +318,9 @@ func (m *TableLintModel) applyFilter() {
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)
 	
+	// Reapply styles after updating columns (to ensure borders persist)
+	applyTableStyles(&m.table)
+	
 	// Reset cursor to top
 	m.table.SetCursor(0)
 }
@@ -377,8 +401,17 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.table.SetWidth(msg.Width)
-		m.table.SetHeight(msg.Height - 4)
+		
+		// Rebuild table with new dimensions
+		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width)
+		m.table.SetColumns(columns)
+		m.table.SetRows(rows)
+		m.table.SetWidth(msg.Width - 3) // Account for borders
+		m.table.SetHeight(msg.Height - 3)
+		
+		// Reapply styles after resize
+		applyTableStyles(&m.table)
+		
 		return m, nil
 
 	case tea.KeyMsg:
@@ -470,10 +503,10 @@ func (m TableLintModel) View() string {
 		builder.WriteString(ruleStyle.Render("📏 Rule: " + m.ruleFilter))
 	}
 	
-	builder.WriteString("\n\n")
+	builder.WriteString("\n")
 
 	// Main content area - use consistent height for both states
-	contentHeight := m.height - 3 // Reserve space for title (2 lines) and status bar (1 line)
+	contentHeight := m.height - 1 // Reserve space for status bar only (title already handled)
 	
 	if len(m.filteredResults) == 0 {
 		// Show empty state with ASCII art
@@ -483,19 +516,14 @@ func (m TableLintModel) View() string {
 		// Apply colors to table output
 		tableView := colorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
 		
-		// Count lines in table view to add padding if needed
-		tableLines := strings.Count(tableView, "\n") + 1
-		builder.WriteString(tableView)
+		// Add borders and separators to the table
+		borderedTable := addTableBorders(tableView)
 		
-		// Add padding to match the content height
-		if tableLines < contentHeight {
-			for i := 0; i < contentHeight - tableLines; i++ {
-				builder.WriteString("\n")
-			}
-		}
+		// Just write the bordered table
+		builder.WriteString(borderedTable)
 	}
 	
-	// No extra newline - status bar goes directly at the bottom
+	builder.WriteString("\n")
 	
 	// Status bar
 	statusStyle := lipgloss.NewStyle().
@@ -604,6 +632,16 @@ func renderEmptyState(width, height int) string {
 	// Apply color styling
 	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4B5263"))
 	return textStyle.Render(strings.Join(resultLines, "\n"))
+}
+
+func addTableBorders(tableView string) string {
+	neonPink := lipgloss.Color("#f83aff")
+	// Just wrap in a simple border for now
+	tableStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(neonPink)
+	
+	return tableStyle.Render(tableView)
 }
 
 func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string {
