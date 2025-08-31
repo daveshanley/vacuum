@@ -472,10 +472,30 @@ func (m TableLintModel) View() string {
 	
 	builder.WriteString("\n\n")
 
-	// Apply colors to table output
-	tableView := colorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
-	builder.WriteString(tableView)
-	builder.WriteString("\n")
+	// Main content area - use consistent height for both states
+	contentHeight := m.height - 3 // Reserve space for title (2 lines) and status bar (1 line)
+	
+	if len(m.filteredResults) == 0 {
+		// Show empty state with ASCII art
+		emptyView := renderEmptyState(m.width, contentHeight)
+		builder.WriteString(emptyView)
+	} else {
+		// Apply colors to table output
+		tableView := colorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
+		
+		// Count lines in table view to add padding if needed
+		tableLines := strings.Count(tableView, "\n") + 1
+		builder.WriteString(tableView)
+		
+		// Add padding to match the content height
+		if tableLines < contentHeight {
+			for i := 0; i < contentHeight - tableLines; i++ {
+				builder.WriteString("\n")
+			}
+		}
+	}
+	
+	// No extra newline - status bar goes directly at the bottom
 	
 	// Status bar
 	statusStyle := lipgloss.NewStyle().
@@ -500,6 +520,90 @@ func (m TableLintModel) View() string {
 	builder.WriteString(status)
 
 	return builder.String()
+}
+
+func renderEmptyState(width, height int) string {
+	// ASCII art for empty state
+	art := []string{
+		"",
+		"",
+		" _|      _|     _|_|     _|_|_|_|_|   _|    _|   _|_|_|   _|      _|     _|_|_|  ",
+		" _|_|    _|   _|    _|       _|       _|    _|     _|     _|_|    _|   _|        ",
+		" _|  _|  _|   _|    _|       _|       _|_|_|_|     _|     _|  _|  _|   _|  _|_|  ",
+		" _|    _|_|   _|    _|       _|       _|    _|     _|     _|    _|_|   _|    _|  ",
+		" _|      _|     _|_|         _|       _|    _|   _|_|_|   _|      _|     _|_|_|  ",
+		"",
+		"",
+		" _|    _|   _|_|_|_|   _|_|_|     _|_|_|_|  ",
+		" _|    _|   _|         _|    _|   _|        ",
+		" _|_|_|_|   _|_|_|     _|_|_|     _|_|_|    ",
+		" _|    _|   _|         _|    _|   _|        ",
+		" _|    _|   _|_|_|_|   _|    _|   _|_|_|_|  ",
+		"",
+		"",
+		" Nothing to vacuum, the filters are too strict.",
+		"",
+		" To adjust them:",
+		"",
+		" > tab - cycle severity",
+		" > c   - cycle categories",
+		" > r   - cycle rules",
+		"",
+	}
+	
+	// Join the art lines with preserved formatting
+	artStr := strings.Join(art, "\n")
+	
+	// Calculate padding to center the block horizontally
+	maxLineWidth := 82 // Width of the longest ASCII art line
+	leftPadding := (width - maxLineWidth) / 2
+	if leftPadding < 0 {
+		leftPadding = 0
+	}
+	
+	// Add left padding to each line to center the entire block
+	artLines := strings.Split(artStr, "\n")
+	paddedLines := make([]string, len(artLines))
+	padding := strings.Repeat(" ", leftPadding)
+	for i, line := range artLines {
+		if line != "" {
+			paddedLines[i] = padding + line
+		} else {
+			paddedLines[i] = ""
+		}
+	}
+	
+	// Calculate vertical centering
+	totalLines := len(paddedLines)
+	topPadding := (height - totalLines) / 2
+	if topPadding < 0 {
+		topPadding = 0
+	}
+	
+	// Build the result to exactly fill the height
+	var resultLines []string
+	
+	// Add top padding
+	for i := 0; i < topPadding; i++ {
+		resultLines = append(resultLines, "")
+	}
+	
+	// Add the content
+	resultLines = append(resultLines, paddedLines...)
+	
+	// Add bottom padding to exactly fill the height
+	for len(resultLines) < height {
+		resultLines = append(resultLines, "")
+	}
+	
+	// Ensure we don't exceed the height
+	if len(resultLines) > height {
+		resultLines = resultLines[:height]
+	}
+	
+	// Apply color styling
+	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4B5263"))
+	return textStyle.Render(strings.Join(resultLines, "\n"))
 }
 
 func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string {
