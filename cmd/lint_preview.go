@@ -26,6 +26,12 @@ const (
 	FilterInfo                        // Show only info messages
 )
 
+const (
+	// TableWidthAdjustment is the amount to reduce table width to ensure it fits properly
+	// and shows the right border. Adjust this value if the table extends off screen.
+	TableWidthAdjustment = 2
+)
+
 // TableLintModel holds the state for the interactive table view
 type TableLintModel struct {
 	table           table.Model
@@ -49,33 +55,32 @@ type TableLintModel struct {
 func applyTableStyles(t *table.Model) {
 	neonPink := lipgloss.Color("#f83aff")
 	s := table.DefaultStyles()
-	
+
 	// Header with pink text and separators
 	s.Header = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(neonPink).
 		BorderBottom(true).
-		BorderRight(true).
+		BorderLeft(false).
+		BorderRight(false). // Remove right border to avoid doubles
+		BorderTop(false).
 		Foreground(neonPink).
 		Bold(true).
-		Padding(0, 1)
-	
-	// Selected row style with proper highlighting
+		Padding(0, 1) // Add minimal padding for readability
+
+	// Selected row style with primary blue background and black text
 	s.Selected = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#ffffff")).
-		Background(lipgloss.Color("#3a3a3a")).
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(neonPink).
-		BorderRight(true).
-		Padding(0, 1)
-	
+		Foreground(lipgloss.Color("#000000")). // Black text
+		Background(lipgloss.Color("#62c4ff")). // Primary blue background
+		Padding(0, 0)
+
 	// Regular cells with column separators
 	s.Cell = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(neonPink).
-		BorderRight(true).
+		BorderRight(false). // Remove to avoid double borders
 		Padding(0, 1)
-	
+
 	t.SetStyles(s)
 }
 
@@ -95,15 +100,15 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 	}
 
 	// Calculate column widths
-	columns, rows := buildTableData(results, fileName, width)
+	columns, rows := buildTableData(results, fileName, width-TableWidthAdjustment)
 
 	// Create table
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(height-3), // Title (1), status (1), spacing (1)
-		table.WithWidth(width-3), // Account for borders
+		table.WithHeight(height-5),                  // Title (2 lines with blank), table border (2), status (1)
+		table.WithWidth(width-TableWidthAdjustment), // Account for borders
 	)
 
 	// Apply table styles
@@ -112,7 +117,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string) err
 	// Extract unique categories and rules
 	categories := extractCategories(results)
 	rules := extractRules(results)
-	
+
 	// Create and run model
 	m := TableLintModel{
 		table:           t,
@@ -144,7 +149,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 	maxLocWidth := len("Location") // Start with header width
 	maxRuleWidth := len("Rule")
 	maxCatWidth := len("Category")
-	
+
 	// First pass: build rows and find max widths
 	for _, r := range results {
 		location := formatLocation(r, fileName)
@@ -179,21 +184,21 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 		})
 	}
 
-	// Calculate column widths with minimal padding
-	locWidth := maxLocWidth + 1  // Minimal padding
-	sevWidth := 9                // Fixed for "warning" 
-	ruleWidth := maxRuleWidth + 1
-	catWidth := maxCatWidth + 1
-	
+	// Calculate column widths with no extra padding
+	locWidth := maxLocWidth   // No padding
+	sevWidth := 9             // Fixed for "warning"
+	ruleWidth := maxRuleWidth // No padding
+	catWidth := maxCatWidth   // No padding
+
 	// Calculate remaining space for message and path columns
 	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
 	availableWidth := width - 12 // Account for borders and column separators
-	
+
 	// Split remaining space between message (70%) and path (30%)
 	remainingWidth := availableWidth - fixedWidth
 	msgWidth := (remainingWidth * 70) / 100
 	pathWidth := remainingWidth - msgWidth
-	
+
 	// Ensure minimum widths
 	if msgWidth < 50 {
 		msgWidth = 50
@@ -261,7 +266,7 @@ func getSeverity(r *model.RuleFunctionResult) string {
 func (m *TableLintModel) applyFilter() {
 	// Start with severity filter
 	var filtered []*model.RuleFunctionResult
-	
+
 	switch m.filterState {
 	case FilterAll:
 		filtered = m.allResults
@@ -284,19 +289,19 @@ func (m *TableLintModel) applyFilter() {
 			}
 		}
 	}
-	
+
 	// Apply category filter on top of severity filter
 	if m.categoryFilter != "" {
 		var categoryFiltered []*model.RuleFunctionResult
 		for _, r := range filtered {
-			if r.Rule != nil && r.Rule.RuleCategory != nil && 
-			   r.Rule.RuleCategory.Name == m.categoryFilter {
+			if r.Rule != nil && r.Rule.RuleCategory != nil &&
+				r.Rule.RuleCategory.Name == m.categoryFilter {
 				categoryFiltered = append(categoryFiltered, r)
 			}
 		}
 		filtered = categoryFiltered
 	}
-	
+
 	// Apply rule filter on top of other filters
 	if m.ruleFilter != "" {
 		var ruleFiltered []*model.RuleFunctionResult
@@ -307,20 +312,20 @@ func (m *TableLintModel) applyFilter() {
 		}
 		filtered = ruleFiltered
 	}
-	
+
 	m.filteredResults = filtered
-	
+
 	// Rebuild table data with filtered results - recalculate column widths
-	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width)
+	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width-TableWidthAdjustment)
 	m.rows = rows
-	
+
 	// Update table with new rows and columns for optimal width
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)
-	
+
 	// Reapply styles after updating columns (to ensure borders persist)
 	applyTableStyles(&m.table)
-	
+
 	// Reset cursor to top
 	m.table.SetCursor(0)
 }
@@ -347,12 +352,12 @@ func extractCategories(results []*model.RuleFunctionResult) []string {
 			categoryMap[r.Rule.RuleCategory.Name] = true
 		}
 	}
-	
+
 	categories := make([]string, 0, len(categoryMap))
 	for cat := range categoryMap {
 		categories = append(categories, cat)
 	}
-	
+
 	// Sort categories for consistent ordering
 	for i := 0; i < len(categories); i++ {
 		for j := i + 1; j < len(categories); j++ {
@@ -361,7 +366,7 @@ func extractCategories(results []*model.RuleFunctionResult) []string {
 			}
 		}
 	}
-	
+
 	return categories
 }
 
@@ -372,12 +377,12 @@ func extractRules(results []*model.RuleFunctionResult) []string {
 			ruleMap[r.Rule.Id] = true
 		}
 	}
-	
+
 	rules := make([]string, 0, len(ruleMap))
 	for rule := range ruleMap {
 		rules = append(rules, rule)
 	}
-	
+
 	// Sort rules for consistent ordering
 	for i := 0; i < len(rules); i++ {
 		for j := i + 1; j < len(rules); j++ {
@@ -386,7 +391,7 @@ func extractRules(results []*model.RuleFunctionResult) []string {
 			}
 		}
 	}
-	
+
 	return rules
 }
 
@@ -401,17 +406,17 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		
+
 		// Rebuild table with new dimensions
-		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width)
+		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width-TableWidthAdjustment)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
-		m.table.SetWidth(msg.Width - 3) // Account for borders
-		m.table.SetHeight(msg.Height - 3)
-		
+		m.table.SetWidth(msg.Width - TableWidthAdjustment) // Account for borders
+		m.table.SetHeight(msg.Height - 5)
+
 		// Reapply styles after resize
 		applyTableStyles(&m.table)
-		
+
 		return m, nil
 
 	case tea.KeyMsg:
@@ -464,23 +469,23 @@ func (m TableLintModel) View() string {
 	titleStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#f83aff")).
 		Bold(true)
-	
+
 	title := "📋 Linting Results (Interactive View)"
 	builder.WriteString(titleStyle.Render(title))
-	
+
 	// Show filter indicators
 	filterStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#62c4ff")).
 		Background(lipgloss.Color("#1a1a1a")).
 		Padding(0, 1).
 		Bold(true)
-	
+
 	// Show severity filter
 	if m.filterState != FilterAll {
 		builder.WriteString("  ")
 		builder.WriteString(filterStyle.Render("🔍 Severity: " + getFilterName(m.filterState)))
 	}
-	
+
 	// Show category filter
 	if m.categoryFilter != "" {
 		builder.WriteString("  ")
@@ -491,7 +496,7 @@ func (m TableLintModel) View() string {
 			Bold(true)
 		builder.WriteString(categoryStyle.Render("📂 Category: " + m.categoryFilter))
 	}
-	
+
 	// Show rule filter
 	if m.ruleFilter != "" {
 		builder.WriteString("  ")
@@ -502,12 +507,12 @@ func (m TableLintModel) View() string {
 			Bold(true)
 		builder.WriteString(ruleStyle.Render("📏 Rule: " + m.ruleFilter))
 	}
-	
-	builder.WriteString("\n")
+
+	builder.WriteString("\n\n")
 
 	// Main content area - use consistent height for both states
-	contentHeight := m.height - 1 // Reserve space for status bar only (title already handled)
-	
+	contentHeight := m.height - 3 // Reserve space for title (1), blank line (1), and status bar (1)
+
 	if len(m.filteredResults) == 0 {
 		// Show empty state with ASCII art
 		emptyView := renderEmptyState(m.width, contentHeight)
@@ -515,16 +520,17 @@ func (m TableLintModel) View() string {
 	} else {
 		// Apply colors to table output
 		tableView := colorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
-		
+
 		// Add borders and separators to the table
 		borderedTable := addTableBorders(tableView)
-		
+
 		// Just write the bordered table
 		builder.WriteString(borderedTable)
+		//builder.WriteString(tableView)
 	}
-	
+
 	builder.WriteString("\n")
-	
+
 	// Status bar
 	statusStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#4B5263"))
@@ -534,7 +540,7 @@ func (m TableLintModel) View() string {
 	if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
 		resultsText = fmt.Sprintf("%d/%d results", len(m.filteredResults), len(m.allResults))
 	}
-	
+
 	rowText := ""
 	if len(m.filteredResults) > 0 {
 		rowText = fmt.Sprintf(" • Row %d/%d", m.table.Cursor()+1, len(m.filteredResults))
@@ -578,17 +584,17 @@ func renderEmptyState(width, height int) string {
 		" > r   - cycle rules",
 		"",
 	}
-	
+
 	// Join the art lines with preserved formatting
 	artStr := strings.Join(art, "\n")
-	
+
 	// Calculate padding to center the block horizontally
 	maxLineWidth := 82 // Width of the longest ASCII art line
 	leftPadding := (width - maxLineWidth) / 2
 	if leftPadding < 0 {
 		leftPadding = 0
 	}
-	
+
 	// Add left padding to each line to center the entire block
 	artLines := strings.Split(artStr, "\n")
 	paddedLines := make([]string, len(artLines))
@@ -600,35 +606,35 @@ func renderEmptyState(width, height int) string {
 			paddedLines[i] = ""
 		}
 	}
-	
+
 	// Calculate vertical centering
 	totalLines := len(paddedLines)
 	topPadding := (height - totalLines) / 2
 	if topPadding < 0 {
 		topPadding = 0
 	}
-	
+
 	// Build the result to exactly fill the height
 	var resultLines []string
-	
+
 	// Add top padding
 	for i := 0; i < topPadding; i++ {
 		resultLines = append(resultLines, "")
 	}
-	
+
 	// Add the content
 	resultLines = append(resultLines, paddedLines...)
-	
+
 	// Add bottom padding to exactly fill the height
 	for len(resultLines) < height {
 		resultLines = append(resultLines, "")
 	}
-	
+
 	// Ensure we don't exceed the height
 	if len(resultLines) > height {
 		resultLines = resultLines[:height]
 	}
-	
+
 	// Apply color styling
 	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4B5263"))
 	return textStyle.Render(strings.Join(resultLines, "\n"))
@@ -639,37 +645,41 @@ func addTableBorders(tableView string) string {
 	// Just wrap in a simple border for now
 	tableStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(neonPink)
-	
+		BorderForeground(neonPink).PaddingTop(0)
+
 	return tableStyle.Render(tableView)
 }
 
 func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string {
 	lines := strings.Split(tableView, "\n")
-	
+
 	// Get selected row's location to identify it
 	var selectedLocation string
 	if cursor >= 0 && cursor < len(rows) {
 		selectedLocation = rows[cursor][0]
 	}
-	
+
 	var result strings.Builder
 	for i, line := range lines {
 		// Skip coloring for headers and selected row
 		isSelectedLine := selectedLocation != "" && strings.Contains(line, selectedLocation)
-		
-		if i >= 2 && !isSelectedLine {
+
+		if i >= 1 && !isSelectedLine { // Start from line 1 (skip header row at 0)
 			// Apply severity colors
 			line = strings.Replace(line, " error ", " \033[31merror\033[0m ", -1)
 			line = strings.Replace(line, " warning ", " \033[33mwarning\033[0m ", -1)
 			line = strings.Replace(line, " info ", " \033[36minfo\033[0m ", -1)
+
+			// Color the path column (last column)
+			// For now, let's skip this as it's complex with the table formatting
+			// The path content might be truncated or wrapped by the table component
 		}
-		
+
 		result.WriteString(line)
 		if i < len(lines)-1 {
 			result.WriteString("\n")
 		}
 	}
-	
+
 	return result.String()
 }
