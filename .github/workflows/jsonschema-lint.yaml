@@ -26,8 +26,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Install dependencies
-        run: npm install
+      - name: Install JSON Schema CLI
+        run: npm install @sourcemeta/jsonschema@11.5.1
       - name: Lint JSON Schemas
         run: npx jsonschema lint rulesets/schemas
       - name: Fix JSON Schema issues
