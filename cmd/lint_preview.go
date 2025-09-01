@@ -50,6 +50,8 @@ type TableLintModel struct {
 	ruleIndex       int      // Current rule filter index (-1 = all)
 	ruleFilter      string   // Current rule filter (empty = all)
 	showPath        bool     // Toggle for showing/hiding path column
+	showModal       bool     // Whether to show the detail modal
+	modalContent    *model.RuleFunctionResult // Current result being shown in modal
 }
 
 // applyTableStyles configures the table with neon pink theme
@@ -495,10 +497,29 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Handle modal-specific keys first
+		if m.showModal {
+			switch msg.String() {
+			case "esc", "q", "enter":
+				m.showModal = false
+				m.modalContent = nil
+				return m, nil
+			}
+			// Don't process other keys when modal is open
+			return m, nil
+		}
+		
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			m.quitting = true
 			return m, tea.Quit
+		case "enter":
+			// Show modal with selected result
+			if m.table.Cursor() < len(m.filteredResults) {
+				m.modalContent = m.filteredResults[m.table.Cursor()]
+				m.showModal = true
+			}
+			return m, nil
 		case "tab":
 			// Cycle through severity filter states
 			m.filterState = (m.filterState + 1) % 4
@@ -690,6 +711,13 @@ func (m TableLintModel) View() string {
 
 	builder.WriteString(status)
 
+	// If modal is shown, overlay it on top of the table view
+	if m.showModal {
+		tableView := builder.String()
+		modalView := renderModalOverlay(m.width, m.height, m.modalContent, tableView)
+		return modalView
+	}
+
 	return builder.String()
 }
 
@@ -785,6 +813,53 @@ func addTableBorders(tableView string) string {
 		BorderForeground(neonPink).PaddingTop(0)
 
 	return tableStyle.Render(tableView)
+}
+
+func renderModalOverlay(width, height int, content *model.RuleFunctionResult, backgroundView string) string {
+	// For simplicity with the current lipgloss version, just render the modal
+	// without trying to overlay on the background
+	
+	// Calculate modal dimensions (65% of console size)
+	modalWidth := int(float64(width) * 0.65)
+	modalHeight := int(float64(height) * 0.65)
+	
+	// Create modal style with neon pink border and dark background for contrast
+	neonPink := lipgloss.Color("#f83aff")
+	modalStyle := lipgloss.NewStyle().
+		Width(modalWidth - 4). // Account for border and padding
+		Height(modalHeight - 4).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(neonPink).
+		Background(lipgloss.Color("#1a1a1a")). // Dark background for the modal
+		Padding(1, 2)
+	
+	// Header style
+	headerStyle := lipgloss.NewStyle().
+		Foreground(neonPink).
+		Bold(true).
+		Width(modalWidth - 8) // Account for padding and border
+	
+	// Build modal content
+	var modalContent strings.Builder
+	
+	// For now, just show hello message
+	modalContent.WriteString(headerStyle.Render("✨ Rule Details"))
+	modalContent.WriteString("\n\n")
+	modalContent.WriteString("Hello! This is where the full result details will be shown.")
+	modalContent.WriteString("\n\n")
+	modalContent.WriteString("Press ESC, Q, or Enter to close")
+	
+	// Render the modal
+	modal := modalStyle.Render(modalContent.String())
+	
+	// Center the modal
+	centeredModal := lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		Align(lipgloss.Center).
+		Render(modal)
+	
+	return centeredModal
 }
 
 func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string {

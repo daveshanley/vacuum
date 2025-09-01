@@ -6,6 +6,10 @@ toolchain go1.24.3
 
 require (
 	github.com/alecthomas/chroma/v2 v2.20.0
+	github.com/charmbracelet/bubbles v0.21.0
+	github.com/charmbracelet/bubbletea v1.3.6
+	github.com/charmbracelet/colorprofile v0.3.2 // indirect
+	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/dustin/go-humanize v1.0.1
@@ -21,12 +25,13 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sourcegraph/conc v0.3.0
 	github.com/speakeasy-api/jsonpath v0.6.2
-	github.com/spf13/cobra v1.9.1
-	github.com/spf13/pflag v1.0.7
-	github.com/spf13/viper v1.20.1
-	github.com/stretchr/testify v1.11.0
+	github.com/spf13/cobra v1.8.1
+	github.com/spf13/pflag v1.0.5
+	github.com/spf13/viper v1.20.0-alpha.6
+	github.com/stretchr/testify v1.11.1
 	github.com/tliron/glsp v0.2.2
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
+	golang.org/x/term v0.34.0
 	golang.org/x/text v0.27.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -39,12 +44,8 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/bubbles v0.21.0 // indirect
-	github.com/charmbracelet/bubbletea v1.3.6 // indirect
-	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
-	github.com/charmbracelet/lipgloss v1.1.0 // indirect
-	github.com/charmbracelet/x/ansi v0.9.3 // indirect
-	github.com/charmbracelet/x/cellbuf v0.0.13-0.20250311204145-2c3ea96c31dd // indirect
+	github.com/charmbracelet/x/ansi v0.10.1 // indirect
+	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -91,7 +92,6 @@ require (
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/term v0.33.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
