@@ -89,10 +89,10 @@ func applyTableStyles(t *table.Model) {
 		Bold(true).
 		Padding(0, 1) // Add padding for readability
 
-	// Selected row style with subtle blue background and primary blue text
+	// Selected row style with subtle pink background and pink text
 	s.Selected = lipgloss.NewStyle().
-		Foreground(PrimaryColor). // Primary blue text
-		Background(SubtleBlue).   // Subtle blue background
+		Foreground(SecondaryColor). // Pink text
+		Background(SubtlePink).     // Subtle pink background
 		Padding(0, 0)
 
 	// Regular cells with padding for readability
@@ -1741,6 +1741,7 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 	// tertiaryColor := "\033[38;2;160;160;160m" // Light gray #a0a0a0
 	// tertiaryColor := "\033[38;2;192;192;192m" // Silver #c0c0c0
 	tertiaryColor := "\033[38;2;144;144;144m" // Nice readable gray #909090
+	secondaryColorAnsi := "\033[38;2;248;58;255m" // Secondary pink for sibling rows
 	reset := "\033[0m"
 
 	var result strings.Builder
@@ -1771,7 +1772,7 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 						}
 						if strings.Contains(coloredPath, ":|") {
 							coloredPath = strings.Replace(coloredPath, ":|", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":|...", "", 1)
+							coloredPath = strings.Replace(coloredPath, ":||...", "", 1)
 						}
 						if strings.Contains(coloredPath, ":") {
 							coloredPath = strings.Replace(coloredPath, ":", "", 1)
@@ -1782,6 +1783,9 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 					// Color the path content if not selected
 					if !isSelectedLine && i > 0 { // Don't color header or selected rows
 						coloredPath = tertiaryColor + coloredPath + reset
+					} else if isSelectedLine && i > 0 {
+						// Selected lines (including siblings) get pink
+						coloredPath = secondaryColorAnsi + coloredPath + reset
 					}
 
 					// Replace the delimited content with colored version (removing delimiters)
@@ -1813,6 +1817,9 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 
 					if !isSelectedLine && i > 0 { // Don't color header or selected rows
 						coloredPath = tertiaryColor + coloredPath + reset
+					} else if isSelectedLine && i > 0 {
+						// Selected lines (including siblings) get pink
+						coloredPath = secondaryColorAnsi + coloredPath + reset
 					}
 
 					// Replace from delimiter to end of line
