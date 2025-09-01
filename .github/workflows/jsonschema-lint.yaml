@@ -30,6 +30,7 @@ jobs:
         run: npm install @sourcemeta/jsonschema@11.5.1
       - name: Lint JSON Schemas
         run: npx jsonschema lint rulesets/schemas
+        continue-on-error: true
       - name: Fix JSON Schema issues
         run: npx jsonschema lint rulesets/schemas --fix
       - name: Commit fixes
