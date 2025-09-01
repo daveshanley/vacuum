@@ -114,7 +114,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height-5), // Title (2 lines with blank), table border (2), status (1)
-		table.WithWidth(width),     // Use full width
+		table.WithWidth(width),     // Use full width to match split view
 	)
 
 	// Apply table styles
@@ -213,15 +213,15 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 	// Calculate fixed width (all columns except message and path)
 	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
 
-	// IMPORTANT: The table component adds padding via Cell style (Padding(0,1))
-	// This adds 2 chars per column (1 left, 1 right)
-	// Column count: 5 base columns + 1 if showPath = true
+	// Account for table borders AND internal padding
+	// The table adds padding to each column (2 chars per column)
 	columnCount := 5
 	if showPath {
 		columnCount = 6
 	}
-	totalPadding := columnCount * 2
-	availableWidth := width - totalPadding
+	columnPadding := columnCount*2 - 5 // Less padding to align with split view
+	tableWidth := width - 2 - columnPadding
+	availableWidth := tableWidth
 	remainingWidth := availableWidth - fixedWidth
 
 	// Ensure we have positive remaining width
@@ -260,7 +260,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth
 	}
 
-	targetWidth := width - totalPadding // Account for the padding the Cell style adds
+	targetWidth := tableWidth // Match actual table width
 	widthDiff := targetWidth - totalColWidth
 
 	// Add any difference to the message column (or path if shown)
@@ -492,7 +492,7 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width, m.showPath)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
-		m.table.SetWidth(msg.Width) // Use full width
+		m.table.SetWidth(msg.Width) // Use full width to match split view
 
 		// Adjust table height based on split view state
 		if m.showSplitView {
@@ -741,29 +741,7 @@ func (m TableLintModel) buildTableView() string {
 		builder.WriteString(borderedTable)
 	}
 
-	builder.WriteString("\n")
-
-	// Status bar
-	statusStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#4B5263"))
-
-	// Show filtered count vs total when any filter is active
-	resultsText := fmt.Sprintf("%d results", len(m.filteredResults))
-	if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
-		resultsText = fmt.Sprintf("%d/%d results", len(m.filteredResults), len(m.allResults))
-	}
-
-	rowText := ""
-	if len(m.filteredResults) > 0 {
-		rowText = fmt.Sprintf(" • Row %d/%d", m.table.Cursor()+1, len(m.filteredResults))
-	}
-
-	status := statusStyle.Render(fmt.Sprintf(
-		" %s%s • ↑↓/jk: nav • tab: severity • c: category • r: rule • p: path • pgup/pgdn: page • q: quit",
-		resultsText,
-		rowText))
-
-	builder.WriteString(status)
+	// Remove extra newline - no status bar needed
 
 	return builder.String()
 }
@@ -863,7 +841,7 @@ func (m TableLintModel) buildSplitView() string {
 		return "" // Don't show split view if terminal too small
 	}
 
-	splitWidth := m.width // Use full terminal width
+	splitWidth := m.width // Match table width
 
 	// Content height for the three columns (must be exact same for all)
 	contentHeight := 11 // Fixed content height for all columns
@@ -1055,7 +1033,7 @@ func (m TableLintModel) buildSplitView() string {
 
 	// Wrap in a container with blue border
 	containerStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(blue).
 		Width(splitWidth).
 		Height(splitHeight)
@@ -1350,11 +1328,27 @@ func (m TableLintModel) View() string {
 	// Build the base table view
 	tableView := m.buildTableView()
 
+	// Build navigation bar (always at bottom)
+	navStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#4B5263")).
+		Width(m.width)
+	// Add results count to nav bar
+	resultsText := fmt.Sprintf("%d results", len(m.filteredResults))
+	if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
+		resultsText = fmt.Sprintf("%d/%d results", len(m.filteredResults), len(m.allResults))
+	}
+	rowText := ""
+	if len(m.filteredResults) > 0 {
+		rowText = fmt.Sprintf(" • Row %d/%d", m.table.Cursor()+1, len(m.filteredResults))
+	}
+
+	navBar := navStyle.Render(fmt.Sprintf(" %s%s • ↑↓/jk: nav • tab: severity • c: category • r: rule • p: path • pgup/pgdn: page • enter: split • d: docs • q: quit", resultsText, rowText))
+
 	// If split view is active, combine table with split panel
 	if m.showSplitView {
 		splitView := m.buildSplitView()
-		// Join vertically: table on top, split view on bottom
-		combined := lipgloss.JoinVertical(lipgloss.Left, tableView, splitView)
+		// Join vertically: table on top, split view in middle, nav at bottom
+		combined := lipgloss.JoinVertical(lipgloss.Left, tableView, splitView, navBar)
 
 		// Create layers with the combined view
 		layers := []*lipgloss.Layer{
@@ -1376,9 +1370,10 @@ func (m TableLintModel) View() string {
 		return canvas.Render()
 	}
 
-	// Normal view without split
+	// Normal view without split - nav at bottom
+	combined := lipgloss.JoinVertical(lipgloss.Left, tableView, navBar)
 	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(tableView), // Base layer
+		lipgloss.NewLayer(combined), // Base layer with nav
 	}
 
 	// Add modal layer if shown
