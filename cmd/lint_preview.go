@@ -17,6 +17,22 @@ import (
 	"golang.org/x/term"
 )
 
+// Color palette - consistent colors used throughout the UI
+var (
+	PrimaryColor   = lipgloss.Color("#62c4ff") // Neon blue
+	SecondaryColor = lipgloss.Color("#f83aff") // Neon pink
+	ErrorColor     = lipgloss.Color("#ff0000") // Red
+	WarningColor   = lipgloss.Color("#ffaa00") // Bright yellow
+	InfoColor      = PrimaryColor
+	OKColor        = lipgloss.Color("#00ff00") // Neon bright green
+	GrayColor      = lipgloss.Color("#909090") // Gray for secondary text
+	DarkGrayColor  = lipgloss.Color("#4B5263") // Darker gray
+	WhiteColor     = lipgloss.Color("#ffffff") // White
+	BlackColor     = lipgloss.Color("#000000") // Black
+	SubtleBlue     = lipgloss.Color("#1a3a5a") // Subtle blue background
+	SubtlePink     = lipgloss.Color("#2a1a2a") // Subtle pink background
+)
+
 // FilterState represents the current filter mode for cycling through severities
 type FilterState int
 
@@ -59,31 +75,30 @@ type TableLintModel struct {
 
 // applyTableStyles configures the table with neon pink theme
 func applyTableStyles(t *table.Model) {
-	neonPink := lipgloss.Color("#f83aff")
 	s := table.DefaultStyles()
 
 	// Header with pink text and separators
 	s.Header = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(neonPink).
+		BorderForeground(SecondaryColor).
 		BorderBottom(true).
 		BorderLeft(false).
 		BorderRight(false). // Remove right border to avoid doubles
 		BorderTop(false).
-		Foreground(neonPink).
+		Foreground(SecondaryColor).
 		Bold(true).
 		Padding(0, 1) // Add padding for readability
 
-	// Selected row style with primary blue background and black text
+	// Selected row style with subtle blue background and primary blue text
 	s.Selected = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#000000")). // Black text
-		Background(lipgloss.Color("#62c4ff")). // Primary blue background
+		Foreground(PrimaryColor). // Primary blue text
+		Background(SubtleBlue).   // Subtle blue background
 		Padding(0, 0)
 
 	// Regular cells with padding for readability
 	s.Cell = lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(neonPink).
+		BorderForeground(SecondaryColor).
 		BorderRight(false). // Remove to avoid double borders
 		Padding(0, 1)       // Add padding for readability
 
@@ -115,8 +130,8 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(height-5), // Title (2 lines with blank), table border (2), status (1)
-		table.WithWidth(tableActualWidth),     // Account for border wrapper
+		table.WithHeight(height-5),        // Title (2 lines with blank), table border (2), status (1)
+		table.WithWidth(tableActualWidth), // Account for border wrapper
 	)
 
 	// Apply table styles
@@ -185,6 +200,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 		}
 
 		// Build row based on whether we're showing path column
+		// Note: Don't colorize in table as truncation can break ANSI codes
 		if showPath {
 			rows = append(rows, table.Row{
 				location,
@@ -208,10 +224,10 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 
 	// Calculate column widths with natural sizes
 	locWidth := maxLocWidth
-	sevWidth := 9 // Fixed for "warning"
+	sevWidth := 11 // Fixed for "▲ warning" (symbol + space + word)
 	ruleWidth := maxRuleWidth
 	catWidth := maxCatWidth
-	
+
 	// Store natural widths for restoration
 	naturalRuleWidth := ruleWidth
 	naturalCatWidth := catWidth
@@ -241,17 +257,17 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 		// This is our "natural" message width target
 		naturalMsgWidth := 80
 		naturalPathWidth := 50
-		
+
 		// Calculate total natural width
 		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth + naturalPathWidth
-		
+
 		if totalNaturalWidth <= availableWidth {
 			// We have enough space for natural widths or more
 			msgWidth = naturalMsgWidth
 			pathWidth = naturalPathWidth
 			ruleWidth = naturalRuleWidth
 			catWidth = naturalCatWidth
-			
+
 			// Distribute extra space 50/50 between message and path
 			extraSpace := availableWidth - totalNaturalWidth
 			if extraSpace > 0 {
@@ -265,10 +281,10 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 			pathWidth = naturalPathWidth
 			ruleWidth = naturalRuleWidth
 			catWidth = naturalCatWidth
-			
+
 			// Calculate how much we need to save
 			needToSave := totalNaturalWidth - availableWidth
-			
+
 			// Phase 1: Compress path first
 			if needToSave > 0 && pathWidth > minPathWidth {
 				canSave := pathWidth - minPathWidth
@@ -280,7 +296,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 					needToSave -= canSave
 				}
 			}
-			
+
 			// Phase 2: Compress category
 			if needToSave > 0 && catWidth > minCatWidth {
 				canSave := catWidth - minCatWidth
@@ -292,7 +308,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 					needToSave -= canSave
 				}
 			}
-			
+
 			// Phase 3: Compress rule
 			if needToSave > 0 && ruleWidth > minRuleWidth {
 				canSave := ruleWidth - minRuleWidth
@@ -304,7 +320,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 					needToSave -= canSave
 				}
 			}
-			
+
 			// Phase 4: Last resort - compress message
 			if needToSave > 0 && msgWidth > minMsgWidth {
 				canSave := msgWidth - minMsgWidth
@@ -319,13 +335,13 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 		// No path column - simpler calculation
 		naturalMsgWidth := 100
 		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth
-		
+
 		if totalNaturalWidth <= availableWidth {
 			// We have enough space
 			msgWidth = naturalMsgWidth
 			ruleWidth = naturalRuleWidth
 			catWidth = naturalCatWidth
-			
+
 			// Give all extra space to message
 			extraSpace := availableWidth - totalNaturalWidth
 			if extraSpace > 0 {
@@ -336,9 +352,9 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 			msgWidth = naturalMsgWidth
 			ruleWidth = naturalRuleWidth
 			catWidth = naturalCatWidth
-			
+
 			needToSave := totalNaturalWidth - availableWidth
-			
+
 			// Phase 1: Compress category
 			if needToSave > 0 && catWidth > minCatWidth {
 				canSave := catWidth - minCatWidth
@@ -350,7 +366,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 					needToSave -= canSave
 				}
 			}
-			
+
 			// Phase 2: Compress rule
 			if needToSave > 0 && ruleWidth > minRuleWidth {
 				canSave := ruleWidth - minRuleWidth
@@ -362,7 +378,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 					needToSave -= canSave
 				}
 			}
-			
+
 			// Phase 3: Last resort - compress message
 			if needToSave > 0 && msgWidth > minMsgWidth {
 				canSave := msgWidth - minMsgWidth
@@ -373,7 +389,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 				}
 			}
 		}
-		
+
 		pathWidth = 0
 	}
 
@@ -460,14 +476,14 @@ func getSeverity(r *model.RuleFunctionResult) string {
 	if r.Rule != nil {
 		switch r.Rule.Severity {
 		case model.SeverityError:
-			return "error"
+			return "✗ error"
 		case model.SeverityWarn:
-			return "warning"
+			return "▲ warning"
 		default:
-			return "info"
+			return "● info"
 		}
 	}
-	return "info"
+	return "● info"
 }
 
 func (m *TableLintModel) applyFilter() {
@@ -806,7 +822,7 @@ func (m TableLintModel) buildTableView() string {
 
 	// Title with filter state
 	titleStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#f83aff")).
+		Foreground(SecondaryColor).
 		Bold(true)
 
 	title := "📋 Linting Results (Interactive View)"
@@ -814,7 +830,7 @@ func (m TableLintModel) buildTableView() string {
 
 	// Show filter indicators
 	filterStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#62c4ff")).
+		Foreground(PrimaryColor).
 		Background(lipgloss.Color("#1a1a1a")).
 		Padding(0, 1).
 		Bold(true)
@@ -829,7 +845,7 @@ func (m TableLintModel) buildTableView() string {
 	if m.categoryFilter != "" {
 		builder.WriteString("  ")
 		categoryStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fddb00")).
+			Foreground(WarningColor).
 			Background(lipgloss.Color("#1a1a1a")).
 			Padding(0, 1).
 			Bold(true)
@@ -840,7 +856,7 @@ func (m TableLintModel) buildTableView() string {
 	if m.ruleFilter != "" {
 		builder.WriteString("  ")
 		ruleStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00ff00")).
+			Foreground(OKColor).
 			Background(lipgloss.Color("#1a1a1a")).
 			Padding(0, 1).
 			Bold(true)
@@ -873,6 +889,72 @@ func (m TableLintModel) buildTableView() string {
 }
 
 // wrapText wraps text to fit within a specified width
+// ColorizeMode defines different highlighting styles for backtick-enclosed text
+type ColorizeMode int
+
+const (
+	ColorizeDefault         ColorizeMode = iota // Blue text only
+	ColorizePrimarySolid                        // Blue background, black text
+	ColorizeSecondary                           // Pink text only
+	ColorizeSecondarySolid                      // Pink background, black text
+	ColorizeSubtlePrimary                       // Subtle blue background, blue text
+	ColorizeSubtleSecondary                     // Subtle pink background, pink text
+)
+
+// ColorizeString highlights backtick-enclosed text with the specified style
+func ColorizeString(text string, mode ColorizeMode) string {
+	// Define styles for each mode
+	var style lipgloss.Style
+	switch mode {
+	case ColorizeDefault:
+		style = lipgloss.NewStyle().Foreground(PrimaryColor).Bold(true)
+	case ColorizePrimarySolid:
+		style = lipgloss.NewStyle().Background(PrimaryColor).Foreground(BlackColor).Bold(true)
+	case ColorizeSecondary:
+		style = lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true)
+	case ColorizeSecondarySolid:
+		style = lipgloss.NewStyle().Background(SecondaryColor).Foreground(BlackColor).Bold(true)
+	case ColorizeSubtlePrimary:
+		style = lipgloss.NewStyle().Background(SubtleBlue).Foreground(PrimaryColor).Bold(true)
+	case ColorizeSubtleSecondary:
+		style = lipgloss.NewStyle().Background(SubtlePink).Foreground(SecondaryColor).Bold(true)
+	}
+
+	// Find and replace backtick-enclosed text
+	var result strings.Builder
+	inBackticks := false
+	backtickStart := 0
+
+	for i, char := range text {
+		if char == '`' {
+			if !inBackticks {
+				// Starting backtick
+				inBackticks = true
+				backtickStart = i + 1
+			} else {
+				// Ending backtick - apply style to content
+				if i > backtickStart {
+					content := text[backtickStart:i]
+					result.WriteString(style.Render(content))
+				}
+				inBackticks = false
+			}
+		} else if !inBackticks {
+			// Regular text outside backticks
+			result.WriteRune(char)
+		}
+		// Note: Characters inside backticks are handled when we find the closing backtick
+	}
+
+	// Handle unclosed backtick (treat rest as normal text)
+	if inBackticks && backtickStart < len(text) {
+		result.WriteString("`")
+		result.WriteString(text[backtickStart:])
+	}
+
+	return result.String()
+}
+
 func wrapText(text string, width int) string {
 	if width <= 0 {
 		return text
@@ -979,10 +1061,7 @@ func (m TableLintModel) buildSplitView() string {
 	howToFixWidth := int(float64(innerWidth) * 0.25)
 	codeWidth := innerWidth - detailsWidth - howToFixWidth
 
-	// Styles
-	neonPink := lipgloss.Color("#f83aff")
-	blue := lipgloss.Color("#62c4ff")
-	gray := lipgloss.Color("#909090")
+	// Use consistent color palette
 
 	// Extract code snippet
 	codeSnippet, startLine := m.extractCodeSnippet(m.modalContent, 4)
@@ -991,7 +1070,7 @@ func (m TableLintModel) buildSplitView() string {
 	pathBarStyle := lipgloss.NewStyle().
 		Width(splitWidth-2).
 		Padding(0, 1). // Simple horizontal padding only
-		Foreground(gray)
+		Foreground(GrayColor)
 
 	path := m.modalContent.Path
 	if path == "" && m.modalContent.Paths != nil && len(m.modalContent.Paths) > 0 {
@@ -1020,18 +1099,18 @@ func (m TableLintModel) buildSplitView() string {
 	var emoji string
 	var emojiStyle lipgloss.Style
 	switch severity {
-	case "error":
+	case "✗ error":
 		emoji = "✗" // Red cross
-		emojiStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Bold(true)
-	case "warning":
+		emojiStyle = lipgloss.NewStyle().Foreground(ErrorColor).Bold(true)
+	case "▲ warning":
 		emoji = "▲" // Yellow triangle
-		emojiStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffaa00")).Bold(true)
-	case "info":
+		emojiStyle = lipgloss.NewStyle().Foreground(WarningColor).Bold(true)
+	case "● info":
 		emoji = "●" // Blue filled dot
-		emojiStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#00aaff")).Bold(true)
+		emojiStyle = lipgloss.NewStyle().Foreground(InfoColor).Bold(true)
 	default:
 		emoji = "●"
-		emojiStyle = lipgloss.NewStyle().Foreground(gray).Bold(true)
+		emojiStyle = lipgloss.NewStyle().Foreground(GrayColor).Bold(true)
 	}
 
 	ruleName := "Issue"
@@ -1039,19 +1118,30 @@ func (m TableLintModel) buildSplitView() string {
 		ruleName = m.modalContent.Rule.Id
 	}
 
-	// Title line with emoji and rule name
-	titleStyle := lipgloss.NewStyle().Foreground(neonPink).Bold(true)
+	// Title line with emoji and rule name - use severity color for rule name
+	var titleStyle lipgloss.Style
+	switch severity {
+	case "✗ error":
+		titleStyle = lipgloss.NewStyle().Foreground(ErrorColor).Bold(true)
+	case "▲ warning":
+		titleStyle = lipgloss.NewStyle().Foreground(WarningColor).Bold(true)
+	case "● info":
+		titleStyle = lipgloss.NewStyle().Foreground(InfoColor).Bold(true)
+	default:
+		titleStyle = lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true)
+	}
 	detailsContent.WriteString(fmt.Sprintf("%s %s", emojiStyle.Render(emoji), titleStyle.Render(ruleName)))
 	detailsContent.WriteString("\n")
 
 	// Location line
 	location := formatLocation(m.modalContent, m.fileName)
-	detailsContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render(location))
+	detailsContent.WriteString(lipgloss.NewStyle().Foreground(PrimaryColor).Render(location))
 	detailsContent.WriteString("\n\n")
 
-	// Message (wrap to fit width)
-	msgStyle := lipgloss.NewStyle().Foreground(neonPink).Width(detailsWidth - 2)
-	detailsContent.WriteString(msgStyle.Render(m.modalContent.Message))
+	// Message (wrap to fit width and colorize backticks)
+	colorizedMessage := ColorizeString(m.modalContent.Message, ColorizeSubtleSecondary)
+	msgStyle := lipgloss.NewStyle().Width(detailsWidth - 2)
+	detailsContent.WriteString(msgStyle.Render(colorizedMessage))
 
 	detailsPanel := detailsStyle.Render(detailsContent.String())
 
@@ -1067,7 +1157,7 @@ func (m TableLintModel) buildSplitView() string {
 	// Start at same line as details title
 	//howToFixContent.WriteString("\n")
 
-	// How to fix content
+	// How to fix content (with colorized backticks)
 	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
 		// Split how-to-fix into lines and format
 		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
@@ -1075,12 +1165,14 @@ func (m TableLintModel) buildSplitView() string {
 			if i > 0 {
 				howToFixContent.WriteString("\n")
 			}
+			// Colorize backticks with subtle primary (blue on subtle blue background)
+			colorizedLine := ColorizeString(line, ColorizeSubtlePrimary)
 			// Wrap long lines
-			wrapped := wrapText(line, howToFixWidth-4)
+			wrapped := wrapText(colorizedLine, howToFixWidth-4)
 			howToFixContent.WriteString(wrapped)
 		}
 	} else {
-		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(gray).Italic(true).
+		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(GrayColor).Italic(true).
 			Render("No fix suggestions available"))
 	}
 
@@ -1101,16 +1193,16 @@ func (m TableLintModel) buildSplitView() string {
 	// Code snippet with line numbers
 	if codeSnippet != "" {
 		codeLines := strings.Split(codeSnippet, "\n")
-		lineNumStyle := lipgloss.NewStyle().Foreground(gray).Bold(true)
-		codeTextStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
+		lineNumStyle := lipgloss.NewStyle().Foreground(GrayColor).Bold(true)
+		codeTextStyle := lipgloss.NewStyle().Foreground(WhiteColor)
 		// Use a very subtle dark background with pink text
 		highlightStyle := lipgloss.NewStyle().
-			Background(lipgloss.Color("#2a1a2a")). // Very subtle dark purple/pink tint
-			Foreground(neonPink).
+			Background(SubtlePink). // Very subtle dark purple/pink tint
+			Foreground(SecondaryColor).
 			Bold(true)
 
 		// Calculate the max line content width (excluding line numbers)
-		lineNumWidth := 5 // "1234 " format
+		lineNumWidth := 5                            // "1234 " format
 		maxLineWidth := codeWidth - lineNumWidth - 2 // -2 for padding
 
 		for i, codeLine := range codeLines {
@@ -1126,10 +1218,10 @@ func (m TableLintModel) buildSplitView() string {
 
 			// Format line number with padding
 			lineNumStr := fmt.Sprintf("%4d ", actualLineNum)
-			
+
 			// Use pink for highlighted line numbers
 			if isHighlighted {
-				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(neonPink).Bold(true)
+				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true)
 				codeContent.WriteString(highlightedLineNumStyle.Render(lineNumStr))
 			} else {
 				codeContent.WriteString(lineNumStyle.Render(lineNumStr))
@@ -1162,7 +1254,7 @@ func (m TableLintModel) buildSplitView() string {
 			}
 		}
 	} else {
-		codeContent.WriteString(lipgloss.NewStyle().Foreground(gray).Italic(true).
+		codeContent.WriteString(lipgloss.NewStyle().Foreground(GrayColor).Italic(true).
 			Render("No code context available"))
 	}
 
@@ -1188,7 +1280,7 @@ func (m TableLintModel) buildSplitView() string {
 	// Wrap in a container with blue border
 	containerStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(blue).
+		BorderForeground(PrimaryColor).
 		Width(splitWidth).
 		Height(splitHeight)
 
@@ -1205,17 +1297,13 @@ func (m TableLintModel) buildModalView() string {
 		return ""
 	}
 
-	// Styles
-	neonPink := lipgloss.Color("#f83aff")
-	blue := lipgloss.Color("#62c4ff")
-
 	// Modal style
 	modalStyle := lipgloss.NewStyle().
 		Width(modalWidth).
 		Height(modalHeight).
 		Padding(2).
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(neonPink).
+		BorderForeground(SecondaryColor).
 		Background(lipgloss.Color("#1a1a1a"))
 
 	// Content
@@ -1223,7 +1311,7 @@ func (m TableLintModel) buildModalView() string {
 
 	// Title
 	titleStyle := lipgloss.NewStyle().
-		Foreground(blue).
+		Foreground(PrimaryColor).
 		Bold(true).
 		Align(lipgloss.Center).
 		Width(modalWidth - 4)
@@ -1233,7 +1321,7 @@ func (m TableLintModel) buildModalView() string {
 
 	// Placeholder message
 	msgStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#909090")).
+		Foreground(GrayColor).
 		Align(lipgloss.Center).
 		Width(modalWidth - 4)
 
@@ -1484,7 +1572,7 @@ func (m TableLintModel) View() string {
 
 	// Build navigation bar (always at bottom)
 	navStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#4B5263")).
+		Foreground(DarkGrayColor).
 		Width(m.width)
 	// Add results count to nav bar
 	resultsText := fmt.Sprintf("%d results", len(m.filteredResults))
@@ -1625,16 +1713,15 @@ func renderEmptyState(width, height int) string {
 	}
 
 	// Apply color styling
-	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#4B5263"))
+	textStyle := lipgloss.NewStyle().Foreground(DarkGrayColor)
 	return textStyle.Render(strings.Join(resultLines, "\n"))
 }
 
 func addTableBorders(tableView string) string {
-	neonPink := lipgloss.Color("#f83aff")
 	// Just wrap in a simple border for now
 	tableStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(neonPink).
+		BorderForeground(SecondaryColor).
 		PaddingTop(0)
 
 	return tableStyle.Render(tableView)
@@ -1735,10 +1822,13 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		}
 
 		if i >= 1 && !isSelectedLine { // Start from line 1 (skip header row at 0)
-			// Apply severity colors
-			line = strings.Replace(line, " error ", " \033[31merror\033[0m ", -1)
-			line = strings.Replace(line, " warning ", " \033[33mwarning\033[0m ", -1)
-			line = strings.Replace(line, " info ", " \033[36minfo\033[0m ", -1)
+			// Apply severity colors with symbols
+			// Error: Red (#ff0000)
+			line = strings.Replace(line, " ✗ error ", " \033[38;2;255;0;0m✗ error\033[0m ", -1)
+			// Warning: Bright yellow (#ffaa00)
+			line = strings.Replace(line, " ▲ warning ", " \033[38;2;255;170;0m▲ warning\033[0m ", -1)
+			// Info: Light blue (#00aaff)
+			line = strings.Replace(line, " ● info ", " \033[38;2;0;170;255m● info\033[0m ", -1)
 		}
 
 		result.WriteString(line)
