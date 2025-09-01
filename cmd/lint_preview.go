@@ -972,11 +972,11 @@ func (m TableLintModel) buildSplitView() string {
 	// Content height for the three columns (must be exact same for all)
 	contentHeight := 11 // Fixed content height for all columns
 
-	// Column widths: details (25%), how-to-fix (35%), code (40%)
+	// Column widths: details (35%), how-to-fix (25%), code (40%)
 	// Adjust for container padding
 	innerWidth := splitWidth - 4 // Account for container borders and padding
-	detailsWidth := int(float64(innerWidth) * 0.25)
-	howToFixWidth := int(float64(innerWidth) * 0.35)
+	detailsWidth := int(float64(innerWidth) * 0.35)
+	howToFixWidth := int(float64(innerWidth) * 0.25)
 	codeWidth := innerWidth - detailsWidth - howToFixWidth
 
 	// Styles
@@ -1103,9 +1103,15 @@ func (m TableLintModel) buildSplitView() string {
 		codeLines := strings.Split(codeSnippet, "\n")
 		lineNumStyle := lipgloss.NewStyle().Foreground(gray).Bold(true)
 		codeTextStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
+		// Use a very subtle dark background with pink text
 		highlightStyle := lipgloss.NewStyle().
-			Background(lipgloss.Color("#5a0000")).
-			Foreground(lipgloss.Color("#ffaaaa"))
+			Background(lipgloss.Color("#2a1a2a")). // Very subtle dark purple/pink tint
+			Foreground(neonPink).
+			Bold(true)
+
+		// Calculate the max line content width (excluding line numbers)
+		lineNumWidth := 5 // "1234 " format
+		maxLineWidth := codeWidth - lineNumWidth - 2 // -2 for padding
 
 		for i, codeLine := range codeLines {
 			actualLineNum := startLine + i
@@ -1120,13 +1126,35 @@ func (m TableLintModel) buildSplitView() string {
 
 			// Format line number with padding
 			lineNumStr := fmt.Sprintf("%4d ", actualLineNum)
-			codeContent.WriteString(lineNumStyle.Render(lineNumStr))
+			
+			// Use pink for highlighted line numbers
+			if isHighlighted {
+				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(neonPink).Bold(true)
+				codeContent.WriteString(highlightedLineNumStyle.Render(lineNumStr))
+			} else {
+				codeContent.WriteString(lineNumStyle.Render(lineNumStr))
+			}
+
+			// Truncate line if too long to prevent wrapping
+			displayLine := codeLine
+			if len(codeLine) > maxLineWidth {
+				if maxLineWidth > 3 {
+					displayLine = codeLine[:maxLineWidth-3] + "..."
+				} else {
+					displayLine = codeLine[:maxLineWidth]
+				}
+			}
 
 			// Apply highlighting if needed
 			if isHighlighted {
-				codeContent.WriteString(highlightStyle.Render(codeLine))
+				// Pad the line to full width for consistent highlight bar
+				paddedLine := displayLine
+				if len(displayLine) < maxLineWidth {
+					paddedLine = displayLine + strings.Repeat(" ", maxLineWidth-len(displayLine))
+				}
+				codeContent.WriteString(highlightStyle.Render(paddedLine))
 			} else {
-				codeContent.WriteString(codeTextStyle.Render(codeLine))
+				codeContent.WriteString(codeTextStyle.Render(displayLine))
 			}
 
 			if i < len(codeLines)-1 {
