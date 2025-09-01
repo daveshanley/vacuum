@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/v2/table"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
 	"golang.org/x/term"
 )
@@ -496,7 +496,7 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// Handle modal-specific keys first
 		if m.showModal {
 			switch msg.String() {
@@ -616,11 +616,8 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m TableLintModel) View() string {
-	if m.quitting {
-		return ""
-	}
-
+// buildTableView builds the complete table view with title, filters, and status bar
+func (m TableLintModel) buildTableView() string {
 	var builder strings.Builder
 
 	// Title with filter state
@@ -684,7 +681,6 @@ func (m TableLintModel) View() string {
 
 		// Just write the bordered table
 		builder.WriteString(borderedTable)
-		//builder.WriteString(tableView)
 	}
 
 	builder.WriteString("\n")
@@ -711,14 +707,100 @@ func (m TableLintModel) View() string {
 
 	builder.WriteString(status)
 
-	// If modal is shown, overlay it on top of the table view
-	if m.showModal {
-		tableView := builder.String()
-		modalView := renderModalOverlay(m.width, m.height, m.modalContent, tableView)
-		return modalView
+	return builder.String()
+}
+
+// buildModalView builds the modal content
+func (m TableLintModel) buildModalView() string {
+	// Calculate modal dimensions (65% of console size)
+	modalWidth := int(float64(m.width) * 0.65)
+	modalHeight := int(float64(m.height) * 0.65)
+	
+	// Create modal style with neon pink border
+	neonPink := lipgloss.Color("#f83aff")
+	modalStyle := lipgloss.NewStyle().
+		Width(modalWidth - 4). // Account for border and padding
+		Height(modalHeight - 4).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(neonPink).
+		Background(lipgloss.Color("#1a1a1a")). // Dark background for the modal
+		Padding(1, 2)
+	
+	// Header style
+	headerStyle := lipgloss.NewStyle().
+		Foreground(neonPink).
+		Bold(true).
+		Width(modalWidth - 8) // Account for padding and border
+	
+	// Build modal content
+	var modalContent strings.Builder
+	
+	modalContent.WriteString(headerStyle.Render("✨ Rule Details"))
+	modalContent.WriteString("\n\n")
+	
+	if m.modalContent != nil {
+		// Show basic rule information
+		if m.modalContent.Rule != nil {
+			modalContent.WriteString(fmt.Sprintf("Rule: %s\n", m.modalContent.Rule.Id))
+		}
+		modalContent.WriteString(fmt.Sprintf("Message: %s\n", m.modalContent.Message))
+		modalContent.WriteString(fmt.Sprintf("Path: %s\n", m.modalContent.Path))
+	}
+	
+	modalContent.WriteString("\n")
+	modalContent.WriteString("Hello from the overlay modal!")
+	modalContent.WriteString("\n\n")
+	modalContent.WriteString("Press ESC, Q, or Enter to close")
+	
+	// Render the modal
+	return modalStyle.Render(modalContent.String())
+}
+
+// calculateModalPosition calculates the center position for the modal
+func (m TableLintModel) calculateModalPosition() (int, int) {
+	modalWidth := int(float64(m.width) * 0.65)
+	modalHeight := int(float64(m.height) * 0.65)
+	
+	x := (m.width - modalWidth) / 2
+	y := (m.height - modalHeight) / 2
+	
+	// Ensure positive values
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+	
+	return x, y
+}
+
+func (m TableLintModel) View() string {
+	if m.quitting {
+		return ""
 	}
 
-	return builder.String()
+	// Build the base table view
+	tableView := m.buildTableView()
+	
+	// Create layers
+	layers := []*lipgloss.Layer{
+		lipgloss.NewLayer(tableView), // Base layer
+	}
+	
+	// Add modal layer if shown
+	if m.showModal {
+		modal := m.buildModalView()
+		x, y := m.calculateModalPosition()
+		
+		// Add modal as an overlay layer
+		layers = append(layers,
+			lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
+	}
+	
+	// Render the canvas with all layers
+	canvas := lipgloss.NewCanvas(layers...)
+	return canvas.Render()
 }
 
 func renderEmptyState(width, height int) string {
@@ -815,52 +897,6 @@ func addTableBorders(tableView string) string {
 	return tableStyle.Render(tableView)
 }
 
-func renderModalOverlay(width, height int, content *model.RuleFunctionResult, backgroundView string) string {
-	// For simplicity with the current lipgloss version, just render the modal
-	// without trying to overlay on the background
-	
-	// Calculate modal dimensions (65% of console size)
-	modalWidth := int(float64(width) * 0.65)
-	modalHeight := int(float64(height) * 0.65)
-	
-	// Create modal style with neon pink border and dark background for contrast
-	neonPink := lipgloss.Color("#f83aff")
-	modalStyle := lipgloss.NewStyle().
-		Width(modalWidth - 4). // Account for border and padding
-		Height(modalHeight - 4).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(neonPink).
-		Background(lipgloss.Color("#1a1a1a")). // Dark background for the modal
-		Padding(1, 2)
-	
-	// Header style
-	headerStyle := lipgloss.NewStyle().
-		Foreground(neonPink).
-		Bold(true).
-		Width(modalWidth - 8) // Account for padding and border
-	
-	// Build modal content
-	var modalContent strings.Builder
-	
-	// For now, just show hello message
-	modalContent.WriteString(headerStyle.Render("✨ Rule Details"))
-	modalContent.WriteString("\n\n")
-	modalContent.WriteString("Hello! This is where the full result details will be shown.")
-	modalContent.WriteString("\n\n")
-	modalContent.WriteString("Press ESC, Q, or Enter to close")
-	
-	// Render the modal
-	modal := modalStyle.Render(modalContent.String())
-	
-	// Center the modal
-	centeredModal := lipgloss.NewStyle().
-		Width(width).
-		Height(height).
-		Align(lipgloss.Center).
-		Render(modal)
-	
-	return centeredModal
-}
 
 func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string {
 	lines := strings.Split(tableView, "\n")
