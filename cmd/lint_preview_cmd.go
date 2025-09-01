@@ -255,7 +255,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			}
 			
 			// Show interactive table
-			err := ShowTableLintView(filteredResults, fileName)
+			err := ShowTableLintView(filteredResults, fileName, specBytes)
 			if err != nil {
 				fmt.Printf("\033[31mError showing interactive table: %v\033[0m\n", err)
 			}
