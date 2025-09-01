@@ -12,7 +12,7 @@
     },
     "type": {
       "enum": [ "style", "validation" ],
-      "errorMessage": "allowed types are \"style\" and \"validation\""
+      "x-errorMessage": "allowed types are \"style\" and \"validation\""
     },
     "then": {
       "anyOf": [
@@ -51,7 +51,7 @@
     "documentationUrl": {
       "type": "string",
       "format": "url",
-      "errorMessage": "must be a valid URL"
+      "x-errorMessage": "must be a valid URL"
     },
     "formats": {
       "$ref": "#/definitions/Formats"
@@ -97,20 +97,20 @@
       "enum": [ -1, 0, 1, 2, 3 ]
     },
     "Format": {
-      "$anchor": "format",
-      "errorMessage": "must be a valid format",
-      "spectral-runtime": "spectral-format"
+      "x-$anchor": "format",
+      "x-errorMessage": "must be a valid format",
+      "x-spectral-runtime": "spectral-format"
     },
     "Formats": {
-      "$anchor": "formats",
+      "x-$anchor": "formats",
       "type": "array",
       "items": {
         "$ref": "#/definitions/Format"
       },
-      "errorMessage": "must be an array of formats"
+      "x-errorMessage": "must be an array of formats"
     },
     "Functions": {
-      "$anchor": "functions",
+      "x-$anchor": "functions",
       "type": "array",
       "items": {
         "type": "string"
@@ -120,7 +120,7 @@
       "enum": [ "error", "warn", "info", "hint", "off" ]
     },
     "Severity": {
-      "$anchor": "severity",
+      "x-$anchor": "severity",
       "oneOf": [
         {
           "$ref": "#/definitions/DiagnosticSeverity"
@@ -129,22 +129,20 @@
           "$ref": "#/definitions/HumanReadableSeverity"
         }
       ],
-      "errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
+      "x-errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
     },
     "Then": {
       "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        }
+      },
+      "required": [ "function" ],
+      "x-spectral-runtime": "ruleset-function",
       "allOf": [
         {
-          "properties": {
-            "field": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [ "function" ],
-          "spectral-runtime": "ruleset-function"
+          "type": "object"
         }
       ]
     }
