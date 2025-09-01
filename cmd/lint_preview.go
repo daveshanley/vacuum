@@ -109,12 +109,14 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 	columns, rows := buildTableData(results, fileName, width, true) // Default to showing path
 
 	// Create table
+	// Account for the border that will be added by addTableBorders (2 chars)
+	tableActualWidth := width - 2
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height-5), // Title (2 lines with blank), table border (2), status (1)
-		table.WithWidth(width),     // Use full width to match split view
+		table.WithWidth(tableActualWidth),     // Account for border wrapper
 	)
 
 	// Apply table styles
@@ -152,7 +154,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 	return nil
 }
 
-func buildTableData(results []*model.RuleFunctionResult, fileName string, width int, showPath bool) ([]table.Column, []table.Row) {
+func buildTableData(results []*model.RuleFunctionResult, fileName string, terminalWidth int, showPath bool) ([]table.Column, []table.Row) {
 	rows := []table.Row{}
 	maxLocWidth := len("Location") // Start with header width
 	maxRuleWidth := len("Rule")
@@ -204,54 +206,178 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 		}
 	}
 
-	// Calculate column widths
+	// Calculate column widths with natural sizes
 	locWidth := maxLocWidth
 	sevWidth := 9 // Fixed for "warning"
 	ruleWidth := maxRuleWidth
 	catWidth := maxCatWidth
-
-	// Calculate fixed width (all columns except message and path)
-	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth
+	
+	// Store natural widths for restoration
+	naturalRuleWidth := ruleWidth
+	naturalCatWidth := catWidth
 
 	// Account for table borders AND internal padding
-	// The table adds padding to each column (2 chars per column)
 	columnCount := 5
 	if showPath {
 		columnCount = 6
 	}
-	columnPadding := columnCount*2 - 5 // Less padding to align with split view
-	tableWidth := width - 2 - columnPadding
-	availableWidth := tableWidth
-	remainingWidth := availableWidth - fixedWidth
+	// Account for the border wrapper (2 chars) that will be added
+	actualTableWidth := terminalWidth - 2
+	// Each column gets 2 chars of padding from the table component
+	columnPadding := columnCount * 2
+	// Available width for columns = table width - column padding
+	availableWidth := actualTableWidth - columnPadding
 
-	// Ensure we have positive remaining width
-	if remainingWidth < 100 {
-		remainingWidth = 100
-	}
+	// Define minimum widths
+	minMsgWidth := 40  // Message should be readable
+	minPathWidth := 20 // Minimum for path
+	minRuleWidth := 20 // Minimum for rule
+	minCatWidth := 20  // Minimum for category
 
 	var msgWidth, pathWidth int
 
 	if showPath {
-		// Split remaining space between message (60%) and path (40%)
-		msgWidth = (remainingWidth * 60) / 100
-		pathWidth = remainingWidth - msgWidth // Use all remaining width to avoid rounding issues
-
-		// Ensure minimum widths
-		if msgWidth < 50 {
-			msgWidth = 50
-		}
-		if pathWidth < 35 { // Minimum path width
-			pathWidth = 35
-			// Recalculate message width with minimum path
-			msgWidth = availableWidth - fixedWidth - pathWidth
+		// Start with natural message width (approx 60% of typical remaining space)
+		// This is our "natural" message width target
+		naturalMsgWidth := 80
+		naturalPathWidth := 50
+		
+		// Calculate total natural width
+		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth + naturalPathWidth
+		
+		if totalNaturalWidth <= availableWidth {
+			// We have enough space for natural widths or more
+			msgWidth = naturalMsgWidth
+			pathWidth = naturalPathWidth
+			ruleWidth = naturalRuleWidth
+			catWidth = naturalCatWidth
+			
+			// Distribute extra space 50/50 between message and path
+			extraSpace := availableWidth - totalNaturalWidth
+			if extraSpace > 0 {
+				msgWidth += extraSpace / 2
+				pathWidth += extraSpace - (extraSpace / 2) // Use remainder to avoid rounding issues
+			}
+		} else {
+			// Need to compress - use hierarchical compression
+			// Start with natural widths
+			msgWidth = naturalMsgWidth
+			pathWidth = naturalPathWidth
+			ruleWidth = naturalRuleWidth
+			catWidth = naturalCatWidth
+			
+			// Calculate how much we need to save
+			needToSave := totalNaturalWidth - availableWidth
+			
+			// Phase 1: Compress path first
+			if needToSave > 0 && pathWidth > minPathWidth {
+				canSave := pathWidth - minPathWidth
+				if canSave >= needToSave {
+					pathWidth -= needToSave
+					needToSave = 0
+				} else {
+					pathWidth = minPathWidth
+					needToSave -= canSave
+				}
+			}
+			
+			// Phase 2: Compress category
+			if needToSave > 0 && catWidth > minCatWidth {
+				canSave := catWidth - minCatWidth
+				if canSave >= needToSave {
+					catWidth -= needToSave
+					needToSave = 0
+				} else {
+					catWidth = minCatWidth
+					needToSave -= canSave
+				}
+			}
+			
+			// Phase 3: Compress rule
+			if needToSave > 0 && ruleWidth > minRuleWidth {
+				canSave := ruleWidth - minRuleWidth
+				if canSave >= needToSave {
+					ruleWidth -= needToSave
+					needToSave = 0
+				} else {
+					ruleWidth = minRuleWidth
+					needToSave -= canSave
+				}
+			}
+			
+			// Phase 4: Last resort - compress message
+			if needToSave > 0 && msgWidth > minMsgWidth {
+				canSave := msgWidth - minMsgWidth
+				if canSave >= needToSave {
+					msgWidth -= needToSave
+				} else {
+					msgWidth = minMsgWidth
+				}
+			}
 		}
 	} else {
-		// No path column - give all remaining space to message
-		msgWidth = remainingWidth
+		// No path column - simpler calculation
+		naturalMsgWidth := 100
+		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth
+		
+		if totalNaturalWidth <= availableWidth {
+			// We have enough space
+			msgWidth = naturalMsgWidth
+			ruleWidth = naturalRuleWidth
+			catWidth = naturalCatWidth
+			
+			// Give all extra space to message
+			extraSpace := availableWidth - totalNaturalWidth
+			if extraSpace > 0 {
+				msgWidth += extraSpace
+			}
+		} else {
+			// Need to compress
+			msgWidth = naturalMsgWidth
+			ruleWidth = naturalRuleWidth
+			catWidth = naturalCatWidth
+			
+			needToSave := totalNaturalWidth - availableWidth
+			
+			// Phase 1: Compress category
+			if needToSave > 0 && catWidth > minCatWidth {
+				canSave := catWidth - minCatWidth
+				if canSave >= needToSave {
+					catWidth -= needToSave
+					needToSave = 0
+				} else {
+					catWidth = minCatWidth
+					needToSave -= canSave
+				}
+			}
+			
+			// Phase 2: Compress rule
+			if needToSave > 0 && ruleWidth > minRuleWidth {
+				canSave := ruleWidth - minRuleWidth
+				if canSave >= needToSave {
+					ruleWidth -= needToSave
+					needToSave = 0
+				} else {
+					ruleWidth = minRuleWidth
+					needToSave -= canSave
+				}
+			}
+			
+			// Phase 3: Last resort - compress message
+			if needToSave > 0 && msgWidth > minMsgWidth {
+				canSave := msgWidth - minMsgWidth
+				if canSave >= needToSave {
+					msgWidth -= needToSave
+				} else {
+					msgWidth = minMsgWidth
+				}
+			}
+		}
+		
 		pathWidth = 0
 	}
 
-	// CRITICAL: Ensure columns sum to EXACTLY (width - totalPadding)
+	// CRITICAL: Ensure columns sum to EXACTLY match available width
 	// The table component doesn't stretch rows, so we need exact match
 	var totalColWidth int
 	if showPath {
@@ -260,7 +386,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, width 
 		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth
 	}
 
-	targetWidth := tableWidth // Match actual table width
+	targetWidth := availableWidth // Match calculated available width
 	widthDiff := targetWidth - totalColWidth
 
 	// Add any difference to the message column (or path if shown)
@@ -492,7 +618,7 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width, m.showPath)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
-		m.table.SetWidth(msg.Width) // Use full width to match split view
+		m.table.SetWidth(msg.Width - 2) // Account for border wrapper
 
 		// Adjust table height based on split view state
 		if m.showSplitView {
@@ -841,7 +967,7 @@ func (m TableLintModel) buildSplitView() string {
 		return "" // Don't show split view if terminal too small
 	}
 
-	splitWidth := m.width // Match table width
+	splitWidth := m.width // Match terminal width for consistency
 
 	// Content height for the three columns (must be exact same for all)
 	contentHeight := 11 // Fixed content height for all columns
@@ -1480,7 +1606,8 @@ func addTableBorders(tableView string) string {
 	// Just wrap in a simple border for now
 	tableStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(neonPink).PaddingTop(0)
+		BorderForeground(neonPink).
+		PaddingTop(0)
 
 	return tableStyle.Render(tableView)
 }
