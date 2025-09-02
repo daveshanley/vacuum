@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/table"
@@ -90,7 +91,7 @@ func applyTableStyles(t *table.Model) {
 		Padding(0, 1) // Add padding for readability
 
 	// Selected row style with subtle pink background and pink text
-	s.Selected = lipgloss.NewStyle().
+	s.Selected = lipgloss.NewStyle().Bold(true).
 		Foreground(SecondaryColor). // Pink text
 		Background(SubtlePink).     // Subtle pink background
 		Padding(0, 0)
@@ -208,7 +209,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 				r.Message,
 				ruleID,
 				category,
-				":||:" + r.Path + ":||:", // Add delimiters to mark the path column
+				r.Path, // Add delimiters to mark the path column
 			})
 		} else {
 			// No path column
@@ -437,7 +438,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 
 	if showPath {
 		columns = append(columns, table.Column{
-			Title: ":||:Path:||:", Width: pathWidth,
+			Title: "Path", Width: pathWidth,
 		})
 	}
 
@@ -1727,6 +1728,13 @@ func addTableBorders(tableView string) string {
 	return tableStyle.Render(tableView)
 }
 
+var locationRegex = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
+
+// Matches anything starting with $. (simple JSONPath detection)
+var jsonPathRegex = regexp.MustCompile(`\$\.[^\s]+`)
+var circularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
+var partRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
+
 func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string {
 	lines := strings.Split(tableView, "\n")
 
@@ -1736,12 +1744,14 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		selectedLocation = rows[cursor][0]
 	}
 
-	// Define tertiary color - lighter gray options:
-	// tertiaryColor := "\033[38;2;128;128;128m" // Medium gray #808080
-	// tertiaryColor := "\033[38;2;160;160;160m" // Light gray #a0a0a0
-	// tertiaryColor := "\033[38;2;192;192;192m" // Silver #c0c0c0
-	tertiaryColor := "\033[38;2;144;144;144m" // Nice readable gray #909090
-	secondaryColorAnsi := "\033[38;2;248;58;255m" // Secondary pink for sibling rows
+	red := "\033[38;5;196m"  // Bright red for errors
+	grey := "\033[38;5;246m" // Nice readable gray #909090
+	lightGreyItalic := "\033[3;38;5;251m"
+	secondaryPink := "\033[38;5;164m"
+	lightGrey := "\033[38;5;253m"
+	blue := "\033[38;5;45m" // Bright blue for paths
+	bold := "\033[1m"
+
 	reset := "\033[0m"
 
 	var result strings.Builder
@@ -1749,93 +1759,65 @@ func colorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		// Skip coloring for headers and selected row
 		isSelectedLine := selectedLocation != "" && strings.Contains(line, selectedLocation)
 
-		// First, handle the path column delimiters for all lines (including header)
-		if strings.Contains(line, ":||:") {
-			// Find content between delimiters and color it (unless it's the selected line)
-			start := strings.Index(line, ":||:")
-			if start != -1 {
-				// Look for the closing delimiter
-				end := strings.Index(line[start+4:], ":||:")
-				if end != -1 {
-					// Found both delimiters - extract content between them
-					end = start + 4 + end
-					pathContent := line[start+4 : end]
-
-					coloredPath := pathContent
-
-					// remove any truncated delimiter characters
-					if len(coloredPath) > 5 {
-
-						if strings.Contains(coloredPath, ":||") {
-							coloredPath = strings.Replace(coloredPath, ":||", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":||...", "", 1)
-						}
-						if strings.Contains(coloredPath, ":|") {
-							coloredPath = strings.Replace(coloredPath, ":|", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":||...", "", 1)
-						}
-						if strings.Contains(coloredPath, ":") {
-							coloredPath = strings.Replace(coloredPath, ":", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":...", "", 1)
-						}
-					}
-
-					// Color the path content if not selected
-					if !isSelectedLine && i > 0 { // Don't color header or selected rows
-						coloredPath = tertiaryColor + coloredPath + reset
-					} else if isSelectedLine && i > 0 {
-						// Selected lines (including siblings) get pink
-						coloredPath = secondaryColorAnsi + coloredPath + reset
-					}
-
-					// Replace the delimited content with colored version (removing delimiters)
-					line = line[:start] + coloredPath + line[end+4:]
-				} else {
-					// No closing delimiter found (likely truncated)
-					// Just remove the opening delimiter and color the rest
-					pathContent := line[start+4:]
-
-					// Color the path content if not selected
-					coloredPath := pathContent
-
-					// remove any truncated delimiter characters
-					if len(coloredPath) > 5 {
-
-						if strings.Contains(coloredPath, ":||") {
-							coloredPath = strings.Replace(coloredPath, ":||", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":||...", "", 1)
-						}
-						if strings.Contains(coloredPath, ":|") {
-							coloredPath = strings.Replace(coloredPath, ":|", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":|...", "", 1)
-						}
-						if strings.Contains(coloredPath, ":") {
-							coloredPath = strings.Replace(coloredPath, ":", "", 1)
-							coloredPath = strings.Replace(coloredPath, ":...", "", 1)
-						}
-					}
-
-					if !isSelectedLine && i > 0 { // Don't color header or selected rows
-						coloredPath = tertiaryColor + coloredPath + reset
-					} else if isSelectedLine && i > 0 {
-						// Selected lines (including siblings) get pink
-						coloredPath = secondaryColorAnsi + coloredPath + reset
-					}
-
-					// Replace from delimiter to end of line
-					line = line[:start] + coloredPath
-				}
-			}
+		// Color the path content if not selected
+		if isSelectedLine && i > 0 {
+			// Selected lines (including siblings) get pink
+			line = secondaryPink + line + reset
 		}
 
 		if i >= 1 && !isSelectedLine { // Start from line 1 (skip header row at 0)
-			// Apply severity colors with symbols
-			// Error: Red (#ff0000)
-			line = strings.Replace(line, " ✗ error ", " \033[38;2;255;0;0m✗ error\033[0m ", -1)
-			// Warning: Bright yellow (#ffaa00)
-			line = strings.Replace(line, " ▲ warning ", " \033[38;2;255;170;0m▲ warning\033[0m ", -1)
-			// Info: Light blue (#00aaff)
-			line = strings.Replace(line, " ● info ", " \033[38;2;0;170;255m● info\033[0m ", -1)
+
+			if locationRegex.MatchString(line) {
+
+				line = locationRegex.ReplaceAllStringFunc(line, func(match string) string {
+					parts := locationRegex.FindStringSubmatch(match)
+					if len(parts) == 4 {
+						filePath := parts[1]
+						lineNum := parts[2]
+						colNum := parts[3]
+
+						file := filepath.Base(filePath)
+						dir := filepath.Dir(filePath)
+						filePath = fmt.Sprintf("%s/%s%s%s", dir, lightGreyItalic, file, reset)
+
+						// Apply tertiary color to file path and line/col numbers
+						coloredPath := fmt.Sprintf("%s%s%s", grey, filePath, reset)
+						coloredLine := fmt.Sprintf("%s%s%s", bold, lineNum, reset)
+						coloredCol := fmt.Sprintf("%s%s%s", lightGrey, colNum, reset)
+						sep := fmt.Sprintf("%s:%s", lightGrey, reset)
+						return fmt.Sprintf("%s%s%s%s%s", coloredPath, sep, coloredLine, sep, coloredCol)
+					}
+					return match // Fallback to original if something goes wrong
+				})
+			}
+
+			if jsonPathRegex.MatchString(line) {
+				line = jsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
+					return fmt.Sprintf("%s%s%s", grey, match, reset)
+				})
+			}
+
+			if circularRefRegex.MatchString(line) {
+				line = circularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
+					circResult := ""
+
+					parts := partRegex.FindAllStringSubmatch(match, -1)
+					for _, part := range parts {
+						if part[1] != "" {
+							// ref
+							circResult += fmt.Sprintf("%s%s%s", lightGrey, part[1], reset)
+						} else if part[2] != "" {
+							// arrow
+							circResult += fmt.Sprintf("%s%s%s", red, part[2], reset)
+						}
+					}
+					return circResult
+				})
+			}
+
+			line = strings.Replace(line, "✗ error", fmt.Sprintf("%s%s", "\033[38;5;196m", "✗ error\033[0m"), -1)
+			line = strings.Replace(line, "▲ warning", fmt.Sprintf("%s%s", "\033[38;5;220m", "▲ warning\033[0m"), -1)
+			line = strings.Replace(line, "● info", fmt.Sprintf("%s%s", blue, "● info\033[0m"), -1)
 		}
 
 		result.WriteString(line)
