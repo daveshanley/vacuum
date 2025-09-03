@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -18,24 +17,9 @@ import (
 	"golang.org/x/term"
 )
 
-// Color palette - consistent colors used throughout the UI
-var (
-	PrimaryColor   = lipgloss.Color("45")  // Neon blue
-	SecondaryColor = lipgloss.Color("201") // Neon pink
-	ErrorColor     = lipgloss.Color("196") // Red
-	WarningColor   = lipgloss.Color("220") // Bright yellow
-	InfoColor      = PrimaryColor
-	OKColor        = lipgloss.Color("40")      // Neon bright green
-	GrayColor      = lipgloss.Color("#909090") // Gray for secondary text
-	DarkGrayColor  = lipgloss.Color("#4B5263") // Darker gray
-	WhiteColor     = lipgloss.Color("#ffffff") // White
-	BlackColor     = lipgloss.Color("#000000") // Black
-	SubtleBlue     = lipgloss.Color("#1a3a5a") // Subtle blue background
-	SubtlePink     = lipgloss.Color("#2a1a2a") // Subtle pink background
-)
-
+// regular expressions.
 var locationRegex = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
-var jsonPathRegex = regexp.MustCompile(`\$\.[^\s]+`)
+var jsonPathRegex = regexp.MustCompile(`\$\.\S+`)
 var circularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
 var partRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
 
@@ -47,12 +31,6 @@ const (
 	FilterErrors                      // Show only errors
 	FilterWarnings                    // Show only warnings
 	FilterInfo                        // Show only info messages
-)
-
-const (
-	// TableWidthAdjustment is the amount to reduce table width to ensure it fits properly
-	// and shows the right border. Adjust this value if the table extends off screen.
-	TableWidthAdjustment = 0 // Use full terminal width
 )
 
 // TableLintModel holds the state for the interactive table view
@@ -76,39 +54,7 @@ type TableLintModel struct {
 	showPath        bool                      // Toggle for showing/hiding path column
 	showModal       bool                      // Whether to show the DOCS modal
 	showSplitView   bool                      // Whether to show the split view
-	modalContent    *model.RuleFunctionResult // Current result being shown in modal/split view
-}
-
-// applyTableStyles configures the table with neon pink theme
-func applyTableStyles(t *table.Model) {
-	s := table.DefaultStyles()
-
-	// Header with pink text and separators
-	s.Header = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(SecondaryColor).
-		BorderBottom(true).
-		BorderLeft(false).
-		BorderRight(false). // Remove right border to avoid doubles
-		BorderTop(false).
-		Foreground(SecondaryColor).
-		Bold(true).
-		Padding(0, 1) // Add padding for readability
-
-	// Selected row style with subtle pink background and pink text
-	s.Selected = lipgloss.NewStyle().Bold(true).
-		Foreground(SecondaryColor). // Pink text
-		Background(SubtlePink).     // Subtle pink background
-		Padding(0, 0)
-
-	// Regular cells with padding for readability
-	s.Cell = lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(SecondaryColor).
-		BorderRight(false). // Remove to avoid double borders
-		Padding(0, 1)       // Add padding for readability
-
-	t.SetStyles(s)
+	modalContent    *model.RuleFunctionResult // The current result being shown in the splitview
 }
 
 // ShowTableLintView displays results in an interactive table
@@ -117,7 +63,6 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 		return nil
 	}
 
-	// Get terminal size
 	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
 		width = 180
@@ -126,29 +71,24 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 		height = 40
 	}
 
-	// Calculate column widths
 	columns, rows := buildTableData(results, fileName, width, true) // Default to showing path
 
-	// Create table
-	// Account for the border that will be added by addTableBorders (2 chars)
+	// account for the border that will be added by addTableBorders (2 chars)
 	tableActualWidth := width - 2
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height-5),        // Title (2 lines with blank), table border (2), status (1)
-		table.WithWidth(tableActualWidth), // Account for border wrapper
+		table.WithWidth(tableActualWidth), // account for border wrapper
 	)
 
-	// Apply table styles
-	applyTableStyles(&t)
+	applyLintDetailsTableStyles(&t)
 
-	// Extract unique categories and rules
 	categories := extractCategories(results)
 	rules := extractRules(results)
 
-	// Create and run model
-	m := TableLintModel{
+	m := &TableLintModel{
 		table:           t,
 		allResults:      results,
 		filteredResults: results,
@@ -175,325 +115,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 	return nil
 }
 
-func buildTableData(results []*model.RuleFunctionResult, fileName string, terminalWidth int, showPath bool) ([]table.Column, []table.Row) {
-	rows := []table.Row{}
-	maxLocWidth := len("Location") // Start with header width
-	maxRuleWidth := len("Rule")
-	maxCatWidth := len("Category")
-
-	// First pass: build rows and find max widths
-	for _, r := range results {
-		location := formatLocation(r, fileName)
-		severity := getSeverity(r)
-		category := ""
-		if r.Rule != nil && r.Rule.RuleCategory != nil {
-			category = r.Rule.RuleCategory.Name
-		}
-		ruleID := ""
-		if r.Rule != nil {
-			ruleID = r.Rule.Id
-		}
-
-		// Track max widths
-		if len(location) > maxLocWidth {
-			maxLocWidth = len(location)
-		}
-		if len(ruleID) > maxRuleWidth {
-			maxRuleWidth = len(ruleID)
-		}
-		if len(category) > maxCatWidth {
-			maxCatWidth = len(category)
-		}
-
-		// Build row based on whether we're showing path column
-		// Note: Don't colorize in table as truncation can break ANSI codes
-		if showPath {
-			rows = append(rows, table.Row{
-				location,
-				severity,
-				r.Message,
-				ruleID,
-				category,
-				r.Path, // Add delimiters to mark the path column
-			})
-		} else {
-			// No path column
-			rows = append(rows, table.Row{
-				location,
-				severity,
-				r.Message,
-				ruleID,
-				category,
-			})
-		}
-	}
-
-	// Calculate column widths with natural sizes
-	locWidth := maxLocWidth
-	sevWidth := 11 // Fixed for "▲ warning" (symbol + space + word)
-	ruleWidth := maxRuleWidth
-	catWidth := maxCatWidth
-
-	// Store natural widths for restoration
-	naturalRuleWidth := ruleWidth
-	naturalCatWidth := catWidth
-
-	// Account for table borders AND internal padding
-	columnCount := 5
-	if showPath {
-		columnCount = 6
-	}
-	// Account for the border wrapper (2 chars) that will be added
-	actualTableWidth := terminalWidth - 2
-	// Each column gets 2 chars of padding from the table component
-	columnPadding := columnCount * 2
-	// Available width for columns = table width - column padding
-	availableWidth := actualTableWidth - columnPadding
-
-	// Define minimum widths
-	minMsgWidth := 40  // Message should be readable
-	minPathWidth := 20 // Minimum for path
-	minRuleWidth := 20 // Minimum for rule
-	minCatWidth := 20  // Minimum for category
-
-	var msgWidth, pathWidth int
-
-	if showPath {
-		// Start with natural message width (approx 60% of typical remaining space)
-		// This is our "natural" message width target
-		naturalMsgWidth := 80
-		naturalPathWidth := 50
-
-		// Calculate total natural width
-		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth + naturalPathWidth
-
-		if totalNaturalWidth <= availableWidth {
-			// We have enough space for natural widths or more
-			msgWidth = naturalMsgWidth
-			pathWidth = naturalPathWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			// Distribute extra space 50/50 between message and path
-			extraSpace := availableWidth - totalNaturalWidth
-			if extraSpace > 0 {
-				msgWidth += extraSpace / 2
-				pathWidth += extraSpace - (extraSpace / 2) // Use remainder to avoid rounding issues
-			}
-		} else {
-			// Need to compress - use hierarchical compression
-			// Start with natural widths
-			msgWidth = naturalMsgWidth
-			pathWidth = naturalPathWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			// Calculate how much we need to save
-			needToSave := totalNaturalWidth - availableWidth
-
-			// Phase 1: Compress path first
-			if needToSave > 0 && pathWidth > minPathWidth {
-				canSave := pathWidth - minPathWidth
-				if canSave >= needToSave {
-					pathWidth -= needToSave
-					needToSave = 0
-				} else {
-					pathWidth = minPathWidth
-					needToSave -= canSave
-				}
-			}
-
-			// Phase 2: Compress category
-			if needToSave > 0 && catWidth > minCatWidth {
-				canSave := catWidth - minCatWidth
-				if canSave >= needToSave {
-					catWidth -= needToSave
-					needToSave = 0
-				} else {
-					catWidth = minCatWidth
-					needToSave -= canSave
-				}
-			}
-
-			// Phase 3: Compress rule
-			if needToSave > 0 && ruleWidth > minRuleWidth {
-				canSave := ruleWidth - minRuleWidth
-				if canSave >= needToSave {
-					ruleWidth -= needToSave
-					needToSave = 0
-				} else {
-					ruleWidth = minRuleWidth
-					needToSave -= canSave
-				}
-			}
-
-			// Phase 4: Last resort - compress message
-			if needToSave > 0 && msgWidth > minMsgWidth {
-				canSave := msgWidth - minMsgWidth
-				if canSave >= needToSave {
-					msgWidth -= needToSave
-				} else {
-					msgWidth = minMsgWidth
-				}
-			}
-		}
-	} else {
-		// No path column - simpler calculation
-		naturalMsgWidth := 100
-		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth
-
-		if totalNaturalWidth <= availableWidth {
-			// We have enough space
-			msgWidth = naturalMsgWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			// Give all extra space to message
-			extraSpace := availableWidth - totalNaturalWidth
-			if extraSpace > 0 {
-				msgWidth += extraSpace
-			}
-		} else {
-			// Need to compress
-			msgWidth = naturalMsgWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			needToSave := totalNaturalWidth - availableWidth
-
-			// Phase 1: Compress category
-			if needToSave > 0 && catWidth > minCatWidth {
-				canSave := catWidth - minCatWidth
-				if canSave >= needToSave {
-					catWidth -= needToSave
-					needToSave = 0
-				} else {
-					catWidth = minCatWidth
-					needToSave -= canSave
-				}
-			}
-
-			// Phase 2: Compress rule
-			if needToSave > 0 && ruleWidth > minRuleWidth {
-				canSave := ruleWidth - minRuleWidth
-				if canSave >= needToSave {
-					ruleWidth -= needToSave
-					needToSave = 0
-				} else {
-					ruleWidth = minRuleWidth
-					needToSave -= canSave
-				}
-			}
-
-			// Phase 3: Last resort - compress message
-			if needToSave > 0 && msgWidth > minMsgWidth {
-				canSave := msgWidth - minMsgWidth
-				if canSave >= needToSave {
-					msgWidth -= needToSave
-				} else {
-					msgWidth = minMsgWidth
-				}
-			}
-		}
-
-		pathWidth = 0
-	}
-
-	// CRITICAL: Ensure columns sum to EXACTLY match available width
-	// The table component doesn't stretch rows, so we need exact match
-	var totalColWidth int
-	if showPath {
-		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth + pathWidth
-	} else {
-		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth
-	}
-
-	targetWidth := availableWidth // Match calculated available width
-	widthDiff := targetWidth - totalColWidth
-
-	// Add any difference to the message column (or path if shown)
-	if widthDiff > 0 {
-		if showPath {
-			pathWidth += widthDiff
-		} else {
-			msgWidth += widthDiff
-		}
-	} else if widthDiff < 0 {
-		// If we're over, reduce appropriate column
-		if showPath {
-			pathWidth += widthDiff // widthDiff is negative, so this reduces
-			if pathWidth < 35 {
-				// If path becomes too small, reduce message instead
-				msgWidth += widthDiff
-				pathWidth = 35
-			}
-		} else {
-			msgWidth += widthDiff
-		}
-	}
-
-	// Build columns array based on showPath
-	columns := []table.Column{
-		{Title: "Location", Width: locWidth},
-		{Title: "Severity", Width: sevWidth},
-		{Title: "Message", Width: msgWidth},
-		{Title: "Rule", Width: ruleWidth},
-		{Title: "Category", Width: catWidth},
-	}
-
-	if showPath {
-		columns = append(columns, table.Column{
-			Title: "Path", Width: pathWidth,
-		})
-	}
-
-	return columns, rows
-}
-
-func formatLocation(r *model.RuleFunctionResult, fileName string) string {
-	startLine := 0
-	startCol := 0
-	f := fileName
-
-	if r.StartNode != nil {
-		startLine = r.StartNode.Line
-		startCol = r.StartNode.Column
-	}
-
-	if r.Origin != nil {
-		f = r.Origin.AbsoluteLocation
-		startLine = r.Origin.Line
-		startCol = r.Origin.Column
-	}
-
-	// Make path relative
-	if absPath, err := filepath.Abs(f); err == nil {
-		if cwd, err := os.Getwd(); err == nil {
-			if relPath, err := filepath.Rel(cwd, absPath); err == nil {
-				f = relPath
-			}
-		}
-	}
-
-	return fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
-}
-
-func getSeverity(r *model.RuleFunctionResult) string {
-	if r.Rule != nil {
-		switch r.Rule.Severity {
-		case model.SeverityError:
-			return "✗ error"
-		case model.SeverityWarn:
-			return "▲ warning"
-		default:
-			return "● info"
-		}
-	}
-	return "● info"
-}
-
 func (m *TableLintModel) applyFilter() {
-	// Start with severity filter
 	var filtered []*model.RuleFunctionResult
 
 	switch m.filterState {
@@ -519,7 +141,6 @@ func (m *TableLintModel) applyFilter() {
 		}
 	}
 
-	// Apply category filter on top of severity filter
 	if m.categoryFilter != "" {
 		var categoryFiltered []*model.RuleFunctionResult
 		for _, r := range filtered {
@@ -531,7 +152,6 @@ func (m *TableLintModel) applyFilter() {
 		filtered = categoryFiltered
 	}
 
-	// Apply rule filter on top of other filters
 	if m.ruleFilter != "" {
 		var ruleFiltered []*model.RuleFunctionResult
 		for _, r := range filtered {
@@ -544,91 +164,23 @@ func (m *TableLintModel) applyFilter() {
 
 	m.filteredResults = filtered
 
-	// Rebuild table data with filtered results - recalculate column widths
+	// rebuild table data with filtered results - recalculate column widths
 	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
 	m.rows = rows
-
-	// Update table with new rows and columns for optimal width
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)
 
-	// Reapply styles after updating columns (to ensure borders persist)
-	applyTableStyles(&m.table)
+	applyLintDetailsTableStyles(&m.table)
 
-	// Reset cursor to top
+	// reset cursor.
 	m.table.SetCursor(0)
 }
 
-func getFilterName(state FilterState) string {
-	switch state {
-	case FilterAll:
-		return "All"
-	case FilterErrors:
-		return "Errors"
-	case FilterWarnings:
-		return "Warnings"
-	case FilterInfo:
-		return "Info"
-	default:
-		return "All"
-	}
-}
-
-func extractCategories(results []*model.RuleFunctionResult) []string {
-	categoryMap := make(map[string]bool)
-	for _, r := range results {
-		if r.Rule != nil && r.Rule.RuleCategory != nil {
-			categoryMap[r.Rule.RuleCategory.Name] = true
-		}
-	}
-
-	categories := make([]string, 0, len(categoryMap))
-	for cat := range categoryMap {
-		categories = append(categories, cat)
-	}
-
-	// Sort categories for consistent ordering
-	for i := 0; i < len(categories); i++ {
-		for j := i + 1; j < len(categories); j++ {
-			if categories[i] > categories[j] {
-				categories[i], categories[j] = categories[j], categories[i]
-			}
-		}
-	}
-
-	return categories
-}
-
-func extractRules(results []*model.RuleFunctionResult) []string {
-	ruleMap := make(map[string]bool)
-	for _, r := range results {
-		if r.Rule != nil && r.Rule.Id != "" {
-			ruleMap[r.Rule.Id] = true
-		}
-	}
-
-	rules := make([]string, 0, len(ruleMap))
-	for rule := range ruleMap {
-		rules = append(rules, rule)
-	}
-
-	// Sort rules for consistent ordering
-	for i := 0; i < len(rules); i++ {
-		for j := i + 1; j < len(rules); j++ {
-			if rules[i] > rules[j] {
-				rules[i], rules[j] = rules[j], rules[i]
-			}
-		}
-	}
-
-	return rules
-}
-
-func (m TableLintModel) Init() tea.Cmd {
+func (m *TableLintModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -655,7 +207,7 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Reapply styles after resize
-		applyTableStyles(&m.table)
+		applyLintDetailsTableStyles(&m.table)
 
 		return m, nil
 
@@ -772,11 +324,11 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.table.SetRows(rows)
 
 			// Reapply styles
-			applyTableStyles(&m.table)
+			applyLintDetailsTableStyles(&m.table)
 
 			// Restore cursor position and viewport
 			if currentCursor < len(rows) {
-				// First go to top to reset viewport
+				// First go to top to ASCIIReset viewport
 				m.table.GotoTop()
 
 				// Move to where we want the viewport to start
@@ -823,46 +375,41 @@ func (m TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // buildTableView builds the complete table view with title, filters, and status bar
-func (m TableLintModel) buildTableView() string {
+func (m *TableLintModel) buildTableView() string {
 	var builder strings.Builder
 
-	// Title with filter state
 	titleStyle := lipgloss.NewStyle().
-		Foreground(SecondaryColor).
+		Foreground(RGBPink).
 		Bold(true)
 
 	title := "📋 Linting Results (Interactive View)"
 	builder.WriteString(titleStyle.Render(title))
 
-	// Show filter indicators
 	filterStyle := lipgloss.NewStyle().
-		Foreground(PrimaryColor).
+		Foreground(RGBBlue).
 		Background(lipgloss.Color("#1a1a1a")).
 		Padding(0, 1).
 		Bold(true)
 
-	// Show severity filter
 	if m.filterState != FilterAll {
 		builder.WriteString("  ")
-		builder.WriteString(filterStyle.Render("🔍 Severity: " + getFilterName(m.filterState)))
+		builder.WriteString(filterStyle.Render("🔍 Severity: " + getLintingFilterName(m.filterState)))
 	}
 
-	// Show category filter
 	if m.categoryFilter != "" {
 		builder.WriteString("  ")
 		categoryStyle := lipgloss.NewStyle().
-			Foreground(WarningColor).
+			Foreground(RBGYellow).
 			Background(lipgloss.Color("#1a1a1a")).
 			Padding(0, 1).
 			Bold(true)
 		builder.WriteString(categoryStyle.Render("📂 Category: " + m.categoryFilter))
 	}
 
-	// Show rule filter
 	if m.ruleFilter != "" {
 		builder.WriteString("  ")
 		ruleStyle := lipgloss.NewStyle().
-			Foreground(OKColor).
+			Foreground(RGBGreen).
 			Background(lipgloss.Color("#1a1a1a")).
 			Padding(0, 1).
 			Bold(true)
@@ -871,7 +418,6 @@ func (m TableLintModel) buildTableView() string {
 
 	builder.WriteString("\n\n")
 
-	// Main content area - use consistent height for both states
 	contentHeight := m.height - 2 // Reserve space for title (1), blank line (1), and status bar (1)
 
 	if len(m.filteredResults) == 0 {
@@ -879,132 +425,21 @@ func (m TableLintModel) buildTableView() string {
 		emptyView := renderEmptyState(m.width, contentHeight)
 		builder.WriteString(emptyView)
 	} else {
-		// Apply colors to table output
-		tableView := colorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
 
-		// Add borders and separators to the table
+		tableView := ColorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
 		borderedTable := addTableBorders(tableView)
-
-		// Just write the bordered table
 		builder.WriteString(borderedTable)
 	}
-
-	// Remove extra newline - no status bar needed
 
 	return builder.String()
 }
 
-// wrapText wraps text to fit within a specified width
-// ColorizeMode defines different highlighting styles for backtick-enclosed text
-type ColorizeMode int
-
-const (
-	ColorizeDefault         ColorizeMode = iota // Blue text only
-	ColorizePrimarySolid                        // Blue background, black text
-	ColorizeSecondary                           // Pink text only
-	ColorizeSecondarySolid                      // Pink background, black text
-	ColorizeSubtlePrimary                       // Subtle blue background, blue text
-	ColorizeSubtleSecondary                     // Subtle pink background, pink text
-)
-
-// ColorizeString highlights backtick-enclosed text with the specified style
-func ColorizeString(text string, mode ColorizeMode) string {
-	// Define styles for each mode
-	var style lipgloss.Style
-	switch mode {
-	case ColorizeDefault:
-		style = lipgloss.NewStyle().Foreground(PrimaryColor).Bold(true)
-	case ColorizePrimarySolid:
-		style = lipgloss.NewStyle().Background(PrimaryColor).Foreground(BlackColor).Bold(true)
-	case ColorizeSecondary:
-		style = lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true)
-	case ColorizeSecondarySolid:
-		style = lipgloss.NewStyle().Background(SecondaryColor).Foreground(BlackColor).Bold(true)
-	case ColorizeSubtlePrimary:
-		style = lipgloss.NewStyle().Background(SubtleBlue).Foreground(PrimaryColor).Bold(true)
-	case ColorizeSubtleSecondary:
-		style = lipgloss.NewStyle().Background(SubtlePink).Foreground(SecondaryColor).Bold(true)
-	}
-
-	// Find and replace backtick-enclosed text
-	var result strings.Builder
-	inBackticks := false
-	backtickStart := 0
-
-	for i, char := range text {
-		if char == '`' {
-			if !inBackticks {
-				// Starting backtick
-				inBackticks = true
-				backtickStart = i + 1
-			} else {
-				// Ending backtick - apply style to content
-				if i > backtickStart {
-					content := text[backtickStart:i]
-					result.WriteString(style.Render(content))
-				}
-				inBackticks = false
-			}
-		} else if !inBackticks {
-			// Regular text outside backticks
-			result.WriteRune(char)
-		}
-		// Note: Characters inside backticks are handled when we find the closing backtick
-	}
-
-	// Handle unclosed backtick (treat rest as normal text)
-	if inBackticks && backtickStart < len(text) {
-		result.WriteString("`")
-		result.WriteString(text[backtickStart:])
-	}
-
-	return result.String()
-}
-
-func wrapText(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-
-	words := strings.Fields(text)
-	if len(words) == 0 {
-		return ""
-	}
-
-	var lines []string
-	var currentLine string
-
-	for _, word := range words {
-		testLine := currentLine
-		if testLine != "" {
-			testLine += " "
-		}
-		testLine += word
-
-		if len(testLine) <= width {
-			currentLine = testLine
-		} else {
-			if currentLine != "" {
-				lines = append(lines, currentLine)
-			}
-			currentLine = word
-		}
-	}
-
-	if currentLine != "" {
-		lines = append(lines, currentLine)
-	}
-
-	return strings.Join(lines, "\n")
-}
-
 // extractCodeSnippet extracts lines around the issue with context
-func (m TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, contextLines int) (string, int) {
+func (m *TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, contextLines int) (string, int) {
 	if m.specContent == nil || result == nil {
 		return "", 0
 	}
 
-	// Get the line number from the result
 	line := 0
 	if result.StartNode != nil {
 		line = result.StartNode.Line
@@ -1017,10 +452,8 @@ func (m TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, con
 		return "", 0
 	}
 
-	// Split content into lines
 	lines := bytes.Split(m.specContent, []byte("\n"))
 
-	// Calculate start and end lines with context
 	startLine := line - contextLines - 1 // -1 because line numbers are 1-based
 	if startLine < 0 {
 		startLine = 0
@@ -1031,7 +464,6 @@ func (m TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, con
 		endLine = len(lines)
 	}
 
-	// Build the snippet
 	var snippet strings.Builder
 	for i := startLine; i < endLine; i++ {
 		snippet.Write(lines[i])
@@ -1040,290 +472,31 @@ func (m TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, con
 		}
 	}
 
-	return snippet.String(), startLine + 1 // Return 1-based line number for display
-}
-
-// buildSplitView builds the split view content with three columns
-func (m TableLintModel) buildSplitView() string {
-	if m.modalContent == nil {
-		return ""
-	}
-
-	// Calculate dimensions - FIXED height regardless of terminal size
-	splitHeight := 15 // Fixed compact height with proper padding
-	if m.height < 20 {
-		return "" // Don't show split view if terminal too small
-	}
-
-	splitWidth := m.width // Match terminal width for consistency
-
-	// Content height for the three columns (must be exact same for all)
-	contentHeight := 11 // Fixed content height for all columns
-
-	// Column widths: details (35%), how-to-fix (25%), code (40%)
-	// Adjust for container padding
-	innerWidth := splitWidth - 4 // Account for container borders and padding
-	detailsWidth := int(float64(innerWidth) * 0.35)
-	howToFixWidth := int(float64(innerWidth) * 0.25)
-	codeWidth := innerWidth - detailsWidth - howToFixWidth
-
-	// Use consistent color palette
-
-	// Extract code snippet
-	codeSnippet, startLine := m.extractCodeSnippet(m.modalContent, 4)
-
-	// BUILD PATH BAR
-	pathBarStyle := lipgloss.NewStyle().
-		Width(splitWidth-2).
-		Padding(0, 1). // Simple horizontal padding only
-		Foreground(GrayColor)
-
-	path := m.modalContent.Path
-	if path == "" && m.modalContent.Paths != nil && len(m.modalContent.Paths) > 0 {
-		path = m.modalContent.Paths[0]
-	}
-
-	// Truncate path if too long (at the end as requested)
-	maxPathWidth := splitWidth - 6 // Account for container borders and padding
-	if len(path) > maxPathWidth && maxPathWidth > 3 {
-		path = path[:maxPathWidth-3] + "..."
-	}
-
-	pathBar := pathBarStyle.Render(path)
-
-	// BUILD DETAILS COLUMN
-	detailsStyle := lipgloss.NewStyle().
-		Width(detailsWidth).
-		Height(contentHeight).
-		MaxHeight(contentHeight).
-		Padding(0, 1)
-
-	var detailsContent strings.Builder
-
-	// Get severity for emoji
-	severity := getSeverity(m.modalContent)
-	var emoji string
-	var emojiStyle lipgloss.Style
-	switch severity {
-	case "✗ error":
-		emoji = "✗" // Red cross
-		emojiStyle = lipgloss.NewStyle().Foreground(ErrorColor).Bold(true)
-	case "▲ warning":
-		emoji = "▲" // Yellow triangle
-		emojiStyle = lipgloss.NewStyle().Foreground(WarningColor).Bold(true)
-	case "● info":
-		emoji = "●" // Blue filled dot
-		emojiStyle = lipgloss.NewStyle().Foreground(InfoColor).Bold(true)
-	default:
-		emoji = "●"
-		emojiStyle = lipgloss.NewStyle().Foreground(GrayColor).Bold(true)
-	}
-
-	ruleName := "Issue"
-	if m.modalContent.Rule != nil && m.modalContent.Rule.Id != "" {
-		ruleName = m.modalContent.Rule.Id
-	}
-
-	// Title line with emoji and rule name - use severity color for rule name
-	var titleStyle lipgloss.Style
-	switch severity {
-	case "✗ error":
-		titleStyle = lipgloss.NewStyle().Foreground(ErrorColor).Bold(true)
-	case "▲ warning":
-		titleStyle = lipgloss.NewStyle().Foreground(WarningColor).Bold(true)
-	case "● info":
-		titleStyle = lipgloss.NewStyle().Foreground(InfoColor).Bold(true)
-	default:
-		titleStyle = lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true)
-	}
-	detailsContent.WriteString(fmt.Sprintf("%s %s", emojiStyle.Render(emoji), titleStyle.Render(ruleName)))
-	detailsContent.WriteString("\n")
-
-	// Location line
-	location := formatLocation(m.modalContent, m.fileName)
-	detailsContent.WriteString(lipgloss.NewStyle().Foreground(PrimaryColor).Render(location))
-	detailsContent.WriteString("\n\n")
-
-	// Message (wrap to fit width and colorize backticks)
-	colorizedMessage := ColorizeString(m.modalContent.Message, ColorizeSubtleSecondary)
-	msgStyle := lipgloss.NewStyle().Width(detailsWidth - 2)
-	detailsContent.WriteString(msgStyle.Render(colorizedMessage))
-
-	detailsPanel := detailsStyle.Render(detailsContent.String())
-
-	// BUILD HOW-TO-FIX COLUMN
-	howToFixStyle := lipgloss.NewStyle().
-		Width(howToFixWidth).
-		Height(contentHeight).
-		MaxHeight(contentHeight).
-		Padding(0, 1)
-
-	var howToFixContent strings.Builder
-
-	// Start at same line as details title
-	//howToFixContent.WriteString("\n")
-
-	// How to fix content (with colorized backticks)
-	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
-		// Split how-to-fix into lines and format
-		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
-		for i, line := range fixLines {
-			if i > 0 {
-				howToFixContent.WriteString("\n")
-			}
-			// Colorize backticks with subtle primary (blue on subtle blue background)
-			colorizedLine := ColorizeString(line, ColorizeSubtlePrimary)
-			// Wrap long lines
-			wrapped := wrapText(colorizedLine, howToFixWidth-4)
-			howToFixContent.WriteString(wrapped)
-		}
-	} else {
-		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(GrayColor).Italic(true).
-			Render("No fix suggestions available"))
-	}
-
-	howToFixPanel := howToFixStyle.Render(howToFixContent.String())
-
-	// BUILD CODE COLUMN
-	codeStyle := lipgloss.NewStyle().
-		Width(codeWidth).
-		Height(contentHeight).
-		MaxHeight(contentHeight).
-		Padding(0, 1)
-
-	var codeContent strings.Builder
-
-	// Start at same line as details title
-	//codeContent.WriteString("\n")
-
-	// Code snippet with line numbers
-	if codeSnippet != "" {
-		codeLines := strings.Split(codeSnippet, "\n")
-		lineNumStyle := lipgloss.NewStyle().Foreground(GrayColor).Bold(true)
-		codeTextStyle := lipgloss.NewStyle().Foreground(WhiteColor)
-		// Use a very subtle dark background with pink text
-		highlightStyle := lipgloss.NewStyle().
-			Background(SubtlePink). // Very subtle dark purple/pink tint
-			Foreground(SecondaryColor).
-			Bold(true)
-
-		// Calculate the max line number to determine width needed
-		maxLineNum := startLine + len(codeLines) - 1
-		lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1 // +1 for space after number
-		if lineNumWidth < 5 {
-			lineNumWidth = 5 // Minimum width for alignment
-		}
-		
-		// Calculate the max line content width (excluding line numbers)
-		maxLineWidth := codeWidth - lineNumWidth - 2 // -2 for padding
-
-		for i, codeLine := range codeLines {
-			actualLineNum := startLine + i
-			isHighlighted := false
-
-			// Check if this is the error line
-			if m.modalContent.StartNode != nil && actualLineNum == m.modalContent.StartNode.Line {
-				isHighlighted = true
-			} else if m.modalContent.Origin != nil && actualLineNum == m.modalContent.Origin.Line {
-				isHighlighted = true
-			}
-
-			// Format line number with dynamic padding based on max width
-			lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, actualLineNum)
-
-			// Use pink for highlighted line numbers
-			if isHighlighted {
-				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(SecondaryColor).Bold(true)
-				codeContent.WriteString(highlightedLineNumStyle.Render(lineNumStr))
-			} else {
-				codeContent.WriteString(lineNumStyle.Render(lineNumStr))
-			}
-
-			// Truncate line if too long to prevent wrapping
-			displayLine := codeLine
-			if len(codeLine) > maxLineWidth {
-				if maxLineWidth > 3 {
-					displayLine = codeLine[:maxLineWidth-3] + "..."
-				} else {
-					displayLine = codeLine[:maxLineWidth]
-				}
-			}
-
-			// Apply highlighting if needed
-			if isHighlighted {
-				// Pad the line to full width for consistent highlight bar
-				paddedLine := displayLine
-				if len(displayLine) < maxLineWidth {
-					paddedLine = displayLine + strings.Repeat(" ", maxLineWidth-len(displayLine))
-				}
-				codeContent.WriteString(highlightStyle.Render(paddedLine))
-			} else {
-				codeContent.WriteString(codeTextStyle.Render(displayLine))
-			}
-
-			if i < len(codeLines)-1 {
-				codeContent.WriteString("\n")
-			}
-		}
-	} else {
-		codeContent.WriteString(lipgloss.NewStyle().Foreground(GrayColor).Italic(true).
-			Render("No code context available"))
-	}
-
-	codePanel := codeStyle.Render(codeContent.String())
-
-	// Combine all three columns horizontally
-	combinedPanels := lipgloss.JoinHorizontal(lipgloss.Top,
-		detailsPanel,
-		howToFixPanel,
-		codePanel,
-	)
-
-	// Add a blank line between path and panels for spacing
-	spacer := lipgloss.NewStyle().Height(1).Render(" ")
-
-	// Combine path bar and panels vertically with spacer
-	combinedContent := lipgloss.JoinVertical(lipgloss.Left,
-		pathBar,
-		spacer,
-		combinedPanels,
-	)
-
-	// Wrap in a container with blue border
-	containerStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(PrimaryColor).
-		Width(splitWidth).
-		Height(splitHeight)
-
-	return containerStyle.Render(combinedContent)
+	return snippet.String(), startLine + 1
 }
 
 // buildModalView builds the DOCS modal placeholder
-func (m TableLintModel) buildModalView() string {
-	// Calculate modal dimensions
-	modalWidth := 40
-	modalHeight := 10
+func (m *TableLintModel) buildModalView() string {
+
+	// Calculate modal dimensions - fixed height, responsive width
+	modalWidth := int(float64(m.width) * 0.75)
+	modalHeight := 35 // Fixed height for consistent appearance
 
 	if m.modalContent == nil {
 		return ""
 	}
 
-	// Modal style
 	modalStyle := lipgloss.NewStyle().
 		Width(modalWidth).
 		Height(modalHeight).
-		Padding(2).
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(SecondaryColor).
-		Background(lipgloss.Color("#1a1a1a"))
+		Padding(0).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink)
 
-	// Content
 	var content strings.Builder
 
-	// Title
 	titleStyle := lipgloss.NewStyle().
-		Foreground(PrimaryColor).
+		Foreground(RGBBlue).
 		Bold(true).
 		Align(lipgloss.Center).
 		Width(modalWidth - 4)
@@ -1331,9 +504,8 @@ func (m TableLintModel) buildModalView() string {
 	content.WriteString(titleStyle.Render("📚 DOCS"))
 	content.WriteString("\n\n")
 
-	// Placeholder message
 	msgStyle := lipgloss.NewStyle().
-		Foreground(GrayColor).
+		Foreground(RGBGrey).
 		Align(lipgloss.Center).
 		Width(modalWidth - 4)
 
@@ -1343,7 +515,7 @@ func (m TableLintModel) buildModalView() string {
 }
 
 // buildModalView_old builds the enhanced modal content with panels
-func (m TableLintModel) buildModalView_old() string {
+func (m *TableLintModel) buildModalView_old() string {
 	// Calculate modal dimensions - fixed height, responsive width
 	modalWidth := int(float64(m.width) * 0.75)
 	modalHeight := 35 // Fixed height for consistent appearance
@@ -1380,7 +552,7 @@ func (m TableLintModel) buildModalView_old() string {
 	leftContent.WriteString("\n\n")
 
 	// Location
-	location := formatLocation(m.modalContent, m.fileName)
+	location := formatFileLocation(m.modalContent, m.fileName)
 	leftContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render("Location: "))
 	leftContent.WriteString(location)
 	leftContent.WriteString("\n\n")
@@ -1392,7 +564,7 @@ func (m TableLintModel) buildModalView_old() string {
 		leftContent.WriteString("\n\n")
 
 		// Severity
-		severity := getSeverity(m.modalContent)
+		severity := getRuleSeverity(m.modalContent)
 		sevColor := gray
 		switch severity {
 		case "error":
@@ -1552,7 +724,7 @@ func (m TableLintModel) buildModalView_old() string {
 }
 
 // calculateModalPosition calculates the position for the modal (right-aligned)
-func (m TableLintModel) calculateModalPosition() (int, int) {
+func (m *TableLintModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) * 0.75)
 	modalHeight := 35 // Fixed height matching buildModalView
 
@@ -1574,7 +746,7 @@ func (m TableLintModel) calculateModalPosition() (int, int) {
 	return x, y
 }
 
-func (m TableLintModel) View() string {
+func (m *TableLintModel) View() string {
 	if m.quitting {
 		return ""
 	}
@@ -1584,7 +756,7 @@ func (m TableLintModel) View() string {
 
 	// Build navigation bar (always at bottom)
 	navStyle := lipgloss.NewStyle().
-		Foreground(DarkGrayColor).
+		Foreground(RGBDarkGrey).
 		Width(m.width)
 	// Add results count to nav bar
 	resultsText := fmt.Sprintf("%d results", len(m.filteredResults))
@@ -1600,7 +772,7 @@ func (m TableLintModel) View() string {
 
 	// If split view is active, combine table with split panel
 	if m.showSplitView {
-		splitView := m.buildSplitView()
+		splitView := m.BuildDetailsView()
 		// Join vertically: table on top, split view in middle, nav at bottom
 		combined := lipgloss.JoinVertical(lipgloss.Left, tableView, splitView, navBar)
 
@@ -1725,7 +897,7 @@ func renderEmptyState(width, height int) string {
 	}
 
 	// Apply color styling
-	textStyle := lipgloss.NewStyle().Foreground(DarkGrayColor)
+	textStyle := lipgloss.NewStyle().Foreground(RGBDarkGrey)
 	return textStyle.Render(strings.Join(resultLines, "\n"))
 }
 
@@ -1733,7 +905,7 @@ func addTableBorders(tableView string) string {
 	// Just wrap in a simple border for now
 	tableStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(SecondaryColor).
+		BorderForeground(RGBPink).
 		PaddingTop(0)
 
 	return tableStyle.Render(tableView)
