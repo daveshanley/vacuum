@@ -5,15 +5,23 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/v2/spinner"
 	"github.com/charmbracelet/bubbles/v2/table"
+	"github.com/charmbracelet/bubbles/v2/viewport"
 	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/muesli/termenv"
 	"golang.org/x/term"
 )
 
@@ -32,6 +40,29 @@ const (
 	FilterWarnings                    // Show only warnings
 	FilterInfo                        // Show only info messages
 )
+
+// DocsState represents the state of documentation fetching
+type DocsState int
+
+const (
+	DocsStateLoading DocsState = iota
+	DocsStateLoaded
+	DocsStateError
+	DocsStateNotFound
+)
+
+// docsLoadedMsg is sent when documentation is successfully loaded
+type docsLoadedMsg struct {
+	ruleID  string
+	content string
+}
+
+// docsErrorMsg is sent when documentation loading fails
+type docsErrorMsg struct {
+	ruleID string
+	err    string
+	is404  bool
+}
 
 // TableLintModel holds the state for the interactive table view
 type TableLintModel struct {
@@ -55,6 +86,12 @@ type TableLintModel struct {
 	showModal       bool                      // Whether to show the DOCS modal
 	showSplitView   bool                      // Whether to show the split view
 	modalContent    *model.RuleFunctionResult // The current result being shown in the splitview
+	docsState       DocsState                 // State of documentation loading
+	docsContent     string                    // Loaded documentation content
+	docsError       string                    // Error message if docs failed to load
+	docsCache       map[string]string         // Cache of loaded documentation by rule ID
+	docsSpinner     spinner.Model             // Spinner for loading state
+	docsViewport    viewport.Model            // Viewport for scrollable docs content
 }
 
 // ShowTableLintView displays results in an interactive table
@@ -88,6 +125,14 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 	categories := extractCategories(results)
 	rules := extractRules(results)
 
+	// Initialize spinner
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(RGBPink)
+
+	// Initialize viewport (will be sized when modal opens)
+	vp := viewport.New()
+
 	m := &TableLintModel{
 		table:           t,
 		allResults:      results,
@@ -105,6 +150,9 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 		rules:           rules,
 		ruleIndex:       -1, // -1 means "All"
 		ruleFilter:      "",
+		docsCache:       make(map[string]string),
+		docsSpinner:     s,
+		docsViewport:    vp,
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -176,14 +224,118 @@ func (m *TableLintModel) applyFilter() {
 	m.table.SetCursor(0)
 }
 
+// fetchDocsCmd creates a command to fetch documentation for a rule
+func fetchDocsCmd(ruleID string) tea.Cmd {
+	return func() tea.Msg {
+		// Create HTTP client with timeout
+		client := &http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		// Fetch documentation from API
+		url := fmt.Sprintf("https://localhost:9090/rules/documentation/%s?markdown", ruleID)
+		resp, err := client.Get(url)
+		if err != nil {
+			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 404 {
+			return docsErrorMsg{ruleID: ruleID, err: "Documentation not found", is404: true}
+		}
+
+		if resp.StatusCode != 200 {
+			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("HTTP %d", resp.StatusCode), is404: false}
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
+		}
+
+		// Parse JSON response
+		var docResponse struct {
+			RuleID   string `json:"ruleId"`
+			Category string `json:"category"`
+			Body     string `json:"body"`
+		}
+
+		if err := json.Unmarshal(body, &docResponse); err != nil {
+			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("Failed to parse JSON: %s", err.Error()), is404: false}
+		}
+
+		// Convert Hugo shortcodes to markdown before returning
+		processedContent := ConvertHugoShortcodesToMarkdown(docResponse.Body)
+
+		// Return the processed markdown content
+		return docsLoadedMsg{ruleID: ruleID, content: processedContent}
+	}
+}
+
 func (m *TableLintModel) Init() tea.Cmd {
-	return nil
+	return m.docsSpinner.Tick
 }
 
 func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
+	// Handle viewport updates when modal is open and loaded
+	if m.showModal && m.docsState == DocsStateLoaded {
+		m.docsViewport, cmd = m.docsViewport.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+
+	// Handle spinner updates when loading
+	if m.showModal && m.docsState == DocsStateLoading {
+		m.docsSpinner, cmd = m.docsSpinner.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
 
 	switch msg := msg.(type) {
+	case docsLoadedMsg:
+		// Cache the content
+		m.docsCache[msg.ruleID] = msg.content
+		m.docsContent = msg.content
+		m.docsState = DocsStateLoaded
+
+		modalWidth := int(float64(m.width) - 40)
+
+		customStyle := CreateVacuumDocsStyle(modalWidth - 4)
+		renderer, err := glamour.NewTermRenderer(
+			glamour.WithColorProfile(termenv.TrueColor),
+			glamour.WithStyles(customStyle),
+			glamour.WithWordWrap(modalWidth-4),
+		)
+		if err == nil {
+			rendered, err := renderer.Render(msg.content)
+			if err == nil {
+				m.docsContent = rendered
+			} else {
+				// Fallback to raw content if rendering fails
+				m.docsContent = msg.content
+			}
+		} else {
+			// Fallback to raw content if renderer creation fails
+			m.docsContent = msg.content
+		}
+
+		// Update viewport with rendered content
+		m.docsViewport.SetContent(m.docsContent)
+		m.docsViewport.GotoTop()
+		return m, nil
+
+	case docsErrorMsg:
+		m.docsState = DocsStateError
+		if msg.is404 {
+			m.docsState = DocsStateNotFound
+		}
+		m.docsError = msg.err
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -214,10 +366,49 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		// Handle modal-specific keys first
 		if m.showModal {
+			// Allow viewport navigation when docs are loaded
+			if m.docsState == DocsStateLoaded {
+				switch msg.String() {
+				case "up", "k":
+					m.docsViewport.LineUp(1)
+					return m, nil
+				case "down", "j":
+					m.docsViewport.LineDown(1)
+					return m, nil
+				case "pgup":
+					m.docsViewport.ViewUp()
+					return m, nil
+				case "pgdn":
+					m.docsViewport.ViewDown()
+					return m, nil
+				case "home", "g":
+					m.docsViewport.GotoTop()
+					return m, nil
+				case "end", "G":
+					m.docsViewport.GotoBottom()
+					return m, nil
+				}
+			}
+
 			switch msg.String() {
 			case "esc", "q", "enter":
 				m.showModal = false
-				m.modalContent = nil
+				// Don't clear modalContent if split view is still open
+				if !m.showSplitView {
+					m.modalContent = nil
+				}
+				// Reset docs state for next open
+				m.docsState = DocsStateLoading
+				return m, nil
+			case "d":
+				// Toggle docs modal off with 'd' key
+				m.showModal = false
+				// Don't clear modalContent if split view is still open
+				if !m.showSplitView {
+					m.modalContent = nil
+				}
+				// Reset docs state for next open
+				m.docsState = DocsStateLoading
 				return m, nil
 			}
 			// Don't process other keys when modal is open
@@ -261,10 +452,66 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "d":
-			// Show DOCS modal with selected result
+			// Toggle DOCS modal with selected result
 			if m.table.Cursor() < len(m.filteredResults) {
-				m.modalContent = m.filteredResults[m.table.Cursor()]
-				m.showModal = true
+				// If split view is open, preserve its modalContent
+				if !m.showSplitView {
+					m.modalContent = m.filteredResults[m.table.Cursor()]
+				}
+				m.showModal = !m.showModal
+
+				// If opening modal, fetch documentation
+				if m.showModal && m.modalContent != nil && m.modalContent.Rule != nil {
+					ruleID := m.modalContent.Rule.Id
+
+					// Check cache first
+					if cached, exists := m.docsCache[ruleID]; exists {
+						m.docsContent = cached
+						m.docsState = DocsStateLoaded
+
+						// Re-render markdown for current terminal size
+						modalWidth := int(float64(m.width) - 40)
+
+						// Use custom style with TrueColor profile
+						customStyle := CreateVacuumDocsStyle(modalWidth - 4)
+						renderer, err := glamour.NewTermRenderer(
+							glamour.WithColorProfile(termenv.TrueColor),
+							glamour.WithStyles(customStyle),
+							glamour.WithWordWrap(modalWidth-4),
+						)
+						if err == nil {
+							rendered, err := renderer.Render(cached)
+							if err == nil {
+								m.docsContent = rendered
+							} else {
+								// Fallback to raw content if rendering fails
+								m.docsContent = cached
+							}
+						} else {
+							// Fallback to raw content if renderer creation fails
+							m.docsContent = cached
+						}
+
+						// Update viewport
+						m.docsViewport.SetContent(m.docsContent)
+						m.docsViewport.SetWidth(modalWidth - 4)
+						m.docsViewport.SetHeight(m.height - 14)
+						m.docsViewport.GotoTop()
+					} else {
+						// Start loading
+						m.docsState = DocsStateLoading
+						m.docsContent = ""
+						m.docsError = ""
+
+						// Update viewport size
+						modalWidth := int(float64(m.width) - 40)
+						m.docsViewport.SetWidth(modalWidth - 4)
+						m.docsViewport.SetHeight(m.height - 14)
+
+						// Return both fetch command and spinner tick
+						return m, tea.Batch(fetchDocsCmd(ruleID), m.docsSpinner.Tick)
+					}
+				}
 			}
 			return m, nil
 		case "tab":
@@ -371,6 +618,10 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Combine any commands
+	if len(cmds) > 0 {
+		return m, tea.Batch(cmds...)
+	}
 	return m, cmd
 }
 
@@ -475,9 +726,8 @@ func (m *TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, co
 	return snippet.String(), startLine + 1
 }
 
-// buildModalView builds the DOCS modal placeholder
+// buildModalView builds the DOCS modal with documentation content
 func (m *TableLintModel) buildModalView() string {
-
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - 10
 
@@ -488,27 +738,108 @@ func (m *TableLintModel) buildModalView() string {
 	modalStyle := lipgloss.NewStyle().
 		Width(modalWidth).
 		Height(modalHeight).
-		Padding(0).
+		Padding(0, 1, 0, 1).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(RGBPink)
 
 	var content strings.Builder
 
+	// Title bar with rule name
 	titleStyle := lipgloss.NewStyle().
 		Foreground(RGBBlue).
 		Bold(true).
-		Align(lipgloss.Left).
 		Width(modalWidth - 4)
 
-	content.WriteString(titleStyle.Render("vacuum documentation"))
+	ruleName := "Documentation"
+	if m.modalContent.Rule != nil && m.modalContent.Rule.Id != "" {
+		ruleName = fmt.Sprintf("📚 %s", m.modalContent.Rule.Id)
+	}
+	content.WriteString(titleStyle.Render(ruleName))
+	content.WriteString("\n")
+
+	// Separator
+	sepStyle := lipgloss.NewStyle().
+		Foreground(RGBPink).
+		Width(modalWidth - 4)
+	content.WriteString(sepStyle.Render(strings.Repeat("-", (modalWidth)-4)))
 	content.WriteString("\n\n")
 
-	msgStyle := lipgloss.NewStyle().
-		Foreground(RGBGrey).
-		Align(lipgloss.Left).
-		Width(modalWidth - 4)
+	// Content based on state
+	contentHeight := modalHeight - 4 // Account for title, separator, and padding
 
-	content.WriteString(msgStyle.Render("coming soon bro!"))
+	switch m.docsState {
+	case DocsStateLoading:
+		// Show centered spinner
+		spinnerStyle := lipgloss.NewStyle().
+			Width(modalWidth-4).
+			Height(contentHeight).
+			Align(lipgloss.Center, lipgloss.Center)
+
+		spinnerContent := fmt.Sprintf("%s Loading documentation...", m.docsSpinner.View())
+		content.WriteString(spinnerStyle.Render(spinnerContent))
+
+	case DocsStateLoaded:
+		// Show scrollable documentation
+		content.WriteString(m.docsViewport.View())
+
+		// Add scroll indicator at bottom if there's more content
+		if m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
+			scrollInfo := fmt.Sprintf(" %.0f%% ", m.docsViewport.ScrollPercent()*100)
+			scrollStyle := lipgloss.NewStyle().
+				Foreground(RGBGrey).
+				Align(lipgloss.Right).
+				Width(modalWidth - 4)
+			content.WriteString("\n")
+			content.WriteString(scrollStyle.Render(scrollInfo))
+		}
+
+	case DocsStateNotFound:
+		// Show 404 message
+		errorStyle := lipgloss.NewStyle().
+			Width(modalWidth-4).
+			Height(contentHeight).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(RBGYellow)
+
+		notFoundMsg := "📖 Documentation not available for this rule\n\nThis rule doesn't have documentation yet."
+		content.WriteString(errorStyle.Render(notFoundMsg))
+
+	case DocsStateError:
+		// Show error message
+		errorStyle := lipgloss.NewStyle().
+			Width(modalWidth-4).
+			Height(contentHeight).
+			Align(lipgloss.Center, lipgloss.Center).
+			Foreground(RGBRed)
+
+		errorMsg := fmt.Sprintf("❌ Failed to load documentation\n\n%s", m.docsError)
+		content.WriteString(errorStyle.Render(errorMsg))
+
+	default:
+		// Initial state - shouldn't happen but handle gracefully
+		content.WriteString("")
+	}
+
+	// Add navigation hint at bottom
+	navStyle := lipgloss.NewStyle().
+		Foreground(RGBDarkGrey).
+		Width(modalWidth - 4).
+		Align(lipgloss.Center)
+
+	navHint := ""
+	if m.docsState == DocsStateLoaded && m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
+		navHint = "↑↓/jk: scroll • pgup/pgdn: page • esc/d: close"
+	} else {
+		navHint = "esc/d: close"
+	}
+
+	// Position nav hint at bottom
+	currentLines := strings.Count(content.String(), "\n")
+	neededLines := modalHeight - currentLines - 3
+	if neededLines > 0 {
+		content.WriteString(strings.Repeat("\n", neededLines))
+	}
+	content.WriteString(navStyle.Render(navHint))
 
 	return modalStyle.Render(content.String())
 }

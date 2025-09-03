@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/table"
+	"github.com/charmbracelet/glamour/ansi"
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
@@ -30,7 +31,7 @@ var (
 	ASCIILightGrey       = "\033[38;5;253m"
 	ASCIIBlue            = "\033[38;5;45m"
 	ASCIIYellow          = "\033[38;5;220m"
-	ASCIIGreen           = "\033[38;5;40m"
+	ASCIIGreen           = "\033[38;5;46m"
 	ASCIILightGreyItalic = "\033[3;38;5;251m"
 	ASCIIBold            = "\033[1m"
 	ASCIIReset           = "\033[0m"
@@ -38,13 +39,48 @@ var (
 	RGBPink              = lipgloss.Color("201")
 	RGBRed               = lipgloss.Color("196")
 	RBGYellow            = lipgloss.Color("220")
-	RGBGreen             = lipgloss.Color("40")
+	RGBGreen             = lipgloss.Color("46")
 	RGBGrey              = lipgloss.Color("246")
 	RGBDarkGrey          = lipgloss.Color("236")
 	RGBWhite             = lipgloss.Color("255")
 	RGBBlack             = lipgloss.Color("16")
 	RGBSubtleBlue        = lipgloss.Color("#1a3a5a")
 	RGBSubtlePink        = lipgloss.Color("#2a1a2a")
+)
+
+// Helper functions
+func strPtr(s string) *string { return &s }
+func boolPtr(b bool) *bool    { return &b }
+func uintPtr(u uint) *uint    { return &u }
+
+// Color constants for Glamour styles (as string pointers)
+var (
+	// ANSI 256 colors for general text
+	ColorBlue        = strPtr("45")
+	ColorSoftBlue    = strPtr("117")
+	ColorBlueBg      = strPtr("#002329")
+	ColorPink        = strPtr("201")
+	ColorPinkBg      = strPtr("#2a1a2a")
+	ColorRed         = strPtr("196")
+	ColorYellow      = strPtr("220")
+	ColorSoftYellow  = strPtr("226")
+	ColorGreen       = strPtr("46")  // RGBGreen
+	ColorBrightGreen = strPtr("46")  // RGBGreen
+	ColorGrey        = strPtr("246") // RGBGrey
+	ColorDarkGrey    = strPtr("236") // RGBDarkGrey
+	ColorWhite       = strPtr("255") // RGBWhite
+	ColorBlack       = strPtr("16")  // RGBBlack
+	ColorLightGrey   = strPtr("253") // ASCIILightGrey equivalent
+	ColorLightPink   = strPtr("164") // ASCIIPink equivalent
+
+	// Hex colors for Chroma syntax highlighting (it doesn't support ANSI 256)
+	ChromaBlue      = strPtr("#00d7ff") // Bright cyan-blue
+	ChromaPink      = strPtr("#ff5fff") // Bright magenta-pink
+	ChromaRed       = strPtr("#ff0000") // Bright red
+	ChromaYellow    = strPtr("#ffd700") // Gold yellow
+	ChromaGreen     = strPtr("#00ff00") // Bright green
+	ChromaGrey      = strPtr("#8a8a8a") // Medium grey
+	ChromaLightPink = strPtr("#d75fd7") // Light pink/magenta
 )
 
 // ColorizeString highlights backtick-enclosed text with the specified style
@@ -208,4 +244,221 @@ func applyLintDetailsTableStyles(t *table.Model) {
 		Padding(0, 1)
 
 	t.SetStyles(s)
+}
+
+// CreateVacuumDocsStyle creates a custom Glamour style for documentation rendering
+// using the existing vacuum color palette
+func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
+
+	truePointer := boolPtr(true)
+	falsePointer := boolPtr(false)
+
+	return ansi.StyleConfig{
+		Document: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{},
+		},
+
+		// Headings using vacuum color scheme
+		H1: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				BlockPrefix: "\n",
+				BlockSuffix: "\n",
+				Color:       ColorPink,
+				Bold:        truePointer,
+			},
+		},
+		H2: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				BlockPrefix:     "\n",
+				BackgroundColor: ColorBlueBg,
+				Prefix:          fmt.Sprintf("%s\n \u2605 ", strings.Repeat("", termWidth)),
+				Suffix:          fmt.Sprintf("\n%s\n", strings.Repeat("", termWidth)),
+				Color:           ColorBlue,
+				Bold:            truePointer,
+			},
+		},
+		H3: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				BlockPrefix: "\n",
+				BlockSuffix: "\n",
+				Color:       ColorPink,
+				Bold:        truePointer,
+			},
+		},
+		H4: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Color: ColorBlue,
+				Bold:  truePointer,
+			},
+		},
+		H5: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Color: ColorPink,
+			},
+		},
+		H6: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Color: ColorPink,
+			},
+		},
+		Emph: ansi.StylePrimitive{
+			Color:  ColorPink,
+			Italic: truePointer,
+		},
+		Strong: ansi.StylePrimitive{
+			Color:           ColorPink,
+			BackgroundColor: ColorPinkBg,
+			Bold:            truePointer,
+			Underline:       truePointer,
+		},
+
+		// Code and code blocks
+		Code: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Prefix:          "[",
+				Suffix:          "]",
+				Bold:            truePointer,
+				Color:           ColorGreen,
+				BackgroundColor: ColorDarkGrey,
+			},
+		},
+		CodeBlock: ansi.StyleCodeBlock{
+			StyleBlock: ansi.StyleBlock{
+				StylePrimitive: ansi.StylePrimitive{
+					BackgroundColor: ColorPinkBg,
+					Color:           ColorLightGrey,
+				},
+				Margin: uintPtr(1),
+			},
+			Theme: "monokai",
+			Chroma: &ansi.Chroma{
+				Keyword: ansi.StylePrimitive{
+					Color: ChromaBlue,
+					Bold:  falsePointer,
+				},
+				Text: ansi.StylePrimitive{
+					Color: ChromaPink,
+					Bold:  truePointer,
+				},
+				LiteralString: ansi.StylePrimitive{
+					Color: ChromaGreen,
+				},
+				LiteralNumber: ansi.StylePrimitive{
+					Color: ChromaPink,
+				},
+				Comment: ansi.StylePrimitive{
+					Color:  ChromaGrey,
+					Italic: truePointer,
+				},
+				NameFunction: ansi.StylePrimitive{
+					Color: ChromaGreen,
+				},
+				NameTag: ansi.StylePrimitive{
+					Color: ChromaBlue,
+					Bold:  falsePointer,
+				},
+				NameAttribute: ansi.StylePrimitive{
+					Color: ChromaGreen,
+				},
+				Operator: ansi.StylePrimitive{
+					Color: ChromaYellow,
+				},
+				Punctuation: ansi.StylePrimitive{
+					Color: ChromaGrey,
+				},
+				NameBuiltin: ansi.StylePrimitive{
+					Color: ChromaBlue,
+				},
+				NameClass: ansi.StylePrimitive{
+					Color: ChromaGreen,
+					Bold:  truePointer,
+				},
+				NameConstant: ansi.StylePrimitive{
+					Color: ChromaLightPink,
+				},
+			},
+		},
+
+		// Links
+		Link: ansi.StylePrimitive{
+			Color:     ColorSoftBlue,
+			Underline: truePointer,
+		},
+		LinkText: ansi.StylePrimitive{
+			Color:  ColorBlue,
+			Prefix: "[",
+			Suffix: "]",
+			Bold:   truePointer,
+		},
+
+		// Lists
+		List: ansi.StyleList{
+			StyleBlock: ansi.StyleBlock{
+				StylePrimitive: ansi.StylePrimitive{},
+				Indent:         uintPtr(2),
+			},
+			LevelIndent: 2,
+		},
+		Item: ansi.StylePrimitive{
+			BlockPrefix: "> ",
+			Color:       ColorPink,
+		},
+		Enumeration: ansi.StylePrimitive{
+			Color: ColorBlue,
+		},
+
+		// Block quotes
+		BlockQuote: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{
+				Color:  ColorGrey,
+				Italic: truePointer,
+			},
+			Indent:      uintPtr(1),
+			IndentToken: strPtr("│ "),
+		},
+
+		// Horizontal rule
+		HorizontalRule: ansi.StylePrimitive{
+			Color:  ColorPink,
+			Format: fmt.Sprintf("\n%s\n", strings.Repeat("-", termWidth)),
+		},
+
+		// Tables
+		Table: ansi.StyleTable{
+			StyleBlock: ansi.StyleBlock{
+				StylePrimitive: ansi.StylePrimitive{},
+			},
+			CenterSeparator: strPtr("┼"),
+			ColumnSeparator: strPtr("│"),
+			RowSeparator:    strPtr("─"),
+		},
+
+		// Strikethrough
+		Strikethrough: ansi.StylePrimitive{
+			CrossedOut: truePointer,
+			Color:      ColorGrey,
+		},
+
+		// Task lists
+		Task: ansi.StyleTask{
+			StylePrimitive: ansi.StylePrimitive{},
+			Ticked:         "✓ ",
+			Unticked:       "☐ ",
+		},
+
+		// Paragraphs
+		Paragraph: ansi.StyleBlock{
+			StylePrimitive: ansi.StylePrimitive{},
+			Margin:         uintPtr(1),
+		},
+
+		// Definition lists
+		DefinitionTerm: ansi.StylePrimitive{
+			Color: ColorPink,
+			Bold:  truePointer,
+		},
+		DefinitionDescription: ansi.StylePrimitive{
+			Color: ColorLightGrey,
+		},
+	}
 }
