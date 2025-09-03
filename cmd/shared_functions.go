@@ -6,21 +6,23 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 // Hard mode message constants
 const (
-	HardModeEnabled = "🚨 HARD MODE ENABLED 🚨"
+	HardModeEnabled           = "🚨 HARD MODE ENABLED 🚨"
 	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
 )
 
@@ -74,19 +76,19 @@ func MergeOWASPRulesToRuleSet(selectedRS *rulesets.RuleSet, hardModeFlag bool) b
 	if !hardModeFlag || selectedRS == nil {
 		return false
 	}
-	
+
 	owaspRules := rulesets.GetAllOWASPRules()
 	if selectedRS.Rules == nil {
 		selectedRS.Rules = make(map[string]*model.Rule)
 	}
-	
+
 	for k, v := range owaspRules {
 		// Add OWASP rule if it doesn't already exist in the custom ruleset
 		if selectedRS.Rules[k] == nil {
 			selectedRS.Rules[k] = v
 		}
 	}
-	
+
 	return true
 }
 
@@ -152,10 +154,10 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 			pterm.Println()
 			return nil, err
 		}
-		
+
 		customFunctions := pm.GetCustomFunctions()
 		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
-		
+
 		if !silence && len(customFunctions) > 0 {
 			pterm.Info.Println("Available custom functions:")
 			for funcName := range customFunctions {
@@ -163,7 +165,7 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 			}
 			pterm.Println()
 		}
-		
+
 		return customFunctions, nil
 	}
 	return nil, nil
@@ -192,4 +194,147 @@ func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, inf
 		}
 	}
 	return nil
+}
+
+func formatFileLocation(r *model.RuleFunctionResult, fileName string) string {
+	startLine := 0
+	startCol := 0
+	f := fileName
+
+	if r.StartNode != nil {
+		startLine = r.StartNode.Line
+		startCol = r.StartNode.Column
+	}
+
+	if r.Origin != nil {
+		f = r.Origin.AbsoluteLocation
+		startLine = r.Origin.Line
+		startCol = r.Origin.Column
+	}
+
+	// Make path relative
+	if absPath, err := filepath.Abs(f); err == nil {
+		if cwd, err := os.Getwd(); err == nil {
+			if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+				f = relPath
+			}
+		}
+	}
+
+	return fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
+}
+
+func getRuleSeverity(r *model.RuleFunctionResult) string {
+	if r.Rule != nil {
+		switch r.Rule.Severity {
+		case model.SeverityError:
+			return "✗ error"
+		case model.SeverityWarn:
+			return "▲ warning"
+		default:
+			return "● info"
+		}
+	}
+	return "● info"
+}
+
+func getLintingFilterName(state FilterState) string {
+	switch state {
+	case FilterAll:
+		return "All"
+	case FilterErrors:
+		return "Errors"
+	case FilterWarnings:
+		return "Warnings"
+	case FilterInfo:
+		return "Info"
+	default:
+		return "All"
+	}
+}
+
+func extractCategories(results []*model.RuleFunctionResult) []string {
+	categoryMap := make(map[string]bool)
+	for _, r := range results {
+		if r.Rule != nil && r.Rule.RuleCategory != nil {
+			categoryMap[r.Rule.RuleCategory.Name] = true
+		}
+	}
+
+	categories := make([]string, 0, len(categoryMap))
+	for cat := range categoryMap {
+		categories = append(categories, cat)
+	}
+
+	for i := 0; i < len(categories); i++ {
+		for j := i + 1; j < len(categories); j++ {
+			if categories[i] > categories[j] {
+				categories[i], categories[j] = categories[j], categories[i]
+			}
+		}
+	}
+
+	return categories
+}
+
+func extractRules(results []*model.RuleFunctionResult) []string {
+	ruleMap := make(map[string]bool)
+	for _, r := range results {
+		if r.Rule != nil && r.Rule.Id != "" {
+			ruleMap[r.Rule.Id] = true
+		}
+	}
+
+	rules := make([]string, 0, len(ruleMap))
+	for rule := range ruleMap {
+		rules = append(rules, rule)
+	}
+
+	// sort rules
+	for i := 0; i < len(rules); i++ {
+		for j := i + 1; j < len(rules); j++ {
+			if rules[i] > rules[j] {
+				rules[i], rules[j] = rules[j], rules[i]
+			}
+		}
+	}
+
+	return rules
+}
+
+func wrapText(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return ""
+	}
+
+	var lines []string
+	var currentLine string
+
+	for _, word := range words {
+		testLine := currentLine
+		if testLine != "" {
+			testLine += " "
+		}
+		testLine += word
+
+		if len(testLine) <= width {
+			currentLine = testLine
+		} else {
+			if currentLine != "" {
+				lines = append(lines, currentLine)
+			}
+			currentLine = word
+		}
+	}
+
+	if currentLine != "" {
+		lines = append(lines, currentLine)
+	}
+
+	return strings.Join(lines, "\n")
 }
