@@ -197,13 +197,13 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Adjust table height based on split view state
 		if m.showSplitView {
 			// When split view is open, table gets remaining space after fixed split view
-			tableHeight := m.height - 15 - 5 // terminal height - split view height - margins
+			tableHeight := m.height - 15 - 4 // terminal height - split view height - margins
 			if tableHeight < 10 {
 				tableHeight = 10 // Minimum height
 			}
 			m.table.SetHeight(tableHeight)
 		} else {
-			m.table.SetHeight(msg.Height - 5)
+			m.table.SetHeight(msg.Height - 4)
 		}
 
 		// Reapply styles after resize
@@ -234,7 +234,7 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showSplitView = false
 				m.modalContent = nil
 				// Rebuild table to full height
-				m.table.SetHeight(m.height - 5)
+				m.table.SetHeight(m.height - 4)
 			} else {
 				m.quitting = true
 				return m, tea.Quit
@@ -249,7 +249,7 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.modalContent = m.filteredResults[m.table.Cursor()]
 				}
 				// Resize table to leave room for fixed-height split view
-				tableHeight := m.height - 15 - 5 // terminal height - split view - margins
+				tableHeight := m.height - 15 - 4 // terminal height - split view - margins
 				if tableHeight < 10 {
 					tableHeight = 10
 				}
@@ -416,9 +416,9 @@ func (m *TableLintModel) buildTableView() string {
 		builder.WriteString(ruleStyle.Render("📏 Rule: " + m.ruleFilter))
 	}
 
-	builder.WriteString("\n\n")
+	builder.WriteString("\n")
 
-	contentHeight := m.height - 2 // Reserve space for title (1), blank line (1), and status bar (1)
+	contentHeight := m.height - 1 // Reserve space for title (1), blank line (1), and status bar (1)
 
 	if len(m.filteredResults) == 0 {
 		// Show empty state with ASCII art
@@ -478,9 +478,8 @@ func (m *TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, co
 // buildModalView builds the DOCS modal placeholder
 func (m *TableLintModel) buildModalView() string {
 
-	// Calculate modal dimensions - fixed height, responsive width
-	modalWidth := int(float64(m.width) * 0.75)
-	modalHeight := 35 // Fixed height for consistent appearance
+	modalWidth := int(float64(m.width) - 40)
+	modalHeight := m.height - 10
 
 	if m.modalContent == nil {
 		return ""
@@ -498,238 +497,29 @@ func (m *TableLintModel) buildModalView() string {
 	titleStyle := lipgloss.NewStyle().
 		Foreground(RGBBlue).
 		Bold(true).
-		Align(lipgloss.Center).
+		Align(lipgloss.Left).
 		Width(modalWidth - 4)
 
-	content.WriteString(titleStyle.Render("📚 DOCS"))
+	content.WriteString(titleStyle.Render("vacuum documentation"))
 	content.WriteString("\n\n")
 
 	msgStyle := lipgloss.NewStyle().
 		Foreground(RGBGrey).
-		Align(lipgloss.Center).
+		Align(lipgloss.Left).
 		Width(modalWidth - 4)
 
-	content.WriteString(msgStyle.Render("Documentation coming soon..."))
+	content.WriteString(msgStyle.Render("coming soon bro!"))
 
 	return modalStyle.Render(content.String())
 }
 
-// buildModalView_old builds the enhanced modal content with panels
-func (m *TableLintModel) buildModalView_old() string {
-	// Calculate modal dimensions - fixed height, responsive width
-	modalWidth := int(float64(m.width) * 0.75)
-	modalHeight := 35 // Fixed height for consistent appearance
-
-	if m.modalContent == nil {
-		return ""
-	}
-
-	// Styles
-	neonPink := lipgloss.Color("#f83aff")
-	blue := lipgloss.Color("#62c4ff")
-	yellow := lipgloss.Color("#fddb00")
-	gray := lipgloss.Color("#4B5263")
-
-	// Calculate panel dimensions with fixed heights
-	topPanelHeight := 20 // Fixed height for top panels
-	leftPanelWidth := int(float64(modalWidth) * 0.4)
-	rightPanelWidth := int(float64(modalWidth) * 0.6)
-
-	// Extract code snippet
-	codeSnippet, startLine := m.extractCodeSnippet(m.modalContent, 4)
-
-	// Build LEFT PANEL - Details
-	leftPanelStyle := lipgloss.NewStyle().
-		Width(leftPanelWidth-4).
-		Height(topPanelHeight).
-		Padding(1, 2)
-
-	var leftContent strings.Builder
-
-	// Title
-	titleStyle := lipgloss.NewStyle().Foreground(neonPink).Bold(true)
-	leftContent.WriteString(titleStyle.Render("📍 Issue Details"))
-	leftContent.WriteString("\n\n")
-
-	// Location
-	location := formatFileLocation(m.modalContent, m.fileName)
-	leftContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render("Location: "))
-	leftContent.WriteString(location)
-	leftContent.WriteString("\n\n")
-
-	// Rule
-	if m.modalContent.Rule != nil {
-		leftContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render("Rule: "))
-		leftContent.WriteString(m.modalContent.Rule.Id)
-		leftContent.WriteString("\n\n")
-
-		// Severity
-		severity := getRuleSeverity(m.modalContent)
-		sevColor := gray
-		switch severity {
-		case "error":
-			sevColor = lipgloss.Color("#ff0000")
-		case "warning":
-			sevColor = lipgloss.Color("#ffaa00")
-		case "info":
-			sevColor = lipgloss.Color("#00aaff")
-		}
-		leftContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render("Severity: "))
-		leftContent.WriteString(lipgloss.NewStyle().Foreground(sevColor).Bold(true).Render(severity))
-		leftContent.WriteString("\n\n")
-	}
-
-	// Message
-	leftContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render("Message:"))
-	leftContent.WriteString("\n")
-	leftContent.WriteString(lipgloss.NewStyle().Foreground(yellow).Render(m.modalContent.Message))
-	leftContent.WriteString("\n\n")
-
-	// Description (if available from rule)
-	if m.modalContent.Rule != nil && m.modalContent.Rule.Description != "" {
-		leftContent.WriteString(lipgloss.NewStyle().Foreground(blue).Render("Description:"))
-		leftContent.WriteString("\n")
-		// Create a viewport for scrollable description
-		descLines := strings.Split(m.modalContent.Rule.Description, "\n")
-		for i, line := range descLines {
-			if i > 5 { // Limit to first 5 lines in this view
-				leftContent.WriteString("...")
-				break
-			}
-			leftContent.WriteString(line)
-			if i < len(descLines)-1 {
-				leftContent.WriteString("\n")
-			}
-		}
-	}
-
-	leftPanel := leftPanelStyle.Render(leftContent.String())
-
-	// Build RIGHT PANEL - Code Snippet
-	var rightContent strings.Builder
-
-	// Code header
-	codeHeaderStyle := lipgloss.NewStyle().Foreground(neonPink).Bold(true)
-	rightContent.WriteString(codeHeaderStyle.Render("📝 Code"))
-	rightContent.WriteString("\n")
-
-	// Count actual lines for dynamic height
-	codeLines := 1 // Start with header line
-
-	// Create a read-only textarea for code display
-	if codeSnippet != "" {
-		// Add line numbers to the snippet
-		snippetLines := strings.Split(codeSnippet, "\n")
-		codeLines += len(snippetLines)
-
-		for i, line := range snippetLines {
-			lineNum := startLine + i
-			lineNumStr := fmt.Sprintf("%4d │ ", lineNum)
-
-			// Highlight the error line
-			if m.modalContent.StartNode != nil && lineNum == m.modalContent.StartNode.Line {
-				rightContent.WriteString(lipgloss.NewStyle().Foreground(neonPink).Bold(true).Render(lineNumStr))
-				rightContent.WriteString(lipgloss.NewStyle().Background(lipgloss.Color("#3a1a1a")).Render(line))
-			} else if m.modalContent.Origin != nil && lineNum == m.modalContent.Origin.Line {
-				rightContent.WriteString(lipgloss.NewStyle().Foreground(neonPink).Bold(true).Render(lineNumStr))
-				rightContent.WriteString(lipgloss.NewStyle().Background(lipgloss.Color("#3a1a1a")).Render(line))
-			} else {
-				rightContent.WriteString(lipgloss.NewStyle().Foreground(gray).Render(lineNumStr))
-				rightContent.WriteString(line)
-			}
-
-			if i < len(snippetLines)-1 {
-				rightContent.WriteString("\n")
-			}
-		}
-	} else {
-		rightContent.WriteString("\nNo code snippet available")
-		codeLines += 1
-	}
-
-	// Make the right panel height fit content but not exceed available space
-	rightPanelHeight := codeLines + 2 // Add padding for border
-	if rightPanelHeight > topPanelHeight {
-		rightPanelHeight = topPanelHeight
-	}
-
-	rightPanelStyle := lipgloss.NewStyle().
-		Width(rightPanelWidth-4).
-		Height(rightPanelHeight).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(gray).
-		Padding(0, 1)
-
-	rightPanel := rightPanelStyle.Render(rightContent.String())
-
-	// Join panels side by side
-	topSection := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
-
-	// Build BOTTOM SECTION - How to Fix
-	howToFixHeight := 8 // Fixed height for how-to-fix section
-	howToFixStyle := lipgloss.NewStyle().
-		Width(modalWidth-6).
-		MaxHeight(howToFixHeight).
-		Padding(1, 2).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(gray).
-		BorderTop(true)
-
-	var howToFixContent strings.Builder
-
-	fixHeaderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00")).Bold(true)
-	howToFixContent.WriteString(fixHeaderStyle.Render("💡 How to Fix"))
-	howToFixContent.WriteString("\n")
-
-	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
-		// Truncate if too long - keep it very compact
-		fixText := m.modalContent.Rule.HowToFix
-		lines := strings.Split(fixText, "\n")
-		maxLines := 3 // Even fewer lines for compact view
-		if len(lines) > maxLines {
-			lines = lines[:maxLines]
-			lines = append(lines, "...")
-		}
-		howToFixContent.WriteString(strings.Join(lines, "\n"))
-	} else {
-		howToFixContent.WriteString("No fix suggestions available for this rule.")
-	}
-
-	howToFixSection := howToFixStyle.Render(howToFixContent.String())
-
-	// Combine all sections
-	fullContent := lipgloss.JoinVertical(lipgloss.Left, topSection, howToFixSection)
-
-	// Wrap in modal border - don't duplicate the header
-	modalStyle := lipgloss.NewStyle().
-		Width(modalWidth).
-		MaxHeight(modalHeight).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(neonPink).
-		Background(lipgloss.Color("#1a1a1a")).
-		Padding(1, 2)
-
-	// Build the modal without redundant header
-	var modalBuilder strings.Builder
-	modalBuilder.WriteString(fullContent)
-	modalBuilder.WriteString("\n\n")
-
-	footerStyle := lipgloss.NewStyle().
-		Foreground(gray).
-		Width(modalWidth - 8).
-		Align(lipgloss.Center)
-	modalBuilder.WriteString(footerStyle.Render("Press ESC, Q, or Enter to close"))
-
-	return modalStyle.Render(modalBuilder.String())
-}
-
 // calculateModalPosition calculates the position for the modal (right-aligned)
 func (m *TableLintModel) calculateModalPosition() (int, int) {
-	modalWidth := int(float64(m.width) * 0.75)
-	modalHeight := 35 // Fixed height matching buildModalView
+	modalWidth := int(float64(m.width) - 40)
+	modalHeight := m.height - 10
 
 	// Position on the right side with good padding
-	rightPadding := 8 // Good distance from right edge
+	rightPadding := 6 // Good distance from right edge
 	x := m.width - modalWidth - rightPadding
 
 	// Center vertically
