@@ -1207,8 +1207,14 @@ func (m TableLintModel) buildSplitView() string {
 			Foreground(SecondaryColor).
 			Bold(true)
 
+		// Calculate the max line number to determine width needed
+		maxLineNum := startLine + len(codeLines) - 1
+		lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1 // +1 for space after number
+		if lineNumWidth < 5 {
+			lineNumWidth = 5 // Minimum width for alignment
+		}
+		
 		// Calculate the max line content width (excluding line numbers)
-		lineNumWidth := 5                            // "1234 " format
 		maxLineWidth := codeWidth - lineNumWidth - 2 // -2 for padding
 
 		for i, codeLine := range codeLines {
@@ -1222,8 +1228,8 @@ func (m TableLintModel) buildSplitView() string {
 				isHighlighted = true
 			}
 
-			// Format line number with padding
-			lineNumStr := fmt.Sprintf("%4d ", actualLineNum)
+			// Format line number with dynamic padding based on max width
+			lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, actualLineNum)
 
 			// Use pink for highlighted line numbers
 			if isHighlighted {
