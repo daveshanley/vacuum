@@ -391,23 +391,23 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 			Bold:   truePointer,
 		},
 
-		// Lists
 		List: ansi.StyleList{
 			StyleBlock: ansi.StyleBlock{
-				StylePrimitive: ansi.StylePrimitive{},
-				Indent:         uintPtr(2),
+				StylePrimitive: ansi.StylePrimitive{
+					Color: ColorPink,
+				},
+				Indent: uintPtr(2),
 			},
 			LevelIndent: 2,
 		},
 		Item: ansi.StylePrimitive{
-			BlockPrefix: "> ",
-			Color:       ColorPink,
+			Prefix: "> ",
+			Color:  ColorBlue,
 		},
 		Enumeration: ansi.StylePrimitive{
 			Color: ColorBlue,
 		},
 
-		// Block quotes
 		BlockQuote: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{
 				Color:  ColorGrey,
@@ -417,13 +417,11 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 			IndentToken: strPtr("│ "),
 		},
 
-		// Horizontal rule
 		HorizontalRule: ansi.StylePrimitive{
 			Color:  ColorPink,
 			Format: fmt.Sprintf("\n%s\n", strings.Repeat("-", termWidth)),
 		},
 
-		// Tables
 		Table: ansi.StyleTable{
 			StyleBlock: ansi.StyleBlock{
 				StylePrimitive: ansi.StylePrimitive{},
@@ -433,26 +431,22 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 			RowSeparator:    strPtr("─"),
 		},
 
-		// Strikethrough
 		Strikethrough: ansi.StylePrimitive{
 			CrossedOut: truePointer,
 			Color:      ColorGrey,
 		},
 
-		// Task lists
 		Task: ansi.StyleTask{
 			StylePrimitive: ansi.StylePrimitive{},
 			Ticked:         "✓ ",
 			Unticked:       "☐ ",
 		},
 
-		// Paragraphs
 		Paragraph: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{},
 			Margin:         uintPtr(1),
 		},
 
-		// Definition lists
 		DefinitionTerm: ansi.StylePrimitive{
 			Color: ColorPink,
 			Bold:  truePointer,
