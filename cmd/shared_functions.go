@@ -5,7 +5,9 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -441,4 +445,134 @@ func wrapText(text string, width int) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func renderEmptyState(width, height int) string {
+	art := []string{
+		"",
+		" _|      _|     _|_|     _|_|_|_|_|   _|    _|   _|_|_|   _|      _|     _|_|_|  ",
+		" _|_|    _|   _|    _|       _|       _|    _|     _|     _|_|    _|   _|        ",
+		" _|  _|  _|   _|    _|       _|       _|_|_|_|     _|     _|  _|  _|   _|  _|_|  ",
+		" _|    _|_|   _|    _|       _|       _|    _|     _|     _|    _|_|   _|    _|  ",
+		" _|      _|     _|_|         _|       _|    _|   _|_|_|   _|      _|     _|_|_|  ",
+		"",
+		" _|    _|   _|_|_|_|   _|_|_|     _|_|_|_|  ",
+		" _|    _|   _|         _|    _|   _|        ",
+		" _|_|_|_|   _|_|_|     _|_|_|     _|_|_|    ",
+		" _|    _|   _|         _|    _|   _|        ",
+		" _|    _|   _|_|_|_|   _|    _|   _|_|_|_|  ",
+		"",
+		" Nothing to vacuum, the filters are too strict.",
+		"",
+		" To adjust them:",
+		"",
+		" > tab - cycle severity",
+		" > c   - cycle categories",
+		" > r   - cycle rules",
+		" > esc - clear all filters",
+	}
+
+	artStr := strings.Join(art, "\n")
+
+	maxLineWidth := 82 // width of the longest line in the art
+	leftPadding := (width - maxLineWidth) / 2
+	if leftPadding < 0 {
+		leftPadding = 0
+	}
+
+	// add left padding to each line to center the entire block
+	artLines := strings.Split(artStr, "\n")
+	paddedLines := make([]string, len(artLines))
+	padding := strings.Repeat(" ", leftPadding)
+	for i, line := range artLines {
+		if line != "" {
+			paddedLines[i] = padding + line
+		} else {
+			paddedLines[i] = ""
+		}
+	}
+
+	// calculate vertical centering
+	totalLines := len(paddedLines)
+	topPadding := (height - totalLines) / 2
+	if topPadding < 0 {
+		topPadding = 0
+	}
+
+	// build the result to exactly fill the height
+	var resultLines []string
+	for i := 0; i < topPadding; i++ {
+		resultLines = append(resultLines, "")
+	}
+
+	// content
+	resultLines = append(resultLines, paddedLines...)
+
+	// bottom padding to exactly fill the height
+	for len(resultLines) < height {
+		resultLines = append(resultLines, "")
+	}
+
+	// ensure we don't exceed the height
+	if len(resultLines) > height {
+		resultLines = resultLines[:height]
+	}
+
+	textStyle := lipgloss.NewStyle().
+		Foreground(RGBRed).
+		Width(width)
+	return textStyle.Render(strings.Join(resultLines, "\n"))
+}
+
+func addTableBorders(tableView string) string {
+	tableStyle := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink).
+		PaddingTop(0)
+
+	return tableStyle.Render(tableView)
+}
+
+// fetchDocsFromDoctorAPI creates a command to fetch documentation for a rule from the doctor API.
+func fetchDocsFromDoctorAPI(ruleID string) tea.Cmd {
+	return func() tea.Msg {
+		client := &http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		url := fmt.Sprintf("https://localhost:9090/rules/documentation/%s?markdown", ruleID)
+		resp, err := client.Get(url)
+		if err != nil {
+			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 404 {
+			return docsErrorMsg{ruleID: ruleID, err: "Documentation not found", is404: true}
+		}
+
+		if resp.StatusCode != 200 {
+			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("HTTP %d", resp.StatusCode), is404: false}
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
+		}
+
+		var docResponse struct {
+			RuleID   string `json:"ruleId"`
+			Category string `json:"category"`
+			Body     string `json:"body"`
+		}
+
+		if err := json.Unmarshal(body, &docResponse); err != nil {
+			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("Failed to parse JSON: %s", err.Error()), is404: false}
+		}
+
+		// process shortcodes in docs
+		processedContent := ConvertHugoShortcodesToMarkdown(docResponse.Body)
+
+		return docsLoadedMsg{ruleID: ruleID, content: processedContent}
+	}
 }
