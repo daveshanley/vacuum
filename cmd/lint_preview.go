@@ -44,7 +44,6 @@ const (
 	DocsStateLoading DocsState = iota
 	DocsStateLoaded
 	DocsStateError
-	DocsStateNotFound
 )
 
 // docsLoadedMsg is sent when documentation is successfully loaded
@@ -278,9 +277,6 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case docsErrorMsg:
 		m.docsState = DocsStateError
-		if msg.is404 {
-			m.docsState = DocsStateNotFound
-		}
 		m.docsError = msg.err
 		return m, nil
 	case tea.WindowSizeMsg:
@@ -596,39 +592,87 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *ViolationResultTableModel) buildTableView() string {
 	var builder strings.Builder
 
+	// Count violations by severity from all results (not filtered)
+	errorCount := 0
+	warningCount := 0
+	infoCount := 0
+	for _, r := range m.allResults {
+		if r.Rule != nil {
+			switch r.Rule.Severity {
+			case model.SeverityError:
+				errorCount++
+			case model.SeverityWarn:
+				warningCount++
+			case model.SeverityInfo:
+				infoCount++
+			}
+		}
+	}
+
+	// Build the title with total count and severity breakdown
 	titleStyle := lipgloss.NewStyle().
-		Foreground(RGBPink).
-		Bold(true)
+		Foreground(RGBPink)
 
-	title := "Violations"
-	builder.WriteString(titleStyle.Render(title))
+	totalCount := fmt.Sprintf(" %d Violations", len(m.allResults))
+	builder.WriteString(titleStyle.Render(totalCount))
 
-	filterStyle := lipgloss.NewStyle().
-		Foreground(RGBGrey).
-		Padding(0, 1).
-		Bold(true)
+	// Add severity breakdown with colored icons
+	builder.WriteString("  ")
 
+	// Errors (red cross)
+	errorStyle := lipgloss.NewStyle().Foreground(RGBRed)
+	builder.WriteString(errorStyle.Render(fmt.Sprintf("✗ %d", errorCount)))
+
+	builder.WriteString("  ")
+
+	// Warnings (yellow triangle)
+	warningStyle := lipgloss.NewStyle().Foreground(RBGYellow)
+	builder.WriteString(warningStyle.Render(fmt.Sprintf("▲ %d", warningCount)))
+
+	builder.WriteString("  ")
+
+	// Info (blue dot)
+	infoStyle := lipgloss.NewStyle().Foreground(RGBBlue)
+	builder.WriteString(infoStyle.Render(fmt.Sprintf("● %d", infoCount)))
+
+	// Now add filters if any are active
 	if m.filterState != FilterAll {
 		builder.WriteString(" | ")
-		builder.WriteString(filterStyle.Render("Severity: " + getLintingFilterName(m.filterState)))
+
+		// "Severity:" in gray, then colored icon and label
+		grayStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+		builder.WriteString(grayStyle.Render("severity: "))
+
+		// Build severity filter with colored icon
+		var severityText string
+		var filterStyle lipgloss.Style
+		switch m.filterState {
+		case FilterErrors:
+			severityText = "✗ errors"
+			filterStyle = lipgloss.NewStyle().Foreground(RGBRed)
+		case FilterWarnings:
+			severityText = "▲ warnings"
+			filterStyle = lipgloss.NewStyle().Foreground(RBGYellow)
+		case FilterInfo:
+			severityText = "● info"
+			filterStyle = lipgloss.NewStyle().Foreground(RGBBlue)
+		}
+
+		builder.WriteString(filterStyle.Render(severityText))
 	}
 
 	if m.categoryFilter != "" {
 		builder.WriteString(" | ")
 		categoryStyle := lipgloss.NewStyle().
-			Foreground(RGBGrey).
-			Padding(0, 1).
-			Bold(true)
-		builder.WriteString(categoryStyle.Render("Category: " + m.categoryFilter))
+			Foreground(RGBGrey)
+		builder.WriteString(categoryStyle.Render("category: " + m.categoryFilter))
 	}
 
 	if m.ruleFilter != "" {
 		builder.WriteString(" | ")
 		ruleStyle := lipgloss.NewStyle().
-			Foreground(RGBGrey).
-			Padding(0, 1).
-			Bold(true)
-		builder.WriteString(ruleStyle.Render("Rule: " + m.ruleFilter))
+			Foreground(RGBGrey)
+		builder.WriteString(ruleStyle.Render("rule: " + m.ruleFilter))
 	}
 
 	builder.WriteString("\n")
@@ -737,32 +781,23 @@ func (m *ViolationResultTableModel) buildModalView() string {
 		spinnerStyle := lipgloss.NewStyle().
 			Width(modalWidth-4).
 			Height(contentHeight).
-			Align(lipgloss.Center, lipgloss.Center)
+			Align(lipgloss.Left, lipgloss.Top)
 
-		spinnerContent := fmt.Sprintf("%s Loading documentation...", m.docsSpinner.View())
+		spinnerContent := fmt.Sprintf("%s loading documentation...", m.docsSpinner.View())
 		content.WriteString(spinnerStyle.Render(spinnerContent))
 
 	case DocsStateLoaded:
 		content.WriteString(m.docsViewport.View())
 
-	case DocsStateNotFound:
-		errorStyle := lipgloss.NewStyle().
-			Width(modalWidth-4).
-			Height(contentHeight).
-			Align(lipgloss.Center, lipgloss.Center).
-			Foreground(RBGYellow)
-
-		notFoundMsg := "📖 Documentation not available for this rule\n\nThis rule doesn't have documentation yet."
-		content.WriteString(errorStyle.Render(notFoundMsg))
-
 	case DocsStateError:
 		errorStyle := lipgloss.NewStyle().
+			Padding(1).
 			Width(modalWidth-4).
 			Height(contentHeight).
-			Align(lipgloss.Center, lipgloss.Center).
+			Align(lipgloss.Left, lipgloss.Top).
 			Foreground(RGBRed)
 
-		errorMsg := fmt.Sprintf("❌ Failed to load documentation\n\n%s", m.docsError)
+		errorMsg := fmt.Sprintf("❌ oh dear, failed to load documentation.\n\n%s\n\nThis is a mistake. It should not have happened, sorry!", m.docsError)
 		content.WriteString(errorStyle.Render(errorMsg))
 
 	default:
@@ -852,7 +887,7 @@ func (m *ViolationResultTableModel) View() string {
 		rowText = fmt.Sprintf(" %d/%d", m.table.Cursor()+1, len(m.filteredResults))
 	}
 
-	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: sev | c: cat | r: rule | p: path | pgup/pgdn: page | enter: details | d: docs | q: quit", rowText))
+	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | q: quit", rowText))
 
 	if m.showSplitView {
 		detailsView := m.BuildDetailsView()
