@@ -27,6 +27,26 @@ var jsonPathRegex = regexp.MustCompile(`\$\.\S+`)
 var circularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
 var partRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
 
+// Pre-compiled regex patterns for syntax highlighting (performance optimization)
+var (
+	yamlKeyValueRegex = regexp.MustCompile(`^(\s*)([a-zA-Z0-9_-]+)(\s*:\s*)(.*)`)
+	yamlListItemRegex = regexp.MustCompile(`^(\s*)(- )(.*)`)
+	numberValueRegex  = regexp.MustCompile(`^-?\d+\.?\d*$`)
+	jsonKeyRegex      = regexp.MustCompile(`"([^"]+)"\s*:`)
+	jsonStringRegex   = regexp.MustCompile(`:\s*"[^"]*"`)
+)
+
+// Pre-created styles for syntax highlighting (created on first use)
+var (
+	syntaxKeyStyle     lipgloss.Style
+	syntaxStringStyle  lipgloss.Style
+	syntaxNumberStyle  lipgloss.Style
+	syntaxBoolStyle    lipgloss.Style
+	syntaxCommentStyle lipgloss.Style
+	syntaxDashStyle    lipgloss.Style
+	syntaxStylesInit   bool
+)
+
 // FilterState represents the current filter mode for cycling through severities
 type FilterState int
 
@@ -319,10 +339,10 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "down", "j":
 				m.codeViewport.LineDown(1)
 				return m, nil
-			case "pgup":
+			case "pgup", "pageup", "page up":
 				m.codeViewport.ViewUp()
 				return m, nil
-			case "pgdn":
+			case "pgdn", "pagedown", "page down", "pgdown":
 				m.codeViewport.ViewDown()
 				return m, nil
 			case "home", "g":
@@ -330,6 +350,10 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			case "end", "G":
 				m.codeViewport.GotoBottom()
+				return m, nil
+			case " ", "space":
+				// Recenter on the highlighted line
+				m.recenterCodeView()
 				return m, nil
 			case "esc", "q", "x":
 				m.showCodeView = false
@@ -862,7 +886,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 	if m.docsState == DocsStateLoaded && m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
 		scrollPercent := fmt.Sprintf(" %.0f%%", m.docsViewport.ScrollPercent()*100)
 		scrollStyle := lipgloss.NewStyle().
-			Foreground(RGBGrey)
+			Foreground(RGBBlue)
 
 		controls := "↑↓/jk: scroll | pgup/pgdn: page | esc/d: close "
 		controlsStyle := lipgloss.NewStyle().
@@ -918,6 +942,169 @@ func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	return x, y
 }
 
+// formatCodeWithGlamour uses glamour to render the code with syntax highlighting
+func (m *ViolationResultTableModel) formatCodeWithGlamour(targetLine int, width int) string {
+	// Determine if this is YAML or JSON
+	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
+	
+	// Wrap the content in a code block for glamour
+	var codeBlock strings.Builder
+	codeBlock.WriteString("```")
+	if isYAML {
+		codeBlock.WriteString("yaml")
+	} else {
+		codeBlock.WriteString("json")
+	}
+	codeBlock.WriteString("\n")
+	codeBlock.WriteString(string(m.specContent))
+	codeBlock.WriteString("\n```\n")
+	
+	// Create custom style for code rendering
+	customStyle := CreateVacuumDocsStyle(width)
+	
+	// Create glamour renderer with our custom style
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithColorProfile(termenv.TrueColor),
+		glamour.WithStyles(customStyle),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		// Fallback to plain text with line numbers
+		return m.formatCodeWithLineNumbers(targetLine)
+	}
+	
+	// Render the code block
+	rendered, err := renderer.Render(codeBlock.String())
+	if err != nil {
+		// Fallback to plain text with line numbers
+		return m.formatCodeWithLineNumbers(targetLine)
+	}
+	
+	// Add line highlighting if we have a target line
+	if targetLine > 0 {
+		return m.addLineHighlight(rendered, targetLine)
+	}
+	
+	return rendered
+}
+
+// formatCodeWithLineNumbers provides a simple fallback with just line numbers
+func (m *ViolationResultTableModel) formatCodeWithLineNumbers(targetLine int) string {
+	lines := strings.Split(string(m.specContent), "\n")
+	var result strings.Builder
+	
+	lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+	highlightStyle := lipgloss.NewStyle().
+		Background(RGBSubtlePink).
+		Foreground(RGBPink).
+		Bold(true)
+	
+	maxLineNum := len(lines)
+	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1
+	if lineNumWidth < 5 {
+		lineNumWidth = 5
+	}
+	
+	for i, line := range lines {
+		lineNum := i + 1
+		isHighlighted := lineNum == targetLine
+		
+		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
+		
+		if isHighlighted {
+			highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+			result.WriteString(highlightedLineNumStyle.Render(lineNumStr))
+			result.WriteString(highlightStyle.Render(line))
+		} else {
+			result.WriteString(lineNumStyle.Render(lineNumStr))
+			result.WriteString(line)
+		}
+		
+		if i < len(lines)-1 {
+			result.WriteString("\n")
+		}
+	}
+	
+	return result.String()
+}
+
+// addLineHighlight adds highlighting to a specific line in rendered content
+func (m *ViolationResultTableModel) addLineHighlight(content string, targetLine int) string {
+	lines := strings.Split(content, "\n")
+	highlightStyle := lipgloss.NewStyle().
+		Background(RGBSubtlePink).
+		Foreground(RGBPink).
+		Bold(true)
+	
+	// Glamour adds some formatting, so we need to be careful about line counting
+	// Skip empty lines and formatting lines at the beginning
+	codeStarted := false
+	actualLine := 0
+	
+	for i, line := range lines {
+		// Look for the start of actual code content
+		if !codeStarted && strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "```") {
+			codeStarted = true
+		}
+		
+		if codeStarted {
+			actualLine++
+			if actualLine == targetLine {
+				lines[i] = highlightStyle.Render(line)
+			}
+		}
+	}
+	
+	return strings.Join(lines, "\n")
+}
+
+// recenterCodeView recenters the viewport on the highlighted error line
+func (m *ViolationResultTableModel) recenterCodeView() {
+	if m.modalContent == nil {
+		return
+	}
+	
+	// Get the target line number
+	targetLine := 0
+	if m.modalContent.StartNode != nil {
+		targetLine = m.modalContent.StartNode.Line
+	} else if m.modalContent.Origin != nil {
+		targetLine = m.modalContent.Origin.Line
+	}
+	
+	if targetLine > 0 {
+		// Calculate the position of the target line within the rendered content
+		allLines := strings.Split(string(m.specContent), "\n")
+		totalLines := len(allLines)
+		const windowSize = 1000
+		
+		var targetPositionInWindow int
+		if totalLines <= (windowSize*2 + 1) {
+			// No windowing, target is at its actual position
+			targetPositionInWindow = targetLine
+		} else {
+			// Windowing is active
+			startLine := targetLine - windowSize
+			if startLine < 1 {
+				startLine = 1
+			}
+			// Account for the "lines above not shown" notice if present
+			if startLine > 1 {
+				targetPositionInWindow = targetLine - startLine + 2 // +2 for the notice line
+			} else {
+				targetPositionInWindow = targetLine - startLine + 1
+			}
+		}
+		
+		// Center the target line in the viewport
+		scrollTo := targetPositionInWindow - (m.codeViewport.Height() / 2)
+		if scrollTo < 0 {
+			scrollTo = 0
+		}
+		m.codeViewport.SetYOffset(scrollTo)
+	}
+}
+
 // prepareCodeViewport prepares the code viewport with the full spec and highlights the error line
 func (m *ViolationResultTableModel) prepareCodeViewport() {
 	if m.modalContent == nil || m.specContent == nil {
@@ -938,15 +1125,40 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 		targetLine = m.modalContent.Origin.Line
 	}
 
-	// Convert spec content to string with line numbers and syntax highlighting
+	// Use custom syntax highlighting (faster than glamour)
 	content := m.formatCodeWithHighlight(targetLine, modalWidth-8)
 	
 	m.codeViewport.SetContent(content)
 
 	// Scroll to the target line (try to center it in the viewport)
 	if targetLine > 0 {
-		// Calculate position to center the target line
-		scrollTo := targetLine - (m.codeViewport.Height() / 2)
+		// For windowed content, we need to calculate the position within the rendered content
+		// The target line is always at position 1000 (or less if near the start of file)
+		allLines := strings.Split(string(m.specContent), "\n")
+		totalLines := len(allLines)
+		const windowSize = 1000
+		
+		// Calculate where the target line appears in our rendered content
+		var targetPositionInWindow int
+		if totalLines <= (windowSize*2 + 1) {
+			// No windowing, target is at its actual position
+			targetPositionInWindow = targetLine
+		} else {
+			// Windowing is active
+			startLine := targetLine - windowSize
+			if startLine < 1 {
+				startLine = 1
+			}
+			// Account for the "lines above not shown" notice if present
+			if startLine > 1 {
+				targetPositionInWindow = targetLine - startLine + 2 // +2 for the notice line
+			} else {
+				targetPositionInWindow = targetLine - startLine + 1
+			}
+		}
+		
+		// Now scroll to center the target line in the viewport
+		scrollTo := targetPositionInWindow - (m.codeViewport.Height() / 2)
 		if scrollTo < 0 {
 			scrollTo = 0
 		}
@@ -956,7 +1168,40 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 
 // formatCodeWithHighlight formats the spec content with line numbers and highlights the error line
 func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxWidth int) string {
-	lines := strings.Split(string(m.specContent), "\n")
+	allLines := strings.Split(string(m.specContent), "\n")
+	totalLines := len(allLines)
+	
+	// Window configuration - max 1000 lines above and below target
+	const windowSize = 1000
+	
+	// Calculate the window of lines to render
+	startLine := 1
+	endLine := totalLines
+	actualTargetLine := targetLine // Track the actual line number for highlighting
+	
+	if totalLines > (windowSize*2 + 1) {
+		// Need to limit the window
+		if targetLine > 0 {
+			// Calculate window centered on target line
+			startLine = targetLine - windowSize
+			if startLine < 1 {
+				startLine = 1
+			}
+			endLine = targetLine + windowSize
+			if endLine > totalLines {
+				endLine = totalLines
+			}
+		} else {
+			// No target line, show first 2001 lines
+			endLine = windowSize*2 + 1
+			if endLine > totalLines {
+				endLine = totalLines
+			}
+		}
+	}
+	
+	// Extract the lines to render (convert to 0-based indexing)
+	lines := allLines[startLine-1 : endLine]
 	
 	var result strings.Builder
 	lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey)
@@ -968,16 +1213,22 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 	// Determine if this is YAML or JSON
 	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
 	
-	// Calculate line number width
-	maxLineNum := len(lines)
-	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1
+	// Calculate line number width based on actual max line number
+	lineNumWidth := len(fmt.Sprintf("%d", endLine)) + 1
 	if lineNumWidth < 5 {
 		lineNumWidth = 5
 	}
 	
+	// Add a notice if we're showing a limited window
+	if startLine > 1 {
+		noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
+		result.WriteString(noticeStyle.Render(fmt.Sprintf("    ... (%d lines above not shown) ...", startLine-1)))
+		result.WriteString("\n")
+	}
+	
 	for i, line := range lines {
-		lineNum := i + 1
-		isHighlighted := lineNum == targetLine
+		lineNum := startLine + i // Actual line number in the file
+		isHighlighted := lineNum == actualTargetLine
 		
 		// Format line number
 		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
@@ -1008,66 +1259,89 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 		}
 	}
 	
+	// Add a notice if we're cutting off lines at the bottom
+	if endLine < totalLines {
+		result.WriteString("\n")
+		noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
+		result.WriteString(noticeStyle.Render(fmt.Sprintf("    ... (%d lines below not shown) ...", totalLines-endLine)))
+	}
+	
 	return result.String()
+}
+
+// initSyntaxStyles initializes the syntax highlighting styles once
+func initSyntaxStyles() {
+	if !syntaxStylesInit {
+		syntaxKeyStyle = lipgloss.NewStyle().Foreground(RGBBlue)
+		syntaxStringStyle = lipgloss.NewStyle().Foreground(RGBGreen)
+		syntaxNumberStyle = lipgloss.NewStyle().Foreground(RGBOrange)
+		syntaxBoolStyle = lipgloss.NewStyle().Foreground(RGBPurple)
+		syntaxCommentStyle = lipgloss.NewStyle().Foreground(RGBGrey)
+		syntaxDashStyle = lipgloss.NewStyle().Foreground(RGBPink)
+		syntaxStylesInit = true
+	}
 }
 
 // applySyntaxHighlighting applies basic syntax highlighting for YAML/JSON
 func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML bool) string {
-	keyStyle := lipgloss.NewStyle().Foreground(RGBBlue)
-	stringStyle := lipgloss.NewStyle().Foreground(RGBGreen)
-	numberStyle := lipgloss.NewStyle().Foreground(RGBOrange)
-	boolStyle := lipgloss.NewStyle().Foreground(RGBPurple)
-	commentStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+	// Initialize styles once
+	initSyntaxStyles()
 	
-	// Handle comments
-	if isYAML && strings.Contains(line, "#") {
-		commentIndex := strings.Index(line, "#")
-		if commentIndex >= 0 {
-			beforeComment := line[:commentIndex]
-			comment := line[commentIndex:]
-			return m.applySyntaxHighlighting(beforeComment, isYAML) + commentStyle.Render(comment)
-		}
+	// Fast path: empty line
+	if line == "" {
+		return line
 	}
 	
-	// Simple heuristic-based highlighting
+	// Handle comments for YAML (check for # first as a quick filter)
+	if isYAML && strings.IndexByte(line, '#') >= 0 {
+		commentIndex := strings.IndexByte(line, '#')
+		beforeComment := line[:commentIndex]
+		comment := line[commentIndex:]
+		return m.applySyntaxHighlighting(beforeComment, isYAML) + syntaxCommentStyle.Render(comment)
+	}
+	
 	if isYAML {
-		// YAML key-value pairs
-		if matches := regexp.MustCompile(`^(\s*)([a-zA-Z0-9_-]+)(\s*:\s*)(.*)`).FindStringSubmatch(line); matches != nil {
+		// YAML key-value pairs (use pre-compiled regex)
+		if matches := yamlKeyValueRegex.FindStringSubmatch(line); matches != nil {
 			indent := matches[1]
 			key := matches[2]
 			separator := matches[3]
 			value := matches[4]
 			
+			// Fast checks for common values
 			coloredValue := value
-			// Color values
-			if value == "true" || value == "false" || value == "null" {
-				coloredValue = boolStyle.Render(value)
-			} else if regexp.MustCompile(`^-?\d+\.?\d*$`).MatchString(strings.TrimSpace(value)) {
-				coloredValue = numberStyle.Render(value)
-			} else if strings.HasPrefix(value, "\"") || strings.HasPrefix(value, "'") {
-				coloredValue = stringStyle.Render(value)
+			trimmedValue := strings.TrimSpace(value)
+			
+			// Check boolean values first (most common)
+			switch trimmedValue {
+			case "true", "false", "null":
+				coloredValue = syntaxBoolStyle.Render(value)
+			default:
+				// Check if it's a number (use pre-compiled regex)
+				if numberValueRegex.MatchString(trimmedValue) {
+					coloredValue = syntaxNumberStyle.Render(value)
+				} else if len(value) > 0 && (value[0] == '"' || value[0] == '\'') {
+					// Check for quoted strings (fast byte check)
+					coloredValue = syntaxStringStyle.Render(value)
+				}
 			}
 			
-			return indent + keyStyle.Render(key) + separator + coloredValue
+			return indent + syntaxKeyStyle.Render(key) + separator + coloredValue
 		}
-		// YAML list items
-		if matches := regexp.MustCompile(`^(\s*)(- )(.*)`).FindStringSubmatch(line); matches != nil {
-			indent := matches[1]
-			dash := matches[2]
-			value := matches[3]
-			return indent + lipgloss.NewStyle().Foreground(RGBPink).Render(dash) + value
+		
+		// YAML list items (use pre-compiled regex)
+		if matches := yamlListItemRegex.FindStringSubmatch(line); matches != nil {
+			return matches[1] + syntaxDashStyle.Render(matches[2]) + matches[3]
 		}
 	} else {
-		// JSON - very basic highlighting
-		// Highlight keys in quotes
-		line = regexp.MustCompile(`"([^"]+)"\s*:`).ReplaceAllStringFunc(line, func(match string) string {
-			return keyStyle.Render(match)
+		// JSON - use pre-compiled regexes
+		line = jsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
+			return syntaxKeyStyle.Render(match)
 		})
-		// Highlight string values
-		line = regexp.MustCompile(`:\s*"[^"]*"`).ReplaceAllStringFunc(line, func(match string) string {
+		line = jsonStringRegex.ReplaceAllStringFunc(line, func(match string) string {
 			parts := strings.SplitN(match, "\"", 2)
 			if len(parts) > 1 {
-				return parts[0] + stringStyle.Render("\""+parts[1])
+				return parts[0] + syntaxStringStyle.Render("\""+parts[1])
 			}
 			return match
 		})
@@ -1132,9 +1406,9 @@ func (m *ViolationResultTableModel) buildCodeView() string {
 	var bottomBar string
 	if m.codeViewport.TotalLineCount() > m.codeViewport.Height() {
 		scrollPercent := fmt.Sprintf(" %.0f%%", m.codeViewport.ScrollPercent()*100)
-		scrollStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+		scrollStyle := lipgloss.NewStyle().Foreground(RGBBlue)
 
-		controls := "↑↓/jk: scroll | pgup/pgdn: page | esc/x: close "
+		controls := "↑↓/jk: scroll | pgup/pgdn: page | space: recenter | esc/x: close "
 		controlsStyle := lipgloss.NewStyle().Foreground(RGBGrey)
 
 		// Calculate spacing
