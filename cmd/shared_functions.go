@@ -551,13 +551,27 @@ func fetchDocsFromDoctorAPI(ruleID string) tea.Cmd {
 			return docsErrorMsg{ruleID: ruleID, err: "Documentation not found", is404: true}
 		}
 
-		if resp.StatusCode != 200 {
-			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("HTTP %d", resp.StatusCode), is404: false}
-		}
-
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
+		}
+
+		if resp.StatusCode != 200 {
+			// Try to parse RFC 9457 error response
+			var errorResponse struct {
+				Type   string `json:"type"`
+				Title  string `json:"title"`
+				Status int    `json:"status"`
+				Detail string `json:"detail"`
+			}
+			
+			if err := json.Unmarshal(body, &errorResponse); err == nil && errorResponse.Detail != "" {
+				// Use the detail from RFC 9457 error response
+				return docsErrorMsg{ruleID: ruleID, err: errorResponse.Detail, is404: false}
+			}
+			
+			// Fallback to generic HTTP error
+			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("HTTP %d", resp.StatusCode), is404: false}
 		}
 
 		var docResponse struct {

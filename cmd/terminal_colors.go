@@ -279,10 +279,12 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 		},
 		H3: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{
-				BlockPrefix: "\n",
-				BlockSuffix: "\n",
-				Color:       ColorPink,
-				Bold:        truePointer,
+				BlockPrefix:     "\n",
+				BackgroundColor: ColorBlueBg,
+				Prefix:          fmt.Sprintf("%s\n \u2605 ", strings.Repeat("", termWidth)),
+				Suffix:          fmt.Sprintf("\n%s\n", strings.Repeat("", termWidth)),
+				Color:           ColorBlue,
+				Bold:            truePointer,
 			},
 		},
 		H4: ansi.StyleBlock{
