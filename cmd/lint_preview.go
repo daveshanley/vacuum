@@ -729,7 +729,7 @@ func (m *TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, co
 // buildModalView builds the DOCS modal with documentation content
 func (m *TableLintModel) buildModalView() string {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - 10
+	modalHeight := m.height - 5
 
 	if m.modalContent == nil {
 		return ""
@@ -847,7 +847,7 @@ func (m *TableLintModel) buildModalView() string {
 // calculateModalPosition calculates the position for the modal (right-aligned)
 func (m *TableLintModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - 10
+	modalHeight := m.height - 5
 
 	// Position on the right side with good padding
 	rightPadding := 6 // Good distance from right edge
