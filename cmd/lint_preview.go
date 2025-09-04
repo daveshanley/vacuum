@@ -38,13 +38,16 @@ var (
 
 // Pre-created styles for syntax highlighting (created on first use)
 var (
-	syntaxKeyStyle     lipgloss.Style
-	syntaxStringStyle  lipgloss.Style
-	syntaxNumberStyle  lipgloss.Style
-	syntaxBoolStyle    lipgloss.Style
-	syntaxCommentStyle lipgloss.Style
-	syntaxDashStyle    lipgloss.Style
-	syntaxStylesInit   bool
+	syntaxKeyStyle         lipgloss.Style
+	syntaxStringStyle      lipgloss.Style
+	syntaxNumberStyle      lipgloss.Style
+	syntaxBoolStyle        lipgloss.Style
+	syntaxCommentStyle     lipgloss.Style
+	syntaxDashStyle        lipgloss.Style
+	syntaxRefStyle         lipgloss.Style  // For $ref values
+	syntaxDefaultStyle     lipgloss.Style  // Default pink for unmatched text
+	syntaxSingleQuoteStyle lipgloss.Style  // Pink italic for single-quoted strings
+	syntaxStylesInit       bool
 )
 
 // FilterState represents the current filter mode for cycling through severities
@@ -1274,10 +1277,13 @@ func initSyntaxStyles() {
 	if !syntaxStylesInit {
 		syntaxKeyStyle = lipgloss.NewStyle().Foreground(RGBBlue)
 		syntaxStringStyle = lipgloss.NewStyle().Foreground(RGBGreen)
-		syntaxNumberStyle = lipgloss.NewStyle().Foreground(RGBOrange)
-		syntaxBoolStyle = lipgloss.NewStyle().Foreground(RGBPurple)
-		syntaxCommentStyle = lipgloss.NewStyle().Foreground(RGBGrey)
+		syntaxNumberStyle = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true).Bold(true)
+		syntaxBoolStyle = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).Bold(true)  // Back to grey italic bold
+		syntaxCommentStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)  // Comments are now pink italic
 		syntaxDashStyle = lipgloss.NewStyle().Foreground(RGBPink)
+		syntaxRefStyle = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
+		syntaxDefaultStyle = lipgloss.NewStyle().Foreground(RGBPink)
+		syntaxSingleQuoteStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 		syntaxStylesInit = true
 	}
 }
@@ -1292,15 +1298,41 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 		return line
 	}
 	
-	// Handle comments for YAML (check for # first as a quick filter)
-	if isYAML && strings.IndexByte(line, '#') >= 0 {
-		commentIndex := strings.IndexByte(line, '#')
-		beforeComment := line[:commentIndex]
-		comment := line[commentIndex:]
-		return m.applySyntaxHighlighting(beforeComment, isYAML) + syntaxCommentStyle.Render(comment)
-	}
-	
 	if isYAML {
+		// ABSOLUTE PRIORITY: Check for $ref FIRST before anything else
+		if strings.Contains(line, "$ref:") {
+			// Find $ref: and highlight it specially
+			if idx := strings.Index(line, "$ref:"); idx >= 0 {
+				beforeRef := line[:idx]
+				// Everything after $ref: gets ref styling
+				return beforeRef + syntaxRefStyle.Render(line[idx:])
+			}
+		}
+		
+		// Check if this line is a $ref value (contains component paths)
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(trimmed, "'#/") || strings.Contains(trimmed, "\"#/") || 
+		   strings.Contains(trimmed, "#/components/") || 
+		   strings.Contains(trimmed, "#/definitions/") ||
+		   strings.Contains(trimmed, "#/schemas/") ||
+		   strings.Contains(trimmed, "#/parameters/") ||
+		   strings.Contains(trimmed, "#/responses/") ||
+		   strings.Contains(trimmed, "#/paths/") {
+			// This is a $ref path - style the entire line
+			return syntaxRefStyle.Render(line)
+		}
+		
+		// Handle comments for YAML (only AFTER checking for $ref)
+		if strings.IndexByte(line, '#') >= 0 {
+			commentIndex := strings.IndexByte(line, '#')
+			// Make sure it's actually a comment, not part of a $ref
+			if !strings.Contains(line[:commentIndex], "$ref") {
+				beforeComment := line[:commentIndex]
+				comment := line[commentIndex:]
+				return m.applySyntaxHighlighting(beforeComment, isYAML) + syntaxCommentStyle.Render(comment)
+			}
+		}
+		
 		// YAML key-value pairs (use pre-compiled regex)
 		if matches := yamlKeyValueRegex.FindStringSubmatch(line); matches != nil {
 			indent := matches[1]
@@ -1308,43 +1340,104 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 			separator := matches[3]
 			value := matches[4]
 			
-			// Fast checks for common values
+			// Special handling for $ref key
+			coloredKey := key
 			coloredValue := value
-			trimmedValue := strings.TrimSpace(value)
 			
-			// Check boolean values first (most common)
-			switch trimmedValue {
-			case "true", "false", "null":
-				coloredValue = syntaxBoolStyle.Render(value)
-			default:
-				// Check if it's a number (use pre-compiled regex)
-				if numberValueRegex.MatchString(trimmedValue) {
-					coloredValue = syntaxNumberStyle.Render(value)
-				} else if len(value) > 0 && (value[0] == '"' || value[0] == '\'') {
-					// Check for quoted strings (fast byte check)
-					coloredValue = syntaxStringStyle.Render(value)
+			if key == "$ref" {
+				// $ref key and value get special styling
+				coloredKey = syntaxRefStyle.Render(key)
+				// Always use ref style for $ref values, regardless of quotes
+				coloredValue = syntaxRefStyle.Render(value)
+			} else {
+				// Non-$ref keys
+				coloredKey = syntaxKeyStyle.Render(key)
+				
+				// Fast checks for common values
+				trimmedValue := strings.TrimSpace(value)
+				
+				// Check boolean values first
+				switch trimmedValue {
+				case "true", "false", "null":
+					coloredValue = syntaxBoolStyle.Render(value)
+				default:
+					// Check if it's a number (use pre-compiled regex)
+					if numberValueRegex.MatchString(trimmedValue) {
+						coloredValue = syntaxNumberStyle.Render(value)
+					} else if len(value) > 0 && value[0] == '"' {
+						// Double-quoted strings are green
+						coloredValue = syntaxStringStyle.Render(value)
+					} else if len(value) > 0 && value[0] == '\'' {
+						// Single-quoted strings are pink italic
+						coloredValue = syntaxSingleQuoteStyle.Render(value)
+					} else if value != "" {
+						// Default to pink for any unmatched value
+						coloredValue = syntaxDefaultStyle.Render(value)
+					}
 				}
 			}
 			
-			return indent + syntaxKeyStyle.Render(key) + separator + coloredValue
+			return indent + coloredKey + separator + coloredValue
 		}
 		
 		// YAML list items (use pre-compiled regex)
 		if matches := yamlListItemRegex.FindStringSubmatch(line); matches != nil {
-			return matches[1] + syntaxDashStyle.Render(matches[2]) + matches[3]
+			// Apply highlighting to the list item value
+			itemValue := matches[3]
+			coloredItem := itemValue
+			
+			// Check if the item is a simple value we can color
+			trimmedItem := strings.TrimSpace(itemValue)
+			switch trimmedItem {
+			case "true", "false", "null":
+				coloredItem = syntaxBoolStyle.Render(itemValue)
+			default:
+				if numberValueRegex.MatchString(trimmedItem) {
+					coloredItem = syntaxNumberStyle.Render(itemValue)
+				} else if len(trimmedItem) > 0 && trimmedItem[0] == '"' {
+					// Double-quoted strings are green
+					coloredItem = syntaxStringStyle.Render(itemValue)
+				} else if len(trimmedItem) > 0 && trimmedItem[0] == '\'' {
+					// Single-quoted strings are pink italic
+					coloredItem = syntaxSingleQuoteStyle.Render(itemValue)
+				} else if trimmedItem != "" {
+					// Default to pink for unmatched
+					coloredItem = syntaxDefaultStyle.Render(itemValue)
+				}
+			}
+			
+			return matches[1] + syntaxDashStyle.Render(matches[2]) + coloredItem
 		}
+		
+		// If no pattern matched, return with default pink color
+		return syntaxDefaultStyle.Render(line)
 	} else {
 		// JSON - use pre-compiled regexes
+		processed := false
+		originalLine := line
+		
 		line = jsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
+			processed = true
+			// Check if it's $ref
+			if strings.Contains(match, "$ref") {
+				return syntaxRefStyle.Render(match)
+			}
 			return syntaxKeyStyle.Render(match)
 		})
+		
 		line = jsonStringRegex.ReplaceAllStringFunc(line, func(match string) string {
+			processed = true
 			parts := strings.SplitN(match, "\"", 2)
 			if len(parts) > 1 {
 				return parts[0] + syntaxStringStyle.Render("\""+parts[1])
 			}
 			return match
 		})
+		
+		// If nothing was processed, use default pink
+		if !processed && line != "" {
+			return syntaxDefaultStyle.Render(originalLine)
+		}
 	}
 	
 	return line
