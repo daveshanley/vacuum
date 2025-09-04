@@ -600,38 +600,35 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		Foreground(RGBPink).
 		Bold(true)
 
-	title := "📋 Linting Results (Interactive View)"
+	title := "Violations"
 	builder.WriteString(titleStyle.Render(title))
 
 	filterStyle := lipgloss.NewStyle().
-		Foreground(RGBBlue).
-		Background(lipgloss.Color("#1a1a1a")).
+		Foreground(RGBGrey).
 		Padding(0, 1).
 		Bold(true)
 
 	if m.filterState != FilterAll {
-		builder.WriteString("  ")
-		builder.WriteString(filterStyle.Render("🔍 Severity: " + getLintingFilterName(m.filterState)))
+		builder.WriteString(" | ")
+		builder.WriteString(filterStyle.Render("Severity: " + getLintingFilterName(m.filterState)))
 	}
 
 	if m.categoryFilter != "" {
-		builder.WriteString("  ")
+		builder.WriteString(" | ")
 		categoryStyle := lipgloss.NewStyle().
-			Foreground(RBGYellow).
-			Background(lipgloss.Color("#1a1a1a")).
+			Foreground(RGBGrey).
 			Padding(0, 1).
 			Bold(true)
-		builder.WriteString(categoryStyle.Render("📂 Category: " + m.categoryFilter))
+		builder.WriteString(categoryStyle.Render("Category: " + m.categoryFilter))
 	}
 
 	if m.ruleFilter != "" {
-		builder.WriteString("  ")
+		builder.WriteString(" | ")
 		ruleStyle := lipgloss.NewStyle().
-			Foreground(RGBGreen).
-			Background(lipgloss.Color("#1a1a1a")).
+			Foreground(RGBGrey).
 			Padding(0, 1).
 			Bold(true)
-		builder.WriteString(ruleStyle.Render("📏 Rule: " + m.ruleFilter))
+		builder.WriteString(ruleStyle.Render("Rule: " + m.ruleFilter))
 	}
 
 	builder.WriteString("\n")
