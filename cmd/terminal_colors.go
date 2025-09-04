@@ -40,6 +40,8 @@ var (
 	RGBRed               = lipgloss.Color("196")
 	RBGYellow            = lipgloss.Color("220")
 	RGBGreen             = lipgloss.Color("46")
+	RGBOrange            = lipgloss.Color("208")
+	RGBPurple            = lipgloss.Color("135")
 	RGBGrey              = lipgloss.Color("246")
 	RGBDarkGrey          = lipgloss.Color("236")
 	RGBWhite             = lipgloss.Color("255")

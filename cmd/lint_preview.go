@@ -80,6 +80,7 @@ type ViolationResultTableModel struct {
 	showPath        bool                      // Toggle for showing/hiding path column
 	showModal       bool                      // Whether to show the DOCS modal
 	showSplitView   bool                      // Whether to show the split view (details)
+	showCodeView    bool                      // Whether to show the expanded code view modal
 	modalContent    *model.RuleFunctionResult // The current result being shown in the splitview
 	docsState       DocsState                 // State of documentation loading
 	docsContent     string                    // Loaded documentation content
@@ -87,6 +88,7 @@ type ViolationResultTableModel struct {
 	docsCache       map[string]string         // Cache of loaded documentation by rule ID
 	docsSpinner     spinner.Model             // Spinner for loading state
 	docsViewport    viewport.Model            // Viewport for scrollable docs content
+	codeViewport    viewport.Model            // Viewport for expanded code view
 }
 
 // ShowViolationTableView displays results in an interactive console table
@@ -288,6 +290,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
 		m.table.SetWidth(msg.Width - 2) // Account for border wrapper
+		
 
 		// Adjust table height based on split view state
 		if m.showSplitView {
@@ -307,7 +310,36 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		// Handle modal-specific keys first
+		// Handle code view modal keys first
+		if m.showCodeView {
+			switch msg.String() {
+			case "up", "k":
+				m.codeViewport.LineUp(1)
+				return m, nil
+			case "down", "j":
+				m.codeViewport.LineDown(1)
+				return m, nil
+			case "pgup":
+				m.codeViewport.ViewUp()
+				return m, nil
+			case "pgdn":
+				m.codeViewport.ViewDown()
+				return m, nil
+			case "home", "g":
+				m.codeViewport.GotoTop()
+				return m, nil
+			case "end", "G":
+				m.codeViewport.GotoBottom()
+				return m, nil
+			case "esc", "q", "x":
+				m.showCodeView = false
+				return m, nil
+			}
+			// Don't process other keys when code view is open
+			return m, nil
+		}
+
+		// Handle modal-specific keys 
 		if m.showModal {
 			// Allow viewport navigation when docs are loaded
 			if m.docsState == DocsStateLoaded {
@@ -412,6 +444,21 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.modalContent = nil
 				// Restore table to full height
 				m.table.SetHeight(m.height - 4)
+			}
+			return m, nil
+		case "x":
+			// Toggle expanded code view modal
+			if m.table.Cursor() < len(m.filteredResults) {
+				// Set the current result for the code view
+				if !m.showSplitView {
+					m.modalContent = m.filteredResults[m.table.Cursor()]
+				}
+				m.showCodeView = !m.showCodeView
+				
+				// If opening code view, prepare the viewport
+				if m.showCodeView {
+					m.prepareCodeViewport()
+				}
 			}
 			return m, nil
 		case "d":
@@ -871,6 +918,250 @@ func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	return x, y
 }
 
+// prepareCodeViewport prepares the code viewport with the full spec and highlights the error line
+func (m *ViolationResultTableModel) prepareCodeViewport() {
+	if m.modalContent == nil || m.specContent == nil {
+		return
+	}
+
+	modalWidth := int(float64(m.width) - 40)
+	modalHeight := m.height - 5
+
+	// Initialize viewport
+	m.codeViewport = viewport.New(viewport.WithWidth(modalWidth-4), viewport.WithHeight(modalHeight-4))
+
+	// Get the line number from the result
+	targetLine := 0
+	if m.modalContent.StartNode != nil {
+		targetLine = m.modalContent.StartNode.Line
+	} else if m.modalContent.Origin != nil {
+		targetLine = m.modalContent.Origin.Line
+	}
+
+	// Convert spec content to string with line numbers and syntax highlighting
+	content := m.formatCodeWithHighlight(targetLine, modalWidth-8)
+	
+	m.codeViewport.SetContent(content)
+
+	// Scroll to the target line (try to center it in the viewport)
+	if targetLine > 0 {
+		// Calculate position to center the target line
+		scrollTo := targetLine - (m.codeViewport.Height() / 2)
+		if scrollTo < 0 {
+			scrollTo = 0
+		}
+		m.codeViewport.SetYOffset(scrollTo)
+	}
+}
+
+// formatCodeWithHighlight formats the spec content with line numbers and highlights the error line
+func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxWidth int) string {
+	lines := strings.Split(string(m.specContent), "\n")
+	
+	var result strings.Builder
+	lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+	highlightStyle := lipgloss.NewStyle().
+		Background(RGBSubtlePink).
+		Foreground(RGBPink).
+		Bold(true)
+	
+	// Determine if this is YAML or JSON
+	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
+	
+	// Calculate line number width
+	maxLineNum := len(lines)
+	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1
+	if lineNumWidth < 5 {
+		lineNumWidth = 5
+	}
+	
+	for i, line := range lines {
+		lineNum := i + 1
+		isHighlighted := lineNum == targetLine
+		
+		// Format line number
+		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
+		
+		if isHighlighted {
+			highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+			result.WriteString(highlightedLineNumStyle.Render(lineNumStr))
+		} else {
+			result.WriteString(lineNumStyle.Render(lineNumStr))
+		}
+		
+		// Apply simple syntax highlighting
+		coloredLine := m.applySyntaxHighlighting(line, isYAML)
+		
+		if isHighlighted {
+			// Pad the line to full width for background color
+			displayLine := line
+			if len(line) < maxWidth-lineNumWidth {
+				displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
+			}
+			result.WriteString(highlightStyle.Render(displayLine))
+		} else {
+			result.WriteString(coloredLine)
+		}
+		
+		if i < len(lines)-1 {
+			result.WriteString("\n")
+		}
+	}
+	
+	return result.String()
+}
+
+// applySyntaxHighlighting applies basic syntax highlighting for YAML/JSON
+func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML bool) string {
+	keyStyle := lipgloss.NewStyle().Foreground(RGBBlue)
+	stringStyle := lipgloss.NewStyle().Foreground(RGBGreen)
+	numberStyle := lipgloss.NewStyle().Foreground(RGBOrange)
+	boolStyle := lipgloss.NewStyle().Foreground(RGBPurple)
+	commentStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+	
+	// Handle comments
+	if isYAML && strings.Contains(line, "#") {
+		commentIndex := strings.Index(line, "#")
+		if commentIndex >= 0 {
+			beforeComment := line[:commentIndex]
+			comment := line[commentIndex:]
+			return m.applySyntaxHighlighting(beforeComment, isYAML) + commentStyle.Render(comment)
+		}
+	}
+	
+	// Simple heuristic-based highlighting
+	if isYAML {
+		// YAML key-value pairs
+		if matches := regexp.MustCompile(`^(\s*)([a-zA-Z0-9_-]+)(\s*:\s*)(.*)`).FindStringSubmatch(line); matches != nil {
+			indent := matches[1]
+			key := matches[2]
+			separator := matches[3]
+			value := matches[4]
+			
+			coloredValue := value
+			// Color values
+			if value == "true" || value == "false" || value == "null" {
+				coloredValue = boolStyle.Render(value)
+			} else if regexp.MustCompile(`^-?\d+\.?\d*$`).MatchString(strings.TrimSpace(value)) {
+				coloredValue = numberStyle.Render(value)
+			} else if strings.HasPrefix(value, "\"") || strings.HasPrefix(value, "'") {
+				coloredValue = stringStyle.Render(value)
+			}
+			
+			return indent + keyStyle.Render(key) + separator + coloredValue
+		}
+		// YAML list items
+		if matches := regexp.MustCompile(`^(\s*)(- )(.*)`).FindStringSubmatch(line); matches != nil {
+			indent := matches[1]
+			dash := matches[2]
+			value := matches[3]
+			return indent + lipgloss.NewStyle().Foreground(RGBPink).Render(dash) + value
+		}
+	} else {
+		// JSON - very basic highlighting
+		// Highlight keys in quotes
+		line = regexp.MustCompile(`"([^"]+)"\s*:`).ReplaceAllStringFunc(line, func(match string) string {
+			return keyStyle.Render(match)
+		})
+		// Highlight string values
+		line = regexp.MustCompile(`:\s*"[^"]*"`).ReplaceAllStringFunc(line, func(match string) string {
+			parts := strings.SplitN(match, "\"", 2)
+			if len(parts) > 1 {
+				return parts[0] + stringStyle.Render("\""+parts[1])
+			}
+			return match
+		})
+	}
+	
+	return line
+}
+
+// buildCodeView builds the expanded code view modal
+func (m *ViolationResultTableModel) buildCodeView() string {
+	modalWidth := int(float64(m.width) - 40)
+	modalHeight := m.height - 5
+
+	if m.modalContent == nil {
+		return ""
+	}
+
+	modalStyle := lipgloss.NewStyle().
+		Width(modalWidth).
+		Height(modalHeight).
+		Padding(0, 1, 0, 1).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink)
+
+	var content strings.Builder
+
+	// Title bar with filename and line number
+	titleStyle := lipgloss.NewStyle().
+		Foreground(RGBBlue).
+		Bold(true).
+		Width(modalWidth - 4)
+
+	targetLine := 0
+	if m.modalContent.StartNode != nil {
+		targetLine = m.modalContent.StartNode.Line
+	} else if m.modalContent.Origin != nil {
+		targetLine = m.modalContent.Origin.Line
+	}
+
+	title := fmt.Sprintf("📄 %s - line %d", m.fileName, targetLine)
+	content.WriteString(titleStyle.Render(title))
+	content.WriteString("\n")
+
+	// Separator
+	sepStyle := lipgloss.NewStyle().
+		Foreground(RGBPink).
+		Width(modalWidth - 4)
+	content.WriteString(sepStyle.Render(strings.Repeat("-", modalWidth-4)))
+	content.WriteString("\n\n")
+
+	// Code viewport
+	content.WriteString(m.codeViewport.View())
+
+	// Calculate remaining lines for proper modal height
+	currentLines := strings.Count(content.String(), "\n")
+	neededLines := modalHeight - currentLines - 3
+	if neededLines > 0 {
+		content.WriteString(strings.Repeat("\n", neededLines))
+	}
+
+	// Bottom bar with scroll percentage and controls
+	var bottomBar string
+	if m.codeViewport.TotalLineCount() > m.codeViewport.Height() {
+		scrollPercent := fmt.Sprintf(" %.0f%%", m.codeViewport.ScrollPercent()*100)
+		scrollStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+
+		controls := "↑↓/jk: scroll | pgup/pgdn: page | esc/x: close "
+		controlsStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+
+		// Calculate spacing
+		scrollWidth := lipgloss.Width(scrollPercent)
+		controlsWidth := lipgloss.Width(controls)
+		spacerWidth := (modalWidth - 4) - scrollWidth - controlsWidth
+		if spacerWidth < 0 {
+			spacerWidth = 1
+		}
+
+		bottomBar = scrollStyle.Render(scrollPercent) +
+			strings.Repeat(" ", spacerWidth) +
+			controlsStyle.Render(controls)
+	} else {
+		// No scrolling needed
+		navStyle := lipgloss.NewStyle().
+			Foreground(RGBDarkGrey).
+			Width(modalWidth - 4).
+			Align(lipgloss.Center)
+		bottomBar = navStyle.Render("esc/x: close")
+	}
+
+	content.WriteString(bottomBar)
+
+	return modalStyle.Render(content.String())
+}
+
 func (m *ViolationResultTableModel) View() string {
 	if m.quitting {
 		return ""
@@ -887,7 +1178,7 @@ func (m *ViolationResultTableModel) View() string {
 		rowText = fmt.Sprintf(" %d/%d", m.table.Cursor()+1, len(m.filteredResults))
 	}
 
-	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | q: quit", rowText))
+	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | x: code | q: quit", rowText))
 
 	if m.showSplitView {
 		detailsView := m.BuildDetailsView()
@@ -907,6 +1198,15 @@ func (m *ViolationResultTableModel) View() string {
 			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
 		}
 
+		// code view modal
+		if m.showCodeView {
+			modal := m.buildCodeView()
+			x, y := m.calculateModalPosition()
+
+			// code view modal as overlay layer (higher z-index than docs)
+			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(2))
+		}
+
 		// render canvas with all layers
 		canvas := lipgloss.NewCanvas(layers...)
 		return canvas.Render()
@@ -924,6 +1224,15 @@ func (m *ViolationResultTableModel) View() string {
 
 		// docs modal as overlay layer
 		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
+	}
+
+	// code view modal
+	if m.showCodeView {
+		modal := m.buildCodeView()
+		x, y := m.calculateModalPosition()
+
+		// code view modal as overlay layer (higher z-index than docs)
+		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(2))
 	}
 
 	canvas := lipgloss.NewCanvas(layers...)
