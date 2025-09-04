@@ -782,17 +782,6 @@ func (m *TableLintModel) buildModalView() string {
 		// Show scrollable documentation
 		content.WriteString(m.docsViewport.View())
 
-		// Add scroll indicator at bottom if there's more content
-		if m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
-			scrollInfo := fmt.Sprintf(" %.0f%% ", m.docsViewport.ScrollPercent()*100)
-			scrollStyle := lipgloss.NewStyle().
-				Foreground(RGBGrey).
-				Align(lipgloss.Right).
-				Width(modalWidth - 4)
-			content.WriteString("\n")
-			content.WriteString(scrollStyle.Render(scrollInfo))
-		}
-
 	case DocsStateNotFound:
 		// Show 404 message
 		errorStyle := lipgloss.NewStyle().
@@ -820,26 +809,49 @@ func (m *TableLintModel) buildModalView() string {
 		content.WriteString("")
 	}
 
-	// Add navigation hint at bottom
-	navStyle := lipgloss.NewStyle().
-		Foreground(RGBDarkGrey).
-		Width(modalWidth - 4).
-		Align(lipgloss.Center)
-
-	navHint := ""
-	if m.docsState == DocsStateLoaded && m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
-		navHint = "↑↓/jk: scroll • pgup/pgdn: page • esc/d: close"
-	} else {
-		navHint = "esc/d: close"
-	}
-
-	// Position nav hint at bottom
+	// Add navigation hint at bottom with scroll percentage on left and controls on right
+	// Position nav hint at bottom first
 	currentLines := strings.Count(content.String(), "\n")
 	neededLines := modalHeight - currentLines - 3
 	if neededLines > 0 {
 		content.WriteString(strings.Repeat("\n", neededLines))
 	}
-	content.WriteString(navStyle.Render(navHint))
+
+	// Build the bottom bar with scroll percentage and controls
+	var bottomBar string
+	if m.docsState == DocsStateLoaded && m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
+		// Create scroll percentage on left
+		scrollPercent := fmt.Sprintf(" %.0f%%", m.docsViewport.ScrollPercent()*100)
+		scrollStyle := lipgloss.NewStyle().
+			Foreground(RGBGrey)
+
+		// Create controls on right
+		controls := "↑↓/jk: scroll | pgup/pgdn: page | esc/d: close "
+		controlsStyle := lipgloss.NewStyle().
+			Foreground(RGBGrey)
+
+		// Calculate spacing to align left and right
+		scrollWidth := lipgloss.Width(scrollPercent)
+		controlsWidth := lipgloss.Width(controls)
+		spacerWidth := (modalWidth - 4) - scrollWidth - controlsWidth
+		if spacerWidth < 0 {
+			spacerWidth = 1
+		}
+
+		// Combine with spacing
+		bottomBar = scrollStyle.Render(scrollPercent) +
+			strings.Repeat(" ", spacerWidth) +
+			controlsStyle.Render(controls)
+	} else {
+		// No scrolling, just show controls centered
+		navStyle := lipgloss.NewStyle().
+			Foreground(RGBDarkGrey).
+			Width(modalWidth - 4).
+			Align(lipgloss.Center)
+		bottomBar = navStyle.Render("esc/d: close")
+	}
+
+	content.WriteString(bottomBar)
 
 	return modalStyle.Render(content.String())
 }
@@ -877,19 +889,19 @@ func (m *TableLintModel) View() string {
 
 	// Build navigation bar (always at bottom)
 	navStyle := lipgloss.NewStyle().
-		Foreground(RGBDarkGrey).
+		Foreground(RGBGrey).
 		Width(m.width)
-	// Add results count to nav bar
-	resultsText := fmt.Sprintf("%d results", len(m.filteredResults))
-	if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
-		resultsText = fmt.Sprintf("%d/%d results", len(m.filteredResults), len(m.allResults))
-	}
+	//// Add results count to nav bar
+	//resultsText := fmt.Sprintf("%d violations", len(m.filteredResults))
+	//if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
+	//	resultsText = fmt.Sprintf("%d/%d violations", len(m.filteredResults), len(m.allResults))
+	//}
 	rowText := ""
 	if len(m.filteredResults) > 0 {
-		rowText = fmt.Sprintf(" • Row %d/%d", m.table.Cursor()+1, len(m.filteredResults))
+		rowText = fmt.Sprintf(" %d/%d", m.table.Cursor()+1, len(m.filteredResults))
 	}
 
-	navBar := navStyle.Render(fmt.Sprintf(" %s%s • ↑↓/jk: nav • tab: severity • c: category • r: rule • p: path • pgup/pgdn: page • enter: split • d: docs • q: quit", resultsText, rowText))
+	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: sev | c: cat | r: rule | p: path | pgup/pgdn: page | enter: details | d: docs | q: quit", rowText))
 
 	// If split view is active, combine table with split panel
 	if m.showSplitView {
