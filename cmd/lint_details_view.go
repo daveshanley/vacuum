@@ -11,7 +11,7 @@ import (
 )
 
 // BuildDetailsView builds the details view for a violation when a user presses enter or return on a row.
-func (m *TableLintModel) BuildDetailsView() string {
+func (m *ViolationResultTableModel) BuildDetailsView() string {
 	if m.modalContent == nil {
 		return ""
 	}

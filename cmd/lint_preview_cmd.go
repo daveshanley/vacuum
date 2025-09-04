@@ -26,14 +26,14 @@ import (
 
 func GetLintPreviewCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "lint-preview <your-openapi-file.yaml>",
-		Short:        "Preview lint with enhanced interactive table",
-		Long:         `Lint an OpenAPI specification with an enhanced interactive table view`,
-		RunE:         runLintPreview,
-		SilenceUsage: true,
+		Use:           "lint-preview <your-openapi-file.yaml>",
+		Short:         "Preview lint with enhanced interactive table",
+		Long:          `Lint an OpenAPI specification with an enhanced interactive table view`,
+		RunE:          runLintPreview,
+		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	
+
 	// Add all flags
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
@@ -59,7 +59,7 @@ func GetLintPreviewCommand() *cobra.Command {
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().BoolP("interactive", "i", false, "Force interactive table view")
-	
+
 	return cmd
 }
 
@@ -67,9 +67,9 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("please provide an OpenAPI specification file to lint")
 	}
-	
+
 	fileName := args[0]
-	
+
 	// Read all flags
 	detailsFlag, _ := cmd.Flags().GetBool("details")
 	snippetsFlag, _ := cmd.Flags().GetBool("snippets")
@@ -95,19 +95,19 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 	interactiveFlag, _ := cmd.Flags().GetBool("interactive")
-	
+
 	// Show banner unless disabled
 	if !silentFlag && !noBannerFlag {
 		printFixedBanner()
 	}
-	
+
 	// Get file info
 	fileInfo, err := os.Stat(fileName)
 	if err != nil {
 		fmt.Printf("\033[31mUnable to read file '%s': %v\033[0m\n", fileName, err)
 		return err
 	}
-	
+
 	// Load ignore file if specified
 	ignoredItems := model.IgnoredItems{}
 	if ignoreFile != "" {
@@ -120,18 +120,18 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to parse ignore file: %w", ferr)
 		}
 	}
-	
+
 	// Setup logging
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelError,
 	})
 	logger := slog.New(handler)
-	
+
 	// Build ruleset
 	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 	customFuncs, _ := LoadCustomFunctions(functionsFlag, silentFlag)
-	
+
 	// Handle hard mode
 	if hardModeFlag {
 		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
@@ -143,7 +143,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			fmt.Printf("\033[31m🚨 HARD MODE ENABLED 🚨\033[0m\n\n")
 		}
 	}
-	
+
 	// Handle custom ruleset
 	if rulesetFlag != "" {
 		var rsErr error
@@ -156,31 +156,31 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			MergeOWASPRulesToRuleSet(selectedRS, true)
 		}
 	}
-	
+
 	// Display linting info
 	if !silentFlag {
 		fmt.Printf("\033[36mLinting file '%s' against %d rules: %s\033[0m\n\n",
 			fileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
 	}
-	
+
 	// Start timing
 	start := time.Now()
-	
+
 	// Read and lint the file
 	specBytes, ferr := os.ReadFile(fileName)
 	if ferr != nil {
 		fmt.Printf("\033[31mUnable to read file '%s': %s\033[0m\n", fileName, ferr.Error())
 		return ferr
 	}
-	
+
 	specStringData := strings.Split(string(specBytes), "\n")
-	
+
 	// Build deep graph if we have ignored items
 	deepGraph := false
 	if len(ignoredItems) > 0 {
 		deepGraph = true
 	}
-	
+
 	// Apply rules
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                         selectedRS,
@@ -197,10 +197,10 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
 		ExtractReferencesFromExtensions: extRefsFlag,
 	})
-	
+
 	// Filter ignored results
 	result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
-	
+
 	// Check for errors
 	if len(result.Errors) > 0 {
 		for _, err := range result.Errors {
@@ -208,10 +208,10 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		}
 		return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 	}
-	
+
 	// Process results
 	resultSet := model.NewRuleResultSet(result.Results)
-	
+
 	// Handle category filtering
 	var cats []*model.RuleCategory
 	if categoryFlag != "" {
@@ -220,28 +220,28 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	} else {
 		cats = model.RuleCategoriesOrdered
 	}
-	
+
 	resultSet.SortResultsByLineNumber()
 	stats := statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
-	
+
 	// Show detailed results if requested
 	if detailsFlag && len(resultSet.Results) > 0 {
 		// Use interactive table for large result sets (>50) or if specifically requested
 		if (len(resultSet.Results) > 50 || interactiveFlag) && !snippetsFlag && !silentFlag {
 			// Show summary first
 			renderFixedSummary(resultSet, cats, stats, fileName, silentFlag, noStyleFlag)
-			
+
 			// Show timing if requested
 			duration := time.Since(start)
 			if timeFlag {
 				renderFixedTiming(duration, fileInfo.Size())
 			}
-			
+
 			// Launch interactive table
 			fmt.Println()
 			fmt.Printf("\033[36m📋 Launching interactive table view (press 'q' to exit)...\033[0m\n")
 			fmt.Println()
-			
+
 			// Filter results if needed
 			var filteredResults []*model.RuleFunctionResult
 			for _, r := range resultSet.Results {
@@ -253,40 +253,40 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			if len(filteredResults) == 0 {
 				filteredResults = resultSet.Results
 			}
-			
+
 			// Show interactive table
-			err := ShowTableLintView(filteredResults, fileName, specBytes)
+			err := ShowViolationTableView(filteredResults, fileName, specBytes)
 			if err != nil {
 				fmt.Printf("\033[31mError showing interactive table: %v\033[0m\n", err)
 			}
 			return nil
 		} else {
 			// Use regular detailed view for smaller result sets or when snippets are requested
-			renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag, 
+			renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
 				silentFlag, noMessageFlag, allResultsFlag, noClipFlag, fileName, noStyleFlag)
 		}
 	}
-	
+
 	// Render summary
 	renderFixedSummary(resultSet, cats, stats, fileName, silentFlag, noStyleFlag)
-	
+
 	// Show timing
 	duration := time.Since(start)
 	if timeFlag {
 		renderFixedTiming(duration, fileInfo.Size())
 	}
-	
+
 	// Check severity failure
 	errs := resultSet.GetErrorCount()
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
-	
+
 	// Check for failure but handle it gracefully without showing help
 	failErr := CheckFailureSeverity(failSeverityFlag, errs, warnings, informs)
 	if failErr != nil {
 		os.Exit(1)
 	}
-	
+
 	return nil
 }
 
@@ -298,17 +298,17 @@ func printFixedBanner() {
 ╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
-	
+
 	// Use raw ANSI codes for colors
-	fmt.Printf("\033[35m%s\033[0m\n\n", banner) // Magenta
-	fmt.Printf("\033[32mversion: %s | compiled: %s\033[0m\n", Version, Date) // Green
+	fmt.Printf("\033[35m%s\033[0m\n\n", banner)                                                          // Magenta
+	fmt.Printf("\033[32mversion: %s | compiled: %s\033[0m\n", Version, Date)                             // Green
 	fmt.Printf("\033[36m🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum\033[0m\n\n") // Cyan
 }
 
 func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	snippets, errors, silent, noMessage, allResults, noClip bool,
 	fileName string, noStyle bool) {
-	
+
 	if !silent {
 		// Display file header
 		abs, _ := filepath.Abs(fileName)
@@ -318,18 +318,18 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				displayPath = relPath
 			}
 		}
-		
+
 		fmt.Printf("\n\033[35m%s\033[0m\n", displayPath) // Magenta
 		fmt.Println(strings.Repeat("-", len(displayPath)))
 		fmt.Println()
 	}
-	
+
 	// Get terminal width
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
 		width = 180 // Default fallback
 	}
-	
+
 	// Calculate dynamic column widths based on terminal width
 	// Allocate percentages: Location=25%, Severity=8%, Message=35%, Rule=15%, Category=10%, Path=remaining
 	locWidth := width * 25 / 100
@@ -338,13 +338,21 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	ruleWidth := width * 15 / 100
 	catWidth := 12
 	pathWidth := width - locWidth - sevWidth - msgWidth - ruleWidth - catWidth - 10 // 10 for separators
-	
+
 	// Minimum widths
-	if locWidth < 25 { locWidth = 25 }
-	if msgWidth < 40 { msgWidth = 40 }
-	if ruleWidth < 15 { ruleWidth = 15 }
-	if pathWidth < 20 { pathWidth = 20 }
-	
+	if locWidth < 25 {
+		locWidth = 25
+	}
+	if msgWidth < 40 {
+		msgWidth = 40
+	}
+	if ruleWidth < 15 {
+		ruleWidth = 15
+	}
+	if pathWidth < 20 {
+		pathWidth = 20
+	}
+
 	// Build and render table
 	if !snippets {
 		// Print header
@@ -355,7 +363,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			ruleWidth, "Rule",
 			catWidth, "Category",
 			pathWidth, "Path")
-		
+
 		// Print separator
 		fmt.Printf("\033[90m%s  %s  %s  %s  %s  %s\033[0m\n",
 			strings.Repeat("─", locWidth),
@@ -364,14 +372,14 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			strings.Repeat("─", ruleWidth),
 			strings.Repeat("─", catWidth),
 			strings.Repeat("─", pathWidth))
-		
+
 		// Print rows
 		for i, r := range results {
 			if i > 1000 && !allResults {
 				fmt.Printf("\033[31m...%d more violations not rendered\033[0m\n", len(results)-1000)
 				break
 			}
-			
+
 			// Build location
 			startLine := 0
 			startCol := 0
@@ -379,14 +387,14 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				startLine = r.StartNode.Line
 				startCol = r.StartNode.Column
 			}
-			
+
 			f := fileName
 			if r.Origin != nil {
 				f = r.Origin.AbsoluteLocation
 				startLine = r.Origin.Line
 				startCol = r.Origin.Column
 			}
-			
+
 			// Make path relative
 			if absPath, err := filepath.Abs(f); err == nil {
 				if cwd, err := os.Getwd(); err == nil {
@@ -395,9 +403,9 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					}
 				}
 			}
-			
+
 			location := fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
-			
+
 			// Handle message and path truncation
 			m := r.Message
 			p := r.Path
@@ -409,18 +417,18 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					p = p[:pathWidth-3] + "..."
 				}
 			}
-			
+
 			// Get severity
 			sev := "info"
 			if r.Rule != nil {
 				sev = r.Rule.Severity
 			}
-			
+
 			// Skip if showing errors only
 			if errors && sev != model.SeverityError {
 				continue
 			}
-			
+
 			// Format severity with color
 			var sevColored string
 			switch sev {
@@ -431,7 +439,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			default:
 				sevColored = fmt.Sprintf("\033[36m%-*s\033[0m", sevWidth, "info")
 			}
-			
+
 			// Print row
 			fmt.Printf("%-*s  %s  %-*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
 				locWidth, truncate(location, locWidth),
@@ -447,11 +455,11 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 
 func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 	stats *reports.ReportStatistics, fileName string, silent bool, noStyle bool) {
-	
+
 	if silent {
 		return
 	}
-	
+
 	// Build category summary table
 	fmt.Printf("\033[36m%-20s  %-10s  %-10s  %-10s\033[0m\n", "Category", "Errors", "Warnings", "Info")
 	fmt.Printf("\033[90m%s  %s  %s  %s\033[0m\n",
@@ -459,12 +467,12 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		strings.Repeat("─", 10),
 		strings.Repeat("─", 10),
 		strings.Repeat("─", 10))
-	
+
 	for _, cat := range cats {
 		errors := rs.GetErrorsByRuleCategory(cat.Id)
 		warn := rs.GetWarningsByRuleCategory(cat.Id)
 		info := rs.GetInfoByRuleCategory(cat.Id)
-		
+
 		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
 			fmt.Printf("%-20s  %-10s  %-10s  %-10s\n",
 				cat.Name,
@@ -474,12 +482,12 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		}
 	}
 	fmt.Println()
-	
+
 	// Render result box
 	errs := rs.GetErrorCount()
 	warnings := rs.GetWarnCount()
 	informs := rs.GetInfoCount()
-	
+
 	if errs > 0 {
 		fmt.Printf("\033[31m╭──────────────────────────────────────────────────────────────────────╮\033[0m\n")
 		fmt.Printf("\033[31m│  ❌ Linting failed with %d errors, %d warnings and %d informs  │\033[0m\n",
@@ -499,14 +507,14 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		fmt.Printf("\033[32m│  ✅ Perfect score! Well done!  │\033[0m\n")
 		fmt.Printf("\033[32m╰──────────────────────────────────────────────────────────────────────────╯\033[0m\n")
 	}
-	
+
 	// Show score if we have stats
 	if stats != nil {
 		fmt.Println()
 		score := stats.OverallScore
 		var color string
 		var emoji string
-		
+
 		switch {
 		case score >= 90:
 			color = "\033[32m" // Green
@@ -521,7 +529,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 			color = "\033[31m" // Red
 			emoji = "💔"
 		}
-		
+
 		fmt.Printf("%s╔════════════════════════════╗\033[0m\n", color)
 		fmt.Printf("%s║  %s Quality Score: %d/100  ║\033[0m\n", color, emoji, score)
 		fmt.Printf("%s╚════════════════════════════╝\033[0m\n", color)
@@ -530,14 +538,14 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 
 func renderFixedTiming(duration time.Duration, fileSize int64) {
 	fmt.Println()
-	
+
 	l := "milliseconds"
 	d := fmt.Sprintf("%d", duration.Milliseconds())
 	if duration.Milliseconds() > 1000 {
 		l = "seconds"
 		d = humanize.FormatFloat("##.##", duration.Seconds())
 	}
-	
+
 	fmt.Printf("\033[36m⏱️  vacuum took %s %s to lint %s\033[0m\n",
 		d, l, index.HumanFileSize(float64(fileSize)))
 	fmt.Println()

@@ -5,14 +5,10 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/v2/spinner"
 	"github.com/charmbracelet/bubbles/v2/table"
@@ -64,8 +60,8 @@ type docsErrorMsg struct {
 	is404  bool
 }
 
-// TableLintModel holds the state for the interactive table view
-type TableLintModel struct {
+// ViolationResultTableModel holds the state for the interactive table view
+type ViolationResultTableModel struct {
 	table           table.Model
 	allResults      []*model.RuleFunctionResult
 	filteredResults []*model.RuleFunctionResult
@@ -84,7 +80,7 @@ type TableLintModel struct {
 	ruleFilter      string                    // Current rule filter (empty = all)
 	showPath        bool                      // Toggle for showing/hiding path column
 	showModal       bool                      // Whether to show the DOCS modal
-	showSplitView   bool                      // Whether to show the split view
+	showSplitView   bool                      // Whether to show the split view (details)
 	modalContent    *model.RuleFunctionResult // The current result being shown in the splitview
 	docsState       DocsState                 // State of documentation loading
 	docsContent     string                    // Loaded documentation content
@@ -94,8 +90,8 @@ type TableLintModel struct {
 	docsViewport    viewport.Model            // Viewport for scrollable docs content
 }
 
-// ShowTableLintView displays results in an interactive table
-func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, specContent []byte) error {
+// ShowViolationTableView displays results in an interactive console table
+func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string, specContent []byte) error {
 	if len(results) == 0 {
 		return nil
 	}
@@ -116,8 +112,8 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
-		table.WithHeight(height-5),        // Title (2 lines with blank), table border (2), status (1)
-		table.WithWidth(tableActualWidth), // account for border wrapper
+		table.WithHeight(height-5), // title (2 lines with blank), table border (2), status (1)
+		table.WithWidth(tableActualWidth),
 	)
 
 	applyLintDetailsTableStyles(&t)
@@ -125,15 +121,14 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 	categories := extractCategories(results)
 	rules := extractRules(results)
 
-	// Initialize spinner
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(RGBPink)
 
-	// Initialize viewport (will be sized when modal opens)
+	// initialize viewport (will be sized when modal opens)
 	vp := viewport.New()
 
-	m := &TableLintModel{
+	m := &ViolationResultTableModel{
 		table:           t,
 		allResults:      results,
 		filteredResults: results,
@@ -163,7 +158,7 @@ func ShowTableLintView(results []*model.RuleFunctionResult, fileName string, spe
 	return nil
 }
 
-func (m *TableLintModel) applyFilter() {
+func (m *ViolationResultTableModel) applyFilter() {
 	var filtered []*model.RuleFunctionResult
 
 	switch m.filterState {
@@ -224,59 +219,11 @@ func (m *TableLintModel) applyFilter() {
 	m.table.SetCursor(0)
 }
 
-// fetchDocsCmd creates a command to fetch documentation for a rule
-func fetchDocsCmd(ruleID string) tea.Cmd {
-	return func() tea.Msg {
-		// Create HTTP client with timeout
-		client := &http.Client{
-			Timeout: 10 * time.Second,
-		}
-
-		// Fetch documentation from API
-		url := fmt.Sprintf("https://localhost:9090/rules/documentation/%s?markdown", ruleID)
-		resp, err := client.Get(url)
-		if err != nil {
-			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == 404 {
-			return docsErrorMsg{ruleID: ruleID, err: "Documentation not found", is404: true}
-		}
-
-		if resp.StatusCode != 200 {
-			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("HTTP %d", resp.StatusCode), is404: false}
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return docsErrorMsg{ruleID: ruleID, err: err.Error(), is404: false}
-		}
-
-		// Parse JSON response
-		var docResponse struct {
-			RuleID   string `json:"ruleId"`
-			Category string `json:"category"`
-			Body     string `json:"body"`
-		}
-
-		if err := json.Unmarshal(body, &docResponse); err != nil {
-			return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("Failed to parse JSON: %s", err.Error()), is404: false}
-		}
-
-		// Convert Hugo shortcodes to markdown before returning
-		processedContent := ConvertHugoShortcodesToMarkdown(docResponse.Body)
-
-		// Return the processed markdown content
-		return docsLoadedMsg{ruleID: ruleID, content: processedContent}
-	}
-}
-
-func (m *TableLintModel) Init() tea.Cmd {
+func (m *ViolationResultTableModel) Init() tea.Cmd {
 	return m.docsSpinner.Tick
 }
 
-func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -420,6 +367,26 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "esc":
+			// If on empty state (no results), clear all filters
+			if len(m.filteredResults) == 0 && (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") {
+				// Clear all filters
+				m.filterState = FilterAll
+				m.categoryFilter = ""
+				m.ruleFilter = ""
+				m.applyFilter()
+
+				// Rebuild the table with all results
+				_, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+				m.rows = rows
+				m.table.SetRows(rows)
+
+				// Reset cursor position
+				if len(rows) > 0 {
+					m.table.SetCursor(0)
+				}
+				return m, nil
+			}
+
 			// ESC closes split view if open, otherwise quits
 			if m.showSplitView {
 				m.showSplitView = false
@@ -448,7 +415,7 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.modalContent = nil
 				// Restore table to full height
-				m.table.SetHeight(m.height - 5)
+				m.table.SetHeight(m.height - 4)
 			}
 			return m, nil
 		case "d":
@@ -509,7 +476,7 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.docsViewport.SetHeight(m.height - 14)
 
 						// Return both fetch command and spinner tick
-						return m, tea.Batch(fetchDocsCmd(ruleID), m.docsSpinner.Tick)
+						return m, tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
 					}
 				}
 			}
@@ -626,7 +593,7 @@ func (m *TableLintModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // buildTableView builds the complete table view with title, filters, and status bar
-func (m *TableLintModel) buildTableView() string {
+func (m *ViolationResultTableModel) buildTableView() string {
 	var builder strings.Builder
 
 	titleStyle := lipgloss.NewStyle().
@@ -669,12 +636,16 @@ func (m *TableLintModel) buildTableView() string {
 
 	builder.WriteString("\n")
 
-	contentHeight := m.height - 1 // Reserve space for title (1), blank line (1), and status bar (1)
+	contentHeight := m.height - 4
+	if contentHeight < 10 {
+		contentHeight = 10
+	}
 
 	if len(m.filteredResults) == 0 {
-		// Show empty state with ASCII art
-		emptyView := renderEmptyState(m.width, contentHeight)
-		builder.WriteString(emptyView)
+		// empty state.
+		emptyView := renderEmptyState(m.width-2, contentHeight)
+		borderedEmpty := addTableBorders(emptyView)
+		builder.WriteString(borderedEmpty)
 	} else {
 
 		tableView := ColorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
@@ -686,7 +657,7 @@ func (m *TableLintModel) buildTableView() string {
 }
 
 // extractCodeSnippet extracts lines around the issue with context
-func (m *TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, contextLines int) (string, int) {
+func (m *ViolationResultTableModel) extractCodeSnippet(result *model.RuleFunctionResult, contextLines int) (string, int) {
 	if m.specContent == nil || result == nil {
 		return "", 0
 	}
@@ -726,8 +697,8 @@ func (m *TableLintModel) extractCodeSnippet(result *model.RuleFunctionResult, co
 	return snippet.String(), startLine + 1
 }
 
-// buildModalView builds the DOCS modal with documentation content
-func (m *TableLintModel) buildModalView() string {
+// buildModalView builds the documentation modal
+func (m *ViolationResultTableModel) buildModalView() string {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - 5
 
@@ -744,7 +715,6 @@ func (m *TableLintModel) buildModalView() string {
 
 	var content strings.Builder
 
-	// Title bar with rule name
 	titleStyle := lipgloss.NewStyle().
 		Foreground(RGBBlue).
 		Bold(true).
@@ -757,19 +727,16 @@ func (m *TableLintModel) buildModalView() string {
 	content.WriteString(titleStyle.Render(ruleName))
 	content.WriteString("\n")
 
-	// Separator
 	sepStyle := lipgloss.NewStyle().
 		Foreground(RGBPink).
 		Width(modalWidth - 4)
 	content.WriteString(sepStyle.Render(strings.Repeat("-", (modalWidth)-4)))
 	content.WriteString("\n\n")
 
-	// Content based on state
-	contentHeight := modalHeight - 4 // Account for title, separator, and padding
+	contentHeight := modalHeight - 4 // account for title, separator, and padding
 
 	switch m.docsState {
 	case DocsStateLoading:
-		// Show centered spinner
 		spinnerStyle := lipgloss.NewStyle().
 			Width(modalWidth-4).
 			Height(contentHeight).
@@ -779,11 +746,9 @@ func (m *TableLintModel) buildModalView() string {
 		content.WriteString(spinnerStyle.Render(spinnerContent))
 
 	case DocsStateLoaded:
-		// Show scrollable documentation
 		content.WriteString(m.docsViewport.View())
 
 	case DocsStateNotFound:
-		// Show 404 message
 		errorStyle := lipgloss.NewStyle().
 			Width(modalWidth-4).
 			Height(contentHeight).
@@ -794,7 +759,6 @@ func (m *TableLintModel) buildModalView() string {
 		content.WriteString(errorStyle.Render(notFoundMsg))
 
 	case DocsStateError:
-		// Show error message
 		errorStyle := lipgloss.NewStyle().
 			Width(modalWidth-4).
 			Height(contentHeight).
@@ -805,32 +769,27 @@ func (m *TableLintModel) buildModalView() string {
 		content.WriteString(errorStyle.Render(errorMsg))
 
 	default:
-		// Initial state - shouldn't happen but handle gracefully
 		content.WriteString("")
 	}
 
-	// Add navigation hint at bottom with scroll percentage on left and controls on right
-	// Position nav hint at bottom first
 	currentLines := strings.Count(content.String(), "\n")
 	neededLines := modalHeight - currentLines - 3
 	if neededLines > 0 {
 		content.WriteString(strings.Repeat("\n", neededLines))
 	}
 
-	// Build the bottom bar with scroll percentage and controls
+	// bottom bar with scroll percentage and controls
 	var bottomBar string
 	if m.docsState == DocsStateLoaded && m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
-		// Create scroll percentage on left
 		scrollPercent := fmt.Sprintf(" %.0f%%", m.docsViewport.ScrollPercent()*100)
 		scrollStyle := lipgloss.NewStyle().
 			Foreground(RGBGrey)
 
-		// Create controls on right
 		controls := "↑↓/jk: scroll | pgup/pgdn: page | esc/d: close "
 		controlsStyle := lipgloss.NewStyle().
 			Foreground(RGBGrey)
 
-		// Calculate spacing to align left and right
+		// calculate spacing to align left and right
 		scrollWidth := lipgloss.Width(scrollPercent)
 		controlsWidth := lipgloss.Width(controls)
 		spacerWidth := (modalWidth - 4) - scrollWidth - controlsWidth
@@ -838,12 +797,13 @@ func (m *TableLintModel) buildModalView() string {
 			spacerWidth = 1
 		}
 
-		// Combine with spacing
+		// combine with spacing
 		bottomBar = scrollStyle.Render(scrollPercent) +
 			strings.Repeat(" ", spacerWidth) +
 			controlsStyle.Render(controls)
 	} else {
-		// No scrolling, just show controls centered
+
+		// no scrolling, just show controls centered
 		navStyle := lipgloss.NewStyle().
 			Foreground(RGBDarkGrey).
 			Width(modalWidth - 4).
@@ -857,18 +817,18 @@ func (m *TableLintModel) buildModalView() string {
 }
 
 // calculateModalPosition calculates the position for the modal (right-aligned)
-func (m *TableLintModel) calculateModalPosition() (int, int) {
+func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - 5
 
-	// Position on the right side with good padding
-	rightPadding := 6 // Good distance from right edge
+	// position on the right side with padding from the edge
+	rightPadding := 6
 	x := m.width - modalWidth - rightPadding
 
-	// Center vertically
+	// center vertically
 	y := (m.height - modalHeight) / 2
 
-	// Ensure positive values
+	// ensure positive values
 	if x < 0 {
 		x = 0
 	}
@@ -879,23 +839,17 @@ func (m *TableLintModel) calculateModalPosition() (int, int) {
 	return x, y
 }
 
-func (m *TableLintModel) View() string {
+func (m *ViolationResultTableModel) View() string {
 	if m.quitting {
 		return ""
 	}
 
-	// Build the base table view
 	tableView := m.buildTableView()
 
-	// Build navigation bar (always at bottom)
 	navStyle := lipgloss.NewStyle().
 		Foreground(RGBGrey).
 		Width(m.width)
-	//// Add results count to nav bar
-	//resultsText := fmt.Sprintf("%d violations", len(m.filteredResults))
-	//if (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") && len(m.allResults) > 0 {
-	//	resultsText = fmt.Sprintf("%d/%d violations", len(m.filteredResults), len(m.allResults))
-	//}
+
 	rowText := ""
 	if len(m.filteredResults) > 0 {
 		rowText = fmt.Sprintf(" %d/%d", m.table.Cursor()+1, len(m.filteredResults))
@@ -903,143 +857,43 @@ func (m *TableLintModel) View() string {
 
 	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: sev | c: cat | r: rule | p: path | pgup/pgdn: page | enter: details | d: docs | q: quit", rowText))
 
-	// If split view is active, combine table with split panel
 	if m.showSplitView {
-		splitView := m.BuildDetailsView()
-		// Join vertically: table on top, split view in middle, nav at bottom
-		combined := lipgloss.JoinVertical(lipgloss.Left, tableView, splitView, navBar)
+		detailsView := m.BuildDetailsView()
+		// Join vertically: table on top, split view in the middle, nav at the bottom
+		combined := lipgloss.JoinVertical(lipgloss.Left, tableView, detailsView, navBar)
 
-		// Create layers with the combined view
 		layers := []*lipgloss.Layer{
-			lipgloss.NewLayer(combined), // Base layer with split
+			lipgloss.NewLayer(combined),
 		}
 
-		// Add modal layer if shown (DOCS modal can appear over split view)
+		// docs modal
 		if m.showModal {
 			modal := m.buildModalView()
 			x, y := m.calculateModalPosition()
 
-			// Add modal as an overlay layer
-			layers = append(layers,
-				lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
+			// docs modal as overlay layer
+			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
 		}
 
-		// Render the canvas with all layers
+		// render canvas with all layers
 		canvas := lipgloss.NewCanvas(layers...)
 		return canvas.Render()
 	}
 
-	// Normal view without split - nav at bottom
+	// normal view without split - nav at bottom
 	combined := lipgloss.JoinVertical(lipgloss.Left, tableView, navBar)
 	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(combined), // Base layer with nav
+		lipgloss.NewLayer(combined),
 	}
 
-	// Add modal layer if shown
 	if m.showModal {
 		modal := m.buildModalView()
 		x, y := m.calculateModalPosition()
 
-		// Add modal as an overlay layer
-		layers = append(layers,
-			lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
+		// docs modal as overlay layer
+		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
 	}
 
-	// Render the canvas with all layers
 	canvas := lipgloss.NewCanvas(layers...)
 	return canvas.Render()
-}
-
-func renderEmptyState(width, height int) string {
-	// ASCII art for empty state
-	art := []string{
-		"",
-		"",
-		" _|      _|     _|_|     _|_|_|_|_|   _|    _|   _|_|_|   _|      _|     _|_|_|  ",
-		" _|_|    _|   _|    _|       _|       _|    _|     _|     _|_|    _|   _|        ",
-		" _|  _|  _|   _|    _|       _|       _|_|_|_|     _|     _|  _|  _|   _|  _|_|  ",
-		" _|    _|_|   _|    _|       _|       _|    _|     _|     _|    _|_|   _|    _|  ",
-		" _|      _|     _|_|         _|       _|    _|   _|_|_|   _|      _|     _|_|_|  ",
-		"",
-		"",
-		" _|    _|   _|_|_|_|   _|_|_|     _|_|_|_|  ",
-		" _|    _|   _|         _|    _|   _|        ",
-		" _|_|_|_|   _|_|_|     _|_|_|     _|_|_|    ",
-		" _|    _|   _|         _|    _|   _|        ",
-		" _|    _|   _|_|_|_|   _|    _|   _|_|_|_|  ",
-		"",
-		"",
-		" Nothing to vacuum, the filters are too strict.",
-		"",
-		" To adjust them:",
-		"",
-		" > tab - cycle severity",
-		" > c   - cycle categories",
-		" > r   - cycle rules",
-		"",
-	}
-
-	// Join the art lines with preserved formatting
-	artStr := strings.Join(art, "\n")
-
-	// Calculate padding to center the block horizontally
-	maxLineWidth := 82 // Width of the longest ASCII art line
-	leftPadding := (width - maxLineWidth) / 2
-	if leftPadding < 0 {
-		leftPadding = 0
-	}
-
-	// Add left padding to each line to center the entire block
-	artLines := strings.Split(artStr, "\n")
-	paddedLines := make([]string, len(artLines))
-	padding := strings.Repeat(" ", leftPadding)
-	for i, line := range artLines {
-		if line != "" {
-			paddedLines[i] = padding + line
-		} else {
-			paddedLines[i] = ""
-		}
-	}
-
-	// Calculate vertical centering
-	totalLines := len(paddedLines)
-	topPadding := (height - totalLines) / 2
-	if topPadding < 0 {
-		topPadding = 0
-	}
-
-	// Build the result to exactly fill the height
-	var resultLines []string
-
-	// Add top padding
-	for i := 0; i < topPadding; i++ {
-		resultLines = append(resultLines, "")
-	}
-
-	// Add the content
-	resultLines = append(resultLines, paddedLines...)
-
-	// Add bottom padding to exactly fill the height
-	for len(resultLines) < height {
-		resultLines = append(resultLines, "")
-	}
-
-	// Ensure we don't exceed the height
-	if len(resultLines) > height {
-		resultLines = resultLines[:height]
-	}
-
-	// Apply color styling
-	textStyle := lipgloss.NewStyle().Foreground(RGBDarkGrey)
-	return textStyle.Render(strings.Join(resultLines, "\n"))
-}
-
-func addTableBorders(tableView string) string {
-	// Just wrap in a simple border for now
-	tableStyle := lipgloss.NewStyle().
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(RGBPink).
-		PaddingTop(0)
-
-	return tableStyle.Render(tableView)
 }
