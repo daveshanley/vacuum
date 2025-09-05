@@ -138,12 +138,10 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 		filteredResults := utils.FilterIgnoredResults(result.Results, s.lintRequest.IgnoredResults)
 		result.Results = filteredResults
 		diagnostics := ConvertResultsIntoDiagnostics(result)
-		if len(diagnostics) > 0 {
-			go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
-				URI:         doc.URI,
-				Diagnostics: diagnostics,
-			})
-		}
+		go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+			URI:         doc.URI,
+			Diagnostics: diagnostics,
+		})
 	}()
 }
 
