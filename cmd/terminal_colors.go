@@ -67,7 +67,6 @@ var (
 	ColorYellow      = strPtr("220")
 	ColorSoftYellow  = strPtr("226")
 	ColorGreen       = strPtr("46")  // RGBGreen
-	ColorBrightGreen = strPtr("46")  // RGBGreen
 	ColorGrey        = strPtr("246") // RGBGrey
 	ColorDarkGrey    = strPtr("236") // RGBDarkGrey
 	ColorWhite       = strPtr("255") // RGBWhite

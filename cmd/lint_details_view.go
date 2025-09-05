@@ -59,39 +59,16 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 	var detailsContent strings.Builder
 
 	severity := getRuleSeverity(m.modalContent)
-	var asciiIcon string
-	var asciiIconStyle lipgloss.Style
-	switch severity {
-	case "✗ error":
-		asciiIcon = "✗"
-		asciiIconStyle = lipgloss.NewStyle().Foreground(RGBRed).Bold(true)
-	case "▲ warning":
-		asciiIcon = "▲"
-		asciiIconStyle = lipgloss.NewStyle().Foreground(RBGYellow).Bold(true)
-	case "● info":
-		asciiIcon = "●"
-		asciiIconStyle = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true)
-	default:
-		asciiIcon = "●"
-		asciiIconStyle = lipgloss.NewStyle().Foreground(RGBGrey).Bold(true)
-	}
+	severityInfo := GetSeverityInfoFromText(severity)
+	asciiIcon := severityInfo.Icon
+	asciiIconStyle := severityInfo.IconStyle
 
 	ruleName := "Issue"
 	if m.modalContent.Rule != nil && m.modalContent.Rule.Id != "" {
 		ruleName = m.modalContent.Rule.Id
 	}
 
-	var titleStyle lipgloss.Style
-	switch severity {
-	case "✗ error":
-		titleStyle = lipgloss.NewStyle().Foreground(RGBRed).Bold(true)
-	case "▲ warning":
-		titleStyle = lipgloss.NewStyle().Foreground(RBGYellow).Bold(true)
-	case "● info":
-		titleStyle = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true)
-	default:
-		titleStyle = lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
-	}
+	titleStyle := severityInfo.TextStyle.Bold(true)
 
 	detailsContent.WriteString(fmt.Sprintf("%s %s", asciiIconStyle.Render(asciiIcon), titleStyle.Render(ruleName)))
 	detailsContent.WriteString("\n")

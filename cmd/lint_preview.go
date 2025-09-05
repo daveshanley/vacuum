@@ -769,13 +769,13 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		switch m.filterState {
 		case FilterErrors:
 			severityText = "✗ errors"
-			filterStyle = lipgloss.NewStyle().Foreground(RGBRed)
+			filterStyle = GetSeverityInfo(model.SeverityError).TextStyle
 		case FilterWarnings:
 			severityText = "▲ warnings"
-			filterStyle = lipgloss.NewStyle().Foreground(RBGYellow)
+			filterStyle = GetSeverityInfo(model.SeverityWarn).TextStyle
 		case FilterInfo:
 			severityText = "● info"
-			filterStyle = lipgloss.NewStyle().Foreground(RGBBlue)
+			filterStyle = GetSeverityInfo(model.SeverityInfo).TextStyle
 		}
 
 		builder.WriteString(filterStyle.Render(severityText))
