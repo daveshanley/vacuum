@@ -327,27 +327,27 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	// Get terminal width
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
-		width = 180 // Default fallback
+		width = defaultTerminalWidth // Default fallback
 	}
 
 	// Calculate dynamic column widths based on terminal width
-	// Allocate percentages: Location=25%, Severity=8%, Message=35%, Rule=15%, Category=10%, Path=remaining
-	locWidth := width * 25 / 100
-	sevWidth := 10
-	msgWidth := width * 35 / 100
-	ruleWidth := width * 15 / 100
-	catWidth := 12
-	pathWidth := width - locWidth - sevWidth - msgWidth - ruleWidth - catWidth - 10 // 10 for separators
+	// Allocate percentages: Location, Severity, Message, Rule, Category, Path
+	locWidth := width * locationColumnPercent / 100
+	sevWidth := severityColumnWidth
+	msgWidth := width * messageColumnPercent / 100
+	ruleWidth := width * ruleColumnPercent / 100
+	catWidth := categoryColumnWidth
+	pathWidth := width - locWidth - sevWidth - msgWidth - ruleWidth - catWidth - tableSeparatorWidth // for separators
 
 	// Minimum widths
-	if locWidth < 25 {
-		locWidth = 25
+	if locWidth < minLocationWidth {
+		locWidth = minLocationWidth
 	}
-	if msgWidth < 40 {
-		msgWidth = 40
+	if msgWidth < minMessageWidth {
+		msgWidth = minMessageWidth
 	}
-	if ruleWidth < 15 {
-		ruleWidth = 15
+	if ruleWidth < minRuleWidth {
+		ruleWidth = minRuleWidth
 	}
 	if pathWidth < 20 {
 		pathWidth = 20

@@ -17,19 +17,19 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 	}
 
 	// Calculate dimensions - FIXED height regardless of terminal size
-	splitHeight := 15 // Fixed compact height with proper padding
+	splitHeight := splitViewHeight // Fixed compact height with proper padding
 	if m.height < 20 {
 		return "" // Don't show split view if terminal too small
 	}
 
 	splitWidth := m.width // Match terminal width for consistency
-	contentHeight := 11   // Fixed content height for all columns
+	contentHeight := splitContentHeight   // Fixed content height for all columns
 
-	// Column widths: details (35%), how-to-fix (25%), code (40%)
+	// Column widths: details, how-to-fix, code
 	// Adjust for container padding
 	innerWidth := splitWidth - 4 // Account for container borders and padding
-	detailsWidth := int(float64(innerWidth) * 0.30)
-	howToFixWidth := int(float64(innerWidth) * 0.30)
+	detailsWidth := int(float64(innerWidth) * float64(detailsColumnPercent) / 100)
+	howToFixWidth := int(float64(innerWidth) * float64(howToFixColumnPercent) / 100)
 	codeWidth := innerWidth - detailsWidth - howToFixWidth
 
 	codeSnippet, startLine := m.extractCodeSnippet(m.modalContent, 4)
