@@ -58,7 +58,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 	}
 
 	locWidth := maxLocWidth
-	sevWidth := 11 // fixed severity width for consistency
+	sevWidth := severityColumnWidth + 1 // fixed severity width for consistency (+1 for icon space)
 	ruleWidth := maxRuleWidth
 	catWidth := maxCatWidth
 
@@ -76,8 +76,8 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 	availableWidth := actualTableWidth - columnPadding
 
 	// minimum widths for various columns
-	minMsgWidth := 40  // Message should be readable
-	minPathWidth := 20 // Minimum for path
+	minMsgWidth := minMessageWidth  // Message should be readable
+	minPathWidth := minPathWidth // Minimum for path
 	minRuleWidth := 20 // Minimum for rule
 	minCatWidth := 20  // Minimum for category
 
@@ -85,7 +85,7 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 
 	if showPath {
 
-		// start with natural message width (approx 60% of typical remaining space)
+		// start with natural message width
 		// this is our "natural" message width target
 		naturalMsgWidth := 80
 		naturalPathWidth := 50
@@ -247,10 +247,10 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 		// if we're over, reduce appropriate column
 		if showPath {
 			pathWidth += widthDiff // (widthDiff is negative, so this reduces)
-			if pathWidth < 35 {
+			if pathWidth < minPathWidthCompressed {
 				// if the path becomes too small, reduce the message instead
 				msgWidth += widthDiff
-				pathWidth = 35
+				pathWidth = minPathWidthCompressed
 			}
 		} else {
 			msgWidth += widthDiff

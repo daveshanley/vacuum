@@ -50,6 +50,52 @@ var (
 	syntaxStylesInit       bool
 )
 
+// Layout constants
+const (
+	// Terminal dimensions
+	defaultTerminalWidth  = 180
+	defaultTerminalHeight = 40
+	minTableHeight        = 10
+	
+	// Modal dimensions
+	modalWidthReduction = 40  // How much to reduce width for modal
+	modalHeightMargin   = 5   // Margin from bottom for modal
+	
+	// Split view dimensions
+	splitViewHeight    = 15  // Fixed height for split view
+	splitViewMargin    = 4   // Margin for split view
+	splitContentHeight = 11  // Fixed content height inside split view
+	
+	// Column width percentages (for split view)
+	detailsColumnPercent = 30  // 30% for details column
+	howToFixColumnPercent = 30 // 30% for how-to-fix column
+	// codeColumnPercent gets the remainder (40%)
+	
+	// Table column percentages
+	locationColumnPercent = 25
+	messageColumnPercent  = 35
+	ruleColumnPercent     = 15
+	
+	// Fixed column widths
+	severityColumnWidth = 10
+	categoryColumnWidth = 12
+	
+	// Minimum column widths
+	minLocationWidth = 25
+	minMessageWidth  = 40
+	minRuleWidth     = 15
+	minPathWidth     = 20
+	minPathWidthCompressed = 35
+	
+	// Code view settings
+	codeWindowSize = 3000  // Max lines to show above/below target line
+	
+	// Other layout constants
+	tableSeparatorWidth = 10
+	viewportPadding     = 4
+	contentHeightMargin = 4
+)
+
 // FilterState represents the current filter mode for cycling through severities
 type FilterState int
 
@@ -122,10 +168,10 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 
 	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
-		width = 180
+		width = defaultTerminalWidth
 	}
 	if height == 0 {
-		height = 40
+		height = defaultTerminalHeight
 	}
 
 	columns, rows := buildTableData(results, fileName, width, true) // Default to showing path
@@ -274,7 +320,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.docsContent = msg.content
 		m.docsState = DocsStateLoaded
 
-		modalWidth := int(float64(m.width) - 40)
+		modalWidth := int(float64(m.width) - modalWidthReduction)
 
 		customStyle := CreateVacuumDocsStyle(modalWidth - 4)
 		renderer, err := glamour.NewTermRenderer(
@@ -318,9 +364,9 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Adjust table height based on split view state
 		if m.showSplitView {
 			// When split view is open, table gets remaining space after fixed split view
-			tableHeight := m.height - 15 - 4 // terminal height - split view height - margins
-			if tableHeight < 10 {
-				tableHeight = 10 // Minimum height
+			tableHeight := m.height - splitViewHeight - splitViewMargin // terminal height - split view height - margins
+			if tableHeight < minTableHeight {
+				tableHeight = minTableHeight // Minimum height
 			}
 			m.table.SetHeight(tableHeight)
 		} else {
@@ -462,9 +508,9 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.modalContent = m.filteredResults[m.table.Cursor()]
 				}
 				// Resize table to leave room for fixed-height split view
-				tableHeight := m.height - 15 - 4 // terminal height - split view - margins
-				if tableHeight < 10 {
-					tableHeight = 10
+				tableHeight := m.height - splitViewHeight - splitViewMargin // terminal height - split view - margins
+				if tableHeight < minTableHeight {
+					tableHeight = minTableHeight
 				}
 				m.table.SetHeight(tableHeight)
 			} else {
@@ -507,7 +553,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.docsState = DocsStateLoaded
 
 						// Re-render markdown for current terminal size
-						modalWidth := int(float64(m.width) - 40)
+						modalWidth := int(float64(m.width) - modalWidthReduction)
 
 						// Use custom style with TrueColor profile
 						customStyle := CreateVacuumDocsStyle(modalWidth - 4)
@@ -531,7 +577,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 						// Update viewport
 						m.docsViewport.SetContent(m.docsContent)
-						m.docsViewport.SetWidth(modalWidth - 4)
+						m.docsViewport.SetWidth(modalWidth - viewportPadding)
 						m.docsViewport.SetHeight(m.height - 14)
 						m.docsViewport.GotoTop()
 					} else {
@@ -541,8 +587,8 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.docsError = ""
 
 						// Update viewport size
-						modalWidth := int(float64(m.width) - 40)
-						m.docsViewport.SetWidth(modalWidth - 4)
+						modalWidth := int(float64(m.width) - modalWidthReduction)
+						m.docsViewport.SetWidth(modalWidth - viewportPadding)
 						m.docsViewport.SetHeight(m.height - 14)
 
 						// Return both fetch command and spinner tick
@@ -751,9 +797,9 @@ func (m *ViolationResultTableModel) buildTableView() string {
 
 	builder.WriteString("\n")
 
-	contentHeight := m.height - 4
-	if contentHeight < 10 {
-		contentHeight = 10
+	contentHeight := m.height - contentHeightMargin
+	if contentHeight < minTableHeight {
+		contentHeight = minTableHeight
 	}
 
 	if len(m.filteredResults) == 0 {
@@ -815,7 +861,7 @@ func (m *ViolationResultTableModel) extractCodeSnippet(result *model.RuleFunctio
 // buildModalView builds the documentation modal
 func (m *ViolationResultTableModel) buildModalView() string {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - 5
+	modalHeight := m.height - modalHeightMargin
 
 	if m.modalContent == nil {
 		return ""
@@ -925,7 +971,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 // calculateModalPosition calculates the position for the modal (right-aligned)
 func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - 5
+	modalHeight := m.height - modalHeightMargin
 
 	// position on the right side with padding from the edge
 	rightPadding := 6
@@ -1079,7 +1125,7 @@ func (m *ViolationResultTableModel) recenterCodeView() {
 		// Calculate the position of the target line within the rendered content
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
-		const windowSize = 3000
+		const windowSize = codeWindowSize
 		
 		var targetPositionInWindow int
 		if totalLines <= (windowSize*2 + 1) {
@@ -1115,7 +1161,7 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 	}
 
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - 5
+	modalHeight := m.height - modalHeightMargin
 
 	// Initialize viewport
 	m.codeViewport = viewport.New(viewport.WithWidth(modalWidth-4), viewport.WithHeight(modalHeight-4))
@@ -1136,10 +1182,10 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 	// Scroll to the target line (try to center it in the viewport)
 	if targetLine > 0 {
 		// For windowed content, we need to calculate the position within the rendered content
-		// The target line is always at position 3000 (or less if near the start of file)
+		// The target line is always at position codeWindowSize (or less if near the start of file)
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
-		const windowSize = 3000
+		const windowSize = codeWindowSize
 		
 		// Calculate where the target line appears in our rendered content
 		var targetPositionInWindow int
@@ -1174,8 +1220,8 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 	allLines := strings.Split(string(m.specContent), "\n")
 	totalLines := len(allLines)
 	
-	// Window configuration - max 3000 lines above and below target
-	const windowSize = 3000
+	// Window configuration - max lines above and below target
+	const windowSize = codeWindowSize
 	
 	// Calculate the window of lines to render
 	startLine := 1
@@ -1533,7 +1579,7 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 // buildCodeView builds the expanded code view modal
 func (m *ViolationResultTableModel) buildCodeView() string {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - 5
+	modalHeight := m.height - modalHeightMargin
 
 	if m.modalContent == nil {
 		return ""
