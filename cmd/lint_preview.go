@@ -1079,7 +1079,7 @@ func (m *ViolationResultTableModel) recenterCodeView() {
 		// Calculate the position of the target line within the rendered content
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
-		const windowSize = 1000
+		const windowSize = 3000
 		
 		var targetPositionInWindow int
 		if totalLines <= (windowSize*2 + 1) {
@@ -1136,10 +1136,10 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 	// Scroll to the target line (try to center it in the viewport)
 	if targetLine > 0 {
 		// For windowed content, we need to calculate the position within the rendered content
-		// The target line is always at position 1000 (or less if near the start of file)
+		// The target line is always at position 3000 (or less if near the start of file)
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
-		const windowSize = 1000
+		const windowSize = 3000
 		
 		// Calculate where the target line appears in our rendered content
 		var targetPositionInWindow int
@@ -1174,8 +1174,8 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 	allLines := strings.Split(string(m.specContent), "\n")
 	totalLines := len(allLines)
 	
-	// Window configuration - max 1000 lines above and below target
-	const windowSize = 1000
+	// Window configuration - max 3000 lines above and below target
+	const windowSize = 3000
 	
 	// Calculate the window of lines to render
 	startLine := 1
@@ -1229,9 +1229,40 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 		result.WriteString("\n")
 	}
 	
+	// Track if we're in a multi-line markdown block
+	inMarkdownBlock := false
+	markdownIndent := ""
+	var markdownContent strings.Builder
+	markdownStartLine := 0
+	
 	for i, line := range lines {
 		lineNum := startLine + i // Actual line number in the file
 		isHighlighted := lineNum == actualTargetLine
+		
+		// Check if this is a description field with block scalar (| or >-)
+		if isYAML && !inMarkdownBlock {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "description:") {
+				// Check if it's a block scalar
+				afterKey := strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
+				if afterKey == "|" || afterKey == "|-" || afterKey == ">-" || afterKey == ">" {
+					inMarkdownBlock = true
+					markdownContent.Reset()
+					markdownStartLine = lineNum
+					// Get the indent level of the next content
+					if i+1 < len(lines) {
+						nextLine := lines[i+1]
+						// Calculate indent by finding first non-space character
+						for j, ch := range nextLine {
+							if ch != ' ' && ch != '\t' {
+								markdownIndent = nextLine[:j]
+								break
+							}
+						}
+					}
+				}
+			}
+		}
 		
 		// Format line number
 		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
@@ -1243,18 +1274,49 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 			result.WriteString(lineNumStyle.Render(lineNumStr))
 		}
 		
-		// Apply simple syntax highlighting
-		coloredLine := m.applySyntaxHighlighting(line, isYAML)
-		
-		if isHighlighted {
-			// Pad the line to full width for background color
-			displayLine := line
-			if len(line) < maxWidth-lineNumWidth {
-				displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
+		// Handle markdown block content
+		if inMarkdownBlock && lineNum > markdownStartLine {
+			// Check if we're still in the markdown block (lines must maintain same or greater indent)
+			if len(markdownIndent) > 0 && !strings.HasPrefix(line, markdownIndent) && strings.TrimSpace(line) != "" {
+				// End of markdown block - don't render with glamour for performance
+				inMarkdownBlock = false
+				// Process current line normally
+				coloredLine := m.applySyntaxHighlighting(line, isYAML)
+				if isHighlighted {
+					displayLine := line
+					if len(line) < maxWidth-lineNumWidth {
+						displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
+					}
+					result.WriteString(highlightStyle.Render(displayLine))
+				} else {
+					result.WriteString(coloredLine)
+				}
+			} else {
+				// Still in markdown block, just apply syntax highlighting normally
+				if isHighlighted {
+					displayLine := line
+					if len(line) < maxWidth-lineNumWidth {
+						displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
+					}
+					result.WriteString(highlightStyle.Render(displayLine))
+				} else {
+					result.WriteString(m.applySyntaxHighlighting(line, isYAML))
+				}
 			}
-			result.WriteString(highlightStyle.Render(displayLine))
 		} else {
-			result.WriteString(coloredLine)
+			// Normal line - apply syntax highlighting
+			coloredLine := m.applySyntaxHighlighting(line, isYAML)
+			
+			if isHighlighted {
+				// Pad the line to full width for background color
+				displayLine := line
+				if len(line) < maxWidth-lineNumWidth {
+					displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
+				}
+				result.WriteString(highlightStyle.Render(displayLine))
+			} else {
+				result.WriteString(coloredLine)
+			}
 		}
 		
 		if i < len(lines)-1 {
@@ -1286,6 +1348,31 @@ func initSyntaxStyles() {
 		syntaxSingleQuoteStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 		syntaxStylesInit = true
 	}
+}
+
+// renderMarkdownInline renders markdown content using glamour for inline display
+func (m *ViolationResultTableModel) renderMarkdownInline(markdown string, width int) string {
+	// Create a minimal style for inline markdown rendering
+	customStyle := CreateVacuumDocsStyle(width)
+	
+	// Create glamour renderer
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithColorProfile(termenv.TrueColor),
+		glamour.WithStyles(customStyle),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		return markdown // Fallback to plain text
+	}
+	
+	// Render the markdown
+	rendered, err := renderer.Render(markdown)
+	if err != nil {
+		return markdown // Fallback to plain text
+	}
+	
+	// Remove trailing newlines for inline display
+	return strings.TrimRight(rendered, "\n")
 }
 
 // applySyntaxHighlighting applies basic syntax highlighting for YAML/JSON
