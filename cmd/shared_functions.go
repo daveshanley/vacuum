@@ -332,16 +332,79 @@ func formatFileLocation(r *model.RuleFunctionResult, fileName string) string {
 	return fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
 }
 
+// SeverityInfo contains all the display information for a severity level
+type SeverityInfo struct {
+	Icon      string
+	Text      string
+	IconStyle lipgloss.Style
+	TextStyle lipgloss.Style
+}
+
+// GetSeverityInfo returns display information for a given severity
+func GetSeverityInfo(severity string) SeverityInfo {
+	switch severity {
+	case model.SeverityError:
+		return SeverityInfo{
+			Icon:      "✗",
+			Text:      "✗ error",
+			IconStyle: lipgloss.NewStyle().Foreground(RGBRed).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RGBRed),
+		}
+	case model.SeverityWarn:
+		return SeverityInfo{
+			Icon:      "▲",
+			Text:      "▲ warning",
+			IconStyle: lipgloss.NewStyle().Foreground(RBGYellow).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RBGYellow),
+		}
+	default: // model.SeverityInfo and others
+		return SeverityInfo{
+			Icon:      "●",
+			Text:      "● info",
+			IconStyle: lipgloss.NewStyle().Foreground(RGBBlue).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RGBBlue),
+		}
+	}
+}
+
+// GetSeverityInfoFromText returns display information for severity text like "✗ error"
+func GetSeverityInfoFromText(severityText string) SeverityInfo {
+	switch severityText {
+	case "✗ error":
+		return SeverityInfo{
+			Icon:      "✗",
+			Text:      severityText,
+			IconStyle: lipgloss.NewStyle().Foreground(RGBRed).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RGBRed),
+		}
+	case "▲ warning":
+		return SeverityInfo{
+			Icon:      "▲",
+			Text:      severityText,
+			IconStyle: lipgloss.NewStyle().Foreground(RBGYellow).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RBGYellow),
+		}
+	case "● info":
+		return SeverityInfo{
+			Icon:      "●",
+			Text:      severityText,
+			IconStyle: lipgloss.NewStyle().Foreground(RGBBlue).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RGBBlue),
+		}
+	default:
+		return SeverityInfo{
+			Icon:      "●",
+			Text:      "● info",
+			IconStyle: lipgloss.NewStyle().Foreground(RGBGrey).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(RGBGrey),
+		}
+	}
+}
+
 func getRuleSeverity(r *model.RuleFunctionResult) string {
 	if r.Rule != nil {
-		switch r.Rule.Severity {
-		case model.SeverityError:
-			return "✗ error"
-		case model.SeverityWarn:
-			return "▲ warning"
-		default:
-			return "● info"
-		}
+		info := GetSeverityInfo(r.Rule.Severity)
+		return info.Text
 	}
 	return "● info"
 }
