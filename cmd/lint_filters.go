@@ -5,7 +5,7 @@ package cmd
 
 import "github.com/daveshanley/vacuum/model"
 
-func (m *ViolationResultTableModel) applyFilter() {
+func (m *ViolationResultTableModel) ApplyFilter() {
 	var filtered []*model.RuleFunctionResult
 
 	switch m.filterState {
@@ -55,12 +55,12 @@ func (m *ViolationResultTableModel) applyFilter() {
 	m.filteredResults = filtered
 
 	// rebuild table data with filtered results - recalculate column widths
-	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
 	m.rows = rows
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)
 
-	applyLintDetailsTableStyles(&m.table)
+	ApplyLintDetailsTableStyles(&m.table)
 
 	// reset cursor.
 	m.table.SetCursor(0)

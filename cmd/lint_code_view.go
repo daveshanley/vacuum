@@ -13,8 +13,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 )
 
-// initSyntaxStyles initializes the syntax highlighting styles once
-func initSyntaxStyles() {
+// InitSyntaxStyles initializes the syntax highlighting styles once
+func InitSyntaxStyles() {
 	if !syntaxStylesInit {
 		syntaxKeyStyle = lipgloss.NewStyle().Foreground(RGBBlue)
 		syntaxStringStyle = lipgloss.NewStyle().Foreground(RGBGreen)
@@ -29,8 +29,8 @@ func initSyntaxStyles() {
 	}
 }
 
-// prepareCodeViewport prepares the code viewport with the full spec and highlights the error line
-func (m *ViolationResultTableModel) prepareCodeViewport() {
+// PrepareCodeViewport prepares the code viewport with the full spec and highlights the error line
+func (m *ViolationResultTableModel) PrepareCodeViewport() {
 	if m.modalContent == nil || m.specContent == nil {
 		return
 	}
@@ -48,7 +48,7 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 		targetLine = m.modalContent.Origin.Line
 	}
 
-	content := m.formatCodeWithHighlight(targetLine, modalWidth-8)
+	content := m.FormatCodeWithHighlight(targetLine, modalWidth-8)
 	m.codeViewport.SetContent(content)
 
 	// scroll to the target line (try to center it in the viewport)
@@ -87,8 +87,8 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 	}
 }
 
-// buildCodeView builds the expanded code view modal
-func (m *ViolationResultTableModel) buildCodeView() string {
+// BuildCodeView builds the expanded code view modal
+func (m *ViolationResultTableModel) BuildCodeView() string {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - modalHeightMargin
 
@@ -171,8 +171,8 @@ func (m *ViolationResultTableModel) buildCodeView() string {
 	return modalStyle.Render(content.String())
 }
 
-// formatCodeWithHighlight formats the spec content with line numbers and highlights the error line
-func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxWidth int) string {
+// FormatCodeWithHighlight formats the spec content with line numbers and highlights the error line
+func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxWidth int) string {
 	allLines := strings.Split(string(m.specContent), "\n")
 	totalLines := len(allLines)
 
@@ -279,7 +279,7 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 				// end of markdown block - don't render with glamour for performance
 				inMarkdownBlock = false
 				// process current line normally
-				coloredLine := applySyntaxHighlightingToLine(line, isYAML)
+				coloredLine := ApplySyntaxHighlightingToLine(line, isYAML)
 				if isHighlighted {
 					displayLine := line
 					if len(line) < maxWidth-lineNumWidth {
@@ -298,12 +298,12 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 					}
 					result.WriteString(highlightStyle.Render(displayLine))
 				} else {
-					result.WriteString(applySyntaxHighlightingToLine(line, isYAML))
+					result.WriteString(ApplySyntaxHighlightingToLine(line, isYAML))
 				}
 			}
 		} else {
 			// normal line - apply syntax highlighting
-			coloredLine := applySyntaxHighlightingToLine(line, isYAML)
+			coloredLine := ApplySyntaxHighlightingToLine(line, isYAML)
 
 			if isHighlighted {
 				// pad the line to full width for background color
@@ -332,8 +332,8 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 	return result.String()
 }
 
-// reCenterCodeView re-centers the viewport on the highlighted error line
-func (m *ViolationResultTableModel) reCenterCodeView() {
+// ReCenterCodeView re-centers the viewport on the highlighted error line
+func (m *ViolationResultTableModel) ReCenterCodeView() {
 	if m.modalContent == nil {
 		return
 	}
@@ -379,8 +379,8 @@ func (m *ViolationResultTableModel) reCenterCodeView() {
 	}
 }
 
-// extractCodeSnippet extracts lines around the issue with context
-func (m *ViolationResultTableModel) extractCodeSnippet(result *model.RuleFunctionResult, contextLines int) (string, int) {
+// ExtractCodeSnippet extracts lines around the issue with context
+func (m *ViolationResultTableModel) ExtractCodeSnippet(result *model.RuleFunctionResult, contextLines int) (string, int) {
 	if m.specContent == nil || result == nil {
 		return "", 0
 	}

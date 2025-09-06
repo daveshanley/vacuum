@@ -31,7 +31,7 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 	howToFixWidth := int(float64(innerWidth) * float64(howToFixColumnPercent) / 100)
 	codeWidth := innerWidth - detailsWidth - howToFixWidth
 
-	codeSnippet, startLine := m.extractCodeSnippet(m.modalContent, 4)
+	codeSnippet, startLine := m.ExtractCodeSnippet(m.modalContent, 4)
 
 	JSONPathBarStyle := lipgloss.NewStyle().
 		Width(splitWidth-2).
