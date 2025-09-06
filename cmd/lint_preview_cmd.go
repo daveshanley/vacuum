@@ -16,7 +16,6 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
@@ -102,13 +101,6 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		PrintBanner()
 	}
 
-	// Get file info
-	fileInfo, err := os.Stat(fileName)
-	if err != nil {
-		fmt.Printf("\033[31mUnable to read file '%s': %v\033[0m\n", fileName, err)
-		return err
-	}
-
 	// Load ignore file if specified
 	ignoredItems := model.IgnoredItems{}
 	if ignoreFile != "" {
@@ -122,96 +114,125 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Try to load the file as either a report or spec
+	reportOrSpec, err := LoadFileAsReportOrSpec(fileName)
+	if err != nil {
+		fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
+		return err
+	}
+
+	// Get file info for timing
+	fileInfo, _ := os.Stat(fileName)
+
 	// Setup logging
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelError,
 	})
 	logger := slog.New(handler)
 
-	// Build ruleset
-	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	customFuncs, _ := LoadCustomFunctions(functionsFlag, silentFlag)
-
-	// Handle hard mode
-	if hardModeFlag {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-		owaspRules := rulesets.GetAllOWASPRules()
-		for k, v := range owaspRules {
-			selectedRS.Rules[k] = v
-		}
-		if !silentFlag {
-			fmt.Printf("\033[31m🚨 HARD MODE ENABLED 🚨\033[0m\n\n")
-		}
-	}
-
-	// Handle custom ruleset
-	if rulesetFlag != "" {
-		var rsErr error
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
-		if rsErr != nil {
-			fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n", rulesetFlag, rsErr.Error())
-			return rsErr
-		}
-		if hardModeFlag {
-			MergeOWASPRulesToRuleSet(selectedRS, true)
-		}
-	}
-
-	// Display linting info
-	if !silentFlag {
-		fmt.Printf("\033[36mLinting file '%s' against %d rules: %s\033[0m\n\n",
-			fileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
-	}
-
-	// Start timing
+	var resultSet *model.RuleResultSet
+	var specBytes []byte
+	var displayFileName string
 	start := time.Now()
 
-	// Read and lint the file
-	specBytes, ferr := os.ReadFile(fileName)
-	if ferr != nil {
-		fmt.Printf("\033[31mUnable to read file '%s': %s\033[0m\n", fileName, ferr.Error())
-		return ferr
+	if reportOrSpec.IsReport {
+		// Using a pre-compiled report
+		if !silentFlag {
+			fmt.Printf("\033[36mLoading pre-compiled vacuum report from '%s'\033[0m\n\n", fileName)
+		}
+		
+		// Create a new RuleResultSet from the results to ensure proper initialization
+		if reportOrSpec.ResultSet != nil && reportOrSpec.ResultSet.Results != nil {
+			// Filter ignored results first
+			filteredResults := utils.FilterIgnoredResultsPtr(reportOrSpec.ResultSet.Results, ignoredItems)
+			// Create properly initialized RuleResultSet
+			resultSet = model.NewRuleResultSetPointer(filteredResults)
+		} else {
+			resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
+		}
+		
+		specBytes = reportOrSpec.SpecBytes
+		displayFileName = reportOrSpec.FileName
+	} else {
+		// Regular spec file - run linting
+		specBytes = reportOrSpec.SpecBytes
+		displayFileName = fileName
+		
+		// Build ruleset
+		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
+		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+		customFuncs, _ := LoadCustomFunctions(functionsFlag, silentFlag)
+
+		// Handle hard mode
+		if hardModeFlag {
+			selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+			owaspRules := rulesets.GetAllOWASPRules()
+			for k, v := range owaspRules {
+				selectedRS.Rules[k] = v
+			}
+			if !silentFlag {
+				fmt.Printf("\033[31m🚨 HARD MODE ENABLED 🚨\033[0m\n\n")
+			}
+		}
+
+		// Handle custom ruleset
+		if rulesetFlag != "" {
+			var rsErr error
+			selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
+			if rsErr != nil {
+				fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n", rulesetFlag, rsErr.Error())
+				return rsErr
+			}
+			if hardModeFlag {
+				MergeOWASPRulesToRuleSet(selectedRS, true)
+			}
+		}
+
+		// Display linting info
+		if !silentFlag {
+			fmt.Printf("\033[36mLinting file '%s' against %d rules: %s\033[0m\n\n",
+				displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
+		}
+
+		// Build deep graph if we have ignored items
+		deepGraph := false
+		if len(ignoredItems) > 0 {
+			deepGraph = true
+		}
+
+		// Apply rules
+		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+			RuleSet:                         selectedRS,
+			Spec:                            specBytes,
+			SpecFileName:                    displayFileName,
+			CustomFunctions:                 customFuncs,
+			Base:                            baseFlag,
+			AllowLookup:                     remoteFlag,
+			SkipDocumentCheck:               skipCheckFlag,
+			Logger:                          logger,
+			BuildDeepGraph:                  deepGraph,
+			Timeout:                         time.Duration(timeoutFlag) * time.Second,
+			IgnoreCircularArrayRef:          ignoreArrayCircleRef,
+			IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
+			ExtractReferencesFromExtensions: extRefsFlag,
+		})
+
+		// Filter ignored results
+		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
+
+		// Check for errors
+		if len(result.Errors) > 0 {
+			for _, err := range result.Errors {
+				fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+			}
+			return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+		}
+
+		// Process results
+		resultSet = model.NewRuleResultSet(result.Results)
 	}
 
 	specStringData := strings.Split(string(specBytes), "\n")
-
-	// Build deep graph if we have ignored items
-	deepGraph := false
-	if len(ignoredItems) > 0 {
-		deepGraph = true
-	}
-
-	// Apply rules
-	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:                         selectedRS,
-		Spec:                            specBytes,
-		SpecFileName:                    fileName,
-		CustomFunctions:                 customFuncs,
-		Base:                            baseFlag,
-		AllowLookup:                     remoteFlag,
-		SkipDocumentCheck:               skipCheckFlag,
-		Logger:                          logger,
-		BuildDeepGraph:                  deepGraph,
-		Timeout:                         time.Duration(timeoutFlag) * time.Second,
-		IgnoreCircularArrayRef:          ignoreArrayCircleRef,
-		IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
-		ExtractReferencesFromExtensions: extRefsFlag,
-	})
-
-	// Filter ignored results
-	result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
-
-	// Check for errors
-	if len(result.Errors) > 0 {
-		for _, err := range result.Errors {
-			fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", fileName, err.Error())
-		}
-		return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
-	}
-
-	// Process results
-	resultSet := model.NewRuleResultSet(result.Results)
 
 	// Handle category filtering
 	var cats []*model.RuleCategory
@@ -223,14 +244,21 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	}
 
 	resultSet.SortResultsByLineNumber()
-	stats := statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
+	
+	// Create statistics if we have the necessary data
+	var stats *reports.ReportStatistics
+	if reportOrSpec.IsReport && reportOrSpec.Report.Statistics != nil {
+		stats = reportOrSpec.Report.Statistics
+	}
+	// Note: For fresh linting, we'd need the index and spec info from the result,
+	// but that's not available in this flow anymore. We can skip stats for now.
 
 	// Show detailed results if requested
 	if detailsFlag && len(resultSet.Results) > 0 {
 		// Use interactive table for large result sets (>50) or if specifically requested
 		if (len(resultSet.Results) > 50 || interactiveFlag) && !snippetsFlag && !silentFlag {
 			// Show summary first
-			renderFixedSummary(resultSet, cats, stats, fileName, silentFlag, noStyleFlag)
+			renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag)
 
 			// Show timing if requested
 			duration := time.Since(start)
@@ -256,7 +284,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			}
 
 			// Show interactive table
-			err := cui.ShowViolationTableView(filteredResults, fileName, specBytes)
+			err := cui.ShowViolationTableView(filteredResults, displayFileName, specBytes)
 			if err != nil {
 				fmt.Printf("\033[31mError showing interactive table: %v\033[0m\n", err)
 			}
@@ -264,12 +292,12 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		} else {
 			// Use regular detailed view for smaller result sets or when snippets are requested
 			renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
-				silentFlag, noMessageFlag, allResultsFlag, noClipFlag, fileName, noStyleFlag)
+				silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
 		}
 	}
 
 	// Render summary
-	renderFixedSummary(resultSet, cats, stats, fileName, silentFlag, noStyleFlag)
+	renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag)
 
 	// Show timing
 	duration := time.Since(start)

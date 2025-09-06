@@ -1,4 +1,4 @@
-// Copyright 2020-2022 Dave Shanley / Quobix
+// Copyright 2020-2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // SPDX-License-Identifier: MIT
 
 package cmd
@@ -6,27 +6,25 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"time"
+
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
-	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"net/url"
-	"os"
-	"time"
 )
 
 func GetDashboardCommand() *cobra.Command {
-
 	cmd := &cobra.Command{
 		Use:     "dashboard",
-		Short:   "Show vacuum dashboard for linting report",
-		Long:    "Interactive console dashboard to explore linting report in detail",
+		Short:   "Show interactive console dashboard for linting report",
+		Long:    "Interactive console dashboard to explore linting report in detail using modern TUI",
 		Example: "vacuum dashboard my-awesome-spec.yaml",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) != 0 {
@@ -35,35 +33,32 @@ func GetDashboardCommand() *cobra.Command {
 			return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-
-			// check for file args
+			// Check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report"
 				pterm.Error.Println(errText)
 				pterm.Println()
 				return errors.New(errText)
 			}
+
+			// Read flags
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
-			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			functionsFlag, _ := cmd.Flags().GetString("functions")
+			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 
-			var err error
-			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
-			if len(specBytes) <= 0 {
-				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
-				return err
-			}
+			// Certificate/TLS configuration
+			certFile, _ := cmd.Flags().GetString("cert-file")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			caFile, _ := cmd.Flags().GetString("ca-file")
+			insecure, _ := cmd.Flags().GetBool("insecure")
 
-			var resultSet *model.RuleResultSet
-			var ruleset *motor.RuleSetExecutionResult
-			var specIndex *index.SpecIndex
-			var specInfo *datamodel.SpecInfo
-
+			// Load ignore file if specified
 			ignoredItems := model.IgnoredItems{}
 			if ignoreFile != "" {
 				raw, ferr := os.ReadFile(ignoreFile)
@@ -76,84 +71,140 @@ func GetDashboardCommand() *cobra.Command {
 				}
 			}
 
-			// if we have a pre-compiled report, jump straight to the end and collect $500
-			if vacuumReport == nil {
+			// Try to load the file as either a report or spec
+			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
+			if err != nil {
+				pterm.Error.Printf("Failed to load file: %v\n\n", err)
+				return err
+			}
 
-				functionsFlag, _ := cmd.Flags().GetString("functions")
-				customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
+			var resultSet *model.RuleResultSet
+			var specBytes []byte
+			displayFileName := reportOrSpec.FileName
 
-				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-			
-			// Certificate/TLS configuration
-			certFile, _ := cmd.Flags().GetString("cert-file")
-			keyFile, _ := cmd.Flags().GetString("key-file")
-			caFile, _ := cmd.Flags().GetString("ca-file")
-			insecure, _ := cmd.Flags().GetBool("insecure")
-				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
+			if reportOrSpec.IsReport {
+				// Using a pre-compiled report
+				if !silent {
+					pterm.Info.Printf("Loading pre-compiled vacuum report from '%s'\n", args[0])
+				}
+
+				// Create a new RuleResultSet from the results to ensure proper initialization
+				if reportOrSpec.ResultSet != nil && reportOrSpec.ResultSet.Results != nil {
+					// Filter ignored results
+					filteredResults := utils.FilterIgnoredResultsPtr(reportOrSpec.ResultSet.Results, ignoredItems)
+					// Create properly initialized RuleResultSet
+					resultSet = model.NewRuleResultSetPointer(filteredResults)
+				} else {
+					resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
+				}
+
+				specBytes = reportOrSpec.SpecBytes
+			} else {
+				// Regular spec file - run linting (same as lint-preview)
+				specBytes = reportOrSpec.SpecBytes
+
+				// Setup logging
+				handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+					Level: slog.LevelError,
+				})
+				logger := slog.New(handler)
+
+				// Build ruleset
+				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
+				selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent)
+
+				// Handle hard mode
+				if hardModeFlag {
+					selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+					owaspRules := rulesets.GetAllOWASPRules()
+					for k, v := range owaspRules {
+						selectedRS.Rules[k] = v
+					}
+					if !silent {
+						pterm.Info.Printf("🚨 HARD MODE ENABLED 🚨\n")
+					}
+				}
+
+				// Handle custom ruleset
+				if rulesetFlag != "" {
+					var rsErr error
+					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
+					if rsErr != nil {
+						pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
+						return rsErr
+					}
+					if hardModeFlag {
+						MergeOWASPRulesToRuleSet(selectedRS, true)
+					}
+				}
+
+				// Display linting info
+				if !silent {
+					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n",
+						displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
+				}
+
+				// Apply rules with proper filename
+				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+					RuleSet:           selectedRS,
+					Spec:              specBytes,
+					SpecFileName:      displayFileName,  // THIS IS THE KEY FIX
+					CustomFunctions:   customFuncs,
+					Base:              baseFlag,
+					AllowLookup:       remoteFlag,
+					SkipDocumentCheck: skipCheckFlag,
+					Logger:            logger,
+					Timeout:           time.Duration(timeoutFlag) * time.Second,
+					HTTPClientConfig:  utils.HTTPClientConfig{
 						CertFile: certFile,
 						KeyFile:  keyFile,
 						CAFile:   caFile,
 						Insecure: insecure,
-					}, ignoredItems)
-				if err != nil {
-					pterm.Error.Printf("Failed to render dashboard: %v\n\n", err)
-					return err
-				}
-				specIndex = ruleset.Index
-				specInfo = ruleset.SpecInfo
-				specInfo.Generated = time.Now()
+					},
+				})
 
-			} else {
+				// Filter ignored results
+				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-				resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
-				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
-
-				// TODO: refactor dashboard to hold state and rendering as separate entities.
-				// dashboard will be slower because it needs an index
-				var rootNode yaml.Node
-				err = yaml.Unmarshal(*vacuumReport.SpecInfo.SpecBytes, &rootNode)
-				if err != nil {
-					pterm.Error.Printf("Unable to read spec bytes from report file '%s': %s\n", args[0], err.Error())
-					pterm.Println()
-					return err
-				}
-
-				config := index.CreateClosedAPIIndexConfig()
-				if baseFlag != "" {
-					u, e := url.Parse(baseFlag)
-					if e == nil && u.Scheme != "" && u.Host != "" {
-						config.BaseURL = u
-						config.BasePath = ""
-					} else {
-						config.BasePath = baseFlag
+				// Check for errors
+				if len(result.Errors) > 0 {
+					for _, err := range result.Errors {
+						pterm.Error.Printf("Unable to process spec '%s': %s\n", displayFileName, err.Error())
 					}
-					config.AllowFileLookup = true
-					config.AllowRemoteLookup = remoteFlag
+					return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 				}
 
-				if extensionRefsFlag {
-					config.ExcludeExtensionRefs = true
-				}
-
-				specIndex = index.NewSpecIndexWithConfig(&rootNode, config)
-
-				specInfo = vacuumReport.SpecInfo
-				specInfo.Generated = vacuumReport.Generated
+				// Process results
+				resultSet = model.NewRuleResultSet(result.Results)
+				resultSet.SortResultsByLineNumber()
 			}
 
-			if len(resultSet.Results) <= 0 {
+			// Check if we have results
+			if resultSet == nil || len(resultSet.Results) == 0 {
 				pterm.Println()
 				pterm.Success.Println("There is nothing to see, no results found - well done!")
 				pterm.Println()
 				return nil
 			}
 
-			dash := cui.CreateDashboard(resultSet, specIndex, specInfo)
-			dash.Version = Version
-			return dash.Render()
+			// Launch the new interactive table view
+			if !silent {
+				pterm.Info.Println("Launching interactive dashboard...")
+			}
+
+			err = cui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes)
+			if err != nil {
+				pterm.Error.Printf("Failed to show dashboard: %v\n", err)
+				return err
+			}
+
+			return nil
 		},
 	}
+
+	// Add flags
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	
 	return cmd
 }
