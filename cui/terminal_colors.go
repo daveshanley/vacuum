@@ -131,6 +131,47 @@ func ColorizeString(text string, mode ColorizeMode) string {
 	return result.String()
 }
 
+// ColorizeLocation formats a file location string (path:line:col) with ANSI colors.
+// It colors the directory in grey, filename in light grey italic, line number in bold,
+// and column in light grey.
+func ColorizeLocation(location string) string {
+	// Expected format: path/to/file.ext:line:col
+	// We need to parse and colorize each part
+	if !strings.Contains(location, ":") {
+		return location // Not a location format we recognize
+	}
+	
+	// Split into file path and line:col
+	lastColon := strings.LastIndex(location, ":")
+	secondLastColon := strings.LastIndex(location[:lastColon], ":")
+	
+	if secondLastColon == -1 {
+		return location // Not enough colons for file:line:col format
+	}
+	
+	filePath := location[:secondLastColon]
+	lineNum := location[secondLastColon+1:lastColon]
+	colNum := location[lastColon+1:]
+	
+	file := filepath.Base(filePath)
+	dir := filepath.Dir(filePath)
+	
+	// Build colored path
+	var coloredPath string
+	if dir != "." {
+		coloredPath = fmt.Sprintf("%s%s/%s%s%s", ASCIIGrey, dir, ASCIILightGreyItalic, file, ASCIIReset)
+	} else {
+		coloredPath = fmt.Sprintf("%s%s%s", ASCIILightGreyItalic, file, ASCIIReset)
+	}
+	
+	// Color line and column numbers
+	coloredLine := fmt.Sprintf("%s%s%s", ASCIIBold, lineNum, ASCIIReset)
+	coloredCol := fmt.Sprintf("%s%s%s", ASCIILightGrey, colNum, ASCIIReset)
+	sep := fmt.Sprintf("%s:%s", ASCIILightGrey, ASCIIReset)
+	
+	return fmt.Sprintf("%s%s%s%s%s", coloredPath, sep, coloredLine, sep, coloredCol)
+}
+
 // ColorizeTableOutput adds ASCII color codes to a table output string based on the
 // cursor position and content patterns.
 func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string {
@@ -152,24 +193,12 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		if i >= 1 && !isSelectedLine {
 
 			if locationRegex.MatchString(line) {
-
 				line = locationRegex.ReplaceAllStringFunc(line, func(match string) string {
 					parts := locationRegex.FindStringSubmatch(match)
 					if len(parts) == 4 {
-						filePath := parts[1]
-						lineNum := parts[2]
-						colNum := parts[3]
-
-						file := filepath.Base(filePath)
-						dir := filepath.Dir(filePath)
-						filePath = fmt.Sprintf("%s/%s%s%s", dir, ASCIILightGreyItalic, file, ASCIIReset)
-
-						// color parts with ASCII colors.
-						coloredPath := fmt.Sprintf("%s%s%s", ASCIIGrey, filePath, ASCIIReset)
-						coloredLine := fmt.Sprintf("%s%s%s", ASCIIBold, lineNum, ASCIIReset)
-						coloredCol := fmt.Sprintf("%s%s%s", ASCIILightGrey, colNum, ASCIIReset)
-						sep := fmt.Sprintf("%s:%s", ASCIILightGrey, ASCIIReset)
-						return fmt.Sprintf("%s%s%s%s%s", coloredPath, sep, coloredLine, sep, coloredCol)
+						// Use the extracted ColorizeLocation function
+						location := fmt.Sprintf("%s:%s:%s", parts[1], parts[2], parts[3])
+						return ColorizeLocation(location)
 					}
 					return match
 				})
