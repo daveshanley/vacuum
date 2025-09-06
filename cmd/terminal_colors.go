@@ -50,7 +50,6 @@ var (
 	RGBSubtlePink        = lipgloss.Color("#2a1a2a")
 )
 
-// Helper functions
 func strPtr(s string) *string { return &s }
 func boolPtr(b bool) *bool    { return &b }
 func uintPtr(u uint) *uint    { return &u }
@@ -58,30 +57,28 @@ func uintPtr(u uint) *uint    { return &u }
 // Color constants for Glamour styles (as string pointers)
 var (
 	// ANSI 256 colors for general text
-	ColorBlue        = strPtr("45")
-	ColorSoftBlue    = strPtr("117")
-	ColorBlueBg      = strPtr("#002329")
-	ColorPink        = strPtr("201")
-	ColorPinkBg      = strPtr("#2a1a2a")
-	ColorRed         = strPtr("196")
-	ColorYellow      = strPtr("220")
-	ColorSoftYellow  = strPtr("226")
-	ColorGreen       = strPtr("46")  // RGBGreen
-	ColorGrey        = strPtr("246") // RGBGrey
-	ColorDarkGrey    = strPtr("236") // RGBDarkGrey
-	ColorWhite       = strPtr("255") // RGBWhite
-	ColorBlack       = strPtr("16")  // RGBBlack
-	ColorLightGrey   = strPtr("253") // ASCIILightGrey equivalent
-	ColorLightPink   = strPtr("164") // ASCIIPink equivalent
+	ColorBlue       = strPtr("45")
+	ColorSoftBlue   = strPtr("117")
+	ColorBlueBg     = strPtr("#002329")
+	ColorPink       = strPtr("201")
+	ColorPinkBg     = strPtr("#2a1a2a")
+	ColorRed        = strPtr("196")
+	ColorYellow     = strPtr("220")
+	ColorSoftYellow = strPtr("226")
+	ColorGreen      = strPtr("46")
+	ColorGrey       = strPtr("246")
+	ColorDarkGrey   = strPtr("236")
+	ColorLightGrey  = strPtr("253")
+	ColorLightPink  = strPtr("164")
 
-	// Hex colors for Chroma syntax highlighting (it doesn't support ANSI 256)
-	ChromaBlue      = strPtr("#00d7ff") // Bright cyan-blue
-	ChromaPink      = strPtr("#ff5fff") // Bright magenta-pink
-	ChromaRed       = strPtr("#ff0000") // Bright red
-	ChromaYellow    = strPtr("#ffd700") // Gold yellow
-	ChromaGreen     = strPtr("#00ff00") // Bright green
-	ChromaGrey      = strPtr("#8a8a8a") // Medium grey
-	ChromaLightPink = strPtr("#d75fd7") // Light pink/magenta
+	// chroma specifc colors (non ANSI256)
+	ChromaBlue      = strPtr("#00d7ff")
+	ChromaPink      = strPtr("#ff5fff")
+	ChromaRed       = strPtr("#ff0000")
+	ChromaYellow    = strPtr("#ffd700")
+	ChromaGreen     = strPtr("#00ff00")
+	ChromaGrey      = strPtr("#8a8a8a")
+	ChromaLightPink = strPtr("#d75fd7")
 )
 
 // ColorizeString highlights backtick-enclosed text with the specified style
@@ -247,9 +244,9 @@ func applyLintDetailsTableStyles(t *table.Model) {
 	t.SetStyles(s)
 }
 
-// CreateVacuumDocsStyle creates a custom Glamour style for documentation rendering
-// using the existing vacuum color palette
-func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
+// CreatePb33fDocsStyle creates a custom Glamour style for documentation rendering
+// using the existing princess beef heavy industries color scheme.
+func CreatePb33fDocsStyle(termWidth int) ansi.StyleConfig {
 
 	truePointer := boolPtr(true)
 	falsePointer := boolPtr(false)
@@ -258,8 +255,6 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 		Document: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{},
 		},
-
-		// Headings using vacuum color scheme
 		H1: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{
 				BlockPrefix: "\n",
@@ -314,8 +309,6 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 			Bold:            truePointer,
 			Underline:       truePointer,
 		},
-
-		// Code and code blocks
 		Code: ansi.StyleBlock{
 			StylePrimitive: ansi.StylePrimitive{
 				Prefix:          "[",
@@ -381,8 +374,6 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 				},
 			},
 		},
-
-		// Links
 		Link: ansi.StylePrimitive{
 			Color:     ColorSoftBlue,
 			Underline: truePointer,
@@ -393,7 +384,6 @@ func CreateVacuumDocsStyle(termWidth int) ansi.StyleConfig {
 			Suffix: "]",
 			Bold:   truePointer,
 		},
-
 		List: ansi.StyleList{
 			StyleBlock: ansi.StyleBlock{
 				StylePrimitive: ansi.StylePrimitive{
