@@ -1,7 +1,7 @@
 // Copyright 2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // SPDX-License-Identifier: MIT
 
-package cmd
+package cui
 
 import (
 	"strings"

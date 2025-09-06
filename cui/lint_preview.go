@@ -1,7 +1,7 @@
 // Copyright 2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // SPDX-License-Identifier: MIT
 
-package cmd
+package cui
 
 import (
 	"fmt"
@@ -16,6 +16,47 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
 	"golang.org/x/term"
+)
+
+const (
+	DocsStateLoading DocsState = iota
+	DocsStateLoaded
+	DocsStateError
+)
+
+const (
+	FilterAll      FilterState = iota // Show all results
+	FilterErrors                      // Show only errors
+	FilterWarnings                    // Show only warnings
+	FilterInfo                        // Show only info messages
+)
+
+// layout constants
+const (
+	DefaultTerminalWidth   = 180
+	DefaultTerminalHeight  = 40
+	MinTableHeight         = 10
+	ModalWidthReduction    = 40 // How much to reduce width for modal
+	ModalHeightMargin      = 5  // Margin from bottom for modal
+	SplitViewHeight        = 15 // Fixed height for detail view
+	SplitViewMargin        = 4  // Margin for split view
+	SplitContentHeight     = 11 // Fixed content height inside detail view
+	DetailsColumnPercent   = 30 // 30% for details column
+	HowToFixColumnPercent  = 30 // 30% for how-to-fix column
+	SeverityColumnWidth    = 10
+	MinMessageWidth        = 40
+	MinPathWidth           = 20
+	MinPathWidthCompressed = 35
+	CodeWindowSize         = 3000 // Max lines to show above/below target line
+	ViewportPadding        = 4
+	ContentHeightMargin    = 4
+	TableSeparatorWidth    = 10
+	LocationColumnPercent  = 25
+	MessageColumnPercent   = 35
+	RuleColumnPercent      = 15
+	CategoryColumnWidth    = 12
+	MinLocationWidth       = 25
+	MinRuleWidth           = 15
 )
 
 // regular expressions.
@@ -47,70 +88,11 @@ var (
 	syntaxStylesInit       bool
 )
 
-// layout constants
-const (
-	// terminal dimensions
-	defaultTerminalWidth  = 180
-	defaultTerminalHeight = 40
-	minTableHeight        = 10
-
-	// modal dimensions
-	modalWidthReduction = 40 // How much to reduce width for modal
-	modalHeightMargin   = 5  // Margin from bottom for modal
-
-	// split view dimensions
-	splitViewHeight    = 15 // Fixed height for split view
-	splitViewMargin    = 4  // Margin for split view
-	splitContentHeight = 11 // Fixed content height inside split view
-
-	// Column width percentages (for split view)
-	detailsColumnPercent  = 30 // 30% for details column
-	howToFixColumnPercent = 30 // 30% for how-to-fix column
-	// codeColumnPercent gets the remainder (40%)
-
-	// Table column percentages
-	locationColumnPercent = 25
-	messageColumnPercent  = 35
-	ruleColumnPercent     = 15
-
-	// Fixed column widths
-	severityColumnWidth = 10
-	categoryColumnWidth = 12
-
-	// Minimum column widths
-	minLocationWidth       = 25
-	minMessageWidth        = 40
-	minRuleWidth           = 15
-	minPathWidth           = 20
-	minPathWidthCompressed = 35
-
-	// Code view settings
-	codeWindowSize = 3000 // Max lines to show above/below target line
-
-	// Other layout constants
-	tableSeparatorWidth = 10
-	viewportPadding     = 4
-	contentHeightMargin = 4
-)
-
 // FilterState represents the current filter mode for cycling through severities
 type FilterState int
 
-const (
-	FilterAll      FilterState = iota // Show all results
-	FilterErrors                      // Show only errors
-	FilterWarnings                    // Show only warnings
-	FilterInfo                        // Show only info messages
-)
-
 // DocsState represents the state of documentation fetching
 type DocsState int
-
-const (
-	DocsStateLoading DocsState = iota
-	DocsStateLoaded
-	DocsStateError
-)
 
 // docsLoadedMsg is sent when documentation is successfully loaded
 type docsLoadedMsg struct {
@@ -165,10 +147,10 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 
 	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
-		width = defaultTerminalWidth
+		width = DefaultTerminalWidth
 	}
 	if height == 0 {
-		height = defaultTerminalHeight
+		height = DefaultTerminalHeight
 	}
 
 	columns, rows := BuildResultTableData(results, fileName, width, true)
@@ -205,8 +187,8 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		height:          height,
 		filterState:     FilterAll,
 		categories:      categories,
-		categoryIndex:   -1,   // -1 means "All"
-		showPath:        true, // Default to showing path column
+		categoryIndex:   -1, // -1 means "All"
+		showPath:        true,
 		categoryFilter:  "",
 		rules:           rules,
 		ruleIndex:       -1, // -1 means "All"
@@ -394,9 +376,9 @@ func (m *ViolationResultTableModel) buildTableView() string {
 
 	builder.WriteString("\n")
 
-	contentHeight := m.height - contentHeightMargin
-	if contentHeight < minTableHeight {
-		contentHeight = minTableHeight
+	contentHeight := m.height - ContentHeightMargin
+	if contentHeight < MinTableHeight {
+		contentHeight = MinTableHeight
 	}
 
 	if len(m.filteredResults) == 0 {
@@ -417,7 +399,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 // buildModalView builds the documentation modal
 func (m *ViolationResultTableModel) buildModalView() string {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - modalHeightMargin
+	modalHeight := m.height - ModalHeightMargin
 
 	if m.modalContent == nil {
 		return ""
@@ -528,7 +510,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 // calculateModalPosition calculates the position for the modal (right-aligned)
 func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - modalHeightMargin
+	modalHeight := m.height - ModalHeightMargin
 
 	// position on the right side with padding from the edge
 	rightPadding := 6

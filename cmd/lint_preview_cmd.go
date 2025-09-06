@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
@@ -255,7 +256,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			}
 
 			// Show interactive table
-			err := ShowViolationTableView(filteredResults, fileName, specBytes)
+			err := cui.ShowViolationTableView(filteredResults, fileName, specBytes)
 			if err != nil {
 				fmt.Printf("\033[31mError showing interactive table: %v\033[0m\n", err)
 			}
@@ -327,27 +328,27 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	// Get terminal width
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
-		width = defaultTerminalWidth // Default fallback
+		width = cui.DefaultTerminalWidth // Default fallback
 	}
 
 	// Calculate dynamic column widths based on terminal width
 	// Allocate percentages: Location, Severity, Message, Rule, Category, Path
-	locWidth := width * locationColumnPercent / 100
-	sevWidth := severityColumnWidth
-	msgWidth := width * messageColumnPercent / 100
-	ruleWidth := width * ruleColumnPercent / 100
-	catWidth := categoryColumnWidth
-	pathWidth := width - locWidth - sevWidth - msgWidth - ruleWidth - catWidth - tableSeparatorWidth // for separators
+	locWidth := width * cui.LocationColumnPercent / 100
+	sevWidth := cui.SeverityColumnWidth
+	msgWidth := width * cui.MessageColumnPercent / 100
+	ruleWidth := width * cui.RuleColumnPercent / 100
+	catWidth := cui.CategoryColumnWidth
+	pathWidth := width - locWidth - sevWidth - msgWidth - ruleWidth - catWidth - cui.TableSeparatorWidth // for separators
 
 	// Minimum widths
-	if locWidth < minLocationWidth {
-		locWidth = minLocationWidth
+	if locWidth < cui.MinLocationWidth {
+		locWidth = cui.MinLocationWidth
 	}
-	if msgWidth < minMessageWidth {
-		msgWidth = minMessageWidth
+	if msgWidth < cui.MinMessageWidth {
+		msgWidth = cui.MinMessageWidth
 	}
-	if ruleWidth < minRuleWidth {
-		ruleWidth = minRuleWidth
+	if ruleWidth < cui.MinRuleWidth {
+		ruleWidth = cui.MinRuleWidth
 	}
 	if pathWidth < 20 {
 		pathWidth = 20

@@ -1,7 +1,7 @@
 // Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
-package cmd
+package cui
 
 import (
 	"github.com/charmbracelet/bubbles/v2/table"
@@ -59,7 +59,7 @@ func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, 
 	}
 
 	locWidth := maxLocWidth
-	sevWidth := severityColumnWidth + 1 // fixed severity width for consistency (+1 for icon space)
+	sevWidth := SeverityColumnWidth + 1 // fixed severity width for consistency (+1 for icon space)
 	ruleWidth := maxRuleWidth
 	catWidth := maxCatWidth
 
@@ -77,8 +77,8 @@ func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, 
 	availableWidth := actualTableWidth - columnPadding
 
 	// minimum widths for various columns
-	minMsgWidth := minMessageWidth // Message should be readable
-	minPathWidth := minPathWidth   // Minimum for path
+	minMsgWidth := MinMessageWidth // Message should be readable
+	minPathWidth := MinPathWidth   // Minimum for path
 	minRuleWidth := 20             // Minimum for rule
 	minCatWidth := 20              // Minimum for category
 
@@ -248,10 +248,10 @@ func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, 
 		// if we're over, reduce appropriate column
 		if showPath {
 			pathWidth += widthDiff // (widthDiff is negative, so this reduces)
-			if pathWidth < minPathWidthCompressed {
+			if pathWidth < MinPathWidthCompressed {
 				// if the path becomes too small, reduce the message instead
 				msgWidth += widthDiff
-				pathWidth = minPathWidthCompressed
+				pathWidth = MinPathWidthCompressed
 			}
 		} else {
 			msgWidth += widthDiff

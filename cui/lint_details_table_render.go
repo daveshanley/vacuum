@@ -1,7 +1,7 @@
 // Copyright 2024 Dave Shanley / Quobix
 // SPDX-License-Identifier: MIT
 
-package cmd
+package cui
 
 import (
 	"github.com/charmbracelet/bubbles/v2/table"
@@ -19,7 +19,7 @@ func (m *ViolationResultTableModel) HandleDocsMessages(msg tea.Msg) (bool, tea.C
 		m.docsContent = msg.content
 		m.docsState = DocsStateLoaded
 
-		modalWidth := int(float64(m.width) - modalWidthReduction)
+		modalWidth := int(float64(m.width) - ModalWidthReduction)
 
 		customStyle := CreatePb33fDocsStyle(modalWidth - 4)
 		renderer, err := glamour.NewTermRenderer(
@@ -64,9 +64,9 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 
 	if m.showSplitView {
 		// when details / split view is open, the table gets remaining space after fixed split view
-		tableHeight := m.height - splitViewHeight - splitViewMargin
-		if tableHeight < minTableHeight {
-			tableHeight = minTableHeight
+		tableHeight := m.height - SplitViewHeight - SplitViewMargin
+		if tableHeight < MinTableHeight {
+			tableHeight = MinTableHeight
 		}
 		m.table.SetHeight(tableHeight)
 	} else {
@@ -206,9 +206,9 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 				m.modalContent = m.filteredResults[m.table.Cursor()]
 			}
 			// resize the table to leave room for the fixed-height split view
-			tableHeight := m.height - splitViewHeight - splitViewMargin
-			if tableHeight < minTableHeight {
-				tableHeight = minTableHeight
+			tableHeight := m.height - SplitViewHeight - SplitViewMargin
+			if tableHeight < MinTableHeight {
+				tableHeight = MinTableHeight
 			}
 			m.table.SetHeight(tableHeight)
 		} else {
@@ -271,7 +271,7 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 		m.docsState = DocsStateLoaded
 
 		// re-render markdown based on the current terminal size
-		modalWidth := int(float64(m.width) - modalWidthReduction)
+		modalWidth := int(float64(m.width) - ModalWidthReduction)
 
 		customStyle := CreatePb33fDocsStyle(modalWidth - 4)
 		renderer, err := glamour.NewTermRenderer(
@@ -293,7 +293,7 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 		}
 
 		m.docsViewport.SetContent(m.docsContent)
-		m.docsViewport.SetWidth(modalWidth - viewportPadding)
+		m.docsViewport.SetWidth(modalWidth - ViewportPadding)
 		m.docsViewport.SetHeight(m.height - 14)
 		m.docsViewport.GotoTop()
 		return nil
@@ -303,8 +303,8 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 	m.docsContent = ""
 	m.docsError = ""
 
-	modalWidth := int(float64(m.width) - modalWidthReduction)
-	m.docsViewport.SetWidth(modalWidth - viewportPadding)
+	modalWidth := int(float64(m.width) - ModalWidthReduction)
+	m.docsViewport.SetWidth(modalWidth - ViewportPadding)
 	m.docsViewport.SetHeight(m.height - 14)
 
 	return tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
