@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
@@ -27,8 +26,8 @@ import (
 func GetLintPreviewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:           "lint-preview <your-openapi-file.yaml>",
-		Short:         "Preview lint with enhanced interactive table",
-		Long:          `Lint an OpenAPI specification with an enhanced interactive table view`,
+		Short:         "Preview lint results with enhanced table formatting",
+		Long:          `Lint an OpenAPI specification and display results in a formatted table view`,
 		RunE:          runLintPreview,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -58,7 +57,6 @@ func GetLintPreviewCommand() *cobra.Command {
 	cmd.Flags().Bool("ext-refs", false, "Enable $ref lookups for extension objects")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-	cmd.Flags().BoolP("interactive", "i", false, "Force interactive table view")
 
 	return cmd
 }
@@ -94,7 +92,6 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	extRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
-	interactiveFlag, _ := cmd.Flags().GetBool("interactive")
 
 	// Show banner unless disabled
 	if !silentFlag && !noBannerFlag {
@@ -255,45 +252,9 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	// Show detailed results if requested
 	if detailsFlag && len(resultSet.Results) > 0 {
-		// Use interactive table for large result sets (>50) or if specifically requested
-		if (len(resultSet.Results) > 50 || interactiveFlag) && !snippetsFlag && !silentFlag {
-			// Show summary first
-			renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag)
-
-			// Show timing if requested
-			duration := time.Since(start)
-			if timeFlag {
-				renderFixedTiming(duration, fileInfo.Size())
-			}
-
-			// Launch interactive table
-			fmt.Println()
-			fmt.Printf("\033[36m📋 Launching interactive table view (press 'q' to exit)...\033[0m\n")
-			fmt.Println()
-
-			// Filter results if needed
-			var filteredResults []*model.RuleFunctionResult
-			for _, r := range resultSet.Results {
-				if errorsFlag && r.Rule.Severity != model.SeverityError {
-					continue
-				}
-				filteredResults = append(filteredResults, r)
-			}
-			if len(filteredResults) == 0 {
-				filteredResults = resultSet.Results
-			}
-
-			// Show interactive table
-			err := cui.ShowViolationTableView(filteredResults, displayFileName, specBytes)
-			if err != nil {
-				fmt.Printf("\033[31mError showing interactive table: %v\033[0m\n", err)
-			}
-			return nil
-		} else {
-			// Use regular detailed view for smaller result sets or when snippets are requested
-			renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
-				silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
-		}
+		// Always use regular detailed view (no interactive UI)
+		renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
+			silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
 	}
 
 	// Render summary
@@ -356,57 +317,140 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	// Get terminal width
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
-		width = cui.DefaultTerminalWidth // Default fallback
+		width = 120 // Default fallback
 	}
 
-	// Calculate dynamic column widths based on terminal width
-	// Allocate percentages: Location, Severity, Message, Rule, Category, Path
-	locWidth := width * cui.LocationColumnPercent / 100
-	sevWidth := cui.SeverityColumnWidth
-	msgWidth := width * cui.MessageColumnPercent / 100
-	ruleWidth := width * cui.RuleColumnPercent / 100
-	catWidth := cui.CategoryColumnWidth
-	pathWidth := width - locWidth - sevWidth - msgWidth - ruleWidth - catWidth - cui.TableSeparatorWidth // for separators
+	// First pass: calculate the actual maximum widths needed for each column
+	maxLocationLen := len("Location") // Start with header width
+	maxRuleLen := len("Rule")
+	maxCategoryLen := len("Category")
+	
+	for _, r := range results {
+		// Build location for this result
+		startLine := 0
+		startCol := 0
+		if r.StartNode != nil {
+			startLine = r.StartNode.Line
+			startCol = r.StartNode.Column
+		}
 
-	// Minimum widths
-	if locWidth < cui.MinLocationWidth {
-		locWidth = cui.MinLocationWidth
+		f := fileName
+		if r.Origin != nil {
+			f = r.Origin.AbsoluteLocation
+			startLine = r.Origin.Line
+			startCol = r.Origin.Column
+		}
+
+		// Make path relative
+		if absPath, err := filepath.Abs(f); err == nil {
+			if cwd, err := os.Getwd(); err == nil {
+				if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+					f = relPath
+				}
+			}
+		}
+
+		location := fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
+		if len(location) > maxLocationLen {
+			maxLocationLen = len(location)
+		}
+		
+		// Check rule length
+		if r.Rule != nil && len(r.Rule.Id) > maxRuleLen {
+			maxRuleLen = len(r.Rule.Id)
+		}
+		
+		// Check category length
+		if r.Rule != nil && r.Rule.RuleCategory != nil && len(r.Rule.RuleCategory.Name) > maxCategoryLen {
+			maxCategoryLen = len(r.Rule.RuleCategory.Name)
+		}
 	}
-	if msgWidth < cui.MinMessageWidth {
-		msgWidth = cui.MinMessageWidth
-	}
-	if ruleWidth < cui.MinRuleWidth {
-		ruleWidth = cui.MinRuleWidth
-	}
-	if pathWidth < 20 {
-		pathWidth = 20
+
+	// Column width allocation based on actual content
+	// Priority order: location (never truncated), rule (never truncated), category (never truncated), message, path
+	
+	// Fixed/dynamic widths based on content
+	locWidth := maxLocationLen
+	sevWidth := 10  // Fixed width for severity with icon
+	ruleWidth := maxRuleLen
+	catWidth := maxCategoryLen
+	
+	// Calculate remaining width after fixed columns
+	separators := 10 // Space for column separators
+	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth + separators
+	remainingWidth := width - fixedWidth
+	
+	// Allocate remaining space between message and path
+	// Message gets priority (60%), path gets the rest (40%)
+	var msgWidth, pathWidth int
+	if remainingWidth > 0 {
+		msgWidth = remainingWidth * 60 / 100
+		pathWidth = remainingWidth - msgWidth
+		
+		// Minimum widths to ensure readability
+		if msgWidth < 20 {
+			msgWidth = 20
+			pathWidth = remainingWidth - msgWidth
+			if pathWidth < 10 {
+				pathWidth = 10
+			}
+		}
+	} else {
+		// If no remaining width, use minimums
+		msgWidth = 20
+		pathWidth = 10
 	}
 
 	// Build and render table
 	if !snippets {
 		// Print header
-		fmt.Printf("\033[36m%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
-			locWidth, "Location",
-			sevWidth, "Severity",
-			msgWidth, "Message",
-			ruleWidth, "Rule",
-			catWidth, "Category",
-			pathWidth, "Path")
+		if !noMessage {
+			fmt.Printf("\033[36m%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
+				locWidth, "Location",
+				sevWidth, "Severity",
+				msgWidth, "Message",
+				ruleWidth, "Rule",
+				catWidth, "Category",
+				pathWidth, "Path")
+		} else {
+			// Adjust widths when no message column
+			pathWidth = msgWidth + pathWidth + 2
+			fmt.Printf("\033[36m%-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
+				locWidth, "Location",
+				sevWidth, "Severity",
+				ruleWidth, "Rule",
+				catWidth, "Category",
+				pathWidth, "Path")
+		}
 
 		// Print separator
-		fmt.Printf("\033[90m%s  %s  %s  %s  %s  %s\033[0m\n",
-			strings.Repeat("─", locWidth),
-			strings.Repeat("─", sevWidth),
-			strings.Repeat("─", msgWidth),
-			strings.Repeat("─", ruleWidth),
-			strings.Repeat("─", catWidth),
-			strings.Repeat("─", pathWidth))
+		if !noMessage {
+			fmt.Printf("\033[90m%s  %s  %s  %s  %s  %s\033[0m\n",
+				strings.Repeat("─", locWidth),
+				strings.Repeat("─", sevWidth),
+				strings.Repeat("─", msgWidth),
+				strings.Repeat("─", ruleWidth),
+				strings.Repeat("─", catWidth),
+				strings.Repeat("─", pathWidth))
+		} else {
+			fmt.Printf("\033[90m%s  %s  %s  %s  %s\033[0m\n",
+				strings.Repeat("─", locWidth),
+				strings.Repeat("─", sevWidth),
+				strings.Repeat("─", ruleWidth),
+				strings.Repeat("─", catWidth),
+				strings.Repeat("─", pathWidth))
+		}
 
 		// Print rows
 		for i, r := range results {
 			if i > 1000 && !allResults {
 				fmt.Printf("\033[31m...%d more violations not rendered\033[0m\n", len(results)-1000)
 				break
+			}
+
+			// Skip if showing errors only
+			if errors && r.Rule != nil && r.Rule.Severity != model.SeverityError {
+				continue
 			}
 
 			// Build location
@@ -433,9 +477,10 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				}
 			}
 
+			// Format location as file:line:col (never truncated)
 			location := fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
 
-			// Handle message and path truncation
+			// Truncate fields if needed
 			m := r.Message
 			p := r.Path
 			if !noClip {
@@ -447,36 +492,50 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				}
 			}
 
-			// Get severity
-			sev := "info"
-			if r.Rule != nil {
-				sev = r.Rule.Severity
-			}
-
-			// Skip if showing errors only
-			if errors && sev != model.SeverityError {
-				continue
-			}
-
-			// Format severity with color
+			// Format severity with color and icon (matching BubbleTea UI)
 			var sevColored string
-			switch sev {
-			case model.SeverityError:
-				sevColored = fmt.Sprintf("\033[31m%-*s\033[0m", sevWidth, "error")
-			case model.SeverityWarn:
-				sevColored = fmt.Sprintf("\033[33m%-*s\033[0m", sevWidth, "warning")
-			default:
-				sevColored = fmt.Sprintf("\033[36m%-*s\033[0m", sevWidth, "info")
+			if r.Rule != nil {
+				switch r.Rule.Severity {
+				case model.SeverityError:
+					sevColored = fmt.Sprintf("\033[31m%s error  \033[0m", "✗")
+				case model.SeverityWarn:
+					sevColored = fmt.Sprintf("\033[33m%s warning\033[0m", "▲")
+				case model.SeverityInfo:
+					sevColored = fmt.Sprintf("\033[36m%s info   \033[0m", "●")
+				default:
+					sevColored = fmt.Sprintf("%-*s", sevWidth, r.Rule.Severity)
+				}
+			} else {
+				sevColored = fmt.Sprintf("\033[36m%s info   \033[0m", "●")
 			}
 
-			// Print row
-			fmt.Printf("%-*s  %s  %-*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
-				locWidth, truncate(location, locWidth),
-				sevColored,
-				msgWidth, truncate(m, msgWidth),
-				ruleWidth, truncate(r.Rule.Id, ruleWidth),
-				catWidth, truncate(r.Rule.RuleCategory.Name, catWidth),
-				pathWidth, truncate(p, pathWidth))
+			// Get rule and category
+			ruleId := ""
+			category := ""
+			if r.Rule != nil {
+				ruleId = r.Rule.Id
+				if r.Rule.RuleCategory != nil {
+					category = r.Rule.RuleCategory.Name
+				}
+			}
+
+			// Print row with path in grey (like BubbleTea UI)
+			if !noMessage {
+				fmt.Printf("%-*s  %-10s  %-*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+					locWidth, location,
+					sevColored,
+					msgWidth, truncate(m, msgWidth),
+					ruleWidth, ruleId,  // Never truncate rule
+					catWidth, category,  // Never truncate category
+					pathWidth, truncate(p, pathWidth))
+			} else {
+				fmt.Printf("%-*s  %-10s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+					locWidth, location,
+					sevColored,
+					ruleWidth, ruleId,  // Never truncate rule
+					catWidth, category,  // Never truncate category
+					pathWidth, truncate(p, pathWidth))
+			}
 		}
 		fmt.Println()
 	}
