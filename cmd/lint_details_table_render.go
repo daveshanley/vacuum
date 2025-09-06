@@ -10,8 +10,8 @@ import (
 	"github.com/muesli/termenv"
 )
 
-// handleDocsMessages processes documentation-related messages
-func (m *ViolationResultTableModel) handleDocsMessages(msg tea.Msg) (bool, tea.Cmd) {
+// HandleDocsMessages processes documentation-related messages
+func (m *ViolationResultTableModel) HandleDocsMessages(msg tea.Msg) (bool, tea.Cmd) {
 	switch msg := msg.(type) {
 	case docsLoadedMsg:
 		// cache the content
@@ -51,13 +51,13 @@ func (m *ViolationResultTableModel) handleDocsMessages(msg tea.Msg) (bool, tea.C
 	return false, nil
 }
 
-// handleWindowResize handles terminal resize events
-func (m *ViolationResultTableModel) handleWindowResize(msg tea.WindowSizeMsg) tea.Cmd {
+// HandleWindowResize handles terminal resize events
+func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) tea.Cmd {
 	m.width = msg.Width
 	m.height = msg.Height
 
 	// Rebuild table with new dimensions
-	columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width, m.showPath)
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, msg.Width, m.showPath)
 	m.table.SetColumns(columns)
 	m.table.SetRows(rows)
 	m.table.SetWidth(msg.Width - 2) // border wrapper
@@ -73,13 +73,13 @@ func (m *ViolationResultTableModel) handleWindowResize(msg tea.WindowSizeMsg) te
 		m.table.SetHeight(msg.Height - 4)
 	}
 
-	applyLintDetailsTableStyles(&m.table)
+	ApplyLintDetailsTableStyles(&m.table)
 
 	return nil
 }
 
-// handleCodeViewKeys handles keyboard input when code view is open
-func (m *ViolationResultTableModel) handleCodeViewKeys(key string) (bool, tea.Cmd) {
+// HandleCodeViewKeys handles keyboard input when code view is open
+func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cmd) {
 	if !m.showCodeView {
 		return false, nil
 	}
@@ -104,7 +104,7 @@ func (m *ViolationResultTableModel) handleCodeViewKeys(key string) (bool, tea.Cm
 		m.codeViewport.GotoBottom()
 		return true, nil
 	case " ", "space":
-		m.reCenterCodeView()
+		m.ReCenterCodeView()
 		return true, nil
 	case "esc", "q", "x":
 		m.showCodeView = false
@@ -115,8 +115,8 @@ func (m *ViolationResultTableModel) handleCodeViewKeys(key string) (bool, tea.Cm
 	return true, nil
 }
 
-// handleDocsModalKeys handles keyboard input when modal is open
-func (m *ViolationResultTableModel) handleDocsModalKeys(key string) (bool, tea.Cmd) {
+// HandleDocsModalKeys handles keyboard input when modal is open
+func (m *ViolationResultTableModel) HandleDocsModalKeys(key string) (bool, tea.Cmd) {
 	if !m.showModal {
 		return false, nil
 	}
@@ -147,7 +147,7 @@ func (m *ViolationResultTableModel) handleDocsModalKeys(key string) (bool, tea.C
 	switch key {
 	case "esc", "q", "enter", "d":
 		m.showModal = false
-		// don't clear modalContent if split view is still open
+		// don't clear modalContent if the details split-view is still open
 		if !m.showSplitView {
 			m.modalContent = nil
 		}
@@ -160,13 +160,13 @@ func (m *ViolationResultTableModel) handleDocsModalKeys(key string) (bool, tea.C
 	return true, nil
 }
 
-// handleFilterKeys handles filter-related keyboard shortcuts
-func (m *ViolationResultTableModel) handleFilterKeys(key string) (bool, tea.Cmd) {
+// HandleFilterKeys handles filter-related keyboard shortcuts
+func (m *ViolationResultTableModel) HandleFilterKeys(key string) (bool, tea.Cmd) {
 	switch key {
 	case "tab":
 		// severity filter states
 		m.filterState = (m.filterState + 1) % 4
-		m.applyFilter()
+		m.ApplyFilter()
 		return true, nil
 	case "c":
 		// category filters
@@ -177,7 +177,7 @@ func (m *ViolationResultTableModel) handleFilterKeys(key string) (bool, tea.Cmd)
 		} else {
 			m.categoryFilter = m.categories[m.categoryIndex]
 		}
-		m.applyFilter()
+		m.ApplyFilter()
 		return true, nil
 	case "r":
 		// rule filters
@@ -188,14 +188,14 @@ func (m *ViolationResultTableModel) handleFilterKeys(key string) (bool, tea.Cmd)
 		} else {
 			m.ruleFilter = m.rules[m.ruleIndex]
 		}
-		m.applyFilter()
+		m.ApplyFilter()
 		return true, nil
 	}
 	return false, nil
 }
 
-// handleToggleKeys handles view toggle keyboard shortcuts
-func (m *ViolationResultTableModel) handleToggleKeys(key string) (bool, tea.Cmd) {
+// HandleToggleKeys handles view toggle keyboard shortcuts
+func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd) {
 	switch key {
 	case "enter":
 		// toggle split view
@@ -205,7 +205,7 @@ func (m *ViolationResultTableModel) handleToggleKeys(key string) (bool, tea.Cmd)
 			if m.table.Cursor() < len(m.filteredResults) {
 				m.modalContent = m.filteredResults[m.table.Cursor()]
 			}
-			// resize the table to leave room for fixed-height split view
+			// resize the table to leave room for the fixed-height split view
 			tableHeight := m.height - splitViewHeight - splitViewMargin
 			if tableHeight < minTableHeight {
 				tableHeight = minTableHeight
@@ -228,7 +228,7 @@ func (m *ViolationResultTableModel) handleToggleKeys(key string) (bool, tea.Cmd)
 
 			// prepare code viewport if opening
 			if m.showCodeView {
-				m.prepareCodeViewport()
+				m.PrepareCodeViewport()
 			}
 		}
 		return true, nil
@@ -244,21 +244,21 @@ func (m *ViolationResultTableModel) handleToggleKeys(key string) (bool, tea.Cmd)
 
 			// If opening modal, fetch documentation
 			if m.showModal && m.modalContent != nil && m.modalContent.Rule != nil {
-				return true, m.fetchOrLoadDocumentation()
+				return true, m.FetchOrLoadDocumentation()
 			}
 		}
 		return true, nil
 
 	case "p":
 		// toggle path column visibility
-		m.togglePathColumn()
+		m.TogglePathColumn()
 		return true, nil
 	}
 	return false, nil
 }
 
-// fetchOrLoadDocumentation loads documentation from cache or fetches it
-func (m *ViolationResultTableModel) fetchOrLoadDocumentation() tea.Cmd {
+// FetchOrLoadDocumentation loads documentation from cache or fetches it
+func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 	if m.modalContent == nil || m.modalContent.Rule == nil {
 		return nil
 	}
@@ -270,7 +270,7 @@ func (m *ViolationResultTableModel) fetchOrLoadDocumentation() tea.Cmd {
 		m.docsContent = cached
 		m.docsState = DocsStateLoaded
 
-		// re-render markdown based on current terminal size
+		// re-render markdown based on the current terminal size
 		modalWidth := int(float64(m.width) - modalWidthReduction)
 
 		customStyle := CreatePb33fDocsStyle(modalWidth - 4)
@@ -310,8 +310,8 @@ func (m *ViolationResultTableModel) fetchOrLoadDocumentation() tea.Cmd {
 	return tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
 }
 
-// togglePathColumn handles toggling the path column visibility with viewport preservation
-func (m *ViolationResultTableModel) togglePathColumn() {
+// TogglePathColumn handles toggling the path column visibility with viewport preservation
+func (m *ViolationResultTableModel) TogglePathColumn() {
 	m.showPath = !m.showPath
 
 	currentCursor := m.table.Cursor()
@@ -324,7 +324,7 @@ func (m *ViolationResultTableModel) togglePathColumn() {
 	}
 	cursorOffsetInViewport := currentCursor - viewportStart
 
-	columns, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
 	m.rows = rows
 
 	// clear the rows to avoid index issues
@@ -333,7 +333,7 @@ func (m *ViolationResultTableModel) togglePathColumn() {
 	m.table.SetRows(rows)
 
 	// reapply styles
-	applyLintDetailsTableStyles(&m.table)
+	ApplyLintDetailsTableStyles(&m.table)
 
 	// restore cursor position and viewport
 	if currentCursor < len(rows) {
@@ -363,18 +363,18 @@ func (m *ViolationResultTableModel) togglePathColumn() {
 	}
 }
 
-// handleEscapeKey handles the escape key with context-aware behavior
-func (m *ViolationResultTableModel) handleEscapeKey() (tea.Model, tea.Cmd) {
+// HandleEscapeKey handles the escape key with context-aware behavior
+func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 	// empty state (no results), clear all filters
 	if len(m.filteredResults) == 0 && (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") {
 
 		m.filterState = FilterAll
 		m.categoryFilter = ""
 		m.ruleFilter = ""
-		m.applyFilter()
+		m.ApplyFilter()
 
 		// rebuild the table with all results
-		_, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+		_, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
 		m.rows = rows
 		m.table.SetRows(rows)
 
@@ -398,8 +398,8 @@ func (m *ViolationResultTableModel) handleEscapeKey() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// updateSplitViewContent updates split view content when cursor changes
-func (m *ViolationResultTableModel) updateSplitViewContent() {
+// UpdateDetailsViewContent updates split view content when cursor changes
+func (m *ViolationResultTableModel) UpdateDetailsViewContent() {
 	if m.showSplitView {
 		if m.table.Cursor() < len(m.filteredResults) {
 			newContent := m.filteredResults[m.table.Cursor()]

@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// highlightYAMLRefLine handles special highlighting for $ref lines
-func highlightYAMLRefLine(line string) (string, bool) {
+// HighlightYAMLRefLine handles special highlighting for $ref lines
+func HighlightYAMLRefLine(line string) (string, bool) {
 	if strings.Contains(line, "$ref:") {
 		if idx := strings.Index(line, "$ref:"); idx >= 0 {
 			beforeRef := line[:idx]
@@ -31,21 +31,21 @@ func highlightYAMLRefLine(line string) (string, bool) {
 	return "", false
 }
 
-// highlightYAMLComment handles comment highlighting for YAML
-func highlightYAMLComment(line string, isYAML bool) (string, bool) {
+// HighlightYAMLComment handles comment highlighting for YAML
+func HighlightYAMLComment(line string, isYAML bool) (string, bool) {
 	if commentIndex := strings.IndexByte(line, '#'); commentIndex >= 0 {
 		// make sure it's actually a comment, not part of a $ref
 		if !strings.Contains(line[:commentIndex], "$ref") {
 			beforeComment := line[:commentIndex]
 			comment := line[commentIndex:]
-			return applySyntaxHighlightingToLine(beforeComment, isYAML) + syntaxCommentStyle.Render(comment), true
+			return ApplySyntaxHighlightingToLine(beforeComment, isYAML) + syntaxCommentStyle.Render(comment), true
 		}
 	}
 	return "", false
 }
 
-// highlightYAMLKeyValue handles key-value pair highlighting for YAML
-func highlightYAMLKeyValue(line string) (string, bool) {
+// HighlightYAMLKeyValue handles key-value pair highlighting for YAML
+func HighlightYAMLKeyValue(line string) (string, bool) {
 	if matches := yamlKeyValueRegex.FindStringSubmatch(line); matches != nil {
 		indent := matches[1]
 		key := matches[2]
@@ -61,7 +61,7 @@ func highlightYAMLKeyValue(line string) (string, bool) {
 			coloredValue = syntaxRefStyle.Render(value)
 		} else {
 			coloredKey = syntaxKeyStyle.Render(key)
-			coloredValue = highlightYAMLValue(value)
+			coloredValue = HighlightYAMLValue(value)
 		}
 
 		return indent + coloredKey + separator + coloredValue, true
@@ -69,8 +69,8 @@ func highlightYAMLKeyValue(line string) (string, bool) {
 	return "", false
 }
 
-// highlightYAMLValue applies appropriate styling to a YAML value
-func highlightYAMLValue(value string) string {
+// HighlightYAMLValue applies appropriate styling to a YAML value
+func HighlightYAMLValue(value string) string {
 	trimmedValue := strings.TrimSpace(value)
 
 	// Check boolean values first
@@ -94,19 +94,19 @@ func highlightYAMLValue(value string) string {
 	return value
 }
 
-// highlightYAMLListItem handles list item highlighting for YAML
-func highlightYAMLListItem(line string) (string, bool) {
+// HighlightYAMLListItem handles list item highlighting for YAML
+func HighlightYAMLListItem(line string) (string, bool) {
 	if matches := yamlListItemRegex.FindStringSubmatch(line); matches != nil {
 		// apply highlighting to the list item value
 		itemValue := matches[3]
-		coloredItem := highlightYAMLValue(itemValue)
+		coloredItem := HighlightYAMLValue(itemValue)
 		return matches[1] + syntaxDashStyle.Render(matches[2]) + coloredItem, true
 	}
 	return "", false
 }
 
-// highlightJSONLine handles JSON syntax highlighting
-func highlightJSONLine(line string) string {
+// HighlightJSONLine handles JSON syntax highlighting
+func HighlightJSONLine(line string) string {
 	processed := false
 	originalLine := line
 
@@ -136,9 +136,9 @@ func highlightJSONLine(line string) string {
 	return line
 }
 
-// applySyntaxHighlightingToLine applies syntax highlighting to a single line
-func applySyntaxHighlightingToLine(line string, isYAML bool) string {
-	initSyntaxStyles()
+// ApplySyntaxHighlightingToLine applies syntax highlighting to a single line
+func ApplySyntaxHighlightingToLine(line string, isYAML bool) string {
+	InitSyntaxStyles()
 
 	// empty line, skip.
 	if line == "" {
@@ -146,20 +146,20 @@ func applySyntaxHighlightingToLine(line string, isYAML bool) string {
 	}
 
 	if isYAML {
-		if result, handled := highlightYAMLRefLine(line); handled {
+		if result, handled := HighlightYAMLRefLine(line); handled {
 			return result
 		}
-		if result, handled := highlightYAMLComment(line, isYAML); handled {
+		if result, handled := HighlightYAMLComment(line, isYAML); handled {
 			return result
 		}
-		if result, handled := highlightYAMLKeyValue(line); handled {
+		if result, handled := HighlightYAMLKeyValue(line); handled {
 			return result
 		}
-		if result, handled := highlightYAMLListItem(line); handled {
+		if result, handled := HighlightYAMLListItem(line); handled {
 			return result
 		}
 		return syntaxDefaultStyle.Render(line)
 	} else {
-		return highlightJSONLine(line)
+		return HighlightJSONLine(line)
 	}
 }

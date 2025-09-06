@@ -216,7 +216,7 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 	return result.String()
 }
 
-func applyLintDetailsTableStyles(t *table.Model) {
+func ApplyLintDetailsTableStyles(t *table.Model) {
 	s := table.DefaultStyles()
 
 	s.Header = lipgloss.NewStyle().

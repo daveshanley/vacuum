@@ -8,7 +8,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 )
 
-func buildTableData(results []*model.RuleFunctionResult, fileName string, terminalWidth int, showPath bool) ([]table.Column, []table.Row) {
+// BuildResultTableData builds the violation table data, calculating column widths based on terminal size and content.
+func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, terminalWidth int, showPath bool) ([]table.Column, []table.Row) {
 	var rows []table.Row
 	maxLocWidth := len("Location") // Start with header width
 	maxRuleWidth := len("Rule")
@@ -76,10 +77,10 @@ func buildTableData(results []*model.RuleFunctionResult, fileName string, termin
 	availableWidth := actualTableWidth - columnPadding
 
 	// minimum widths for various columns
-	minMsgWidth := minMessageWidth  // Message should be readable
-	minPathWidth := minPathWidth // Minimum for path
-	minRuleWidth := 20 // Minimum for rule
-	minCatWidth := 20  // Minimum for category
+	minMsgWidth := minMessageWidth // Message should be readable
+	minPathWidth := minPathWidth   // Minimum for path
+	minRuleWidth := 20             // Minimum for rule
+	minCatWidth := 20              // Minimum for category
 
 	var msgWidth, pathWidth int
 

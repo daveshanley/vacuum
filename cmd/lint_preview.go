@@ -171,7 +171,7 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		height = defaultTerminalHeight
 	}
 
-	columns, rows := buildTableData(results, fileName, width, true)
+	columns, rows := BuildResultTableData(results, fileName, width, true)
 
 	tableActualWidth := width - 2
 	t := table.New(
@@ -182,7 +182,7 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		table.WithWidth(tableActualWidth),
 	)
 
-	applyLintDetailsTableStyles(&t)
+	ApplyLintDetailsTableStyles(&t)
 
 	categories := extractCategories(results)
 	rules := extractRules(results)
@@ -249,7 +249,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// documentation messages
-	if handled, msgCmd := m.handleDocsMessages(msg); handled {
+	if handled, msgCmd := m.HandleDocsMessages(msg); handled {
 		if msgCmd != nil {
 			return m, msgCmd
 		}
@@ -258,19 +258,19 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		cmd := m.handleWindowResize(msg)
+		cmd := m.HandleWindowResize(msg)
 		return m, cmd
 
 	case tea.KeyPressMsg:
 		key := msg.String()
 
 		// code view keys
-		if handled, cmd := m.handleCodeViewKeys(key); handled {
+		if handled, cmd := m.HandleCodeViewKeys(key); handled {
 			return m, cmd
 		}
 
 		// modal keys
-		if handled, cmd := m.handleDocsModalKeys(key); handled {
+		if handled, cmd := m.HandleDocsModalKeys(key); handled {
 			return m, cmd
 		}
 
@@ -279,15 +279,15 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "esc":
-			return m.handleEscapeKey()
+			return m.HandleEscapeKey()
 		default:
 			// filter keys
-			if handled, cmd := m.handleFilterKeys(key); handled {
+			if handled, cmd := m.HandleFilterKeys(key); handled {
 				return m, cmd
 			}
 
 			// toggle keys
-			if handled, cmd := m.handleToggleKeys(key); handled {
+			if handled, cmd := m.HandleToggleKeys(key); handled {
 				return m, cmd
 			}
 		}
@@ -296,7 +296,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.table, cmd = m.table.Update(msg)
 
 	// update split view content based on cursor
-	m.updateSplitViewContent()
+	m.UpdateDetailsViewContent()
 
 	// combine any commands
 	if len(cmds) > 0 {
@@ -586,7 +586,7 @@ func (m *ViolationResultTableModel) View() string {
 
 		// code view modal
 		if m.showCodeView {
-			modal := m.buildCodeView()
+			modal := m.BuildCodeView()
 			x, y := m.calculateModalPosition()
 
 			// code view modal as overlay layer (higher z-index than docs)
@@ -614,7 +614,7 @@ func (m *ViolationResultTableModel) View() string {
 
 	// code view modal
 	if m.showCodeView {
-		modal := m.buildCodeView()
+		modal := m.BuildCodeView()
 		x, y := m.calculateModalPosition()
 
 		// code view modal as overlay layer (higher z-index than docs)
