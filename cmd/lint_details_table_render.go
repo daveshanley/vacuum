@@ -104,7 +104,7 @@ func (m *ViolationResultTableModel) handleCodeViewKeys(key string) (bool, tea.Cm
 		m.codeViewport.GotoBottom()
 		return true, nil
 	case " ", "space":
-		m.recenterCodeView()
+		m.reCenterCodeView()
 		return true, nil
 	case "esc", "q", "x":
 		m.showCodeView = false

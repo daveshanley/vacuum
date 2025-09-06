@@ -16,18 +16,17 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		return ""
 	}
 
-	// Calculate dimensions - FIXED height regardless of terminal size
-	splitHeight := splitViewHeight // Fixed compact height with proper padding
+	// calculate dimensions - fixed height regardless of terminal size
+	splitHeight := splitViewHeight
 	if m.height < 20 {
 		return "" // Don't show split view if terminal too small
 	}
 
-	splitWidth := m.width // Match terminal width for consistency
-	contentHeight := splitContentHeight   // Fixed content height for all columns
+	splitWidth := m.width // match terminal width for consistency
+	contentHeight := splitContentHeight
 
-	// Column widths: details, how-to-fix, code
-	// Adjust for container padding
-	innerWidth := splitWidth - 4 // Account for container borders and padding
+	// adjust for container padding
+	innerWidth := splitWidth - 4 // account for container borders and padding
 	detailsWidth := int(float64(innerWidth) * float64(detailsColumnPercent) / 100)
 	howToFixWidth := int(float64(innerWidth) * float64(howToFixColumnPercent) / 100)
 	codeWidth := innerWidth - detailsWidth - howToFixWidth
@@ -186,7 +185,7 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		codePanel,
 	)
 
-	// Add a blank line between path and panels for spacing
+	// blank line between path and panels for spacing
 	spacer := lipgloss.NewStyle().Height(1).Render(" ")
 
 	combinedContent := lipgloss.JoinVertical(lipgloss.Left,
