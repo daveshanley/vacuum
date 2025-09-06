@@ -1,7 +1,7 @@
 // Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
-package cmd
+package cui
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ func (m *ViolationResultTableModel) PrepareCodeViewport() {
 	}
 
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - modalHeightMargin
+	modalHeight := m.height - ModalHeightMargin
 
 	m.codeViewport = viewport.New(viewport.WithWidth(modalWidth-4), viewport.WithHeight(modalHeight-4))
 
@@ -54,10 +54,10 @@ func (m *ViolationResultTableModel) PrepareCodeViewport() {
 	// scroll to the target line (try to center it in the viewport)
 	if targetLine > 0 {
 		// for windowed content, we need to calculate the position within the rendered content
-		// the target line is always at position codeWindowSize (or less if near the start of file)
+		// the target line is always at position CodeWindowSize (or less if near the start of file)
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
-		const windowSize = codeWindowSize
+		const windowSize = CodeWindowSize
 
 		// calculate where the target line appears in our rendered content
 		var targetPositionInWindow int
@@ -90,7 +90,7 @@ func (m *ViolationResultTableModel) PrepareCodeViewport() {
 // BuildCodeView builds the expanded code view modal
 func (m *ViolationResultTableModel) BuildCodeView() string {
 	modalWidth := int(float64(m.width) - 40)
-	modalHeight := m.height - modalHeightMargin
+	modalHeight := m.height - ModalHeightMargin
 
 	if m.modalContent == nil {
 		return ""
@@ -176,7 +176,7 @@ func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxW
 	allLines := strings.Split(string(m.specContent), "\n")
 	totalLines := len(allLines)
 
-	const windowSize = codeWindowSize
+	const windowSize = CodeWindowSize
 
 	// calculate the window of lines to render
 	startLine := 1
@@ -350,7 +350,7 @@ func (m *ViolationResultTableModel) ReCenterCodeView() {
 		// calculate the position of the target line within the rendered content
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
-		const windowSize = codeWindowSize
+		const windowSize = CodeWindowSize
 
 		var targetPositionInWindow int
 		if totalLines <= (windowSize*2 + 1) {

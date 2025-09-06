@@ -1,7 +1,7 @@
 // Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
-package cmd
+package cui
 
 import (
 	"fmt"
@@ -17,18 +17,18 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 	}
 
 	// calculate dimensions - fixed height regardless of terminal size
-	splitHeight := splitViewHeight
+	splitHeight := SplitViewHeight
 	if m.height < 20 {
 		return "" // Don't show split view if terminal too small
 	}
 
 	splitWidth := m.width // match terminal width for consistency
-	contentHeight := splitContentHeight
+	contentHeight := SplitContentHeight
 
 	// adjust for container padding
 	innerWidth := splitWidth - 4 // account for container borders and padding
-	detailsWidth := int(float64(innerWidth) * float64(detailsColumnPercent) / 100)
-	howToFixWidth := int(float64(innerWidth) * float64(howToFixColumnPercent) / 100)
+	detailsWidth := int(float64(innerWidth) * float64(DetailsColumnPercent) / 100)
+	howToFixWidth := int(float64(innerWidth) * float64(HowToFixColumnPercent) / 100)
 	codeWidth := innerWidth - detailsWidth - howToFixWidth
 
 	codeSnippet, startLine := m.ExtractCodeSnippet(m.modalContent, 4)
