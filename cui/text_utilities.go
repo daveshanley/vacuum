@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -106,10 +107,11 @@ func getLintingFilterName(state FilterState) string {
 }
 
 func extractCategories(results []*model.RuleFunctionResult) []string {
-	categoryMap := make(map[string]bool)
+	// use struct{} instead of bool to save memory
+	categoryMap := make(map[string]struct{})
 	for _, r := range results {
 		if r.Rule != nil && r.Rule.RuleCategory != nil {
-			categoryMap[r.Rule.RuleCategory.Name] = true
+			categoryMap[r.Rule.RuleCategory.Name] = struct{}{}
 		}
 	}
 
@@ -118,22 +120,18 @@ func extractCategories(results []*model.RuleFunctionResult) []string {
 		categories = append(categories, cat)
 	}
 
-	for i := 0; i < len(categories); i++ {
-		for j := i + 1; j < len(categories); j++ {
-			if categories[i] > categories[j] {
-				categories[i], categories[j] = categories[j], categories[i]
-			}
-		}
-	}
+	// use sort.Strings for better performance than bubble sort
+	sort.Strings(categories)
 
 	return categories
 }
 
 func extractRules(results []*model.RuleFunctionResult) []string {
-	ruleMap := make(map[string]bool)
+	// use struct{} instead of bool to save memory
+	ruleMap := make(map[string]struct{})
 	for _, r := range results {
 		if r.Rule != nil && r.Rule.Id != "" {
-			ruleMap[r.Rule.Id] = true
+			ruleMap[r.Rule.Id] = struct{}{}
 		}
 	}
 
@@ -142,14 +140,8 @@ func extractRules(results []*model.RuleFunctionResult) []string {
 		rules = append(rules, rule)
 	}
 
-	// sort rules
-	for i := 0; i < len(rules); i++ {
-		for j := i + 1; j < len(rules); j++ {
-			if rules[i] > rules[j] {
-				rules[i], rules[j] = rules[j], rules[i]
-			}
-		}
-	}
+	// use sort.Strings for better performance than bubble sort
+	sort.Strings(rules)
 
 	return rules
 }

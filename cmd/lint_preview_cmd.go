@@ -99,7 +99,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	// Show banner unless disabled
 	if !silentFlag && !noBannerFlag {
-		printFixedBanner()
+		PrintBanner()
 	}
 
 	// Get file info
