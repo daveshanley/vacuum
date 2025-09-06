@@ -44,9 +44,9 @@ var (
 	syntaxBoolStyle        lipgloss.Style
 	syntaxCommentStyle     lipgloss.Style
 	syntaxDashStyle        lipgloss.Style
-	syntaxRefStyle         lipgloss.Style  // For $ref values
-	syntaxDefaultStyle     lipgloss.Style  // Default pink for unmatched text
-	syntaxSingleQuoteStyle lipgloss.Style  // Pink italic for single-quoted strings
+	syntaxRefStyle         lipgloss.Style // For $ref values
+	syntaxDefaultStyle     lipgloss.Style // Default pink for unmatched text
+	syntaxSingleQuoteStyle lipgloss.Style // Pink italic for single-quoted strings
 	syntaxStylesInit       bool
 )
 
@@ -56,40 +56,40 @@ const (
 	defaultTerminalWidth  = 180
 	defaultTerminalHeight = 40
 	minTableHeight        = 10
-	
+
 	// Modal dimensions
-	modalWidthReduction = 40  // How much to reduce width for modal
-	modalHeightMargin   = 5   // Margin from bottom for modal
-	
+	modalWidthReduction = 40 // How much to reduce width for modal
+	modalHeightMargin   = 5  // Margin from bottom for modal
+
 	// Split view dimensions
-	splitViewHeight    = 15  // Fixed height for split view
-	splitViewMargin    = 4   // Margin for split view
-	splitContentHeight = 11  // Fixed content height inside split view
-	
+	splitViewHeight    = 15 // Fixed height for split view
+	splitViewMargin    = 4  // Margin for split view
+	splitContentHeight = 11 // Fixed content height inside split view
+
 	// Column width percentages (for split view)
-	detailsColumnPercent = 30  // 30% for details column
+	detailsColumnPercent  = 30 // 30% for details column
 	howToFixColumnPercent = 30 // 30% for how-to-fix column
 	// codeColumnPercent gets the remainder (40%)
-	
+
 	// Table column percentages
 	locationColumnPercent = 25
 	messageColumnPercent  = 35
 	ruleColumnPercent     = 15
-	
+
 	// Fixed column widths
 	severityColumnWidth = 10
 	categoryColumnWidth = 12
-	
+
 	// Minimum column widths
-	minLocationWidth = 25
-	minMessageWidth  = 40
-	minRuleWidth     = 15
-	minPathWidth     = 20
+	minLocationWidth       = 25
+	minMessageWidth        = 40
+	minRuleWidth           = 15
+	minPathWidth           = 20
 	minPathWidthCompressed = 35
-	
+
 	// Code view settings
-	codeWindowSize = 3000  // Max lines to show above/below target line
-	
+	codeWindowSize = 3000 // Max lines to show above/below target line
+
 	// Other layout constants
 	tableSeparatorWidth = 10
 	viewportPadding     = 4
@@ -297,7 +297,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
-	// Handle viewport updates when modal is open and loaded
+	// viewport updates when modal is open and loaded
 	if m.showModal && m.docsState == DocsStateLoaded {
 		m.docsViewport, cmd = m.docsViewport.Update(msg)
 		if cmd != nil {
@@ -305,7 +305,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Handle spinner updates when loading
+	// spinner updates when loading
 	if m.showModal && m.docsState == DocsStateLoading {
 		m.docsSpinner, cmd = m.docsSpinner.Update(msg)
 		if cmd != nil {
@@ -313,395 +313,57 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// documentation messages
+	if handled, msgCmd := m.handleDocsMessages(msg); handled {
+		if msgCmd != nil {
+			return m, msgCmd
+		}
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
-	case docsLoadedMsg:
-		// Cache the content
-		m.docsCache[msg.ruleID] = msg.content
-		m.docsContent = msg.content
-		m.docsState = DocsStateLoaded
-
-		modalWidth := int(float64(m.width) - modalWidthReduction)
-
-		customStyle := CreateVacuumDocsStyle(modalWidth - 4)
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithColorProfile(termenv.TrueColor),
-			glamour.WithStyles(customStyle),
-			glamour.WithWordWrap(modalWidth-4),
-		)
-		if err == nil {
-			rendered, err := renderer.Render(msg.content)
-			if err == nil {
-				m.docsContent = rendered
-			} else {
-				// Fallback to raw content if rendering fails
-				m.docsContent = msg.content
-			}
-		} else {
-			// Fallback to raw content if renderer creation fails
-			m.docsContent = msg.content
-		}
-
-		// Update viewport with rendered content
-		m.docsViewport.SetContent(m.docsContent)
-		m.docsViewport.GotoTop()
-		return m, nil
-
-	case docsErrorMsg:
-		m.docsState = DocsStateError
-		m.docsError = msg.err
-		return m, nil
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-
-		// Rebuild table with new dimensions
-		columns, rows := buildTableData(m.filteredResults, m.fileName, msg.Width, m.showPath)
-		m.table.SetColumns(columns)
-		m.table.SetRows(rows)
-		m.table.SetWidth(msg.Width - 2) // Account for border wrapper
-		
-
-		// Adjust table height based on split view state
-		if m.showSplitView {
-			// When split view is open, table gets remaining space after fixed split view
-			tableHeight := m.height - splitViewHeight - splitViewMargin // terminal height - split view height - margins
-			if tableHeight < minTableHeight {
-				tableHeight = minTableHeight // Minimum height
-			}
-			m.table.SetHeight(tableHeight)
-		} else {
-			m.table.SetHeight(msg.Height - 4)
-		}
-
-		// Reapply styles after resize
-		applyLintDetailsTableStyles(&m.table)
-
-		return m, nil
+		cmd := m.handleWindowResize(msg)
+		return m, cmd
 
 	case tea.KeyPressMsg:
-		// Handle code view modal keys first
-		if m.showCodeView {
-			switch msg.String() {
-			case "up", "k":
-				m.codeViewport.LineUp(1)
-				return m, nil
-			case "down", "j":
-				m.codeViewport.LineDown(1)
-				return m, nil
-			case "pgup", "pageup", "page up":
-				m.codeViewport.ViewUp()
-				return m, nil
-			case "pgdn", "pagedown", "page down", "pgdown":
-				m.codeViewport.ViewDown()
-				return m, nil
-			case "home", "g":
-				m.codeViewport.GotoTop()
-				return m, nil
-			case "end", "G":
-				m.codeViewport.GotoBottom()
-				return m, nil
-			case " ", "space":
-				// Recenter on the highlighted line
-				m.recenterCodeView()
-				return m, nil
-			case "esc", "q", "x":
-				m.showCodeView = false
-				return m, nil
-			}
-			// Don't process other keys when code view is open
-			return m, nil
+		key := msg.String()
+
+		// code view keys
+		if handled, cmd := m.handleCodeViewKeys(key); handled {
+			return m, cmd
 		}
 
-		// Handle modal-specific keys 
-		if m.showModal {
-			// Allow viewport navigation when docs are loaded
-			if m.docsState == DocsStateLoaded {
-				switch msg.String() {
-				case "up", "k":
-					m.docsViewport.LineUp(1)
-					return m, nil
-				case "down", "j":
-					m.docsViewport.LineDown(1)
-					return m, nil
-				case "pgup":
-					m.docsViewport.ViewUp()
-					return m, nil
-				case "pgdn":
-					m.docsViewport.ViewDown()
-					return m, nil
-				case "home", "g":
-					m.docsViewport.GotoTop()
-					return m, nil
-				case "end", "G":
-					m.docsViewport.GotoBottom()
-					return m, nil
-				}
-			}
-
-			switch msg.String() {
-			case "esc", "q", "enter":
-				m.showModal = false
-				// Don't clear modalContent if split view is still open
-				if !m.showSplitView {
-					m.modalContent = nil
-				}
-				// Reset docs state for next open
-				m.docsState = DocsStateLoading
-				return m, nil
-			case "d":
-				// Toggle docs modal off with 'd' key
-				m.showModal = false
-				// Don't clear modalContent if split view is still open
-				if !m.showSplitView {
-					m.modalContent = nil
-				}
-				// Reset docs state for next open
-				m.docsState = DocsStateLoading
-				return m, nil
-			}
-			// Don't process other keys when modal is open
-			return m, nil
+		// modal keys
+		if handled, cmd := m.handleDocsModalKeys(key); handled {
+			return m, cmd
 		}
 
-		switch msg.String() {
+		switch key {
 		case "q", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
 		case "esc":
-			// If on empty state (no results), clear all filters
-			if len(m.filteredResults) == 0 && (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") {
-				// Clear all filters
-				m.filterState = FilterAll
-				m.categoryFilter = ""
-				m.ruleFilter = ""
-				m.applyFilter()
-
-				// Rebuild the table with all results
-				_, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
-				m.rows = rows
-				m.table.SetRows(rows)
-
-				// Reset cursor position
-				if len(rows) > 0 {
-					m.table.SetCursor(0)
-				}
-				return m, nil
+			return m.handleEscapeKey()
+		default:
+			// filter keys
+			if handled, cmd := m.handleFilterKeys(key); handled {
+				return m, cmd
 			}
 
-			// ESC closes split view if open, otherwise quits
-			if m.showSplitView {
-				m.showSplitView = false
-				m.modalContent = nil
-				// Rebuild table to full height
-				m.table.SetHeight(m.height - 4)
-			} else {
-				m.quitting = true
-				return m, tea.Quit
+			// toggle keys
+			if handled, cmd := m.handleToggleKeys(key); handled {
+				return m, cmd
 			}
-			return m, nil
-		case "enter":
-			// Toggle split view
-			m.showSplitView = !m.showSplitView
-			if m.showSplitView {
-				// Set content to currently selected result
-				if m.table.Cursor() < len(m.filteredResults) {
-					m.modalContent = m.filteredResults[m.table.Cursor()]
-				}
-				// Resize table to leave room for fixed-height split view
-				tableHeight := m.height - splitViewHeight - splitViewMargin // terminal height - split view - margins
-				if tableHeight < minTableHeight {
-					tableHeight = minTableHeight
-				}
-				m.table.SetHeight(tableHeight)
-			} else {
-				m.modalContent = nil
-				// Restore table to full height
-				m.table.SetHeight(m.height - 4)
-			}
-			return m, nil
-		case "x":
-			// Toggle expanded code view modal
-			if m.table.Cursor() < len(m.filteredResults) {
-				// Set the current result for the code view
-				if !m.showSplitView {
-					m.modalContent = m.filteredResults[m.table.Cursor()]
-				}
-				m.showCodeView = !m.showCodeView
-				
-				// If opening code view, prepare the viewport
-				if m.showCodeView {
-					m.prepareCodeViewport()
-				}
-			}
-			return m, nil
-		case "d":
-			// Toggle DOCS modal with selected result
-			if m.table.Cursor() < len(m.filteredResults) {
-				// If split view is open, preserve its modalContent
-				if !m.showSplitView {
-					m.modalContent = m.filteredResults[m.table.Cursor()]
-				}
-				m.showModal = !m.showModal
-
-				// If opening modal, fetch documentation
-				if m.showModal && m.modalContent != nil && m.modalContent.Rule != nil {
-					ruleID := m.modalContent.Rule.Id
-
-					// Check cache first
-					if cached, exists := m.docsCache[ruleID]; exists {
-						m.docsContent = cached
-						m.docsState = DocsStateLoaded
-
-						// Re-render markdown for current terminal size
-						modalWidth := int(float64(m.width) - modalWidthReduction)
-
-						// Use custom style with TrueColor profile
-						customStyle := CreateVacuumDocsStyle(modalWidth - 4)
-						renderer, err := glamour.NewTermRenderer(
-							glamour.WithColorProfile(termenv.TrueColor),
-							glamour.WithStyles(customStyle),
-							glamour.WithWordWrap(modalWidth-4),
-						)
-						if err == nil {
-							rendered, err := renderer.Render(cached)
-							if err == nil {
-								m.docsContent = rendered
-							} else {
-								// Fallback to raw content if rendering fails
-								m.docsContent = cached
-							}
-						} else {
-							// Fallback to raw content if renderer creation fails
-							m.docsContent = cached
-						}
-
-						// Update viewport
-						m.docsViewport.SetContent(m.docsContent)
-						m.docsViewport.SetWidth(modalWidth - viewportPadding)
-						m.docsViewport.SetHeight(m.height - 14)
-						m.docsViewport.GotoTop()
-					} else {
-						// Start loading
-						m.docsState = DocsStateLoading
-						m.docsContent = ""
-						m.docsError = ""
-
-						// Update viewport size
-						modalWidth := int(float64(m.width) - modalWidthReduction)
-						m.docsViewport.SetWidth(modalWidth - viewportPadding)
-						m.docsViewport.SetHeight(m.height - 14)
-
-						// Return both fetch command and spinner tick
-						return m, tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
-					}
-				}
-			}
-			return m, nil
-		case "tab":
-			// Cycle through severity filter states
-			m.filterState = (m.filterState + 1) % 4
-			m.applyFilter()
-			return m, nil
-		case "c":
-			// Cycle through category filters
-			m.categoryIndex = (m.categoryIndex + 1) % (len(m.categories) + 1)
-			if m.categoryIndex == -1 || m.categoryIndex == len(m.categories) {
-				m.categoryIndex = -1
-				m.categoryFilter = ""
-			} else {
-				m.categoryFilter = m.categories[m.categoryIndex]
-			}
-			m.applyFilter()
-			return m, nil
-		case "r":
-			// Cycle through rule filters
-			m.ruleIndex = (m.ruleIndex + 1) % (len(m.rules) + 1)
-			if m.ruleIndex == -1 || m.ruleIndex == len(m.rules) {
-				m.ruleIndex = -1
-				m.ruleFilter = ""
-			} else {
-				m.ruleFilter = m.rules[m.ruleIndex]
-			}
-			m.applyFilter()
-			return m, nil
-		case "p":
-			// Toggle path column visibility
-			m.showPath = !m.showPath
-
-			// Store current cursor position
-			currentCursor := m.table.Cursor()
-
-			// Calculate the cursor's position within the viewport
-			// We'll try to maintain this relative position
-			viewportHeight := m.table.Height()
-
-			// Estimate where the viewport starts based on cursor position
-			// The table tries to keep the cursor in the middle third of the viewport
-			viewportStart := 0
-			if currentCursor > viewportHeight/2 {
-				viewportStart = currentCursor - viewportHeight/2
-			}
-			cursorOffsetInViewport := currentCursor - viewportStart
-
-			// Rebuild table with new column configuration
-			columns, rows := buildTableData(m.filteredResults, m.fileName, m.width, m.showPath)
-			m.rows = rows
-
-			// Update the existing table with new columns and rows
-			// First clear the rows to avoid index issues
-			m.table.SetRows([]table.Row{})
-			m.table.SetColumns(columns)
-			m.table.SetRows(rows)
-
-			// Reapply styles
-			applyLintDetailsTableStyles(&m.table)
-
-			// Restore cursor position and viewport
-			if currentCursor < len(rows) {
-				// First go to top to ASCIIReset viewport
-				m.table.GotoTop()
-
-				// Move to where we want the viewport to start
-				targetCursor := currentCursor
-
-				// If we were scrolled down, overshoot and come back to position cursor correctly
-				if viewportStart > 0 {
-					// Move past the target
-					overshoot := cursorOffsetInViewport
-					for i := 0; i < targetCursor+overshoot && i < len(rows)-1; i++ {
-						m.table.MoveDown(1)
-					}
-					// Then move back up to get cursor in right viewport position
-					for i := 0; i < overshoot; i++ {
-						m.table.MoveUp(1)
-					}
-				} else {
-					// Just move to cursor position
-					for i := 0; i < targetCursor; i++ {
-						m.table.MoveDown(1)
-					}
-				}
-			} else if len(rows) > 0 {
-				m.table.SetCursor(0)
-			}
-
-			return m, nil
 		}
 	}
 
 	m.table, cmd = m.table.Update(msg)
 
-	// Update split view content if it's open and cursor has changed
-	if m.showSplitView {
-		if m.table.Cursor() < len(m.filteredResults) {
-			newContent := m.filteredResults[m.table.Cursor()]
-			if m.modalContent != newContent {
-				m.modalContent = newContent
-			}
-		}
-	}
+	// update split view content based on cursor
+	m.updateSplitViewContent()
 
-	// Combine any commands
+	// combine any commands
 	if len(cmds) > 0 {
 		return m, tea.Batch(cmds...)
 	}
@@ -995,7 +657,7 @@ func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 func (m *ViolationResultTableModel) formatCodeWithGlamour(targetLine int, width int) string {
 	// Determine if this is YAML or JSON
 	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
-	
+
 	// Wrap the content in a code block for glamour
 	var codeBlock strings.Builder
 	codeBlock.WriteString("```")
@@ -1007,10 +669,10 @@ func (m *ViolationResultTableModel) formatCodeWithGlamour(targetLine int, width 
 	codeBlock.WriteString("\n")
 	codeBlock.WriteString(string(m.specContent))
 	codeBlock.WriteString("\n```\n")
-	
+
 	// Create custom style for code rendering
-	customStyle := CreateVacuumDocsStyle(width)
-	
+	customStyle := CreatePb33fDocsStyle(width)
+
 	// Create glamour renderer with our custom style
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithColorProfile(termenv.TrueColor),
@@ -1021,19 +683,19 @@ func (m *ViolationResultTableModel) formatCodeWithGlamour(targetLine int, width 
 		// Fallback to plain text with line numbers
 		return m.formatCodeWithLineNumbers(targetLine)
 	}
-	
+
 	// Render the code block
 	rendered, err := renderer.Render(codeBlock.String())
 	if err != nil {
 		// Fallback to plain text with line numbers
 		return m.formatCodeWithLineNumbers(targetLine)
 	}
-	
+
 	// Add line highlighting if we have a target line
 	if targetLine > 0 {
 		return m.addLineHighlight(rendered, targetLine)
 	}
-	
+
 	return rendered
 }
 
@@ -1041,25 +703,25 @@ func (m *ViolationResultTableModel) formatCodeWithGlamour(targetLine int, width 
 func (m *ViolationResultTableModel) formatCodeWithLineNumbers(targetLine int) string {
 	lines := strings.Split(string(m.specContent), "\n")
 	var result strings.Builder
-	
+
 	lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey)
 	highlightStyle := lipgloss.NewStyle().
 		Background(RGBSubtlePink).
 		Foreground(RGBPink).
 		Bold(true)
-	
+
 	maxLineNum := len(lines)
 	lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1
 	if lineNumWidth < 5 {
 		lineNumWidth = 5
 	}
-	
+
 	for i, line := range lines {
 		lineNum := i + 1
 		isHighlighted := lineNum == targetLine
-		
+
 		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
-		
+
 		if isHighlighted {
 			highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
 			result.WriteString(highlightedLineNumStyle.Render(lineNumStr))
@@ -1068,12 +730,12 @@ func (m *ViolationResultTableModel) formatCodeWithLineNumbers(targetLine int) st
 			result.WriteString(lineNumStyle.Render(lineNumStr))
 			result.WriteString(line)
 		}
-		
+
 		if i < len(lines)-1 {
 			result.WriteString("\n")
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -1084,18 +746,18 @@ func (m *ViolationResultTableModel) addLineHighlight(content string, targetLine 
 		Background(RGBSubtlePink).
 		Foreground(RGBPink).
 		Bold(true)
-	
+
 	// Glamour adds some formatting, so we need to be careful about line counting
 	// Skip empty lines and formatting lines at the beginning
 	codeStarted := false
 	actualLine := 0
-	
+
 	for i, line := range lines {
 		// Look for the start of actual code content
 		if !codeStarted && strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "```") {
 			codeStarted = true
 		}
-		
+
 		if codeStarted {
 			actualLine++
 			if actualLine == targetLine {
@@ -1103,7 +765,7 @@ func (m *ViolationResultTableModel) addLineHighlight(content string, targetLine 
 			}
 		}
 	}
-	
+
 	return strings.Join(lines, "\n")
 }
 
@@ -1112,7 +774,7 @@ func (m *ViolationResultTableModel) recenterCodeView() {
 	if m.modalContent == nil {
 		return
 	}
-	
+
 	// Get the target line number
 	targetLine := 0
 	if m.modalContent.StartNode != nil {
@@ -1120,13 +782,13 @@ func (m *ViolationResultTableModel) recenterCodeView() {
 	} else if m.modalContent.Origin != nil {
 		targetLine = m.modalContent.Origin.Line
 	}
-	
+
 	if targetLine > 0 {
 		// Calculate the position of the target line within the rendered content
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
 		const windowSize = codeWindowSize
-		
+
 		var targetPositionInWindow int
 		if totalLines <= (windowSize*2 + 1) {
 			// No windowing, target is at its actual position
@@ -1144,7 +806,7 @@ func (m *ViolationResultTableModel) recenterCodeView() {
 				targetPositionInWindow = targetLine - startLine + 1
 			}
 		}
-		
+
 		// Center the target line in the viewport
 		scrollTo := targetPositionInWindow - (m.codeViewport.Height() / 2)
 		if scrollTo < 0 {
@@ -1176,7 +838,7 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 
 	// Use custom syntax highlighting (faster than glamour)
 	content := m.formatCodeWithHighlight(targetLine, modalWidth-8)
-	
+
 	m.codeViewport.SetContent(content)
 
 	// Scroll to the target line (try to center it in the viewport)
@@ -1186,7 +848,7 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 		allLines := strings.Split(string(m.specContent), "\n")
 		totalLines := len(allLines)
 		const windowSize = codeWindowSize
-		
+
 		// Calculate where the target line appears in our rendered content
 		var targetPositionInWindow int
 		if totalLines <= (windowSize*2 + 1) {
@@ -1205,7 +867,7 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 				targetPositionInWindow = targetLine - startLine + 1
 			}
 		}
-		
+
 		// Now scroll to center the target line in the viewport
 		scrollTo := targetPositionInWindow - (m.codeViewport.Height() / 2)
 		if scrollTo < 0 {
@@ -1219,15 +881,15 @@ func (m *ViolationResultTableModel) prepareCodeViewport() {
 func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxWidth int) string {
 	allLines := strings.Split(string(m.specContent), "\n")
 	totalLines := len(allLines)
-	
+
 	// Window configuration - max lines above and below target
 	const windowSize = codeWindowSize
-	
+
 	// Calculate the window of lines to render
 	startLine := 1
 	endLine := totalLines
 	actualTargetLine := targetLine // Track the actual line number for highlighting
-	
+
 	if totalLines > (windowSize*2 + 1) {
 		// Need to limit the window
 		if targetLine > 0 {
@@ -1248,43 +910,43 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 			}
 		}
 	}
-	
+
 	// Extract the lines to render (convert to 0-based indexing)
 	lines := allLines[startLine-1 : endLine]
-	
+
 	var result strings.Builder
 	lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey)
 	highlightStyle := lipgloss.NewStyle().
 		Background(RGBSubtlePink).
 		Foreground(RGBPink).
 		Bold(true)
-	
+
 	// Determine if this is YAML or JSON
 	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
-	
+
 	// Calculate line number width based on actual max line number
 	lineNumWidth := len(fmt.Sprintf("%d", endLine)) + 1
 	if lineNumWidth < 5 {
 		lineNumWidth = 5
 	}
-	
+
 	// Add a notice if we're showing a limited window
 	if startLine > 1 {
 		noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
 		result.WriteString(noticeStyle.Render(fmt.Sprintf("    ... (%d lines above not shown) ...", startLine-1)))
 		result.WriteString("\n")
 	}
-	
+
 	// Track if we're in a multi-line markdown block
 	inMarkdownBlock := false
 	markdownIndent := ""
 	var markdownContent strings.Builder
 	markdownStartLine := 0
-	
+
 	for i, line := range lines {
 		lineNum := startLine + i // Actual line number in the file
 		isHighlighted := lineNum == actualTargetLine
-		
+
 		// Check if this is a description field with block scalar (| or >-)
 		if isYAML && !inMarkdownBlock {
 			trimmed := strings.TrimSpace(line)
@@ -1309,17 +971,17 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 				}
 			}
 		}
-		
+
 		// Format line number
 		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
-		
+
 		if isHighlighted {
 			highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
 			result.WriteString(highlightedLineNumStyle.Render(lineNumStr))
 		} else {
 			result.WriteString(lineNumStyle.Render(lineNumStr))
 		}
-		
+
 		// Handle markdown block content
 		if inMarkdownBlock && lineNum > markdownStartLine {
 			// Check if we're still in the markdown block (lines must maintain same or greater indent)
@@ -1352,7 +1014,7 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 		} else {
 			// Normal line - apply syntax highlighting
 			coloredLine := m.applySyntaxHighlighting(line, isYAML)
-			
+
 			if isHighlighted {
 				// Pad the line to full width for background color
 				displayLine := line
@@ -1364,19 +1026,19 @@ func (m *ViolationResultTableModel) formatCodeWithHighlight(targetLine int, maxW
 				result.WriteString(coloredLine)
 			}
 		}
-		
+
 		if i < len(lines)-1 {
 			result.WriteString("\n")
 		}
 	}
-	
+
 	// Add a notice if we're cutting off lines at the bottom
 	if endLine < totalLines {
 		result.WriteString("\n")
 		noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
 		result.WriteString(noticeStyle.Render(fmt.Sprintf("    ... (%d lines below not shown) ...", totalLines-endLine)))
 	}
-	
+
 	return result.String()
 }
 
@@ -1386,8 +1048,8 @@ func initSyntaxStyles() {
 		syntaxKeyStyle = lipgloss.NewStyle().Foreground(RGBBlue)
 		syntaxStringStyle = lipgloss.NewStyle().Foreground(RGBGreen)
 		syntaxNumberStyle = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true).Bold(true)
-		syntaxBoolStyle = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).Bold(true)  // Back to grey italic bold
-		syntaxCommentStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)  // Comments are now pink italic
+		syntaxBoolStyle = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).Bold(true) // Back to grey italic bold
+		syntaxCommentStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)         // Comments are now pink italic
 		syntaxDashStyle = lipgloss.NewStyle().Foreground(RGBPink)
 		syntaxRefStyle = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
 		syntaxDefaultStyle = lipgloss.NewStyle().Foreground(RGBPink)
@@ -1399,8 +1061,8 @@ func initSyntaxStyles() {
 // renderMarkdownInline renders markdown content using glamour for inline display
 func (m *ViolationResultTableModel) renderMarkdownInline(markdown string, width int) string {
 	// Create a minimal style for inline markdown rendering
-	customStyle := CreateVacuumDocsStyle(width)
-	
+	customStyle := CreatePb33fDocsStyle(width)
+
 	// Create glamour renderer
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithColorProfile(termenv.TrueColor),
@@ -1410,13 +1072,13 @@ func (m *ViolationResultTableModel) renderMarkdownInline(markdown string, width 
 	if err != nil {
 		return markdown // Fallback to plain text
 	}
-	
+
 	// Render the markdown
 	rendered, err := renderer.Render(markdown)
 	if err != nil {
 		return markdown // Fallback to plain text
 	}
-	
+
 	// Remove trailing newlines for inline display
 	return strings.TrimRight(rendered, "\n")
 }
@@ -1425,12 +1087,12 @@ func (m *ViolationResultTableModel) renderMarkdownInline(markdown string, width 
 func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML bool) string {
 	// Initialize styles once
 	initSyntaxStyles()
-	
+
 	// Fast path: empty line
 	if line == "" {
 		return line
 	}
-	
+
 	if isYAML {
 		// ABSOLUTE PRIORITY: Check for $ref FIRST before anything else
 		if strings.Contains(line, "$ref:") {
@@ -1441,20 +1103,20 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 				return beforeRef + syntaxRefStyle.Render(line[idx:])
 			}
 		}
-		
+
 		// Check if this line is a $ref value (contains component paths)
 		trimmed := strings.TrimSpace(line)
-		if strings.Contains(trimmed, "'#/") || strings.Contains(trimmed, "\"#/") || 
-		   strings.Contains(trimmed, "#/components/") || 
-		   strings.Contains(trimmed, "#/definitions/") ||
-		   strings.Contains(trimmed, "#/schemas/") ||
-		   strings.Contains(trimmed, "#/parameters/") ||
-		   strings.Contains(trimmed, "#/responses/") ||
-		   strings.Contains(trimmed, "#/paths/") {
+		if strings.Contains(trimmed, "'#/") || strings.Contains(trimmed, "\"#/") ||
+			strings.Contains(trimmed, "#/components/") ||
+			strings.Contains(trimmed, "#/definitions/") ||
+			strings.Contains(trimmed, "#/schemas/") ||
+			strings.Contains(trimmed, "#/parameters/") ||
+			strings.Contains(trimmed, "#/responses/") ||
+			strings.Contains(trimmed, "#/paths/") {
 			// This is a $ref path - style the entire line
 			return syntaxRefStyle.Render(line)
 		}
-		
+
 		// Handle comments for YAML (only AFTER checking for $ref)
 		if strings.IndexByte(line, '#') >= 0 {
 			commentIndex := strings.IndexByte(line, '#')
@@ -1465,18 +1127,18 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 				return m.applySyntaxHighlighting(beforeComment, isYAML) + syntaxCommentStyle.Render(comment)
 			}
 		}
-		
+
 		// YAML key-value pairs (use pre-compiled regex)
 		if matches := yamlKeyValueRegex.FindStringSubmatch(line); matches != nil {
 			indent := matches[1]
 			key := matches[2]
 			separator := matches[3]
 			value := matches[4]
-			
+
 			// Special handling for $ref key
 			coloredKey := key
 			coloredValue := value
-			
+
 			if key == "$ref" {
 				// $ref key and value get special styling
 				coloredKey = syntaxRefStyle.Render(key)
@@ -1485,10 +1147,10 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 			} else {
 				// Non-$ref keys
 				coloredKey = syntaxKeyStyle.Render(key)
-				
+
 				// Fast checks for common values
 				trimmedValue := strings.TrimSpace(value)
-				
+
 				// Check boolean values first
 				switch trimmedValue {
 				case "true", "false", "null":
@@ -1509,16 +1171,16 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 					}
 				}
 			}
-			
+
 			return indent + coloredKey + separator + coloredValue
 		}
-		
+
 		// YAML list items (use pre-compiled regex)
 		if matches := yamlListItemRegex.FindStringSubmatch(line); matches != nil {
 			// Apply highlighting to the list item value
 			itemValue := matches[3]
 			coloredItem := itemValue
-			
+
 			// Check if the item is a simple value we can color
 			trimmedItem := strings.TrimSpace(itemValue)
 			switch trimmedItem {
@@ -1538,17 +1200,17 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 					coloredItem = syntaxDefaultStyle.Render(itemValue)
 				}
 			}
-			
+
 			return matches[1] + syntaxDashStyle.Render(matches[2]) + coloredItem
 		}
-		
+
 		// If no pattern matched, return with default pink color
 		return syntaxDefaultStyle.Render(line)
 	} else {
 		// JSON - use pre-compiled regexes
 		processed := false
 		originalLine := line
-		
+
 		line = jsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
 			processed = true
 			// Check if it's $ref
@@ -1557,7 +1219,7 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 			}
 			return syntaxKeyStyle.Render(match)
 		})
-		
+
 		line = jsonStringRegex.ReplaceAllStringFunc(line, func(match string) string {
 			processed = true
 			parts := strings.SplitN(match, "\"", 2)
@@ -1566,13 +1228,13 @@ func (m *ViolationResultTableModel) applySyntaxHighlighting(line string, isYAML 
 			}
 			return match
 		})
-		
+
 		// If nothing was processed, use default pink
 		if !processed && line != "" {
 			return syntaxDefaultStyle.Render(originalLine)
 		}
 	}
-	
+
 	return line
 }
 
