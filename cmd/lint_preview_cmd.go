@@ -1,4 +1,4 @@
-// Copyright 2024 Dave Shanley / Quobix
+// Copyright 2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // SPDX-License-Identifier: MIT
 
 package cmd

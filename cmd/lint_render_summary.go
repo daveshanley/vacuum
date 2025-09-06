@@ -1,16 +1,17 @@
-// Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
-// https://pb33f.io
+// Copyright 2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// SPDX-License-Identifier: MIT
 
 package cmd
 
 import (
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pterm/pterm"
-	"sort"
-	"strings"
 )
 
 func RenderSummary(rso RenderSummaryOptions) {
