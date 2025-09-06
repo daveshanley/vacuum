@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
@@ -403,9 +404,9 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 
 	// Build and render table
 	if !snippets {
-		// Print header
+		// Print header with pink color (matching BubbleTea UI)
 		if !noMessage {
-			fmt.Printf("\033[36m%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
+			fmt.Printf("\033[38;5;201m%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
 				locWidth, "Location",
 				sevWidth, "Severity",
 				msgWidth, "Message",
@@ -415,7 +416,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 		} else {
 			// Adjust widths when no message column
 			pathWidth = msgWidth + pathWidth + 2
-			fmt.Printf("\033[36m%-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
+			fmt.Printf("\033[38;5;201m%-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
 				locWidth, "Location",
 				sevWidth, "Severity",
 				ruleWidth, "Rule",
@@ -423,9 +424,9 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				pathWidth, "Path")
 		}
 
-		// Print separator
+		// Print separator with pink color
 		if !noMessage {
-			fmt.Printf("\033[90m%s  %s  %s  %s  %s  %s\033[0m\n",
+			fmt.Printf("\033[38;5;201m%s  %s  %s  %s  %s  %s\033[0m\n",
 				strings.Repeat("─", locWidth),
 				strings.Repeat("─", sevWidth),
 				strings.Repeat("─", msgWidth),
@@ -433,7 +434,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				strings.Repeat("─", catWidth),
 				strings.Repeat("─", pathWidth))
 		} else {
-			fmt.Printf("\033[90m%s  %s  %s  %s  %s\033[0m\n",
+			fmt.Printf("\033[38;5;201m%s  %s  %s  %s  %s\033[0m\n",
 				strings.Repeat("─", locWidth),
 				strings.Repeat("─", sevWidth),
 				strings.Repeat("─", ruleWidth),
@@ -479,6 +480,8 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 
 			// Format location as file:line:col (never truncated)
 			location := fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
+			// Apply color formatting to location
+			coloredLocation := cui.ColorizeLocation(location)
 
 			// Truncate fields if needed
 			m := r.Message
@@ -520,17 +523,19 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			}
 
 			// Print row with path in grey (like BubbleTea UI)
+			// Note: We need to account for ANSI codes in the location when calculating padding
+			// The colored location has ANSI codes that don't count toward visible width
 			if !noMessage {
-				fmt.Printf("%-*s  %-10s  %-*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
-					locWidth, location,
+				fmt.Printf("%s%*s  %-10s  %-*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+					coloredLocation, locWidth - len(location), "",  // Pad based on uncolored length
 					sevColored,
 					msgWidth, truncate(m, msgWidth),
 					ruleWidth, ruleId,  // Never truncate rule
 					catWidth, category,  // Never truncate category
 					pathWidth, truncate(p, pathWidth))
 			} else {
-				fmt.Printf("%-*s  %-10s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
-					locWidth, location,
+				fmt.Printf("%s%*s  %-10s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+					coloredLocation, locWidth - len(location), "",  // Pad based on uncolored length
 					sevColored,
 					ruleWidth, ruleId,  // Never truncate rule
 					catWidth, category,  // Never truncate category
