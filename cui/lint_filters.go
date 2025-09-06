@@ -6,50 +6,54 @@ package cui
 import "github.com/daveshanley/vacuum/model"
 
 func (m *ViolationResultTableModel) ApplyFilter() {
-	var filtered []*model.RuleFunctionResult
-
-	switch m.filterState {
-	case FilterAll:
-		filtered = m.allResults
-	case FilterErrors:
-		for _, r := range m.allResults {
-			if r.Rule != nil && r.Rule.Severity == model.SeverityError {
-				filtered = append(filtered, r)
-			}
-		}
-	case FilterWarnings:
-		for _, r := range m.allResults {
-			if r.Rule != nil && r.Rule.Severity == model.SeverityWarn {
-				filtered = append(filtered, r)
-			}
-		}
-	case FilterInfo:
-		for _, r := range m.allResults {
-			if r.Rule != nil && r.Rule.Severity == model.SeverityInfo {
-				filtered = append(filtered, r)
-			}
-		}
+	// pre-allocate with estimated capacity to reduce allocations
+	estimatedCapacity := len(m.allResults)
+	if m.filterState != FilterAll {
+		estimatedCapacity = len(m.allResults) / 3 // rough estimate for filtered results
 	}
+	
+	filtered := make([]*model.RuleFunctionResult, 0, estimatedCapacity)
 
-	if m.categoryFilter != "" {
-		var categoryFiltered []*model.RuleFunctionResult
-		for _, r := range filtered {
-			if r.Rule != nil && r.Rule.RuleCategory != nil &&
-				r.Rule.RuleCategory.Name == m.categoryFilter {
-				categoryFiltered = append(categoryFiltered, r)
+	// single-pass filtering - check all conditions in one loop
+	for _, r := range m.allResults {
+		if r.Rule == nil {
+			continue
+		}
+
+		// check severity filter
+		if m.filterState != FilterAll {
+			switch m.filterState {
+			case FilterErrors:
+				if r.Rule.Severity != model.SeverityError {
+					continue
+				}
+			case FilterWarnings:
+				if r.Rule.Severity != model.SeverityWarn {
+					continue
+				}
+			case FilterInfo:
+				if r.Rule.Severity != model.SeverityInfo {
+					continue
+				}
 			}
 		}
-		filtered = categoryFiltered
-	}
 
-	if m.ruleFilter != "" {
-		var ruleFiltered []*model.RuleFunctionResult
-		for _, r := range filtered {
-			if r.Rule != nil && r.Rule.Id == m.ruleFilter {
-				ruleFiltered = append(ruleFiltered, r)
+		// check category filter
+		if m.categoryFilter != "" {
+			if r.Rule.RuleCategory == nil || r.Rule.RuleCategory.Name != m.categoryFilter {
+				continue
 			}
 		}
-		filtered = ruleFiltered
+
+		// check rule filter
+		if m.ruleFilter != "" {
+			if r.Rule.Id != m.ruleFilter {
+				continue
+			}
+		}
+
+		// all filters passed, add to results
+		filtered = append(filtered, r)
 	}
 
 	m.filteredResults = filtered
