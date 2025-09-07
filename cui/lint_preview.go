@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/spinner"
@@ -137,15 +138,31 @@ type ViolationResultTableModel struct {
 	docsSpinner     spinner.Model             // Spinner for loading state
 	docsViewport    viewport.Model            // Viewport for scrollable docs content
 	codeViewport    viewport.Model            // Viewport for expanded code view
+	err             error                     // Track any errors that occur during operation
 }
 
 // ShowViolationTableView displays results in an interactive console table
 func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string, specContent []byte) error {
+	defer func() {
+		if r := recover(); r != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "\n\033[31mDashboard panic recovered: %v\033[0m\n", r)
+			_, _ = fmt.Fprintf(os.Stderr, "Stack trace:\n")
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			_, _ = fmt.Fprintf(os.Stderr, "%s\n", buf[:n])
+		}
+	}()
+
 	if len(results) == 0 {
 		return nil
 	}
 
-	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
+	width, height, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not get terminal size: %v\n", err)
+		width = DefaultTerminalWidth
+		height = DefaultTerminalHeight
+	}
 	if width == 0 {
 		width = DefaultTerminalWidth
 	}
@@ -198,9 +215,22 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		docsViewport:    vp,
 	}
 
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
-		return err
+	p := tea.NewProgram(m,
+		tea.WithAltScreen(),
+	)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		// Log the error details
+		fmt.Fprintf(os.Stderr, "\n\033[31mDashboard error: %v\033[0m\n", err)
+		return fmt.Errorf("dashboard exited with error: %w", err)
+	}
+
+	if finalM, ok := finalModel.(*ViolationResultTableModel); ok {
+		if finalM.err != nil {
+			fmt.Fprintf(os.Stderr, "\n\033[31mDashboard internal error: %v\033[0m\n", finalM.err)
+			return finalM.err
+		}
 	}
 
 	return nil
@@ -211,6 +241,19 @@ func (m *ViolationResultTableModel) Init() tea.Cmd {
 }
 
 func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			m.err = fmt.Errorf("update table panic: %v", r)
+			m.quitting = true
+
+			_, _ = fmt.Fprintf(os.Stderr, "\n\033[31mUpdate panic: %v\033[0m\n", r)
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			_, _ = fmt.Fprintf(os.Stderr, "Stack trace:\n%s\n", buf[:n])
+		}
+	}()
+
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -239,6 +282,35 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case tea.MouseWheelMsg:
+		// mouse wheel scrolling
+		mouse := msg.Mouse()
+		switch mouse.Button {
+		case tea.MouseWheelUp:
+			// up - same as pressing up arrow
+			if m.showCodeView {
+				// code view is open, scroll in code view
+				m.codeViewport.LineUp(3)
+			} else {
+				// scroll table up
+				m.table.MoveUp(3)
+			}
+		case tea.MouseWheelDown:
+			// down - same as pressing down arrow
+			if m.showCodeView {
+				// code view is open, scroll in code view
+				m.codeViewport.LineDown(3)
+			} else {
+				// Scroll table down
+				m.table.MoveDown(3)
+			}
+		}
+		// update selected item after scroll
+		if m.table.Cursor() < len(m.filteredResults) {
+			m.modalContent = m.filteredResults[m.table.Cursor()]
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		cmd := m.HandleWindowResize(msg)
 		return m, cmd

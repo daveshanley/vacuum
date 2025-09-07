@@ -193,6 +193,18 @@ func (dash *Dashboard) eventLoop(cats []*model.RuleCategory) {
 			} else {
 				dash.tabs.scrollRulesUp()
 			}
+		case "<MouseWheelUp>":
+			if dash.violationViewActive {
+				dash.tabs.scrollViolationsUp()
+			} else {
+				dash.tabs.scrollRulesUp()
+			}
+		case "<MouseWheelDown>":
+			if dash.violationViewActive {
+				dash.tabs.scrollViolationsDown()
+			} else {
+				dash.tabs.scrollRulesDown()
+			}
 		}
 		ui.Clear()
 		if dash.helpViewActive {
