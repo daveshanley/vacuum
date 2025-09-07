@@ -494,6 +494,9 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					p = p[:pathWidth-3] + "..."
 				}
 			}
+			
+			// Apply message colorization (highlights backtick-enclosed text)
+			coloredMessage := cui.ColorizeMessage(m)
 
 			// Format severity with color and icon (matching BubbleTea UI)
 			var sevColored string
@@ -523,19 +526,28 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			}
 
 			// Print row with path in grey (like BubbleTea UI)
-			// Note: We need to account for ANSI codes in the location when calculating padding
-			// The colored location has ANSI codes that don't count toward visible width
+			// Calculate padding based on visible width (excluding ANSI codes)
+			locPadding := locWidth - cui.VisibleLength(coloredLocation)
+			if locPadding < 0 {
+				locPadding = 0
+			}
+			
+			msgPadding := msgWidth - cui.VisibleLength(coloredMessage)
+			if msgPadding < 0 {
+				msgPadding = 0
+			}
+			
 			if !noMessage {
-				fmt.Printf("%s%*s  %-10s  %-*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
-					coloredLocation, locWidth - len(location), "",  // Pad based on uncolored length
+				fmt.Printf("%s%*s  %-10s  %s%*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+					coloredLocation, locPadding, "",
 					sevColored,
-					msgWidth, truncate(m, msgWidth),
+					coloredMessage, msgPadding, "",
 					ruleWidth, ruleId,  // Never truncate rule
 					catWidth, category,  // Never truncate category
 					pathWidth, truncate(p, pathWidth))
 			} else {
 				fmt.Printf("%s%*s  %-10s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
-					coloredLocation, locWidth - len(location), "",  // Pad based on uncolored length
+					coloredLocation, locPadding, "",
 					sevColored,
 					ruleWidth, ruleId,  // Never truncate rule
 					catWidth, category,  // Never truncate category

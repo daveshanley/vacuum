@@ -6,6 +6,7 @@ package cui
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/table"
@@ -35,6 +36,7 @@ var (
 	ASCIILightGreyItalic = "\033[3;38;5;251m"
 	ASCIIBold            = "\033[1m"
 	ASCIIReset           = "\033[0m"
+	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m" // Blue text with bold and italic
 	RGBBlue              = lipgloss.Color("45")
 	RGBPink              = lipgloss.Color("201")
 	RGBRed               = lipgloss.Color("196")
@@ -134,6 +136,66 @@ func ColorizeString(text string, mode ColorizeMode) string {
 // ColorizeLocation formats a file location string (path:line:col) with ANSI colors.
 // It colors the directory in grey, filename in light grey italic, line number in bold,
 // and column in light grey.
+// ColorizeMessage formats a message string with inline code highlighting.
+// Text between backticks (`code`) or backtick with truncation (`code...) 
+// will be displayed in blue with bold and italic styling.
+func ColorizeMessage(message string) string {
+	if !strings.Contains(message, "`") {
+		return message // No backticks, return as-is
+	}
+	
+	var result strings.Builder
+	inBackticks := false
+	backtickStart := 0
+	
+	for i, char := range message {
+		if char == '`' {
+			if !inBackticks {
+				// Starting backtick
+				inBackticks = true
+				backtickStart = i + 1
+			} else {
+				// Ending backtick - highlight the content
+				if i > backtickStart {
+					content := message[backtickStart:i]
+					result.WriteString(ASCIIBlueBoldItalic)
+					result.WriteString(content)
+					result.WriteString(ASCIIReset)
+				}
+				inBackticks = false
+			}
+		} else if !inBackticks {
+			result.WriteRune(char)
+		}
+	}
+	
+	// Handle unclosed backtick (with potential truncation)
+	if inBackticks && backtickStart < len(message) {
+		// Check if the remaining text ends with "..."
+		remaining := message[backtickStart:]
+		if strings.HasSuffix(remaining, "...") {
+			// Highlight everything from backtick to the truncation
+			result.WriteString(ASCIIBlueBoldItalic)
+			result.WriteString(remaining)
+			result.WriteString(ASCIIReset)
+		} else {
+			// Not a truncation, just add the backtick and remaining text normally
+			result.WriteString("`")
+			result.WriteString(remaining)
+		}
+	}
+	
+	return result.String()
+}
+
+// VisibleLength calculates the visible length of a string, excluding ANSI escape codes.
+func VisibleLength(s string) int {
+	// Remove all ANSI escape sequences to get the actual visible length
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	clean := ansiRegex.ReplaceAllString(s, "")
+	return len(clean)
+}
+
 func ColorizeLocation(location string) string {
 	// Expected format: path/to/file.ext:line:col
 	// We need to parse and colorize each part
