@@ -301,7 +301,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	fileName string, noStyle bool) {
 
 	if !silent {
-		// Display file header
+		// file header
 		abs, _ := filepath.Abs(fileName)
 		displayPath := abs
 		if cwd, err := os.Getwd(); err == nil {
@@ -315,20 +315,19 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 		fmt.Println()
 	}
 
-	// Get terminal width
+	// terminal width
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
 		width = 120 // Default fallback
 	}
 
-	// First pass: calculate the actual maximum widths needed for each column
+	// calculate the actual maximum widths needed for each column
 	maxLocationLen := len("Location") // Start with header width
 	maxRuleLen := len("Rule")
 	maxCategoryLen := len("Category")
 	maxMessageLen := len("Message") // Track actual max message length
 
 	for _, r := range results {
-		// Build location for this result
 		startLine := 0
 		startCol := 0
 		if r.StartNode != nil {
@@ -343,7 +342,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			startCol = r.Origin.Column
 		}
 
-		// Make path relative
+		// make path relative
 		if absPath, err := filepath.Abs(f); err == nil {
 			if cwd, err := os.Getwd(); err == nil {
 				if relPath, err := filepath.Rel(cwd, absPath); err == nil {
@@ -357,17 +356,17 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			maxLocationLen = len(location)
 		}
 
-		// Check rule length
+		// rule length
 		if r.Rule != nil && len(r.Rule.Id) > maxRuleLen {
 			maxRuleLen = len(r.Rule.Id)
 		}
 
-		// Check category length
+		// category length
 		if r.Rule != nil && r.Rule.RuleCategory != nil && len(r.Rule.RuleCategory.Name) > maxCategoryLen {
 			maxCategoryLen = len(r.Rule.RuleCategory.Name)
 		}
 
-		// Check message length (skip if showing errors only and this isn't an error)
+		// message length (skip if showing errors only and this isn't an error)
 		if !errors || (r.Rule != nil && r.Rule.Severity == model.SeverityError) {
 			if len(r.Message) > maxMessageLen {
 				maxMessageLen = len(r.Message)
@@ -375,69 +374,72 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 		}
 	}
 
-	// Column width allocation based on actual content
-	// Priority order: location (never truncated), rule (never truncated), category (conditionally shown), message, path
-
-	// Fixed/dynamic widths based on content
+	// column width allocation based on actual content
+	// priority order: location (never truncated), rule (never truncated), category (conditionally shown), message, path
 	locWidth := maxLocationLen
-	sevWidth := 9 // Fixed width for severity with icon
+	sevWidth := 9
 	ruleWidth := maxRuleLen
 	catWidth := maxCategoryLen
-	
-	// Responsive column visibility based on terminal width
+
+	// responsive column visibility based on terminal width
 	showCategory := true
 	showPath := true
 	showRule := true
-	
-	if width >= 100 && width < 120 {
-		// Very narrow terminals: hide category, path, and rule
+	useTreeFormat := false
+
+	if width < 100 {
+		// ultra narrow terminals: use tree format (multi-line per violation)
+		useTreeFormat = true
+		// We don't need column widths for tree format
+	} else if width >= 100 && width < 120 {
+		// very narrow terminals: hide category, path, and rule
 		showCategory = false
 		showPath = false
 		showRule = false
 		catWidth = 0
 		ruleWidth = 0
-		sevWidth = 2  // Just the symbol, no text
+		sevWidth = 2 // Just the symbol, no text
 	} else if width >= 120 && width < 130 {
-		// Narrow terminals: hide both category and path
+		// narrow terminals: hide both category and path
 		showCategory = false
 		showPath = false
 		catWidth = 0
 	} else if width >= 130 && width < 160 {
-		// Medium terminals: hide category only
+		// medium terminals: hide category only
 		showCategory = false
 		catWidth = 0
 	}
-	// Wide terminals (160+): show everything
+	// wide terminals (160+): show everything
 
 	// Calculate remaining width after fixed columns
 	separators := 10 // Space for column separators
 	if !showRule && !showCategory && !showPath {
-		separators = 4  // Only location, severity, message
+		separators = 4 // Only location, severity, message
 	} else if !showCategory && !showPath {
-		separators = 6  // Two less separators without category and path
+		separators = 6 // Two less separators without category and path
 	} else if !showCategory {
-		separators = 8  // One less separator without category column
+		separators = 8 // One less separator without category column
 	}
 	fixedWidth := locWidth + sevWidth + ruleWidth + catWidth + separators
 	remainingWidth := width - fixedWidth
 
-	// Allocate remaining space between message and path
-	// Message should only be as wide as needed (plus small buffer), give rest to path
+	// allocate remaining space between message and path
+	// message should only be as wide as needed (plus small buffer), give rest to path
 	var msgWidth, pathWidth int
 	if remainingWidth > 0 {
 		if showPath {
-			// Use actual max message length plus a small buffer for readability
+			// use actual max message length plus a small buffer for readability
 			msgWidth = maxMessageLen // Just 3 chars padding for visual comfort
 
-			// Cap at remaining space minus minimum path width
+			// cap at remaining space minus minimum path width
 			if msgWidth > remainingWidth-20 { // Leave at least 20 for path
 				msgWidth = remainingWidth - 20
 			}
 
-			// Give ALL remaining space to path
+			// all remaining space to path
 			pathWidth = remainingWidth - msgWidth
 
-			// Ensure minimum widths
+			// ensure minimum widths
 			if msgWidth < 20 {
 				msgWidth = 20
 				pathWidth = remainingWidth - msgWidth
@@ -446,11 +448,11 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				pathWidth = 10
 			}
 		} else {
-			// No path column - give all remaining space to message
+			// no path column - give all remaining space to message
 			msgWidth = remainingWidth
 			pathWidth = 0
-			
-			// Ensure minimum message width
+
+			// ensure minimum message width
 			if msgWidth < 20 {
 				msgWidth = 20
 			}
@@ -465,21 +467,143 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 		}
 	}
 
-	// Build and render table
+	// build and render table
 	if !snippets {
-		// Print header with pink color and bold (matching BubbleTea UI)
-		// Apply color codes outside of the formatted strings to avoid width calculation issues
+		if useTreeFormat {
+			// no headers for tree format - it's self-describing
+			// just print results in tree format
+			for i, r := range results {
+				if i > 1000 && !allResults {
+					fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
+					break
+				}
+
+				if errors && r.Rule != nil && r.Rule.Severity != model.SeverityError {
+					continue
+				}
+
+				startLine := 0
+				startCol := 0
+				if r.StartNode != nil {
+					startLine = r.StartNode.Line
+					startCol = r.StartNode.Column
+				}
+
+				f := fileName
+				if r.Origin != nil {
+					f = r.Origin.AbsoluteLocation
+					startLine = r.Origin.Line
+					startCol = r.Origin.Column
+				}
+
+				// path relative
+				if absPath, err := filepath.Abs(f); err == nil {
+					if cwd, err := os.Getwd(); err == nil {
+						if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+							f = relPath
+						}
+					}
+				}
+
+				// format and print location with severity
+				location := fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
+				coloredLocation := cui.ColorizeLocation(location)
+
+				// severity info
+				var sevText string
+				var sevColor string
+				var sevIcon string
+				if r.Rule != nil {
+					switch r.Rule.Severity {
+					case model.SeverityError:
+						sevText = "error"
+						sevColor = cui.ASCIIRed
+						sevIcon = "✗"
+					case model.SeverityWarn:
+						sevText = "warning"
+						sevColor = cui.ASCIIYellow
+						sevIcon = "▲"
+					case model.SeverityInfo:
+						sevText = "info"
+						sevColor = cui.ASCIIBlue
+						sevIcon = "●"
+					default:
+						sevText = string(r.Rule.Severity)
+						sevColor = cui.ASCIIBlue
+						sevIcon = "●"
+					}
+				} else {
+					sevText = "info"
+					sevColor = cui.ASCIIBlue
+					sevIcon = "●"
+				}
+
+				fmt.Printf("%s  %s%s %s%s\n", coloredLocation, sevColor, sevIcon, sevText, cui.ASCIIReset)
+
+				// sccount for " ├─ " (4 chars) at the beginning
+				maxMsgWidth := width - 4
+				message := r.Message
+				if len(message) > maxMsgWidth && maxMsgWidth > 3 {
+					message = message[:maxMsgWidth-3] + "..."
+				}
+				coloredMessage := cui.ColorizeMessage(message)
+				fmt.Printf(" %s├─%s %s\n", cui.ASCIIGrey, cui.ASCIIReset, coloredMessage)
+
+				ruleId := ""
+				category := ""
+				if r.Rule != nil {
+					ruleId = r.Rule.Id
+					if r.Rule.RuleCategory != nil {
+						category = r.Rule.RuleCategory.Name
+					}
+				}
+
+				ruleCatLine := ""
+				if ruleId != "" && category != "" {
+					ruleCatLine = fmt.Sprintf("Rule: %s | Category: %s", ruleId, category)
+				} else if ruleId != "" {
+					ruleCatLine = fmt.Sprintf("Rule: %s", ruleId)
+				} else if category != "" {
+					ruleCatLine = fmt.Sprintf("Category: %s", category)
+				}
+
+				if ruleCatLine != "" {
+					maxRuleCatWidth := width - 4 // account for " ├─ "
+					if len(ruleCatLine) > maxRuleCatWidth && maxRuleCatWidth > 3 {
+						ruleCatLine = ruleCatLine[:maxRuleCatWidth-3] + "..."
+					}
+					fmt.Printf(" %s├─%s %s\n", cui.ASCIIGrey, cui.ASCIIReset, ruleCatLine)
+				}
+
+				if r.Path != "" {
+					// account for " └─ Path: " (10 chars) at the beginning
+					maxPathWidth := width - 10
+					pathText := r.Path
+					if len(pathText) > maxPathWidth && maxPathWidth > 3 {
+						pathText = pathText[:maxPathWidth-3] + "..."
+					}
+					coloredPath := cui.ColorizePath(pathText)
+					fmt.Printf(" %s└─%s Path: %s%s%s\n", cui.ASCIIGrey, cui.ASCIIReset, cui.ASCIIGrey, coloredPath, cui.ASCIIReset)
+				}
+
+				// blank line between violations for readability
+				fmt.Println()
+			}
+			return
+		}
+
+		// apply color codes outside of the formatted strings to avoid width calculation issues
 		if !noMessage {
 			if !showRule && !showCategory && !showPath {
-				// Very narrow terminals: only location, severity symbol, message
+				// very narrow terminals: only location, severity symbol, message
 				fmt.Printf("%s%s%-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, "Location",
-					sevWidth, "",  // No header for severity symbol
+					sevWidth, "", // No header for severity symbol
 					msgWidth, "Message",
 					cui.ASCIIReset)
 			} else if showCategory && showPath {
-				// All columns
+				// all columns
 				fmt.Printf("%s%s%-*s  %-*s  %-*s  %-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, "Location",
@@ -490,7 +614,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					pathWidth, "Path",
 					cui.ASCIIReset)
 			} else if !showCategory && showPath {
-				// No category column for medium terminals
+				// no category column for medium terminals
 				fmt.Printf("%s%s%-*s  %-*s  %-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, "Location",
@@ -500,7 +624,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					pathWidth, "Path",
 					cui.ASCIIReset)
 			} else if !showCategory && !showPath {
-				// No category or path for narrow terminals
+				// no category or path for narrow terminals
 				fmt.Printf("%s%s%-*s  %-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, "Location",
@@ -510,7 +634,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					cui.ASCIIReset)
 			}
 		} else {
-			// Adjust widths when no message column
+			// adjust widths when no message column
 			if showPath {
 				pathWidth = msgWidth + pathWidth + 2
 			}
@@ -541,11 +665,11 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			}
 		}
 
-		// Print separator with pink color and bold (same as header)
-		// Use the same format specifiers as header to ensure alignment
+		// print separator with pink color and bold (same as header)
+		// use the same format specifiers as header to ensure alignment
 		if !noMessage {
 			if !showRule && !showCategory && !showPath {
-				// Very narrow terminals: only location, severity symbol, message
+				// very narrow terminals: only location, severity symbol, message
 				fmt.Printf("%s%s%-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, strings.Repeat("─", locWidth),
@@ -553,7 +677,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					msgWidth, strings.Repeat("─", msgWidth),
 					cui.ASCIIReset)
 			} else if showCategory && showPath {
-				// All columns
+				// all columns
 				fmt.Printf("%s%s%-*s  %-*s  %-*s  %-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, strings.Repeat("─", locWidth),
@@ -564,7 +688,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					pathWidth, strings.Repeat("─", pathWidth),
 					cui.ASCIIReset)
 			} else if !showCategory && showPath {
-				// No category separator for medium terminals
+				// no category separator for medium terminals
 				fmt.Printf("%s%s%-*s  %-*s  %-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, strings.Repeat("─", locWidth),
@@ -574,7 +698,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					pathWidth, strings.Repeat("─", pathWidth),
 					cui.ASCIIReset)
 			} else if !showCategory && !showPath {
-				// No category or path for narrow terminals
+				// no category or path for narrow terminals
 				fmt.Printf("%s%s%-*s  %-*s  %-*s  %-*s%s\n",
 					cui.ASCIIPink, cui.ASCIIBold,
 					locWidth, strings.Repeat("─", locWidth),
@@ -611,19 +735,17 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			}
 		}
 
-		// Print rows
+		// print rows
 		for i, r := range results {
 			if i > 1000 && !allResults {
 				fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
 				break
 			}
 
-			// Skip if showing errors only
 			if errors && r.Rule != nil && r.Rule.Severity != model.SeverityError {
 				continue
 			}
 
-			// Build location
 			startLine := 0
 			startCol := 0
 			if r.StartNode != nil {
@@ -638,7 +760,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				startCol = r.Origin.Column
 			}
 
-			// Make path relative
+			// make path relative
 			if absPath, err := filepath.Abs(f); err == nil {
 				if cwd, err := os.Getwd(); err == nil {
 					if relPath, err := filepath.Rel(cwd, absPath); err == nil {
@@ -647,12 +769,10 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				}
 			}
 
-			// Format location as file:line:col (never truncated)
 			location := fmt.Sprintf("%s:%d:%d", f, startLine, startCol)
-			// Apply color formatting to location
 			coloredLocation := cui.ColorizeLocation(location)
 
-			// Truncate fields if needed
+			// truncation
 			m := r.Message
 			p := r.Path
 			if !noClip {
@@ -664,19 +784,16 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				}
 			}
 
-			// Apply message colorization (highlights backtick-enclosed text)
 			coloredMessage := cui.ColorizeMessage(m)
 
-			// Apply path colorization (highlights single-quoted text)
 			var coloredPath string
 			if showPath {
 				coloredPath = cui.ColorizePath(truncate(p, pathWidth))
 			}
 
-			// Format severity with color and icon (matching BubbleTea UI)
 			var sevColored string
 			if !showRule {
-				// Very narrow mode - just show the colored symbol
+				// very narrow mode - just show the colored symbol
 				if r.Rule != nil {
 					switch r.Rule.Severity {
 					case model.SeverityError:
@@ -692,7 +809,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 					sevColored = fmt.Sprintf("%s%-*s%s", cui.ASCIIBlue, sevWidth, "●", cui.ASCIIReset)
 				}
 			} else {
-				// Normal mode - show symbol and text
+				// normal mode - show symbol and text
 				if r.Rule != nil {
 					switch r.Rule.Severity {
 					case model.SeverityError:
@@ -709,7 +826,6 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				}
 			}
 
-			// Get rule and category
 			ruleId := ""
 			category := ""
 			if r.Rule != nil {
@@ -719,8 +835,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				}
 			}
 
-			// Print row with path in grey (like BubbleTea UI)
-			// Calculate padding based on visible width (excluding ANSI codes)
+			// calculate padding based on visible width (excluding ANSI codes)
 			locPadding := locWidth - cui.VisibleLength(coloredLocation)
 			if locPadding < 0 {
 				locPadding = 0
@@ -731,7 +846,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				msgPadding = 0
 			}
 
-			// Calculate padding for colorized path (account for ANSI codes)
+			// calculate padding for colorized path (account for ANSI codes)
 			var pathPadding int
 			if showPath {
 				pathPadding = pathWidth - cui.VisibleLength(coloredPath)
@@ -742,13 +857,13 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 
 			if !noMessage {
 				if !showRule && !showCategory && !showPath {
-					// Very narrow terminals: only location, severity symbol, message
+					// very narrow terminals: only location, severity symbol, message
 					fmt.Printf("%s%*s  %s  %s%*s\n",
 						coloredLocation, locPadding, "",
 						sevColored,
 						coloredMessage, msgPadding, "")
 				} else if showCategory && showPath {
-					// All columns
+					// all columns
 					fmt.Printf("%s%*s  %-10s  %s%*s  %-*s  %-*s  %s%s%*s%s\n",
 						coloredLocation, locPadding, "",
 						sevColored,
@@ -757,7 +872,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 						catWidth, category,
 						cui.ASCIIGrey, coloredPath, pathPadding, "", cui.ASCIIReset)
 				} else if !showCategory && showPath {
-					// No category column for medium terminals
+					// no category column for medium terminals
 					fmt.Printf("%s%*s  %-10s  %s%*s  %-*s  %s%s%*s%s\n",
 						coloredLocation, locPadding, "",
 						sevColored,
@@ -765,7 +880,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 						ruleWidth, ruleId,
 						cui.ASCIIGrey, coloredPath, pathPadding, "", cui.ASCIIReset)
 				} else if !showCategory && !showPath {
-					// No category or path for narrow terminals
+					// no category or path for narrow terminals
 					fmt.Printf("%s%*s  %-10s  %s%*s  %-*s\n",
 						coloredLocation, locPadding, "",
 						sevColored,
