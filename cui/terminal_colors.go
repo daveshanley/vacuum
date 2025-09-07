@@ -133,21 +133,18 @@ func ColorizeString(text string, mode ColorizeMode) string {
 	return result.String()
 }
 
-// ColorizeLocation formats a file location string (path:line:col) with ANSI colors.
-// It colors the directory in grey, filename in light grey italic, line number in bold,
-// and column in light grey.
 // ColorizeMessage formats a message string with inline code highlighting.
-// Text between backticks (`code`) or backtick with truncation (`code...) 
+// Text between backticks (`code`) or backtick with truncation (`code...)
 // will be displayed in blue with bold and italic styling.
 func ColorizeMessage(message string) string {
 	if !strings.Contains(message, "`") {
 		return message // No backticks, return as-is
 	}
-	
+
 	var result strings.Builder
 	inBackticks := false
 	backtickStart := 0
-	
+
 	for i, char := range message {
 		if char == '`' {
 			if !inBackticks {
@@ -168,7 +165,7 @@ func ColorizeMessage(message string) string {
 			result.WriteRune(char)
 		}
 	}
-	
+
 	// Handle unclosed backtick (with potential truncation)
 	if inBackticks && backtickStart < len(message) {
 		// Check if the remaining text ends with "..."
@@ -184,7 +181,7 @@ func ColorizeMessage(message string) string {
 			result.WriteString(remaining)
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -196,28 +193,29 @@ func VisibleLength(s string) int {
 	return len(clean)
 }
 
+// ColorizeLocation formats a file location string with color codes for a terminal.
 func ColorizeLocation(location string) string {
 	// Expected format: path/to/file.ext:line:col
 	// We need to parse and colorize each part
 	if !strings.Contains(location, ":") {
 		return location // Not a location format we recognize
 	}
-	
+
 	// Split into file path and line:col
 	lastColon := strings.LastIndex(location, ":")
 	secondLastColon := strings.LastIndex(location[:lastColon], ":")
-	
+
 	if secondLastColon == -1 {
 		return location // Not enough colons for file:line:col format
 	}
-	
+
 	filePath := location[:secondLastColon]
-	lineNum := location[secondLastColon+1:lastColon]
+	lineNum := location[secondLastColon+1 : lastColon]
 	colNum := location[lastColon+1:]
-	
+
 	file := filepath.Base(filePath)
 	dir := filepath.Dir(filePath)
-	
+
 	// Build colored path
 	var coloredPath string
 	if dir != "." {
@@ -225,12 +223,12 @@ func ColorizeLocation(location string) string {
 	} else {
 		coloredPath = fmt.Sprintf("%s%s%s", ASCIILightGreyItalic, file, ASCIIReset)
 	}
-	
+
 	// Color line and column numbers
 	coloredLine := fmt.Sprintf("%s%s%s", ASCIIBold, lineNum, ASCIIReset)
 	coloredCol := fmt.Sprintf("%s%s%s", ASCIILightGrey, colNum, ASCIIReset)
 	sep := fmt.Sprintf("%s:%s", ASCIILightGrey, ASCIIReset)
-	
+
 	return fmt.Sprintf("%s%s%s%s%s", coloredPath, sep, coloredLine, sep, coloredCol)
 }
 
@@ -254,9 +252,9 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 
 		if i >= 1 && !isSelectedLine {
 
-			if locationRegex.MatchString(line) {
-				line = locationRegex.ReplaceAllStringFunc(line, func(match string) string {
-					parts := locationRegex.FindStringSubmatch(match)
+			if LocationRegex.MatchString(line) {
+				line = LocationRegex.ReplaceAllStringFunc(line, func(match string) string {
+					parts := LocationRegex.FindStringSubmatch(match)
 					if len(parts) == 4 {
 						// Use the extracted ColorizeLocation function
 						location := fmt.Sprintf("%s:%s:%s", parts[1], parts[2], parts[3])
@@ -266,17 +264,17 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 				})
 			}
 
-			if jsonPathRegex.MatchString(line) {
-				line = jsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
+			if JsonPathRegex.MatchString(line) {
+				line = JsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
 					return fmt.Sprintf("%s%s%s", ASCIIGrey, match, ASCIIReset)
 				})
 			}
 
-			if circularRefRegex.MatchString(line) {
-				line = circularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
+			if CircularRefRegex.MatchString(line) {
+				line = CircularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
 					circResult := ""
 
-					parts := partRegex.FindAllStringSubmatch(match, -1)
+					parts := PartRegex.FindAllStringSubmatch(match, -1)
 					for _, part := range parts {
 						if part[1] != "" {
 							// ref
@@ -307,6 +305,81 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 	return result.String()
 }
 
+// ColorizePath formats a JSON/YAML path string with inline quote highlighting and circular reference detection.
+// Text between single quotes ('text') or single quote with truncation ('text...)
+// will be displayed in light grey italic styling.
+// Circular references (e.g., ref1 -> ref2 -> ref3) will have arrows in red and refs in light grey.
+// The function assumes the path is already wrapped in grey color and maintains it.
+func ColorizePath(path string) string {
+	if CircularRefRegex.MatchString(path) {
+		path = CircularRefRegex.ReplaceAllStringFunc(path, func(match string) string {
+			var result strings.Builder
+			parts := PartRegex.FindAllStringSubmatch(match, -1)
+			for _, part := range parts {
+				if part[1] != "" {
+					// ref
+					result.WriteString(ASCIILightGrey)
+					result.WriteString(part[1])
+					result.WriteString(ASCIIReset)
+					result.WriteString(ASCIIGrey) // Re-apply base grey
+				} else if part[2] != "" {
+					// arrow
+					result.WriteString(ASCIIRed)
+					result.WriteString(part[2])
+					result.WriteString(ASCIIReset)
+					result.WriteString(ASCIIGrey) // Re-apply base grey
+				}
+			}
+			return result.String()
+		})
+	}
+
+	// single quotes
+	if !strings.Contains(path, "'") {
+		return path // no single quotes, return as-is
+	}
+
+	var result strings.Builder
+	inQuotes := false
+	quoteStart := 0
+
+	for i, char := range path {
+		if char == '\'' {
+			if !inQuotes {
+				// starting quote
+				result.WriteRune(char)
+				inQuotes = true
+				quoteStart = i + 1
+			} else {
+				// ending quote - highlight the content
+				if i > quoteStart {
+					content := path[quoteStart:i]
+					result.WriteString(ASCIILightGreyItalic)
+					result.WriteString(content)
+					result.WriteString(ASCIIReset)
+					result.WriteString(ASCIIGrey) // re-apply grey color after italic
+				}
+				result.WriteRune(char)
+				inQuotes = false
+			}
+		} else if !inQuotes {
+			result.WriteRune(char)
+		}
+	}
+
+	// handle unclosed quote (for truncated paths like 'text...)
+	if inQuotes && quoteStart < len(path) {
+		content := path[quoteStart:]
+		result.WriteString(ASCIILightGreyItalic)
+		result.WriteString(content)
+		result.WriteString(ASCIIReset)
+		result.WriteString(ASCIIGrey) // Re-apply grey color after italic
+	}
+
+	return result.String()
+}
+
+// ApplyLintDetailsTableStyles applies custom styles to a table.Model for lint details display
 func ApplyLintDetailsTableStyles(t *table.Model) {
 	s := table.DefaultStyles()
 
