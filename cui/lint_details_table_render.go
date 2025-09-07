@@ -201,9 +201,14 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 		// toggle split view
 		m.showSplitView = !m.showSplitView
 		if m.showSplitView {
-			// set content to the currently selected result
-			if m.table.Cursor() < len(m.filteredResults) {
-				m.modalContent = m.filteredResults[m.table.Cursor()]
+			// set content to the currently selected result with safety checks
+			cursor := m.table.Cursor()
+			if cursor >= 0 && cursor < len(m.filteredResults) && m.filteredResults != nil {
+				m.modalContent = m.filteredResults[cursor]
+			} else {
+				// cursor is invalid, reset split view
+				m.showSplitView = false
+				return true, nil
 			}
 			// resize the table to leave room for the fixed-height split view
 			tableHeight := m.height - SplitViewHeight - SplitViewMargin
@@ -219,10 +224,11 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 		return true, nil
 
 	case "x":
-		// expanded code view modal
-		if m.table.Cursor() < len(m.filteredResults) {
+		// expanded code view modal with safety checks
+		cursor := m.table.Cursor()
+		if cursor >= 0 && cursor < len(m.filteredResults) && m.filteredResults != nil {
 			if !m.showSplitView {
-				m.modalContent = m.filteredResults[m.table.Cursor()]
+				m.modalContent = m.filteredResults[cursor]
 			}
 			m.showCodeView = !m.showCodeView
 
@@ -234,11 +240,12 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 		return true, nil
 
 	case "d":
-		// open documentation modal
-		if m.table.Cursor() < len(m.filteredResults) {
+		// open documentation modal with safety checks
+		cursor := m.table.Cursor()
+		if cursor >= 0 && cursor < len(m.filteredResults) && m.filteredResults != nil {
 			// If split view is open, preserve its modalContent
 			if !m.showSplitView {
-				m.modalContent = m.filteredResults[m.table.Cursor()]
+				m.modalContent = m.filteredResults[cursor]
 			}
 			m.showModal = !m.showModal
 
@@ -401,11 +408,16 @@ func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 // UpdateDetailsViewContent updates split view content when cursor changes
 func (m *ViolationResultTableModel) UpdateDetailsViewContent() {
 	if m.showSplitView {
-		if m.table.Cursor() < len(m.filteredResults) {
-			newContent := m.filteredResults[m.table.Cursor()]
+		cursor := m.table.Cursor()
+		// nil check and bounds checking
+		if m.filteredResults != nil && cursor >= 0 && cursor < len(m.filteredResults) {
+			newContent := m.filteredResults[cursor]
 			if m.modalContent != newContent {
 				m.modalContent = newContent
 			}
+		} else {
+			// invalid cursor position, clear the modal content
+			m.modalContent = nil
 		}
 	}
 }
