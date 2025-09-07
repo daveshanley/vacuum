@@ -28,8 +28,8 @@ const (
 var (
 	ASCIIRed             = "\033[38;5;196m"
 	ASCIIGrey            = "\033[38;5;246m"
-	ASCIIPink            = "\033[38;5;201m"     // Bright neon pink to match RGBPink
-	ASCIIMutedPink       = "\033[38;5;164m"     // Muted pink for selected table rows
+	ASCIIPink            = "\033[38;5;201m" // Bright neon pink to match RGBPink
+	ASCIIMutedPink       = "\033[38;5;164m" // Muted pink for selected table rows
 	ASCIILightGrey       = "\033[38;5;253m"
 	ASCIIBlue            = "\033[38;5;45m"
 	ASCIIYellow          = "\033[38;5;220m"
@@ -41,8 +41,12 @@ var (
 	RGBBlue              = lipgloss.Color("45")
 	RGBPink              = lipgloss.Color("201")
 	RGBRed               = lipgloss.Color("196")
+	RGBDarkRed           = lipgloss.Color("124")
 	RBGYellow            = lipgloss.Color("220")
+	RGBDarkYellow        = lipgloss.Color("172")
 	RGBGreen             = lipgloss.Color("46")
+	RGBDarkGreen         = lipgloss.Color("22")
+	RGBDarkBlue          = lipgloss.Color("24")
 	RGBOrange            = lipgloss.Color("208")
 	RGBPurple            = lipgloss.Color("135")
 	RGBGrey              = lipgloss.Color("246")
