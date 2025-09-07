@@ -323,35 +323,117 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		return
 	}
 
-	// Build category summary table
-	fmt.Printf("%s%-20s  %-10s  %-10s  %-10s%s\n", cui.ASCIIBlue, "Category", "Errors", "Warnings", "Info", cui.ASCIIReset)
-	fmt.Printf("%s%s  %s  %s  %s%s\n",
-		cui.ASCIIGrey,
-		strings.Repeat("─", 20),
-		strings.Repeat("─", 10),
-		strings.Repeat("─", 10),
-		strings.Repeat("─", 10),
-		cui.ASCIIReset)
+	// Check if there are any results to display
+	hasResults := rs != nil && rs.Results != nil && len(rs.Results) > 0
 
-	for _, cat := range cats {
-		errors := rs.GetErrorsByRuleCategory(cat.Id)
-		warn := rs.GetWarningsByRuleCategory(cat.Id)
-		info := rs.GetInfoByRuleCategory(cat.Id)
+	if hasResults {
+		// Build category summary table with colored headers
+		fmt.Printf("%s%-20s%s  %s%-12s%s  %s%-12s%s  %s%-12s%s\n", 
+			cui.ASCIIBlue, "Category", cui.ASCIIReset,
+			cui.ASCIIRed, "✗ Errors", cui.ASCIIReset,
+			cui.ASCIIYellow, "▲ Warnings", cui.ASCIIReset,
+			cui.ASCIIBlue, "● Info", cui.ASCIIReset)
+		fmt.Printf("%s%s  %s  %s  %s%s\n",
+			cui.ASCIIPink,
+			strings.Repeat("─", 20),
+			strings.Repeat("─", 12),
+			strings.Repeat("─", 12),
+			strings.Repeat("─", 12),
+			cui.ASCIIReset)
 
-		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
-			fmt.Printf("%-20s  %-10s  %-10s  %-10s\n",
-				cat.Name,
-				humanize.Comma(int64(len(errors))),
-				humanize.Comma(int64(len(warn))),
-				humanize.Comma(int64(len(info))))
+		for _, cat := range cats {
+			errors := rs.GetErrorsByRuleCategory(cat.Id)
+			warn := rs.GetWarningsByRuleCategory(cat.Id)
+			info := rs.GetInfoByRuleCategory(cat.Id)
+
+			if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
+				fmt.Printf("%-20s  %-12s  %-12s  %-12s\n",
+					cat.Name,
+					humanize.Comma(int64(len(errors))),
+					humanize.Comma(int64(len(warn))),
+					humanize.Comma(int64(len(info))))
+			}
+		}
+		fmt.Println()
+
+		// Build rule violation summary table
+		type ruleViolation struct {
+			ruleId string
+			count  int
+		}
+		
+		ruleMap := make(map[string]*ruleViolation)
+		for _, result := range rs.Results {
+			if result.Rule != nil {
+				if _, exists := ruleMap[result.Rule.Id]; !exists {
+					ruleMap[result.Rule.Id] = &ruleViolation{
+						ruleId: result.Rule.Id,
+					}
+				}
+				ruleMap[result.Rule.Id].count++
+			}
+		}
+		
+		// convert map to slice and sort by count
+		var ruleViolations []ruleViolation
+		for _, rv := range ruleMap {
+			ruleViolations = append(ruleViolations, *rv)
+		}
+		
+		// sort by violation count (highest first)
+		for i := 0; i < len(ruleViolations); i++ {
+			for j := i + 1; j < len(ruleViolations); j++ {
+				if ruleViolations[j].count > ruleViolations[i].count {
+					ruleViolations[i], ruleViolations[j] = ruleViolations[j], ruleViolations[i]
+				}
+			}
+		}
+		
+		// print rule violations table if there are any
+		if len(ruleViolations) > 0 {
+			fmt.Printf("%s%-50s%s  %s%-12s%s\n", 
+				cui.ASCIIBlue, "Rule", cui.ASCIIReset,
+				cui.ASCIIPink, "Violations", cui.ASCIIReset)
+			fmt.Printf("%s%s  %s%s\n",
+				cui.ASCIIPink,
+				strings.Repeat("─", 50),
+				strings.Repeat("─", 12),
+				cui.ASCIIReset)
+			
+			// show top 10 most violated rules
+			maxRules := 10
+			if len(ruleViolations) < maxRules {
+				maxRules = len(ruleViolations)
+			}
+			
+			for i := 0; i < maxRules; i++ {
+				rv := ruleViolations[i]
+				// truncate rule name if too long
+				ruleName := rv.ruleId
+				if len(ruleName) > 50 {
+					ruleName = ruleName[:47] + "..."
+				}
+				fmt.Printf("%-50s  %-12s\n",
+					ruleName,
+					humanize.Comma(int64(rv.count)))
+			}
+			
+			if len(ruleViolations) > maxRules {
+				fmt.Printf("%s... and %d more rules%s\n", cui.ASCIIGrey, len(ruleViolations)-maxRules, cui.ASCIIReset)
+			}
+			fmt.Println()
 		}
 	}
-	fmt.Println()
 
 	// Render result box
-	errs := rs.GetErrorCount()
-	warnings := rs.GetWarnCount()
-	informs := rs.GetInfoCount()
+	errs := 0
+	warnings := 0
+	informs := 0
+	if rs != nil {
+		errs = rs.GetErrorCount()
+		warnings = rs.GetWarnCount()
+		informs = rs.GetInfoCount()
+	}
 
 	if errs > 0 {
 		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIRed, cui.ASCIIReset)
