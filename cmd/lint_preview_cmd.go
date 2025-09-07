@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -20,6 +21,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 )
 
@@ -324,23 +326,65 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		return
 	}
 
-	// Check if there are any results to display
+	// check if there are any results to display
 	hasResults := rs != nil && rs.Results != nil && len(rs.Results) > 0
 
 	if hasResults {
-		// Build category summary table with colored headers
-		fmt.Printf(" %s%-20s%s  %s%-12s%s  %s%-12s%s  %s%-12s%s\n",
-			cui.ASCIIPink, "Category", cui.ASCIIReset,
-			cui.ASCIIRed, "✗ Errors", cui.ASCIIReset,
-			cui.ASCIIYellow, "▲ Warnings", cui.ASCIIReset,
-			cui.ASCIIBlue, "● Info", cui.ASCIIReset)
+		width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+		if width == 0 {
+			width = 120
+		}
+
+		var categoryWidth, numberWidth int
+		var showFullHeaders bool
+
+		if width < 60 {
+			// very narrow: compact mode
+			categoryWidth = 10
+			numberWidth = 5
+			showFullHeaders = false
+		} else if width < 80 {
+			// narrow: reduced widths
+			categoryWidth = 12
+			numberWidth = 7
+			showFullHeaders = false
+		} else if width < 100 {
+			// medium: slightly reduced
+			categoryWidth = 15
+			numberWidth = 9
+			showFullHeaders = true
+		} else {
+			// full width
+			categoryWidth = 20
+			numberWidth = 12
+			showFullHeaders = true
+		}
+
+		if showFullHeaders {
+			fmt.Printf(" %s%-*s%s  %s%-*s%s  %s%-*s%s  %s%-*s%s\n",
+				cui.ASCIIPink, categoryWidth, "Category", cui.ASCIIReset,
+				cui.ASCIIRed, numberWidth, "✗ Errors", cui.ASCIIReset,
+				cui.ASCIIYellow, numberWidth, "▲ Warnings", cui.ASCIIReset,
+				cui.ASCIIBlue, numberWidth, "● Info", cui.ASCIIReset)
+		} else {
+			// compact headers for narrow terminals
+			fmt.Printf(" %s%-*s%s  %s%-*s%s  %s%-*s%s  %s%-*s%s\n",
+				cui.ASCIIPink, categoryWidth, "Category", cui.ASCIIReset,
+				cui.ASCIIRed, numberWidth, "✗ Err", cui.ASCIIReset,
+				cui.ASCIIYellow, numberWidth, "▲ Warn", cui.ASCIIReset,
+				cui.ASCIIBlue, numberWidth, "● Info", cui.ASCIIReset)
+		}
 		fmt.Printf(" %s%s  %s  %s  %s%s\n",
 			cui.ASCIIPink,
-			strings.Repeat("─", 20),
-			strings.Repeat("─", 12),
-			strings.Repeat("─", 12),
-			strings.Repeat("─", 12),
+			strings.Repeat("─", categoryWidth),
+			strings.Repeat("─", numberWidth),
+			strings.Repeat("─", numberWidth),
+			strings.Repeat("─", numberWidth),
 			cui.ASCIIReset)
+
+		totalErrors := 0
+		totalWarnings := 0
+		totalInfo := 0
 
 		for _, cat := range cats {
 			errors := rs.GetErrorsByRuleCategory(cat.Id)
@@ -348,16 +392,41 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 			info := rs.GetInfoByRuleCategory(cat.Id)
 
 			if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
-				fmt.Printf(" %-20s  %-12s  %-12s  %-12s\n",
-					cat.Name,
-					humanize.Comma(int64(len(errors))),
-					humanize.Comma(int64(len(warn))),
-					humanize.Comma(int64(len(info))))
+				// Truncate category name if needed
+				catName := cat.Name
+				if len(catName) > categoryWidth {
+					catName = catName[:categoryWidth-3] + "..."
+				}
+
+				fmt.Printf(" %-*s  %-*s  %-*s  %-*s\n",
+					categoryWidth, catName,
+					numberWidth, humanize.Comma(int64(len(errors))),
+					numberWidth, humanize.Comma(int64(len(warn))),
+					numberWidth, humanize.Comma(int64(len(info))))
+
+				totalErrors += len(errors)
+				totalWarnings += len(warn)
+				totalInfo += len(info)
 			}
 		}
+
+		// add totals row
+		fmt.Printf(" %s%s  %s  %s  %s%s\n",
+			cui.ASCIIPink,
+			strings.Repeat("─", categoryWidth),
+			strings.Repeat("─", numberWidth),
+			strings.Repeat("─", numberWidth),
+			strings.Repeat("─", numberWidth),
+			cui.ASCIIReset)
+
+		// totals
+		fmt.Printf(" %s%-*s%s  %s%s%-*s%s  %s%s%-*s%s  %s%s%-*s%s\n",
+			cui.ASCIIBold, categoryWidth, "Total", cui.ASCIIReset,
+			cui.ASCIIRed, cui.ASCIIBold, numberWidth, humanize.Comma(int64(totalErrors)), cui.ASCIIReset,
+			cui.ASCIIYellow, cui.ASCIIBold, numberWidth, humanize.Comma(int64(totalWarnings)), cui.ASCIIReset,
+			cui.ASCIIBlue, cui.ASCIIBold, numberWidth, humanize.Comma(int64(totalInfo)), cui.ASCIIReset)
 		fmt.Println()
 
-		// Build rule violation summary table
 		type ruleViolation struct {
 			ruleId string
 			count  int
@@ -392,30 +461,57 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 
 		// print rule violations table if there are any
 		if len(ruleViolations) > 0 {
-			// calculate total violations for percentage
+			// calculate total violations and find maximum for relative scaling
 			totalViolations := 0
+			maxViolations := 0
 			for _, rv := range ruleViolations {
 				totalViolations += rv.count
+				if rv.count > maxViolations {
+					maxViolations = rv.count
+				}
+			}
+
+			var ruleWidth, violationWidth, impactWidth int
+			if width < 60 {
+				// very narrow: minimal columns
+				ruleWidth = 15
+				violationWidth = 5
+				impactWidth = 15
+			} else if width < 80 {
+				// narrow
+				ruleWidth = 20
+				violationWidth = 8
+				impactWidth = 20
+			} else if width < 100 {
+				// medium
+				ruleWidth = 25
+				violationWidth = 10
+				impactWidth = 30
+			} else {
+				// full width
+				ruleWidth = 40
+				violationWidth = 12
+				impactWidth = 50
 			}
 
 			// create progress bar with gradient from blue to pink
 			// using RGB hex values that match our theme
 			prog := progress.New(
 				progress.WithScaledGradient("#62c4ff", "#f83aff"), // blue to pink
-				progress.WithWidth(30),
+				progress.WithWidth(impactWidth),                   // dynamic width based on terminal
 				progress.WithoutPercentage(),
 				progress.WithFillCharacters('█', ' '), // solid bar with no background
 			)
 
-			fmt.Printf(" %s%-40s%s  %s%-12s%s  %s%-30s%s\n",
-				cui.ASCIIPink, "Rule", cui.ASCIIReset,
-				cui.ASCIIPink, "Violations", cui.ASCIIReset,
-				cui.ASCIIPink, "Quality Impact", cui.ASCIIReset)
+			fmt.Printf(" %s%-*s%s  %s%-*s%s  %s%-*s%s\n",
+				cui.ASCIIPink, ruleWidth, "Rule", cui.ASCIIReset,
+				cui.ASCIIPink, violationWidth, "Violations", cui.ASCIIReset,
+				cui.ASCIIPink, impactWidth, "Quality Impact", cui.ASCIIReset)
 			fmt.Printf(" %s%s  %s  %s%s\n",
 				cui.ASCIIPink,
-				strings.Repeat("─", 40),
-				strings.Repeat("─", 12),
-				strings.Repeat("─", 30),
+				strings.Repeat("─", ruleWidth),
+				strings.Repeat("─", violationWidth),
+				strings.Repeat("─", impactWidth),
 				cui.ASCIIReset)
 
 			// show top 10 most violated rules
@@ -424,23 +520,39 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 				maxRules = len(ruleViolations)
 			}
 
+			displayedTotal := 0
 			for i := 0; i < maxRules; i++ {
 				rv := ruleViolations[i]
 				// truncate rule name if too long
 				ruleName := rv.ruleId
-				if len(ruleName) > 40 {
-					ruleName = ruleName[:37] + "..."
+				if len(ruleName) > ruleWidth {
+					ruleName = ruleName[:ruleWidth-3] + "..."
 				}
 
-				// calculate percentage of total violations
-				percentage := float64(rv.count) / float64(totalViolations)
+				// calculate percentage relative to the maximum violations (most impactful rule = 100%)
+				percentage := float64(rv.count) / float64(maxViolations)
+				displayedTotal += rv.count
 
 				// render the row with progress bar
-				fmt.Printf(" %-40s  %-12s  %s\n",
-					ruleName,
-					humanize.Comma(int64(rv.count)),
+				fmt.Printf(" %-*s  %-*s  %s\n",
+					ruleWidth, ruleName,
+					violationWidth, humanize.Comma(int64(rv.count)),
 					prog.ViewAs(percentage))
 			}
+
+			// totals
+			fmt.Printf(" %s%s  %s  %s%s\n",
+				cui.ASCIIPink,
+				strings.Repeat("─", ruleWidth),
+				strings.Repeat("─", violationWidth),
+				strings.Repeat("─", impactWidth),
+				cui.ASCIIReset)
+
+			fmt.Printf(" %s%-*s%s  %s%s%-*s%s\n",
+				cui.ASCIIBold, ruleWidth, "Total", cui.ASCIIReset,
+				cui.ASCIIPink, cui.ASCIIBold,
+				violationWidth, humanize.Comma(int64(totalViolations)),
+				cui.ASCIIReset)
 
 			if len(ruleViolations) > maxRules {
 				fmt.Printf(" %s... and %d more rules%s\n", cui.ASCIIGrey, len(ruleViolations)-maxRules, cui.ASCIIReset)
@@ -449,7 +561,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		}
 	}
 
-	// Render result box
+	// result box
 	errs := 0
 	warnings := 0
 	informs := 0
@@ -460,23 +572,87 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 	}
 
 	if errs > 0 {
-		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIRed, cui.ASCIIReset)
-		fmt.Printf("%s│  ❌ Linting failed with %d errors, %d warnings and %d informs  │%s\n",
-			cui.ASCIIRed, errs, warnings, informs, cui.ASCIIReset)
-		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIRed, cui.ASCIIReset)
+		message := fmt.Sprintf("\u2717 Failed with %d errors, %d warnings and %d informs.", errs, warnings, informs)
+		errorStyle := lipgloss.NewStyle().
+			Foreground(cui.RGBRed).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderLeftForeground(cui.RGBRed).
+			BorderLeftBackground(cui.RGBDarkRed).
+			BorderTop(false).
+			Bold(true).
+			BorderBottom(false).
+			BorderLeft(true).
+			Padding(0, 0, 0, 0).
+			MarginLeft(1)
+
+		errorMessage := lipgloss.NewStyle().
+			Padding(1, 1).Render(message)
+
+		box := errorStyle.Render(errorMessage)
+		fmt.Println(box)
+		fmt.Println()
+
 	} else if warnings > 0 {
-		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIYellow, cui.ASCIIReset)
-		fmt.Printf("%s│  ⚠️  Linting passed with %d warnings and %d informs  │%s\n",
-			cui.ASCIIYellow, warnings, informs, cui.ASCIIReset)
-		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIYellow, cui.ASCIIReset)
+		message := fmt.Sprintf("\u25B2 Passed with %d warnings and %d informs.", warnings, informs)
+		warningStyle := lipgloss.NewStyle().
+			Foreground(cui.RBGYellow).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderLeftForeground(cui.RBGYellow).
+			BorderLeftBackground(cui.RGBDarkYellow).
+			BorderTop(false).
+			Bold(true).
+			BorderBottom(false).
+			BorderLeft(true).
+			Padding(0, 0, 0, 0).
+			MarginLeft(1)
+
+		warningMessage := lipgloss.NewStyle().
+			Padding(1, 1).Render(message)
+
+		box := warningStyle.Render(warningMessage)
+		fmt.Println(box)
+		fmt.Println()
 	} else if informs > 0 {
-		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIBlue, cui.ASCIIReset)
-		fmt.Printf("%s│  ℹ️  Linting passed, %d informs reported  │%s\n", cui.ASCIIBlue, informs, cui.ASCIIReset)
-		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIBlue, cui.ASCIIReset)
+		message := fmt.Sprintf("\u25CF Passed with %d informs.", informs)
+		infoStyle := lipgloss.NewStyle().
+			Foreground(cui.RGBBlue).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderLeftForeground(cui.RGBBlue).
+			BorderLeftBackground(cui.RGBDarkBlue).
+			BorderTop(false).
+			Bold(true).
+			BorderBottom(false).
+			BorderLeft(true).
+			Padding(0, 0, 0, 0).
+			MarginLeft(1)
+
+		infoMessage := lipgloss.NewStyle().
+			Padding(1, 1).Render(message)
+
+		box := infoStyle.Render(infoMessage)
+		fmt.Println(box)
+		fmt.Println()
+
 	} else {
-		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIGreen, cui.ASCIIReset)
-		fmt.Printf("%s│  ✅ Perfect score! Well done!  │%s\n", cui.ASCIIGreen, cui.ASCIIReset)
-		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIGreen, cui.ASCIIReset)
+		message := fmt.Sprintf("\u2713 Perfect score! Well done!")
+		successStyle := lipgloss.NewStyle().
+			Foreground(cui.RGBGreen).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderLeftForeground(cui.RGBGreen).
+			BorderLeftBackground(cui.RGBDarkGreen).
+			BorderTop(false).
+			Bold(true).
+			BorderBottom(false).
+			BorderLeft(true).
+			Padding(0, 0, 0, 0).
+			MarginLeft(1)
+
+		successMessage := lipgloss.NewStyle().
+			Padding(1, 1).Render(message)
+
+		box := successStyle.Render(successMessage)
+		fmt.Println(box)
+		fmt.Println()
 	}
 
 	// Show score if we have stats
