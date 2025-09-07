@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -328,12 +329,12 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 
 	if hasResults {
 		// Build category summary table with colored headers
-		fmt.Printf("%s%-20s%s  %s%-12s%s  %s%-12s%s  %s%-12s%s\n", 
-			cui.ASCIIBlue, "Category", cui.ASCIIReset,
+		fmt.Printf(" %s%-20s%s  %s%-12s%s  %s%-12s%s  %s%-12s%s\n",
+			cui.ASCIIPink, "Category", cui.ASCIIReset,
 			cui.ASCIIRed, "✗ Errors", cui.ASCIIReset,
 			cui.ASCIIYellow, "▲ Warnings", cui.ASCIIReset,
 			cui.ASCIIBlue, "● Info", cui.ASCIIReset)
-		fmt.Printf("%s%s  %s  %s  %s%s\n",
+		fmt.Printf(" %s%s  %s  %s  %s%s\n",
 			cui.ASCIIPink,
 			strings.Repeat("─", 20),
 			strings.Repeat("─", 12),
@@ -347,7 +348,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 			info := rs.GetInfoByRuleCategory(cat.Id)
 
 			if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
-				fmt.Printf("%-20s  %-12s  %-12s  %-12s\n",
+				fmt.Printf(" %-20s  %-12s  %-12s  %-12s\n",
 					cat.Name,
 					humanize.Comma(int64(len(errors))),
 					humanize.Comma(int64(len(warn))),
@@ -361,7 +362,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 			ruleId string
 			count  int
 		}
-		
+
 		ruleMap := make(map[string]*ruleViolation)
 		for _, result := range rs.Results {
 			if result.Rule != nil {
@@ -373,13 +374,13 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 				ruleMap[result.Rule.Id].count++
 			}
 		}
-		
+
 		// convert map to slice and sort by count
 		var ruleViolations []ruleViolation
 		for _, rv := range ruleMap {
 			ruleViolations = append(ruleViolations, *rv)
 		}
-		
+
 		// sort by violation count (highest first)
 		for i := 0; i < len(ruleViolations); i++ {
 			for j := i + 1; j < len(ruleViolations); j++ {
@@ -388,38 +389,61 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 				}
 			}
 		}
-		
+
 		// print rule violations table if there are any
 		if len(ruleViolations) > 0 {
-			fmt.Printf("%s%-50s%s  %s%-12s%s\n", 
-				cui.ASCIIBlue, "Rule", cui.ASCIIReset,
-				cui.ASCIIPink, "Violations", cui.ASCIIReset)
-			fmt.Printf("%s%s  %s%s\n",
+			// calculate total violations for percentage
+			totalViolations := 0
+			for _, rv := range ruleViolations {
+				totalViolations += rv.count
+			}
+
+			// create progress bar with gradient from blue to pink
+			// using RGB hex values that match our theme
+			prog := progress.New(
+				progress.WithScaledGradient("#62c4ff", "#f83aff"), // blue to pink
+				progress.WithWidth(30),
+				progress.WithoutPercentage(),
+				progress.WithFillCharacters('█', ' '), // solid bar with no background
+			)
+
+			fmt.Printf(" %s%-40s%s  %s%-12s%s  %s%-30s%s\n",
+				cui.ASCIIPink, "Rule", cui.ASCIIReset,
+				cui.ASCIIPink, "Violations", cui.ASCIIReset,
+				cui.ASCIIPink, "Quality Impact", cui.ASCIIReset)
+			fmt.Printf(" %s%s  %s  %s%s\n",
 				cui.ASCIIPink,
-				strings.Repeat("─", 50),
+				strings.Repeat("─", 40),
 				strings.Repeat("─", 12),
+				strings.Repeat("─", 30),
 				cui.ASCIIReset)
-			
+
 			// show top 10 most violated rules
 			maxRules := 10
 			if len(ruleViolations) < maxRules {
 				maxRules = len(ruleViolations)
 			}
-			
+
 			for i := 0; i < maxRules; i++ {
 				rv := ruleViolations[i]
 				// truncate rule name if too long
 				ruleName := rv.ruleId
-				if len(ruleName) > 50 {
-					ruleName = ruleName[:47] + "..."
+				if len(ruleName) > 40 {
+					ruleName = ruleName[:37] + "..."
 				}
-				fmt.Printf("%-50s  %-12s\n",
+
+				// calculate percentage of total violations
+				percentage := float64(rv.count) / float64(totalViolations)
+
+				// render the row with progress bar
+				fmt.Printf(" %-40s  %-12s  %s\n",
 					ruleName,
-					humanize.Comma(int64(rv.count)))
+					humanize.Comma(int64(rv.count)),
+					prog.ViewAs(percentage))
 			}
-			
+
 			if len(ruleViolations) > maxRules {
-				fmt.Printf("%s... and %d more rules%s\n", cui.ASCIIGrey, len(ruleViolations)-maxRules, cui.ASCIIReset)
+				fmt.Printf(" %s... and %d more rules%s\n", cui.ASCIIGrey, len(ruleViolations)-maxRules, cui.ASCIIReset)
 			}
 			fmt.Println()
 		}
