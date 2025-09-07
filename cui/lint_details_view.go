@@ -57,6 +57,11 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		Padding(0, 1)
 	var detailsContent strings.Builder
 
+	// Add "Details" header in bold pink
+	headerStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+	detailsContent.WriteString(headerStyle.Render("Details"))
+	detailsContent.WriteString("\n\n")
+
 	severity := getRuleSeverity(m.modalContent)
 	severityInfo := GetSeverityInfoFromText(severity)
 	asciiIcon := severityInfo.Icon
@@ -88,6 +93,10 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		MaxHeight(contentHeight).
 		Padding(0, 1)
 	var howToFixContent strings.Builder
+
+	// Add "How to Fix" header in bold pink
+	howToFixContent.WriteString(headerStyle.Render("How to Fix"))
+	howToFixContent.WriteString("\n\n")
 
 	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
 		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
