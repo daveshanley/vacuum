@@ -28,7 +28,8 @@ const (
 var (
 	ASCIIRed             = "\033[38;5;196m"
 	ASCIIGrey            = "\033[38;5;246m"
-	ASCIIPink            = "\033[38;5;164m"
+	ASCIIPink            = "\033[38;5;201m"     // Bright neon pink to match RGBPink
+	ASCIIMutedPink       = "\033[38;5;164m"     // Muted pink for selected table rows
 	ASCIILightGrey       = "\033[38;5;253m"
 	ASCIIBlue            = "\033[38;5;45m"
 	ASCIIYellow          = "\033[38;5;220m"
@@ -247,7 +248,7 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		isSelectedLine := selectedLocation != "" && strings.Contains(line, selectedLocation)
 
 		if isSelectedLine && i > 0 {
-			line = ASCIIPink + line + ASCIIReset
+			line = ASCIIMutedPink + line + ASCIIReset
 		}
 
 		if i >= 1 && !isSelectedLine {
