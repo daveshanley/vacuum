@@ -290,10 +290,10 @@ func printFixedBanner() {
  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
 
-	// Use raw ANSI codes for colors
-	fmt.Printf("\033[35m%s\033[0m\n\n", banner)                                                          // Magenta
-	fmt.Printf("\033[32mversion: %s | compiled: %s\033[0m\n", Version, Date)                             // Green
-	fmt.Printf("\033[36m🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum\033[0m\n\n") // Cyan
+	// Use color constants
+	fmt.Printf("%s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
+	fmt.Printf("%sversion: %s | compiled: %s%s\n", cui.ASCIIGreen, Version, Date, cui.ASCIIReset)
+	fmt.Printf("%s🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
 }
 
 func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
@@ -310,7 +310,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			}
 		}
 
-		fmt.Printf("\n\033[35m%s\033[0m\n", displayPath) // Magenta
+		fmt.Printf("\n%s%s%s\n", cui.ASCIIPink, displayPath, cui.ASCIIReset)
 		fmt.Println(strings.Repeat("-", len(displayPath)))
 		fmt.Println()
 	}
@@ -405,47 +405,59 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	// Build and render table
 	if !snippets {
 		// Print header with pink color (matching BubbleTea UI)
+		// Using ASCIIPink constant
+		headerColor := cui.ASCIIPink
+		resetColor := cui.ASCIIReset
+		
 		if !noMessage {
-			fmt.Printf("\033[38;5;201m%-*s  %-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
+			fmt.Printf("%s%-*s  %-*s  %-*s  %-*s  %-*s  %-*s%s\n",
+				headerColor,
 				locWidth, "Location",
 				sevWidth, "Severity",
 				msgWidth, "Message",
 				ruleWidth, "Rule",
 				catWidth, "Category",
-				pathWidth, "Path")
+				pathWidth, "Path",
+				resetColor)
 		} else {
 			// Adjust widths when no message column
 			pathWidth = msgWidth + pathWidth + 2
-			fmt.Printf("\033[38;5;201m%-*s  %-*s  %-*s  %-*s  %-*s\033[0m\n",
+			fmt.Printf("%s%-*s  %-*s  %-*s  %-*s  %-*s%s\n",
+				headerColor,
 				locWidth, "Location",
 				sevWidth, "Severity",
 				ruleWidth, "Rule",
 				catWidth, "Category",
-				pathWidth, "Path")
+				pathWidth, "Path",
+				resetColor)
 		}
 
 		// Print separator with pink color
 		if !noMessage {
-			fmt.Printf("\033[38;5;201m%s  %s  %s  %s  %s  %s\033[0m\n",
+			fmt.Printf("%s%s  %s  %s  %s  %s  %s%s\n",
+				headerColor,
 				strings.Repeat("─", locWidth),
 				strings.Repeat("─", sevWidth),
 				strings.Repeat("─", msgWidth),
 				strings.Repeat("─", ruleWidth),
 				strings.Repeat("─", catWidth),
-				strings.Repeat("─", pathWidth))
+				strings.Repeat("─", pathWidth),
+				resetColor)
 		} else {
-			fmt.Printf("\033[38;5;201m%s  %s  %s  %s  %s\033[0m\n",
+			fmt.Printf("%s%s  %s  %s  %s  %s%s\n",
+				headerColor,
 				strings.Repeat("─", locWidth),
 				strings.Repeat("─", sevWidth),
 				strings.Repeat("─", ruleWidth),
 				strings.Repeat("─", catWidth),
-				strings.Repeat("─", pathWidth))
+				strings.Repeat("─", pathWidth),
+				resetColor)
 		}
 
 		// Print rows
 		for i, r := range results {
 			if i > 1000 && !allResults {
-				fmt.Printf("\033[31m...%d more violations not rendered\033[0m\n", len(results)-1000)
+				fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
 				break
 			}
 
@@ -497,22 +509,25 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 			
 			// Apply message colorization (highlights backtick-enclosed text)
 			coloredMessage := cui.ColorizeMessage(m)
+			
+			// Apply path colorization (highlights single-quoted text)
+			coloredPath := cui.ColorizePath(truncate(p, pathWidth))
 
 			// Format severity with color and icon (matching BubbleTea UI)
 			var sevColored string
 			if r.Rule != nil {
 				switch r.Rule.Severity {
 				case model.SeverityError:
-					sevColored = fmt.Sprintf("\033[31m%s error  \033[0m", "✗")
+					sevColored = fmt.Sprintf("%s%s error  %s", cui.ASCIIRed, "✗", cui.ASCIIReset)
 				case model.SeverityWarn:
-					sevColored = fmt.Sprintf("\033[33m%s warning\033[0m", "▲")
+					sevColored = fmt.Sprintf("%s%s warning%s", cui.ASCIIYellow, "▲", cui.ASCIIReset)
 				case model.SeverityInfo:
-					sevColored = fmt.Sprintf("\033[36m%s info   \033[0m", "●")
+					sevColored = fmt.Sprintf("%s%s info   %s", cui.ASCIIBlue, "●", cui.ASCIIReset)
 				default:
 					sevColored = fmt.Sprintf("%-*s", sevWidth, r.Rule.Severity)
 				}
 			} else {
-				sevColored = fmt.Sprintf("\033[36m%s info   \033[0m", "●")
+				sevColored = fmt.Sprintf("%s%s info   %s", cui.ASCIIBlue, "●", cui.ASCIIReset)
 			}
 
 			// Get rule and category
@@ -537,21 +552,27 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 				msgPadding = 0
 			}
 			
+			// Calculate padding for colorized path (account for ANSI codes)
+			pathPadding := pathWidth - cui.VisibleLength(coloredPath)
+			if pathPadding < 0 {
+				pathPadding = 0
+			}
+			
 			if !noMessage {
-				fmt.Printf("%s%*s  %-10s  %s%*s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+				fmt.Printf("%s%*s  %-10s  %s%*s  %-*s  %-*s  %s%s%*s%s\n",
 					coloredLocation, locPadding, "",
 					sevColored,
 					coloredMessage, msgPadding, "",
 					ruleWidth, ruleId,  // Never truncate rule
 					catWidth, category,  // Never truncate category
-					pathWidth, truncate(p, pathWidth))
+					cui.ASCIIGrey, coloredPath, pathPadding, "", cui.ASCIIReset)
 			} else {
-				fmt.Printf("%s%*s  %-10s  %-*s  %-*s  \033[90m%-*s\033[0m\n",
+				fmt.Printf("%s%*s  %-10s  %-*s  %-*s  %s%s%*s%s\n",
 					coloredLocation, locPadding, "",
 					sevColored,
 					ruleWidth, ruleId,  // Never truncate rule
 					catWidth, category,  // Never truncate category
-					pathWidth, truncate(p, pathWidth))
+					cui.ASCIIGrey, coloredPath, pathPadding, "", cui.ASCIIReset)
 			}
 		}
 		fmt.Println()
@@ -566,12 +587,14 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 	}
 
 	// Build category summary table
-	fmt.Printf("\033[36m%-20s  %-10s  %-10s  %-10s\033[0m\n", "Category", "Errors", "Warnings", "Info")
-	fmt.Printf("\033[90m%s  %s  %s  %s\033[0m\n",
+	fmt.Printf("%s%-20s  %-10s  %-10s  %-10s%s\n", cui.ASCIIBlue, "Category", "Errors", "Warnings", "Info", cui.ASCIIReset)
+	fmt.Printf("%s%s  %s  %s  %s%s\n",
+		cui.ASCIIGrey,
 		strings.Repeat("─", 20),
 		strings.Repeat("─", 10),
 		strings.Repeat("─", 10),
-		strings.Repeat("─", 10))
+		strings.Repeat("─", 10),
+		cui.ASCIIReset)
 
 	for _, cat := range cats {
 		errors := rs.GetErrorsByRuleCategory(cat.Id)
@@ -594,23 +617,23 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 	informs := rs.GetInfoCount()
 
 	if errs > 0 {
-		fmt.Printf("\033[31m╭──────────────────────────────────────────────────────────────────────╮\033[0m\n")
-		fmt.Printf("\033[31m│  ❌ Linting failed with %d errors, %d warnings and %d informs  │\033[0m\n",
-			errs, warnings, informs)
-		fmt.Printf("\033[31m╰──────────────────────────────────────────────────────────────────────╯\033[0m\n")
+		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIRed, cui.ASCIIReset)
+		fmt.Printf("%s│  ❌ Linting failed with %d errors, %d warnings and %d informs  │%s\n",
+			cui.ASCIIRed, errs, warnings, informs, cui.ASCIIReset)
+		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIRed, cui.ASCIIReset)
 	} else if warnings > 0 {
-		fmt.Printf("\033[33m╭──────────────────────────────────────────────────────────────────────╮\033[0m\n")
-		fmt.Printf("\033[33m│  ⚠️  Linting passed with %d warnings and %d informs  │\033[0m\n",
-			warnings, informs)
-		fmt.Printf("\033[33m╰──────────────────────────────────────────────────────────────────────╯\033[0m\n")
+		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIYellow, cui.ASCIIReset)
+		fmt.Printf("%s│  ⚠️  Linting passed with %d warnings and %d informs  │%s\n",
+			cui.ASCIIYellow, warnings, informs, cui.ASCIIReset)
+		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIYellow, cui.ASCIIReset)
 	} else if informs > 0 {
-		fmt.Printf("\033[36m╭──────────────────────────────────────────────────────────────────────╮\033[0m\n")
-		fmt.Printf("\033[36m│  ℹ️  Linting passed, %d informs reported  │\033[0m\n", informs)
-		fmt.Printf("\033[36m╰──────────────────────────────────────────────────────────────────────╯\033[0m\n")
+		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIBlue, cui.ASCIIReset)
+		fmt.Printf("%s│  ℹ️  Linting passed, %d informs reported  │%s\n", cui.ASCIIBlue, informs, cui.ASCIIReset)
+		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIBlue, cui.ASCIIReset)
 	} else {
-		fmt.Printf("\033[32m╭──────────────────────────────────────────────────────────────────────╮\033[0m\n")
-		fmt.Printf("\033[32m│  ✅ Perfect score! Well done!  │\033[0m\n")
-		fmt.Printf("\033[32m╰──────────────────────────────────────────────────────────────────────────╯\033[0m\n")
+		fmt.Printf("%s╭──────────────────────────────────────────────────────────────────────╮%s\n", cui.ASCIIGreen, cui.ASCIIReset)
+		fmt.Printf("%s│  ✅ Perfect score! Well done!  │%s\n", cui.ASCIIGreen, cui.ASCIIReset)
+		fmt.Printf("%s╰──────────────────────────────────────────────────────────────────────────╯%s\n", cui.ASCIIGreen, cui.ASCIIReset)
 	}
 
 	// Show score if we have stats
@@ -622,22 +645,22 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 
 		switch {
 		case score >= 90:
-			color = "\033[32m" // Green
+			color = cui.ASCIIGreen
 			emoji = "🏆"
 		case score >= 70:
-			color = "\033[36m" // Cyan
+			color = cui.ASCIIBlue
 			emoji = "👍"
 		case score >= 50:
-			color = "\033[33m" // Yellow
+			color = cui.ASCIIYellow
 			emoji = "⚡"
 		default:
-			color = "\033[31m" // Red
+			color = cui.ASCIIRed
 			emoji = "💔"
 		}
 
-		fmt.Printf("%s╔════════════════════════════╗\033[0m\n", color)
-		fmt.Printf("%s║  %s Quality Score: %d/100  ║\033[0m\n", color, emoji, score)
-		fmt.Printf("%s╚════════════════════════════╝\033[0m\n", color)
+		fmt.Printf("%s╔════════════════════════════╗%s\n", color, cui.ASCIIReset)
+		fmt.Printf("%s║  %s Quality Score: %d/100  ║%s\n", color, emoji, score, cui.ASCIIReset)
+		fmt.Printf("%s╚════════════════════════════╝%s\n", color, cui.ASCIIReset)
 	}
 }
 

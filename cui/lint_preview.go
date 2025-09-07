@@ -60,19 +60,18 @@ const (
 	MinRuleWidth           = 15
 )
 
-// regular expressions.
-var locationRegex = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
-var jsonPathRegex = regexp.MustCompile(`\$\.\S+`)
-var circularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
-var partRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
+var LocationRegex = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
+var JsonPathRegex = regexp.MustCompile(`\$\.\S+`)
+var CircularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
+var PartRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
 
 // pre-compiled regex patterns for syntax highlighting
 var (
-	yamlKeyValueRegex = regexp.MustCompile(`^(\s*)([a-zA-Z0-9_-]+)(\s*:\s*)(.*)`)
-	yamlListItemRegex = regexp.MustCompile(`^(\s*)(- )(.*)`)
-	numberValueRegex  = regexp.MustCompile(`^-?\d+\.?\d*$`)
-	jsonKeyRegex      = regexp.MustCompile(`"([^"]+)"\s*:`)
-	jsonStringRegex   = regexp.MustCompile(`:\s*"[^"]*"`)
+	YamlKeyValueRegex = regexp.MustCompile(`^(\s*)([a-zA-Z0-9_-]+)(\s*:\s*)(.*)`)
+	YamlListItemRegex = regexp.MustCompile(`^(\s*)(- )(.*)`)
+	NumberValueRegex  = regexp.MustCompile(`^-?\d+\.?\d*$`)
+	JsonKeyRegex      = regexp.MustCompile(`"([^"]+)"\s*:`)
+	JsonStringRegex   = regexp.MustCompile(`:\s*"[^"]*"`)
 )
 
 // pre-created styles for syntax highlighting

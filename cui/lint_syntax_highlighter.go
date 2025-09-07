@@ -46,7 +46,7 @@ func HighlightYAMLComment(line string, isYAML bool) (string, bool) {
 
 // HighlightYAMLKeyValue handles key-value pair highlighting for YAML
 func HighlightYAMLKeyValue(line string) (string, bool) {
-	if matches := yamlKeyValueRegex.FindStringSubmatch(line); matches != nil {
+	if matches := YamlKeyValueRegex.FindStringSubmatch(line); matches != nil {
 		indent := matches[1]
 		key := matches[2]
 		separator := matches[3]
@@ -78,7 +78,7 @@ func HighlightYAMLValue(value string) string {
 	case "true", "false", "null":
 		return syntaxBoolStyle.Render(value)
 	default:
-		if numberValueRegex.MatchString(trimmedValue) {
+		if NumberValueRegex.MatchString(trimmedValue) {
 			return syntaxNumberStyle.Render(value)
 		} else if len(value) > 0 && value[0] == '"' {
 			// double-quoted strings are green
@@ -96,7 +96,7 @@ func HighlightYAMLValue(value string) string {
 
 // HighlightYAMLListItem handles list item highlighting for YAML
 func HighlightYAMLListItem(line string) (string, bool) {
-	if matches := yamlListItemRegex.FindStringSubmatch(line); matches != nil {
+	if matches := YamlListItemRegex.FindStringSubmatch(line); matches != nil {
 		// apply highlighting to the list item value
 		itemValue := matches[3]
 		coloredItem := HighlightYAMLValue(itemValue)
@@ -110,7 +110,7 @@ func HighlightJSONLine(line string) string {
 	processed := false
 	originalLine := line
 
-	line = jsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
+	line = JsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
 		processed = true
 		// check if it's $ref
 		if strings.Contains(match, "$ref") {
@@ -119,7 +119,7 @@ func HighlightJSONLine(line string) string {
 		return syntaxKeyStyle.Render(match)
 	})
 
-	line = jsonStringRegex.ReplaceAllStringFunc(line, func(match string) string {
+	line = JsonStringRegex.ReplaceAllStringFunc(line, func(match string) string {
 		processed = true
 		parts := strings.SplitN(match, "\"", 2)
 		if len(parts) > 1 {
