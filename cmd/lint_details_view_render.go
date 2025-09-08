@@ -14,6 +14,21 @@ import (
 	"golang.org/x/term"
 )
 
+// Constants for summary table widths at different terminal sizes
+const (
+	// SummaryTableWidthFull is the width of summary tables for terminals >= 100 width
+	// Calculated as: 40 (rule) + 12 (violations) + 50 (impact) + 4 (spacing) + 1 (leading) = 107
+	SummaryTableWidthFull = 107
+
+	// SummaryTableWidthMedium is the width for terminals 80-99 width
+	// Calculated as: 25 (rule) + 10 (violations) + 30 (impact) + 4 (spacing) + 1 (leading) = 70
+	SummaryTableWidthMedium = 70
+
+	// SummaryTableWidthSmall is the width for terminals 60-79 width
+	// Calculated as: 20 (rule) + 8 (violations) + 20 (impact) + 4 (spacing) + 1 (leading) = 53
+	SummaryTableWidthSmall = 53
+)
+
 // TableConfig holds all table configuration and column widths
 type TableConfig struct {
 	Width         int
@@ -528,6 +543,33 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 	}
 }
 
+// calculateCodeSnippetHighlightWidth calculates the width for the highlighted code line
+// to match the summary table width
+func calculateCodeSnippetHighlightWidth(lineNumWidth int) int {
+	width := getTerminalWidth()
+
+	var summaryTableWidth int
+	if width < 60 {
+		// very narrow terminal - use minimum table width
+		summaryTableWidth = 40
+	} else if width < 80 {
+		summaryTableWidth = SummaryTableWidthSmall
+	} else if width < 100 {
+		summaryTableWidth = SummaryTableWidthMedium
+	} else {
+		summaryTableWidth = SummaryTableWidthFull
+	}
+
+	highlightWidth := summaryTableWidth - lineNumWidth - 3
+
+	// minimum width
+	if highlightWidth < 40 {
+		highlightWidth = 40
+	}
+
+	return highlightWidth
+}
+
 // renderCodeSnippetWithHighlight renders a code snippet around the error line with syntax highlighting
 func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []string, fileName string) {
 	cui.InitSyntaxStyles()
@@ -567,6 +609,9 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 		lineNumWidth = 4
 	}
 
+	// calculate highlight width to match summary table width
+	highlightWidth := calculateCodeSnippetHighlightWidth(lineNumWidth)
+
 	fmt.Println() // blank line before snippet
 
 	// render the code snippet
@@ -583,7 +628,8 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 		// highlight the error line
 		if i == targetLine {
 			// error line with pink arrow, bold line number, and full-line background
-			fmt.Printf("%s%s%s %s%s▶%s \033[48;5;53m%s%s%-80s%s\n",
+			// use dynamic width format string for padding
+			fmt.Printf("%s%s%s %s%s▶%s \033[48;5;53m%s%s%-*s%s\n",
 				cui.ASCIIPink,
 				cui.ASCIIBold,
 				lineNum,
@@ -592,6 +638,7 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 				cui.ASCIIReset,
 				cui.ASCIIPink,
 				cui.ASCIIBold,
+				highlightWidth,
 				line, // use raw line instead of highlighted to avoid color conflicts
 				cui.ASCIIReset)
 		} else {
