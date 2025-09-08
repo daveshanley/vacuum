@@ -57,11 +57,6 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		Padding(0, 1)
 	var detailsContent strings.Builder
 
-	// Add "Details" header in bold pink
-	headerStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
-	detailsContent.WriteString(headerStyle.Render("Details"))
-	detailsContent.WriteString("\n\n")
-
 	severity := getRuleSeverity(m.modalContent)
 	severityInfo := GetSeverityInfoFromText(severity)
 	asciiIcon := severityInfo.Icon
@@ -93,10 +88,6 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		MaxHeight(contentHeight).
 		Padding(0, 1)
 	var howToFixContent strings.Builder
-
-	// Add "How to Fix" header in bold pink
-	howToFixContent.WriteString(headerStyle.Render("How to Fix"))
-	howToFixContent.WriteString("\n\n")
 
 	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
 		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
@@ -136,7 +127,7 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 			lineNumWidth = 5
 		}
 
-		maxLineWidth := codeWidth - lineNumWidth - 2
+		maxLineWidth := codeWidth - lineNumWidth - 4 // -4 to account for "▶ " or "│ " (2 chars) plus padding
 
 		for i, codeLine := range codeLines {
 			actualLineNum := startLine + i
@@ -153,8 +144,14 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 			if isHighlighted {
 				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
 				codeContent.WriteString(highlightedLineNumStyle.Render(lineNumStr))
+				// add pink triangle for error line
+				triangleStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+				codeContent.WriteString(triangleStyle.Render("▶ "))
 			} else {
 				codeContent.WriteString(lineNumStyle.Render(lineNumStr))
+				// add grey pipe for normal lines
+				pipeStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+				codeContent.WriteString(pipeStyle.Render("│ "))
 			}
 
 			displayLine := codeLine
