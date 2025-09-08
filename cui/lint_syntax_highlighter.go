@@ -110,12 +110,36 @@ func HighlightJSONLine(line string) string {
 	processed := false
 	originalLine := line
 
+	// handle $ref lines specially - highlight only the $ref part
+	if strings.Contains(line, "\"$ref\"") {
+		refIndex := strings.Index(line, "\"$ref\"")
+		if refIndex >= 0 {
+			beforeRef := line[:refIndex]
+			// find the end of the $ref value (next quote after the colon)
+			afterRefStart := refIndex + 6 // length of "$ref"
+			colonIndex := strings.Index(line[afterRefStart:], ":")
+			if colonIndex >= 0 {
+				valueStart := afterRefStart + colonIndex + 1
+				// find the closing quote
+				quoteStart := strings.Index(line[valueStart:], "\"")
+				if quoteStart >= 0 {
+					quoteEnd := strings.Index(line[valueStart+quoteStart+1:], "\"")
+					if quoteEnd >= 0 {
+						refEnd := valueStart + quoteStart + quoteEnd + 2
+						refPart := line[refIndex:refEnd]
+						afterRef := line[refEnd:]
+						return beforeRef + syntaxRefStyle.Render(refPart) + afterRef
+					}
+				}
+			}
+		}
+		// fallback: highlight the key only if we can't parse the value
+		line = strings.ReplaceAll(line, "\"$ref\"", syntaxRefStyle.Render("\"$ref\""))
+		processed = true
+	}
+
 	line = JsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
 		processed = true
-		// check if it's $ref
-		if strings.Contains(match, "$ref") {
-			return syntaxRefStyle.Render(match)
-		}
 		return syntaxKeyStyle.Render(match)
 	})
 

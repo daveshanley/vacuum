@@ -264,12 +264,15 @@ func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxW
 
 		// format line number
 		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
-
 		if isHighlighted {
 			highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
 			result.WriteString(highlightedLineNumStyle.Render(lineNumStr))
+			triangleStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+			result.WriteString(triangleStyle.Render("▶ "))
 		} else {
 			result.WriteString(lineNumStyle.Render(lineNumStr))
+			pipeStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+			result.WriteString(pipeStyle.Render("│ "))
 		}
 
 		// handle markdown block content

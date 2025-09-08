@@ -87,7 +87,10 @@ func calculateColumnWidths(width int) columnWidths {
 			fullHeaders: true,
 		}
 	}
-	// full width
+	// full width - make category table match rules table width
+	// rules table: 40 + 12 + 50 + 4 (spaces) + 1 (leading) = 107
+	// category table: 20 + 12 + 12 + X + 6 (spaces) + 1 (leading) = 107
+	// [X = 107 - 20 - 12 - 12 - 6 - 1 = 56]
 	return columnWidths{
 		category:    20,
 		number:      12,
@@ -112,6 +115,9 @@ func renderTableSeparator(widths []int) {
 
 // render category table headers
 func renderCategoryHeaders(widths columnWidths) {
+	// calculate extended info width to match rules table
+	infoWidth := 56
+
 	headers := []tableHeader{
 		{label: "Category", color: cui.ASCIIPink, width: widths.category},
 	}
@@ -120,16 +126,17 @@ func renderCategoryHeaders(widths columnWidths) {
 		headers = append(headers,
 			tableHeader{label: "✗ Errors", color: cui.ASCIIRed, width: widths.number},
 			tableHeader{label: "▲ Warnings", color: cui.ASCIIYellow, width: widths.number},
-			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: widths.number},
+			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: infoWidth},
 		)
 	} else {
 		headers = append(headers,
 			tableHeader{label: "✗ Err", color: cui.ASCIIRed, width: widths.number},
 			tableHeader{label: "▲ Warn", color: cui.ASCIIYellow, width: widths.number},
-			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: widths.number},
+			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: infoWidth},
 		)
 	}
 
+	fmt.Print(" ") // Add leading space to align with separator and data rows
 	for i, h := range headers {
 		if i > 0 {
 			fmt.Print("  ")
@@ -138,7 +145,7 @@ func renderCategoryHeaders(widths columnWidths) {
 	}
 	fmt.Println()
 
-	renderTableSeparator([]int{widths.category, widths.number, widths.number, widths.number})
+	renderTableSeparator([]int{widths.category, widths.number, widths.number, 56})
 }
 
 // render category table row
@@ -148,22 +155,28 @@ func renderCategoryRow(name string, errors, warnings, info int, widths columnWid
 		name = name[:widths.category-3] + "..."
 	}
 
+	// calculate info column width to match rules table
+	// rules table total: rule(40) + violation(12) + impact(50) + spaces(4) + leading(1) = 107
+	// category table: category(20) + number(12) + number(12) + infoWidth + spaces(6) + leading(1) = 107
+	// [infoWidth = 107 - 20 - 12 - 12 - 6 - 1 = 56]
+	infoWidth := 56
+
 	fmt.Printf(" %-*s  %-*s  %-*s  %-*s\n",
 		widths.category, name,
 		widths.number, humanize.Comma(int64(errors)),
 		widths.number, humanize.Comma(int64(warnings)),
-		widths.number, humanize.Comma(int64(info)))
+		infoWidth, humanize.Comma(int64(info)))
 }
 
 // render category totals row
 func renderCategoryTotals(totals summaryTotals, widths columnWidths) {
-	renderTableSeparator([]int{widths.category, widths.number, widths.number, widths.number})
+	renderTableSeparator([]int{widths.category, widths.number, widths.number, 56})
 
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s  %s%s%-*s%s  %s%s%-*s%s\n",
 		cui.ASCIIBold, widths.category, "Total", cui.ASCIIReset,
 		cui.ASCIIRed, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.errors)), cui.ASCIIReset,
 		cui.ASCIIYellow, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.warnings)), cui.ASCIIReset,
-		cui.ASCIIBlue, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.info)), cui.ASCIIReset)
+		cui.ASCIIBlue, cui.ASCIIBold, 56, humanize.Comma(int64(totals.info)), cui.ASCIIReset)
 }
 
 // render category summary table
@@ -376,7 +389,7 @@ func renderQualityScore(score int) {
 func renderRulesList(rules map[string]*model.Rule) {
 	fmt.Println("The following rules are being used:")
 	fmt.Println()
-	
+
 	// Sort rules for consistent output
 	var sortedRules []*model.Rule
 	for _, rule := range rules {
@@ -390,10 +403,10 @@ func renderRulesList(rules map[string]*model.Rule) {
 			}
 		}
 	}
-	
+
 	// Create list
 	l := list.New()
-	
+
 	// Custom enumerator with blue numbered bullets
 	l.Enumerator(func(items list.Items, i int) string {
 		// Right-align numbers with padding and add space after
@@ -405,15 +418,15 @@ func renderRulesList(rules map[string]*model.Rule) {
 		}
 		return numStr
 	})
-	
-	// Style the enumerator in blue  
+
+	// Style the enumerator in blue
 	l.EnumeratorStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("45"))) // Blue
-	
+
 	// Add items with styled rule names using ANSI codes directly
 	for _, rule := range sortedRules {
 		// Format: bold pink rule ID + normal description
 		// Using ANSI codes directly: bold pink for rule ID, reset for description
-		formattedItem := fmt.Sprintf("%s%s%s%s: %s", 
+		formattedItem := fmt.Sprintf("%s%s%s%s: %s",
 			cui.ASCIIBold,
 			cui.ASCIIPink,
 			rule.Id,
@@ -421,10 +434,10 @@ func renderRulesList(rules map[string]*model.Rule) {
 			rule.Description)
 		l.Item(formattedItem)
 	}
-	
+
 	// Set indentation
 	l.Indenter(func(list.Items, int) string { return "  " })
-	
+
 	fmt.Println(l)
 	fmt.Println()
 }
