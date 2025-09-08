@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
@@ -56,6 +58,16 @@ func GetLintPreviewCommand() *cobra.Command {
 	cmd.Flags().Bool("ext-refs", false, "Enable $ref lookups for extension objects")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
+	
+	// Additional flags for parity with lint command
+	cmd.Flags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
+	cmd.Flags().String("key-file", "", "Path to client private key file for HTTPS requests")
+	cmd.Flags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
+	cmd.Flags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
+	cmd.Flags().BoolP("debug", "w", false, "Enable debug logging")
+	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
+	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
+	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 
 	return cmd
 }
@@ -91,9 +103,25 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	extRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
+	
+	// Additional flags for parity
+	certFile, _ := cmd.Flags().GetString("cert-file")
+	keyFile, _ := cmd.Flags().GetString("key-file")
+	caFile, _ := cmd.Flags().GetString("ca-file")
+	insecure, _ := cmd.Flags().GetBool("insecure")
+	debugFlag, _ := cmd.Flags().GetBool("debug")
+	minScore, _ := cmd.Flags().GetInt("min-score")
+	showRules, _ := cmd.Flags().GetBool("show-rules")
+	pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
+
+	// disable color and styling for CI/CD use
+	if noStyleFlag || pipelineOutput {
+		// For lint-preview, we control colors through cui package
+		// Setting noStyleFlag will be handled in rendering functions
+	}
 
 	// Show banner unless disabled
-	if !silentFlag && !noBannerFlag {
+	if !silentFlag && !noBannerFlag && !pipelineOutput {
 		PrintBanner()
 	}
 
@@ -121,14 +149,19 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	fileInfo, _ := os.Stat(fileName)
 
 	// Setup logging
+	logLevel := slog.LevelError
+	if debugFlag {
+		logLevel = slog.LevelDebug
+	}
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelError,
+		Level: logLevel,
 	})
 	logger := slog.New(handler)
 
 	var resultSet *model.RuleResultSet
 	var specBytes []byte
 	var displayFileName string
+	var stats *reports.ReportStatistics
 	start := time.Now()
 
 	if reportOrSpec.IsReport {
@@ -173,8 +206,25 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 		// Handle custom ruleset
 		if rulesetFlag != "" {
+			// Create HTTP client for remote ruleset downloads if needed
+			var httpClient *http.Client
+			httpClientConfig := utils.HTTPClientConfig{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+			if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+				var clientErr error
+				httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
+				if clientErr != nil {
+					fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", clientErr.Error())
+					return clientErr
+				}
+			}
+			
 			var rsErr error
-			selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
+			selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 			if rsErr != nil {
 				fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n", rulesetFlag, rsErr.Error())
 				return rsErr
@@ -184,8 +234,13 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// Show which rules are being used (after ruleset is fully loaded)
+		if showRules && !pipelineOutput && !silentFlag {
+			renderRulesList(selectedRS.Rules)
+		}
+
 		// Display linting info
-		if !silentFlag {
+		if !silentFlag && !pipelineOutput {
 			fmt.Printf("\033[36mLinting file '%s' against %d rules: %s\033[0m\n\n",
 				displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
 		}
@@ -211,6 +266,12 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			IgnoreCircularArrayRef:          ignoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
 			ExtractReferencesFromExtensions: extRefsFlag,
+			HTTPClientConfig: utils.HTTPClientConfig{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			},
 		})
 
 		// Filter ignored results
@@ -226,6 +287,11 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 		// Process results
 		resultSet = model.NewRuleResultSet(result.Results)
+		
+		// Create statistics for score checking
+		if minScore > 10 && result.Index != nil && result.SpecInfo != nil {
+			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
+		}
 	}
 
 	specStringData := strings.Split(string(specBytes), "\n")
@@ -241,13 +307,10 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	resultSet.SortResultsByLineNumber()
 
-	// Create statistics if we have the necessary data
-	var stats *reports.ReportStatistics
+	// Update statistics if we have them from the report
 	if reportOrSpec.IsReport && reportOrSpec.Report.Statistics != nil {
 		stats = reportOrSpec.Report.Statistics
 	}
-	// Note: For fresh linting, we'd need the index and spec info from the result,
-	// but that's not available in this flow anymore. We can skip stats for now.
 
 	// Show detailed results if requested
 	if detailsFlag && len(resultSet.Results) > 0 {
@@ -269,6 +332,21 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	errs := resultSet.GetErrorCount()
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
+
+	// Check min score threshold
+	if minScore > 10 && stats != nil {
+		if stats.OverallScore < minScore {
+			if !pipelineOutput && !silentFlag {
+				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", cui.ASCIIRed, cui.ASCIIReset)
+				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n", 
+					cui.ASCIIRed, stats.OverallScore, minScore, cui.ASCIIReset)
+			} else if pipelineOutput {
+				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
+			}
+			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", 
+				stats.OverallScore, minScore)
+		}
+	}
 
 	// Check for failure but handle it gracefully without showing help
 	failErr := CheckFailureSeverity(failSeverityFlag, errs, warnings, informs)
@@ -381,3 +459,4 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen-3] + "..."
 }
+
