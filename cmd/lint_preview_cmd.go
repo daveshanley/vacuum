@@ -58,7 +58,7 @@ func GetLintPreviewCommand() *cobra.Command {
 	cmd.Flags().Bool("ext-refs", false, "Enable $ref lookups for extension objects")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-	
+
 	// Additional flags for parity with lint command
 	cmd.Flags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
 	cmd.Flags().String("key-file", "", "Path to client private key file for HTTPS requests")
@@ -103,7 +103,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	extRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
-	
+
 	// Additional flags for parity
 	certFile, _ := cmd.Flags().GetString("cert-file")
 	keyFile, _ := cmd.Flags().GetString("key-file")
@@ -222,7 +222,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 					return clientErr
 				}
 			}
-			
+
 			var rsErr error
 			selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 			if rsErr != nil {
@@ -287,9 +287,9 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 		// Process results
 		resultSet = model.NewRuleResultSet(result.Results)
-		
-		// Create statistics for score checking
-		if minScore > 10 && result.Index != nil && result.SpecInfo != nil {
+
+		// Create statistics for score checking and pipeline output
+		if (minScore > 10 || pipelineOutput) && result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
 		}
 	}
@@ -312,19 +312,19 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		stats = reportOrSpec.Report.Statistics
 	}
 
-	// Show detailed results if requested
-	if detailsFlag && len(resultSet.Results) > 0 {
+	// Show detailed results if requested (but not in pipeline output mode)
+	if detailsFlag && len(resultSet.Results) > 0 && !pipelineOutput {
 		// Always use regular detailed view (no interactive UI)
 		renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
 			silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
 	}
 
 	// Render summary
-	renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag)
+	renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag, pipelineOutput, showRules)
 
-	// Show timing
+	// Show timing (but not in pipeline output mode)
 	duration := time.Since(start)
-	if timeFlag {
+	if timeFlag && !pipelineOutput {
 		renderFixedTiming(duration, fileInfo.Size())
 	}
 
@@ -338,12 +338,12 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		if stats.OverallScore < minScore {
 			if !pipelineOutput && !silentFlag {
 				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", cui.ASCIIRed, cui.ASCIIReset)
-				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n", 
+				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
 					cui.ASCIIRed, stats.OverallScore, minScore, cui.ASCIIReset)
 			} else if pipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
-			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d", 
+			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
 				stats.OverallScore, minScore)
 		}
 	}
@@ -393,9 +393,42 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 }
 
 func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
-	stats *reports.ReportStatistics, fileName string, silent bool, noStyle bool) {
+	stats *reports.ReportStatistics, fileName string, silent bool, noStyle bool,
+	pipelineOutput bool, showRules bool) {
 
 	if silent {
+		return
+	}
+
+	// If pipeline output is requested, use the existing RenderSummary function
+	if pipelineOutput {
+		var ruleset *rulesets.RuleSet
+		if rs != nil && len(rs.Results) > 0 && rs.Results[0].Rule != nil {
+			ruleset = &rulesets.RuleSet{
+				Rules: make(map[string]*model.Rule),
+			}
+			seenRules := make(map[string]bool)
+			for _, result := range rs.Results {
+				if result.Rule != nil && !seenRules[result.Rule.Id] {
+					ruleset.Rules[result.Rule.Id] = result.Rule
+					seenRules[result.Rule.Id] = true
+				}
+			}
+		}
+
+		rso := RenderSummaryOptions{
+			RuleResultSet:  rs,
+			RuleCategories: cats,
+			RuleSet:        ruleset,
+			PipelineOutput: true,
+			RenderRules:    showRules,
+			ReportStats:    stats,
+			Filename:       fileName,
+			TotalFiles:     1,
+			Silent:         false,
+		}
+
+		RenderSummary(rso)
 		return
 	}
 
@@ -405,10 +438,10 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 	if hasResults {
 		width := getTerminalWidth()
 		widths := calculateColumnWidths(width)
-		
+
 		// render category summary table
 		renderCategoryTable(rs, cats, widths)
-		
+
 		// build and render rule violations table
 		violations := buildRuleViolations(rs)
 		renderRuleViolationsTable(violations, widths)
@@ -423,7 +456,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		warnings = rs.GetWarnCount()
 		informs = rs.GetInfoCount()
 	}
-	
+
 	renderResultBox(errs, warnings, informs)
 
 	// render quality score if available
@@ -457,4 +490,3 @@ func truncate(s string, maxLen int) string {
 	}
 	return s[:maxLen-3] + "..."
 }
-
