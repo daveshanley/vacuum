@@ -16,19 +16,19 @@ import (
 
 // TableConfig holds all table configuration and column widths
 type TableConfig struct {
-	Width          int
-	ShowCategory   bool
-	ShowPath       bool
-	ShowRule       bool
-	UseTreeFormat  bool
-	LocationWidth  int
-	SeverityWidth  int
-	MessageWidth   int
-	RuleWidth      int
-	CategoryWidth  int
-	PathWidth      int
-	NoMessage      bool
-	NoClip         bool
+	Width         int
+	ShowCategory  bool
+	ShowPath      bool
+	ShowRule      bool
+	UseTreeFormat bool
+	LocationWidth int
+	SeverityWidth int
+	MessageWidth  int
+	RuleWidth     int
+	CategoryWidth int
+	PathWidth     int
+	NoMessage     bool
+	NoClip        bool
 }
 
 // SeverityInfo holds severity display information
@@ -91,7 +91,7 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 
 	// get natural column widths
 	locWidth, ruleWidth, catWidth, msgWidth := calculateMaxColumnWidths(results, fileName, errors)
-	
+
 	config.LocationWidth = locWidth
 	config.SeverityWidth = 9
 	config.RuleWidth = ruleWidth
@@ -131,7 +131,7 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 				config.MessageWidth = remainingWidth - 20
 			}
 			config.PathWidth = remainingWidth - config.MessageWidth
-			
+
 			// enforce minimums
 			if config.MessageWidth < 20 {
 				config.MessageWidth = 20
@@ -265,7 +265,7 @@ func printFileHeader(fileName string, silent bool) {
 // printTableHeaders prints the table headers based on configuration
 func printTableHeaders(config *TableConfig) {
 	fmt.Printf("%s%s", cui.ASCIIPink, cui.ASCIIBold)
-	
+
 	printColumns := []struct {
 		show  bool
 		width int
@@ -290,7 +290,7 @@ func printTableHeaders(config *TableConfig) {
 		fmt.Printf("%-*s", col.width, col.title)
 		first = false
 	}
-	
+
 	fmt.Printf("%s\n", cui.ASCIIReset)
 }
 
@@ -305,7 +305,7 @@ func getSeverityHeaderText(config *TableConfig) string {
 // printTableSeparator prints the separator line
 func printTableSeparator(config *TableConfig) {
 	fmt.Printf("%s%s", cui.ASCIIPink, cui.ASCIIBold)
-	
+
 	printColumns := []struct {
 		show  bool
 		width int
@@ -329,7 +329,7 @@ func printTableSeparator(config *TableConfig) {
 		fmt.Print(strings.Repeat("─", col.width))
 		first = false
 	}
-	
+
 	fmt.Printf("%s\n", cui.ASCIIReset)
 }
 
@@ -407,7 +407,7 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName string) {
 	location := formatLocation(r, fileName)
 	coloredLocation := cui.ColorizeLocation(location)
-	
+
 	// truncate message and path if needed
 	message := r.Message
 	path := r.Path
@@ -419,7 +419,7 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 			path = path[:config.PathWidth-3] + "..."
 		}
 	}
-	
+
 	coloredMessage := cui.ColorizeMessage(message)
 	coloredPath := ""
 	if config.ShowPath {
@@ -429,9 +429,9 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 		}
 		coloredPath = cui.ColorizePath(truncatedPath)
 	}
-	
+
 	severity := getSeverityInfo(r, config.ShowRule)
-	
+
 	ruleId := ""
 	category := ""
 	if r.Rule != nil {
@@ -440,18 +440,18 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 			category = r.Rule.RuleCategory.Name
 		}
 	}
-	
+
 	// calculate padding for colored fields
 	locPadding := config.LocationWidth - cui.VisibleLength(coloredLocation)
 	if locPadding < 0 {
 		locPadding = 0
 	}
-	
+
 	msgPadding := config.MessageWidth - cui.VisibleLength(coloredMessage)
 	if msgPadding < 0 {
 		msgPadding = 0
 	}
-	
+
 	pathPadding := 0
 	if config.ShowPath {
 		pathPadding = config.PathWidth - cui.VisibleLength(coloredPath)
@@ -459,51 +459,149 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 			pathPadding = 0
 		}
 	}
-	
+
 	// build the row output
 	fmt.Printf("%s%*s", coloredLocation, locPadding, "")
 	fmt.Printf("  %-10s", severity.Formatted)
-	
+
 	if !config.NoMessage {
 		fmt.Printf("  %s%*s", coloredMessage, msgPadding, "")
 	}
-	
+
 	if config.ShowRule {
 		fmt.Printf("  %-*s", config.RuleWidth, ruleId)
 	}
-	
+
 	if config.ShowCategory {
 		fmt.Printf("  %-*s", config.CategoryWidth, category)
 	}
-	
+
 	if config.ShowPath {
 		fmt.Printf("  %s%s%*s%s", cui.ASCIIGrey, coloredPath, pathPadding, "", cui.ASCIIReset)
 	}
-	
+
 	fmt.Println()
 }
 
 // renderTableFormat renders the results in table format
-func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig, 
-	fileName string, errors, allResults, snippets bool) {
-	
+func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
+	fileName string, errors, allResults, snippets bool, specData []string) {
+
 	if !snippets {
 		printTableHeaders(config)
 		printTableSeparator(config)
-		
+
 		for i, r := range results {
 			if i > 1000 && !allResults {
 				fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
 				break
 			}
-			
+
 			if errors && r.Rule != nil && r.Rule.Severity != model.SeverityError {
 				continue
 			}
-			
+
 			renderTableRow(r, config, fileName)
 		}
-		
+
 		fmt.Println()
+	} else {
+		// snippets mode - render each result with its code snippet
+		printTableHeaders(config)
+		printTableSeparator(config)
+
+		for i, r := range results {
+			if i > 1000 && !allResults {
+				fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
+				break
+			}
+
+			if errors && r.Rule != nil && r.Rule.Severity != model.SeverityError {
+				continue
+			}
+
+			renderTableRow(r, config, fileName)
+
+			renderCodeSnippetWithHighlight(r, specData, fileName)
+			fmt.Println()
+		}
+	}
+}
+
+// renderCodeSnippetWithHighlight renders a code snippet around the error line with syntax highlighting
+func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []string, fileName string) {
+	cui.InitSyntaxStyles()
+
+	if specData == nil {
+		return
+	}
+
+	// get the target line from either StartNode or Origin
+	targetLine := 0
+	if r.StartNode != nil {
+		targetLine = r.StartNode.Line
+	}
+	if r.Origin != nil {
+		targetLine = r.Origin.Line
+	}
+	if targetLine <= 0 || targetLine > len(specData) {
+		return
+	}
+
+	isYAML := strings.HasSuffix(fileName, ".yaml") || strings.HasSuffix(fileName, ".yml")
+
+	// show 2 lines before and after the error line
+	startLine := targetLine - 2
+	endLine := targetLine + 2
+
+	if startLine < 1 {
+		startLine = 1
+	}
+	if endLine > len(specData) {
+		endLine = len(specData)
+	}
+
+	// calculate line number width
+	lineNumWidth := len(fmt.Sprintf("%d", endLine))
+	if lineNumWidth < 4 {
+		lineNumWidth = 4
+	}
+
+	fmt.Println() // blank line before snippet
+
+	// render the code snippet
+	for i := startLine; i <= endLine; i++ {
+		lineNum := fmt.Sprintf("%*d", lineNumWidth, i)
+		line := ""
+		if i-1 >= 0 && i-1 < len(specData) {
+			line = specData[i-1]
+		}
+
+		// apply syntax highlighting
+		highlightedLine := cui.ApplySyntaxHighlightingToLine(line, isYAML)
+
+		// highlight the error line
+		if i == targetLine {
+			// error line with pink arrow, bold line number, and full-line background
+			fmt.Printf("%s%s%s %s%s▶%s \033[48;5;53m%s%s%-80s%s\n",
+				cui.ASCIIPink,
+				cui.ASCIIBold,
+				lineNum,
+				cui.ASCIIReset,
+				cui.ASCIIPink,
+				cui.ASCIIReset,
+				cui.ASCIIPink,
+				cui.ASCIIBold,
+				line, // use raw line instead of highlighted to avoid color conflicts
+				cui.ASCIIReset)
+		} else {
+			// normal line
+			fmt.Printf("%s%s %s│%s %s\n",
+				cui.ASCIIGrey,
+				lineNum,
+				cui.ASCIIGrey,
+				cui.ASCIIReset,
+				highlightedLine)
+		}
 	}
 }

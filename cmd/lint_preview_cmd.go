@@ -388,10 +388,8 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 		return
 	}
 
-	// render table format
-	if !snippets {
-		renderTableFormat(results, config, fileName, errors, allResults, snippets)
-	}
+	// render table format (handles both normal and snippets mode)
+	renderTableFormat(results, config, fileName, errors, allResults, snippets, specData)
 }
 
 func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
