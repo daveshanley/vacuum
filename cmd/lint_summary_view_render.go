@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/v2/progress"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/lipgloss/v2/list"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/dustin/go-humanize"
@@ -19,12 +20,12 @@ import (
 
 // column widths configuration
 type columnWidths struct {
-	category     int
-	number       int
-	rule         int
-	violation    int
-	impact       int
-	fullHeaders  bool
+	category    int
+	number      int
+	rule        int
+	violation   int
+	impact      int
+	fullHeaders bool
 }
 
 // table header configuration
@@ -114,7 +115,7 @@ func renderCategoryHeaders(widths columnWidths) {
 	headers := []tableHeader{
 		{label: "Category", color: cui.ASCIIPink, width: widths.category},
 	}
-	
+
 	if widths.fullHeaders {
 		headers = append(headers,
 			tableHeader{label: "✗ Errors", color: cui.ASCIIRed, width: widths.number},
@@ -128,8 +129,7 @@ func renderCategoryHeaders(widths columnWidths) {
 			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: widths.number},
 		)
 	}
-	
-	// render headers
+
 	for i, h := range headers {
 		if i > 0 {
 			fmt.Print("  ")
@@ -137,8 +137,7 @@ func renderCategoryHeaders(widths columnWidths) {
 		fmt.Printf("%s%-*s%s", h.color, h.width, h.label, cui.ASCIIReset)
 	}
 	fmt.Println()
-	
-	// render separator
+
 	renderTableSeparator([]int{widths.category, widths.number, widths.number, widths.number})
 }
 
@@ -148,7 +147,7 @@ func renderCategoryRow(name string, errors, warnings, info int, widths columnWid
 	if len(name) > widths.category {
 		name = name[:widths.category-3] + "..."
 	}
-	
+
 	fmt.Printf(" %-*s  %-*s  %-*s  %-*s\n",
 		widths.category, name,
 		widths.number, humanize.Comma(int64(errors)),
@@ -159,7 +158,7 @@ func renderCategoryRow(name string, errors, warnings, info int, widths columnWid
 // render category totals row
 func renderCategoryTotals(totals summaryTotals, widths columnWidths) {
 	renderTableSeparator([]int{widths.category, widths.number, widths.number, widths.number})
-	
+
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s  %s%s%-*s%s  %s%s%-*s%s\n",
 		cui.ASCIIBold, widths.category, "Total", cui.ASCIIReset,
 		cui.ASCIIRed, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.errors)), cui.ASCIIReset,
@@ -170,33 +169,33 @@ func renderCategoryTotals(totals summaryTotals, widths columnWidths) {
 // render category summary table
 func renderCategoryTable(rs *model.RuleResultSet, cats []*model.RuleCategory, widths columnWidths) summaryTotals {
 	renderCategoryHeaders(widths)
-	
+
 	totals := summaryTotals{}
-	
+
 	for _, cat := range cats {
 		errors := rs.GetErrorsByRuleCategory(cat.Id)
 		warn := rs.GetWarningsByRuleCategory(cat.Id)
 		info := rs.GetInfoByRuleCategory(cat.Id)
-		
+
 		if len(errors) > 0 || len(warn) > 0 || len(info) > 0 {
 			renderCategoryRow(cat.Name, len(errors), len(warn), len(info), widths)
-			
+
 			totals.errors += len(errors)
 			totals.warnings += len(warn)
 			totals.info += len(info)
 		}
 	}
-	
+
 	renderCategoryTotals(totals, widths)
 	fmt.Println()
-	
+
 	return totals
 }
 
 // build rule violations data
 func buildRuleViolations(rs *model.RuleResultSet) []ruleViolation {
 	ruleMap := make(map[string]*ruleViolation)
-	
+
 	for _, result := range rs.Results {
 		if result.Rule != nil {
 			if _, exists := ruleMap[result.Rule.Id]; !exists {
@@ -207,13 +206,13 @@ func buildRuleViolations(rs *model.RuleResultSet) []ruleViolation {
 			ruleMap[result.Rule.Id].count++
 		}
 	}
-	
+
 	// convert to slice
 	violations := make([]ruleViolation, 0, len(ruleMap))
 	for _, rv := range ruleMap {
 		violations = append(violations, *rv)
 	}
-	
+
 	// sort by count (highest first)
 	for i := 0; i < len(violations); i++ {
 		for j := i + 1; j < len(violations); j++ {
@@ -222,7 +221,7 @@ func buildRuleViolations(rs *model.RuleResultSet) []ruleViolation {
 			}
 		}
 	}
-	
+
 	return violations
 }
 
@@ -243,7 +242,7 @@ func renderRuleHeaders(widths columnWidths) {
 		cui.ASCIIPink, widths.rule, "Rule", cui.ASCIIReset,
 		cui.ASCIIPink, widths.violation, "Violations", cui.ASCIIReset,
 		cui.ASCIIPink, widths.impact, "Quality Impact", cui.ASCIIReset)
-	
+
 	renderTableSeparator([]int{widths.rule, widths.violation, widths.impact})
 }
 
@@ -254,7 +253,7 @@ func renderRuleRow(rv ruleViolation, widths columnWidths, percentage float64, pr
 	if len(ruleName) > widths.rule {
 		ruleName = ruleName[:widths.rule-3] + "..."
 	}
-	
+
 	fmt.Printf(" %-*s  %-*s  %s\n",
 		widths.rule, ruleName,
 		widths.violation, humanize.Comma(int64(rv.count)),
@@ -264,7 +263,7 @@ func renderRuleRow(rv ruleViolation, widths columnWidths, percentage float64, pr
 // render rule violations totals
 func renderRuleTotals(total int, widths columnWidths) {
 	renderTableSeparator([]int{widths.rule, widths.violation, widths.impact})
-	
+
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s\n",
 		cui.ASCIIBold, widths.rule, "Total", cui.ASCIIReset,
 		cui.ASCIIPink, cui.ASCIIBold,
@@ -277,9 +276,9 @@ func renderRuleViolationsTable(violations []ruleViolation, widths columnWidths) 
 	if len(violations) == 0 {
 		return
 	}
-	
+
 	total, max := calculateViolationStats(violations)
-	
+
 	// create progress bar
 	prog := progress.New(
 		progress.WithScaledGradient("#62c4ff", "#f83aff"),
@@ -287,29 +286,29 @@ func renderRuleViolationsTable(violations []ruleViolation, widths columnWidths) 
 		progress.WithoutPercentage(),
 		progress.WithFillCharacters('█', ' '),
 	)
-	
+
 	renderRuleHeaders(widths)
-	
+
 	// show top 10 rules
 	maxRules := 10
 	if len(violations) < maxRules {
 		maxRules = len(violations)
 	}
-	
+
 	for i := 0; i < maxRules; i++ {
 		percentage := float64(violations[i].count) / float64(max)
 		renderRuleRow(violations[i], widths, percentage, prog)
 	}
-	
+
 	renderRuleTotals(total, widths)
-	
+
 	if len(violations) > maxRules {
 		fmt.Printf(" %s... and %d more rules%s\n", cui.ASCIIGrey, len(violations)-maxRules, cui.ASCIIReset)
 	}
 	fmt.Println()
 }
 
-// create result box style  
+// create result box style
 func createResultBoxStyle(foreground, background color.Color) lipgloss.Style {
 	return lipgloss.NewStyle().
 		Foreground(foreground).
@@ -327,7 +326,7 @@ func createResultBoxStyle(foreground, background color.Color) lipgloss.Style {
 // render result box
 func renderResultBox(errors, warnings, informs int) {
 	messageStyle := lipgloss.NewStyle().Padding(1, 1)
-	
+
 	if errors > 0 {
 		message := fmt.Sprintf("\u2717 Failed with %d errors, %d warnings and %d informs.", errors, warnings, informs)
 		style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
@@ -352,7 +351,7 @@ func renderResultBox(errors, warnings, informs int) {
 func renderQualityScore(score int) {
 	var color string
 	var emoji string
-	
+
 	switch {
 	case score >= 90:
 		color = cui.ASCIIGreen
@@ -367,8 +366,65 @@ func renderQualityScore(score int) {
 		color = cui.ASCIIRed
 		emoji = "💔"
 	}
-	
+
 	fmt.Printf("%s╔════════════════════════════╗%s\n", color, cui.ASCIIReset)
 	fmt.Printf("%s║  %s Quality Score: %d/100  ║%s\n", color, emoji, score, cui.ASCIIReset)
 	fmt.Printf("%s╚════════════════════════════╝%s\n", color, cui.ASCIIReset)
+}
+
+// renderRulesList renders the list of rules using lipgloss list
+func renderRulesList(rules map[string]*model.Rule) {
+	fmt.Println("The following rules are being used:")
+	fmt.Println()
+	
+	// Sort rules for consistent output
+	var sortedRules []*model.Rule
+	for _, rule := range rules {
+		sortedRules = append(sortedRules, rule)
+	}
+	// Sort by rule ID for consistency
+	for i := 0; i < len(sortedRules); i++ {
+		for j := i + 1; j < len(sortedRules); j++ {
+			if sortedRules[i].Id > sortedRules[j].Id {
+				sortedRules[i], sortedRules[j] = sortedRules[j], sortedRules[i]
+			}
+		}
+	}
+	
+	// Create list
+	l := list.New()
+	
+	// Custom enumerator with blue numbered bullets
+	l.Enumerator(func(items list.Items, i int) string {
+		// Right-align numbers with padding and add space after
+		numStr := fmt.Sprintf("[%d] ", i+1)
+		if i+1 < 10 {
+			numStr = fmt.Sprintf("  [%d] ", i+1)
+		} else if i+1 < 100 {
+			numStr = fmt.Sprintf(" [%d] ", i+1)
+		}
+		return numStr
+	})
+	
+	// Style the enumerator in blue  
+	l.EnumeratorStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("45"))) // Blue
+	
+	// Add items with styled rule names using ANSI codes directly
+	for _, rule := range sortedRules {
+		// Format: bold pink rule ID + normal description
+		// Using ANSI codes directly: bold pink for rule ID, reset for description
+		formattedItem := fmt.Sprintf("%s%s%s%s: %s", 
+			cui.ASCIIBold,
+			cui.ASCIIPink,
+			rule.Id,
+			cui.ASCIIReset,
+			rule.Description)
+		l.Item(formattedItem)
+	}
+	
+	// Set indentation
+	l.Indenter(func(list.Items, int) string { return "  " })
+	
+	fmt.Println(l)
+	fmt.Println()
 }
