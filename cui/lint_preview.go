@@ -72,6 +72,8 @@ var (
 	NumberValueRegex  = regexp.MustCompile(`^-?\d+\.?\d*$`)
 	JsonKeyRegex      = regexp.MustCompile(`"([^"]+)"\s*:`)
 	JsonStringRegex   = regexp.MustCompile(`:\s*"[^"]*"`)
+	BacktickRegex     = regexp.MustCompile("`([^`]+)`")
+	SingleQuoteRegex  = regexp.MustCompile(`'([^']+)'`)
 )
 
 // pre-created styles for syntax highlighting
