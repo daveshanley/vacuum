@@ -76,7 +76,7 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 	detailsContent.WriteString(lipgloss.NewStyle().Foreground(RGBBlue).Render(location))
 	detailsContent.WriteString("\n\n")
 
-	colorizedMessage := ColorizeString(m.modalContent.Message, ColorizeSubtleSecondary)
+	colorizedMessage := ColorizeMessage(m.modalContent.Message)
 	msgStyle := lipgloss.NewStyle().Width(detailsWidth - 2)
 	detailsContent.WriteString(msgStyle.Render(colorizedMessage))
 

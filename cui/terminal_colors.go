@@ -36,6 +36,7 @@ var (
 	ASCIIGreen           = "\033[38;5;46m"
 	ASCIILightGreyItalic = "\033[3;38;5;251m"
 	ASCIIBold            = "\033[1m"
+	ASCIIItalic          = "\033[3m"
 	ASCIIReset           = "\033[0m"
 	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m" // Blue text with bold and italic
 	RGBBlue              = lipgloss.Color("45")
@@ -140,54 +141,22 @@ func ColorizeString(text string, mode ColorizeMode) string {
 
 // ColorizeMessage formats a message string with inline code highlighting.
 // Text between backticks (`code`) or backtick with truncation (`code...)
-// will be displayed in blue with bold and italic styling.
+// will be displayed in blue with bold and italic styling, keeping the backticks.
 func ColorizeMessage(message string) string {
 	if !strings.Contains(message, "`") {
 		return message // No backticks, return as-is
 	}
 
-	var result strings.Builder
-	inBackticks := false
-	backtickStart := 0
-
-	for i, char := range message {
-		if char == '`' {
-			if !inBackticks {
-				// Starting backtick
-				inBackticks = true
-				backtickStart = i + 1
-			} else {
-				// Ending backtick - highlight the content
-				if i > backtickStart {
-					content := message[backtickStart:i]
-					result.WriteString(ASCIIBlueBoldItalic)
-					result.WriteString(content)
-					result.WriteString(ASCIIReset)
-				}
-				inBackticks = false
-			}
-		} else if !inBackticks {
-			result.WriteRune(char)
+	// Use regex to find and colorize backtick-enclosed text
+	return BacktickRegex.ReplaceAllStringFunc(message, func(match string) string {
+		// Extract the content between backticks
+		content := BacktickRegex.FindStringSubmatch(match)
+		if len(content) > 1 {
+			// Apply blue bold italic styling to backtick AND content
+			return fmt.Sprintf("%s`%s`%s", ASCIIBlueBoldItalic, content[1], ASCIIReset)
 		}
-	}
-
-	// Handle unclosed backtick (with potential truncation)
-	if inBackticks && backtickStart < len(message) {
-		// Check if the remaining text ends with "..."
-		remaining := message[backtickStart:]
-		if strings.HasSuffix(remaining, "...") {
-			// Highlight everything from backtick to the truncation
-			result.WriteString(ASCIIBlueBoldItalic)
-			result.WriteString(remaining)
-			result.WriteString(ASCIIReset)
-		} else {
-			// Not a truncation, just add the backtick and remaining text normally
-			result.WriteString("`")
-			result.WriteString(remaining)
-		}
-	}
-
-	return result.String()
+		return match
+	})
 }
 
 // VisibleLength calculates the visible length of a string, excluding ANSI escape codes.
@@ -257,11 +226,11 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 
 		if i >= 1 && !isSelectedLine {
 
+			// location
 			if LocationRegex.MatchString(line) {
 				line = LocationRegex.ReplaceAllStringFunc(line, func(match string) string {
 					parts := LocationRegex.FindStringSubmatch(match)
 					if len(parts) == 4 {
-						// Use the extracted ColorizeLocation function
 						location := fmt.Sprintf("%s:%s:%s", parts[1], parts[2], parts[3])
 						return ColorizeLocation(location)
 					}
@@ -269,30 +238,25 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 				})
 			}
 
+			// message
+			for _, row := range rows {
+				if len(row) > 2 && row[2] != "" && strings.Contains(line, row[2]) {
+					// Use the actual ColorizeMessage function
+					colorizedMsg := ColorizeMessage(row[2])
+					line = strings.Replace(line, row[2], colorizedMsg, 1)
+					break
+				}
+			}
+
+			// path
 			if JsonPathRegex.MatchString(line) {
 				line = JsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
-					return fmt.Sprintf("%s%s%s", ASCIIGrey, match, ASCIIReset)
+					// Apply ColorizePath to the entire JSON path match
+					return ColorizePath(match)
 				})
 			}
 
-			if CircularRefRegex.MatchString(line) {
-				line = CircularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
-					circResult := ""
-
-					parts := PartRegex.FindAllStringSubmatch(match, -1)
-					for _, part := range parts {
-						if part[1] != "" {
-							// ref
-							circResult += fmt.Sprintf("%s%s%s", ASCIILightGrey, part[1], ASCIIReset)
-						} else if part[2] != "" {
-							// arrow
-							circResult += fmt.Sprintf("%s%s%s", ASCIIRed, part[2], ASCIIReset)
-						}
-					}
-					return circResult
-				})
-			}
-
+			// severity
 			line = strings.Replace(line, "✗ error",
 				fmt.Sprintf("%s%s%s", ASCIIRed, "✗ error", ASCIIReset), -1)
 			line = strings.Replace(line, "▲ warning",
@@ -311,11 +275,8 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 }
 
 // ColorizePath formats a JSON/YAML path string with inline quote highlighting and circular reference detection.
-// Text between single quotes ('text') or single quote with truncation ('text...)
-// will be displayed in light grey italic styling.
-// Circular references (e.g., ref1 -> ref2 -> ref3) will have arrows in red and refs in light grey.
-// The function assumes the path is already wrapped in grey color and maintains it.
 func ColorizePath(path string) string {
+	// Handle circular references first
 	if CircularRefRegex.MatchString(path) {
 		path = CircularRefRegex.ReplaceAllStringFunc(path, func(match string) string {
 			var result strings.Builder
@@ -326,62 +287,39 @@ func ColorizePath(path string) string {
 					result.WriteString(ASCIILightGrey)
 					result.WriteString(part[1])
 					result.WriteString(ASCIIReset)
-					result.WriteString(ASCIIGrey) // Re-apply base grey
+					result.WriteString(ASCIIGrey)
 				} else if part[2] != "" {
 					// arrow
 					result.WriteString(ASCIIRed)
 					result.WriteString(part[2])
 					result.WriteString(ASCIIReset)
-					result.WriteString(ASCIIGrey) // Re-apply base grey
+					result.WriteString(ASCIIGrey)
 				}
 			}
 			return result.String()
 		})
 	}
 
-	// single quotes
-	if !strings.Contains(path, "'") {
-		return path // no single quotes, return as-is
-	}
-
-	var result strings.Builder
-	inQuotes := false
-	quoteStart := 0
-
-	for i, char := range path {
-		if char == '\'' {
-			if !inQuotes {
-				// starting quote
-				result.WriteRune(char)
-				inQuotes = true
-				quoteStart = i + 1
-			} else {
-				// ending quote - highlight the content
-				if i > quoteStart {
-					content := path[quoteStart:i]
-					result.WriteString(ASCIILightGreyItalic)
-					result.WriteString(content)
-					result.WriteString(ASCIIReset)
-					result.WriteString(ASCIIGrey) // re-apply grey color after italic
-				}
-				result.WriteRune(char)
-				inQuotes = false
+	if strings.Contains(path, "'") {
+		path = SingleQuoteRegex.ReplaceAllStringFunc(path, func(match string) string {
+			content := SingleQuoteRegex.FindStringSubmatch(match)
+			if len(content) > 1 {
+				return fmt.Sprintf("%s'%s'%s%s", ASCIILightGreyItalic, content[1], ASCIIReset, ASCIIGrey)
 			}
-		} else if !inQuotes {
-			result.WriteRune(char)
-		}
+			return match
+		})
 	}
 
-	// handle unclosed quote (for truncated paths like 'text...)
-	if inQuotes && quoteStart < len(path) {
-		content := path[quoteStart:]
-		result.WriteString(ASCIILightGreyItalic)
-		result.WriteString(content)
-		result.WriteString(ASCIIReset)
-		result.WriteString(ASCIIGrey) // Re-apply grey color after italic
+	// handle unclosed quotes with truncation (e.g., 'text...)
+	truncatedQuoteRegex := regexp.MustCompile(`'([^']+\.\.\.?)$`)
+	if truncatedQuoteRegex.MatchString(path) {
+		path = truncatedQuoteRegex.ReplaceAllStringFunc(path, func(match string) string {
+			return fmt.Sprintf("%s%s%s%s", ASCIILightGreyItalic, match, ASCIIReset, ASCIIGrey)
+		})
 	}
 
-	return result.String()
+	// The entire path should be wrapped in grey
+	return fmt.Sprintf("%s%s%s", ASCIIGrey, path, ASCIIReset)
 }
 
 // ApplyLintDetailsTableStyles applies custom styles to a table.Model for lint details display
