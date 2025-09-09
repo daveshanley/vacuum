@@ -65,18 +65,13 @@ func GetLintPreviewCommand() *cobra.Command {
 	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
+	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
 	return cmd
 }
 
 func runLintPreview(cmd *cobra.Command, args []string) error {
-	if len(args) < 1 {
-		return fmt.Errorf("please provide an OpenAPI specification file to lint")
-	}
-
-	fileName := args[0]
-
-	// Read all flags
+	globPattern, _ := cmd.Flags().GetString("globbed-files")
 	detailsFlag, _ := cmd.Flags().GetBool("details")
 	snippetsFlag, _ := cmd.Flags().GetBool("snippets")
 	errorsFlag, _ := cmd.Flags().GetBool("errors")
@@ -121,8 +116,29 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	}
 
 	if !silentFlag && !noBannerFlag && !pipelineOutput {
-		PrintBanner()
+		PrintBanner(noStyleFlag)
 	}
+
+	validFileExtensions := []string{"yaml", "yml", "json"}
+	filesToLint, err := getFilesToLint(globPattern, args, validFileExtensions)
+	if cmd.Flags().Changed("globbed-files") && err != nil {
+		fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", cui.ASCIIBold, cui.ASCIIRed, err, cui.ASCIIReset)
+		return err
+	}
+
+	if len(filesToLint) < 1 {
+		fmt.Printf("🚨 %s%sPlease supply an OpenAPI specification to lint%s\n\n",
+			cui.ASCIIBold, cui.ASCIIRed, cui.ASCIIReset)
+		return fmt.Errorf("no file supplied")
+	}
+
+	// for multiple files, run each one and combine results
+	if len(filesToLint) > 1 {
+		return runMultipleFiles(cmd, filesToLint)
+	}
+
+	// single file processing continues below
+	fileName := filesToLint[0]
 
 	// ignore file
 	ignoredItems := model.IgnoredItems{}
@@ -140,7 +156,9 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// Try to load the file as either a report or spec
 	reportOrSpec, err := LoadFileAsReportOrSpec(fileName)
 	if err != nil {
-		fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
+		if !silentFlag {
+			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
+		}
 		return err
 	}
 
@@ -163,16 +181,16 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	start := time.Now()
 
 	if reportOrSpec.IsReport {
-		// Using a pre-compiled report
+		// pre-compiled report
 		if !silentFlag {
 			fmt.Printf("\033[36mLoading pre-compiled vacuum report from '%s'\033[0m\n\n", fileName)
 		}
 
-		// Create a new RuleResultSet from the results to ensure proper initialization
+		// create a new RuleResultSet from the results to ensure proper initialization
 		if reportOrSpec.ResultSet != nil && reportOrSpec.ResultSet.Results != nil {
-			// Filter ignored results first
+			// filter ignored results first
 			filteredResults := utils.FilterIgnoredResultsPtr(reportOrSpec.ResultSet.Results, ignoredItems)
-			// Create properly initialized RuleResultSet
+			// create properly initialized RuleResultSet
 			resultSet = model.NewRuleResultSetPointer(filteredResults)
 		} else {
 			resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
@@ -181,16 +199,15 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		specBytes = reportOrSpec.SpecBytes
 		displayFileName = reportOrSpec.FileName
 	} else {
-		// Regular spec file - run linting
+		// regular spec file - run linting
 		specBytes = reportOrSpec.SpecBytes
 		displayFileName = fileName
 
-		// Build ruleset
 		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 		customFuncs, _ := LoadCustomFunctions(functionsFlag, silentFlag)
 
-		// Handle hard mode
+		// hard mode
 		if hardModeFlag {
 			selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
 			owaspRules := rulesets.GetAllOWASPRules()
@@ -202,9 +219,8 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// Handle custom ruleset
+		// custom ruleset
 		if rulesetFlag != "" {
-			// Create HTTP client for remote ruleset downloads if needed
 			var httpClient *http.Client
 			httpClientConfig := utils.HTTPClientConfig{
 				CertFile: certFile,
@@ -350,13 +366,30 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// Check for failure but handle it gracefully without showing help
 	failErr := CheckFailureSeverity(failSeverityFlag, errs, warnings, informs)
 	if failErr != nil {
-		os.Exit(1)
+		// in silent mode, just exit with code
+		if silentFlag {
+			os.Exit(1)
+		}
+		// otherwise return the error to be handled by cobra
+		return failErr
 	}
 
 	return nil
 }
 
-func PrintBanner() {
+// fileResult holds the results and logs for a single file
+type fileResult struct {
+	fileName string
+	results  []*model.RuleFunctionResult
+	errors   int
+	warnings int
+	informs  int
+	size     int64
+	logs     []string
+	err      error
+}
+
+func PrintBanner(noStyle ...bool) {
 	banner := `
 ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
 ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
@@ -365,10 +398,18 @@ func PrintBanner() {
  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
 
-	fmt.Printf("%s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
-	fmt.Printf("%sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
-		cui.ASCIIGreenBold, Version, cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, Date, cui.ASCIIReset)
-	fmt.Printf("%s🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
+	skipColors := len(noStyle) > 0 && noStyle[0]
+
+	if skipColors {
+		fmt.Printf("%s\n\n", banner)
+		fmt.Printf("version: %s | compiled: %s\n", Version, Date)
+		fmt.Printf("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum\n\n")
+	} else {
+		fmt.Printf("%s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
+		fmt.Printf("%sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
+			cui.ASCIIGreenBold, Version, cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, Date, cui.ASCIIReset)
+		fmt.Printf("%s🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
+	}
 }
 
 func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
