@@ -284,9 +284,27 @@ func printFileHeader(fileName string, silent bool) {
 		}
 	}
 
-	fmt.Printf("\n%s%s%s\n", cui.ASCIIPink, displayPath, cui.ASCIIReset)
-	fmt.Println(strings.Repeat("-", len(displayPath)))
-	fmt.Println()
+	// get terminal width and calculate table width
+	termWidth := getTerminalWidth()
+	widths := calculateColumnWidths(termWidth)
+	
+	// calculate actual table width (matching the summary table)
+	// for full width: rule (40) + violation (12) + impact (50) + separators (4 spaces) + leading space (1) = 107
+	tableWidth := widths.rule + widths.violation + widths.impact + 4 + 1
+	if termWidth < 100 {
+		// for smaller terminals, adjust table width accordingly
+		tableWidth = termWidth - 13  // leave some margin
+	}
+
+	// use the same nice formatting as multi-file
+	noStyle := cui.AreColorsDisabled()
+	if !noStyle {
+		fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, displayPath, cui.ASCIIReset)
+		fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
+	} else {
+		fmt.Printf("\n > %s\n", displayPath)
+		fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
+	}
 }
 
 // printTableHeaders prints the table headers based on configuration

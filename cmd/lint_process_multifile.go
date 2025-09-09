@@ -195,7 +195,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	detailsFlag, _ := cmd.Flags().GetBool("details")
 
 	if !silentFlag && !pipelineOutput {
-		fmt.Printf("Processing %d files...\n\n", len(filesToLint))
+		fmt.Printf(" vacuuming %s%d%s files...\n\n", cui.ASCIIGreenBold, len(filesToLint), cui.ASCIIReset)
 	}
 
 	var totalErrors, totalWarnings, totalInforms int
@@ -268,7 +268,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				progressChan <- float64(i) / float64(len(filesToLint))
 			} else {
 				// plain text progress for no-style mode
-				fmt.Printf("[%d/%d] Processing %s...\n", i+1, len(filesToLint), fileName)
+				fmt.Printf("[%d/%d] vacuuming %s...\n", i+1, len(filesToLint), fileName)
 			}
 		}
 
@@ -303,25 +303,38 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		// get terminal width and calculate table width
 		termWidth := getTerminalWidth()
 		widths := calculateColumnWidths(termWidth)
-		
+
 		// calculate actual table width (matching the summary table)
 		// for full width: rule (40) + violation (12) + impact (50) + separators (4 spaces) + leading space (1) = 107
 		tableWidth := widths.rule + widths.violation + widths.impact + 4 + 1
 		if termWidth < 100 {
 			// for smaller terminals, adjust table width accordingly
-			tableWidth = termWidth - 13  // leave some margin
+			tableWidth = termWidth - 13 // leave some margin
 		}
-		
+
 		for _, fr := range fileResults {
-			if !noStyleFlag {
-				fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
-				fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
-			} else {
-				fmt.Printf("\n > %s\n", fr.fileName)
-				fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
+			// only print header if we're not showing details (details prints its own header)
+			if !(detailsFlag && len(fr.results) > 0 && fr.err == nil) {
+				if !noStyleFlag {
+					fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIPink, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
+					fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
+				} else {
+					fmt.Printf("\n > %s\n", fr.fileName)
+					fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
+				}
 			}
 
 			if fr.err != nil {
+				// for errors, we need to print the header since details won't be shown
+				if detailsFlag && len(fr.results) > 0 {
+					if !noStyleFlag {
+						fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
+						fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
+					} else {
+						fmt.Printf("\n > %s\n", fr.fileName)
+						fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
+					}
+				}
 				if !noStyleFlag {
 					fmt.Printf("%sError: %v%s\n", cui.ASCIIRed, fr.err, cui.ASCIIReset)
 				} else {

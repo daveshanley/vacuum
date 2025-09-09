@@ -125,20 +125,20 @@ func renderCategoryHeaders(widths columnWidths) {
 	infoWidth := 56
 
 	headers := []tableHeader{
-		{label: "Category", color: cui.ASCIIPink, width: widths.category},
+		{label: "category", color: cui.ASCIIPink, width: widths.category},
 	}
 
 	if widths.fullHeaders {
 		headers = append(headers,
-			tableHeader{label: "✗ Errors", color: cui.ASCIIRed, width: widths.number},
-			tableHeader{label: "▲ Warnings", color: cui.ASCIIYellow, width: widths.number},
-			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: infoWidth},
+			tableHeader{label: "✗ errors", color: cui.ASCIIRed, width: widths.number},
+			tableHeader{label: "▲ warnings", color: cui.ASCIIYellow, width: widths.number},
+			tableHeader{label: "● info", color: cui.ASCIIBlue, width: infoWidth},
 		)
 	} else {
 		headers = append(headers,
-			tableHeader{label: "✗ Err", color: cui.ASCIIRed, width: widths.number},
-			tableHeader{label: "▲ Warn", color: cui.ASCIIYellow, width: widths.number},
-			tableHeader{label: "● Info", color: cui.ASCIIBlue, width: infoWidth},
+			tableHeader{label: "✗ error", color: cui.ASCIIRed, width: widths.number},
+			tableHeader{label: "▲ warn", color: cui.ASCIIYellow, width: widths.number},
+			tableHeader{label: "● info", color: cui.ASCIIBlue, width: infoWidth},
 		)
 	}
 
@@ -179,7 +179,7 @@ func renderCategoryTotals(totals summaryTotals, widths columnWidths) {
 	renderTableSeparator([]int{widths.category, widths.number, widths.number, 56})
 
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s  %s%s%-*s%s  %s%s%-*s%s\n",
-		cui.ASCIIBold, widths.category, "Total", cui.ASCIIReset,
+		cui.ASCIIBold, widths.category, "total", cui.ASCIIReset,
 		cui.ASCIIRed, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.errors)), cui.ASCIIReset,
 		cui.ASCIIYellow, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.warnings)), cui.ASCIIReset,
 		cui.ASCIIBlue, cui.ASCIIBold, 56, humanize.Comma(int64(totals.info)), cui.ASCIIReset)
@@ -258,9 +258,9 @@ func calculateViolationStats(violations []ruleViolation) (total, max int) {
 // render rule violations table headers
 func renderRuleHeaders(widths columnWidths) {
 	fmt.Printf(" %s%-*s%s  %s%-*s%s  %s%-*s%s\n",
-		cui.ASCIIPink, widths.rule, "Rule", cui.ASCIIReset,
-		cui.ASCIIPink, widths.violation, "Violations", cui.ASCIIReset,
-		cui.ASCIIPink, widths.impact, "Quality Impact", cui.ASCIIReset)
+		cui.ASCIIPink, widths.rule, "rule", cui.ASCIIReset,
+		cui.ASCIIPink, widths.violation, "violations", cui.ASCIIReset,
+		cui.ASCIIPink, widths.impact, "quality impact", cui.ASCIIReset)
 
 	renderTableSeparator([]int{widths.rule, widths.violation, widths.impact})
 }
@@ -300,7 +300,7 @@ func renderRuleTotals(total int, widths columnWidths) {
 	renderTableSeparator([]int{widths.rule, widths.violation, widths.impact})
 
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s\n",
-		cui.ASCIIBold, widths.rule, "Total", cui.ASCIIReset,
+		cui.ASCIIBold, widths.rule, "total", cui.ASCIIReset,
 		cui.ASCIIPink, cui.ASCIIBold,
 		widths.violation, humanize.Comma(int64(total)),
 		cui.ASCIIReset)
