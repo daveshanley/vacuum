@@ -416,7 +416,9 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	snippets, errors, silent, noMessage, allResults, noClip bool,
 	fileName string, noStyle bool) {
 
-	// print file header
+	// print file header (skip for multi-file as it's already printed)
+	// detect multi-file by checking if we're in a multi-file context
+	// for now, always print since this is the detailed view
 	printFileHeader(fileName, silent)
 
 	// calculate table configuration
