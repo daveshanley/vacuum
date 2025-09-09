@@ -49,6 +49,7 @@ require (
 	github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.4 // indirect
 	github.com/charmbracelet/glamour v0.10.0 // indirect
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3 // indirect
+	github.com/charmbracelet/log v0.4.2 // indirect
 	github.com/charmbracelet/x/ansi v0.10.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.14-0.20250505150409-97991a1f17d1 // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20250327172914-2fdc97757edf // indirect
@@ -59,6 +60,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
+	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect

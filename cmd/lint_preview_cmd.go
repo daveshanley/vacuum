@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -162,17 +164,39 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Get file info for timing
 	fileInfo, _ := os.Stat(fileName)
 
-	logLevel := slog.LevelError
+	charmLogger := log.New(os.Stderr)
+
+	// set log level
 	if debugFlag {
-		logLevel = slog.LevelDebug
+		charmLogger.SetLevel(log.DebugLevel)
+	} else {
+		charmLogger.SetLevel(log.ErrorLevel)
 	}
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: logLevel,
-	})
-	logger := slog.New(handler)
+
+	// customize the charm log styles to match our theme
+	// TODO: we need log to upgrade to v2 on lipgloss.
+	styles := log.DefaultStyles()
+	styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ff3366")).
+		Bold(true)
+	styles.Levels[log.WarnLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffcc00")).
+		Bold(true)
+	styles.Levels[log.InfoLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#62c4ff")).
+		Bold(true)
+	styles.Levels[log.DebugLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#f83aff"))
+	styles.Key = lipgloss.NewStyle().Foreground(lipgloss.Color("#62c4ff"))
+	styles.Value = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
+	styles.Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("#f83aff"))
+	charmLogger.SetStyles(styles)
+	charmLogger.SetReportCaller(false)
+	charmLogger.SetReportTimestamp(false)
+
+	logger := slog.New(charmLogger)
 
 	var resultSet *model.RuleResultSet
 	var specBytes []byte

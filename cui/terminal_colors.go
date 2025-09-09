@@ -41,6 +41,10 @@ var (
 	ASCIIReset           = "\033[0m"
 	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m" // Blue text with bold and italic
 
+	// Regex pattern to match text between single quotes with proper boundaries
+	// Matches 'text' when preceded by space, start of string, or [ and followed by space, end of string, or ]
+	QuotedTextPattern = regexp.MustCompile(`(?:^|\s|\[)'([^']+)'(?:\s|\]|$)`)
+
 	// Store original values for restoration
 	origRed             = "\033[38;5;196m"
 	origGrey            = "\033[38;5;246m"
@@ -310,6 +314,35 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 	}
 
 	return result.String()
+}
+
+// ColorizeLogEntry applies formatting to log entries, highlighting quoted text
+func ColorizeLogEntry(log, color string) string {
+	if QuotedTextPattern != nil {
+		return QuotedTextPattern.ReplaceAllStringFunc(log, func(match string) string {
+			// extract the content between quotes
+			content := QuotedTextPattern.FindStringSubmatch(match)
+			if len(content) > 1 {
+				// preserve the leading/trailing space or bracket
+				prefix := ""
+				suffix := ""
+				if strings.HasPrefix(match, " ") {
+					prefix = " "
+				} else if strings.HasPrefix(match, "[") {
+					prefix = "["
+				}
+				if strings.HasSuffix(match, " ") {
+					suffix = " "
+				} else if strings.HasSuffix(match, "]") {
+					suffix = "]"
+				}
+				return fmt.Sprintf("%s%s'%s'%s%s%s", prefix,
+					ASCIIBlueBoldItalic, content[1], ASCIIReset, color, suffix)
+			}
+			return match
+		})
+	}
+	return log
 }
 
 // ColorizePath formats a JSON/YAML path string with inline quote highlighting and circular reference detection.

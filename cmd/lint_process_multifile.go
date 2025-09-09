@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/log"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -19,6 +22,43 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
+
+// wrapLogText wraps log text to fit within terminal width, preserving indentation for wrapped lines
+func wrapLogText(text string, maxWidth int) []string {
+	if maxWidth <= 0 {
+		return []string{text}
+	}
+	
+	var lines []string
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{text}
+	}
+	
+	var currentLine strings.Builder
+	currentLine.WriteString(words[0])
+	
+	for i := 1; i < len(words); i++ {
+		word := words[i]
+		// check if adding this word would exceed the width
+		if cui.VisibleLength(currentLine.String() + " " + word) > maxWidth {
+			// save current line and start a new one
+			lines = append(lines, currentLine.String())
+			currentLine.Reset()
+			currentLine.WriteString(word)
+		} else {
+			currentLine.WriteString(" ")
+			currentLine.WriteString(word)
+		}
+	}
+	
+	// add the last line
+	if currentLine.Len() > 0 {
+		lines = append(lines, currentLine.String())
+	}
+	
+	return lines
+}
 
 // FileProcessingResult contains the results of processing a single file
 type FileProcessingResult struct {
@@ -59,15 +99,39 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 	silentFlag, _ := cmd.Flags().GetBool("silent")
 	timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 
-	var logBuffer strings.Builder
-	logLevel := slog.LevelError
+	// setup charm logger with custom styles
+	var logBuffer bytes.Buffer
+	charmLogger := log.New(&logBuffer)
+
+	// set log level
 	if debugFlag {
-		logLevel = slog.LevelDebug
+		charmLogger.SetLevel(log.DebugLevel)
+	} else {
+		charmLogger.SetLevel(log.ErrorLevel)
 	}
-	handler := slog.NewTextHandler(&logBuffer, &slog.HandlerOptions{
-		Level: logLevel,
-	})
-	logger := slog.New(handler)
+
+	// customize the charm log styles to match our theme
+	styles := log.DefaultStyles()
+	styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ff3366")).
+		Bold(true)
+	styles.Levels[log.WarnLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#ffcc00")).
+		Bold(true)
+	styles.Levels[log.InfoLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#62c4ff")).
+		Bold(true)
+	styles.Levels[log.DebugLevel] = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#f83aff"))
+	styles.Key = lipgloss.NewStyle().Foreground(lipgloss.Color("#62c4ff"))
+	styles.Value = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
+	styles.Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("#f83aff"))
+	charmLogger.SetStyles(styles)
+	charmLogger.SetReportCaller(false)
+	charmLogger.SetReportTimestamp(false)
+
+	// create slog logger with charm handler for compatibility
+	logger := slog.New(charmLogger)
 
 	// load ignore file
 	ignoredItems := model.IgnoredItems{}
@@ -139,10 +203,16 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 	})
 
 	if len(result.Errors) > 0 {
-		// capture logs
+		// capture logs - charm logger outputs formatted lines
 		var logs []string
 		if logBuffer.Len() > 0 {
-			logs = strings.Split(strings.TrimSpace(logBuffer.String()), "\n")
+			// split by newline and filter empty lines
+			lines := strings.Split(strings.TrimSpace(logBuffer.String()), "\n")
+			for _, line := range lines {
+				if strings.TrimSpace(line) != "" {
+					logs = append(logs, line)
+				}
+			}
 		}
 		return &FileProcessingResult{
 			FileSize: fileSize,
@@ -168,9 +238,16 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 		}
 	}
 
+	// capture logs - charm logger outputs formatted lines
 	var logs []string
 	if logBuffer.Len() > 0 {
-		logs = strings.Split(strings.TrimSpace(logBuffer.String()), "\n")
+		// split by newline and filter empty lines
+		lines := strings.Split(strings.TrimSpace(logBuffer.String()), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				logs = append(logs, line)
+			}
+		}
 	}
 
 	return &FileProcessingResult{
@@ -356,18 +433,71 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					noStyleFlag, pipelineOutput, false)
 			}
 
-			// show logs if any
+			// show logs if any with nice tree formatting
 			if len(fr.logs) > 0 {
 				if !noStyleFlag {
-					fmt.Printf("\n%sLogs:%s\n", cui.ASCIIGrey, cui.ASCIIReset)
+					fmt.Printf("\n %svacuumed logs for %s'%s%s%s%s':\n", cui.ASCIIGrey, cui.ASCIIReset,
+						cui.ASCIIItalic, cui.ASCIIGreenBold, fr.fileName, cui.ASCIIReset)
 				} else {
-					fmt.Println("\nLogs:")
+					fmt.Println("\n vacuumed logs:")
 				}
-				for _, log := range fr.logs {
+				
+				// get terminal width for wrapping
+				termWidth := getTerminalWidth()
+				// calculate available width for log text (terminal width - prefix width)
+				// prefix is " ├─ " or " └─ " which is 4 visible chars
+				availableWidth := termWidth - 4
+				if availableWidth < 40 {
+					availableWidth = 40 // minimum width
+				}
+				
+				for i, log := range fr.logs {
+					isLast := i == len(fr.logs)-1
 					if !noStyleFlag {
-						fmt.Printf("%s  %s%s\n", cui.ASCIIGrey, log, cui.ASCIIReset)
+						// colorize quoted text in the log
+						colorizedLog := cui.ColorizeLogEntry(strings.TrimSpace(log), cui.ASCIIGrey)
+						
+						// wrap the log text
+						wrappedLines := wrapLogText(colorizedLog, availableWidth)
+						
+						for j, line := range wrappedLines {
+							if j == 0 {
+								// first line gets the tree character
+								if isLast {
+									fmt.Printf(" %s└─ %s%s%s%s\n", cui.ASCIIPink, cui.ASCIIReset, cui.ASCIIGrey, line, cui.ASCIIReset)
+								} else {
+									fmt.Printf(" %s├─ %s%s%s%s\n", cui.ASCIIPink, cui.ASCIIReset, cui.ASCIIGrey, line, cui.ASCIIReset)
+								}
+							} else {
+								// continuation lines: align with the text after "├─ " or "└─ "
+								// that's 1 space + 3 chars (│ and 2 spaces) = "│   " for non-last
+								// or just 4 spaces for last item
+								if isLast {
+									fmt.Printf("    %s%s%s\n", cui.ASCIIGrey, line, cui.ASCIIReset)
+								} else {
+									fmt.Printf(" %s│  %s %s%s%s\n", cui.ASCIIPink, cui.ASCIIReset, cui.ASCIIGrey, line, cui.ASCIIReset)
+								}
+							}
+						}
 					} else {
-						fmt.Printf("  %s\n", log)
+						// no style mode
+						wrappedLines := wrapLogText(strings.TrimSpace(log), availableWidth)
+						
+						for j, line := range wrappedLines {
+							if j == 0 {
+								if isLast {
+									fmt.Printf(" └─ %s\n", line)
+								} else {
+									fmt.Printf(" ├─ %s\n", line)
+								}
+							} else {
+								if isLast {
+									fmt.Printf("    %s\n", line)
+								} else {
+									fmt.Printf(" │   %s\n", line)
+								}
+							}
+						}
 					}
 				}
 			}
