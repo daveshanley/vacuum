@@ -121,7 +121,7 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	}
 }
 
-func PrintBanner() {
+func PrintOldBanner() {
 	pterm.Println()
 
 	//_ = pterm.DefaultBigText.WithLetters(

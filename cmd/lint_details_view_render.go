@@ -44,6 +44,7 @@ type TableConfig struct {
 	PathWidth     int
 	NoMessage     bool
 	NoClip        bool
+	NoStyle       bool
 }
 
 // SeverityInfo holds severity display information
@@ -88,10 +89,15 @@ func calculateMaxColumnWidths(results []*model.RuleFunctionResult, fileName stri
 }
 
 // calculateTableConfig determines the table layout based on terminal width
-func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, errors, noMessage, noClip bool) *TableConfig {
+func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, errors, noMessage, noClip, noStyle bool) *TableConfig {
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
 		width = 120
+	}
+	
+	// In no-style mode, reduce width by 3 to avoid off-by-one truncation issues
+	if noStyle && width > 3 {
+		width = width - 3
 	}
 
 	config := &TableConfig{
@@ -102,6 +108,7 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 		UseTreeFormat: false,
 		NoMessage:     noMessage,
 		NoClip:        noClip,
+		NoStyle:       noStyle,
 	}
 
 	// get natural column widths
@@ -169,8 +176,13 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 	}
 
 	// adjust widths when no message column
-	if config.NoMessage && config.ShowPath {
-		config.PathWidth = config.MessageWidth + config.PathWidth + 2
+	if config.NoMessage {
+		if config.ShowPath {
+			// Give all message width to path column
+			config.PathWidth = config.PathWidth + config.MessageWidth + 2
+		}
+		// If path is not shown, the width just becomes right padding (as requested)
+		config.MessageWidth = 0
 	}
 
 	return config
@@ -427,11 +439,18 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 	message := r.Message
 	path := r.Path
 	if !config.NoClip {
+		// Use rune-aware truncation to avoid cutting in the middle of multi-byte characters
 		if len(message) > config.MessageWidth && config.MessageWidth > 3 {
-			message = message[:config.MessageWidth-3] + "..."
+			msgRunes := []rune(message)
+			if len(msgRunes) > config.MessageWidth-3 {
+				message = string(msgRunes[:config.MessageWidth-3]) + "..."
+			}
 		}
 		if len(path) > config.PathWidth && config.PathWidth > 3 {
-			path = path[:config.PathWidth-3] + "..."
+			pathRunes := []rune(path)
+			if len(pathRunes) > config.PathWidth-3 {
+				path = string(pathRunes[:config.PathWidth-3]) + "..."
+			}
 		}
 	}
 
@@ -462,6 +481,8 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 		locPadding = 0
 	}
 
+	// After truncation, the message should already be at or under MessageWidth
+	// So we calculate padding based on the actual visible length
 	msgPadding := config.MessageWidth - cui.VisibleLength(coloredMessage)
 	if msgPadding < 0 {
 		msgPadding = 0
@@ -519,7 +540,9 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 			renderTableRow(r, config, fileName)
 		}
 
-		fmt.Println()
+		if !config.NoStyle {
+			fmt.Println()
+		}
 	} else {
 		// snippets mode - render each result with its code snippet
 		printTableHeaders(config)
@@ -538,7 +561,10 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 			renderTableRow(r, config, fileName)
 
 			renderCodeSnippetWithHighlight(r, specData, fileName)
-			fmt.Println()
+			// Only add blank line after snippet if colors are enabled
+			if !config.NoStyle {
+				fmt.Println()
+			}
 		}
 	}
 }
@@ -612,7 +638,10 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 	// calculate highlight width to match summary table width
 	highlightWidth := calculateCodeSnippetHighlightWidth(lineNumWidth)
 
-	fmt.Println() // blank line before snippet
+	// Only add blank line before snippet if colors are enabled
+	if cui.ASCIIReset != "" {
+		fmt.Println()
+	}
 
 	// render the code snippet
 	for i := startLine; i <= endLine; i++ {

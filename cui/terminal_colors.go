@@ -34,28 +34,65 @@ var (
 	ASCIIBlue            = "\033[38;5;45m"
 	ASCIIYellow          = "\033[38;5;220m"
 	ASCIIGreen           = "\033[38;5;46m"
+	ASCIIGreenBold       = "\033[1;38;5;46m"
 	ASCIILightGreyItalic = "\033[3;38;5;251m"
 	ASCIIBold            = "\033[1m"
 	ASCIIItalic          = "\033[3m"
 	ASCIIReset           = "\033[0m"
 	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m" // Blue text with bold and italic
-	RGBBlue              = lipgloss.Color("45")
-	RGBPink              = lipgloss.Color("201")
-	RGBRed               = lipgloss.Color("196")
-	RGBDarkRed           = lipgloss.Color("124")
-	RBGYellow            = lipgloss.Color("220")
-	RGBDarkYellow        = lipgloss.Color("172")
-	RGBGreen             = lipgloss.Color("46")
-	RGBDarkGreen         = lipgloss.Color("22")
-	RGBDarkBlue          = lipgloss.Color("24")
-	RGBOrange            = lipgloss.Color("208")
-	RGBPurple            = lipgloss.Color("135")
-	RGBGrey              = lipgloss.Color("246")
-	RGBDarkGrey          = lipgloss.Color("236")
-	RGBWhite             = lipgloss.Color("255")
-	RGBBlack             = lipgloss.Color("16")
-	RGBSubtleBlue        = lipgloss.Color("#1a3a5a")
-	RGBSubtlePink        = lipgloss.Color("#2a1a2a")
+
+	// Store original values for restoration
+	origRed             = "\033[38;5;196m"
+	origGrey            = "\033[38;5;246m"
+	origPink            = "\033[38;5;201m"
+	origMutedPink       = "\033[38;5;164m"
+	origLightGrey       = "\033[38;5;253m"
+	origBlue            = "\033[38;5;45m"
+	origYellow          = "\033[38;5;220m"
+	origGreen           = "\033[38;5;46m"
+	origLightGreyItalic = "\033[3;38;5;251m"
+	origBold            = "\033[1m"
+	origItalic          = "\033[3m"
+	origReset           = "\033[0m"
+	origBlueBoldItalic  = "\033[1;3;38;5;45m"
+
+	// Store original lipgloss colors
+	origRGBBlue       = lipgloss.Color("45")
+	origRGBPink       = lipgloss.Color("201")
+	origRGBRed        = lipgloss.Color("196")
+	origRGBDarkRed    = lipgloss.Color("124")
+	origRGBYellow     = lipgloss.Color("220")
+	origRGBDarkYellow = lipgloss.Color("172")
+	origRGBGreen      = lipgloss.Color("46")
+	origRGBDarkGreen  = lipgloss.Color("22")
+	origRGBDarkBlue   = lipgloss.Color("24")
+	origRGBOrange     = lipgloss.Color("208")
+	origRGBPurple     = lipgloss.Color("135")
+	origRGBGrey       = lipgloss.Color("246")
+	origRGBDarkGrey   = lipgloss.Color("236")
+	origRGBWhite      = lipgloss.Color("255")
+	origRGBBlack      = lipgloss.Color("16")
+	origRGBSubtleBlue = lipgloss.Color("#1a3a5a")
+	origRGBSubtlePink = lipgloss.Color("#2a1a2a")
+
+	// Current lipgloss colors (may be modified)
+	RGBBlue       = origRGBBlue
+	RGBPink       = origRGBPink
+	RGBRed        = origRGBRed
+	RGBDarkRed    = origRGBDarkRed
+	RBGYellow     = origRGBYellow
+	RGBDarkYellow = origRGBDarkYellow
+	RGBGreen      = origRGBGreen
+	RGBDarkGreen  = origRGBDarkGreen
+	RGBDarkBlue   = origRGBDarkBlue
+	RGBOrange     = origRGBOrange
+	RGBPurple     = origRGBPurple
+	RGBGrey       = origRGBGrey
+	RGBDarkGrey   = origRGBDarkGrey
+	RGBWhite      = origRGBWhite
+	RGBBlack      = origRGBBlack
+	RGBSubtleBlue = origRGBSubtleBlue
+	RGBSubtlePink = origRGBSubtlePink
 )
 
 func strPtr(s string) *string { return &s }
@@ -164,7 +201,8 @@ func VisibleLength(s string) int {
 	// Remove all ANSI escape sequences to get the actual visible length
 	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	clean := ansiRegex.ReplaceAllString(s, "")
-	return len(clean)
+	// Count runes instead of bytes for accurate character count
+	return len([]rune(clean))
 }
 
 // ColorizeLocation formats a file location string with color codes for a terminal.
@@ -555,4 +593,86 @@ func CreatePb33fDocsStyle(termWidth int) ansi.StyleConfig {
 			Color: ColorLightGrey,
 		},
 	}
+}
+
+// colorsDisabled tracks whether colors are currently disabled
+var colorsDisabled = false
+
+// DisableColors sets all ANSI color codes to empty strings for monochrome output
+func DisableColors() {
+	colorsDisabled = true
+	ASCIIRed = ""
+	ASCIIGrey = ""
+	ASCIIPink = ""
+	ASCIIMutedPink = ""
+	ASCIILightGrey = ""
+	ASCIIBlue = ""
+	ASCIIYellow = ""
+	ASCIIGreen = ""
+	ASCIILightGreyItalic = ""
+	ASCIIBold = ""
+	ASCIIItalic = ""
+	ASCIIReset = ""
+	ASCIIBlueBoldItalic = ""
+
+	// Also disable lipgloss colors - use NoColor for most, dark grey for backgrounds
+	RGBBlue = lipgloss.NoColor{}
+	RGBPink = lipgloss.NoColor{}
+	RGBRed = lipgloss.NoColor{}
+	RGBDarkRed = lipgloss.Color("238")
+	RBGYellow = lipgloss.NoColor{}
+	RGBDarkYellow = lipgloss.Color("238")
+	RGBGreen = lipgloss.NoColor{}
+	RGBDarkGreen = lipgloss.Color("238")
+	RGBDarkBlue = lipgloss.Color("238")
+	RGBOrange = lipgloss.NoColor{}
+	RGBPurple = lipgloss.NoColor{}
+	RGBGrey = lipgloss.NoColor{}
+	RGBDarkGrey = lipgloss.Color("238")
+	RGBWhite = lipgloss.NoColor{}
+	RGBBlack = lipgloss.NoColor{}
+	RGBSubtleBlue = lipgloss.Color("238")
+	RGBSubtlePink = lipgloss.Color("238")
+}
+
+// AreColorsDisabled returns true if colors are currently disabled
+func AreColorsDisabled() bool {
+	return colorsDisabled
+}
+
+// EnableColors restores all ANSI color codes to their original values
+func EnableColors() {
+	colorsDisabled = false
+	ASCIIRed = origRed
+	ASCIIGrey = origGrey
+	ASCIIPink = origPink
+	ASCIIMutedPink = origMutedPink
+	ASCIILightGrey = origLightGrey
+	ASCIIBlue = origBlue
+	ASCIIYellow = origYellow
+	ASCIIGreen = origGreen
+	ASCIILightGreyItalic = origLightGreyItalic
+	ASCIIBold = origBold
+	ASCIIItalic = origItalic
+	ASCIIReset = origReset
+	ASCIIBlueBoldItalic = origBlueBoldItalic
+
+	// Restore lipgloss colors
+	RGBBlue = origRGBBlue
+	RGBPink = origRGBPink
+	RGBRed = origRGBRed
+	RGBDarkRed = origRGBDarkRed
+	RBGYellow = origRGBYellow
+	RGBDarkYellow = origRGBDarkYellow
+	RGBGreen = origRGBGreen
+	RGBDarkGreen = origRGBDarkGreen
+	RGBDarkBlue = origRGBDarkBlue
+	RGBOrange = origRGBOrange
+	RGBPurple = origRGBPurple
+	RGBGrey = origRGBGrey
+	RGBDarkGrey = origRGBDarkGrey
+	RGBWhite = origRGBWhite
+	RGBBlack = origRGBBlack
+	RGBSubtleBlue = origRGBSubtleBlue
+	RGBSubtlePink = origRGBSubtlePink
 }

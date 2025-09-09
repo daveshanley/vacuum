@@ -34,7 +34,6 @@ func GetLintPreviewCommand() *cobra.Command {
 		SilenceErrors: true,
 	}
 
-	// Add all flags
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
@@ -58,8 +57,6 @@ func GetLintPreviewCommand() *cobra.Command {
 	cmd.Flags().Bool("ext-refs", false, "Enable $ref lookups for extension objects")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-
-	// Additional flags for parity with lint command
 	cmd.Flags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
 	cmd.Flags().String("key-file", "", "Path to client private key file for HTTPS requests")
 	cmd.Flags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
@@ -103,8 +100,6 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	extRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
-
-	// Additional flags for parity
 	certFile, _ := cmd.Flags().GetString("cert-file")
 	keyFile, _ := cmd.Flags().GetString("key-file")
 	caFile, _ := cmd.Flags().GetString("ca-file")
@@ -114,18 +109,22 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	showRules, _ := cmd.Flags().GetBool("show-rules")
 	pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
 
-	// disable color and styling for CI/CD use
-	if noStyleFlag || pipelineOutput {
-		// For lint-preview, we control colors through cui package
-		// Setting noStyleFlag will be handled in rendering functions
+	if !noStyleFlag && !pipelineOutput {
+		fileInfo, _ := os.Stdout.Stat()
+		if (fileInfo.Mode() & os.ModeCharDevice) == 0 {
+			noStyleFlag = true
+		}
 	}
 
-	// Show banner unless disabled
+	if noStyleFlag && !pipelineOutput {
+		cui.DisableColors()
+	}
+
 	if !silentFlag && !noBannerFlag && !pipelineOutput {
 		PrintBanner()
 	}
 
-	// Load ignore file if specified
+	// ignore file
 	ignoredItems := model.IgnoredItems{}
 	if ignoreFile != "" {
 		raw, ferr := os.ReadFile(ignoreFile)
@@ -148,7 +147,6 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// Get file info for timing
 	fileInfo, _ := os.Stat(fileName)
 
-	// Setup logging
 	logLevel := slog.LevelError
 	if debugFlag {
 		logLevel = slog.LevelDebug
@@ -241,8 +239,8 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 		// Display linting info
 		if !silentFlag && !pipelineOutput {
-			fmt.Printf("\033[36mLinting file '%s' against %d rules: %s\033[0m\n\n",
-				displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
+			fmt.Printf("%sLinting file '%s' against %d rules: %s%s\n\n",
+				cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
 		}
 
 		// Build deep graph if we have ignored items
@@ -315,6 +313,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// Show detailed results if requested (but not in pipeline output mode)
 	if detailsFlag && len(resultSet.Results) > 0 && !pipelineOutput {
 		// Always use regular detailed view (no interactive UI)
+		// Note: noMessageFlag is ignored when pipelineOutput is true (handled above)
 		renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
 			silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
 	}
@@ -357,7 +356,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func printFixedBanner() {
+func PrintBanner() {
 	banner := `
 ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
 ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
@@ -366,9 +365,9 @@ func printFixedBanner() {
  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
 
-	// Use color constants
 	fmt.Printf("%s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
-	fmt.Printf("%sversion: %s | compiled: %s%s\n", cui.ASCIIGreen, Version, Date, cui.ASCIIReset)
+	fmt.Printf("%sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
+		cui.ASCIIGreenBold, Version, cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, Date, cui.ASCIIReset)
 	fmt.Printf("%s🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
 }
 
@@ -380,7 +379,7 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	printFileHeader(fileName, silent)
 
 	// calculate table configuration
-	config := calculateTableConfig(results, fileName, errors, noMessage, noClip)
+	config := calculateTableConfig(results, fileName, errors, noMessage, noClip, noStyle)
 
 	// render based on format
 	if config.UseTreeFormat {
