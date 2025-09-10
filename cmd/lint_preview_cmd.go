@@ -147,11 +147,22 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	if ignoreFile != "" {
 		raw, ferr := os.ReadFile(ignoreFile)
 		if ferr != nil {
+			if !silentFlag {
+				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n", cui.ASCIIRed, ignoreFile, ferr, cui.ASCIIReset)
+			}
 			return fmt.Errorf("failed to read ignore file: %w", ferr)
 		}
 		ferr = yaml.Unmarshal(raw, &ignoredItems)
 		if ferr != nil {
+			if !silentFlag {
+				fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n", cui.ASCIIRed, ignoreFile, ferr, cui.ASCIIReset)
+			}
 			return fmt.Errorf("failed to parse ignore file: %w", ferr)
+		}
+		// Show ignore file info message and ignored items
+		if !silentFlag && !pipelineOutput {
+			renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", ignoreFile), noStyleFlag)
+			renderIgnoredItems(ignoredItems, noStyleFlag)
 		}
 	}
 
@@ -166,37 +177,8 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	fileInfo, _ := os.Stat(fileName)
 
-	charmLogger := log.New(os.Stderr)
-
-	// set log level
-	if debugFlag {
-		charmLogger.SetLevel(log.DebugLevel)
-	} else {
-		charmLogger.SetLevel(log.ErrorLevel)
-	}
-
-	// customize the charm log styles to match our theme
-	// TODO: we need log to upgrade to v2 on lipgloss.
-	styles := log.DefaultStyles()
-	styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#ff3366")).
-		Bold(true)
-	styles.Levels[log.WarnLevel] = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#ffcc00")).
-		Bold(true)
-	styles.Levels[log.InfoLevel] = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#62c4ff")).
-		Bold(true)
-	styles.Levels[log.DebugLevel] = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#f83aff"))
-	styles.Key = lipgloss.NewStyle().Foreground(lipgloss.Color("#62c4ff"))
-	styles.Value = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-	styles.Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("#f83aff"))
-	charmLogger.SetStyles(styles)
-	charmLogger.SetReportCaller(false)
-	charmLogger.SetReportTimestamp(false)
-
-	logger := slog.New(charmLogger)
+	// create debug logger
+	logger := createDebugLogger(debugFlag)
 
 	var resultSet *model.RuleResultSet
 	var specBytes []byte
@@ -238,8 +220,8 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			for k, v := range owaspRules {
 				selectedRS.Rules[k] = v
 			}
-			if !silentFlag {
-				fmt.Printf("\033[31m🚨 HARD MODE ENABLED 🚨\033[0m\n\n")
+			if !silentFlag && !pipelineOutput {
+				renderHardModeBox(HardModeEnabled, noStyleFlag)
 			}
 		}
 
@@ -267,29 +249,46 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 				fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n", rulesetFlag, rsErr.Error())
 				return rsErr
 			}
+
+			// display ruleset information
+			if !silentFlag && !pipelineOutput {
+				if noStyleFlag {
+					fmt.Printf(" using ruleset '%s' (containing %d rules)\n", rulesetFlag, len(selectedRS.Rules))
+				} else {
+					fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
+						cui.ASCIIGrey,
+						cui.ASCIIBold+cui.ASCIIItalic, rulesetFlag, cui.ASCIIReset+cui.ASCIIGrey,
+						cui.ASCIIGrey,
+						cui.ASCIIBold+cui.ASCIIItalic, len(selectedRS.Rules), cui.ASCIIReset+cui.ASCIIGrey,
+						cui.ASCIIReset)
+				}
+			}
+
 			if hardModeFlag {
-				MergeOWASPRulesToRuleSet(selectedRS, true)
+				if MergeOWASPRulesToRuleSet(selectedRS, true) {
+					if !silentFlag && !pipelineOutput {
+						renderHardModeBox(HardModeWithCustomRuleset, noStyleFlag)
+					}
+				}
 			}
 		}
 
-		// Show which rules are being used (after ruleset is fully loaded)
+		// which rules are being used (after ruleset is fully loaded)
 		if showRules && !pipelineOutput && !silentFlag {
 			renderRulesList(selectedRS.Rules)
 		}
 
-		// Display linting info
 		if !silentFlag && !pipelineOutput {
-			fmt.Printf("%sLinting file '%s' against %d rules: %s%s\n\n",
+			fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 				cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
 		}
 
-		// Build deep graph if we have ignored items
+		// deep graph is required if we have ignored items
 		deepGraph := false
 		if len(ignoredItems) > 0 {
 			deepGraph = true
 		}
 
-		// Apply rules
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
@@ -312,10 +311,8 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			},
 		})
 
-		// Filter ignored results
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-		// Check for errors
 		if len(result.Errors) > 0 {
 			for _, err := range result.Errors {
 				fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
@@ -323,10 +320,8 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 		}
 
-		// Process results
 		resultSet = model.NewRuleResultSet(result.Results)
 
-		// Create statistics for score checking and pipeline output
 		if (minScore > 10 || pipelineOutput) && result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
 		}
@@ -337,42 +332,75 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// Handle category filtering
 	var cats []*model.RuleCategory
 	if categoryFlag != "" {
-		// Category filtering logic here (same as original)
-		cats = model.RuleCategoriesOrdered
+		resultSet.ResetCounts()
+		var filteredResults []*model.RuleFunctionResult
+		switch categoryFlag {
+		case model.CategoryDescriptions:
+			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
+		case model.CategoryExamples:
+			cats = append(cats, model.RuleCategories[model.CategoryExamples])
+		case model.CategoryInfo:
+			cats = append(cats, model.RuleCategories[model.CategoryInfo])
+		case model.CategorySchemas:
+			cats = append(cats, model.RuleCategories[model.CategorySchemas])
+		case model.CategorySecurity:
+			cats = append(cats, model.RuleCategories[model.CategorySecurity])
+		case model.CategoryValidation:
+			cats = append(cats, model.RuleCategories[model.CategoryValidation])
+		case model.CategoryOperations:
+			cats = append(cats, model.RuleCategories[model.CategoryOperations])
+		case model.CategoryTags:
+			cats = append(cats, model.RuleCategories[model.CategoryTags])
+		case model.CategoryOWASP:
+			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
+		default:
+			if !silentFlag {
+				fmt.Printf("%sWarning: Category '%s' is unknown, all categories are being considered.%s\n\n", 
+					cui.ASCIIYellow, categoryFlag, cui.ASCIIReset)
+			}
+			cats = model.RuleCategoriesOrdered
+		}
+		// Filter results by category
+		for _, val := range cats {
+			categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
+			if len(categoryResults) > 0 {
+				if len(cats) > 1 {
+					filteredResults = append(filteredResults, categoryResults...)
+				} else {
+					filteredResults = categoryResults
+				}
+			}
+		}
+		resultSet.Results = filteredResults
 	} else {
 		cats = model.RuleCategoriesOrdered
 	}
 
 	resultSet.SortResultsByLineNumber()
 
-	// Update statistics if we have them from the report
 	if reportOrSpec.IsReport && reportOrSpec.Report.Statistics != nil {
 		stats = reportOrSpec.Report.Statistics
 	}
 
-	// Show detailed results if requested (but not in pipeline output mode)
 	if detailsFlag && len(resultSet.Results) > 0 && !pipelineOutput {
-		// Always use regular detailed view (no interactive UI)
-		// Note: noMessageFlag is ignored when pipelineOutput is true (handled above)
 		renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
 			silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
 	}
 
-	// Render summary
 	renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag, pipelineOutput, showRules)
 
-	// Show timing (but not in pipeline output mode)
+	// timing
 	duration := time.Since(start)
 	if timeFlag && !pipelineOutput {
 		renderFixedTiming(duration, fileInfo.Size())
 	}
 
-	// Check severity failure
+	// severity failure
 	errs := resultSet.GetErrorCount()
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
 
-	// Check min score threshold
+	// min score threshold
 	if minScore > 10 && stats != nil {
 		if stats.OverallScore < minScore {
 			if !pipelineOutput && !silentFlag {
@@ -387,14 +415,11 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Check for failure but handle it gracefully without showing help
 	failErr := CheckFailureSeverity(failSeverityFlag, errs, warnings, informs)
 	if failErr != nil {
-		// in silent mode, just exit with code
 		if silentFlag {
 			os.Exit(1)
 		}
-		// otherwise return the error to be handled by cobra
 		return failErr
 	}
 
@@ -415,25 +440,153 @@ type fileResult struct {
 
 func PrintBanner(noStyle ...bool) {
 	banner := `
-██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
-██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
-██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
-╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
- ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
-  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
+ ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
+ ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
+ ██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
+ ╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
+  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
+   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
 
 	skipColors := len(noStyle) > 0 && noStyle[0]
 
 	if skipColors {
 		fmt.Printf("%s\n\n", banner)
-		fmt.Printf("version: %s | compiled: %s\n", Version, Date)
-		fmt.Printf("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum\n\n")
+		fmt.Printf(" version: %s | compiled: %s\n", Version, Date)
+		fmt.Printf(" https://quobix.com/vacuum | https://github.com/daveshanley/vacuum\n\n")
 	} else {
-		fmt.Printf("%s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
-		fmt.Printf("%sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
+		fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
+		fmt.Printf(" %sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
 			cui.ASCIIGreenBold, Version, cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, Date, cui.ASCIIReset)
-		fmt.Printf("%s🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
+		fmt.Printf("%s https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
 	}
+}
+
+// renderHardModeBox displays the hard mode enabled message using lipgloss
+func renderHardModeBox(message string, noStyle bool) {
+	if noStyle {
+		fmt.Printf(" | %s\n\n", message)
+		return
+	}
+
+	// get terminal width and calculate box width to match summary tables
+	termWidth := getTerminalWidth()
+	widths := calculateColumnWidths(termWidth)
+
+	// calculate actual table width (matching the summary table)
+	// for full width: rule (40) + violation (12) + impact (50) + separators (4 spaces) + leading space (1) = 107
+	boxWidth := widths.rule + widths.violation + widths.impact + 4 + 1
+	if termWidth < 100 {
+		// for smaller terminals, adjust box width accordingly
+		boxWidth = termWidth - 13 // leave some margin
+		if boxWidth < 40 {
+			boxWidth = 40
+		}
+	}
+
+	// center the message in the box
+	messageStyle := lipgloss.NewStyle().
+		Width(boxWidth-2).
+		Align(lipgloss.Center).
+		Padding(1, 0)
+
+	boxStyle := lipgloss.NewStyle().
+		Width(boxWidth).
+		Foreground(lipgloss.Color("196")).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("196")).
+		Bold(true)
+
+	fmt.Println(boxStyle.Render(messageStyle.Render(message)))
+	fmt.Println()
+}
+
+// renderInfoMessage displays an info message using lipgloss
+func renderInfoMessage(message string, noStyle bool) {
+	if noStyle {
+		fmt.Printf(" %s\n", message)
+		return
+	}
+
+	fmt.Printf(" %s%s%s\n", cui.ASCIIBlue, message, cui.ASCIIReset)
+}
+
+// renderIgnoredItems displays the ignored paths and rules in tree format
+func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
+	type ignoredItem struct {
+		rule string
+		path string
+	}
+	var items []ignoredItem
+
+	// collect all ignored items from the map
+	for category, paths := range ignoredItems {
+		if len(paths) > 0 {
+			for _, path := range paths {
+				items = append(items, ignoredItem{
+					rule: category,
+					path: path,
+				})
+			}
+		}
+	}
+
+	if len(items) == 0 {
+		return
+	}
+
+	fmt.Printf(" %signored items:%s\n", cui.ASCIIGrey, cui.ASCIIReset)
+
+	// render in tree format
+	for i, item := range items {
+		isLast := i == len(items)-1
+		if !noStyle {
+			// format: rule (pink bold) : path (colorized)
+			formattedItem := fmt.Sprintf("%s%s%s%s: %s",
+				cui.ASCIIPink, cui.ASCIIBold, item.rule, cui.ASCIIReset,
+				cui.ColorizePath(item.path))
+
+			if isLast {
+				fmt.Printf(" %s└─%s %s\n", cui.ASCIIPink, cui.ASCIIReset, formattedItem)
+			} else {
+				fmt.Printf(" %s├─%s %s\n", cui.ASCIIPink, cui.ASCIIReset, formattedItem)
+			}
+		} else {
+			if isLast {
+				fmt.Printf(" └─ %s: %s\n", item.rule, item.path)
+			} else {
+				fmt.Printf(" ├─ %s: %s\n", item.rule, item.path)
+			}
+		}
+	}
+	fmt.Println()
+}
+
+// createDebugLogger creates a debug logger using slog with lipgloss formatting
+func createDebugLogger(debugFlag bool) *slog.Logger {
+	// use the existing charm logger setup
+	charmLogger := log.New(os.Stderr)
+	charmLogger.SetStyles(&log.Styles{
+		Timestamp: lipgloss.NewStyle(),
+		Message:   lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
+		Key:       lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true),
+		Value:     lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
+		Separator: lipgloss.NewStyle().Foreground(lipgloss.Color("201")).SetString(" = "),
+		Levels: map[log.Level]lipgloss.Style{
+			log.DebugLevel: lipgloss.NewStyle().SetString("DEBUG").Foreground(lipgloss.Color("246")).Bold(true),
+			log.InfoLevel:  lipgloss.NewStyle().SetString("INFO").Foreground(lipgloss.Color("45")).Bold(true),
+			log.WarnLevel:  lipgloss.NewStyle().SetString("WARN").Foreground(lipgloss.Color("220")).Bold(true),
+			log.ErrorLevel: lipgloss.NewStyle().SetString("ERROR").Foreground(lipgloss.Color("196")).Bold(true),
+		},
+	})
+	charmLogger.SetReportTimestamp(false)
+
+	if debugFlag {
+		charmLogger.SetLevel(log.DebugLevel)
+	} else {
+		charmLogger.SetLevel(log.ErrorLevel)
+	}
+
+	return slog.New(charmLogger)
 }
 
 func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
