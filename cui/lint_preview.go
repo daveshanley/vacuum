@@ -74,6 +74,7 @@ var (
 	JsonStringRegex   = regexp.MustCompile(`:\s*"[^"]*"`)
 	BacktickRegex     = regexp.MustCompile("`([^`]+)`")
 	SingleQuoteRegex  = regexp.MustCompile(`'([^']+)'`)
+	LogPrefixRegex    = regexp.MustCompile(`\[([^\]]+)\]`)
 )
 
 // pre-created styles for syntax highlighting

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -116,7 +115,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	fileInfo, _ := os.Stat(fileName)
 
 	// create debug logger
-	logger := createDebugLogger(flags.DebugFlag)
+	logger, bufferedLogger := createDebugLogger(flags.DebugFlag)
 
 	var resultSet *model.RuleResultSet
 	var specBytes []byte
@@ -185,6 +184,15 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		})
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
+
+		// Output any buffered logs
+		if bufferedLogger != nil {
+			logOutput := bufferedLogger.RenderTree(flags.NoStyleFlag)
+			if logOutput != "" {
+				fmt.Print(logOutput)
+				fmt.Println() // Add spacing after logs
+			}
+		}
 
 		if len(result.Errors) > 0 {
 			for _, err := range result.Errors {
@@ -435,31 +443,17 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 }
 
 // createDebugLogger creates a debug logger using slog with lipgloss formatting
-func createDebugLogger(debugFlag bool) *slog.Logger {
-	// use the existing charm logger setup
-	charmLogger := log.New(os.Stderr)
-	charmLogger.SetStyles(&log.Styles{
-		Timestamp: lipgloss.NewStyle(),
-		Message:   lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
-		Key:       lipgloss.NewStyle().Foreground(lipgloss.Color("45")).Bold(true),
-		Value:     lipgloss.NewStyle().Foreground(lipgloss.Color("255")),
-		Separator: lipgloss.NewStyle().Foreground(lipgloss.Color("201")).SetString(" = "),
-		Levels: map[log.Level]lipgloss.Style{
-			log.DebugLevel: lipgloss.NewStyle().SetString("DEBUG").Foreground(lipgloss.Color("246")).Bold(true),
-			log.InfoLevel:  lipgloss.NewStyle().SetString("INFO").Foreground(lipgloss.Color("45")).Bold(true),
-			log.WarnLevel:  lipgloss.NewStyle().SetString("WARN").Foreground(lipgloss.Color("220")).Bold(true),
-			log.ErrorLevel: lipgloss.NewStyle().SetString("ERROR").Foreground(lipgloss.Color("196")).Bold(true),
-		},
-	})
-	charmLogger.SetReportTimestamp(false)
-
-	if debugFlag {
-		charmLogger.SetLevel(log.DebugLevel)
-	} else {
-		charmLogger.SetLevel(log.ErrorLevel)
-	}
-
-	return slog.New(charmLogger)
+func createDebugLogger(debugFlag bool) (*slog.Logger, *BufferedLogger) {
+	// Create our custom BufferedLogger
+	bufferedLogger := NewBufferedLogger()
+	
+	// Create slog handler that writes to our BufferedLogger
+	handler := NewBufferedLogHandler(bufferedLogger)
+	
+	// Create slog.Logger with our handler
+	logger := slog.New(handler)
+	
+	return logger, bufferedLogger
 }
 
 func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,

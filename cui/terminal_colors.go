@@ -14,6 +14,14 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
+// Log level constants
+const (
+	LogLevelError = "ERROR"
+	LogLevelWarn  = "WARN"
+	LogLevelInfo  = "INFO"
+	LogLevelDebug = "DEBUG"
+)
+
 type ColorizeMode int
 
 const (
@@ -39,7 +47,10 @@ var (
 	ASCIIBold            = "\033[1m"
 	ASCIIItalic          = "\033[3m"
 	ASCIIReset           = "\033[0m"
-	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m" // Blue text with bold and italic
+	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m"        // Blue text with bold and italic
+	ASCIIWarn            = "\033[48;5;220;1;38;5;0m"  // Yellow background with bold black text
+	ASCIIError           = "\033[48;5;196;1;38;5;15m" // Red background with bold white text
+	ASCIIInfo            = "\033[48;5;45;1;38;5;0m"   // Blue background with bold black text
 
 	// Regex pattern to match text between single quotes with proper boundaries
 	// Matches 'text' when preceded by space, start of string, or [ and followed by space, end of string, or ]
@@ -59,6 +70,9 @@ var (
 	origItalic          = "\033[3m"
 	origReset           = "\033[0m"
 	origBlueBoldItalic  = "\033[1;3;38;5;45m"
+	origWarn            = "\033[48;5;220;1;38;5;0m"
+	origError           = "\033[48;5;196;1;38;5;15m"
+	origInfo            = "\033[48;5;45;1;38;5;0m"
 
 	// Store original lipgloss colors
 	origRGBBlue       = lipgloss.Color("45")
@@ -198,6 +212,41 @@ func ColorizeMessage(message string) string {
 		}
 		return match
 	})
+}
+
+func ColorizeLogMessage(message, severity string) string {
+	if severity == LogLevelError {
+		return fmt.Sprintf("%s%s%s%s", ASCIIBold, ASCIIRed, message, ASCIIReset)
+	}
+	if severity == LogLevelDebug {
+		return fmt.Sprintf("%s%s%s", ASCIIGrey, message, ASCIIReset)
+	}
+
+	if !strings.HasPrefix(message, "[") {
+		return message
+	}
+
+	// Use regex to find and colorize backtick-enclosed text
+	res := LogPrefixRegex.ReplaceAllStringFunc(message, func(match string) string {
+		// Extract the content between backticks
+		content := LogPrefixRegex.FindStringSubmatch(match)
+		if len(content) > 1 {
+			// Apply blue bold italic styling to backtick AND content
+			switch severity {
+			case LogLevelError:
+				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIRed, content[1], ASCIIReset)
+			case LogLevelWarn:
+				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIYellow, content[1], ASCIIReset)
+			case LogLevelInfo:
+				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIInfo, content[1], ASCIIReset)
+			case LogLevelDebug:
+				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIGrey, content[1], ASCIIReset)
+			}
+
+		}
+		return match
+	})
+	return res
 }
 
 // VisibleLength calculates the visible length of a string, excluding ANSI escape codes.
@@ -647,6 +696,9 @@ func DisableColors() {
 	ASCIIItalic = ""
 	ASCIIReset = ""
 	ASCIIBlueBoldItalic = ""
+	ASCIIWarn = ""
+	ASCIIError = ""
+	ASCIIInfo = ""
 
 	// Also disable lipgloss colors - use NoColor for most, dark grey for backgrounds
 	RGBBlue = lipgloss.NoColor{}
@@ -689,6 +741,9 @@ func EnableColors() {
 	ASCIIItalic = origItalic
 	ASCIIReset = origReset
 	ASCIIBlueBoldItalic = origBlueBoldItalic
+	ASCIIWarn = origWarn
+	ASCIIError = origError
+	ASCIIInfo = origInfo
 
 	// Restore lipgloss colors
 	RGBBlue = origRGBBlue
