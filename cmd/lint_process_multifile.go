@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -80,31 +78,15 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 		fileSize = fileInfo.Size()
 	}
 
-	// read flags we need
-	baseFlag, _ := cmd.Flags().GetString("base")
-	remoteFlag, _ := cmd.Flags().GetBool("remote")
-	skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
-	rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-	functionsFlag, _ := cmd.Flags().GetString("functions")
-	hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
-	ignoreFile, _ := cmd.Flags().GetString("ignore-file")
-	extRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
-	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
-	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
-	certFile, _ := cmd.Flags().GetString("cert-file")
-	keyFile, _ := cmd.Flags().GetString("key-file")
-	caFile, _ := cmd.Flags().GetString("ca-file")
-	insecure, _ := cmd.Flags().GetBool("insecure")
-	debugFlag, _ := cmd.Flags().GetBool("debug")
-	silentFlag, _ := cmd.Flags().GetBool("silent")
-	timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+	// Read all flags at once
+	flags := ReadLintFlags(cmd)
 
-	// setup charm logger with custom styles
+	// setup charm logger with custom styles (capture to buffer for logs)
 	var logBuffer bytes.Buffer
 	charmLogger := log.New(&logBuffer)
 
 	// set log level
-	if debugFlag {
+	if flags.DebugFlag {
 		charmLogger.SetLevel(log.DebugLevel)
 	} else {
 		charmLogger.SetLevel(log.ErrorLevel)
@@ -126,17 +108,16 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 	styles.Key = lipgloss.NewStyle().Foreground(lipgloss.Color("#62c4ff"))
 	styles.Value = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
 	styles.Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("#f83aff"))
-	charmLogger.SetStyles(styles)
 	charmLogger.SetReportCaller(false)
 	charmLogger.SetReportTimestamp(false)
 
 	// create slog logger with charm handler for compatibility
 	logger := slog.New(charmLogger)
 
-	// load ignore file
+	// load ignore file (silently for multi-file processing)
 	ignoredItems := model.IgnoredItems{}
-	if ignoreFile != "" {
-		raw, ferr := os.ReadFile(ignoreFile)
+	if flags.IgnoreFile != "" {
+		raw, ferr := os.ReadFile(flags.IgnoreFile)
 		if ferr == nil {
 			yaml.Unmarshal(raw, &ignoredItems)
 		}
@@ -151,37 +132,18 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 		}
 	}
 
-	// build ruleset
-	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	customFuncs, _ := LoadCustomFunctions(functionsFlag, true) // always silent for multi-file
+	// Load custom functions
+	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, true) // always silent for multi-file
 
-	// hard mode
-	if hardModeFlag {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-		owaspRules := rulesets.GetAllOWASPRules()
-		for k, v := range owaspRules {
-			selectedRS.Rules[k] = v
-		}
-	}
-
-	// handle custom ruleset
-	if rulesetFlag != "" {
-		var httpClient *http.Client
-		httpClientConfig := utils.HTTPClientConfig{
-			CertFile: certFile,
-			KeyFile:  keyFile,
-			CAFile:   caFile,
-			Insecure: insecure,
-		}
-		if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
-			httpClient, _ = utils.CreateCustomHTTPClient(httpClientConfig)
-		}
-		rs, err := BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
-		if err == nil {
-			selectedRS = rs
-			MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag)
-		}
+	// Load and configure ruleset (but silently for multi-file processing)
+	silentFlags := *flags // copy flags
+	silentFlags.SilentFlag = true
+	silentFlags.PipelineOutput = false
+	selectedRS, err := LoadRulesetWithConfig(&silentFlags, logger)
+	if err != nil {
+		// If ruleset loading fails, use default
+		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
+		selectedRS = defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 	}
 
 	// apply rules
@@ -190,16 +152,17 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 		Spec:                            specBytes,
 		SpecFileName:                    fileName,
 		CustomFunctions:                 customFuncs,
-		Base:                            baseFlag,
-		AllowLookup:                     remoteFlag,
-		SkipDocumentCheck:               skipCheckFlag,
-		SilenceLogs:                     silentFlag,
-		Timeout:                         time.Duration(timeoutFlag) * time.Second,
-		IgnoreCircularArrayRef:          ignoreArrayCircleRef,
-		IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
+		Base:                            flags.BaseFlag,
+		AllowLookup:                     flags.RemoteFlag,
+		SkipDocumentCheck:               flags.SkipCheckFlag,
+		SilenceLogs:                     flags.SilentFlag,
+		Timeout:                         time.Duration(flags.TimeoutFlag) * time.Second,
+		IgnoreCircularArrayRef:          flags.IgnoreArrayCircleRef,
+		IgnoreCircularPolymorphicRef:    flags.IgnorePolymorphCircleRef,
 		BuildDeepGraph:                  len(ignoredItems) > 0,
-		ExtractReferencesFromExtensions: extRefsFlag,
+		ExtractReferencesFromExtensions: flags.ExtRefsFlag,
 		Logger:                          logger,
+		HTTPClientConfig:                GetHTTPClientConfig(flags),
 	})
 
 	if len(result.Errors) > 0 {
@@ -264,59 +227,28 @@ func ProcessSingleFileWithLogs(cmd *cobra.Command, fileName string) *FileProcess
 // runMultipleFiles processes multiple files for lint-preview
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
-	silentFlag, _ := cmd.Flags().GetBool("silent")
-	timeFlag, _ := cmd.Flags().GetBool("time")
-	failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
-	pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
-	noStyleFlag, _ := cmd.Flags().GetBool("no-style")
-	detailsFlag, _ := cmd.Flags().GetBool("details")
-	hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
-	ignoreFile, _ := cmd.Flags().GetString("ignore-file")
-	rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-	debugFlag, _ := cmd.Flags().GetBool("debug")
+	// Read all flags at once
+	flags := ReadLintFlags(cmd)
+	
+	// Setup environment (terminal detection, colors)
+	SetupLintEnvironment(flags)
 
-	if rulesetFlag != "" && !silentFlag && !pipelineOutput {
-		logger := createDebugLogger(debugFlag)
-		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-
-		// load the ruleset to get the count
-		if selectedRS, err := BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, true, nil); err == nil {
-			if noStyleFlag {
-				fmt.Printf(" using ruleset '%s' (containing %d rules)\n", rulesetFlag, len(selectedRS.Rules))
-			} else {
-				fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
-					cui.ASCIIGrey,
-					cui.ASCIIBold+cui.ASCIIItalic, rulesetFlag, cui.ASCIIReset+cui.ASCIIGrey,
-					cui.ASCIIGrey,
-					cui.ASCIIBold+cui.ASCIIItalic, len(selectedRS.Rules), cui.ASCIIReset+cui.ASCIIGrey,
-					cui.ASCIIReset)
-			}
-		}
+	// Create logger once for all files
+	logger := createDebugLogger(flags.DebugFlag)
+	
+	// Load and configure ruleset once for all files
+	selectedRS, err := LoadRulesetWithConfig(flags, logger)
+	if err != nil {
+		return err
 	}
+	
+	// Load custom functions once
+	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
+	
+	// Load ignore file once
+	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
 
-	// show hard mode if enabled
-	if hardModeFlag && !silentFlag && !pipelineOutput {
-		if rulesetFlag != "" {
-			renderHardModeBox(HardModeWithCustomRuleset, noStyleFlag)
-		} else {
-			renderHardModeBox(HardModeEnabled, noStyleFlag)
-		}
-	}
-
-	// load and show ignore file if using one
-	var ignoredItems model.IgnoredItems
-	if ignoreFile != "" {
-		raw, ferr := os.ReadFile(ignoreFile)
-		if ferr == nil {
-			ferr = yaml.Unmarshal(raw, &ignoredItems)
-			if ferr == nil && !silentFlag && !pipelineOutput {
-				renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", ignoreFile), noStyleFlag)
-				renderIgnoredItems(ignoredItems, noStyleFlag)
-			}
-		}
-	}
-
-	if !silentFlag && !pipelineOutput {
+	if !flags.SilentFlag && !flags.PipelineOutput {
 		fmt.Printf(" vacuuming %s%d%s files...\n\n", cui.ASCIIGreenBold, len(filesToLint), cui.ASCIIReset)
 	}
 
@@ -329,7 +261,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	currentFile := make(chan string, 1)
 	progressChan := make(chan float64, 1)
 
-	if !silentFlag && !pipelineOutput && !noStyleFlag {
+	if !flags.SilentFlag && !flags.PipelineOutput && !flags.NoStyleFlag {
 		go func() {
 			spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			spinnerIndex := 0
@@ -381,11 +313,20 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}()
 	}
 
+	// Create processing config to reuse for all files
+	processingConfig := &FileProcessingConfig{
+		Flags:           flags,
+		Logger:          logger,
+		SelectedRuleset: selectedRS,
+		CustomFunctions: customFuncs,
+		IgnoredItems:    ignoredItems,
+	}
+
 	// process all files
 	for i, fileName := range filesToLint {
 		// update progress display
-		if !silentFlag && !pipelineOutput {
-			if !noStyleFlag {
+		if !flags.SilentFlag && !flags.PipelineOutput {
+			if !flags.NoStyleFlag {
 				currentFile <- fileName
 				progressChan <- float64(i) / float64(len(filesToLint))
 			} else {
@@ -394,7 +335,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 		}
 
-		result := ProcessSingleFileWithLogs(cmd, fileName)
+		result := ProcessSingleFileOptimized(fileName, processingConfig)
 
 		fileResults[i] = fileResult{
 			fileName: fileName,
@@ -415,13 +356,13 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	// stop spinner and clear line properly
-	if !silentFlag && !pipelineOutput && !noStyleFlag {
+	if !flags.SilentFlag && !flags.PipelineOutput && !flags.NoStyleFlag {
 		stopSpinner <- true
 		time.Sleep(150 * time.Millisecond) // give spinner time to clear
 	}
 
 	// render all results
-	if !silentFlag && !pipelineOutput {
+	if !flags.SilentFlag && !flags.PipelineOutput {
 		// get terminal width and calculate table width
 		termWidth := getTerminalWidth()
 		widths := calculateColumnWidths(termWidth)
@@ -436,8 +377,8 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 		for _, fr := range fileResults {
 			// only print header if we're not showing details (details prints its own header)
-			if !(detailsFlag && len(fr.results) > 0 && fr.err == nil) {
-				if !noStyleFlag {
+			if !(flags.DetailsFlag && len(fr.results) > 0 && fr.err == nil) {
+				if !flags.NoStyleFlag {
 					fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIPink, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
 					fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
 				} else {
@@ -448,8 +389,8 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 			if fr.err != nil {
 				// for errors, we need to print the header since details won't be shown
-				if detailsFlag && len(fr.results) > 0 {
-					if !noStyleFlag {
+				if flags.DetailsFlag && len(fr.results) > 0 {
+					if !flags.NoStyleFlag {
 						fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
 						fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
 					} else {
@@ -457,30 +398,30 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 						fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
 					}
 				}
-				if !noStyleFlag {
+				if !flags.NoStyleFlag {
 					fmt.Printf("%sError: %v%s\n", cui.ASCIIRed, fr.err, cui.ASCIIReset)
 				} else {
 					fmt.Printf("Error: %v\n", fr.err)
 				}
 			} else {
 				// show details if requested
-				if detailsFlag && len(fr.results) > 0 {
+				if flags.DetailsFlag && len(fr.results) > 0 {
 					// get spec data for snippets
 					specBytes, _ := os.ReadFile(fr.fileName)
 					specStringData := strings.Split(string(specBytes), "\n")
-					renderFixedDetails(fr.results, specStringData, false, false, silentFlag,
-						false, false, false, fr.fileName, noStyleFlag)
+					renderFixedDetails(fr.results, specStringData, false, false, flags.SilentFlag,
+						false, false, false, fr.fileName, flags.NoStyleFlag)
 				}
 
 				// create result set and render summary
 				resultSet := model.NewRuleResultSetPointer(fr.results)
-				renderFixedSummary(resultSet, model.RuleCategoriesOrdered, nil, fr.fileName, silentFlag,
-					noStyleFlag, pipelineOutput, false)
+				renderFixedSummary(resultSet, model.RuleCategoriesOrdered, nil, fr.fileName, flags.SilentFlag,
+					flags.NoStyleFlag, flags.PipelineOutput, false)
 			}
 
 			// show logs if any with nice tree formatting
 			if len(fr.logs) > 0 {
-				if !noStyleFlag {
+				if !flags.NoStyleFlag {
 					fmt.Printf("\n %svacuumed logs for %s'%s%s%s%s':\n", cui.ASCIIGrey, cui.ASCIIReset,
 						cui.ASCIIItalic, cui.ASCIIGreenBold, fr.fileName, cui.ASCIIReset)
 				} else {
@@ -498,7 +439,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 				for i, log := range fr.logs {
 					isLast := i == len(fr.logs)-1
-					if !noStyleFlag {
+					if !flags.NoStyleFlag {
 						// colorize quoted text in the log
 						colorizedLog := cui.ColorizeLogEntry(strings.TrimSpace(log), cui.ASCIIGrey)
 
@@ -550,7 +491,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	// show overall summary
-	if !silentFlag && !pipelineOutput {
+	if !flags.SilentFlag && !flags.PipelineOutput {
 		fmt.Printf("\n%s=== Overall Summary for %d files ===%s\n", cui.ASCIIPink, len(filesToLint), cui.ASCIIReset)
 		fmt.Printf("Total issues: %s%d errors%s, %s%d warnings%s, %s%d info%s\n",
 			cui.ASCIIRed, totalErrors, cui.ASCIIReset,
@@ -559,10 +500,10 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	// show timing
-	if timeFlag && !pipelineOutput && !silentFlag {
+	if flags.TimeFlag && !flags.PipelineOutput && !flags.SilentFlag {
 		duration := time.Since(start)
-		RenderTimeAndFiles(timeFlag, duration, totalSize, len(filesToLint))
+		RenderTimeAndFiles(flags.TimeFlag, duration, totalSize, len(filesToLint))
 	}
 
-	return CheckFailureSeverity(failSeverityFlag, totalErrors, totalWarnings, totalInforms)
+	return CheckFailureSeverity(flags.FailSeverityFlag, totalErrors, totalWarnings, totalInforms)
 }
