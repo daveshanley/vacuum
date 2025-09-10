@@ -49,7 +49,11 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
 
 	if !flags.SilentFlag && !flags.PipelineOutput {
-		fmt.Printf(" vacuuming %s%d%s files...\n\n", cui.ASCIIGreenBold, len(filesToLint), cui.ASCIIReset)
+		if !flags.NoStyleFlag {
+			fmt.Printf(" vacuuming %s%d%s files...\n\n", cui.ASCIIGreenBold, len(filesToLint), cui.ASCIIReset)
+		} else {
+			fmt.Printf(" vacuuming %d files...\n\n", len(filesToLint))
+		}
 	}
 
 	var totalErrors, totalWarnings, totalInforms int
@@ -126,8 +130,13 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 		}
 
-		// Create a new BufferedLogger for this file
-		bufferedLogger := NewBufferedLogger()
+		// Create a new BufferedLogger for this file with appropriate log level
+		var bufferedLogger *BufferedLogger
+		if flags.DebugFlag {
+			bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelDebug)
+		} else {
+			bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
+		}
 
 		// Create processing config with the BufferedLogger for this file
 		processingConfig := &FileProcessingConfig{
@@ -225,10 +234,10 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			// show logs if any with nice tree formatting
 			if len(fr.logs) > 0 {
 				if !flags.NoStyleFlag {
-					fmt.Printf("\n %svacuumed logs for %s'%s%s%s%s':\n", cui.ASCIIGrey, cui.ASCIIReset,
-						cui.ASCIIItalic, cui.ASCIIGreenBold, fr.fileName, cui.ASCIIReset)
+					fmt.Printf("%s※※ vacuumed logs for %s'%s%s%s%s' %s※※%s\n", cui.ASCIIGrey, cui.ASCIIReset,
+						cui.ASCIIItalic, cui.ASCIIGreenBold, fr.fileName, cui.ASCIIReset, cui.ASCIIGrey, cui.ASCIIReset)
 				} else {
-					fmt.Println("\n vacuumed logs:")
+					fmt.Println("vacuumed logs:")
 				}
 
 				// Simply print the already-formatted logs from BufferedLogger

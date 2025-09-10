@@ -25,15 +25,58 @@ type LogEntry struct {
 
 // BufferedLogger collects log entries for later rendering
 type BufferedLogger struct {
-	mu      sync.Mutex
-	entries []LogEntry
+	mu       sync.Mutex
+	entries  []LogEntry
+	logLevel string // Minimum log level to display
 }
 
 // NewBufferedLogger creates a new buffered logger
 func NewBufferedLogger() *BufferedLogger {
 	return &BufferedLogger{
-		entries: make([]LogEntry, 0),
+		entries:  make([]LogEntry, 0),
+		logLevel: cui.LogLevelError, // Default to error level
 	}
+}
+
+// NewBufferedLoggerWithLevel creates a new buffered logger with a specific log level
+func NewBufferedLoggerWithLevel(level string) *BufferedLogger {
+	return &BufferedLogger{
+		entries:  make([]LogEntry, 0),
+		logLevel: level,
+	}
+}
+
+// SetLogLevel sets the minimum log level to display
+func (l *BufferedLogger) SetLogLevel(level string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.logLevel = level
+}
+
+// getSeverityPriority returns a priority value for log levels (lower = more severe)
+func getSeverityPriority(level string) int {
+	switch level {
+	case cui.LogLevelError:
+		return 1
+	case cui.LogLevelWarn:
+		return 2
+	case cui.LogLevelInfo:
+		return 3
+	case cui.LogLevelDebug:
+		return 4
+	default:
+		return 5
+	}
+}
+
+// shouldLog determines if a log entry should be stored based on severity
+func (l *BufferedLogger) shouldLog(level string) bool {
+	// Get priorities (lower number = more severe)
+	entryPriority := getSeverityPriority(level)
+	configuredPriority := getSeverityPriority(l.logLevel)
+	
+	// Log if entry severity is equal or more severe than configured level
+	return entryPriority <= configuredPriority
 }
 
 // Error logs an error level message
@@ -58,6 +101,11 @@ func (l *BufferedLogger) Debug(msg string, fields ...interface{}) {
 
 // log is the internal logging method
 func (l *BufferedLogger) log(level, msg string, fields ...interface{}) {
+	// Check if we should log this based on severity
+	if !l.shouldLog(level) {
+		return
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
