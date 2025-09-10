@@ -444,8 +444,13 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 
 // createDebugLogger creates a debug logger using slog with lipgloss formatting
 func createDebugLogger(debugFlag bool) (*slog.Logger, *BufferedLogger) {
-	// Create our custom BufferedLogger
-	bufferedLogger := NewBufferedLogger()
+	// Create our custom BufferedLogger with appropriate log level
+	var bufferedLogger *BufferedLogger
+	if debugFlag {
+		bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelDebug)
+	} else {
+		bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
+	}
 	
 	// Create slog handler that writes to our BufferedLogger
 	handler := NewBufferedLogHandler(bufferedLogger)
