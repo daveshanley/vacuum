@@ -4,14 +4,11 @@
 package cmd
 
 import (
-	"bytes"
 	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -21,6 +18,7 @@ import (
 type FileProcessingConfig struct {
 	Flags           *LintFlags
 	Logger          *slog.Logger
+	BufferedLogger  *BufferedLogger
 	SelectedRuleset *rulesets.RuleSet
 	CustomFunctions map[string]model.RuleFunction
 	IgnoredItems    model.IgnoredItems
@@ -34,39 +32,22 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		fileSize = fileInfo.Size()
 	}
 
-	var logBuffer bytes.Buffer
 	var logger *slog.Logger
+	var bufferedLogger *BufferedLogger
 
 	if config.Logger != nil {
 		logger = config.Logger
+		bufferedLogger = config.BufferedLogger
+	} else if config.BufferedLogger != nil {
+		// Use the provided BufferedLogger
+		bufferedLogger = config.BufferedLogger
+		handler := NewBufferedLogHandler(bufferedLogger)
+		logger = slog.New(handler)
 	} else {
-		charmLogger := log.New(&logBuffer)
-		if config.Flags.DebugFlag {
-			charmLogger.SetLevel(log.DebugLevel)
-		} else {
-			charmLogger.SetLevel(log.ErrorLevel)
-		}
-
-		styles := log.DefaultStyles()
-		styles.Levels[log.ErrorLevel] = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ff3366")).
-			Bold(true)
-		styles.Levels[log.WarnLevel] = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffcc00")).
-			Bold(true)
-		styles.Levels[log.InfoLevel] = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#62c4ff")).
-			Bold(true)
-		styles.Levels[log.DebugLevel] = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#f83aff"))
-		styles.Key = lipgloss.NewStyle().Foreground(lipgloss.Color("#62c4ff"))
-		styles.Value = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffff"))
-		styles.Separator = lipgloss.NewStyle().Foreground(lipgloss.Color("#f83aff"))
-		charmLogger.SetStyles(styles)
-		charmLogger.SetReportCaller(false)
-		charmLogger.SetReportTimestamp(false)
-
-		logger = slog.New(charmLogger)
+		// Create a new BufferedLogger
+		bufferedLogger = NewBufferedLogger()
+		handler := NewBufferedLogHandler(bufferedLogger)
+		logger = slog.New(handler)
 	}
 
 	specBytes, err := os.ReadFile(fileName)
@@ -97,11 +78,15 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 
 	if len(result.Errors) > 0 {
 		var logs []string
-		if logBuffer.Len() > 0 {
-			lines := strings.Split(strings.TrimSpace(logBuffer.String()), "\n")
-			for _, line := range lines {
-				if strings.TrimSpace(line) != "" {
-					logs = append(logs, line)
+		if bufferedLogger != nil {
+			// Render the buffered logs as a tree
+			treeOutput := bufferedLogger.RenderTree(config.Flags.NoStyleFlag)
+			if treeOutput != "" {
+				lines := strings.Split(treeOutput, "\n")
+				for _, line := range lines {
+					if strings.TrimSpace(line) != "" {
+						logs = append(logs, line)
+					}
 				}
 			}
 		}
@@ -134,11 +119,15 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	var logs []string
-	if logBuffer.Len() > 0 {
-		lines := strings.Split(strings.TrimSpace(logBuffer.String()), "\n")
-		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				logs = append(logs, line)
+	if bufferedLogger != nil {
+		// Render the buffered logs as a tree
+		treeOutput := bufferedLogger.RenderTree(config.Flags.NoStyleFlag)
+		if treeOutput != "" {
+			lines := strings.Split(treeOutput, "\n")
+			for _, line := range lines {
+				if strings.TrimSpace(line) != "" {
+					logs = append(logs, line)
+				}
 			}
 		}
 	}
