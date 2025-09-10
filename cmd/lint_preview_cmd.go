@@ -6,7 +6,6 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 func GetLintPreviewCommand() *cobra.Command {
@@ -73,56 +71,14 @@ func GetLintPreviewCommand() *cobra.Command {
 }
 
 func runLintPreview(cmd *cobra.Command, args []string) error {
-	globPattern, _ := cmd.Flags().GetString("globbed-files")
-	detailsFlag, _ := cmd.Flags().GetBool("details")
-	snippetsFlag, _ := cmd.Flags().GetBool("snippets")
-	errorsFlag, _ := cmd.Flags().GetBool("errors")
-	categoryFlag, _ := cmd.Flags().GetString("category")
-	silentFlag, _ := cmd.Flags().GetBool("silent")
-	noStyleFlag, _ := cmd.Flags().GetBool("no-style")
-	noBannerFlag, _ := cmd.Flags().GetBool("no-banner")
-	noMessageFlag, _ := cmd.Flags().GetBool("no-message")
-	allResultsFlag, _ := cmd.Flags().GetBool("all-results")
-	failSeverityFlag, _ := cmd.Flags().GetString("fail-severity")
-	baseFlag, _ := cmd.Flags().GetString("base")
-	remoteFlag, _ := cmd.Flags().GetBool("remote")
-	skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
-	timeoutFlag, _ := cmd.Flags().GetInt("timeout")
-	rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-	functionsFlag, _ := cmd.Flags().GetString("functions")
-	timeFlag, _ := cmd.Flags().GetBool("time")
-	hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
-	ignoreFile, _ := cmd.Flags().GetString("ignore-file")
-	noClipFlag, _ := cmd.Flags().GetBool("no-clip")
-	extRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
-	ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
-	ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
-	certFile, _ := cmd.Flags().GetString("cert-file")
-	keyFile, _ := cmd.Flags().GetString("key-file")
-	caFile, _ := cmd.Flags().GetString("ca-file")
-	insecure, _ := cmd.Flags().GetBool("insecure")
-	debugFlag, _ := cmd.Flags().GetBool("debug")
-	minScore, _ := cmd.Flags().GetInt("min-score")
-	showRules, _ := cmd.Flags().GetBool("show-rules")
-	pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
+	// Read all flags at once
+	flags := ReadLintFlags(cmd)
 
-	if !noStyleFlag && !pipelineOutput {
-		fileInfo, _ := os.Stdout.Stat()
-		if (fileInfo.Mode() & os.ModeCharDevice) == 0 {
-			noStyleFlag = true
-		}
-	}
-
-	if noStyleFlag && !pipelineOutput {
-		cui.DisableColors()
-	}
-
-	if !silentFlag && !noBannerFlag && !pipelineOutput {
-		PrintBanner(noStyleFlag)
-	}
+	// Setup environment (terminal detection, colors, banner)
+	SetupLintEnvironment(flags)
 
 	validFileExtensions := []string{"yaml", "yml", "json"}
-	filesToLint, err := getFilesToLint(globPattern, args, validFileExtensions)
+	filesToLint, err := getFilesToLint(flags.GlobPattern, args, validFileExtensions)
 	if cmd.Flags().Changed("globbed-files") && err != nil {
 		fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", cui.ASCIIBold, cui.ASCIIRed, err, cui.ASCIIReset)
 		return err
@@ -142,34 +98,16 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// single file processing continues below
 	fileName := filesToLint[0]
 
-	// ignore file
-	ignoredItems := model.IgnoredItems{}
-	if ignoreFile != "" {
-		raw, ferr := os.ReadFile(ignoreFile)
-		if ferr != nil {
-			if !silentFlag {
-				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n", cui.ASCIIRed, ignoreFile, ferr, cui.ASCIIReset)
-			}
-			return fmt.Errorf("failed to read ignore file: %w", ferr)
-		}
-		ferr = yaml.Unmarshal(raw, &ignoredItems)
-		if ferr != nil {
-			if !silentFlag {
-				fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n", cui.ASCIIRed, ignoreFile, ferr, cui.ASCIIReset)
-			}
-			return fmt.Errorf("failed to parse ignore file: %w", ferr)
-		}
-		// Show ignore file info message and ignored items
-		if !silentFlag && !pipelineOutput {
-			renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", ignoreFile), noStyleFlag)
-			renderIgnoredItems(ignoredItems, noStyleFlag)
-		}
+	// Load ignore file
+	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
+	if err != nil {
+		return err
 	}
 
 	// Try to load the file as either a report or spec
 	reportOrSpec, err := LoadFileAsReportOrSpec(fileName)
 	if err != nil {
-		if !silentFlag {
+		if !flags.SilentFlag {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
 		}
 		return err
@@ -178,7 +116,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	fileInfo, _ := os.Stat(fileName)
 
 	// create debug logger
-	logger := createDebugLogger(debugFlag)
+	logger := createDebugLogger(flags.DebugFlag)
 
 	var resultSet *model.RuleResultSet
 	var specBytes []byte
@@ -188,7 +126,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	if reportOrSpec.IsReport {
 		// pre-compiled report
-		if !silentFlag {
+		if !flags.SilentFlag {
 			fmt.Printf("\033[36mLoading pre-compiled vacuum report from '%s'\033[0m\n\n", fileName)
 		}
 
@@ -209,76 +147,16 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		specBytes = reportOrSpec.SpecBytes
 		displayFileName = fileName
 
-		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-		customFuncs, _ := LoadCustomFunctions(functionsFlag, silentFlag)
+		// Load custom functions
+		customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
 
-		// hard mode
-		if hardModeFlag {
-			selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-			owaspRules := rulesets.GetAllOWASPRules()
-			for k, v := range owaspRules {
-				selectedRS.Rules[k] = v
-			}
-			if !silentFlag && !pipelineOutput {
-				renderHardModeBox(HardModeEnabled, noStyleFlag)
-			}
+		// Load and configure ruleset (handles hard mode, custom rulesets, etc.)
+		selectedRS, err := LoadRulesetWithConfig(flags, logger)
+		if err != nil {
+			return err
 		}
 
-		// custom ruleset
-		if rulesetFlag != "" {
-			var httpClient *http.Client
-			httpClientConfig := utils.HTTPClientConfig{
-				CertFile: certFile,
-				KeyFile:  keyFile,
-				CAFile:   caFile,
-				Insecure: insecure,
-			}
-			if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
-				var clientErr error
-				httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
-				if clientErr != nil {
-					fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", clientErr.Error())
-					return clientErr
-				}
-			}
-
-			var rsErr error
-			selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
-			if rsErr != nil {
-				fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n", rulesetFlag, rsErr.Error())
-				return rsErr
-			}
-
-			// display ruleset information
-			if !silentFlag && !pipelineOutput {
-				if noStyleFlag {
-					fmt.Printf(" using ruleset '%s' (containing %d rules)\n", rulesetFlag, len(selectedRS.Rules))
-				} else {
-					fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
-						cui.ASCIIGrey,
-						cui.ASCIIBold+cui.ASCIIItalic, rulesetFlag, cui.ASCIIReset+cui.ASCIIGrey,
-						cui.ASCIIGrey,
-						cui.ASCIIBold+cui.ASCIIItalic, len(selectedRS.Rules), cui.ASCIIReset+cui.ASCIIGrey,
-						cui.ASCIIReset)
-				}
-			}
-
-			if hardModeFlag {
-				if MergeOWASPRulesToRuleSet(selectedRS, true) {
-					if !silentFlag && !pipelineOutput {
-						renderHardModeBox(HardModeWithCustomRuleset, noStyleFlag)
-					}
-				}
-			}
-		}
-
-		// which rules are being used (after ruleset is fully loaded)
-		if showRules && !pipelineOutput && !silentFlag {
-			renderRulesList(selectedRS.Rules)
-		}
-
-		if !silentFlag && !pipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput {
 			fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 				cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
 		}
@@ -294,21 +172,16 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			Spec:                            specBytes,
 			SpecFileName:                    displayFileName,
 			CustomFunctions:                 customFuncs,
-			Base:                            baseFlag,
-			AllowLookup:                     remoteFlag,
-			SkipDocumentCheck:               skipCheckFlag,
+			Base:                            flags.BaseFlag,
+			AllowLookup:                     flags.RemoteFlag,
+			SkipDocumentCheck:               flags.SkipCheckFlag,
 			Logger:                          logger,
 			BuildDeepGraph:                  deepGraph,
-			Timeout:                         time.Duration(timeoutFlag) * time.Second,
-			IgnoreCircularArrayRef:          ignoreArrayCircleRef,
-			IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
-			ExtractReferencesFromExtensions: extRefsFlag,
-			HTTPClientConfig: utils.HTTPClientConfig{
-				CertFile: certFile,
-				KeyFile:  keyFile,
-				CAFile:   caFile,
-				Insecure: insecure,
-			},
+			Timeout:                         time.Duration(flags.TimeoutFlag) * time.Second,
+			IgnoreCircularArrayRef:          flags.IgnoreArrayCircleRef,
+			IgnoreCircularPolymorphicRef:    flags.IgnorePolymorphCircleRef,
+			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
+			HTTPClientConfig:                GetHTTPClientConfig(flags),
 		})
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
@@ -322,7 +195,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 		resultSet = model.NewRuleResultSet(result.Results)
 
-		if (minScore > 10 || pipelineOutput) && result.Index != nil && result.SpecInfo != nil {
+		if (flags.MinScore > 10 || flags.PipelineOutput) && result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
 		}
 	}
@@ -331,10 +204,10 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	// Handle category filtering
 	var cats []*model.RuleCategory
-	if categoryFlag != "" {
+	if flags.CategoryFlag != "" {
 		resultSet.ResetCounts()
 		var filteredResults []*model.RuleFunctionResult
-		switch categoryFlag {
+		switch flags.CategoryFlag {
 		case model.CategoryDescriptions:
 			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
 		case model.CategoryExamples:
@@ -354,9 +227,9 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		case model.CategoryOWASP:
 			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
 		default:
-			if !silentFlag {
-				fmt.Printf("%sWarning: Category '%s' is unknown, all categories are being considered.%s\n\n", 
-					cui.ASCIIYellow, categoryFlag, cui.ASCIIReset)
+			if !flags.SilentFlag {
+				fmt.Printf("%sWarning: Category '%s' is unknown, all categories are being considered.%s\n\n",
+					cui.ASCIIYellow, flags.CategoryFlag, cui.ASCIIReset)
 			}
 			cats = model.RuleCategoriesOrdered
 		}
@@ -382,16 +255,16 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		stats = reportOrSpec.Report.Statistics
 	}
 
-	if detailsFlag && len(resultSet.Results) > 0 && !pipelineOutput {
-		renderFixedDetails(resultSet.Results, specStringData, snippetsFlag, errorsFlag,
-			silentFlag, noMessageFlag, allResultsFlag, noClipFlag, displayFileName, noStyleFlag)
+	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
+		renderFixedDetails(resultSet.Results, specStringData, flags.SnippetsFlag, flags.ErrorsFlag,
+			flags.SilentFlag, flags.NoMessageFlag, flags.AllResultsFlag, flags.NoClipFlag, displayFileName, flags.NoStyleFlag)
 	}
 
-	renderFixedSummary(resultSet, cats, stats, displayFileName, silentFlag, noStyleFlag, pipelineOutput, showRules)
+	renderFixedSummary(resultSet, cats, stats, displayFileName, flags.SilentFlag, flags.NoStyleFlag, flags.PipelineOutput, flags.ShowRules)
 
 	// timing
 	duration := time.Since(start)
-	if timeFlag && !pipelineOutput {
+	if flags.TimeFlag && !flags.PipelineOutput {
 		renderFixedTiming(duration, fileInfo.Size())
 	}
 
@@ -401,23 +274,23 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	informs := resultSet.GetInfoCount()
 
 	// min score threshold
-	if minScore > 10 && stats != nil {
-		if stats.OverallScore < minScore {
-			if !pipelineOutput && !silentFlag {
+	if flags.MinScore > 10 && stats != nil {
+		if stats.OverallScore < flags.MinScore {
+			if !flags.PipelineOutput && !flags.SilentFlag {
 				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", cui.ASCIIRed, cui.ASCIIReset)
 				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
-					cui.ASCIIRed, stats.OverallScore, minScore, cui.ASCIIReset)
-			} else if pipelineOutput {
+					cui.ASCIIRed, stats.OverallScore, flags.MinScore, cui.ASCIIReset)
+			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
 			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
-				stats.OverallScore, minScore)
+				stats.OverallScore, flags.MinScore)
 		}
 	}
 
-	failErr := CheckFailureSeverity(failSeverityFlag, errs, warnings, informs)
+	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs)
 	if failErr != nil {
-		if silentFlag {
+		if flags.SilentFlag {
 			os.Exit(1)
 		}
 		return failErr
@@ -439,25 +312,25 @@ type fileResult struct {
 }
 
 func PrintBanner(noStyle ...bool) {
-	banner := `
- ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
- ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
- ██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
- ╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
-  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
-   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`
-
+	banner := `   
+ ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗ 《《《─═─═── ·* · ˙*
+ ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║《《《──═─═──· ··* ˙˙
+ ██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║《《《───═─═─··· ˙˙ ˙
+ ╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║《《──═─═──·* ·· ˙˙
+  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║ 《《─═─═──* · · ˙
+   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝ 《───═─═─· ··* ˙˙ ˙
+`
 	skipColors := len(noStyle) > 0 && noStyle[0]
 
 	if skipColors {
-		fmt.Printf("%s\n\n", banner)
+		fmt.Printf("%s\n", banner)
 		fmt.Printf(" version: %s | compiled: %s\n", Version, Date)
-		fmt.Printf(" https://quobix.com/vacuum | https://github.com/daveshanley/vacuum\n\n")
+		fmt.Printf(" https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum\n\n")
 	} else {
-		fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, banner, cui.ASCIIReset)
+		fmt.Printf(" %s%s%s\n", cui.ASCIIPink, banner, cui.ASCIIReset)
 		fmt.Printf(" %sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
 			cui.ASCIIGreenBold, Version, cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, Date, cui.ASCIIReset)
-		fmt.Printf("%s https://quobix.com/vacuum | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
+		fmt.Printf("%s https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
 	}
 }
 
@@ -593,21 +466,16 @@ func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
 	snippets, errors, silent, noMessage, allResults, noClip bool,
 	fileName string, noStyle bool) {
 
-	// print file header (skip for multi-file as it's already printed)
-	// detect multi-file by checking if we're in a multi-file context
-	// for now, always print since this is the detailed view
 	printFileHeader(fileName, silent)
 
 	// calculate table configuration
 	config := calculateTableConfig(results, fileName, errors, noMessage, noClip, noStyle)
 
-	// render based on format
 	if config.UseTreeFormat {
 		renderTreeFormat(results, config, fileName, errors, allResults)
 		return
 	}
 
-	// render table format (handles both normal and snippets mode)
 	renderTableFormat(results, config, fileName, errors, allResults, snippets, specData)
 }
 
@@ -658,10 +526,8 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		width := getTerminalWidth()
 		widths := calculateColumnWidths(width)
 
-		// render category summary table
 		renderCategoryTable(rs, cats, widths)
 
-		// build and render rule violations table
 		violations := buildRuleViolations(rs)
 		renderRuleViolationsTable(violations, widths)
 	}
