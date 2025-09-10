@@ -28,20 +28,20 @@ func wrapLogText(text string, maxWidth int) []string {
 	if maxWidth <= 0 {
 		return []string{text}
 	}
-	
+
 	var lines []string
 	words := strings.Fields(text)
 	if len(words) == 0 {
 		return []string{text}
 	}
-	
+
 	var currentLine strings.Builder
 	currentLine.WriteString(words[0])
-	
+
 	for i := 1; i < len(words); i++ {
 		word := words[i]
 		// check if adding this word would exceed the width
-		if cui.VisibleLength(currentLine.String() + " " + word) > maxWidth {
+		if cui.VisibleLength(currentLine.String()+" "+word) > maxWidth {
 			// save current line and start a new one
 			lines = append(lines, currentLine.String())
 			currentLine.Reset()
@@ -51,12 +51,12 @@ func wrapLogText(text string, maxWidth int) []string {
 			currentLine.WriteString(word)
 		}
 	}
-	
+
 	// add the last line
 	if currentLine.Len() > 0 {
 		lines = append(lines, currentLine.String())
 	}
-	
+
 	return lines
 }
 
@@ -270,6 +270,51 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	pipelineOutput, _ := cmd.Flags().GetBool("pipeline-output")
 	noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 	detailsFlag, _ := cmd.Flags().GetBool("details")
+	hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
+	ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+	rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+	debugFlag, _ := cmd.Flags().GetBool("debug")
+
+	if rulesetFlag != "" && !silentFlag && !pipelineOutput {
+		logger := createDebugLogger(debugFlag)
+		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
+
+		// load the ruleset to get the count
+		if selectedRS, err := BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, true, nil); err == nil {
+			if noStyleFlag {
+				fmt.Printf(" using ruleset '%s' (containing %d rules)\n", rulesetFlag, len(selectedRS.Rules))
+			} else {
+				fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
+					cui.ASCIIGrey,
+					cui.ASCIIBold+cui.ASCIIItalic, rulesetFlag, cui.ASCIIReset+cui.ASCIIGrey,
+					cui.ASCIIGrey,
+					cui.ASCIIBold+cui.ASCIIItalic, len(selectedRS.Rules), cui.ASCIIReset+cui.ASCIIGrey,
+					cui.ASCIIReset)
+			}
+		}
+	}
+
+	// show hard mode if enabled
+	if hardModeFlag && !silentFlag && !pipelineOutput {
+		if rulesetFlag != "" {
+			renderHardModeBox(HardModeWithCustomRuleset, noStyleFlag)
+		} else {
+			renderHardModeBox(HardModeEnabled, noStyleFlag)
+		}
+	}
+
+	// load and show ignore file if using one
+	var ignoredItems model.IgnoredItems
+	if ignoreFile != "" {
+		raw, ferr := os.ReadFile(ignoreFile)
+		if ferr == nil {
+			ferr = yaml.Unmarshal(raw, &ignoredItems)
+			if ferr == nil && !silentFlag && !pipelineOutput {
+				renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", ignoreFile), noStyleFlag)
+				renderIgnoredItems(ignoredItems, noStyleFlag)
+			}
+		}
+	}
 
 	if !silentFlag && !pipelineOutput {
 		fmt.Printf(" vacuuming %s%d%s files...\n\n", cui.ASCIIGreenBold, len(filesToLint), cui.ASCIIReset)
@@ -441,7 +486,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				} else {
 					fmt.Println("\n vacuumed logs:")
 				}
-				
+
 				// get terminal width for wrapping
 				termWidth := getTerminalWidth()
 				// calculate available width for log text (terminal width - prefix width)
@@ -450,16 +495,16 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				if availableWidth < 40 {
 					availableWidth = 40 // minimum width
 				}
-				
+
 				for i, log := range fr.logs {
 					isLast := i == len(fr.logs)-1
 					if !noStyleFlag {
 						// colorize quoted text in the log
 						colorizedLog := cui.ColorizeLogEntry(strings.TrimSpace(log), cui.ASCIIGrey)
-						
+
 						// wrap the log text
 						wrappedLines := wrapLogText(colorizedLog, availableWidth)
-						
+
 						for j, line := range wrappedLines {
 							if j == 0 {
 								// first line gets the tree character
@@ -482,7 +527,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					} else {
 						// no style mode
 						wrappedLines := wrapLogText(strings.TrimSpace(log), availableWidth)
-						
+
 						for j, line := range wrappedLines {
 							if j == 0 {
 								if isLast {

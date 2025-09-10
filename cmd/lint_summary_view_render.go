@@ -434,7 +434,7 @@ func renderQualityScore(score int) {
 
 // renderRulesList renders the list of rules using lipgloss list
 func renderRulesList(rules map[string]*model.Rule) {
-	fmt.Println("The following rules are being used:")
+	fmt.Println(" The following rules are going to be used:")
 	fmt.Println()
 
 	// Sort rules for consistent output
