@@ -28,24 +28,15 @@ type FileProcessingResult struct {
 // runMultipleFiles processes multiple files for lint-preview
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
-	// Read all flags at once
 	flags := ReadLintFlags(cmd)
-
-	// Environment already setup by parent command
-
-	// Create logger once for all files (we'll create BufferedLogger per file)
 	logger, _ := createDebugLogger(flags.DebugFlag)
 
-	// Load and configure ruleset once for all files
 	selectedRS, err := LoadRulesetWithConfig(flags, logger)
 	if err != nil {
 		return err
 	}
 
-	// Load custom functions once
 	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
-
-	// Load ignore file once
 	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
 
 	if !flags.SilentFlag && !flags.PipelineOutput {
@@ -130,7 +121,6 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 		}
 
-		// Create a new BufferedLogger for this file with appropriate log level
 		var bufferedLogger *BufferedLogger
 		if flags.DebugFlag {
 			bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelDebug)
@@ -138,7 +128,6 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
 		}
 
-		// Create processing config with the BufferedLogger for this file
 		processingConfig := &FileProcessingConfig{
 			Flags:           flags,
 			BufferedLogger:  bufferedLogger,
@@ -191,8 +180,10 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			// only print header if we're not showing details (details prints its own header)
 			if !(flags.DetailsFlag && len(fr.results) > 0 && fr.err == nil) {
 				if !flags.NoStyleFlag {
-					fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIPink, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
-					fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
+					fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIPink, cui.ASCIIBold,
+						cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
+					fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1),
+						cui.ASCIIReset)
 				} else {
 					fmt.Printf("\n > %s\n", fr.fileName)
 					fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
@@ -203,8 +194,10 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				// for errors, we need to print the header since details won't be shown
 				if flags.DetailsFlag && len(fr.results) > 0 {
 					if !flags.NoStyleFlag {
-						fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
-						fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
+						fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold,
+							cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
+						fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1),
+							cui.ASCIIReset)
 					} else {
 						fmt.Printf("\n > %s\n", fr.fileName)
 						fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
@@ -225,7 +218,6 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 						false, false, false, fr.fileName, flags.NoStyleFlag)
 				}
 
-				// create result set and render summary
 				resultSet := model.NewRuleResultSetPointer(fr.results)
 				renderFixedSummary(resultSet, model.RuleCategoriesOrdered, nil, fr.fileName, flags.SilentFlag,
 					flags.NoStyleFlag, flags.PipelineOutput, false)
@@ -240,8 +232,6 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					fmt.Println("vacuumed logs:")
 				}
 
-				// Print the already-formatted logs from BufferedLogger
-				// The log is the complete rendered tree with proper spacing
 				fmt.Print(fr.logs[0])
 				fmt.Println() // Add spacing after logs
 			}

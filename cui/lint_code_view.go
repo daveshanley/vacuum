@@ -174,164 +174,26 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 // FormatCodeWithHighlight formats the spec content with line numbers and highlights the error line
 func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxWidth int) string {
 	allLines := strings.Split(string(m.specContent), "\n")
-	totalLines := len(allLines)
-
-	const windowSize = CodeWindowSize
-
-	// calculate the window of lines to render
-	startLine := 1
-	endLine := totalLines
-	actualTargetLine := targetLine // Track the actual line number for highlighting
-
-	if totalLines > (windowSize*2 + 1) {
-		// limit the window
-		if targetLine > 0 {
-			// calculate the window centered on the target line
-			startLine = targetLine - windowSize
-			if startLine < 1 {
-				startLine = 1
-			}
-			endLine = targetLine + windowSize
-			if endLine > totalLines {
-				endLine = totalLines
-			}
-		} else {
-			// no target line, show first 2001 lines
-			endLine = windowSize*2 + 1
-			endLine = totalLines
-		}
-	}
-
-	// extract the lines to render (convert to 0-based indexing)
-	lines := allLines[startLine-1 : endLine]
-
+	window := calculateCodeWindow(allLines, targetLine)
+	
 	var result strings.Builder
-	lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey)
-	highlightStyle := lipgloss.NewStyle().
-		Background(RGBSubtlePink).
-		Foreground(RGBPink).
-		Bold(true)
-
+	
+	// add top notice if needed
+	if window.showAbove {
+		result.WriteString(formatLinesNotShown(window.startLine-1, "above"))
+		result.WriteString("\n")
+	}
+	
+	// format the code lines
 	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
-
-	// calculate line number width based on the actual max line numbers
-	lineNumWidth := len(fmt.Sprintf("%d", endLine)) + 1
-	if lineNumWidth < 5 {
-		lineNumWidth = 5
-	}
-
-	// add a notice if we're showing a limited window
-	if startLine > 1 {
-		noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
-		result.WriteString(noticeStyle.Render(fmt.Sprintf("    ... (%d lines above not shown) ...", startLine-1)))
+	result.WriteString(m.formatCodeLines(window, targetLine, maxWidth, isYAML))
+	
+	// add bottom notice if needed
+	if window.showBelow {
 		result.WriteString("\n")
+		result.WriteString(formatLinesNotShown(len(allLines)-window.endLine, "below"))
 	}
-
-	// track if we're in a multi-line markdown block
-	inMarkdownBlock := false
-	markdownIndent := ""
-	var markdownContent strings.Builder
-	markdownStartLine := 0
-
-	for i, line := range lines {
-		lineNum := startLine + i // actual line number in the file
-		isHighlighted := lineNum == actualTargetLine
-
-		// check if this is a description field with block scalar (| or >-)
-		if isYAML && !inMarkdownBlock {
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "description:") {
-				// is it a block scalar?
-				afterKey := strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
-				if afterKey == "|" || afterKey == "|-" || afterKey == ">-" || afterKey == ">" {
-					inMarkdownBlock = true
-					markdownContent.Reset()
-					markdownStartLine = lineNum
-					// indent level of the next content
-					if i+1 < len(lines) {
-						nextLine := lines[i+1]
-						// calculate indent by finding first non-space character
-						for j, ch := range nextLine {
-							if ch != ' ' && ch != '\t' {
-								markdownIndent = nextLine[:j]
-								break
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// format line number
-		lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, lineNum)
-		if isHighlighted {
-			highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
-			result.WriteString(highlightedLineNumStyle.Render(lineNumStr))
-			triangleStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
-			result.WriteString(triangleStyle.Render("▶ "))
-		} else {
-			result.WriteString(lineNumStyle.Render(lineNumStr))
-			pipeStyle := lipgloss.NewStyle().Foreground(RGBGrey)
-			result.WriteString(pipeStyle.Render("│ "))
-		}
-
-		// handle markdown block content
-		if inMarkdownBlock && lineNum > markdownStartLine {
-			// check if we're still in the markdown block (lines must maintain same or greater indent)
-			if len(markdownIndent) > 0 && !strings.HasPrefix(line, markdownIndent) && strings.TrimSpace(line) != "" {
-				// end of markdown block - don't render with glamour for performance
-				inMarkdownBlock = false
-				// process current line normally
-				coloredLine := ApplySyntaxHighlightingToLine(line, isYAML)
-				if isHighlighted {
-					displayLine := line
-					if len(line) < maxWidth-lineNumWidth {
-						displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
-					}
-					result.WriteString(highlightStyle.Render(displayLine))
-				} else {
-					result.WriteString(coloredLine)
-				}
-			} else {
-				// still in markdown block, just apply syntax highlighting normally
-				if isHighlighted {
-					displayLine := line
-					if len(line) < maxWidth-lineNumWidth {
-						displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
-					}
-					result.WriteString(highlightStyle.Render(displayLine))
-				} else {
-					result.WriteString(ApplySyntaxHighlightingToLine(line, isYAML))
-				}
-			}
-		} else {
-			// normal line - apply syntax highlighting
-			coloredLine := ApplySyntaxHighlightingToLine(line, isYAML)
-
-			if isHighlighted {
-				// pad the line to full width for background color
-				displayLine := line
-				if len(line) < maxWidth-lineNumWidth {
-					displayLine = line + strings.Repeat(" ", maxWidth-lineNumWidth-len(line))
-				}
-				result.WriteString(highlightStyle.Render(displayLine))
-			} else {
-				result.WriteString(coloredLine)
-			}
-		}
-
-		if i < len(lines)-1 {
-			result.WriteString("\n")
-		}
-	}
-
-	// add a notice if we're cutting off lines at the bottom
-	if endLine < totalLines {
-		result.WriteString("\n")
-		noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
-		result.WriteString(noticeStyle.Render(fmt.Sprintf("    ... (%d lines below not shown) ...", totalLines-endLine)))
-	}
-
+	
 	return result.String()
 }
 
@@ -421,4 +283,141 @@ func (m *ViolationResultTableModel) ExtractCodeSnippet(result *model.RuleFunctio
 	}
 
 	return snippet.String(), startLine + 1
+}
+
+// codeWindow represents the window of lines to render
+type codeWindow struct {
+	startLine int      // 1-based start line number in file
+	endLine   int      // 1-based end line number in file
+	lines     []string // actual lines to render
+	showAbove bool     // show "lines above not shown" notice
+	showBelow bool     // show "lines below not shown" notice
+}
+
+// calculateCodeWindow determines which lines to show based on target line and file size
+func calculateCodeWindow(allLines []string, targetLine int) codeWindow {
+	const windowSize = CodeWindowSize
+	totalLines := len(allLines)
+	
+	window := codeWindow{
+		startLine: 1,
+		endLine:   totalLines,
+	}
+	
+	// check if we need windowing
+	if totalLines > (windowSize*2 + 1) {
+		if targetLine > 0 {
+			// center window on target line
+			window.startLine = targetLine - windowSize
+			if window.startLine < 1 {
+				window.startLine = 1
+			}
+			
+			window.endLine = targetLine + windowSize
+			if window.endLine > totalLines {
+				window.endLine = totalLines
+			}
+		} else {
+			// no target line, show first window
+			window.endLine = windowSize*2 + 1
+			if window.endLine > totalLines {
+				window.endLine = totalLines
+			}
+		}
+	}
+	
+	// extract lines (convert to 0-based indexing)
+	window.lines = allLines[window.startLine-1 : window.endLine]
+	window.showAbove = window.startLine > 1
+	window.showBelow = window.endLine < totalLines
+	
+	return window
+}
+
+// formatLinesNotShown creates the "lines not shown" notice
+func formatLinesNotShown(count int, position string) string {
+	noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
+	return noticeStyle.Render(fmt.Sprintf("    ... (%d lines %s not shown) ...", count, position))
+}
+
+// formatCodeLines formats the actual code lines with line numbers and syntax highlighting
+func (m *ViolationResultTableModel) formatCodeLines(window codeWindow, targetLine int, maxWidth int, isYAML bool) string {
+	var result strings.Builder
+	
+	lineNumWidth := calculateLineNumberWidth(window.endLine)
+	lineStyles := getLineFormattingStyles()
+	
+	for i, line := range window.lines {
+		lineNum := window.startLine + i
+		isHighlighted := lineNum == targetLine
+		
+		// format line number
+		lineNumStr := formatLineNumber(lineNum, lineNumWidth, isHighlighted, lineStyles)
+		result.WriteString(lineNumStr)
+		
+		// format line content
+		lineContent := formatLineContent(line, maxWidth-lineNumWidth, isHighlighted, isYAML, lineStyles)
+		result.WriteString(lineContent)
+		
+		if i < len(window.lines)-1 {
+			result.WriteString("\n")
+		}
+	}
+	
+	return result.String()
+}
+
+// calculateLineNumberWidth determines the width needed for line numbers
+func calculateLineNumberWidth(maxLineNum int) int {
+	width := len(fmt.Sprintf("%d", maxLineNum)) + 1
+	if width < 5 {
+		width = 5
+	}
+	return width
+}
+
+// lineFormattingStyles holds all the styles used for formatting code
+type lineFormattingStyles struct {
+	lineNum          lipgloss.Style
+	lineNumHighlight lipgloss.Style
+	pipe             lipgloss.Style
+	triangle         lipgloss.Style
+	highlight        lipgloss.Style
+}
+
+// getLineFormattingStyles returns all styles used for formatting
+func getLineFormattingStyles() lineFormattingStyles {
+	return lineFormattingStyles{
+		lineNum:          lipgloss.NewStyle().Foreground(RGBGrey).Bold(true),
+		lineNumHighlight: lipgloss.NewStyle().Foreground(RGBPink).Bold(true),
+		pipe:             lipgloss.NewStyle().Foreground(RGBGrey),
+		triangle:         lipgloss.NewStyle().Foreground(RGBPink).Bold(true),
+		highlight:        lipgloss.NewStyle().Background(RGBSubtlePink).Foreground(RGBPink).Bold(true),
+	}
+}
+
+// formatLineNumber formats the line number and marker
+func formatLineNumber(lineNum int, width int, isHighlighted bool, styles lineFormattingStyles) string {
+	lineNumStr := fmt.Sprintf("%*d ", width-1, lineNum)
+	
+	if isHighlighted {
+		return styles.lineNumHighlight.Render(lineNumStr) + styles.triangle.Render("▶ ")
+	}
+	return styles.lineNum.Render(lineNumStr) + styles.pipe.Render("│ ")
+}
+
+// formatLineContent formats the actual line content with syntax highlighting
+func formatLineContent(line string, maxWidth int, isHighlighted bool, isYAML bool, styles lineFormattingStyles) string {
+	displayLine := ApplySyntaxHighlightingToLine(line, isYAML)
+	
+	if isHighlighted {
+		// pad the line for full-width background
+		paddedLine := line
+		if len(line) < maxWidth {
+			paddedLine = line + strings.Repeat(" ", maxWidth-len(line))
+		}
+		return styles.highlight.Render(paddedLine)
+	}
+	
+	return displayLine
 }
