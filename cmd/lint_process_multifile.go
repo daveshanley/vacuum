@@ -29,7 +29,7 @@ type FileProcessingResult struct {
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	flags := ReadLintFlags(cmd)
-	logger, _ := createDebugLogger(flags.DebugFlag)
+	logger, _ := createLogger(flags.DebugFlag)
 
 	selectedRS, err := LoadRulesetWithConfig(flags, logger)
 	if err != nil {

@@ -91,8 +91,8 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	return flags
 }
 
-// SetupLintEnvironment configures the environment based on flags
-func SetupLintEnvironment(flags *LintFlags) {
+// SetupVacuumEnvironment configures the environment based on flags
+func SetupVacuumEnvironment(flags *LintFlags) {
 	if !flags.NoStyleFlag && !flags.PipelineOutput {
 		fileInfo, _ := os.Stdout.Stat()
 		if (fileInfo.Mode() & os.ModeCharDevice) == 0 {
@@ -232,7 +232,7 @@ func RenderBufferedLogs(bufferedLogger *BufferedLogger, noStyle bool) {
 	if bufferedLogger == nil {
 		return
 	}
-	
+
 	logOutput := bufferedLogger.RenderTree(noStyle)
 	if logOutput != "" {
 		fmt.Print(logOutput)
