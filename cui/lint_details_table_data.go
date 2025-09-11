@@ -8,36 +8,51 @@ import (
 	"github.com/daveshanley/vacuum/model"
 )
 
+// contentWidths holds the natural widths of content in each column
+type contentWidths struct {
+	location int
+	rule     int
+	category int
+}
+
+// columnWidths holds the calculated widths for each column
+type columnWidths struct {
+	location int
+	severity int
+	message  int
+	rule     int
+	category int
+	path     int
+}
+
 // BuildResultTableData builds the violation table data, calculating column widths based on terminal size and content.
 func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, terminalWidth int, showPath bool) ([]table.Column, []table.Row) {
-	var rows []table.Row
-	maxLocWidth := len("Location") // Start with header width
-	maxRuleWidth := len("Rule")
-	maxCatWidth := len("Category")
+	rows := buildTableRows(results, fileName, showPath)
+	contentWidths := calculateContentWidths(results, fileName)
+	columnWidths := calculateColumnWidths(terminalWidth, contentWidths, showPath)
+	columns := buildTableColumns(columnWidths, showPath)
+	
+	return columns, rows
+}
 
+// buildTableRows creates the table rows from results
+func buildTableRows(results []*model.RuleFunctionResult, fileName string, showPath bool) []table.Row {
+	var rows []table.Row
+	
 	for _, r := range results {
 		location := formatFileLocation(r, fileName)
 		severity := getRuleSeverity(r)
+		
 		category := ""
 		if r.Rule != nil && r.Rule.RuleCategory != nil {
 			category = r.Rule.RuleCategory.Name
 		}
+		
 		ruleID := ""
 		if r.Rule != nil {
 			ruleID = r.Rule.Id
 		}
-
-		if len(location) > maxLocWidth {
-			maxLocWidth = len(location)
-		}
-		if len(ruleID) > maxRuleWidth {
-			maxRuleWidth = len(ruleID)
-		}
-		if len(category) > maxCatWidth {
-			maxCatWidth = len(category)
-		}
-
-		// pressing 'p' toggles the path column
+		
 		if showPath {
 			rows = append(rows, table.Row{
 				location,
@@ -57,220 +72,194 @@ func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, 
 			})
 		}
 	}
+	
+	return rows
+}
 
-	locWidth := maxLocWidth
-	sevWidth := SeverityColumnWidth + 1 // fixed severity width for consistency (+1 for icon space)
-	ruleWidth := maxRuleWidth
-	catWidth := maxCatWidth
+// calculateContentWidths finds the maximum natural width of content in each column
+func calculateContentWidths(results []*model.RuleFunctionResult, fileName string) contentWidths {
+	widths := contentWidths{
+		location: len("Location"),
+		rule:     len("Rule"),
+		category: len("Category"),
+	}
+	
+	for _, r := range results {
+		location := formatFileLocation(r, fileName)
+		if len(location) > widths.location {
+			widths.location = len(location)
+		}
+		
+		if r.Rule != nil {
+			if len(r.Rule.Id) > widths.rule {
+				widths.rule = len(r.Rule.Id)
+			}
+			if r.Rule.RuleCategory != nil && len(r.Rule.RuleCategory.Name) > widths.category {
+				widths.category = len(r.Rule.RuleCategory.Name)
+			}
+		}
+	}
+	
+	return widths
+}
 
-	naturalRuleWidth := ruleWidth
-	naturalCatWidth := catWidth
-
-	// account for borders and padding
+// calculateColumnWidths calculates responsive column widths based on terminal size
+func calculateColumnWidths(terminalWidth int, content contentWidths, showPath bool) columnWidths {
+	// the border has 2 chars at the end.
+	actualTableWidth := terminalWidth - 2
 	columnCount := 5
 	if showPath {
 		columnCount = 6
 	}
-	// the border has 2 chars at the end.
-	actualTableWidth := terminalWidth - 2
 	columnPadding := columnCount * 2
 	availableWidth := actualTableWidth - columnPadding
-
-	// minimum widths for various columns
-	minMsgWidth := MinMessageWidth // Message should be readable
-	minPathWidth := MinPathWidth   // Minimum for path
-	minRuleWidth := 20             // Minimum for rule
-	minCatWidth := 20              // Minimum for category
-
-	var msgWidth, pathWidth int
-
-	if showPath {
-
-		// start with natural message width
-		// this is our "natural" message width target
-		naturalMsgWidth := 80
-		naturalPathWidth := 50
-
-		// calculate total natural width
-		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth + naturalPathWidth
-
-		if totalNaturalWidth <= availableWidth {
-			// we have enough space for natural widths or more
-			msgWidth = naturalMsgWidth
-			pathWidth = naturalPathWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			// distribute extra space 50/50 between message and path
-			extraSpace := availableWidth - totalNaturalWidth
-			if extraSpace > 0 {
-				msgWidth += extraSpace / 2
-				pathWidth += extraSpace - (extraSpace / 2) // use the remainder to avoid rounding issues
-			}
-		} else {
-			// need to compress - use hierarchical compression
-			// start with natural widths
-			msgWidth = naturalMsgWidth
-			pathWidth = naturalPathWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			// calculate how much we need to save
-			needToSave := totalNaturalWidth - availableWidth
-
-			// compress path first
-			if needToSave > 0 {
-				canSave := pathWidth - minPathWidth
-				if canSave >= needToSave {
-					pathWidth -= needToSave
-					needToSave = 0
-				} else {
-					pathWidth = minPathWidth
-					needToSave -= canSave
-				}
-			}
-
-			// compress category
-			if needToSave > 0 && catWidth > minCatWidth {
-				canSave := catWidth - minCatWidth
-				if canSave >= needToSave {
-					catWidth -= needToSave
-					needToSave = 0
-				} else {
-					catWidth = minCatWidth
-					needToSave -= canSave
-				}
-			}
-
-			// compress rule
-			if needToSave > 0 && ruleWidth > minRuleWidth {
-				canSave := ruleWidth - minRuleWidth
-				if canSave >= needToSave {
-					ruleWidth -= needToSave
-					needToSave = 0
-				} else {
-					ruleWidth = minRuleWidth
-					needToSave -= canSave
-				}
-			}
-
-			// compress message
-			if needToSave > 0 {
-				canSave := msgWidth - minMsgWidth
-				if canSave >= needToSave {
-					msgWidth -= needToSave
-				} else {
-					msgWidth = minMsgWidth
-				}
-			}
-
-		}
-	} else {
-		// no path column - simpler calculation
-		naturalMsgWidth := 100
-		totalNaturalWidth := locWidth + sevWidth + naturalMsgWidth + naturalRuleWidth + naturalCatWidth
-
-		if totalNaturalWidth <= availableWidth {
-			// we have enough space
-			msgWidth = naturalMsgWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			// give all extra space to the message
-			extraSpace := availableWidth - totalNaturalWidth
-			if extraSpace > 0 {
-				msgWidth += extraSpace
-			}
-		} else {
-			// need to compress
-			msgWidth = naturalMsgWidth
-			ruleWidth = naturalRuleWidth
-			catWidth = naturalCatWidth
-
-			needToSave := totalNaturalWidth - availableWidth
-
-			// compress category
-			if needToSave > 0 && catWidth > minCatWidth {
-				canSave := catWidth - minCatWidth
-				if canSave >= needToSave {
-					catWidth -= needToSave
-					needToSave = 0
-				} else {
-					catWidth = minCatWidth
-					needToSave -= canSave
-				}
-			}
-
-			// compress rule
-			if needToSave > 0 && ruleWidth > minRuleWidth {
-				canSave := ruleWidth - minRuleWidth
-				if canSave >= needToSave {
-					ruleWidth -= needToSave
-					needToSave = 0
-				} else {
-					ruleWidth = minRuleWidth
-					needToSave -= canSave
-				}
-			}
-
-			// compress message
-			if needToSave > 0 {
-				canSave := msgWidth - minMsgWidth
-				if canSave >= needToSave {
-					msgWidth -= needToSave
-				} else {
-					msgWidth = minMsgWidth
-				}
-			}
-		}
-		pathWidth = 0
+	
+	widths := columnWidths{
+		location: content.location,
+		severity: SeverityColumnWidth + 1, // +1 for icon space
+		rule:     content.rule,
+		category: content.category,
 	}
-
-	// ensure columns sum to EXACTLY match the available width. The table component doesn't stretch rows.
-	var totalColWidth int
+	
 	if showPath {
-		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth + pathWidth
+		calculateWithPathColumn(availableWidth, &widths, content)
 	} else {
-		totalColWidth = locWidth + sevWidth + msgWidth + ruleWidth + catWidth
+		calculateWithoutPathColumn(availableWidth, &widths, content)
 	}
-
-	targetWidth := availableWidth // match calculated available width
-	widthDiff := targetWidth - totalColWidth
-
-	// add any difference to the message column (or path if shown)
+	
+	// ensure exact width match
+	totalColWidth := widths.location + widths.severity + widths.message + widths.rule + widths.category
+	if showPath {
+		totalColWidth += widths.path
+	}
+	
+	widthDiff := availableWidth - totalColWidth
 	if widthDiff > 0 {
 		if showPath {
-			pathWidth += widthDiff
+			widths.path += widthDiff
 		} else {
-			msgWidth += widthDiff
+			widths.message += widthDiff
 		}
 	} else if widthDiff < 0 {
-		// if we're over, reduce appropriate column
-		if showPath {
-			pathWidth += widthDiff // (widthDiff is negative, so this reduces)
-			if pathWidth < MinPathWidthCompressed {
-				// if the path becomes too small, reduce the message instead
-				msgWidth += widthDiff
-				pathWidth = MinPathWidthCompressed
-			}
+		if showPath && widths.path > 35 {
+			widths.path += widthDiff
 		} else {
-			msgWidth += widthDiff
+			widths.message += widthDiff
 		}
 	}
+	
+	return widths
+}
 
-	columns := []table.Column{
-		{Title: "Location", Width: locWidth},
-		{Title: "Severity", Width: sevWidth},
-		{Title: "Message", Width: msgWidth},
-		{Title: "Rule", Width: ruleWidth},
-		{Title: "Category", Width: catWidth},
+// calculateWithPathColumn calculates widths when path column is shown
+func calculateWithPathColumn(availableWidth int, widths *columnWidths, content contentWidths) {
+	const (
+		naturalMsgWidth  = 80
+		naturalPathWidth = 50
+		minMsgWidth      = 40
+		minPathWidth     = 20
+		minRuleWidth     = 20
+		minCatWidth      = 20
+	)
+	
+	totalNaturalWidth := widths.location + widths.severity + naturalMsgWidth + 
+	                    content.rule + content.category + naturalPathWidth
+	
+	if totalNaturalWidth <= availableWidth {
+		// enough space - use natural widths and distribute extra
+		widths.message = naturalMsgWidth
+		widths.path = naturalPathWidth
+		
+		extraSpace := availableWidth - totalNaturalWidth
+		if extraSpace > 0 {
+			widths.message += extraSpace / 2
+			widths.path += extraSpace - (extraSpace / 2)
+		}
+	} else {
+		// need compression - apply hierarchically
+		widths.message = naturalMsgWidth
+		widths.path = naturalPathWidth
+		
+		needToSave := totalNaturalWidth - availableWidth
+		
+		// compress path first
+		needToSave = compressColumn(&widths.path, minPathWidth, needToSave)
+		
+		// then category
+		needToSave = compressColumn(&widths.category, minCatWidth, needToSave)
+		
+		// then rule
+		needToSave = compressColumn(&widths.rule, minRuleWidth, needToSave)
+		
+		// finally message
+		compressColumn(&widths.message, minMsgWidth, needToSave)
 	}
+}
 
+// calculateWithoutPathColumn calculates widths without path column
+func calculateWithoutPathColumn(availableWidth int, widths *columnWidths, content contentWidths) {
+	const (
+		naturalMsgWidth = 100
+		minMsgWidth     = 40
+		minRuleWidth    = 20
+		minCatWidth     = 20
+	)
+	
+	totalNaturalWidth := widths.location + widths.severity + naturalMsgWidth + 
+	                    content.rule + content.category
+	
+	if totalNaturalWidth <= availableWidth {
+		// enough space - give extra to message
+		widths.message = naturalMsgWidth + (availableWidth - totalNaturalWidth)
+	} else {
+		// need compression
+		widths.message = naturalMsgWidth
+		
+		needToSave := totalNaturalWidth - availableWidth
+		
+		// compress category first
+		needToSave = compressColumn(&widths.category, minCatWidth, needToSave)
+		
+		// then rule
+		needToSave = compressColumn(&widths.rule, minRuleWidth, needToSave)
+		
+		// finally message
+		compressColumn(&widths.message, minMsgWidth, needToSave)
+	}
+}
+
+// compressColumn reduces a column width down to minimum if needed
+func compressColumn(width *int, minWidth int, needToSave int) int {
+	if needToSave <= 0 || *width <= minWidth {
+		return needToSave
+	}
+	
+	canSave := *width - minWidth
+	if canSave >= needToSave {
+		*width -= needToSave
+		return 0
+	}
+	
+	*width = minWidth
+	return needToSave - canSave
+}
+
+// buildTableColumns creates the table column definitions
+func buildTableColumns(widths columnWidths, showPath bool) []table.Column {
+	columns := []table.Column{
+		{Title: "Location", Width: widths.location},
+		{Title: "Severity", Width: widths.severity},
+		{Title: "Message", Width: widths.message},
+		{Title: "Rule", Width: widths.rule},
+		{Title: "Category", Width: widths.category},
+	}
+	
 	if showPath {
 		columns = append(columns, table.Column{
-			Title: "Path", Width: pathWidth,
+			Title: "Path", 
+			Width: widths.path,
 		})
 	}
-
-	return columns, rows
+	
+	return columns
 }

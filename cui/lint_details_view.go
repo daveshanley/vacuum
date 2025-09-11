@@ -18,29 +18,53 @@ func min(a, b int) int {
 	return b
 }
 
+// splitViewDimensions holds calculated dimensions for the split view panels
+type splitViewDimensions struct {
+	splitWidth    int
+	splitHeight   int
+	contentHeight int
+	detailsWidth  int
+	howToFixWidth int
+	codeWidth     int
+}
+
 // BuildDetailsView builds the details view for a violation when a user presses enter or return on a row.
 func (m *ViolationResultTableModel) BuildDetailsView() string {
 	if m.modalContent == nil {
 		return ""
 	}
 
-	// calculate dimensions - fixed height regardless of terminal size
-	splitHeight := SplitViewHeight
 	if m.height < 20 {
-		return "" // Don't show split view if terminal too small
+		return "" // terminal too small
 	}
 
-	splitWidth := m.width // match terminal width for consistency
-	contentHeight := SplitContentHeight
+	dims := m.calculateSplitViewDimensions()
+	
+	pathBar := m.buildPathBar(dims.splitWidth)
+	detailsPanel := m.buildDetailsPanel(dims.detailsWidth, dims.contentHeight)
+	howToFixPanel := m.buildHowToFixPanel(dims.howToFixWidth, dims.contentHeight)
+	codePanel := m.buildCodePanel(dims.codeWidth, dims.contentHeight)
+	
+	return m.assembleSplitView(dims, pathBar, detailsPanel, howToFixPanel, codePanel)
+}
 
-	// adjust for container padding
+// calculateSplitViewDimensions calculates panel dimensions based on terminal size
+func (m *ViolationResultTableModel) calculateSplitViewDimensions() splitViewDimensions {
+	splitWidth := m.width
 	innerWidth := splitWidth - 4 // account for container borders and padding
-	detailsWidth := int(float64(innerWidth) * float64(DetailsColumnPercent) / 100)
-	howToFixWidth := int(float64(innerWidth) * float64(HowToFixColumnPercent) / 100)
-	codeWidth := innerWidth - detailsWidth - howToFixWidth
+	
+	return splitViewDimensions{
+		splitWidth:    splitWidth,
+		splitHeight:   SplitViewHeight,
+		contentHeight: SplitContentHeight,
+		detailsWidth:  int(float64(innerWidth) * float64(DetailsColumnPercent) / 100),
+		howToFixWidth: int(float64(innerWidth) * float64(HowToFixColumnPercent) / 100),
+		codeWidth:     innerWidth - int(float64(innerWidth)*float64(DetailsColumnPercent)/100) - int(float64(innerWidth)*float64(HowToFixColumnPercent)/100),
+	}
+}
 
-	codeSnippet, startLine := m.ExtractCodeSnippet(m.modalContent, 4)
-
+// buildPathBar builds the path bar showing the JSONPath or error path
+func (m *ViolationResultTableModel) buildPathBar(splitWidth int) string {
 	JSONPathBarStyle := lipgloss.NewStyle().
 		Width(splitWidth-2).
 		Padding(0, 1).
@@ -53,51 +77,62 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 
 	maxPathWidth := splitWidth - 6
 	if len(path) > maxPathWidth && maxPathWidth > 3 {
-		path = path[:maxPathWidth-3] + "..." // truncate if it's too long.
+		path = path[:maxPathWidth-3] + "..."
 	}
 
-	pathBar := JSONPathBarStyle.Render(path)
+	return JSONPathBarStyle.Render(path)
+}
+
+// buildDetailsPanel builds the details panel with rule info and message
+func (m *ViolationResultTableModel) buildDetailsPanel(detailsWidth, contentHeight int) string {
 
 	detailsStyle := lipgloss.NewStyle().
 		Width(detailsWidth).
 		Height(contentHeight).
 		MaxHeight(contentHeight).
 		Padding(0, 1)
+	
 	var detailsContent strings.Builder
-
+	
+	// build title with severity icon
 	severity := getRuleSeverity(m.modalContent)
 	severityInfo := GetSeverityInfoFromText(severity)
-	asciiIcon := severityInfo.Icon
-	asciiIconStyle := severityInfo.IconStyle
-
+	
 	ruleName := "Issue"
 	if m.modalContent.Rule != nil && m.modalContent.Rule.Id != "" {
 		ruleName = m.modalContent.Rule.Id
 	}
-
+	
 	titleStyle := severityInfo.TextStyle.Bold(true)
-
 	detailsContent.WriteString(fmt.Sprintf("%s %s",
-		asciiIconStyle.Render(asciiIcon), titleStyle.Render(ruleName)))
+		severityInfo.IconStyle.Render(severityInfo.Icon), 
+		titleStyle.Render(ruleName)))
 	detailsContent.WriteString("\n")
-
+	
+	// add location
 	location := formatFileLocation(m.modalContent, m.fileName)
 	detailsContent.WriteString(lipgloss.NewStyle().Foreground(RGBBlue).Render(location))
 	detailsContent.WriteString("\n\n")
-
+	
+	// add message
 	colorizedMessage := ColorizeMessage(m.modalContent.Message)
 	msgStyle := lipgloss.NewStyle().Width(detailsWidth - 2)
 	detailsContent.WriteString(msgStyle.Render(colorizedMessage))
+	
+	return detailsStyle.Render(detailsContent.String())
+}
 
-	detailsPanel := detailsStyle.Render(detailsContent.String())
+// buildHowToFixPanel builds the how-to-fix panel with remediation suggestions
+func (m *ViolationResultTableModel) buildHowToFixPanel(howToFixWidth, contentHeight int) string {
 
 	howToFixStyle := lipgloss.NewStyle().
 		Width(howToFixWidth).
 		Height(contentHeight).
 		MaxHeight(contentHeight).
 		Padding(0, 1)
+	
 	var howToFixContent strings.Builder
-
+	
 	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
 		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
 		for i, line := range fixLines {
@@ -111,16 +146,22 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).
 			Render("No fix suggestions available"))
 	}
+	
+	return howToFixStyle.Render(howToFixContent.String())
+}
 
-	howToFixPanel := howToFixStyle.Render(howToFixContent.String())
+// buildCodePanel builds the code panel with syntax highlighted snippet
+func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int) string {
+	codeSnippet, startLine := m.ExtractCodeSnippet(m.modalContent, 4)
 
 	codeStyle := lipgloss.NewStyle().
 		Width(codeWidth).
 		Height(contentHeight).
 		MaxHeight(contentHeight).
 		Padding(0, 1)
-
+	
 	var codeContent strings.Builder
+	
 	if codeSnippet != "" {
 		isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
 
@@ -208,29 +249,32 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 			Render("No code context available"))
 	}
 
-	codePanel := codeStyle.Render(codeContent.String())
+	return codeStyle.Render(codeContent.String())
+}
 
+// assembleSplitView combines all panels into the final split view
+func (m *ViolationResultTableModel) assembleSplitView(dims splitViewDimensions, pathBar, detailsPanel, howToFixPanel, codePanel string) string {
 	// combine all three columns horizontally
 	combinedPanels := lipgloss.JoinHorizontal(lipgloss.Top,
 		detailsPanel,
 		howToFixPanel,
 		codePanel,
 	)
-
+	
 	// blank line between path and panels for spacing
 	spacer := lipgloss.NewStyle().Height(1).Render(" ")
-
+	
 	combinedContent := lipgloss.JoinVertical(lipgloss.Left,
 		pathBar,
 		spacer,
 		combinedPanels,
 	)
-
+	
 	containerStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(RGBBlue).
-		Width(splitWidth).
-		Height(splitHeight)
-
+		Width(dims.splitWidth).
+		Height(dims.splitHeight)
+	
 	return containerStyle.Render(combinedContent)
 }
