@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/dustin/go-humanize"
@@ -24,6 +25,20 @@ const (
 	HardModeEnabled           = "🚨 HARD MODE ENABLED 🚨"
 	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
 )
+
+// RenderSummaryOptions contains options for rendering summary output
+type RenderSummaryOptions struct {
+	RuleResultSet  *model.RuleResultSet
+	RuleSet        *rulesets.RuleSet
+	RuleCategories []*model.RuleCategory
+	TotalFiles     int
+	Severity       string
+	Filename       string
+	Silent         bool
+	PipelineOutput bool
+	ReportStats    *reports.ReportStatistics
+	RenderRules    bool
+}
 
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.

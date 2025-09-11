@@ -114,7 +114,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				specBytes = reportOrSpec.SpecBytes
 			} else {
-				// Regular spec file - run linting (same as lint-preview)
+				// Regular spec file - run linting (same as lint)
 				specBytes = reportOrSpec.SpecBytes
 
 				// Setup logging with BufferedLogger

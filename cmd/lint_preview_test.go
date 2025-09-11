@@ -2,21 +2,20 @@ package cmd
 
 import (
 	"bytes"
-	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetLintPreviewCommand(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand(t *testing.T) {
+	cmd := GetLintCommand()
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "lint-preview <your-openapi-file.yaml>", cmd.Use)
-	assert.Contains(t, cmd.Short, "Preview lint results")
+	assert.Equal(t, "lint <your-openapi-file.yaml>", cmd.Use)
+	assert.Contains(t, cmd.Short, "Lint an OpenAPI")
 }
 
-func TestGetLintPreviewCommand_NoSpec(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_NoSpec(t *testing.T) {
+	cmd := GetLintCommand()
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetErr(b)
@@ -30,8 +29,8 @@ func TestGetLintPreviewCommand_NoSpec(t *testing.T) {
 	assert.Contains(t, err.Error(), "please supply an OpenAPI specification")
 }
 
-func TestGetLintPreviewCommand_MissingSpec(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_MissingSpec(t *testing.T) {
+	cmd := GetLintCommand()
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetErr(b)
@@ -41,8 +40,8 @@ func TestGetLintPreviewCommand_MissingSpec(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetLintPreviewCommand_WithRuleset(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_WithRuleset(t *testing.T) {
+	cmd := GetLintCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
@@ -52,15 +51,15 @@ func TestGetLintPreviewCommand_WithRuleset(t *testing.T) {
 		"../model/test_files/burgershop.openapi.yaml",
 	})
 	
-	// lint-preview uses bubbletea which requires a TTY
+	// lint uses bubbletea which requires a TTY
 	// so we can't fully execute it in tests, but we can verify setup
 	err := cmd.Execute()
 	// will error due to no TTY, but that's expected
 	assert.Error(t, err)
 }
 
-func TestGetLintPreviewCommand_BadRuleset(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_BadRuleset(t *testing.T) {
+	cmd := GetLintCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
@@ -77,8 +76,8 @@ func TestGetLintPreviewCommand_BadRuleset(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestGetLintPreviewCommand_WithDetails(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_WithDetails(t *testing.T) {
+	cmd := GetLintCommand()
 	cmd.PersistentFlags().BoolP("details", "d", false, "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
@@ -92,8 +91,8 @@ func TestGetLintPreviewCommand_WithDetails(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetLintPreviewCommand_WithSnippets(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_WithSnippets(t *testing.T) {
+	cmd := GetLintCommand()
 	cmd.PersistentFlags().BoolP("snippets", "n", false, "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
@@ -107,8 +106,8 @@ func TestGetLintPreviewCommand_WithSnippets(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetLintPreviewCommand_BadSpec(t *testing.T) {
-	cmd := GetLintPreviewCommand()
+func TestGetLintCommand_BadSpec(t *testing.T) {
+	cmd := GetLintCommand()
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetErr(b)
@@ -120,9 +119,9 @@ func TestGetLintPreviewCommand_BadSpec(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGetLintPreviewCommand_WithVacuumReport(t *testing.T) {
+func TestGetLintCommand_WithVacuumReport(t *testing.T) {
 	// test with pre-compiled vacuum report
-	cmd := GetLintPreviewCommand()
+	cmd := GetLintCommand()
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{

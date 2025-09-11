@@ -25,7 +25,7 @@ type FileProcessingResult struct {
 	Error    error
 }
 
-// runMultipleFiles processes multiple files for lint-preview
+// runMultipleFiles processes multiple files for lint command
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	flags := ReadLintFlags(cmd)
