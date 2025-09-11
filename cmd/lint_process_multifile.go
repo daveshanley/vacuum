@@ -232,7 +232,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 
 			// show logs if any with nice tree formatting
-			if len(fr.logs) > 0 {
+			if len(fr.logs) > 0 && len(fr.logs[0]) > 0 {
 				if !flags.NoStyleFlag {
 					fmt.Printf("%s※※ vacuumed logs for %s'%s%s%s%s' %s※※%s\n", cui.ASCIIGrey, cui.ASCIIReset,
 						cui.ASCIIItalic, cui.ASCIIGreenBold, fr.fileName, cui.ASCIIReset, cui.ASCIIGrey, cui.ASCIIReset)
@@ -240,21 +240,12 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					fmt.Println("vacuumed logs:")
 				}
 
-				// Simply print the already-formatted logs from BufferedLogger
-				for _, log := range fr.logs {
-					fmt.Println(log)
-				}
+				// Print the already-formatted logs from BufferedLogger
+				// The log is the complete rendered tree with proper spacing
+				fmt.Print(fr.logs[0])
+				fmt.Println() // Add spacing after logs
 			}
 		}
-	}
-
-	// show overall summary
-	if !flags.SilentFlag && !flags.PipelineOutput {
-		fmt.Printf("\n%s=== Overall Summary for %d files ===%s\n", cui.ASCIIPink, len(filesToLint), cui.ASCIIReset)
-		fmt.Printf("Total issues: %s%d errors%s, %s%d warnings%s, %s%d info%s\n",
-			cui.ASCIIRed, totalErrors, cui.ASCIIReset,
-			cui.ASCIIYellow, totalWarnings, cui.ASCIIReset,
-			cui.ASCIIBlue, totalInforms, cui.ASCIIReset)
 	}
 
 	// show timing

@@ -10,12 +10,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -33,11 +33,16 @@ func GetDashboardCommand() *cobra.Command {
 			return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Print banner
+			PrintBanner()
+
 			// Check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+				messageStyle := lipgloss.NewStyle().Padding(1, 1)
+				fmt.Println(style.Render(messageStyle.Render(errText)))
+				fmt.Println()
 				return errors.New(errText)
 			}
 
@@ -74,7 +79,11 @@ func GetDashboardCommand() *cobra.Command {
 			// Try to load the file as either a report or spec
 			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
 			if err != nil {
-				pterm.Error.Printf("Failed to load file: %v\n\n", err)
+				message := fmt.Sprintf("Failed to load file: %v", err)
+				style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+				messageStyle := lipgloss.NewStyle().Padding(1, 1)
+				fmt.Println(style.Render(messageStyle.Render(message)))
+				fmt.Println()
 				return err
 			}
 
@@ -85,7 +94,12 @@ func GetDashboardCommand() *cobra.Command {
 			if reportOrSpec.IsReport {
 				// Using a pre-compiled report
 				if !silent {
-					pterm.Info.Printf("Loading pre-compiled vacuum report from '%s'\n", args[0])
+					// Create info box for loading report
+					message := fmt.Sprintf("Loading pre-compiled vacuum report from '%s'", args[0])
+					style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
+					messageStyle := lipgloss.NewStyle().Padding(1, 1)
+					fmt.Println(style.Render(messageStyle.Render(message)))
+					fmt.Println()
 				}
 
 				// Create a new RuleResultSet from the results to ensure proper initialization
@@ -103,11 +117,12 @@ func GetDashboardCommand() *cobra.Command {
 				// Regular spec file - run linting (same as lint-preview)
 				specBytes = reportOrSpec.SpecBytes
 
-				// Setup logging
-				handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-					Level: slog.LevelError,
-				})
-				logger := slog.New(handler)
+				// Setup logging with BufferedLogger
+				var logger *slog.Logger
+				var bufferedLogger *BufferedLogger
+				bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
+				handler := NewBufferedLogHandler(bufferedLogger)
+				logger = slog.New(handler)
 
 				// Build ruleset
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
@@ -122,7 +137,7 @@ func GetDashboardCommand() *cobra.Command {
 						selectedRS.Rules[k] = v
 					}
 					if !silent {
-						pterm.Info.Printf("🚨 HARD MODE ENABLED 🚨\n")
+						renderHardModeBox(HardModeEnabled, false)
 					}
 				}
 
@@ -131,32 +146,41 @@ func GetDashboardCommand() *cobra.Command {
 					var rsErr error
 					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
 					if rsErr != nil {
-						pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
+						if !silent {
+							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
+							style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
 						return rsErr
 					}
 					if hardModeFlag {
-						MergeOWASPRulesToRuleSet(selectedRS, true)
+						if MergeOWASPRulesToRuleSet(selectedRS, true) {
+							if !silent {
+								renderHardModeBox(HardModeWithCustomRuleset, false)
+							}
+						}
 					}
 				}
 
 				// Display linting info
 				if !silent {
-					pterm.Info.Printf("Linting file '%s' against %d rules: %s\n",
-						displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI)
+					fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
+						cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
 				}
 
 				// Apply rules with proper filename
 				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 					RuleSet:           selectedRS,
 					Spec:              specBytes,
-					SpecFileName:      displayFileName,  // THIS IS THE KEY FIX
+					SpecFileName:      displayFileName, // THIS IS THE KEY FIX
 					CustomFunctions:   customFuncs,
 					Base:              baseFlag,
 					AllowLookup:       remoteFlag,
 					SkipDocumentCheck: skipCheckFlag,
 					Logger:            logger,
 					Timeout:           time.Duration(timeoutFlag) * time.Second,
-					HTTPClientConfig:  utils.HTTPClientConfig{
+					HTTPClientConfig: utils.HTTPClientConfig{
 						CertFile: certFile,
 						KeyFile:  keyFile,
 						CAFile:   caFile,
@@ -167,10 +191,19 @@ func GetDashboardCommand() *cobra.Command {
 				// Filter ignored results
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
+				// Output any buffered logs
+				RenderBufferedLogs(bufferedLogger, false)
+
 				// Check for errors
 				if len(result.Errors) > 0 {
-					for _, err := range result.Errors {
-						pterm.Error.Printf("Unable to process spec '%s': %s\n", displayFileName, err.Error())
+					if !silent {
+						// Create error box for each error
+						for _, err := range result.Errors {
+							message := fmt.Sprintf("Unable to process spec '%s': %s", displayFileName, err.Error())
+							style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
 					}
 					return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 				}
@@ -182,20 +215,29 @@ func GetDashboardCommand() *cobra.Command {
 
 			// Check if we have results
 			if resultSet == nil || len(resultSet.Results) == 0 {
-				pterm.Println()
-				pterm.Success.Println("There is nothing to see, no results found - well done!")
-				pterm.Println()
+				if !silent {
+					renderResultBox(0, 0, 0) // Perfect score
+				}
 				return nil
 			}
 
 			// Launch the new interactive table view
 			if !silent {
-				pterm.Info.Println("Launching interactive dashboard...")
+				// Create info box for launching dashboard
+				message := "Launching interactive vacuum dashboard..."
+				style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
+				messageStyle := lipgloss.NewStyle().Padding(1, 1)
+				fmt.Println(style.Render(messageStyle.Render(message)))
 			}
 
 			err = cui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes)
 			if err != nil {
-				pterm.Error.Printf("Failed to show dashboard: %v\n", err)
+				if !silent {
+					message := fmt.Sprintf("Failed to show dashboard: %v", err)
+					style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+					messageStyle := lipgloss.NewStyle().Padding(1, 1)
+					fmt.Println(style.Render(messageStyle.Render(message)))
+				}
 				return err
 			}
 
@@ -205,6 +247,6 @@ func GetDashboardCommand() *cobra.Command {
 
 	// Add flags
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
-	
+
 	return cmd
 }

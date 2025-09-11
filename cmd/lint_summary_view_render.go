@@ -375,11 +375,11 @@ func renderResultBox(errors, warnings, informs int) {
 		if errors > 0 {
 			fmt.Printf(" | \u2717 Failed with %d errors, %d warnings and %d informs.\n", errors, warnings, informs)
 		} else if warnings > 0 {
-			fmt.Printf(" | \u25B2 Passed with %d warnings and %d informs.\n", warnings, informs)
+			fmt.Printf(" | \u25B2 Passed, but with %d warnings and %d informs.\n", warnings, informs)
 		} else if informs > 0 {
-			fmt.Printf(" | \u25CF Passed with %d informs.\n", informs)
+			fmt.Printf(" | \u25CF Passed, with %d informs.\n", informs)
 		} else {
-			fmt.Println(" | \u2713 Perfect score! Well done!")
+			fmt.Println(" | \u2713 A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!")
 		}
 		fmt.Println()
 		return
@@ -392,15 +392,15 @@ func renderResultBox(errors, warnings, informs int) {
 		style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if warnings > 0 {
-		message := fmt.Sprintf("\u25B2 Passed with %d warnings and %d informs.", warnings, informs)
+		message := fmt.Sprintf("\u25B2 Passed, but with %d warnings and %d informs.", warnings, informs)
 		style := createResultBoxStyle(cui.RBGYellow, cui.RGBDarkYellow)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if informs > 0 {
-		message := fmt.Sprintf("\u25CF Passed with %d informs.", informs)
+		message := fmt.Sprintf("\u25CF Passed, with %d informs.", informs)
 		style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else {
-		message := "\u2713 Perfect score! Well done!"
+		message := "\u2713 A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!"
 		style := createResultBoxStyle(cui.RGBGreen, cui.RGBDarkGreen)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	}

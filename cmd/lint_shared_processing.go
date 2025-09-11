@@ -6,7 +6,6 @@ package cmd
 import (
 	"log/slog"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
@@ -82,12 +81,9 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			// Render the buffered logs as a tree
 			treeOutput := bufferedLogger.RenderTree(config.Flags.NoStyleFlag)
 			if treeOutput != "" {
-				lines := strings.Split(treeOutput, "\n")
-				for _, line := range lines {
-					if strings.TrimSpace(line) != "" {
-						logs = append(logs, line)
-					}
-				}
+				// Store the entire rendered tree output as a single log entry
+				// This preserves the spacing that RenderTree carefully added
+				logs = append(logs, treeOutput)
 			}
 		}
 		return &FileProcessingResult{
@@ -123,12 +119,9 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		// Render the buffered logs as a tree
 		treeOutput := bufferedLogger.RenderTree(config.Flags.NoStyleFlag)
 		if treeOutput != "" {
-			lines := strings.Split(treeOutput, "\n")
-			for _, line := range lines {
-				if strings.TrimSpace(line) != "" {
-					logs = append(logs, line)
-				}
-			}
+			// Store the entire rendered tree output as a single log entry
+			// This preserves the spacing that RenderTree carefully added
+			logs = append(logs, treeOutput)
 		}
 	}
 

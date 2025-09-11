@@ -186,13 +186,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
 		// Output any buffered logs
-		if bufferedLogger != nil {
-			logOutput := bufferedLogger.RenderTree(flags.NoStyleFlag)
-			if logOutput != "" {
-				fmt.Print(logOutput)
-				fmt.Println() // Add spacing after logs
-			}
-		}
+		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
 
 		if len(result.Errors) > 0 {
 			for _, err := range result.Errors {

@@ -227,6 +227,19 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 	return selectedRS, nil
 }
 
+// RenderBufferedLogs renders the buffered logs with proper formatting and spacing
+func RenderBufferedLogs(bufferedLogger *BufferedLogger, noStyle bool) {
+	if bufferedLogger == nil {
+		return
+	}
+	
+	logOutput := bufferedLogger.RenderTree(noStyle)
+	if logOutput != "" {
+		fmt.Print(logOutput)
+		fmt.Println() // Add spacing after logs
+	}
+}
+
 // GetHTTPClientConfig creates HTTPClientConfig from flags
 func GetHTTPClientConfig(flags *LintFlags) utils.HTTPClientConfig {
 	return utils.HTTPClientConfig{
