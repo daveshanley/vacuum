@@ -33,10 +33,9 @@ func GetDashboardCommand() *cobra.Command {
 			return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Print banner
+
 			PrintBanner()
 
-			// Check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report"
 				style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
@@ -46,7 +45,6 @@ func GetDashboardCommand() *cobra.Command {
 				return errors.New(errText)
 			}
 
-			// Read flags
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
@@ -56,14 +54,11 @@ func GetDashboardCommand() *cobra.Command {
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-
-			// Certificate/TLS configuration
 			certFile, _ := cmd.Flags().GetString("cert-file")
 			keyFile, _ := cmd.Flags().GetString("key-file")
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 
-			// Load ignore file if specified
 			ignoredItems := model.IgnoredItems{}
 			if ignoreFile != "" {
 				raw, ferr := os.ReadFile(ignoreFile)
@@ -76,7 +71,6 @@ func GetDashboardCommand() *cobra.Command {
 				}
 			}
 
-			// Try to load the file as either a report or spec
 			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
 			if err != nil {
 				message := fmt.Sprintf("Failed to load file: %v", err)
@@ -92,21 +86,16 @@ func GetDashboardCommand() *cobra.Command {
 			displayFileName := reportOrSpec.FileName
 
 			if reportOrSpec.IsReport {
-				// Using a pre-compiled report
 				if !silent {
-					// Create info box for loading report
-					message := fmt.Sprintf("Loading pre-compiled vacuum report from '%s'", args[0])
+					message := fmt.Sprintf("loading pre-compiled vacuum report from '%s'", args[0])
 					style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
 					messageStyle := lipgloss.NewStyle().Padding(1, 1)
 					fmt.Println(style.Render(messageStyle.Render(message)))
 					fmt.Println()
 				}
 
-				// Create a new RuleResultSet from the results to ensure proper initialization
 				if reportOrSpec.ResultSet != nil && reportOrSpec.ResultSet.Results != nil {
-					// Filter ignored results
 					filteredResults := utils.FilterIgnoredResultsPtr(reportOrSpec.ResultSet.Results, ignoredItems)
-					// Create properly initialized RuleResultSet
 					resultSet = model.NewRuleResultSetPointer(filteredResults)
 				} else {
 					resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
@@ -114,22 +103,19 @@ func GetDashboardCommand() *cobra.Command {
 
 				specBytes = reportOrSpec.SpecBytes
 			} else {
-				// Regular spec file - run linting (same as lint)
+				// regular spec file - run linting (same as lint)
 				specBytes = reportOrSpec.SpecBytes
 
-				// Setup logging with BufferedLogger
 				var logger *slog.Logger
 				var bufferedLogger *BufferedLogger
 				bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
 				handler := NewBufferedLogHandler(bufferedLogger)
 				logger = slog.New(handler)
 
-				// Build ruleset
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 				selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent)
 
-				// Handle hard mode
 				if hardModeFlag {
 					selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
 					owaspRules := rulesets.GetAllOWASPRules()
@@ -141,7 +127,6 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				}
 
-				// Handle custom ruleset
 				if rulesetFlag != "" {
 					var rsErr error
 					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
@@ -163,13 +148,11 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				}
 
-				// Display linting info
 				if !silent {
 					fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 						cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
 				}
 
-				// Apply rules with proper filename
 				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 					RuleSet:           selectedRS,
 					Spec:              specBytes,
@@ -188,13 +171,10 @@ func GetDashboardCommand() *cobra.Command {
 					},
 				})
 
-				// Filter ignored results
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-				// Output any buffered logs
 				RenderBufferedLogs(bufferedLogger, false)
 
-				// Check for errors
 				if len(result.Errors) > 0 {
 					if !silent {
 						// Create error box for each error
@@ -208,12 +188,10 @@ func GetDashboardCommand() *cobra.Command {
 					return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
 				}
 
-				// Process results
 				resultSet = model.NewRuleResultSet(result.Results)
 				resultSet.SortResultsByLineNumber()
 			}
 
-			// Check if we have results
 			if resultSet == nil || len(resultSet.Results) == 0 {
 				if !silent {
 					renderResultBox(0, 0, 0) // Perfect score
@@ -221,10 +199,8 @@ func GetDashboardCommand() *cobra.Command {
 				return nil
 			}
 
-			// Launch the new interactive table view
 			if !silent {
-				// Create info box for launching dashboard
-				message := "Launching interactive vacuum dashboard..."
+				message := "launching interactive vacuum dashboard..."
 				style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(message)))
@@ -245,7 +221,7 @@ func GetDashboardCommand() *cobra.Command {
 		},
 	}
 
-	// Add flags
+	// dashboard flags
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 
 	return cmd
