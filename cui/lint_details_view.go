@@ -10,6 +10,14 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // BuildDetailsView builds the details view for a violation when a user presses enter or return on a row.
 func (m *ViolationResultTableModel) BuildDetailsView() string {
 	if m.modalContent == nil {
@@ -69,7 +77,8 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 
 	titleStyle := severityInfo.TextStyle.Bold(true)
 
-	detailsContent.WriteString(fmt.Sprintf("%s %s", asciiIconStyle.Render(asciiIcon), titleStyle.Render(ruleName)))
+	detailsContent.WriteString(fmt.Sprintf("%s %s",
+		asciiIconStyle.Render(asciiIcon), titleStyle.Render(ruleName)))
 	detailsContent.WriteString("\n")
 
 	location := formatFileLocation(m.modalContent, m.fileName)
@@ -113,9 +122,10 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 
 	var codeContent strings.Builder
 	if codeSnippet != "" {
+		isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
+
 		codeLines := strings.Split(codeSnippet, "\n")
 		lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey).Bold(true)
-		codeTextStyle := lipgloss.NewStyle().Foreground(RGBWhite)
 		highlightStyle := lipgloss.NewStyle().
 			Background(RGBSubtlePink).
 			Foreground(RGBPink).
@@ -144,33 +154,49 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 			if isHighlighted {
 				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
 				codeContent.WriteString(highlightedLineNumStyle.Render(lineNumStr))
-				// add pink triangle for error line
 				triangleStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
 				codeContent.WriteString(triangleStyle.Render("▶ "))
 			} else {
 				codeContent.WriteString(lineNumStyle.Render(lineNumStr))
-				// add grey pipe for normal lines
 				pipeStyle := lipgloss.NewStyle().Foreground(RGBGrey)
 				codeContent.WriteString(pipeStyle.Render("│ "))
 			}
 
-			displayLine := codeLine
-			if len(codeLine) > maxLineWidth {
+			syntaxHighlightedLine := ApplySyntaxHighlightingToLine(codeLine, isYAML)
+
+			actualWidth := lipgloss.Width(syntaxHighlightedLine)
+			if actualWidth > maxLineWidth {
+				// we need to truncate the syntax-highlighted line
+				// this is tricky because we need to preserve ANSI codes
+				// for now, fall back to plain text truncation when line is too long
 				if maxLineWidth > 3 {
-					displayLine = codeLine[:maxLineWidth-3] + "..." // truncate.
+					displayLine := codeLine[:min(len(codeLine), maxLineWidth-3)] + "..."
+					syntaxHighlightedLine = ApplySyntaxHighlightingToLine(displayLine, isYAML)
 				} else {
-					displayLine = codeLine[:maxLineWidth]
+					displayLine := codeLine[:min(len(codeLine), maxLineWidth)]
+					syntaxHighlightedLine = ApplySyntaxHighlightingToLine(displayLine, isYAML)
 				}
 			}
 
 			if isHighlighted {
-				paddedLine := displayLine
-				if len(displayLine) < maxLineWidth {
-					paddedLine = displayLine + strings.Repeat(" ", maxLineWidth-len(displayLine))
+				// for highlighted lines, we need to apply the background color
+				// to calculate padding needed
+				currentWidth := lipgloss.Width(syntaxHighlightedLine)
+				paddingNeeded := maxLineWidth - currentWidth
+				if paddingNeeded > 0 {
+					// add padding to the raw line, then apply highlighting
+					paddedLine := codeLine + strings.Repeat(" ", paddingNeeded)
+					if len(paddedLine) > maxLineWidth {
+						paddedLine = codeLine[:min(len(codeLine), maxLineWidth)]
+					}
+					codeContent.WriteString(highlightStyle.Render(paddedLine))
+				} else {
+					// apply background to the truncated line
+					codeContent.WriteString(highlightStyle.Render(codeLine[:min(len(codeLine), maxLineWidth)]))
 				}
-				codeContent.WriteString(highlightStyle.Render(paddedLine))
 			} else {
-				codeContent.WriteString(codeTextStyle.Render(displayLine))
+				// use the syntax-highlighted line for normal lines
+				codeContent.WriteString(syntaxHighlightedLine)
 			}
 
 			if i < len(codeLines)-1 {
