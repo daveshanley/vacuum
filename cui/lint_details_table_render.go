@@ -4,7 +4,6 @@
 package cui
 
 import (
-	"github.com/charmbracelet/bubbles/v2/table"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 	"github.com/muesli/termenv"
@@ -80,7 +79,7 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 
 // HandleCodeViewKeys handles keyboard input when code view is open
 func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cmd) {
-	if !m.showCodeView {
+	if m.uiState.ActiveModal != ModalCode {
 		return false, nil
 	}
 
@@ -107,7 +106,7 @@ func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cm
 		m.ReCenterCodeView()
 		return true, nil
 	case "esc", "q", "x":
-		m.showCodeView = false
+		m.CloseActiveModal()
 		return true, nil
 	}
 
@@ -165,7 +164,8 @@ func (m *ViolationResultTableModel) HandleFilterKeys(key string) (bool, tea.Cmd)
 	switch key {
 	case "tab":
 		// severity filter states
-		m.filterState = (m.filterState + 1) % 4
+		newFilter := (m.uiState.FilterState + 1) % 4
+		m.UpdateFilterState(FilterState(newFilter))
 		m.ApplyFilter()
 		return true, nil
 	case "c":
@@ -173,9 +173,9 @@ func (m *ViolationResultTableModel) HandleFilterKeys(key string) (bool, tea.Cmd)
 		m.categoryIndex = (m.categoryIndex + 1) % (len(m.categories) + 1)
 		if m.categoryIndex == -1 || m.categoryIndex == len(m.categories) {
 			m.categoryIndex = -1
-			m.categoryFilter = ""
+			m.UpdateCategoryFilter("")
 		} else {
-			m.categoryFilter = m.categories[m.categoryIndex]
+			m.UpdateCategoryFilter(m.categories[m.categoryIndex])
 		}
 		m.ApplyFilter()
 		return true, nil
@@ -184,9 +184,9 @@ func (m *ViolationResultTableModel) HandleFilterKeys(key string) (bool, tea.Cmd)
 		m.ruleIndex = (m.ruleIndex + 1) % (len(m.rules) + 1)
 		if m.ruleIndex == -1 || m.ruleIndex == len(m.rules) {
 			m.ruleIndex = -1
-			m.ruleFilter = ""
+			m.UpdateRuleFilter("")
 		} else {
-			m.ruleFilter = m.rules[m.ruleIndex]
+			m.UpdateRuleFilter(m.rules[m.ruleIndex])
 		}
 		m.ApplyFilter()
 		return true, nil
@@ -199,14 +199,15 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 	switch key {
 	case "enter":
 		// toggle split view
-		m.showSplitView = !m.showSplitView
-		if m.showSplitView {
+		m.ToggleSplitView()
+		if m.uiState.ViewMode == ViewModeTableWithSplit {
 			// set content to the currently selected result with safety checks
 			cursor := m.table.Cursor()
 			if cursor >= 0 && cursor < len(m.filteredResults) && m.filteredResults != nil {
 				m.modalContent = m.filteredResults[cursor]
 			} else {
 				// cursor is invalid, reset split view
+				m.uiState.ViewMode = ViewModeTable
 				m.showSplitView = false
 				return true, nil
 			}
@@ -227,13 +228,12 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 		// expanded code view modal with safety checks
 		cursor := m.table.Cursor()
 		if cursor >= 0 && cursor < len(m.filteredResults) && m.filteredResults != nil {
-			if !m.showSplitView {
+			if m.uiState.ViewMode != ViewModeTableWithSplit {
 				m.modalContent = m.filteredResults[cursor]
 			}
-			m.showCodeView = !m.showCodeView
-
+			m.OpenModal(ModalCode)
 			// prepare code viewport if opening
-			if m.showCodeView {
+			if m.uiState.ActiveModal == ModalCode {
 				m.PrepareCodeViewport()
 			}
 		}
@@ -243,14 +243,13 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 		// open documentation modal with safety checks
 		cursor := m.table.Cursor()
 		if cursor >= 0 && cursor < len(m.filteredResults) && m.filteredResults != nil {
-			// If split view is open, preserve its modalContent
-			if !m.showSplitView {
+			// if split view is open, preserve its modalContent
+			if m.uiState.ViewMode != ViewModeTableWithSplit {
 				m.modalContent = m.filteredResults[cursor]
 			}
-			m.showModal = !m.showModal
-
-			// If opening modal, fetch documentation
-			if m.showModal && m.modalContent != nil && m.modalContent.Rule != nil {
+			m.OpenModal(ModalDocs)
+			// if opening modal, fetch documentation
+			if m.uiState.ActiveModal == ModalDocs && m.modalContent != nil && m.modalContent.Rule != nil {
 				return true, m.FetchOrLoadDocumentation()
 			}
 		}
@@ -317,58 +316,6 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 	return tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
 }
 
-// TogglePathColumn handles toggling the path column visibility with viewport preservation
-func (m *ViolationResultTableModel) TogglePathColumn() {
-	m.showPath = !m.showPath
-
-	currentCursor := m.table.Cursor()
-
-	viewportHeight := m.table.Height()
-
-	viewportStart := 0
-	if currentCursor > viewportHeight/2 {
-		viewportStart = currentCursor - viewportHeight/2
-	}
-	cursorOffsetInViewport := currentCursor - viewportStart
-
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
-	m.rows = rows
-
-	// clear the rows to avoid index issues
-	m.table.SetRows([]table.Row{})
-	m.table.SetColumns(columns)
-	m.table.SetRows(rows)
-
-	// reapply styles
-	ApplyLintDetailsTableStyles(&m.table)
-
-	// restore cursor position and viewport
-	if currentCursor < len(rows) {
-
-		m.table.GotoTop()
-		targetCursor := currentCursor
-
-		// if we were scrolled down, overshoot and come back to position cursor correctly
-		if viewportStart > 0 {
-			// move past the target
-			overshoot := cursorOffsetInViewport
-			for i := 0; i < targetCursor+overshoot && i < len(rows)-1; i++ {
-				m.table.MoveDown(1)
-			}
-			// move back up to get cursor in right viewport position
-			for i := 0; i < overshoot; i++ {
-				m.table.MoveUp(1)
-			}
-		} else {
-			// just move to cursor position
-			for i := 0; i < targetCursor; i++ {
-				m.table.MoveDown(1)
-			}
-		}
-	} else if len(rows) > 0 {
-		m.table.SetCursor(0)
-	}
-}
 
 // HandleEscapeKey handles the escape key with context-aware behavior
 func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
@@ -392,13 +339,18 @@ func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// if split view is open, close it on escape.
-	if m.showSplitView {
+	// handle escape based on current state
+	if m.uiState.ActiveModal != ModalNone {
+		// close active modal
+		m.CloseActiveModal()
+	} else if m.uiState.ViewMode == ViewModeTableWithSplit {
+		// close split view
+		m.uiState.ViewMode = ViewModeTable
 		m.showSplitView = false
 		m.modalContent = nil
 		m.table.SetHeight(m.height - 4)
 	} else {
-		// just close it all down.
+		// quit the application
 		m.quitting = true
 		return m, tea.Quit
 	}
@@ -407,7 +359,7 @@ func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 
 // UpdateDetailsViewContent updates split view content when cursor changes
 func (m *ViolationResultTableModel) UpdateDetailsViewContent() {
-	if m.showSplitView {
+	if m.uiState.ViewMode == ViewModeTableWithSplit {
 		cursor := m.table.Cursor()
 		// nil check and bounds checking
 		if m.filteredResults != nil && cursor >= 0 && cursor < len(m.filteredResults) {
