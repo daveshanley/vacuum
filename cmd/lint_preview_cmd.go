@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -24,13 +24,20 @@ import (
 )
 
 func GetLintPreviewCommand() *cobra.Command {
+	validFileExtensions := []string{"yaml", "yml", "json"}
 	cmd := &cobra.Command{
-		Use:           "lint-preview <your-openapi-file.yaml>",
-		Short:         "Preview lint results with enhanced table formatting",
-		Long:          `Lint an OpenAPI specification and display results in a formatted table view`,
+		Use:           "lint <your-openapi-file.yaml>",
+		Short:         "Lint / vacuum an OpenAPI specification",
+		Long:          `Lint / vacuum an OpenAPI specification for quality and compliance and see the results in your terminal.`,
 		RunE:          runLintPreview,
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) != 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return validFileExtensions, cobra.ShellCompDirectiveFilterFileExt
+		},
 	}
 
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
@@ -70,11 +77,9 @@ func GetLintPreviewCommand() *cobra.Command {
 }
 
 func runLintPreview(cmd *cobra.Command, args []string) error {
-	// Read all flags at once
 	flags := ReadLintFlags(cmd)
 
-	// Setup environment (terminal detection, colors, banner)
-	SetupLintEnvironment(flags)
+	SetupVacuumEnvironment(flags)
 
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	filesToLint, err := getFilesToLint(flags.GlobPattern, args, validFileExtensions)
@@ -97,13 +102,13 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	// single file processing continues below
 	fileName := filesToLint[0]
 
-	// Load ignore file
+	// ignore file
 	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
 	if err != nil {
 		return err
 	}
 
-	// Try to load the file as either a report or spec
+	// try to load the file as either a report or spec
 	reportOrSpec, err := LoadFileAsReportOrSpec(fileName)
 	if err != nil {
 		if !flags.SilentFlag {
@@ -113,9 +118,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 	}
 
 	fileInfo, _ := os.Stat(fileName)
-
-	// create debug logger
-	logger, bufferedLogger := createDebugLogger(flags.DebugFlag)
+	logger, bufferedLogger := createLogger(flags.DebugFlag)
 
 	var resultSet *model.RuleResultSet
 	var specBytes []byte
@@ -146,10 +149,9 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 		specBytes = reportOrSpec.SpecBytes
 		displayFileName = fileName
 
-		// Load custom functions
 		customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
 
-		// Load and configure ruleset (handles hard mode, custom rulesets, etc.)
+		// load and configure ruleset (handles hard mode, custom rulesets, etc.)
 		selectedRS, err := LoadRulesetWithConfig(flags, logger)
 		if err != nil {
 			return err
@@ -185,7 +187,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-		// Output any buffered logs
+		// render out buffered logs
 		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
 
 		if len(result.Errors) > 0 {
@@ -204,7 +206,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 
 	specStringData := strings.Split(string(specBytes), "\n")
 
-	// Handle category filtering
+	// handle category filtering
 	var cats []*model.RuleCategory
 	if flags.CategoryFlag != "" {
 		resultSet.ResetCounts()
@@ -235,7 +237,7 @@ func runLintPreview(cmd *cobra.Command, args []string) error {
 			}
 			cats = model.RuleCategoriesOrdered
 		}
-		// Filter results by category
+		// filter results by category
 		for _, val := range cats {
 			categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
 			if len(categoryResults) > 0 {
@@ -436,22 +438,19 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 	fmt.Println()
 }
 
-// createDebugLogger creates a debug logger using slog with lipgloss formatting
-func createDebugLogger(debugFlag bool) (*slog.Logger, *BufferedLogger) {
-	// Create our custom BufferedLogger with appropriate log level
+// createLogger creates a debug logger using slog with lipgloss formatting
+func createLogger(debugFlag bool) (*slog.Logger, *BufferedLogger) {
 	var bufferedLogger *BufferedLogger
 	if debugFlag {
 		bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelDebug)
 	} else {
 		bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
 	}
-	
-	// Create slog handler that writes to our BufferedLogger
+
 	handler := NewBufferedLogHandler(bufferedLogger)
-	
-	// Create slog.Logger with our handler
+
 	logger := slog.New(handler)
-	
+
 	return logger, bufferedLogger
 }
 
