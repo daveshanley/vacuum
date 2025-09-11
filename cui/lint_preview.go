@@ -94,6 +94,33 @@ var (
 // FilterState represents the current filter mode for cycling through severities
 type FilterState int
 
+// ViewMode represents the primary view state
+type ViewMode int
+
+const (
+	ViewModeTable ViewMode = iota
+	ViewModeTableWithSplit
+)
+
+// ModalType represents which modal is currently open
+type ModalType int
+
+const (
+	ModalNone ModalType = iota
+	ModalDocs
+	ModalCode
+)
+
+// UIState encapsulates all UI state
+type UIState struct {
+	ViewMode       ViewMode
+	ActiveModal    ModalType
+	ShowPath       bool
+	FilterState    FilterState
+	CategoryFilter string
+	RuleFilter     string
+}
+
 // DocsState represents the state of documentation fetching
 type DocsState int
 
@@ -121,26 +148,29 @@ type ViolationResultTableModel struct {
 	quitting        bool
 	width           int
 	height          int
-	filterState     FilterState
-	categories      []string                  // Unique categories from results
-	categoryIndex   int                       // Current category filter index (-1 = all)
-	categoryFilter  string                    // Current category filter (empty = all)
-	rules           []string                  // Unique rule IDs from results
-	ruleIndex       int                       // Current rule filter index (-1 = all)
-	ruleFilter      string                    // Current rule filter (empty = all)
-	showPath        bool                      // Toggle for showing/hiding path column
-	showModal       bool                      // Whether to show the DOCS modal
-	showSplitView   bool                      // Whether to show the split view (details)
-	showCodeView    bool                      // Whether to show the expanded code view modal
-	modalContent    *model.RuleFunctionResult // The current result being shown in the splitview
-	docsState       DocsState                 // State of documentation loading
-	docsContent     string                    // Loaded documentation content
-	docsError       string                    // Error message if docs failed to load
-	docsCache       map[string]string         // Cache of loaded documentation by rule ID
-	docsSpinner     spinner.Model             // Spinner for loading state
-	docsViewport    viewport.Model            // Viewport for scrollable docs content
-	codeViewport    viewport.Model            // Viewport for expanded code view
-	err             error                     // Track any errors that occur during operation
+	uiState         UIState
+
+	// legacy state (to be removed in phase 5)
+	filterState    FilterState
+	categories     []string                  // Unique categories from results
+	categoryIndex  int                       // Current category filter index (-1 = all)
+	categoryFilter string                    // Current category filter (empty = all)
+	rules          []string                  // Unique rule IDs from results
+	ruleIndex      int                       // Current rule filter index (-1 = all)
+	ruleFilter     string                    // Current rule filter (empty = all)
+	showPath       bool                      // Toggle for showing/hiding path column
+	showModal      bool                      // Whether to show the DOCS modal
+	showSplitView  bool                      // Whether to show the split view (details)
+	showCodeView   bool                      // Whether to show the expanded code view modal
+	modalContent   *model.RuleFunctionResult // The current result being shown in the splitview
+	docsState      DocsState                 // State of documentation loading
+	docsContent    string                    // Loaded documentation content
+	docsError      string                    // Error message if docs failed to load
+	docsCache      map[string]string         // Cache of loaded documentation by rule ID
+	docsSpinner    spinner.Model             // Spinner for loading state
+	docsViewport   viewport.Model            // Viewport for scrollable docs content
+	codeViewport   viewport.Model            // Viewport for expanded code view
+	err            error                     // Track any errors that occur during operation
 }
 
 // ShowViolationTableView displays results in an interactive console table
@@ -204,17 +234,29 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		specContent:     specContent,
 		width:           width,
 		height:          height,
-		filterState:     FilterAll,
-		categories:      categories,
-		categoryIndex:   -1, // -1 means "All"
-		showPath:        true,
-		categoryFilter:  "",
-		rules:           rules,
-		ruleIndex:       -1, // -1 means "All"
-		ruleFilter:      "",
-		docsCache:       make(map[string]string),
-		docsSpinner:     s,
-		docsViewport:    vp,
+
+		// initialize new unified state
+		uiState: UIState{
+			ViewMode:       ViewModeTable,
+			ActiveModal:    ModalNone,
+			ShowPath:       true,
+			FilterState:    FilterAll,
+			CategoryFilter: "",
+			RuleFilter:     "",
+		},
+
+		// legacy state
+		filterState:    FilterAll,
+		categories:     categories,
+		categoryIndex:  -1, // -1 means "All"
+		showPath:       true,
+		categoryFilter: "",
+		rules:          rules,
+		ruleIndex:      -1, // -1 means "All"
+		ruleFilter:     "",
+		docsCache:      make(map[string]string),
+		docsSpinner:    s,
+		docsViewport:   vp,
 	}
 
 	p := tea.NewProgram(m,
@@ -610,7 +652,37 @@ func (m *ViolationResultTableModel) View() string {
 	}
 
 	tableView := m.buildTableView()
+	navBar := m.buildNavBar()
 
+	// build base view based on view mode
+	var baseView string
+	if m.uiState.ViewMode == ViewModeTableWithSplit {
+		detailsView := m.BuildDetailsView()
+		baseView = lipgloss.JoinVertical(lipgloss.Left, tableView, detailsView, navBar)
+	} else {
+		baseView = lipgloss.JoinVertical(lipgloss.Left, tableView, navBar)
+	}
+
+	// create layers
+	layers := []*lipgloss.Layer{
+		lipgloss.NewLayer(baseView),
+	}
+
+	// add modal layer if active
+	if m.uiState.ActiveModal != ModalNone {
+		modal := m.renderActiveModal()
+		if modal != "" {
+			x, y := m.calculateModalPosition()
+			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
+		}
+	}
+
+	canvas := lipgloss.NewCanvas(layers...)
+	return canvas.Render()
+}
+
+// buildNavBar builds the navigation bar at the bottom
+func (m *ViolationResultTableModel) buildNavBar() string {
 	navStyle := lipgloss.NewStyle().
 		Foreground(RGBGrey).
 		Width(m.width)
@@ -620,63 +692,106 @@ func (m *ViolationResultTableModel) View() string {
 		rowText = fmt.Sprintf(" %d/%d", m.table.Cursor()+1, len(m.filteredResults))
 	}
 
-	navBar := navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | x: code | q: quit", rowText))
+	return navStyle.Render(fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | x: code | q: quit", rowText))
+}
 
-	if m.showSplitView {
-		detailsView := m.BuildDetailsView()
-		// join vertically: table on top, split view in the middle, nav at the bottom
-		combined := lipgloss.JoinVertical(lipgloss.Left, tableView, detailsView, navBar)
+// renderActiveModal renders the currently active modal
+func (m *ViolationResultTableModel) renderActiveModal() string {
+	switch m.uiState.ActiveModal {
+	case ModalDocs:
+		return m.buildModalView()
+	case ModalCode:
+		return m.BuildCodeView()
+	default:
+		return ""
+	}
+}
 
-		layers := []*lipgloss.Layer{
-			lipgloss.NewLayer(combined),
+// state transition functions - update both old and new state during migration
+
+// ToggleSplitView toggles between table and table with split view
+func (m *ViolationResultTableModel) ToggleSplitView() {
+	if m.uiState.ViewMode == ViewModeTable {
+		m.uiState.ViewMode = ViewModeTableWithSplit
+		m.showSplitView = true
+	} else {
+		m.uiState.ViewMode = ViewModeTable
+		m.showSplitView = false
+	}
+}
+
+// OpenModal opens a modal and closes any existing modal
+func (m *ViolationResultTableModel) OpenModal(modal ModalType) {
+	m.uiState.ActiveModal = modal
+
+	// update legacy flags
+	m.showModal = modal == ModalDocs
+	m.showCodeView = modal == ModalCode
+}
+
+// CloseActiveModal closes the currently open modal
+func (m *ViolationResultTableModel) CloseActiveModal() {
+	m.uiState.ActiveModal = ModalNone
+
+	// update legacy flags
+	m.showModal = false
+	m.showCodeView = false
+}
+
+// TogglePathColumn toggles the path column visibility with viewport preservation
+func (m *ViolationResultTableModel) TogglePathColumn() {
+	m.uiState.ShowPath = !m.uiState.ShowPath
+	m.showPath = !m.showPath
+
+	currentCursor := m.table.Cursor()
+	viewportHeight := m.table.Height()
+
+	viewportStart := 0
+	if currentCursor > viewportHeight/2 {
+		viewportStart = currentCursor - viewportHeight/2
+	}
+	cursorOffsetInViewport := currentCursor - viewportStart
+
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+	m.rows = rows
+
+	// clear and update table
+	m.table.SetRows([]table.Row{})
+	m.table.SetColumns(columns)
+	m.table.SetRows(rows)
+
+	// reapply styles
+	ApplyLintDetailsTableStyles(&m.table)
+
+	// restore cursor position
+	if currentCursor < len(rows) {
+		m.table.SetCursor(currentCursor)
+	} else if len(rows) > 0 {
+		m.table.SetCursor(len(rows) - 1)
+	}
+
+	// scroll to maintain visible cursor position
+	if viewportStart > 0 && currentCursor >= viewportStart+cursorOffsetInViewport {
+		for i := 0; i < viewportStart; i++ {
+			m.table.MoveDown(1)
 		}
-
-		// docs modal
-		if m.showModal {
-			modal := m.buildModalView()
-			x, y := m.calculateModalPosition()
-
-			// docs modal as overlay layer
-			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
-		}
-
-		// code view modal
-		if m.showCodeView {
-			modal := m.BuildCodeView()
-			x, y := m.calculateModalPosition()
-
-			// code view modal as overlay layer (higher z-index than docs)
-			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(2))
-		}
-
-		// render canvas with all layers
-		canvas := lipgloss.NewCanvas(layers...)
-		return canvas.Render()
 	}
+}
 
-	// normal view without split - nav at bottom
-	combined := lipgloss.JoinVertical(lipgloss.Left, tableView, navBar)
-	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(combined),
-	}
+// UpdateFilterState updates filter state in both old and new structures
+func (m *ViolationResultTableModel) UpdateFilterState(filter FilterState) {
+	m.uiState.FilterState = filter
+	m.filterState = filter
+}
 
-	if m.showModal {
-		modal := m.buildModalView()
-		x, y := m.calculateModalPosition()
+// UpdateCategoryFilter updates category filter in both structures
+func (m *ViolationResultTableModel) UpdateCategoryFilter(category string) {
+	m.uiState.CategoryFilter = category
+	m.categoryFilter = category
+}
 
-		// docs modal as overlay layer
-		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
-	}
-
-	// code view modal
-	if m.showCodeView {
-		modal := m.BuildCodeView()
-		x, y := m.calculateModalPosition()
-
-		// code view modal as overlay layer (higher z-index than docs)
-		layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(2))
-	}
-
-	canvas := lipgloss.NewCanvas(layers...)
-	return canvas.Render()
+// UpdateRuleFilter updates rule filter in both structures
+func (m *ViolationResultTableModel) UpdateRuleFilter(rule string) {
+	m.uiState.RuleFilter = rule
+	m.ruleFilter = rule
 }
