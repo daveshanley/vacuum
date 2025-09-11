@@ -56,12 +56,12 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 	m.height = msg.Height
 
 	// Rebuild table with new dimensions
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, msg.Width, m.showPath)
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, msg.Width, m.uiState.ShowPath)
 	m.table.SetColumns(columns)
 	m.table.SetRows(rows)
 	m.table.SetWidth(msg.Width - 2) // border wrapper
 
-	if m.showSplitView {
+	if m.uiState.ViewMode == ViewModeTableWithSplit {
 		// when details / split view is open, the table gets remaining space after fixed split view
 		tableHeight := m.height - SplitViewHeight - SplitViewMargin
 		if tableHeight < MinTableHeight {
@@ -116,7 +116,7 @@ func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cm
 
 // HandleDocsModalKeys handles keyboard input when modal is open
 func (m *ViolationResultTableModel) HandleDocsModalKeys(key string) (bool, tea.Cmd) {
-	if !m.showModal {
+	if m.uiState.ActiveModal != ModalDocs {
 		return false, nil
 	}
 
@@ -145,9 +145,9 @@ func (m *ViolationResultTableModel) HandleDocsModalKeys(key string) (bool, tea.C
 
 	switch key {
 	case "esc", "q", "enter", "d":
-		m.showModal = false
+		m.CloseActiveModal()
 		// don't clear modalContent if the details split-view is still open
-		if !m.showSplitView {
+		if m.uiState.ViewMode != ViewModeTableWithSplit {
 			m.modalContent = nil
 		}
 		// reset docs state for next open
@@ -208,7 +208,7 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 			} else {
 				// cursor is invalid, reset split view
 				m.uiState.ViewMode = ViewModeTable
-				m.showSplitView = false
+				m.uiState.ViewMode = ViewModeTable
 				return true, nil
 			}
 			// resize the table to leave room for the fixed-height split view
@@ -320,15 +320,15 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 // HandleEscapeKey handles the escape key with context-aware behavior
 func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 	// empty state (no results), clear all filters
-	if len(m.filteredResults) == 0 && (m.filterState != FilterAll || m.categoryFilter != "" || m.ruleFilter != "") {
+	if len(m.filteredResults) == 0 && (m.uiState.FilterState != FilterAll || m.uiState.CategoryFilter != "" || m.uiState.RuleFilter != "") {
 
-		m.filterState = FilterAll
-		m.categoryFilter = ""
-		m.ruleFilter = ""
+		m.uiState.FilterState = FilterAll
+		m.uiState.CategoryFilter = ""
+		m.uiState.RuleFilter = ""
 		m.ApplyFilter()
 
 		// rebuild the table with all results
-		_, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+		_, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 		m.rows = rows
 		m.table.SetRows(rows)
 
@@ -346,7 +346,7 @@ func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 	} else if m.uiState.ViewMode == ViewModeTableWithSplit {
 		// close split view
 		m.uiState.ViewMode = ViewModeTable
-		m.showSplitView = false
+		m.uiState.ViewMode = ViewModeTable
 		m.modalContent = nil
 		m.table.SetHeight(m.height - 4)
 	} else {

@@ -149,19 +149,14 @@ type ViolationResultTableModel struct {
 	width           int
 	height          int
 	uiState         UIState
-
-	// legacy state (to be removed in phase 5)
-	filterState    FilterState
+	
+	// filter management
 	categories     []string                  // Unique categories from results
 	categoryIndex  int                       // Current category filter index (-1 = all)
-	categoryFilter string                    // Current category filter (empty = all)
 	rules          []string                  // Unique rule IDs from results
 	ruleIndex      int                       // Current rule filter index (-1 = all)
-	ruleFilter     string                    // Current rule filter (empty = all)
-	showPath       bool                      // Toggle for showing/hiding path column
-	showModal      bool                      // Whether to show the DOCS modal
-	showSplitView  bool                      // Whether to show the split view (details)
-	showCodeView   bool                      // Whether to show the expanded code view modal
+	
+	// current selection
 	modalContent   *model.RuleFunctionResult // The current result being shown in the splitview
 	docsState      DocsState                 // State of documentation loading
 	docsContent    string                    // Loaded documentation content
@@ -235,7 +230,6 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		width:           width,
 		height:          height,
 
-		// initialize new unified state
 		uiState: UIState{
 			ViewMode:       ViewModeTable,
 			ActiveModal:    ModalNone,
@@ -244,16 +238,11 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 			CategoryFilter: "",
 			RuleFilter:     "",
 		},
-
-		// legacy state
-		filterState:    FilterAll,
+		
 		categories:     categories,
 		categoryIndex:  -1, // -1 means "All"
-		showPath:       true,
-		categoryFilter: "",
 		rules:          rules,
 		ruleIndex:      -1, // -1 means "All"
-		ruleFilter:     "",
 		docsCache:      make(map[string]string),
 		docsSpinner:    s,
 		docsViewport:   vp,
@@ -302,7 +291,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	// viewport updates when modal is open and loaded
-	if m.showModal && m.docsState == DocsStateLoaded {
+	if m.uiState.ActiveModal == ModalDocs && m.docsState == DocsStateLoaded {
 		m.docsViewport, cmd = m.docsViewport.Update(msg)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
@@ -310,7 +299,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// spinner updates when loading
-	if m.showModal && m.docsState == DocsStateLoading {
+	if m.uiState.ActiveModal == ModalDocs && m.docsState == DocsStateLoading {
 		m.docsSpinner, cmd = m.docsSpinner.Update(msg)
 		if cmd != nil {
 			cmds = append(cmds, cmd)
@@ -332,7 +321,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch mouse.Button {
 		case tea.MouseWheelUp:
 			// up - same as pressing up arrow
-			if m.showCodeView {
+			if m.uiState.ActiveModal == ModalCode {
 				// code view is open, scroll in code view
 				m.codeViewport.LineUp(3)
 			} else {
@@ -341,7 +330,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case tea.MouseWheelDown:
 			// down - same as pressing down arrow
-			if m.showCodeView {
+			if m.uiState.ActiveModal == ModalCode {
 				// code view is open, scroll in code view
 				m.codeViewport.LineDown(3)
 			} else {
@@ -451,7 +440,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 	builder.WriteString(infoStyle.Render(fmt.Sprintf("● %d", infoCount)))
 
 	// Now add filters if any are active
-	if m.filterState != FilterAll {
+	if m.uiState.FilterState != FilterAll {
 		builder.WriteString(" | ")
 
 		// "Severity:" in gray, then colored icon and label
@@ -461,7 +450,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		// Build severity filter with colored icon
 		var severityText string
 		var filterStyle lipgloss.Style
-		switch m.filterState {
+		switch m.uiState.FilterState {
 		case FilterErrors:
 			severityText = "✗ errors"
 			filterStyle = GetSeverityInfo(model.SeverityError).TextStyle
@@ -476,18 +465,18 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		builder.WriteString(filterStyle.Render(severityText))
 	}
 
-	if m.categoryFilter != "" {
+	if m.uiState.CategoryFilter != "" {
 		builder.WriteString(" | ")
 		categoryStyle := lipgloss.NewStyle().
 			Foreground(RGBGrey)
-		builder.WriteString(categoryStyle.Render("category: " + m.categoryFilter))
+		builder.WriteString(categoryStyle.Render("category: " + m.uiState.CategoryFilter))
 	}
 
-	if m.ruleFilter != "" {
+	if m.uiState.RuleFilter != "" {
 		builder.WriteString(" | ")
 		ruleStyle := lipgloss.NewStyle().
 			Foreground(RGBGrey)
-		builder.WriteString(ruleStyle.Render("rule: " + m.ruleFilter))
+		builder.WriteString(ruleStyle.Render("rule: " + m.uiState.RuleFilter))
 	}
 
 	builder.WriteString("\n")
@@ -713,35 +702,24 @@ func (m *ViolationResultTableModel) renderActiveModal() string {
 func (m *ViolationResultTableModel) ToggleSplitView() {
 	if m.uiState.ViewMode == ViewModeTable {
 		m.uiState.ViewMode = ViewModeTableWithSplit
-		m.showSplitView = true
 	} else {
 		m.uiState.ViewMode = ViewModeTable
-		m.showSplitView = false
 	}
 }
 
 // OpenModal opens a modal and closes any existing modal
 func (m *ViolationResultTableModel) OpenModal(modal ModalType) {
 	m.uiState.ActiveModal = modal
-
-	// update legacy flags
-	m.showModal = modal == ModalDocs
-	m.showCodeView = modal == ModalCode
 }
 
 // CloseActiveModal closes the currently open modal
 func (m *ViolationResultTableModel) CloseActiveModal() {
 	m.uiState.ActiveModal = ModalNone
-
-	// update legacy flags
-	m.showModal = false
-	m.showCodeView = false
 }
 
 // TogglePathColumn toggles the path column visibility with viewport preservation
 func (m *ViolationResultTableModel) TogglePathColumn() {
 	m.uiState.ShowPath = !m.uiState.ShowPath
-	m.showPath = !m.showPath
 
 	currentCursor := m.table.Cursor()
 	viewportHeight := m.table.Height()
@@ -752,7 +730,7 @@ func (m *ViolationResultTableModel) TogglePathColumn() {
 	}
 	cursorOffsetInViewport := currentCursor - viewportStart
 
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 	m.rows = rows
 
 	// clear and update table
@@ -778,20 +756,17 @@ func (m *ViolationResultTableModel) TogglePathColumn() {
 	}
 }
 
-// UpdateFilterState updates filter state in both old and new structures
+// UpdateFilterState updates filter state
 func (m *ViolationResultTableModel) UpdateFilterState(filter FilterState) {
 	m.uiState.FilterState = filter
-	m.filterState = filter
 }
 
-// UpdateCategoryFilter updates category filter in both structures
+// UpdateCategoryFilter updates category filter
 func (m *ViolationResultTableModel) UpdateCategoryFilter(category string) {
 	m.uiState.CategoryFilter = category
-	m.categoryFilter = category
 }
 
-// UpdateRuleFilter updates rule filter in both structures
+// UpdateRuleFilter updates rule filter
 func (m *ViolationResultTableModel) UpdateRuleFilter(rule string) {
 	m.uiState.RuleFilter = rule
-	m.ruleFilter = rule
 }
