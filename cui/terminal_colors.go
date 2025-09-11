@@ -339,10 +339,26 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 				}
 			}
 
-			// path
+			// path - handle both JSON paths and circular references
+			// also check the actual path column from rows if available
+			for _, row := range rows {
+				if len(row) > 5 && row[5] != "" && strings.Contains(line, row[5]) {
+					colorizedPath := ColorizePath(row[5])
+					line = strings.Replace(line, row[5], colorizedPath, 1)
+					break
+				}
+			}
+
+			// handle inline paths that might appear in messages
 			if JsonPathRegex.MatchString(line) {
 				line = JsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
-					// Apply ColorizePath to the entire JSON path match
+					return ColorizePath(match)
+				})
+			}
+
+			// check for circular references (with arrows)
+			if CircularRefRegex.MatchString(line) {
+				line = CircularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
 					return ColorizePath(match)
 				})
 			}
