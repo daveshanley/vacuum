@@ -51,13 +51,6 @@ const (
 	CodeWindowSize         = 3000 // Max lines to show above/below target line
 	ViewportPadding        = 4
 	ContentHeightMargin    = 4
-	TableSeparatorWidth    = 10
-	LocationColumnPercent  = 25
-	MessageColumnPercent   = 35
-	RuleColumnPercent      = 15
-	CategoryColumnWidth    = 12
-	MinLocationWidth       = 25
-	MinRuleWidth           = 15
 )
 
 var LocationRegex = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
@@ -149,23 +142,23 @@ type ViolationResultTableModel struct {
 	width           int
 	height          int
 	uiState         UIState
-	
+
 	// filter management
-	categories     []string                  // Unique categories from results
-	categoryIndex  int                       // Current category filter index (-1 = all)
-	rules          []string                  // Unique rule IDs from results
-	ruleIndex      int                       // Current rule filter index (-1 = all)
-	
+	categories    []string // Unique categories from results
+	categoryIndex int      // Current category filter index (-1 = all)
+	rules         []string // Unique rule IDs from results
+	ruleIndex     int      // Current rule filter index (-1 = all)
+
 	// current selection
-	modalContent   *model.RuleFunctionResult // The current result being shown in the splitview
-	docsState      DocsState                 // State of documentation loading
-	docsContent    string                    // Loaded documentation content
-	docsError      string                    // Error message if docs failed to load
-	docsCache      map[string]string         // Cache of loaded documentation by rule ID
-	docsSpinner    spinner.Model             // Spinner for loading state
-	docsViewport   viewport.Model            // Viewport for scrollable docs content
-	codeViewport   viewport.Model            // Viewport for expanded code view
-	err            error                     // Track any errors that occur during operation
+	modalContent *model.RuleFunctionResult // The current result being shown in the splitview
+	docsState    DocsState                 // State of documentation loading
+	docsContent  string                    // Loaded documentation content
+	docsError    string                    // Error message if docs failed to load
+	docsCache    map[string]string         // Cache of loaded documentation by rule ID
+	docsSpinner  spinner.Model             // Spinner for loading state
+	docsViewport viewport.Model            // Viewport for scrollable docs content
+	codeViewport viewport.Model            // Viewport for expanded code view
+	err          error                     // Track any errors that occur during operation
 }
 
 // ShowViolationTableView displays results in an interactive console table
@@ -238,14 +231,14 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 			CategoryFilter: "",
 			RuleFilter:     "",
 		},
-		
-		categories:     categories,
-		categoryIndex:  -1, // -1 means "All"
-		rules:          rules,
-		ruleIndex:      -1, // -1 means "All"
-		docsCache:      make(map[string]string),
-		docsSpinner:    s,
-		docsViewport:   vp,
+
+		categories:    categories,
+		categoryIndex: -1, // -1 means "All"
+		rules:         rules,
+		ruleIndex:     -1, // -1 means "All"
+		docsCache:     make(map[string]string),
+		docsSpinner:   s,
+		docsViewport:  vp,
 	}
 
 	p := tea.NewProgram(m,
