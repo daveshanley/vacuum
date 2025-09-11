@@ -14,7 +14,7 @@ import (
 	"github.com/pterm/pterm"
 )
 
-func RenderSummary(rso RenderSummaryOptions) {
+func RenderMarkdownSummary(rso RenderSummaryOptions) {
 
 	rs := rso.RuleResultSet
 	cats := rso.RuleCategories

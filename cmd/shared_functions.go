@@ -136,28 +136,6 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	}
 }
 
-func PrintOldBanner() {
-	pterm.Println()
-
-	//_ = pterm.DefaultBigText.WithLetters(
-	//	putils.LettersFromString(pterm.LightMagenta("vacuum"))).Render()
-	banner := `
-██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
-██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
-██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
-╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
- ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
-  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝
-`
-
-	pterm.Println(pterm.LightMagenta(banner))
-	pterm.Println()
-	pterm.Printf("version: %s | compiled: %s\n", pterm.LightGreen(Version), pterm.LightGreen(Date))
-	pterm.Println(pterm.Cyan("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum"))
-	pterm.Println()
-	pterm.Println()
-}
-
 // LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
 func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.RuleFunction, error) {
 	// check custom functions

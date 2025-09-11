@@ -14,8 +14,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// TODO: This is a temporary UI, it's to help figure out the best experience, and it is not intended as a final face
-// of vacuum. It's going to change around a good bit, so don't get too comfy with it :)
 var (
 	configFile string
 	Version    string
@@ -50,7 +48,6 @@ func GetRootCommand() *cobra.Command {
 			pterm.Println()
 			pterm.Println("To see all the options, try 'vacuum --help'")
 			pterm.Println()
-
 			return nil
 		},
 	}
@@ -69,6 +66,16 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().String("key-file", "", "Path to client private key file for HTTPS requests")
 	rootCmd.PersistentFlags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
 	rootCmd.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
+	rootCmd.AddCommand(GetLintCommand())
+	rootCmd.AddCommand(GetVacuumReportCommand())
+	rootCmd.AddCommand(GetSpectralReportCommand())
+	rootCmd.AddCommand(GetHTMLReportCommand())
+	rootCmd.AddCommand(GetDashboardCommand())
+	rootCmd.AddCommand(GetGenerateRulesetCommand())
+	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
+	rootCmd.AddCommand(GetGenerateVersionCommand())
+	rootCmd.AddCommand(GetLanguageServerCommand())
+	rootCmd.AddCommand(GetBundleCommand())
 
 	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
@@ -101,18 +108,6 @@ func GetRootCommand() *cobra.Command {
 	if regErr := rootCmd.RegisterFlagCompletionFunc("insecure", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
-
-	rootCmd.AddCommand(GetLintCommand())
-	rootCmd.AddCommand(GetVacuumReportCommand())
-	rootCmd.AddCommand(GetSpectralReportCommand())
-	rootCmd.AddCommand(GetHTMLReportCommand())
-	rootCmd.AddCommand(GetDashboardCommand())
-	rootCmd.AddCommand(GetOldDashboardCommand())
-	rootCmd.AddCommand(GetGenerateRulesetCommand())
-	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
-	rootCmd.AddCommand(GetGenerateVersionCommand())
-	rootCmd.AddCommand(GetLanguageServerCommand())
-	rootCmd.AddCommand(GetBundleCommand())
 
 	return rootCmd
 }

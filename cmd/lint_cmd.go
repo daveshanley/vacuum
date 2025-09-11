@@ -480,7 +480,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 		return
 	}
 
-	// If pipeline output is requested, use the existing RenderSummary function
+	// If pipeline output is requested, use the existing RenderMarkdownSummary function
 	if pipelineOutput {
 		var ruleset *rulesets.RuleSet
 		if rs != nil && len(rs.Results) > 0 && rs.Results[0].Rule != nil {
@@ -508,7 +508,7 @@ func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
 			Silent:         false,
 		}
 
-		RenderSummary(rso)
+		RenderMarkdownSummary(rso)
 		return
 	}
 
