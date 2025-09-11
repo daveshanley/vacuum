@@ -208,7 +208,6 @@ func (m *ViolationResultTableModel) HandleToggleKeys(key string) (bool, tea.Cmd)
 			} else {
 				// cursor is invalid, reset split view
 				m.uiState.ViewMode = ViewModeTable
-				m.uiState.ViewMode = ViewModeTable
 				return true, nil
 			}
 			// resize the table to leave room for the fixed-height split view
@@ -345,7 +344,6 @@ func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 		m.CloseActiveModal()
 	} else if m.uiState.ViewMode == ViewModeTableWithSplit {
 		// close split view
-		m.uiState.ViewMode = ViewModeTable
 		m.uiState.ViewMode = ViewModeTable
 		m.modalContent = nil
 		m.table.SetHeight(m.height - 4)

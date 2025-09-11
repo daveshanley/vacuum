@@ -87,6 +87,29 @@ var (
 // FilterState represents the current filter mode for cycling through severities
 type FilterState int
 
+const (
+	AllSeverity FilterState = iota
+	ErrorSeverity
+	WarningSeverity
+	InfoSeverity
+)
+
+// String returns the string representation of the FilterState
+func (f FilterState) String() string {
+	switch f {
+	case AllSeverity:
+		return "All"
+	case ErrorSeverity:
+		return "Errors"
+	case WarningSeverity:
+		return "Warnings"
+	case InfoSeverity:
+		return "Info"
+	default:
+		return "Unknown"
+	}
+}
+
 // ViewMode represents the primary view state
 type ViewMode int
 
