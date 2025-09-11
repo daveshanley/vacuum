@@ -8,10 +8,10 @@ import "github.com/daveshanley/vacuum/model"
 func (m *ViolationResultTableModel) ApplyFilter() {
 	// pre-allocate with estimated capacity to reduce allocations
 	estimatedCapacity := len(m.allResults)
-	if m.filterState != FilterAll {
+	if m.uiState.FilterState != FilterAll {
 		estimatedCapacity = len(m.allResults) / 3 // rough estimate for filtered results
 	}
-	
+
 	filtered := make([]*model.RuleFunctionResult, 0, estimatedCapacity)
 
 	// single-pass filtering - check all conditions in one loop
@@ -21,8 +21,8 @@ func (m *ViolationResultTableModel) ApplyFilter() {
 		}
 
 		// check severity filter
-		if m.filterState != FilterAll {
-			switch m.filterState {
+		if m.uiState.FilterState != FilterAll {
+			switch m.uiState.FilterState {
 			case FilterErrors:
 				if r.Rule.Severity != model.SeverityError {
 					continue
@@ -35,19 +35,21 @@ func (m *ViolationResultTableModel) ApplyFilter() {
 				if r.Rule.Severity != model.SeverityInfo {
 					continue
 				}
+			default:
+				continue
 			}
 		}
 
 		// check category filter
-		if m.categoryFilter != "" {
-			if r.Rule.RuleCategory == nil || r.Rule.RuleCategory.Name != m.categoryFilter {
+		if m.uiState.CategoryFilter != "" {
+			if r.Rule.RuleCategory == nil || r.Rule.RuleCategory.Name != m.uiState.CategoryFilter {
 				continue
 			}
 		}
 
 		// check rule filter
-		if m.ruleFilter != "" {
-			if r.Rule.Id != m.ruleFilter {
+		if m.uiState.RuleFilter != "" {
+			if r.Rule.Id != m.uiState.RuleFilter {
 				continue
 			}
 		}
@@ -59,7 +61,7 @@ func (m *ViolationResultTableModel) ApplyFilter() {
 	m.filteredResults = filtered
 
 	// rebuild table data with filtered results - recalculate column widths
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.showPath)
+	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 	m.rows = rows
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)
