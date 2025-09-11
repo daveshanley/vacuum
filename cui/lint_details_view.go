@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
-// min returns the minimum of two integers
-func min(a, b int) int {
+// minimum returns the minimum of two integers
+func minimum(a, b int) int {
 	if a < b {
 		return a
 	}
@@ -39,12 +39,12 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 	}
 
 	dims := m.calculateSplitViewDimensions()
-	
+
 	pathBar := m.buildPathBar(dims.splitWidth)
 	detailsPanel := m.buildDetailsPanel(dims.detailsWidth, dims.contentHeight)
 	howToFixPanel := m.buildHowToFixPanel(dims.howToFixWidth, dims.contentHeight)
 	codePanel := m.buildCodePanel(dims.codeWidth, dims.contentHeight)
-	
+
 	return m.assembleSplitView(dims, pathBar, detailsPanel, howToFixPanel, codePanel)
 }
 
@@ -52,7 +52,7 @@ func (m *ViolationResultTableModel) BuildDetailsView() string {
 func (m *ViolationResultTableModel) calculateSplitViewDimensions() splitViewDimensions {
 	splitWidth := m.width
 	innerWidth := splitWidth - 4 // account for container borders and padding
-	
+
 	return splitViewDimensions{
 		splitWidth:    splitWidth,
 		splitHeight:   SplitViewHeight,
@@ -91,34 +91,34 @@ func (m *ViolationResultTableModel) buildDetailsPanel(detailsWidth, contentHeigh
 		Height(contentHeight).
 		MaxHeight(contentHeight).
 		Padding(0, 1)
-	
+
 	var detailsContent strings.Builder
-	
+
 	// build title with severity icon
 	severity := getRuleSeverity(m.modalContent)
 	severityInfo := GetSeverityInfoFromText(severity)
-	
+
 	ruleName := "Issue"
 	if m.modalContent.Rule != nil && m.modalContent.Rule.Id != "" {
 		ruleName = m.modalContent.Rule.Id
 	}
-	
+
 	titleStyle := severityInfo.TextStyle.Bold(true)
 	detailsContent.WriteString(fmt.Sprintf("%s %s",
-		severityInfo.IconStyle.Render(severityInfo.Icon), 
+		severityInfo.IconStyle.Render(severityInfo.Icon),
 		titleStyle.Render(ruleName)))
 	detailsContent.WriteString("\n")
-	
+
 	// add location
 	location := formatFileLocation(m.modalContent, m.fileName)
 	detailsContent.WriteString(lipgloss.NewStyle().Foreground(RGBBlue).Render(location))
 	detailsContent.WriteString("\n\n")
-	
+
 	// add message
 	colorizedMessage := ColorizeMessage(m.modalContent.Message)
 	msgStyle := lipgloss.NewStyle().Width(detailsWidth - 2)
 	detailsContent.WriteString(msgStyle.Render(colorizedMessage))
-	
+
 	return detailsStyle.Render(detailsContent.String())
 }
 
@@ -130,9 +130,9 @@ func (m *ViolationResultTableModel) buildHowToFixPanel(howToFixWidth, contentHei
 		Height(contentHeight).
 		MaxHeight(contentHeight).
 		Padding(0, 1)
-	
+
 	var howToFixContent strings.Builder
-	
+
 	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
 		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
 		for i, line := range fixLines {
@@ -146,7 +146,7 @@ func (m *ViolationResultTableModel) buildHowToFixPanel(howToFixWidth, contentHei
 		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).
 			Render("No fix suggestions available"))
 	}
-	
+
 	return howToFixStyle.Render(howToFixContent.String())
 }
 
@@ -159,9 +159,9 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 		Height(contentHeight).
 		MaxHeight(contentHeight).
 		Padding(0, 1)
-	
+
 	var codeContent strings.Builder
-	
+
 	if codeSnippet != "" {
 		isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
 
@@ -211,10 +211,10 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 				// this is tricky because we need to preserve ANSI codes
 				// for now, fall back to plain text truncation when line is too long
 				if maxLineWidth > 3 {
-					displayLine := codeLine[:min(len(codeLine), maxLineWidth-3)] + "..."
+					displayLine := codeLine[:minimum(len(codeLine), maxLineWidth-3)] + "..."
 					syntaxHighlightedLine = ApplySyntaxHighlightingToLine(displayLine, isYAML)
 				} else {
-					displayLine := codeLine[:min(len(codeLine), maxLineWidth)]
+					displayLine := codeLine[:minimum(len(codeLine), maxLineWidth)]
 					syntaxHighlightedLine = ApplySyntaxHighlightingToLine(displayLine, isYAML)
 				}
 			}
@@ -228,12 +228,12 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 					// add padding to the raw line, then apply highlighting
 					paddedLine := codeLine + strings.Repeat(" ", paddingNeeded)
 					if len(paddedLine) > maxLineWidth {
-						paddedLine = codeLine[:min(len(codeLine), maxLineWidth)]
+						paddedLine = codeLine[:minimum(len(codeLine), maxLineWidth)]
 					}
 					codeContent.WriteString(highlightStyle.Render(paddedLine))
 				} else {
 					// apply background to the truncated line
-					codeContent.WriteString(highlightStyle.Render(codeLine[:min(len(codeLine), maxLineWidth)]))
+					codeContent.WriteString(highlightStyle.Render(codeLine[:minimum(len(codeLine), maxLineWidth)]))
 				}
 			} else {
 				// use the syntax-highlighted line for normal lines
@@ -260,21 +260,21 @@ func (m *ViolationResultTableModel) assembleSplitView(dims splitViewDimensions, 
 		howToFixPanel,
 		codePanel,
 	)
-	
+
 	// blank line between path and panels for spacing
 	spacer := lipgloss.NewStyle().Height(1).Render(" ")
-	
+
 	combinedContent := lipgloss.JoinVertical(lipgloss.Left,
 		pathBar,
 		spacer,
 		combinedPanels,
 	)
-	
+
 	containerStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(RGBBlue).
 		Width(dims.splitWidth).
 		Height(dims.splitHeight)
-	
+
 	return containerStyle.Render(combinedContent)
 }
