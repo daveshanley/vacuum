@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,13 +24,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetLintPreviewCommand() *cobra.Command {
+func GetLintCommand() *cobra.Command {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	cmd := &cobra.Command{
 		Use:           "lint <your-openapi-file.yaml>",
-		Short:         "Lint / vacuum an OpenAPI specification",
-		Long:          `Lint / vacuum an OpenAPI specification for quality and compliance and see the results in your terminal.`,
-		RunE:          runLintPreview,
+		Short:         "Lint an OpenAPI specification",
+		Long:          `Lint an OpenAPI specification, the output of the response will be in the terminal`,
+		RunE:          runLint,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -76,7 +77,7 @@ func GetLintPreviewCommand() *cobra.Command {
 	return cmd
 }
 
-func runLintPreview(cmd *cobra.Command, args []string) error {
+func runLint(cmd *cobra.Command, args []string) error {
 	flags := ReadLintFlags(cmd)
 
 	SetupVacuumEnvironment(flags)
@@ -566,4 +567,55 @@ func truncate(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// getFilesToLint handles both individual files and glob patterns
+func getFilesToLint(globPattern string, filepaths []string, validFileExtensions []string) ([]string, error) {
+	// Note that if some of the paths are absolute and the others are relative,
+	// then we turn all paths into relative ones.
+	if globPattern == "" {
+		return deduplicate(filepaths), nil
+	}
+
+	var filesToLint = filepaths
+
+	// Get all files that match the glob pattern
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		return []string{}, err
+	}
+	filesToLint = append(filesToLint, matches...)
+
+	// Remove any duplicates
+	filesToLint = deduplicate(filesToLint)
+
+	// Ensure that all files have valid file extensions
+	for _, file := range filesToLint {
+		if !hasValidExtension(file, validFileExtensions) {
+			return []string{}, fmt.Errorf("File %q has an invalid file extension. Only %v are supported.\n", file, validFileExtensions)
+		}
+	}
+
+	return filesToLint, nil
+}
+
+func deduplicate(input []string) []string {
+	seen := make(map[string]bool)
+	deduplicated := []string{}
+	for _, val := range input {
+		if _, alreadySeen := seen[val]; !alreadySeen {
+			seen[val] = true
+			deduplicated = append(deduplicated, val)
+		}
+	}
+	return deduplicated
+}
+
+func hasValidExtension(filename string, extensions []string) bool {
+	for _, ext := range extensions {
+		if strings.HasSuffix(filename, ext) {
+			return true
+		}
+	}
+	return false
 }

@@ -103,7 +103,6 @@ func GetRootCommand() *cobra.Command {
 	}
 
 	rootCmd.AddCommand(GetLintCommand())
-	rootCmd.AddCommand(GetLintPreviewCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
