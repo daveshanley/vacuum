@@ -146,7 +146,8 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay
 }
 
 func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
-	var diagnostics []protocol.Diagnostic
+	diagnostics := []protocol.Diagnostic{}
+
 	for _, vacuumResult := range result.Results {
 		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
 
