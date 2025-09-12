@@ -6,23 +6,39 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
-	"net/http"
-	"os"
-	"strings"
-	"time"
 )
 
 // Hard mode message constants
 const (
-	HardModeEnabled = "🚨 HARD MODE ENABLED 🚨"
+	HardModeEnabled           = "🚨 HARD MODE ENABLED 🚨"
 	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
 )
+
+// RenderSummaryOptions contains options for rendering summary output
+type RenderSummaryOptions struct {
+	RuleResultSet  *model.RuleResultSet
+	RuleSet        *rulesets.RuleSet
+	RuleCategories []*model.RuleCategory
+	TotalFiles     int
+	Severity       string
+	Filename       string
+	Silent         bool
+	PipelineOutput bool
+	ReportStats    *reports.ReportStatistics
+	RenderRules    bool
+}
 
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
@@ -74,19 +90,19 @@ func MergeOWASPRulesToRuleSet(selectedRS *rulesets.RuleSet, hardModeFlag bool) b
 	if !hardModeFlag || selectedRS == nil {
 		return false
 	}
-	
+
 	owaspRules := rulesets.GetAllOWASPRules()
 	if selectedRS.Rules == nil {
 		selectedRS.Rules = make(map[string]*model.Rule)
 	}
-	
+
 	for k, v := range owaspRules {
 		// Add OWASP rule if it doesn't already exist in the custom ruleset
 		if selectedRS.Rules[k] == nil {
 			selectedRS.Rules[k] = v
 		}
 	}
-	
+
 	return true
 }
 
@@ -120,28 +136,6 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	}
 }
 
-func PrintBanner() {
-	pterm.Println()
-
-	//_ = pterm.DefaultBigText.WithLetters(
-	//	putils.LettersFromString(pterm.LightMagenta("vacuum"))).Render()
-	banner := `
-██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
-██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
-██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
-╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
- ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
-  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝
-`
-
-	pterm.Println(pterm.LightMagenta(banner))
-	pterm.Println()
-	pterm.Printf("version: %s | compiled: %s\n", pterm.LightGreen(Version), pterm.LightGreen(Date))
-	pterm.Println(pterm.Cyan("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum"))
-	pterm.Println()
-	pterm.Println()
-}
-
 // LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
 func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.RuleFunction, error) {
 	// check custom functions
@@ -152,10 +146,10 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 			pterm.Println()
 			return nil, err
 		}
-		
+
 		customFunctions := pm.GetCustomFunctions()
 		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
-		
+
 		if !silence && len(customFunctions) > 0 {
 			pterm.Info.Println("Available custom functions:")
 			for funcName := range customFunctions {
@@ -163,7 +157,7 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 			}
 			pterm.Println()
 		}
-		
+
 		return customFunctions, nil
 	}
 	return nil, nil
