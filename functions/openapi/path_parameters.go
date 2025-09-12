@@ -9,7 +9,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/helpers"
 	doctorModel "github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"regexp"
 	"slices"
 	"strings"

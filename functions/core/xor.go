@@ -4,12 +4,12 @@
 package core
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "strings"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"strings"
 )
 
 // Xor is a rule that will check if one property or another has been set, but not both.

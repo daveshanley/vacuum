@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	doctorModel "github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"regexp"
 	"strings"
 )
@@ -35,12 +35,12 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	}
 
 	var results []model.RuleFunctionResult
-	
+
 	// Try to use doctor model if available for more accurate checking
 	if context.DrDocument != nil && context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Paths != nil {
 		return ap.checkWithDoctorModel(context)
 	}
-	
+
 	// Fallback to simple path checking without parameter type information
 	var seen []string
 	ops := context.Index.GetPathsNode()
@@ -77,28 +77,28 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	paths := context.DrDocument.V3Document.Paths
-	
+
 	if paths == nil || paths.PathItems == nil {
 		return results
 	}
-	
+
 	// Build a slice of path entries with their path items
 	type pathEntry struct {
 		path string
 		item *doctorModel.PathItem
 	}
-	
+
 	var pathEntries []pathEntry
 	for path, pathItem := range paths.PathItems.FromOldest() {
 		pathEntries = append(pathEntries, pathEntry{path: path, item: pathItem})
 	}
-	
+
 	// Compare each pair of paths
 	for i := 0; i < len(pathEntries); i++ {
 		for j := i + 1; j < len(pathEntries); j++ {
 			pathA := pathEntries[i]
 			pathB := pathEntries[j]
-			
+
 			// Check if paths are potentially ambiguous
 			if checkPaths(pathA.path, pathB.path, pathA.item, pathB.item) {
 				// Paths are ambiguous based on structure and parameter types
@@ -112,15 +112,15 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 			}
 		}
 	}
-	
+
 	return results
 }
 
 var reggie, _ = regexp.Compile(`^{(.+?)}$`)
 
 type segment struct {
-	value    string
-	isVar    bool
+	value     string
+	isVar     bool
 	paramName string
 	paramType string
 }
@@ -128,7 +128,7 @@ type segment struct {
 func parseSegments(path string, pathItem *doctorModel.PathItem) []segment {
 	parts := strings.Split(path, "/")[1:]
 	segments := make([]segment, len(parts))
-	
+
 	for i, part := range parts {
 		seg := segment{value: part}
 		if matches := reggie.FindStringSubmatch(part); len(matches) > 1 {
@@ -147,7 +147,7 @@ func getParameterType(pathItem *doctorModel.PathItem, paramName string) string {
 	if pathItem == nil {
 		return ""
 	}
-	
+
 	for _, param := range pathItem.Parameters {
 		if param.Value != nil && param.Value.In == "path" && param.Value.Name == paramName {
 			if param.Value.Schema != nil {
@@ -157,7 +157,7 @@ func getParameterType(pathItem *doctorModel.PathItem, paramName string) string {
 			}
 		}
 	}
-	
+
 	for _, op := range pathItem.GetOperations().FromOldest() {
 		if op.Value == nil {
 			continue
@@ -172,24 +172,24 @@ func getParameterType(pathItem *doctorModel.PathItem, paramName string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
 func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool {
 	segsA := parseSegments(pA, pathItemA)
 	segsB := parseSegments(pB, pathItemB)
-	
+
 	if len(segsA) != len(segsB) {
 		return false
 	}
-	
+
 	// Track variable vs literal mismatches
 	varLiteralPositions := make([]int, 0, len(segsA))
-	
+
 	for i := range segsA {
 		a, b := &segsA[i], &segsB[i]
-		
+
 		if a.isVar && b.isVar {
 			if a.paramType != "" && b.paramType != "" && !areTypesCompatible(a.paramType, b.paramType) {
 				return false
@@ -201,20 +201,20 @@ func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool 
 		} else {
 			// Variable vs literal
 			varLiteralPositions = append(varLiteralPositions, i)
-			
+
 			var varType, literal string
 			if a.isVar {
 				varType, literal = a.paramType, b.value
 			} else {
 				varType, literal = b.paramType, a.value
 			}
-			
+
 			if varType != "" && !canLiteralMatchType(literal, varType) {
 				return false
 			}
 		}
 	}
-	
+
 	// Key logic for issue #504: paths with conflicting variable/literal patterns
 	// Example: /a/{x}/b/c/{y} vs /a/{x}/b/{z}/d
 	// Position 3: c vs {z} (literal vs var)
@@ -233,7 +233,7 @@ func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool 
 			}
 		}
 	}
-	
+
 	return true
 }
 

@@ -4,15 +4,15 @@
 package core
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "sort"
-    "strconv"
-    "strings"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 // Alphabetical is a rule that will check an array or object to determine if the values are in order.
@@ -333,7 +333,7 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 				Path:      locatedPath,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Message: vacuumUtils.SuppliedOrDefault(message,
-					model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description, 
+					model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description,
 						strconv.Itoa(intArray[x+1]), strconv.Itoa(intArray[x]))),
 			}
 			if len(allPaths) > 1 {

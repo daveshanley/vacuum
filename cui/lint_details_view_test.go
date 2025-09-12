@@ -7,7 +7,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestMinimum(t *testing.T) {
@@ -24,16 +24,16 @@ func TestViolationResultTableModel_CalculateSplitViewDimensions(t *testing.T) {
 	}
 
 	dims := model.calculateSplitViewDimensions()
-	
+
 	assert.Equal(t, 200, dims.splitWidth)
 	assert.Equal(t, SplitViewHeight, dims.splitHeight)
 	assert.Equal(t, SplitContentHeight, dims.contentHeight)
-	
+
 	innerWidth := dims.splitWidth - 4
 	expectedDetails := int(float64(innerWidth) * float64(DetailsColumnPercent) / 100)
 	expectedHowToFix := int(float64(innerWidth) * float64(HowToFixColumnPercent) / 100)
 	expectedCode := innerWidth - expectedDetails - expectedHowToFix
-	
+
 	assert.Equal(t, expectedDetails, dims.detailsWidth)
 	assert.Equal(t, expectedHowToFix, dims.howToFixWidth)
 	assert.Equal(t, expectedCode, dims.codeWidth)
@@ -107,7 +107,7 @@ func TestViolationResultTableModel_BuildDetailsPanel(t *testing.T) {
 	}
 
 	panel := model.buildDetailsPanel(50, 10)
-	
+
 	// check for expected content
 	assert.Contains(t, panel, "test-rule")
 	assert.Contains(t, panel, "test.yaml:10:5")
@@ -194,11 +194,11 @@ paths:
 				fileName:     tt.fileName,
 				specContent:  specContent,
 			}
-			
+
 			if tt.content.StartNode == nil && tt.content.Origin == nil {
 				model.specContent = nil
 			}
-			
+
 			panel := model.buildCodePanel(80, 10)
 			for _, expected := range tt.contains {
 				assert.Contains(t, panel, expected)
@@ -224,7 +224,7 @@ func TestViolationResultTableModel_AssembleSplitView(t *testing.T) {
 
 	model := &ViolationResultTableModel{}
 	result := model.assembleSplitView(dims, pathBar, detailsPanel, howToFixPanel, codePanel)
-	
+
 	// verify all content is included
 	assert.Contains(t, result, "$.test.path")
 	// the panels are rendered with lipgloss, so the exact content might be styled
@@ -315,7 +315,7 @@ func TestWrapText(t *testing.T) {
 			result := wrapText(tt.text, tt.width)
 			lines := strings.Split(result, "\n")
 			assert.GreaterOrEqual(t, len(lines), tt.expected)
-			
+
 			// verify no line exceeds width
 			for _, line := range lines {
 				assert.LessOrEqual(t, len(line), tt.width)
@@ -327,7 +327,7 @@ func TestWrapText(t *testing.T) {
 func TestBuildCodePanelHelpers(t *testing.T) {
 	t.Run("line truncation", func(t *testing.T) {
 		specContent := []byte(strings.Repeat("x", 200) + "\n" + "short line")
-		
+
 		model := &ViolationResultTableModel{
 			modalContent: &model.RuleFunctionResult{
 				StartNode: &yaml.Node{Line: 1},
@@ -343,7 +343,7 @@ func TestBuildCodePanelHelpers(t *testing.T) {
 
 	t.Run("highlighted line padding", func(t *testing.T) {
 		specContent := []byte("key: value\nerror line\nmore: data")
-		
+
 		model := &ViolationResultTableModel{
 			modalContent: &model.RuleFunctionResult{
 				StartNode: &yaml.Node{Line: 2},

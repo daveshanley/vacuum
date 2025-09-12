@@ -4,11 +4,11 @@
 package owasp
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "slices"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"slices"
 )
 
 type ArrayLimit struct{}
@@ -37,10 +37,10 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 			if schema.Value.MaxItems == nil {
 				node := schema.Value.GoLow().Type.KeyNode
 				valueNode := schema.Value.GoLow().Type.ValueNode
-				
+
 				// Find all locations where this schema appears
 				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-				
+
 				result := model.RuleFunctionResult{
 					Message:   utils.SuppliedOrDefault(context.Rule.Message, "schema of type `array` must specify `maxItems`"),
 					StartNode: node,
@@ -48,7 +48,7 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					result.Paths = allPaths

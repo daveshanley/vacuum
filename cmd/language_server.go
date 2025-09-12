@@ -12,7 +12,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"io"
 	"log/slog"
 	"net/http"
@@ -66,13 +66,13 @@ IDE and start linting your OpenAPI documents in real-time.`,
 
 			if rulesetFlag != "" {
 				remoteFlag, _ := cmd.Flags().GetBool("remote")
-				
+
 				// Certificate/TLS configuration for language server
 				certFile, _ := cmd.Flags().GetString("cert-file")
 				keyFile, _ := cmd.Flags().GetString("key-file")
 				caFile, _ := cmd.Flags().GetString("ca-file")
 				insecure, _ := cmd.Flags().GetBool("insecure")
-				
+
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
 				httpClientConfig := utils.HTTPClientConfig{
@@ -88,7 +88,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 						return clientErr
 					}
 				}
-				
+
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {

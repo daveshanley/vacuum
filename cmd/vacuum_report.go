@@ -17,7 +17,7 @@ import (
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"net/http"
 	"os"
 	"time"
@@ -215,7 +215,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
-				HTTPClientConfig:                utils.HTTPClientConfig{
+				HTTPClientConfig: utils.HTTPClientConfig{
 					CertFile: certFile,
 					KeyFile:  keyFile,
 					CAFile:   caFile,

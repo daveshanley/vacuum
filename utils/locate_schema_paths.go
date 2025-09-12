@@ -6,7 +6,7 @@ package utils
 import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // LocateSchemaPropertyPaths finds all paths where a schema property appears in the document.
@@ -21,14 +21,14 @@ func LocateSchemaPropertyPaths(
 ) (primaryPath string, allPaths []string) {
 	// Start with the schema's own path
 	primaryPath = schema.GenerateJSONPath()
-	
+
 	// Try to find all locations where this schema appears
 	if context.DrDocument != nil && keyNode != nil && valueNode != nil {
 		locatedObjects, err := context.DrDocument.LocateModelsByKeyAndValue(keyNode, valueNode)
 		if err == nil && locatedObjects != nil && len(locatedObjects) > 0 {
 			// Use the first located object's path as the primary path
 			primaryPath = locatedObjects[0].GenerateJSONPath()
-			
+
 			// Collect all paths
 			for _, obj := range locatedObjects {
 				allPaths = append(allPaths, obj.GenerateJSONPath())
@@ -36,8 +36,8 @@ func LocateSchemaPropertyPaths(
 			return primaryPath, allPaths
 		}
 	}
-	
-	// If we couldn't locate via LocateModelsByKeyAndValue, 
+
+	// If we couldn't locate via LocateModelsByKeyAndValue,
 	// fall back to the schema's own path
 	allPaths = []string{primaryPath}
 	return primaryPath, allPaths

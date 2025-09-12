@@ -4,12 +4,12 @@
 package core
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "regexp"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"regexp"
 )
 
 // Pattern is a rule that will match or not match (or both) a regular expression.

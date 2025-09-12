@@ -9,7 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pb33f/libopenapi/datamodel"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"io"
 	"os"
 	"sync"
@@ -49,24 +49,24 @@ func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
 	// application has no idea that we're replaying and will perform normally. We want to go as fast as possible here,
 	// so for each result, run each re-build in a new thread.
 	var wg sync.WaitGroup
-	
+
 	// Build a map of rules, preferring embedded rules over default rules
 	rulesMap := make(map[string]*model.Rule)
-	
+
 	// First, add default rules as a fallback
 	de := rulesets.BuildDefaultRuleSets()
 	rs := de.GenerateOpenAPIDefaultRuleSet()
 	for k, v := range rs.Rules {
 		rulesMap[k] = v
 	}
-	
+
 	// Then override with any rules stored in the report (including custom rules)
 	if vr.Rules != nil {
 		for k, v := range vr.Rules {
 			rulesMap[k] = v
 		}
 	}
-	
+
 	var rebuildNode = func(res *model.RuleFunctionResult, wg *sync.WaitGroup, rules map[string]*model.Rule) {
 		r := res.Range
 		res.StartNode = new(yaml.Node)

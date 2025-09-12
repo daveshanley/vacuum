@@ -5,12 +5,11 @@ package cmd
 
 import (
 	"errors"
-	html_report "github.com/daveshanley/vacuum/html-report"
 	"fmt"
+	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
-	"gopkg.in/yaml.v3"
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
@@ -18,6 +17,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 	"os"
 	"time"
 )
@@ -112,13 +112,13 @@ func GetHTMLReportCommand() *cobra.Command {
 				customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-				
+
 				// Certificate/TLS configuration
 				certFile, _ := cmd.Flags().GetString("cert-file")
 				keyFile, _ := cmd.Flags().GetString("key-file")
 				caFile, _ := cmd.Flags().GetString("ca-file")
 				insecure, _ := cmd.Flags().GetBool("insecure")
-				
+
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
 					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
 						CertFile: certFile,

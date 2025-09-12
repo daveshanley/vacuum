@@ -8,7 +8,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
 	"github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // SchemaTypeCheck will determine if document schemas contain the correct type
@@ -63,7 +63,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				// Find all locations where this schema appears
 				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema,
 					schema.Value.GoLow().Type.KeyNode, schema.Value.GoLow().Type.ValueNode)
-				
+
 				result := model.RuleFunctionResult{
 					Message:   model.GetStringTemplates().BuildUnknownSchemaTypeMessage(t),
 					StartNode: schema.Value.GoLow().Type.KeyNode,
@@ -71,7 +71,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					Path:      model.GetStringTemplates().BuildJSONPath(locatedPath, "type"),
 					Rule:      context.Rule,
 				}
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					// Add .type suffix to all paths
@@ -81,7 +81,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					}
 					result.Paths = typePaths
 				}
-				
+
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
@@ -233,7 +233,7 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 
 	// Find all locations where this schema appears
 	locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(*context, schema, node, node)
-	
+
 	// Build the complete path with the violation property
 	if violationProperty != "" {
 		if segment >= 0 {
@@ -241,7 +241,7 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 		} else {
 			locatedPath = model.GetStringTemplates().BuildJSONPath(locatedPath, violationProperty)
 		}
-		
+
 		// Update all paths with the violation property
 		if len(allPaths) > 1 {
 			updatedPaths := make([]string, len(allPaths))
@@ -255,7 +255,7 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 			allPaths = updatedPaths
 		}
 	}
-	
+
 	result := model.RuleFunctionResult{
 		Message:   message,
 		StartNode: node,
@@ -351,12 +351,12 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) != nil {
 				propertyExists = true
 			}
-			
+
 			// If not in direct properties, check if it was found in polymorphic schemas
 			if !propertyExists && polyDefined {
 				propertyExists = true
 			}
-			
+
 			// Report error if property is not defined anywhere
 			if !propertyExists {
 				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
@@ -435,7 +435,7 @@ func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyNa
 	// Check in AnyOf schemas
 	if schema.Value.AnyOf != nil {
 		for _, anyOfSchema := range schema.Value.AnyOf {
-			if anyOfSchema.Schema() != nil && anyOfSchema.Schema().Properties != nil && 
+			if anyOfSchema.Schema() != nil && anyOfSchema.Schema().Properties != nil &&
 				anyOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
 				return true
 			}
@@ -445,7 +445,7 @@ func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyNa
 	// Check in OneOf schemas
 	if schema.Value.OneOf != nil {
 		for _, oneOfSchema := range schema.Value.OneOf {
-			if oneOfSchema.Schema() != nil && oneOfSchema.Schema().Properties != nil && 
+			if oneOfSchema.Schema() != nil && oneOfSchema.Schema().Properties != nil &&
 				oneOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
 				return true
 			}
@@ -455,7 +455,7 @@ func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyNa
 	// Check in AllOf schemas
 	if schema.Value.AllOf != nil {
 		for _, allOfSchema := range schema.Value.AllOf {
-			if allOfSchema.Schema() != nil && allOfSchema.Schema().Properties != nil && 
+			if allOfSchema.Schema() != nil && allOfSchema.Schema().Properties != nil &&
 				allOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
 				return true
 			}

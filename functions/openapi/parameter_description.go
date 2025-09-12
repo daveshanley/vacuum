@@ -10,7 +10,7 @@ import (
 	vutils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // ParameterDescription will check swagger spec parameters for a description. ($.parameters)

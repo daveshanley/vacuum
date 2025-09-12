@@ -4,12 +4,12 @@
 package openapi
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "strings"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"strings"
 )
 
 // OperationId is a rule that will check if each operation provides an operationId

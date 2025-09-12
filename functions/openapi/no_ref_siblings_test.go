@@ -5,7 +5,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"net/url"
 	"testing"
 )
@@ -268,7 +268,7 @@ components:
 
 	rolodex := index.NewRolodex(childCfg)
 	rolodex.AddIndex(childIdx)
-	
+
 	rootCfg := index.CreateOpenAPIIndexConfig()
 	rootCfg.Rolodex = rolodex
 	rootCfg.AllowFileLookup = false

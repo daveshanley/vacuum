@@ -4,11 +4,11 @@
 package owasp
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "slices"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"slices"
 )
 
 type AdditionalPropertiesConstrained struct{}
@@ -38,10 +38,10 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 
 				node := schema.Value.GoLow().Type.KeyNode
 				valueNode := schema.Value.GoLow().Type.ValueNode
-				
+
 				// Find all locations where this schema appears
 				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-				
+
 				result := model.RuleFunctionResult{
 					Message: utils.SuppliedOrDefault(context.Rule.Message,
 						"schema should also define `maxProperties` when `additionalProperties` is an object"),
@@ -50,7 +50,7 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					result.Paths = allPaths

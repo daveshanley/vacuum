@@ -4,11 +4,11 @@
 package owasp
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "slices"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"slices"
 )
 
 type IntegerFormat struct{}
@@ -39,10 +39,10 @@ func (i IntegerFormat) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 
 				node := schema.Value.GoLow().Type.KeyNode
 				valueNode := schema.Value.GoLow().Type.ValueNode
-				
+
 				// Find all locations where this schema appears
 				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-				
+
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 						"schema of type `integer` must specify a format of `int32` or `int64`"),
@@ -51,7 +51,7 @@ func (i IntegerFormat) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					result.Paths = allPaths

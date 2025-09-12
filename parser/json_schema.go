@@ -22,7 +22,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 type Schema struct {
@@ -276,11 +276,11 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	// Use global validator with mutex protection to prevent concurrent schema mutations
 	// This ensures thread-safe validation when multiple goroutines validate schemas
 	validator := getGlobalValidator(ctx)
-	
+
 	// Lock to ensure only one validation happens at a time
 	// This prevents race conditions in schema.RenderInline() which mutates internal state
 	globalValidatorMu.Lock()
 	defer globalValidatorMu.Unlock()
-	
+
 	return validator.ValidateSchemaObject(schema, decoded)
 }

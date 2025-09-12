@@ -4,19 +4,19 @@
 package core
 
 import (
-    ctx "context"
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/parser"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    validationErrors "github.com/pb33f/libopenapi-validator/errors"
-    highBase "github.com/pb33f/libopenapi/datamodel/high/base"
-    "github.com/pb33f/libopenapi/datamodel/low"
-    lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "strings"
+	ctx "context"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/parser"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	validationErrors "github.com/pb33f/libopenapi-validator/errors"
+	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
+	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"strings"
 )
 
 // Schema is a rule that creates a schema check against a field value
@@ -125,7 +125,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	// use the current node to validate (field not needed)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
-	
+
 	// Auto-enable forceValidationOnCurrentNode when:
 	// 1. The given path is "$" (root)
 	// 2. No field is specified in the rule action
@@ -139,7 +139,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			autoForce = true
 		}
 	}
-	
+
 	if forceBool, ok := forceValidationOnCurrentNode.(bool); (ok && forceBool) || autoForce {
 		if len(nodes) > 0 {
 			schema.GoLow().Index = context.Index

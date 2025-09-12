@@ -9,7 +9,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Commented out OAS2 tests - focusing on OpenAPI 3+ only
@@ -142,7 +142,7 @@ func TestParameterDescription_RunRule(t *testing.T) {
 //       parameters:
 //         - in: header
 //           name: blue-eyes
-//           description:  
+//           description:
 // parameters:
 //   Maddy:
 //    in: header
@@ -445,7 +445,7 @@ paths:
 
 	// All 8 HTTP methods should have parameters without descriptions
 	assert.Len(t, res, 8)
-	
+
 	// Verify we have one for each operation
 	operations := []string{"get", "post", "put", "delete", "patch", "head", "options", "trace"}
 	for _, op := range operations {
@@ -498,17 +498,17 @@ paths:
 
 	// Should find MissingDescParam in components, the resolved reference in operation, and inline parameter
 	assert.Len(t, res, 3)
-	
+
 	foundComponentMissing := false
 	foundResolvedMissing := false
 	foundInline := false
 	for _, r := range res {
-		if r.Message == "the parameter `MissingDescParam` does not contain a description" && 
-		   r.Path == "$.components.parameters['MissingDescParam']" {
+		if r.Message == "the parameter `MissingDescParam` does not contain a description" &&
+			r.Path == "$.components.parameters['MissingDescParam']" {
 			foundComponentMissing = true
 		}
 		if r.Message == "the parameter `missing` does not contain a description" &&
-		   r.Path == "$.paths['/users'].get.parameters[1]" {
+			r.Path == "$.paths['/users'].get.parameters[1]" {
 			// This is the resolved reference
 			foundResolvedMissing = true
 		}

@@ -6,7 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestBuildTableRows(t *testing.T) {
@@ -84,7 +84,7 @@ func TestCalculateContentWidths(t *testing.T) {
 	}
 
 	widths := calculateContentWidths(results, "very-long-filename-with-lots-of-characters.yaml")
-	
+
 	// should be max of content or header
 	assert.GreaterOrEqual(t, widths.location, len("very-long-filename-with-lots-of-characters.yaml:1000:100"))
 	assert.GreaterOrEqual(t, widths.rule, len("very-long-rule-name-that-is-quite-verbose"))
@@ -100,7 +100,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 
 	t.Run("plenty of space", func(t *testing.T) {
 		widths := calculateColumnWidths(200, content, false)
-		
+
 		// with plenty of space, message should get most of it
 		assert.Equal(t, 20, widths.location)
 		assert.Equal(t, SeverityColumnWidth+1, widths.severity)
@@ -112,7 +112,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 
 	t.Run("limited space", func(t *testing.T) {
 		widths := calculateColumnWidths(100, content, false)
-		
+
 		// with limited space, columns should be compressed
 		assert.Equal(t, 20, widths.location)
 		assert.Equal(t, SeverityColumnWidth+1, widths.severity)
@@ -121,7 +121,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 
 	t.Run("with path column", func(t *testing.T) {
 		widths := calculateColumnWidths(200, content, true)
-		
+
 		assert.Greater(t, widths.path, 0) // path column should be present
 		assert.Greater(t, widths.message, 0)
 	})
@@ -237,10 +237,10 @@ func TestBuildResultTableData_Integration(t *testing.T) {
 
 	t.Run("narrow terminal", func(t *testing.T) {
 		columns, rows := BuildResultTableData(results, "spec.yaml", 80, false)
-		
+
 		assert.Len(t, columns, 5)
 		assert.Len(t, rows, 2)
-		
+
 		// verify columns fit within terminal width
 		totalWidth := 0
 		for _, col := range columns {
@@ -253,13 +253,13 @@ func TestBuildResultTableData_Integration(t *testing.T) {
 
 	t.Run("wide terminal with path", func(t *testing.T) {
 		columns, rows := BuildResultTableData(results, "spec.yaml", 200, true)
-		
+
 		assert.Len(t, columns, 6)
 		assert.Len(t, rows, 2)
-		
+
 		// verify path column is included
 		assert.Equal(t, "Path", columns[5].Title)
-		
+
 		// verify columns fit within terminal width
 		totalWidth := 0
 		for _, col := range columns {
@@ -271,7 +271,7 @@ func TestBuildResultTableData_Integration(t *testing.T) {
 
 	t.Run("empty results", func(t *testing.T) {
 		columns, rows := BuildResultTableData([]*model.RuleFunctionResult{}, "spec.yaml", 100, false)
-		
+
 		assert.Len(t, columns, 5)
 		assert.Len(t, rows, 0)
 	})
@@ -291,10 +291,10 @@ func TestCalculateWithPathColumn(t *testing.T) {
 			rule:     25,
 			category: 20,
 		}
-		
+
 		// 20 + 10 + 80 + 25 + 20 + 50 = 205, available = 250
 		calculateWithPathColumn(250, &widths, content)
-		
+
 		assert.GreaterOrEqual(t, widths.message, 80)
 		assert.GreaterOrEqual(t, widths.path, 50)
 	})
@@ -306,10 +306,10 @@ func TestCalculateWithPathColumn(t *testing.T) {
 			rule:     25,
 			category: 20,
 		}
-		
+
 		// force compression with small available width
 		calculateWithPathColumn(150, &widths, content)
-		
+
 		// path should compress first, then category, then rule, then message
 		assert.GreaterOrEqual(t, widths.message, 40) // min message width
 		assert.GreaterOrEqual(t, widths.path, 20)    // min path width
@@ -330,10 +330,10 @@ func TestCalculateWithoutPathColumn(t *testing.T) {
 			rule:     25,
 			category: 20,
 		}
-		
+
 		// 20 + 10 + 100 + 25 + 20 = 175, available = 200
 		calculateWithoutPathColumn(200, &widths, content)
-		
+
 		assert.Greater(t, widths.message, 100) // message gets extra space
 		assert.Equal(t, 0, widths.path)
 	})
@@ -345,10 +345,10 @@ func TestCalculateWithoutPathColumn(t *testing.T) {
 			rule:     25,
 			category: 20,
 		}
-		
+
 		// force compression
 		calculateWithoutPathColumn(100, &widths, content)
-		
+
 		// category compresses first, then rule, then message
 		assert.GreaterOrEqual(t, widths.message, 40) // min message width
 	})

@@ -7,16 +7,16 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestInitSyntaxStyles(t *testing.T) {
 	// reset the init flag for testing
 	syntaxStylesInit = false
-	
+
 	InitSyntaxStyles()
 	assert.True(t, syntaxStylesInit)
-	
+
 	// verify styles are initialized
 	assert.NotNil(t, syntaxKeyStyle)
 	assert.NotNil(t, syntaxStringStyle)
@@ -122,14 +122,14 @@ func TestCalculateLineNumberWidth(t *testing.T) {
 		maxLineNum int
 		expected   int
 	}{
-		{1, 5},       // minimum width is 5
-		{10, 5},      // still minimum
-		{99, 5},      // still minimum
-		{100, 5},     // still minimum
-		{999, 5},     // still minimum
-		{1000, 5},    // 4 digits + 1 = 5
-		{10000, 6},   // 5 digits + 1 = 6
-		{100000, 7},  // 6 digits + 1 = 7
+		{1, 5},      // minimum width is 5
+		{10, 5},     // still minimum
+		{99, 5},     // still minimum
+		{100, 5},    // still minimum
+		{999, 5},    // still minimum
+		{1000, 5},   // 4 digits + 1 = 5
+		{10000, 6},  // 5 digits + 1 = 6
+		{100000, 7}, // 6 digits + 1 = 7
 	}
 
 	for _, tt := range tests {
@@ -143,26 +143,26 @@ func TestFormatLineNumber(t *testing.T) {
 	styles := getLineFormattingStyles()
 
 	tests := []struct {
-		name          string
-		lineNum       int
-		width         int
-		isHighlighted bool
+		name             string
+		lineNum          int
+		width            int
+		isHighlighted    bool
 		containsTriangle bool
 		containsPipe     bool
 	}{
 		{
-			name:          "normal line",
-			lineNum:       42,
-			width:         5,
-			isHighlighted: false,
+			name:             "normal line",
+			lineNum:          42,
+			width:            5,
+			isHighlighted:    false,
 			containsTriangle: false,
 			containsPipe:     true,
 		},
 		{
-			name:          "highlighted line",
-			lineNum:       42,
-			width:         5,
-			isHighlighted: true,
+			name:             "highlighted line",
+			lineNum:          42,
+			width:            5,
+			isHighlighted:    true,
 			containsTriangle: true,
 			containsPipe:     false,
 		},
@@ -171,7 +171,7 @@ func TestFormatLineNumber(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatLineNumber(tt.lineNum, tt.width, tt.isHighlighted, styles)
-			
+
 			if tt.containsTriangle {
 				assert.Contains(t, result, "▶")
 			}
@@ -220,7 +220,7 @@ func TestFormatLineContent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatLineContent(tt.line, tt.maxWidth, tt.isHighlighted, tt.isYAML, styles)
 			assert.NotEmpty(t, result)
-			
+
 			if tt.isHighlighted {
 				// highlighted lines should have padding to fill width
 				assert.True(t, strings.Contains(result, tt.line) || strings.Contains(result, " "))
@@ -247,45 +247,45 @@ paths:
 	}
 
 	tests := []struct {
-		name         string
-		result       *model.RuleFunctionResult
-		contextLines int
+		name          string
+		result        *model.RuleFunctionResult
+		contextLines  int
 		wantStartLine int
-		containsText string
+		containsText  string
 	}{
 		{
-			name:         "nil result",
-			result:       nil,
-			contextLines: 2,
+			name:          "nil result",
+			result:        nil,
+			contextLines:  2,
 			wantStartLine: 0,
-			containsText: "",
+			containsText:  "",
 		},
 		{
 			name: "with start node",
 			result: &model.RuleFunctionResult{
 				StartNode: &yaml.Node{Line: 5},
 			},
-			contextLines: 2,
+			contextLines:  2,
 			wantStartLine: 3,
-			containsText: "paths:",
+			containsText:  "paths:",
 		},
 		{
 			name: "with origin node",
 			result: &model.RuleFunctionResult{
 				Origin: &index.NodeOrigin{Line: 8},
 			},
-			contextLines: 1,
+			contextLines:  1,
 			wantStartLine: 7,
-			containsText: "summary:",
+			containsText:  "summary:",
 		},
 		{
 			name: "near start of file",
 			result: &model.RuleFunctionResult{
 				StartNode: &yaml.Node{Line: 2},
 			},
-			contextLines: 3,
+			contextLines:  3,
 			wantStartLine: 1,
-			containsText: "openapi:",
+			containsText:  "openapi:",
 		},
 	}
 
@@ -304,7 +304,7 @@ paths:
 
 func TestViolationResultTableModel_FormatCodeWithHighlight(t *testing.T) {
 	specContent := []byte(strings.Repeat("line\n", 100))
-	
+
 	testModel := &ViolationResultTableModel{
 		specContent: specContent,
 		fileName:    "test.yaml",
@@ -368,7 +368,7 @@ info:
 
 func TestViolationResultTableModel_ReCenterCodeView(t *testing.T) {
 	specContent := []byte(strings.Repeat("line\n", 100))
-	
+
 	testModel := &ViolationResultTableModel{
 		specContent: specContent,
 		fileName:    "test.yaml",
@@ -381,13 +381,13 @@ func TestViolationResultTableModel_ReCenterCodeView(t *testing.T) {
 
 	testModel.PrepareCodeViewport()
 	// initialOffset := testModel.codeViewport.YOffset
-	
+
 	// scroll away
 	testModel.codeViewport.SetYOffset(0)
-	
+
 	// recenter
 	testModel.ReCenterCodeView()
-	
+
 	// should be back near the initial offset
 	// assert.NotEqual(t, 0, testModel.codeViewport.YOffset)
 	assert.NotNil(t, testModel.codeViewport)

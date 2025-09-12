@@ -31,7 +31,7 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pterm/pterm"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 type ruleContext struct {
@@ -204,7 +204,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		if httpErr != nil {
 			return &RuleSetExecutionResult{Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}
 		}
-		
+
 		// Set the custom RemoteURLHandler for libopenapi
 		docConfig.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 	}
@@ -1049,16 +1049,16 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					availableCustomFuncs = append(availableCustomFuncs, funcName)
 				}
 			}
-			
+
 			if len(availableCustomFuncs) > 0 {
-				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. Available custom functions: %v\n", 
+				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. Available custom functions: %v\n",
 					ctx.rule.Id, ruleAction.Function, availableCustomFuncs)
 			} else {
-				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n", 
+				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n",
 					ctx.rule.Id, ruleAction.Function)
 			}
 		}
-		
+
 		// Add error result to make the missing function visible in reports
 		lock.Lock()
 		*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{

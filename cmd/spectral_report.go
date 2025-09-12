@@ -12,9 +12,9 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"gopkg.in/yaml.v3"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -207,7 +207,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				SkipDocumentCheck:               skipCheckFlag,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
-				HTTPClientConfig:                utils.HTTPClientConfig{
+				HTTPClientConfig: utils.HTTPClientConfig{
 					CertFile: certFile,
 					KeyFile:  keyFile,
 					CAFile:   caFile,

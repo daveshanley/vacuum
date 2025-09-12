@@ -1,16 +1,16 @@
 package owasp
 
 import (
-    "fmt"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    drV3 "github.com/pb33f/doctor/model/high/v3"
-    "strconv"
-    "strings"
+	"fmt"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"strconv"
+	"strings"
 
-    "github.com/daveshanley/vacuum/model"
-    "github.com/pb33f/libopenapi/utils"
-    "golang.org/x/exp/slices"
-    "gopkg.in/yaml.v3"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"golang.org/x/exp/slices"
 )
 
 type message struct {

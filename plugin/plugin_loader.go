@@ -6,7 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin/javascript"
 	"github.com/pterm/pterm"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"os"
 	"path/filepath"
 	"plugin"
@@ -87,7 +87,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			// register this function with the plugin manager using the schema name
 			schemaName := function.GetSchema().Name
 			pm.RegisterFunction(schemaName, function)
-			
+
 			if !silence {
 				pterm.Info.Printf("Registered custom function: '%s' -> available for use in rulesets\n", schemaName)
 			}

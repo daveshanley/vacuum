@@ -4,13 +4,13 @@
 package openapi
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/model/reports"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "regexp"
-    "strings"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"regexp"
+	"strings"
 )
 
 // PathsKebabCase Checks to ensure each segment of a path is using kebab case.

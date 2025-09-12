@@ -6,7 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestUIState_Initialization(t *testing.T) {
@@ -58,7 +58,7 @@ func TestViolationResultTableModel_OpenModal(t *testing.T) {
 
 	testModel.OpenModal(ModalDocs)
 	assert.Equal(t, ModalDocs, testModel.uiState.ActiveModal)
-	
+
 	testModel.OpenModal(ModalCode)
 	assert.Equal(t, ModalCode, testModel.uiState.ActiveModal)
 }
@@ -164,7 +164,6 @@ func TestViolationResultTableModel_UpdateRuleFilter(t *testing.T) {
 	assert.Equal(t, "", testModel.uiState.RuleFilter)
 }
 
-
 func TestFilterState_String(t *testing.T) {
 	tests := []struct {
 		state    FilterState
@@ -183,7 +182,6 @@ func TestFilterState_String(t *testing.T) {
 		})
 	}
 }
-
 
 func TestGetRuleSeverity(t *testing.T) {
 	tests := []struct {
