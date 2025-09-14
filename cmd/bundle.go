@@ -58,7 +58,7 @@ func GetBundleCommand() *cobra.Command {
 
 			if !stdIn && len(args) == 0 {
 				errText := "please supply input (unbundled) OpenAPI document, or use the -i flag to use stdin"
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
 				fmt.Println()
 				return errors.New(errText)
@@ -67,7 +67,7 @@ func GetBundleCommand() *cobra.Command {
 			// check for file args
 			if !stdOut && len(args) == 1 {
 				errText := "please supply output (bundled) OpenAPI document, or use the -o flag to use stdout"
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
 				fmt.Println()
 				return errors.New(errText)

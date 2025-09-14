@@ -40,13 +40,13 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			// check for file args
 			if len(args) < 1 {
 				errText := "please supply 'recommended', 'owasp' or 'all' and a file path to output the ruleset"
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
 			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" {
 				errText := fmt.Sprintf("please use 'all', 'owasp' or 'recommended' your choice '%s' is not valid", args[0])
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 

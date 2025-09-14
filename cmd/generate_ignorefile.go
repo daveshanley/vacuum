@@ -47,7 +47,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 			// check for report file args
 			if len(args) < 1 {
 				errText := "please supply the lint report file"
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -55,7 +55,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 			_, err := os.Stat(lintReportPath)
 			if os.IsNotExist(err) {
 				errText := fmt.Sprintf("cannot find lint report file at '%s'", lintReportPath)
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 

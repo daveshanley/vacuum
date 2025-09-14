@@ -69,7 +69,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a spectral report, or use " +
 					"the -i flag to use stdin"
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 

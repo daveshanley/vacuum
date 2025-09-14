@@ -65,7 +65,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"
-				cui.RenderErrorString(errText)
+				cui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
