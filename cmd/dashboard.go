@@ -17,7 +17,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetDashboardCommand() *cobra.Command {
@@ -58,6 +58,7 @@ func GetDashboardCommand() *cobra.Command {
 			keyFile, _ := cmd.Flags().GetString("key-file")
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
+			watchFlag, _ := cmd.Flags().GetBool("watch")
 
 			ignoredItems := model.IgnoredItems{}
 			if ignoreFile != "" {
@@ -204,9 +205,44 @@ func GetDashboardCommand() *cobra.Command {
 				style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(message)))
+
+				if watchFlag {
+					watchMessage := fmt.Sprintf("watching for changes on file '%s'", displayFileName)
+					fmt.Println(style.Render(messageStyle.Render(watchMessage)))
+				}
 			}
 
-			err = cui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes)
+			// Load custom functions
+			var customFuncs map[string]model.RuleFunction
+			if functionsFlag != "" {
+				customFuncs, err = LoadCustomFunctions(functionsFlag, silent)
+				if err != nil && !silent {
+					message := fmt.Sprintf("Failed to load custom functions: %v", err)
+					style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+					messageStyle := lipgloss.NewStyle().Padding(1, 1)
+					fmt.Println(style.Render(messageStyle.Render(message)))
+				}
+			}
+
+			watchConfig := &cui.WatchConfig{
+				Enabled:         watchFlag,
+				BaseFlag:        baseFlag,
+				SkipCheckFlag:   skipCheckFlag,
+				TimeoutFlag:     timeoutFlag,
+				HardModeFlag:    hardModeFlag,
+				RemoteFlag:      remoteFlag,
+				IgnoreFile:      ignoreFile,
+				FunctionsFlag:   functionsFlag,
+				RulesetFlag:     rulesetFlag,
+				CertFile:        certFile,
+				KeyFile:         keyFile,
+				CAFile:          caFile,
+				Insecure:        insecure,
+				Silent:          silent,
+				CustomFunctions: customFuncs,
+			}
+
+			err = cui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig)
 			if err != nil {
 				if !silent {
 					message := fmt.Sprintf("Failed to show dashboard: %v", err)
@@ -223,6 +259,7 @@ func GetDashboardCommand() *cobra.Command {
 
 	// dashboard flags
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().BoolP("watch", "W", false, "Watch for file changes and automatically re-lint")
 
 	return cmd
 }
