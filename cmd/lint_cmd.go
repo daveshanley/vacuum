@@ -200,7 +200,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		resultSet = model.NewRuleResultSet(result.Results)
 
-		if (flags.MinScore > 10 || flags.PipelineOutput) && result.Index != nil && result.SpecInfo != nil {
+		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
 		}
 	}
@@ -556,13 +556,14 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		informs = rs.GetInfoCount()
 	}
 
-	renderResultBox(errs, warnings, informs)
-
 	// render quality score if available
 	if stats != nil {
 		fmt.Println()
 		renderQualityScore(stats.OverallScore)
 	}
+
+	renderResultBox(errs, warnings, informs)
+
 }
 
 func renderFixedTiming(duration time.Duration, fileSize int64) {

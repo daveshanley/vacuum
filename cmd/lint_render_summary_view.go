@@ -409,27 +409,47 @@ func renderResultBox(errors, warnings, informs int) {
 
 // render quality score box
 func renderQualityScore(score int) {
-	var color string
-	var emoji string
+	var boxType cui.BoxType
+	var grade string
 
 	switch {
-	case score >= 90:
-		color = cui.ASCIIGreen
-		emoji = "🏆"
-	case score >= 70:
-		color = cui.ASCIIBlue
-		emoji = "👍"
-	case score >= 50:
-		color = cui.ASCIIYellow
-		emoji = "⚡"
+	case score > 95:
+		boxType = cui.BoxTypeSuccess
+		grade = "A+"
+	case score > 90 && score <= 95:
+		boxType = cui.BoxTypeSuccess
+		grade = "A"
+	case score > 85 && score <= 90:
+		boxType = cui.BoxTypeSuccess
+		grade = "B"
+	case score > 75 && score <= 85:
+		boxType = cui.BoxTypeInfo
+		grade = "C"
+	case score > 65 && score <= 75:
+		boxType = cui.BoxTypeWarning
+		grade = "D"
+	case score > 55 && score <= 65:
+		boxType = cui.BoxTypeWarning
+		grade = "F"
+	case score > 25 && score <= 55:
+		boxType = cui.BoxTypeError
+		grade = "🤒"
+	case score >= 10 && score <= 25:
+		boxType = cui.BoxTypeError
+		grade = "🥵"
+	case score >= 5 && score < 10:
+		boxType = cui.BoxTypeError
+		grade = "😵"
+	case score >= 1 && score < 5:
+		boxType = cui.BoxTypeError
+		grade = "💀"
 	default:
-		color = cui.ASCIIRed
-		emoji = "💔"
+		boxType = cui.BoxTypeError
+		grade = "💀"
 	}
 
-	fmt.Printf("%s╔════════════════════════════╗%s\n", color, cui.ASCIIReset)
-	fmt.Printf("%s║  %s Quality Score: %d/100  ║%s\n", color, emoji, score, cui.ASCIIReset)
-	fmt.Printf("%s╚════════════════════════════╝%s\n", color, cui.ASCIIReset)
+	message := fmt.Sprintf("Quality Score: %d/100 [%s]", score, grade)
+	cui.RenderStyledBox(message, boxType, cui.AreColorsDisabled())
 }
 
 // renderRulesList renders the list of rules using lipgloss list

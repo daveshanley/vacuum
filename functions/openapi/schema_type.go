@@ -4,6 +4,7 @@ package openapi
 
 import (
 	"fmt"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"

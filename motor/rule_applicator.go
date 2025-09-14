@@ -7,9 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/sourcegraph/conc"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -19,6 +16,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/sourcegraph/conc"
 
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"

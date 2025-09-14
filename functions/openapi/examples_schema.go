@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -71,6 +72,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 	var expLock sync.Mutex
 
 	validator := schema_validation.NewSchemaValidator()
+	version := context.Document.GetSpecInfo().VersionNumeric
 	validateSchema := func(iKey *int,
 		sKey, label string,
 		s *v3.Schema,
@@ -81,7 +83,13 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 
 		var rx []model.RuleFunctionResult
 		if s != nil && s.Value != nil {
-			valid, validationErrors := validator.ValidateSchemaObject(s.Value, example)
+			var valid bool
+			var validationErrors []*errors.ValidationError
+			if version > 0 {
+				valid, validationErrors = validator.ValidateSchemaObjectWithVersion(s.Value, example, version)
+			} else {
+				valid, validationErrors = validator.ValidateSchemaObject(s.Value, example)
+			}
 			if !valid {
 				var path string
 				if iKey == nil && sKey == "" {

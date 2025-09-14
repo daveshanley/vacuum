@@ -21,7 +21,6 @@ const (
 	BoxTypeHard    BoxType = "hard"
 )
 
-
 func getTerminalWidth() int {
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {

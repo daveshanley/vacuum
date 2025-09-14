@@ -96,8 +96,16 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 	// use libopenapi-validator
 	valid, validationErrors := schema_validation.ValidateOpenAPIDocument(context.Document)
+
+	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
+	version := context.Document.GetSpecInfo().VersionNumeric
+	if version >= 3.1 {
+		nullableResults := checkForNullableKeyword(context)
+		results = append(results, nullableResults...)
+	}
+
 	if valid {
-		return nil
+		return results // Return any nullable violations even if document is otherwise valid
 	}
 
 	// duplicates are possible, so we need to de-dupe them.
@@ -208,5 +216,32 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 func hashResult(sve *errors.SchemaValidationFailure) string {
 	return fmt.Sprintf("%x",
 		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.Location, sve.Line, sve.Column, sve.Reason))))
+}
 
+// checkForNullableKeyword searches for nullable keyword usage in OpenAPI 3.1+ documents
+func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	if context.DrDocument == nil {
+		return results
+	}
+
+	// Check all schemas for nullable keyword
+	if context.DrDocument.Schemas != nil {
+		for _, schema := range context.DrDocument.Schemas {
+			if schema.Value != nil && schema.Value.Nullable != nil && *schema.Value.Nullable {
+				// Found nullable keyword in OpenAPI 3.1+ schema
+				result := model.RuleFunctionResult{
+					Message:   "The `nullable` keyword is not supported in OpenAPI 3.1. Use `type: ['string', 'null']` instead.",
+					StartNode: schema.Value.GoLow().Nullable.KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(schema.Value.GoLow().Nullable.KeyNode),
+					Path:      schema.GenerateJSONPath() + ".nullable",
+					Rule:      context.Rule,
+				}
+				results = append(results, result)
+			}
+		}
+	}
+
+	return results
 }
