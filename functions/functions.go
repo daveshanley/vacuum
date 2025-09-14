@@ -108,6 +108,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["noRequestBody"] = openapi_functions.NoRequestBody{}
 		funcs["pathItemReferences"] = openapi_functions.PathItemReferences{}
 		funcs["duplicatePaths"] = openapi_functions.DuplicatePaths{}
+		funcs["oasUnnecessaryCombinator"] = openapi_functions.UnnecessaryCombinator{}
 
 		// add owasp functions used by the owasp rules
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}

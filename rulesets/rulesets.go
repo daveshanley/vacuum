@@ -95,6 +95,7 @@ const (
 	OasMissingType                       = "oas-missing-type"
 	PathItemReferences                   = "path-item-refs"
 	DuplicatePathsRule                   = "duplicate-paths"
+	UnnecessaryCombinatorRule            = "no-unnecessary-combinator"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -501,6 +502,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[NoRequestBody] = GetNoRequestBodyRule()
 	rules[PathItemReferences] = GetPathItemReferencesRule()
 	rules[DuplicatePathsRule] = GetDuplicatePathsRule()
+	rules[UnnecessaryCombinatorRule] = GetUnnecessaryCombinatorRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
