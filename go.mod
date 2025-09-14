@@ -17,7 +17,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/muesli/termenv v0.16.0
-	github.com/pb33f/doctor v0.0.37
+	github.com/pb33f/doctor v0.0.38
 	github.com/pb33f/jsonpath v0.1.2
 	github.com/pb33f/libopenapi v0.27.0
 	github.com/pb33f/libopenapi-validator v0.5.0
@@ -30,12 +30,12 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tliron/glsp v0.2.2
 	go.yaml.in/yaml/v4 v4.0.0-rc.2
-	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b
+	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/term v0.35.0
 	golang.org/x/text v0.29.0
 )
 
-require gopkg.in/yaml.v3 v3.0.1
+require gopkg.in/yaml.v3 v3.0.1 // indirect
 
 require (
 	atomicgo.dev/cursor v0.2.0 // indirect

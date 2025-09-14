@@ -22,7 +22,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pterm/pterm"
-	yaml "gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // Hard mode message constants
