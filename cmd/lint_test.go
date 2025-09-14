@@ -48,10 +48,11 @@ func TestGetLintCommand_WithRuleset(t *testing.T) {
 		"-r",
 		"../rulesets/examples/custom-ruleset.yaml",
 		"../model/test_files/burgershop.openapi.yaml",
+		"-d",
 	})
 
 	err := cmd.Execute()
-	assert.NoError(t, err)
+	assert.Error(t, err) // this should fail, will not match title.
 }
 
 func TestGetLintCommand_BadRuleset(t *testing.T) {
