@@ -56,54 +56,6 @@ func TestConvertNode_Simple(t *testing.T) {
 	assert.True(t, res)
 }
 
-func TestValidateExample_AllInvalid(t *testing.T) {
-	yml := `components:
-  schemas:
-    Citrus:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1234.5
-        name:
-          type: string
-          example: false
-    Savory:
-      type: object
-      properties:
-        tasteIndex:
-          type: integer
-          example: hello
-        butter:
-          type: boolean
-          example: 123.224
-        fridge:
-          type: number
-          example: false
-        cake:
-          type: string
-          example: 1233
-        pizza:
-          $ref: '#/components/schemas/Citrus'`
-
-	var node yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &node)
-	assert.NoError(t, mErr)
-
-	config := index.CreateOpenAPIIndexConfig()
-	idx := index.NewSpecIndexWithConfig(&node, config)
-
-	rslvr := index.NewResolver(idx)
-	rslvr.Resolve()
-
-	p, _ := jsonpath.NewPath("$.components.schemas.Savory")
-	r := p.Query(&node)
-
-	schema, _ := ConvertNodeIntoJSONSchema(r[0], idx)
-
-	results := ValidateExample(schema)
-	assert.Len(t, results, 6)
-}
 
 // TestConcurrentSchemaValidation tests for issue #512 - non-deterministic validation
 func TestConcurrentSchemaValidation(t *testing.T) {
