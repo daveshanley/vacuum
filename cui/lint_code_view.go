@@ -298,7 +298,7 @@ type codeWindow struct {
 func calculateCodeWindow(allLines []string, targetLine int) codeWindow {
 	const windowSize = CodeWindowSize
 	totalLines := len(allLines)
-	
+
 	window := codeWindow{
 		startLine: 1,
 		endLine:   totalLines,

@@ -52,27 +52,27 @@ func TestCalculateCodeWindow(t *testing.T) {
 			name:       "large file with target in middle",
 			lines:      make([]string, 200),
 			targetLine: 100,
-			wantStart:  80,  // 100 - 20
-			wantEnd:    120, // 100 + 20
-			wantAbove:  true,
-			wantBelow:  true,
+			wantStart:  1,   // With window size 3000, no windowing
+			wantEnd:    200, // All lines shown
+			wantAbove:  false,
+			wantBelow:  false,
 		},
 		{
 			name:       "large file with target near start",
 			lines:      make([]string, 200),
 			targetLine: 10,
 			wantStart:  1,
-			wantEnd:    30, // 10 + 20
+			wantEnd:    200, // With window size 3000, no windowing
 			wantAbove:  false,
-			wantBelow:  true,
+			wantBelow:  false,
 		},
 		{
 			name:       "large file with target near end",
 			lines:      make([]string, 200),
 			targetLine: 190,
-			wantStart:  170, // 190 - 20
+			wantStart:  1,   // With window size 3000, no windowing
 			wantEnd:    200,
-			wantAbove:  true,
+			wantAbove:  false,
 			wantBelow:  false,
 		},
 		{
@@ -80,9 +80,9 @@ func TestCalculateCodeWindow(t *testing.T) {
 			lines:      make([]string, 200),
 			targetLine: 0,
 			wantStart:  1,
-			wantEnd:    41, // 20*2 + 1
+			wantEnd:    200, // With window size 3000, no windowing
 			wantAbove:  false,
-			wantBelow:  true,
+			wantBelow:  false,
 		},
 	}
 

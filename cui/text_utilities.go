@@ -84,11 +84,11 @@ func GetSeverityInfoFromText(severityText string) SeverityInfo {
 }
 
 func getRuleSeverity(r *model.RuleFunctionResult) string {
-	if r.Rule != nil {
-		info := GetSeverityInfo(r.Rule.Severity)
-		return info.Text
+	if r == nil || r.Rule == nil {
+		return "✗ error"
 	}
-	return "● info"
+	info := GetSeverityInfo(r.Rule.Severity)
+	return info.Text
 }
 
 func getLintingFilterName(state FilterState) string {
@@ -274,15 +274,17 @@ func formatFileLocation(r *model.RuleFunctionResult, fileName string) string {
 	startCol := 0
 	f := fileName
 
-	if r.StartNode != nil {
-		startLine = r.StartNode.Line
-		startCol = r.StartNode.Column
-	}
+	if r != nil {
+		if r.StartNode != nil {
+			startLine = r.StartNode.Line
+			startCol = r.StartNode.Column
+		}
 
-	if r.Origin != nil {
-		f = r.Origin.AbsoluteLocation
-		startLine = r.Origin.Line
-		startCol = r.Origin.Column
+		if r.Origin != nil {
+			f = r.Origin.AbsoluteLocation
+			startLine = r.Origin.Line
+			startCol = r.Origin.Column
+		}
 	}
 
 	// Make path relative

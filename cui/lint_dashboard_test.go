@@ -30,7 +30,7 @@ func TestUIState_Initialization(t *testing.T) {
 func TestViolationResultTableModel_Init(t *testing.T) {
 	model := &ViolationResultTableModel{}
 	cmd := model.Init()
-	assert.Nil(t, cmd)
+	assert.NotNil(t, cmd) // Init now returns a spinner tick command
 }
 
 func TestViolationResultTableModel_ToggleSplitView(t *testing.T) {
@@ -192,26 +192,26 @@ func TestGetRuleSeverity(t *testing.T) {
 		{
 			name:     "nil result",
 			result:   nil,
-			expected: "error",
+			expected: "✗ error",
 		},
 		{
 			name:     "nil rule",
 			result:   &model.RuleFunctionResult{},
-			expected: "error",
+			expected: "✗ error",
 		},
 		{
 			name: "error severity",
 			result: &model.RuleFunctionResult{
 				Rule: &model.Rule{Severity: "error"},
 			},
-			expected: "error",
+			expected: "✗ error",
 		},
 		{
 			name: "warn severity",
 			result: &model.RuleFunctionResult{
 				Rule: &model.Rule{Severity: "warn"},
 			},
-			expected: "warn",
+			expected: "▲ warning",
 		},
 	}
 
