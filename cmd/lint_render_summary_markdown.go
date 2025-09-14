@@ -163,43 +163,49 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 			buf.WriteString(fmt.Sprintf("### `%s` violations\n", cat.Name))
 			if len(catErrs) > 0 {
 				buf.WriteString(fmt.Sprintf("<details><summary>%s Errors: %s</summary>\n", errIcon, humanize.Comma(int64(len(catErrs)))))
-				var errData [][]string
 				for ruleId, count := range errorRuleMap {
 					if count > 0 {
 						buf.WriteString(fmt.Sprintf("%s %s : %d\n\n", errIcon, ruleId, count))
+						var errData [][]string
+						for _, v := range catErrs {
+							if v.Rule.Id == ruleId {
+								errData = append(errData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
+							}
+						}
+						buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, errData)))
 					}
-					for _, v := range catErrs {
-						errData = append(errData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
-					}
-					buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, errData)))
 				}
 				buf.WriteString(fmt.Sprint("</details>\n\n"))
 			}
 			if len(warn) > 0 {
-				var warnData [][]string
 				buf.WriteString(fmt.Sprintf("<details><summary>⚠️️ Warnings: %s</summary>\n", humanize.Comma(int64(len(warn)))))
 				for ruleId, count := range warnRuleMap {
 					if count > 0 {
 						buf.WriteString(fmt.Sprintf("⚠️️ %s: %d\n\n", ruleId, count))
+						var warnData [][]string
+						for _, v := range warn {
+							if v.Rule.Id == ruleId {
+								warnData = append(warnData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
+							}
+						}
+						buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, warnData)))
 					}
-					for _, v := range warn {
-						warnData = append(warnData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
-					}
-					buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, warnData)))
 				}
 				buf.WriteString(fmt.Sprint("</details>\n\n"))
 			}
 			if len(info) > 0 {
-				var infoData [][]string
 				buf.WriteString(fmt.Sprintf("<details><summary>ℹ️️ Informs: %s</summary>\n\n", humanize.Comma(int64(len(info)))))
 				for ruleId, count := range infoRuleMap {
 					if count > 0 {
 						buf.WriteString(fmt.Sprintf("ℹ️️ %s: %d\n", ruleId, count))
+						var infoData [][]string
+						for _, v := range info {
+							if v.Rule.Id == ruleId {
+								infoData = append(infoData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
+							}
+						}
+						buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, infoData)))
 					}
-					for _, v := range info {
-						infoData = append(infoData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
-					}
-					buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, infoData)))
 				}
 				buf.WriteString(fmt.Sprint("</details>\n\n"))
 			}
