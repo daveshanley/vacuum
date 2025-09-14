@@ -15,19 +15,33 @@ import (
 )
 
 var (
-	configFile string
-	Version    string
-	Commit     string
-	Date       string
+	configFile  string
+	versionInfo VersionInfo
 )
 
-func Execute(version, commit, date string) {
-	Version = version
-	Commit = commit
-	Date = date
+func init() {
+	versionInfo = GetVersionInfo()
+}
+
+func Execute() {
 	if err := GetRootCommand().Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// GetVersion returns the current version string for compatibility
+func GetVersion() string {
+	return versionInfo.Version
+}
+
+// GetCommit returns the current commit hash for compatibility
+func GetCommit() string {
+	return versionInfo.Commit
+}
+
+// GetDate returns the current build date for compatibility
+func GetDate() string {
+	return versionInfo.Date
 }
 
 func GetRootCommand() *cobra.Command {

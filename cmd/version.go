@@ -17,7 +17,7 @@ func GetGenerateVersionCommand() *cobra.Command {
 		Long:    "Prints out the current version of vacuum to the terminal",
 		Example: "vacuum version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(Version)
+			fmt.Println(GetVersion())
 		},
 	}
 	return cmd

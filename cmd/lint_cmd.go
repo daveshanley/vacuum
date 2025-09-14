@@ -348,12 +348,12 @@ func PrintBanner(noStyle ...bool) {
 
 	if skipColors {
 		fmt.Printf("%s\n", banner)
-		fmt.Printf(" version: %s | compiled: %s\n", Version, Date)
+		fmt.Printf(" version: %s | compiled: %s\n", GetVersion(), GetDate())
 		fmt.Printf(" https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum\n\n")
 	} else {
 		fmt.Printf(" %s%s%s\n", cui.ASCIIPink, banner, cui.ASCIIReset)
 		fmt.Printf(" %sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
-			cui.ASCIIGreenBold, Version, cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, Date, cui.ASCIIReset)
+			cui.ASCIIGreenBold, GetVersion(), cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, GetDate(), cui.ASCIIReset)
 		fmt.Printf("%s https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
 	}
 }
