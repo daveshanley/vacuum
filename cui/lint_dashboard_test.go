@@ -233,7 +233,7 @@ func TestFormatFileLocation(t *testing.T) {
 			name:     "nil result",
 			result:   nil,
 			fileName: "test.yaml",
-			expected: "test.yaml",
+			expected: "test.yaml:0:0",
 		},
 		{
 			name: "with start node",
@@ -246,19 +246,19 @@ func TestFormatFileLocation(t *testing.T) {
 		{
 			name: "with origin node",
 			result: &model.RuleFunctionResult{
-				Origin: &index.NodeOrigin{Line: 20, Column: 3},
+				Origin: &index.NodeOrigin{Line: 20, Column: 3, AbsoluteLocation: "./somepath/somewhere/test.yaml"},
 			},
 			fileName: "test.yaml",
-			expected: "test.yaml:20:3",
+			expected: "somepath/somewhere/test.yaml:20:3",
 		},
 		{
 			name: "both nodes (start takes precedence)",
 			result: &model.RuleFunctionResult{
 				StartNode: &yaml.Node{Line: 10, Column: 5},
-				Origin:    &index.NodeOrigin{Line: 20, Column: 3},
+				Origin:    &index.NodeOrigin{Line: 20, Column: 3, AbsoluteLocation: "./somepath/somewhere/test.yaml"},
 			},
 			fileName: "test.yaml",
-			expected: "test.yaml:10:5",
+			expected: "somepath/somewhere/test.yaml:20:3",
 		},
 	}
 

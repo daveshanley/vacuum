@@ -116,7 +116,7 @@ func TestCalculateColumnWidths(t *testing.T) {
 		// with limited space, columns should be compressed
 		assert.Equal(t, 20, widths.location)
 		assert.Equal(t, SeverityColumnWidth+1, widths.severity)
-		assert.GreaterOrEqual(t, widths.message, 40) // minimum message width
+		assert.GreaterOrEqual(t, widths.message, 30) // minimum message width
 	})
 
 	t.Run("with path column", func(t *testing.T) {

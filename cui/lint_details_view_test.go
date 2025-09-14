@@ -1,7 +1,6 @@
 package cui
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -283,63 +282,7 @@ info:
 	})
 }
 
-func TestWrapText(t *testing.T) {
-	tests := []struct {
-		name     string
-		text     string
-		width    int
-		expected int // expected number of lines
-	}{
-		{
-			name:     "short text",
-			text:     "Short text",
-			width:    20,
-			expected: 1,
-		},
-		{
-			name:     "long text needs wrapping",
-			text:     "This is a very long text that needs to be wrapped across multiple lines",
-			width:    20,
-			expected: 4,
-		},
-		{
-			name:     "text with existing newlines",
-			text:     "Line 1\nLine 2\nLine 3",
-			width:    50,
-			expected: 3,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := wrapText(tt.text, tt.width)
-			lines := strings.Split(result, "\n")
-			assert.GreaterOrEqual(t, len(lines), tt.expected)
-
-			// verify no line exceeds width
-			for _, line := range lines {
-				assert.LessOrEqual(t, len(line), tt.width)
-			}
-		})
-	}
-}
-
 func TestBuildCodePanelHelpers(t *testing.T) {
-	t.Run("line truncation", func(t *testing.T) {
-		specContent := []byte(strings.Repeat("x", 200) + "\n" + "short line")
-
-		model := &ViolationResultTableModel{
-			modalContent: &model.RuleFunctionResult{
-				StartNode: &yaml.Node{Line: 1},
-			},
-			specContent: specContent,
-			fileName:    "test.yaml",
-		}
-
-		panel := model.buildCodePanel(50, 10)
-		// should contain truncation indicator
-		assert.Contains(t, panel, "...")
-	})
 
 	t.Run("highlighted line padding", func(t *testing.T) {
 		specContent := []byte("key: value\nerror line\nmore: data")

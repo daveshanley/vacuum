@@ -26,7 +26,7 @@ func TestGetLintCommand_NoSpec(t *testing.T) {
 
 	// error message is printed to stderr, not stdout
 	// the actual error is returned
-	assert.Contains(t, err.Error(), "please supply an OpenAPI specification")
+	assert.Contains(t, err.Error(), "no file supplied")
 }
 
 func TestGetLintCommand_MissingSpec(t *testing.T) {
@@ -42,7 +42,6 @@ func TestGetLintCommand_MissingSpec(t *testing.T) {
 
 func TestGetLintCommand_WithRuleset(t *testing.T) {
 	cmd := GetLintCommand()
-	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -51,16 +50,12 @@ func TestGetLintCommand_WithRuleset(t *testing.T) {
 		"../model/test_files/burgershop.openapi.yaml",
 	})
 
-	// lint uses bubbletea which requires a TTY
-	// so we can't fully execute it in tests, but we can verify setup
 	err := cmd.Execute()
-	// will error due to no TTY, but that's expected
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetLintCommand_BadRuleset(t *testing.T) {
 	cmd := GetLintCommand()
-	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetErr(b)
@@ -72,13 +67,11 @@ func TestGetLintCommand_BadRuleset(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.Error(t, err)
-	// the error contains information about the missing ruleset
 	assert.NotNil(t, err)
 }
 
 func TestGetLintCommand_WithDetails(t *testing.T) {
 	cmd := GetLintCommand()
-	cmd.PersistentFlags().BoolP("details", "d", false, "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
@@ -86,24 +79,22 @@ func TestGetLintCommand_WithDetails(t *testing.T) {
 		"../model/test_files/burgershop.openapi.yaml",
 	})
 
-	// will error due to no TTY, but that's expected
 	err := cmd.Execute()
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetLintCommand_WithSnippets(t *testing.T) {
 	cmd := GetLintCommand()
-	cmd.PersistentFlags().BoolP("snippets", "n", false, "")
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
-		"-n",
+		"--snippets",
+		"-d",
 		"../model/test_files/burgershop.openapi.yaml",
 	})
 
-	// will error due to no TTY, but that's expected
 	err := cmd.Execute()
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetLintCommand_BadSpec(t *testing.T) {
@@ -125,10 +116,9 @@ func TestGetLintCommand_WithVacuumReport(t *testing.T) {
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
-		"../model/test_files/panda.vacuum.html.gz",
+		"../model/test_files/burgershop-report.json.gz",
 	})
 
-	// will error due to no TTY, but that's expected
 	err := cmd.Execute()
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
