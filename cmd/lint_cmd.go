@@ -261,11 +261,30 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
-		renderFixedDetails(resultSet.Results, specStringData, flags.SnippetsFlag, flags.ErrorsFlag,
-			flags.SilentFlag, flags.NoMessageFlag, flags.AllResultsFlag, flags.NoClipFlag, displayFileName, flags.NoStyleFlag)
+		renderFixedDetails(RenderDetailsOptions{
+			Results:    resultSet.Results,
+			SpecData:   specStringData,
+			Snippets:   flags.SnippetsFlag,
+			Errors:     flags.ErrorsFlag,
+			Silent:     flags.SilentFlag,
+			NoMessage:  flags.NoMessageFlag,
+			AllResults: flags.AllResultsFlag,
+			NoClip:     flags.NoClipFlag,
+			FileName:   displayFileName,
+			NoStyle:    flags.NoStyleFlag,
+		})
 	}
 
-	renderFixedSummary(resultSet, cats, stats, displayFileName, flags.SilentFlag, flags.NoStyleFlag, flags.PipelineOutput, flags.ShowRules)
+	renderFixedSummary(RenderSummaryOptions{
+		RuleResultSet:  resultSet,
+		RuleCategories: cats,
+		Statistics:     stats,
+		Filename:       displayFileName,
+		Silent:         flags.SilentFlag,
+		NoStyle:        flags.NoStyleFlag,
+		PipelineOutput: flags.PipelineOutput,
+		ShowRules:      flags.ShowRules,
+	})
 
 	// timing
 	duration := time.Since(start)
@@ -440,41 +459,43 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 }
 
 // createLogger creates a debug logger using slog with lipgloss formatting
-func createLogger(debugFlag bool) (*slog.Logger, *BufferedLogger) {
-	var bufferedLogger *BufferedLogger
+func createLogger(debugFlag bool) (*slog.Logger, *cui.BufferedLogger) {
+	var bufferedLogger *cui.BufferedLogger
 	if debugFlag {
-		bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelDebug)
+		bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelDebug)
 	} else {
-		bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
+		bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
 	}
 
-	handler := NewBufferedLogHandler(bufferedLogger)
+	handler := cui.NewBufferedLogHandler(bufferedLogger)
 
 	logger := slog.New(handler)
 
 	return logger, bufferedLogger
 }
 
-func renderFixedDetails(results []*model.RuleFunctionResult, specData []string,
-	snippets, errors, silent, noMessage, allResults, noClip bool,
-	fileName string, noStyle bool) {
-
-	printFileHeader(fileName, silent)
+func renderFixedDetails(opts RenderDetailsOptions) {
+	printFileHeader(opts.FileName, opts.Silent)
 
 	// calculate table configuration
-	config := calculateTableConfig(results, fileName, errors, noMessage, noClip, noStyle)
+	config := calculateTableConfig(opts.Results, opts.FileName, opts.Errors, opts.NoMessage, opts.NoClip, opts.NoStyle)
 
 	if config.UseTreeFormat {
-		renderTreeFormat(results, config, fileName, errors, allResults)
+		renderTreeFormat(opts.Results, config, opts.FileName, opts.Errors, opts.AllResults)
 		return
 	}
 
-	renderTableFormat(results, config, fileName, errors, allResults, snippets, specData)
+	renderTableFormat(opts.Results, config, opts.FileName, opts.Errors, opts.AllResults, opts.Snippets, opts.SpecData)
 }
 
-func renderFixedSummary(rs *model.RuleResultSet, cats []*model.RuleCategory,
-	stats *reports.ReportStatistics, fileName string, silent bool, noStyle bool,
-	pipelineOutput bool, showRules bool) {
+func renderFixedSummary(opts RenderSummaryOptions) {
+	rs := opts.RuleResultSet
+	cats := opts.RuleCategories
+	stats := opts.Statistics
+	fileName := opts.Filename
+	silent := opts.Silent
+	pipelineOutput := opts.PipelineOutput
+	showRules := opts.ShowRules
 
 	if silent {
 		return

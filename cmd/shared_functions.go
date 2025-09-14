@@ -14,14 +14,12 @@ import (
 
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -31,19 +29,6 @@ const (
 	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
 )
 
-// RenderSummaryOptions contains options for rendering summary output
-type RenderSummaryOptions struct {
-	RuleResultSet  *model.RuleResultSet
-	RuleSet        *rulesets.RuleSet
-	RuleCategories []*model.RuleCategory
-	TotalFiles     int
-	Severity       string
-	Filename       string
-	Silent         bool
-	PipelineOutput bool
-	ReportStats    *reports.ReportStatistics
-	RenderRules    bool
-}
 
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
@@ -58,8 +43,7 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 	// load in our user supplied ruleset and try to validate it.
 	userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
 	if userErr != nil {
-		pterm.Error.Printf("Unable to parse ruleset file: %s\n", userErr.Error())
-		pterm.Println()
+		cui.RenderErrorString("Unable to parse ruleset file: %s", userErr.Error())
 		return nil, userErr
 
 	}
@@ -115,29 +99,30 @@ func MergeOWASPRulesToRuleSet(selectedRS *rulesets.RuleSet, hardModeFlag bool) b
 // it will also render out how many files were processed.
 func RenderTimeAndFiles(timeFlag bool, duration time.Duration, fileSize int64, totalFiles int) {
 	if timeFlag {
-		pterm.Println()
+		fmt.Println()
 		l := "milliseconds"
 		d := fmt.Sprintf("%d", duration.Milliseconds())
 		if duration.Milliseconds() > 1000 {
 			l = "seconds"
 			d = humanize.FormatFloat("##.##", duration.Seconds())
 		}
-		pterm.Info.Println(fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
-			index.HumanFileSize(float64(fileSize)), totalFiles))
-		pterm.Println()
+		message := fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
+			index.HumanFileSize(float64(fileSize)), totalFiles)
+		cui.RenderStyledBox(message, cui.BoxTypeInfo, false)
 	}
 }
 
 // RenderTime will render out the time taken to process a specification, and the size of the file in kb.
 func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	if timeFlag {
-		pterm.Println()
+		fmt.Println()
+		var message string
 		if (fi / 1000) <= 1024 {
-			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi/1000))
+			message = fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi/1000)
 		} else {
-			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000))
+			message = fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000)
 		}
-		pterm.Println()
+		cui.RenderStyledBox(message, cui.BoxTypeInfo, false)
 	}
 }
 
@@ -147,20 +132,18 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 	if functionsFlag != "" {
 		pm, err := plugin.LoadFunctions(functionsFlag, silence)
 		if err != nil {
-			pterm.Error.Printf("Unable to open custom functions: %v\n", err)
-			pterm.Println()
+			cui.RenderError(err)
 			return nil, err
 		}
 
 		customFunctions := pm.GetCustomFunctions()
-		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
+		cui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
 
 		if !silence && len(customFunctions) > 0 {
-			pterm.Info.Println("Available custom functions:")
+			cui.RenderInfo("Available custom functions:")
 			for funcName := range customFunctions {
-				pterm.Printf("  - %s\n", pterm.LightCyan(funcName))
+				fmt.Printf("  - %s%s%s\n", cui.ASCIIBlue, funcName, cui.ASCIIReset)
 			}
-			pterm.Println()
 		}
 
 		return customFunctions, nil
@@ -171,9 +154,9 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 // PerformLinting executes linting with the given configuration - shared by dashboard and lint commands
 func PerformLinting(specBytes []byte, specFileName string, config LintExecutionConfig) (*LintResult, error) {
 	var logger *slog.Logger
-	var bufferedLogger *BufferedLogger
-	bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
-	handler := NewBufferedLogHandler(bufferedLogger)
+	var bufferedLogger *cui.BufferedLogger
+	bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
+	handler := cui.NewBufferedLogHandler(bufferedLogger)
 	logger = slog.New(handler)
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)

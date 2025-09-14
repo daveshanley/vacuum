@@ -15,7 +15,8 @@ import (
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
-	"github.com/pterm/pterm"
+
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
 	"net/http"
@@ -57,8 +58,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				cui.DisableColors()
 			}
 
 			if !stdIn && !stdOut {
@@ -68,8 +68,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// check for file args
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report, or use the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				cui.RenderErrorString(errText)
 				return errors.New(errText)
 			}
 
@@ -110,8 +109,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -144,10 +142,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				}
 
 				if !stdIn && !stdOut {
-					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed(HardModeEnabled))
-					pterm.Println()
+					cui.RenderStyledBox(HardModeEnabled, cui.BoxTypeHard, noStyleFlag)
 				}
 
 			}
@@ -171,7 +166,7 @@ func GetVacuumReportCommand() *cobra.Command {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
 					if clientErr != nil {
-						pterm.Error.Printf("Failed to create custom HTTP client: %s\n", clientErr.Error())
+						cui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
 						return clientErr
 					}
 				}
@@ -179,24 +174,20 @@ func GetVacuumReportCommand() *cobra.Command {
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
+					cui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 
 				// Merge OWASP rules if hard mode is enabled
 				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
 					if !stdIn && !stdOut {
-						box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-						box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-						box.Println(pterm.LightRed(HardModeWithCustomRuleset))
-						pterm.Println()
+						cui.RenderStyledBox(HardModeWithCustomRuleset, cui.BoxTypeHard, noStyleFlag)
 					}
 				}
 			}
 
 			if !stdIn && !stdOut {
-				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				cui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			deepGraph := false
@@ -243,13 +234,11 @@ func GetVacuumReportCommand() *cobra.Command {
 
 					err := os.WriteFile(reportOutputName, junitXML, 0664)
 					if err != nil {
-						pterm.Error.Printf("Unable to write junit report file: '%s': %s\n", reportOutputName, err.Error())
-						pterm.Println()
+						cui.RenderErrorString("Unable to write junit report file: '%s': %s", reportOutputName, err.Error())
 						return err
 					}
 
-					pterm.Success.Printf("JUnit Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
-					pterm.Println()
+					cui.RenderSuccess("JUnit Report generated for '%s', written to '%s'", args[0], reportOutputName)
 					return nil
 				}
 			}
@@ -333,19 +322,17 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			err = os.WriteFile(reportOutputName, reportData, 0664)
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, err.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to write report file: '%s': %s", reportOutputName, err.Error())
 				return err
 			}
 
 			if len(args) > 0 {
-				pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+				cui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutputName)
 				fi, _ := os.Stat(args[0])
 				RenderTime(timeFlag, duration, fi.Size())
 			} else {
-				pterm.Success.Printf("Report generated, written to '%s'\n", reportOutputName)
+				cui.RenderSuccess("Report generated, written to '%s'", reportOutputName)
 			}
-			pterm.Println()
 
 			if minScore > 10 {
 				// check overall-score is above the threshold

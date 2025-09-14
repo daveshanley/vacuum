@@ -6,17 +6,17 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+
+	"github.com/daveshanley/vacuum/cui"
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
-	"io"
-	"log/slog"
-	"net/http"
-	"os"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -30,9 +30,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// setup logging to be discarded, it will invalidate the LSP protocol
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Writer: io.Discard,
-			})
+			// use discard logger to prevent memory accumulation
+			bufferedLogger := cui.NewDiscardLogger()
+			handler := cui.NewBufferedLogHandler(bufferedLogger)
 			logger := slog.New(handler)
 
 			// extract flags

@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/pterm/pterm"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
@@ -213,8 +212,8 @@ rules:
 
 	defer os.Remove(tmp.Name())
 
+	// capture output for testing - no longer needed since we don't use pterm
 	b := bytes.NewBufferString("")
-	pterm.SetDefaultOutput(b)
 
 	cmd := GetVacuumReportCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")

@@ -108,9 +108,9 @@ func GetDashboardCommand() *cobra.Command {
 				specBytes = reportOrSpec.SpecBytes
 
 				var logger *slog.Logger
-				var bufferedLogger *BufferedLogger
-				bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
-				handler := NewBufferedLogHandler(bufferedLogger)
+				var bufferedLogger *cui.BufferedLogger
+				bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
+				handler := cui.NewBufferedLogHandler(bufferedLogger)
 				logger = slog.New(handler)
 
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)

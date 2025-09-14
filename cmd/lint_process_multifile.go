@@ -121,11 +121,11 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 		}
 
-		var bufferedLogger *BufferedLogger
+		var bufferedLogger *cui.BufferedLogger
 		if flags.DebugFlag {
-			bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelDebug)
+			bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelDebug)
 		} else {
-			bufferedLogger = NewBufferedLoggerWithLevel(cui.LogLevelError)
+			bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
 		}
 
 		processingConfig := &FileProcessingConfig{
@@ -214,13 +214,31 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					// get spec data for snippets
 					specBytes, _ := os.ReadFile(fr.fileName)
 					specStringData := strings.Split(string(specBytes), "\n")
-					renderFixedDetails(fr.results, specStringData, false, false, flags.SilentFlag,
-						false, false, false, fr.fileName, flags.NoStyleFlag)
+					renderFixedDetails(RenderDetailsOptions{
+						Results:    fr.results,
+						SpecData:   specStringData,
+						Snippets:   false,
+						Errors:     false,
+						Silent:     flags.SilentFlag,
+						NoMessage:  false,
+						AllResults: false,
+						NoClip:     false,
+						FileName:   fr.fileName,
+						NoStyle:    flags.NoStyleFlag,
+					})
 				}
 
 				resultSet := model.NewRuleResultSetPointer(fr.results)
-				renderFixedSummary(resultSet, model.RuleCategoriesOrdered, nil, fr.fileName, flags.SilentFlag,
-					flags.NoStyleFlag, flags.PipelineOutput, false)
+				renderFixedSummary(RenderSummaryOptions{
+					RuleResultSet:  resultSet,
+					RuleCategories: model.RuleCategoriesOrdered,
+					Statistics:     nil,
+					Filename:       fr.fileName,
+					Silent:         flags.SilentFlag,
+					NoStyle:        flags.NoStyleFlag,
+					PipelineOutput: flags.PipelineOutput,
+					ShowRules:      false,
+				})
 			}
 
 			// show logs if any with nice tree formatting

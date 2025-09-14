@@ -59,7 +59,7 @@ type LintFlags struct {
 type FileProcessingConfig struct {
 	Flags           *LintFlags
 	Logger          *slog.Logger
-	BufferedLogger  *BufferedLogger
+	BufferedLogger  *cui.BufferedLogger
 	SelectedRuleset *rulesets.RuleSet
 	CustomFunctions map[string]model.RuleFunction
 	IgnoredItems    model.IgnoredItems
@@ -240,7 +240,7 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 }
 
 // RenderBufferedLogs renders the buffered logs with proper formatting and spacing
-func RenderBufferedLogs(bufferedLogger *BufferedLogger, noStyle bool) {
+func RenderBufferedLogs(bufferedLogger *cui.BufferedLogger, noStyle bool) {
 	if bufferedLogger == nil {
 		return
 	}
@@ -271,7 +271,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	var logger *slog.Logger
-	var bufferedLogger *BufferedLogger
+	var bufferedLogger *cui.BufferedLogger
 
 	if config.Logger != nil {
 		logger = config.Logger
@@ -279,12 +279,12 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	} else if config.BufferedLogger != nil {
 		// Use the provided BufferedLogger
 		bufferedLogger = config.BufferedLogger
-		handler := NewBufferedLogHandler(bufferedLogger)
+		handler := cui.NewBufferedLogHandler(bufferedLogger)
 		logger = slog.New(handler)
 	} else {
 		// Create a new BufferedLogger
-		bufferedLogger = NewBufferedLogger()
-		handler := NewBufferedLogHandler(bufferedLogger)
+		bufferedLogger = cui.NewBufferedLogger()
+		handler := cui.NewBufferedLogHandler(bufferedLogger)
 		logger = slog.New(handler)
 	}
 

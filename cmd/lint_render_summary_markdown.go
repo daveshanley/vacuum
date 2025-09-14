@@ -11,7 +11,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
-	"github.com/pterm/pterm"
+	"github.com/daveshanley/vacuum/cui"
 )
 
 func RenderMarkdownSummary(rso RenderSummaryOptions) {
@@ -224,43 +224,37 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 		return
 	}
 
-	tableData := pterm.TableData{headers}
-	for _, row := range rows {
-		tableData = append(tableData, row)
-	}
-
-	if len(rs.Results) > 0 {
-		if !silent {
-			err := pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
-			if err != nil {
-				pterm.Error.Printf("error rendering table '%v'", err.Error())
+	// render console table if we have results and not silent
+	if len(rs.Results) > 0 && !silent {
+		markdownTable := cui.RenderMarkdownTable(headers, rows)
+		// convert markdown table to console display by removing markdown formatting
+		lines := strings.Split(markdownTable, "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				// simple console table display - remove markdown pipe formatting for cleaner look
+				consoleLine := strings.ReplaceAll(line, "|", " ")
+				consoleLine = strings.ReplaceAll(consoleLine, "-", "─")
+				fmt.Println(consoleLine)
 			}
 		}
+		fmt.Println()
 	}
 
-	errorHeader := pterm.HeaderPrinter{
-		TextStyle:       pterm.NewStyle(pterm.FgWhite),
-		BackgroundStyle: pterm.NewStyle(pterm.BgRed),
-		Margin:          10,
+	// helper function to render styled messages using our new renderers
+	renderError := func(msg string, args ...interface{}) {
+		cui.RenderErrorString(msg, args...)
 	}
-
-	successHeader := pterm.HeaderPrinter{
-		TextStyle:       pterm.NewStyle(pterm.FgBlack),
-		BackgroundStyle: pterm.NewStyle(pterm.BgGreen),
-		Margin:          10,
+	renderSuccess := func(msg string, args ...interface{}) {
+		cui.RenderSuccess(msg, args...)
 	}
-
-	warningHeader := pterm.HeaderPrinter{
-		TextStyle:       pterm.NewStyle(pterm.FgBlack),
-		BackgroundStyle: pterm.NewStyle(pterm.BgYellow),
-		Margin:          10,
+	renderWarning := func(msg string, args ...interface{}) {
+		cui.RenderWarning(msg, args...)
 	}
 
 	if totalFiles <= 1 {
 
 		if errs > 0 {
-			errorHeader.Printf(
-				"Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
+			renderError("Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
 			return
 		}
 		if warnings > 0 {
@@ -269,15 +263,12 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 			case model.SeverityWarn:
 				msg = "failed with"
 			}
-
-			warningHeader.Printf(
-				"Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
+			renderWarning("Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
 			return
 		}
 
 		if informs > 0 {
-			successHeader.Printf(
-				"Linting passed, %v informs reported", informsHuman)
+			renderSuccess("Linting passed, %v informs reported", informsHuman)
 			return
 		}
 
@@ -285,36 +276,25 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 			return
 		}
 
-		successHeader.Println(
-			"Linting passed, A perfect score! well done!")
+		renderSuccess("Linting passed, A perfect score! well done!")
 
 	} else {
 
 		if errs > 0 {
-			pterm.Error.Printf("'%s' failed with %v errors, %v warnings and %v informs\n\n",
-				filename, errorsHuman, warningsHuman, informsHuman)
-			pterm.Println()
+			renderError("'%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
 			return
 		}
 		if warnings > 0 {
-			pterm.Warning.Printf(
-				"'%s' passed, but with %v warnings and %v informs\n\n", filename, warningsHuman, informsHuman)
-			pterm.Println()
+			renderWarning("'%s' passed, but with %v warnings and %v informs", filename, warningsHuman, informsHuman)
 			return
 		}
 
 		if informs > 0 {
-
-			successHeader.Printf(
-				"'%s' passed, %v informs reported\n\n", filename, informsHuman)
-
-			pterm.Println()
+			renderSuccess("'%s' passed, %v informs reported", filename, informsHuman)
 			return
 		}
 
-		successHeader.Printf(
-			"'%s' passed, A perfect score! well done!\n\n", filename)
-		pterm.Println()
+		renderSuccess("'%s' passed, A perfect score! well done!", filename)
 
 	}
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -38,16 +38,16 @@ func GetRootCommand() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := useConfigFile(cmd)
 			if err != nil {
-				pterm.Error.Printf("%s", err)
+				cui.RenderError(err)
 			}
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			PrintBanner()
-			pterm.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
-			pterm.Println()
-			pterm.Println("To see all the options, try 'vacuum --help'")
-			pterm.Println()
+			fmt.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
+			fmt.Println()
+			fmt.Println("To see all the options, try 'vacuum --help'")
+			fmt.Println()
 			return nil
 		},
 	}

@@ -7,20 +7,21 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"text/template"
+	"time"
+
 	"github.com/alecthomas/chroma/v2"
 	html_format "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/pterm/pterm"
-	"sort"
-	"strings"
-	"text/template"
-	"time"
 )
 
 //go:embed templates/report-template.gohtml
@@ -222,9 +223,7 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 	if len(specStringData) <= 2 {
 		// to prevent chroma from failing to render, we need to ensure the spec was not
 		// minimized, because we have less than 2 lines of code, it means there are no line breaks
-		pterm.Println()
-		pterm.Warning.Println("Specification was minified (compressed onto a single line), code snippets will not be rendered in the report.")
-		pterm.Println()
+		cui.RenderWarning("Specification was minified (compressed onto a single line), code snippets will not be rendered in the report.")
 		html.disableSnippets = true
 	}
 

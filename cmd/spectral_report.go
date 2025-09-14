@@ -12,7 +12,8 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
+
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
 	"net/http"
@@ -57,8 +58,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				cui.DisableColors()
 			}
 
 			if !stdIn && !stdOut {
@@ -69,8 +69,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a spectral report, or use " +
 					"the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				cui.RenderErrorString(errText)
 				return errors.New(errText)
 			}
 
@@ -107,8 +106,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -143,10 +141,7 @@ func GetSpectralReportCommand() *cobra.Command {
 					allRules[k] = v
 				}
 				if !stdIn && !stdOut {
-					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed(HardModeEnabled))
-					pterm.Println()
+					cui.RenderStyledBox(HardModeEnabled, cui.BoxTypeHard, noStyleFlag)
 				}
 
 			}
@@ -169,7 +164,7 @@ func GetSpectralReportCommand() *cobra.Command {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
 					if clientErr != nil {
-						pterm.Error.Printf("Failed to create custom HTTP client: %s\n", clientErr.Error())
+						cui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
 						return clientErr
 					}
 				}
@@ -177,24 +172,20 @@ func GetSpectralReportCommand() *cobra.Command {
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to load ruleset '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
+					cui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 
 				// Merge OWASP rules if hard mode is enabled
 				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
 					if !stdIn && !stdOut {
-						box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-						box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-						box.Println(pterm.LightRed(HardModeWithCustomRuleset))
-						pterm.Println()
+						cui.RenderStyledBox(HardModeWithCustomRuleset, cui.BoxTypeHard, noStyleFlag)
 					}
 				}
 			}
 
 			if !stdIn && !stdOut {
-				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				cui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -254,13 +245,11 @@ func GetSpectralReportCommand() *cobra.Command {
 			err := os.WriteFile(reportOutput, data, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to write report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			cui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())

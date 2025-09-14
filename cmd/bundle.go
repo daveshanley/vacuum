@@ -15,7 +15,8 @@ import (
 
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/pterm/pterm"
+
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/spf13/cobra"
 )
 
@@ -48,8 +49,7 @@ func GetBundleCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				cui.DisableColors()
 			}
 
 			if !stdIn && !stdOut {
@@ -58,20 +58,18 @@ func GetBundleCommand() *cobra.Command {
 
 			if !stdIn && len(args) == 0 {
 				errText := "please supply input (unbundled) OpenAPI document, or use the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
-				pterm.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
-				pterm.Println()
+				cui.RenderErrorString(errText)
+				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
+				fmt.Println()
 				return errors.New(errText)
 			}
 
 			// check for file args
 			if !stdOut && len(args) == 1 {
 				errText := "please supply output (bundled) OpenAPI document, or use the -o flag to use stdout"
-				pterm.Error.Println(errText)
-				pterm.Println()
-				pterm.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
-				pterm.Println()
+				cui.RenderErrorString(errText)
+				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
+				fmt.Println()
 				return errors.New(errText)
 			}
 
@@ -91,8 +89,7 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 			if baseFlag == "" {
@@ -100,18 +97,8 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			// setup logging
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Formatter: pterm.LogFormatterColorful,
-				Writer:    os.Stdout,
-				Level:     pterm.LogLevelWarn,
-				ShowTime:  false,
-				MaxWidth:  280,
-				KeyStyles: map[string]pterm.Style{
-					"error":  *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"err":    *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"caller": *pterm.NewStyle(pterm.FgGray, pterm.Bold),
-				},
-			})
+			bufferedLogger := cui.NewBufferedLoggerWithLevel(cui.LogLevelWarn)
+			handler := cui.NewBufferedLogHandler(bufferedLogger)
 			logger := slog.New(handler)
 			docConfig := &datamodel.DocumentConfiguration{
 				BasePath:                baseFlag,
@@ -132,8 +119,12 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if err != nil {
-				pterm.Error.Printf("Bundling had errors: %s\n", err.Error())
-				pterm.Println()
+				cui.RenderError(err)
+				// render any buffered logs
+				logOutput := bufferedLogger.RenderTree(noStyleFlag)
+				if logOutput != "" {
+					fmt.Print(logOutput)
+				}
 				if bundled == nil {
 					return err
 				}
@@ -147,13 +138,11 @@ func GetBundleCommand() *cobra.Command {
 			err = os.WriteFile(args[1], bundled, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write bundled file: '%s': %s\n", args[1], err.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to write bundled file: '%s': %s", args[1], err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("Bundled OpenAPI document written to '%s'\n", args[1])
-			pterm.Println()
+			cui.RenderSuccess("Bundled OpenAPI document written to '%s'", args[1])
 
 			return nil
 		},

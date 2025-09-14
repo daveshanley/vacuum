@@ -1,7 +1,7 @@
 // Copyright 2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // SPDX-License-Identifier: MIT
 
-package cmd
+package cui
 
 import (
 	"context"
@@ -13,95 +13,114 @@ import (
 
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/lipgloss/v2/tree"
-	"github.com/daveshanley/vacuum/cui"
 )
 
-// LogEntry represents a structured log entry
 type LogEntry struct {
 	Level   string
 	Message string
 	Fields  map[string]interface{}
 }
 
-// BufferedLogger collects log entries for later rendering
 type BufferedLogger struct {
-	mu       sync.Mutex
-	entries  []LogEntry
-	logLevel string // Minimum log level to display
+	mu         sync.Mutex
+	entries    []LogEntry
+	logLevel   string
+	maxEntries int  // maximum entries to keep, 0 = unlimited
+	discardLog bool // if true, don't store entries at all
 }
 
-// NewBufferedLogger creates a new buffered logger
 func NewBufferedLogger() *BufferedLogger {
 	return &BufferedLogger{
-		entries:  make([]LogEntry, 0),
-		logLevel: cui.LogLevelError, // Default to error level
+		entries:    make([]LogEntry, 0),
+		logLevel:   LogLevelError,
+		maxEntries: 0, // unlimited by default
 	}
 }
 
-// NewBufferedLoggerWithLevel creates a new buffered logger with a specific log level
 func NewBufferedLoggerWithLevel(level string) *BufferedLogger {
 	return &BufferedLogger{
-		entries:  make([]LogEntry, 0),
-		logLevel: level,
+		entries:    make([]LogEntry, 0),
+		logLevel:   level,
+		maxEntries: 0,
 	}
 }
 
-// SetLogLevel sets the minimum log level to display
+// NewDiscardLogger creates a logger that discards all entries (for LSP)
+func NewDiscardLogger() *BufferedLogger {
+	return &BufferedLogger{
+		entries:    make([]LogEntry, 0),
+		logLevel:   LogLevelError,
+		maxEntries: 0,
+		discardLog: true,
+	}
+}
+
 func (l *BufferedLogger) SetLogLevel(level string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.logLevel = level
 }
 
-// getSeverityPriority returns a priority value for log levels (lower = more severe)
+// SetMaxEntries sets the maximum number of entries to keep (0 = unlimited)
+// when the limit is reached, oldest entries are removed
+func (l *BufferedLogger) SetMaxEntries(max int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.maxEntries = max
+	// trim existing entries if needed
+	if max > 0 && len(l.entries) > max {
+		l.entries = l.entries[len(l.entries)-max:]
+	}
+}
+
+// SetDiscardMode sets whether to discard all log entries (useful for LSP)
+func (l *BufferedLogger) SetDiscardMode(discard bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.discardLog = discard
+	if discard {
+		l.entries = l.entries[:0] // clear existing entries
+	}
+}
+
 func getSeverityPriority(level string) int {
 	switch level {
-	case cui.LogLevelError:
+	case LogLevelError:
 		return 1
-	case cui.LogLevelWarn:
+	case LogLevelWarn:
 		return 2
-	case cui.LogLevelInfo:
+	case LogLevelInfo:
 		return 3
-	case cui.LogLevelDebug:
+	case LogLevelDebug:
 		return 4
 	default:
 		return 5
 	}
 }
 
-// shouldLog determines if a log entry should be stored based on severity
 func (l *BufferedLogger) shouldLog(level string) bool {
-	// Get priorities (lower number = more severe)
 	entryPriority := getSeverityPriority(level)
 	configuredPriority := getSeverityPriority(l.logLevel)
-	
-	// Log if entry severity is equal or more severe than configured level
 	return entryPriority <= configuredPriority
 }
 
-// Error logs an error level message
 func (l *BufferedLogger) Error(msg string, fields ...interface{}) {
-	l.log(cui.LogLevelError, msg, fields...)
+	l.log(LogLevelError, msg, fields...)
 }
 
-// Warn logs a warning level message
 func (l *BufferedLogger) Warn(msg string, fields ...interface{}) {
-	l.log(cui.LogLevelWarn, msg, fields...)
+	l.log(LogLevelWarn, msg, fields...)
 }
 
-// Info logs an info level message
 func (l *BufferedLogger) Info(msg string, fields ...interface{}) {
-	l.log(cui.LogLevelInfo, msg, fields...)
+	l.log(LogLevelInfo, msg, fields...)
 }
 
-// Debug logs a debug level message
 func (l *BufferedLogger) Debug(msg string, fields ...interface{}) {
-	l.log(cui.LogLevelDebug, msg, fields...)
+	l.log(LogLevelDebug, msg, fields...)
 }
 
-// log is the internal logging method
 func (l *BufferedLogger) log(level, msg string, fields ...interface{}) {
-	// Check if we should log this based on severity
 	if !l.shouldLog(level) {
 		return
 	}
@@ -109,13 +128,18 @@ func (l *BufferedLogger) log(level, msg string, fields ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	// if in discard mode, don't store anything
+	if l.discardLog {
+		return
+	}
+
 	entry := LogEntry{
 		Level:   level,
 		Message: msg,
 		Fields:  make(map[string]interface{}),
 	}
 
-	// Parse fields as key-value pairs
+	// parse fields as key-value pairs
 	for i := 0; i < len(fields); i += 2 {
 		if i+1 < len(fields) {
 			if key, ok := fields[i].(string); ok {
@@ -125,23 +149,26 @@ func (l *BufferedLogger) log(level, msg string, fields ...interface{}) {
 	}
 
 	l.entries = append(l.entries, entry)
+
+	// enforce max entries limit using ring buffer approach
+	if l.maxEntries > 0 && len(l.entries) > l.maxEntries {
+		// remove oldest entry by shifting slice
+		l.entries = l.entries[1:]
+	}
 }
 
-// GetEntries returns all collected log entries
 func (l *BufferedLogger) GetEntries() []LogEntry {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.entries
 }
 
-// Clear removes all log entries
 func (l *BufferedLogger) Clear() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.entries = l.entries[:0]
 }
 
-// RenderTree renders all log entries as a tree structure using lipgloss v2
 func (l *BufferedLogger) RenderTree(noStyle bool) string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -152,11 +179,10 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 
 	var output strings.Builder
 
-	// Define styles for tree rendering
-	errorText := lipgloss.NewStyle().Foreground(cui.RGBRed)
-	debugText := lipgloss.NewStyle().Foreground(cui.RGBGrey)
-	treeStyleOriginal := lipgloss.NewStyle().Foreground(cui.RGBPink)
-	keyStyleOriginal := lipgloss.NewStyle().Bold(true).Foreground(cui.RGBBlue) // blue bold for keys
+	errorText := lipgloss.NewStyle().Foreground(RGBRed)
+	debugText := lipgloss.NewStyle().Foreground(RGBGrey)
+	treeStyleOriginal := lipgloss.NewStyle().Foreground(RGBPink)
+	keyStyleOriginal := lipgloss.NewStyle().Bold(true).Foreground(RGBBlue)
 
 	keyStyle := keyStyleOriginal
 	treeStyle := treeStyleOriginal
@@ -166,57 +192,49 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 		severityPrefix, severityColor := getLogSeverityInfo(entry.Level)
 
 		switch entry.Level {
-		case cui.LogLevelError:
+		case LogLevelError:
 			keyStyle = lipgloss.NewStyle().Bold(true).
 				Foreground(lipgloss.Color(severityColor))
 			treeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(severityColor))
 
-		case cui.LogLevelInfo:
-		case cui.LogLevelWarn:
+		case LogLevelInfo:
+		case LogLevelWarn:
 			keyStyle = lipgloss.NewStyle().Bold(true).
 				Foreground(lipgloss.Color(severityColor))
 			treeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(severityColor))
-		case cui.LogLevelDebug:
+		case LogLevelDebug:
 			keyStyle = lipgloss.NewStyle().Bold(true).
-				Foreground(cui.RGBGrey)
-			treeStyle = lipgloss.NewStyle().Foreground(cui.RGBGrey)
+				Foreground(RGBGrey)
+			treeStyle = lipgloss.NewStyle().Foreground(RGBGrey)
 		}
 
-		// Create the main message with severity
 		var mainMsg string
 		if noStyle {
 			mainMsg = fmt.Sprintf("%s %s", severityPrefix, entry.Message)
 		} else {
 			severityStyle := lipgloss.NewStyle().
 				Background(lipgloss.Color(severityColor)).
-				Foreground(cui.RGBBlack).
+				Foreground(RGBBlack).
 				Bold(true)
 
-			// split the severity prefix and message with a space
 			severityPrefix = severityStyle.Render(fmt.Sprintf(" %s ", severityPrefix))
 
-			m := cui.ColorizeLogMessage(entry.Message, entry.Level)
+			m := ColorizeLogMessage(entry.Message, entry.Level)
 			mainMsg = fmt.Sprintf("%s %s", severityPrefix, m)
 		}
 		output.WriteString(mainMsg + "\n")
 
-		// Create tree for fields if present
 		if len(entry.Fields) > 0 {
-			// Build tree nodes for fields
 			var nodes []any
 
 			for key, value := range entry.Fields {
-				// Use reflection to check if value is a slice/array
 				rv := reflect.ValueOf(value)
 
 				if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
-					// Handle slices/arrays
 					if rv.Len() > 0 {
-						// Create a node with the key and sub-items
 						var subNodes []any
 						for i := 0; i < rv.Len(); i++ {
 							item := rv.Index(i).Interface()
-							// Convert item to string
 							var itemStr string
 							switch v := item.(type) {
 							case error:
@@ -240,7 +258,6 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 
 						nodes = append(nodes, tree.Root(keyNode).Child(subNodes...))
 					} else {
-						// Empty array
 						var fieldNode string
 						if noStyle {
 							fieldNode = fmt.Sprintf(" %s: []", key)
@@ -250,7 +267,6 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 						nodes = append(nodes, fieldNode)
 					}
 				} else {
-					// Regular single value field
 					var valueStr string
 					switch v := value.(type) {
 					case error:
@@ -266,10 +282,10 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 						fieldNode = fmt.Sprintf(" %s: %s", key, valueStr)
 					} else {
 						fieldNode = fmt.Sprintf(" %s: %s", keyStyle.Render(key), valueStr)
-						if entry.Level == cui.LogLevelError {
+						if entry.Level == LogLevelError {
 							fieldNode = fmt.Sprintf(" %s: %s", keyStyle.Render(key), errorText.Render(valueStr))
 						}
-						if entry.Level == cui.LogLevelDebug {
+						if entry.Level == LogLevelDebug {
 							fieldNode = fmt.Sprintf(" %s: %s", keyStyle.Render(key), debugText.Render(valueStr))
 						}
 					}
@@ -277,13 +293,11 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 				}
 			}
 
-			// Create and render the tree
 			t := tree.New().Child(nodes...)
 			if !noStyle {
 				t = t.EnumeratorStyle(treeStyle)
 			}
 
-			// Add indentation for the tree
 			treeOutput := t.String()
 			lines := strings.Split(treeOutput, "\n")
 			for _, line := range lines {
@@ -293,7 +307,6 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 			}
 		}
 
-		// Add spacing between entries except for the last one
 		if i < len(l.entries)-1 {
 			output.WriteString("\n")
 		}
@@ -302,76 +315,62 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 	return output.String()
 }
 
-// getLogSeverityInfo returns the prefix and color code for a log severity level
 func getLogSeverityInfo(level string) (string, string) {
 	switch level {
-	case cui.LogLevelError:
-		return "ERR", "196" // red
-	case cui.LogLevelWarn:
-		return "WRN", "220" // yellow
-	case cui.LogLevelInfo:
-		return "INF", "39" // blue
-	case cui.LogLevelDebug:
-		return "DEV", "244" // grey
+	case LogLevelError:
+		return "ERR", "196"
+	case LogLevelWarn:
+		return "WRN", "220"
+	case LogLevelInfo:
+		return "INF", "39"
+	case LogLevelDebug:
+		return "DEV", "244"
 	default:
-		return "•", "15" // white
+		return "•", "15"
 	}
 }
 
-// BufferedLogHandler implements slog.Handler interface for BufferedLogger
 type BufferedLogHandler struct {
 	logger *BufferedLogger
 }
 
-// NewBufferedLogHandler creates a new slog.Handler that writes to BufferedLogger
 func NewBufferedLogHandler(logger *BufferedLogger) *BufferedLogHandler {
 	return &BufferedLogHandler{logger: logger}
 }
 
-// Enabled reports whether the handler handles records at the given level
 func (h *BufferedLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return true // Accept all levels, we'll filter later if needed
+	return true
 }
 
-// Handle handles the Record
 func (h *BufferedLogHandler) Handle(ctx context.Context, record slog.Record) error {
-	// Convert slog level to our level
 	var level string
 	switch record.Level {
 	case slog.LevelError:
-		level = cui.LogLevelError
+		level = LogLevelError
 	case slog.LevelWarn:
-		level = cui.LogLevelWarn
+		level = LogLevelWarn
 	case slog.LevelInfo:
-		level = cui.LogLevelInfo
+		level = LogLevelInfo
 	case slog.LevelDebug:
-		level = cui.LogLevelDebug
+		level = LogLevelDebug
 	default:
-		level = cui.LogLevelInfo
+		level = LogLevelInfo
 	}
 
-	// Collect attributes
 	var fields []interface{}
 	record.Attrs(func(attr slog.Attr) bool {
 		fields = append(fields, attr.Key, attr.Value.Any())
 		return true
 	})
 
-	// Log to our buffered logger
 	h.logger.log(level, record.Message, fields...)
 	return nil
 }
 
-// WithAttrs returns a new Handler with attributes
 func (h *BufferedLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	// For simplicity, return the same handler
-	// In a full implementation, you'd store and merge attributes
 	return h
 }
 
-// WithGroup returns a new Handler with a group name
 func (h *BufferedLogHandler) WithGroup(name string) slog.Handler {
-	// For simplicity, return the same handler
-	// In a full implementation, you'd handle grouping
 	return h
 }

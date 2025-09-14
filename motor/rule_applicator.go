@@ -14,7 +14,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,7 +29,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/pterm/pterm"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -173,20 +171,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				Level: slog.LevelError,
 			}))
 		} else {
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Formatter: pterm.LogFormatterColorful,
-				Writer:    os.Stdout,
-				Level:     pterm.LogLevelError,
-				ShowTime:  false,
-				MaxWidth:  280,
-				KeyStyles: map[string]pterm.Style{
-					"error":  *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"err":    *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"caller": *pterm.NewStyle(pterm.FgGray, pterm.Bold),
-				},
-			})
-			logger = slog.New(handler)
-			pterm.DefaultLogger.Level = pterm.LogLevelError
+			// use simple logger that discards output for internal motor operations
+			logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 		}
 		docConfig.Logger = logger
 		indexConfig.Logger = logger
@@ -977,7 +963,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
 			if !ctx.silenceLogs {
-				pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
+				fmt.Printf("⚠️  Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
 			}
 			return ctx.ruleResults
 		}
@@ -1051,10 +1037,10 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 
 			if len(availableCustomFuncs) > 0 {
-				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. Available custom functions: %v\n",
+				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. Available custom functions: %v\n",
 					ctx.rule.Id, ruleAction.Function, availableCustomFuncs)
 			} else {
-				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n",
+				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n",
 					ctx.rule.Id, ruleAction.Function)
 			}
 		}

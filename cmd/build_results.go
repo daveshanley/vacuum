@@ -7,7 +7,8 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
+
+	"github.com/daveshanley/vacuum/cui"
 	"net/http"
 	"os"
 	"strings"
@@ -58,10 +59,7 @@ func BuildResultsWithDocCheckSkip(
 			allRules[k] = v
 		}
 		if !silent {
-			box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-			box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-			box.Println(pterm.LightRed(HardModeEnabled))
-			pterm.Println()
+			cui.RenderStyledBox(HardModeEnabled, cui.BoxTypeHard, false)
 		}
 	}
 
@@ -105,15 +103,12 @@ func BuildResultsWithDocCheckSkip(
 		// Merge OWASP rules if hard mode is enabled
 		if MergeOWASPRulesToRuleSet(selectedRS, hardMode) {
 			if !silent {
-				box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-				box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-				box.Println(pterm.LightRed(HardModeWithCustomRuleset))
-				pterm.Println()
+				cui.RenderStyledBox(HardModeWithCustomRuleset, cui.BoxTypeHard, false)
 			}
 		}
 	}
 
-	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+	cui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           selectedRS,

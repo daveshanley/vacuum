@@ -15,7 +15,8 @@ import (
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
+
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
 	"os"
@@ -56,8 +57,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				cui.DisableColors()
 			}
 
 			PrintBanner()
@@ -65,8 +65,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				cui.RenderErrorString(errText)
 				return errors.New(errText)
 			}
 
@@ -83,7 +82,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 			if len(specBytes) <= 0 {
-				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
+				cui.RenderErrorString("Failed to read specification: %v", args[0])
 				return err
 			}
 
@@ -127,7 +126,7 @@ func GetHTMLReportCommand() *cobra.Command {
 						Insecure: insecure,
 					}, ignoredItems)
 				if err != nil {
-					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
+					cui.RenderError(err)
 					return err
 				}
 				specIndex = ruleset.Index
@@ -217,13 +216,11 @@ func GetHTMLReportCommand() *cobra.Command {
 			err = os.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				cui.RenderErrorString("Unable to write HTML report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("HTML Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			cui.RenderSuccess("HTML Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())
