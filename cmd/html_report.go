@@ -143,6 +143,66 @@ func GetHTMLReportCommand() *cobra.Command {
 				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 				specInfo = vacuumReport.SpecInfo
 				stats = vacuumReport.Statistics
+
+				// Recalculate error/warning/info counts and score after filtering
+				if stats != nil && len(ignoredItems) > 0 {
+					stats.TotalErrors = resultSet.GetErrorCount()
+					stats.TotalWarnings = resultSet.GetWarnCount()
+					stats.TotalInfo = resultSet.GetInfoCount()
+
+					// Recalculate category statistics
+					var catStats []*reports.CategoryStatistic
+					for _, cat := range model.RuleCategoriesOrdered {
+						var numIssues, numWarnings, numErrors, numInfo, numHints int
+						numIssues = len(resultSet.GetResultsByRuleCategory(cat.Id))
+						numWarnings = len(resultSet.GetWarningsByRuleCategory(cat.Id))
+						numErrors = len(resultSet.GetErrorsByRuleCategory(cat.Id))
+						numInfo = len(resultSet.GetInfoByRuleCategory(cat.Id))
+						numHints = len(resultSet.GetHintByRuleCategory(cat.Id))
+						numResults := len(resultSet.Results)
+						var score int
+						if numResults == 0 && numIssues == 0 {
+							score = 100 // perfect
+						} else {
+							score = numIssues / numResults * 100
+						}
+						catStats = append(catStats, &reports.CategoryStatistic{
+							CategoryName: cat.Name,
+							CategoryId:   cat.Id,
+							NumIssues:    numIssues,
+							Warnings:     numWarnings,
+							Errors:       numErrors,
+							Info:         numInfo,
+							Hints:        numHints,
+							Score:        score,
+						})
+					}
+					stats.CategoryStatistics = catStats
+
+					// Recalculate overall score
+					total := 100.0
+					score := total - float64(resultSet.GetInfoCount())*0.1
+					score = score - (0.4 * float64(resultSet.GetWarnCount()))
+					score = score - (15.0 * float64(resultSet.GetErrorCount()))
+
+					if resultSet.GetErrorCount() <= 0 && score < 0 {
+						score = 25.0
+					}
+
+					// Check for oas3-schema violations
+					for _, result := range resultSet.Results {
+						if result.Rule != nil && result.Rule.Id == "oas3-schema" {
+							score = score - 90
+						}
+					}
+
+					if score < 0 {
+						score = 10
+					}
+
+					stats.OverallScore = int(score)
+				}
+
 				specInfo.Generated = vacuumReport.Generated
 			}
 
