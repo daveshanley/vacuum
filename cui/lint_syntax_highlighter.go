@@ -120,23 +120,23 @@ func HighlightJSONLine(line string) string {
 			keyPart := content[keyStart : idx+2] // includes quotes and colon
 			valuePart := content[idx+2:]         // everything after colon
 
-			// Style key blue, leave value unstyled, handle curly brackets in beforeKey and valuePart
-			beforeKeyStyled := styleCurlyBrackets(beforeKey)
+			// Style key blue, leave value unstyled, handle brackets in beforeKey and valuePart
+			beforeKeyStyled := styleBrackets(beforeKey)
 			keyStyled := syntaxKeyStyle.Render(keyPart)
-			valuePartStyled := styleCurlyBrackets(valuePart)
+			valuePartStyled := styleBrackets(valuePart)
 
 			styledContent := beforeKeyStyled + keyStyled + valuePartStyled
 			return leadingWhitespace + styledContent + trailingWhitespace
 		}
 	}
 
-	// No key-value pattern, just handle curly brackets
-	styledContent := styleCurlyBrackets(content)
+	// No key-value pattern, just handle brackets
+	styledContent := styleBrackets(content)
 	return leadingWhitespace + styledContent + trailingWhitespace
 }
 
-// styleCurlyBrackets styles { and } characters in pink while leaving everything else unstyled
-func styleCurlyBrackets(text string) string {
+// styleBrackets styles { } characters in pink and [ ] characters in yellow while leaving everything else unstyled
+func styleBrackets(text string) string {
 	if text == "" {
 		return text
 	}
@@ -146,6 +146,9 @@ func styleCurlyBrackets(text string) string {
 		if r == '{' || r == '}' {
 			// Style curly brackets pink (using syntaxDashStyle which is pink)
 			result.WriteString(syntaxDashStyle.Render(string(r)))
+		} else if r == '[' || r == ']' {
+			// Style square brackets yellow (using syntaxNumberStyle which is yellow)
+			result.WriteString(syntaxNumberStyle.Render(string(r)))
 		} else {
 			// Leave everything else unstyled
 			result.WriteRune(r)
