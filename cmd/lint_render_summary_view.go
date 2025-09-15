@@ -373,11 +373,13 @@ func createResultBoxStyle(foreground, background color.Color) lipgloss.Style {
 func renderResultBox(errors, warnings, informs int) {
 	if cui.AreColorsDisabled() {
 		if errors > 0 {
-			fmt.Printf(" | \u2717 Failed with %d errors, %d warnings and %d informs.\n", errors, warnings, informs)
+			fmt.Printf(" | \u2717 Failed with %s errors, %s warnings and %s informs.\n",
+				humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
 		} else if warnings > 0 {
-			fmt.Printf(" | \u25B2 Passed, but with %d warnings and %d informs.\n", warnings, informs)
+			fmt.Printf(" | \u25B2 Passed, but with %s warnings and %s informs.\n",
+				humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
 		} else if informs > 0 {
-			fmt.Printf(" | \u25CF Passed, with %d informs.\n", informs)
+			fmt.Printf(" | \u25CF Passed, with %s informs.\n", humanize.Comma(int64(informs)))
 		} else {
 			fmt.Println(" | \u2713 A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!")
 		}
@@ -388,15 +390,17 @@ func renderResultBox(errors, warnings, informs int) {
 	messageStyle := lipgloss.NewStyle().Padding(1, 1)
 
 	if errors > 0 {
-		message := fmt.Sprintf("\u2717 Failed with %d errors, %d warnings and %d informs.", errors, warnings, informs)
+		message := fmt.Sprintf("\u2717 Failed with %s errors, %s warnings and %s informs.",
+			humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
 		style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if warnings > 0 {
-		message := fmt.Sprintf("\u25B2 Passed, but with %d warnings and %d informs.", warnings, informs)
+		message := fmt.Sprintf("\u25B2 Passed, but with %s warnings and %s informs.",
+			humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
 		style := createResultBoxStyle(cui.RBGYellow, cui.RGBDarkYellow)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if informs > 0 {
-		message := fmt.Sprintf("\u25CF Passed, with %d informs.", informs)
+		message := fmt.Sprintf("\u25CF Passed, with %s informs.", humanize.Comma(int64(informs)))
 		style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else {
