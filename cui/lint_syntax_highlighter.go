@@ -28,17 +28,35 @@ func HighlightYAMLKeyValue(line string) (string, bool) {
 		return "", false
 	}
 
-	// TEST: Style the entire line blue, but only the actual text content
-	// Trim trailing whitespace and newlines to get the actual text boundary
+	// Find leading whitespace
+	leadingWhitespace := ""
+	contentStart := 0
+	for i, r := range line {
+		if r != ' ' && r != '\t' {
+			leadingWhitespace = line[:i]
+			contentStart = i
+			break
+		}
+	}
+
+	// Find trailing whitespace
 	trimmedLine := strings.TrimRight(line, " \t\r\n")
-
-	// Style only the trimmed content (no trailing whitespace)
-	styledContent := syntaxKeyStyle.Render(trimmedLine)
-
-	// Add back any trailing whitespace that was trimmed, but unstyled
 	trailingWhitespace := line[len(trimmedLine):]
 
-	return styledContent + trailingWhitespace, true
+	// Extract just the content (no leading or trailing whitespace)
+	content := trimmedLine[contentStart:]
+
+	// Check if this is a $ref line - style it green instead of blue
+	var styledContent string
+	if strings.HasPrefix(content, "$ref:") {
+		// Style $ref lines green
+		styledContent = syntaxRefStyle.Render(content)
+	} else {
+		// Style regular key-value lines blue
+		styledContent = syntaxKeyStyle.Render(content)
+	}
+
+	return leadingWhitespace + styledContent + trailingWhitespace, true
 }
 
 // HighlightYAMLValue applies appropriate styling to a YAML value
