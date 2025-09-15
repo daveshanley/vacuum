@@ -49,11 +49,23 @@ func HighlightYAMLKeyValue(line string) (string, bool) {
 	// Check if this is a $ref line - style it green instead of blue
 	var styledContent string
 	if strings.HasPrefix(content, "$ref:") {
-		// Style $ref lines green
+		// Style $ref lines green (entire content)
 		styledContent = syntaxRefStyle.Render(content)
 	} else {
-		// Style regular key-value lines blue
-		styledContent = syntaxKeyStyle.Render(content)
+		// For regular key-value lines, style only the key portion (before colon)
+		// Find the colon position within the content
+		contentColonIdx := strings.Index(content, ":")
+		if contentColonIdx != -1 {
+			// Split into key part and value part
+			keyPart := content[:contentColonIdx+1] // include the colon
+			valuePart := content[contentColonIdx+1:] // everything after colon
+
+			// Style only the key part, leave value unstyled
+			styledContent = syntaxKeyStyle.Render(keyPart) + valuePart
+		} else {
+			// Fallback: no colon found in content, style entire content
+			styledContent = syntaxKeyStyle.Render(content)
+		}
 	}
 
 	return leadingWhitespace + styledContent + trailingWhitespace, true
@@ -73,21 +85,73 @@ func HighlightYAMLListItem(line string) (string, bool) {
 
 // HighlightJSONLine handles JSON syntax highlighting
 func HighlightJSONLine(line string) string {
-	// SUPER SIMPLE: Just find "key": pattern and color key+colon blue
-	if idx := strings.Index(line, "\":"); idx > 0 {
-		// Find where the key starts (opening quote)
-		keyStart := strings.LastIndex(line[:idx], "\"")
-		if keyStart >= 0 {
-			// Color: everything before key + blue(key and colon) + everything after colon
-			before := line[:keyStart]
-			keyAndColon := line[keyStart : idx+2] // includes both quotes and colon
-			after := line[idx+2:]
-
-			return before + syntaxKeyStyle.Render(keyAndColon) + after
+	// Find leading whitespace
+	leadingWhitespace := ""
+	contentStart := 0
+	for i, r := range line {
+		if r != ' ' && r != '\t' {
+			leadingWhitespace = line[:i]
+			contentStart = i
+			break
 		}
 	}
-	// No key found, return as-is
-	return line
+
+	// Find trailing whitespace
+	trimmedLine := strings.TrimRight(line, " \t\r\n")
+	trailingWhitespace := line[len(trimmedLine):]
+
+	// Extract just the content (no leading or trailing whitespace)
+	content := trimmedLine[contentStart:]
+
+	// Check for $ref pattern in JSON
+	if strings.Contains(content, "\"$ref\":") {
+		// Style entire $ref line green
+		styledContent := syntaxRefStyle.Render(content)
+		return leadingWhitespace + styledContent + trailingWhitespace
+	}
+
+	// Look for JSON key-value pattern: "key":
+	if idx := strings.Index(content, "\":"); idx > 0 {
+		// Find where the key starts (opening quote)
+		keyStart := strings.LastIndex(content[:idx], "\"")
+		if keyStart >= 0 {
+			// Split into: before key + key part + value part
+			beforeKey := content[:keyStart]
+			keyPart := content[keyStart : idx+2] // includes quotes and colon
+			valuePart := content[idx+2:]         // everything after colon
+
+			// Style key blue, leave value unstyled, handle curly brackets in beforeKey and valuePart
+			beforeKeyStyled := styleCurlyBrackets(beforeKey)
+			keyStyled := syntaxKeyStyle.Render(keyPart)
+			valuePartStyled := styleCurlyBrackets(valuePart)
+
+			styledContent := beforeKeyStyled + keyStyled + valuePartStyled
+			return leadingWhitespace + styledContent + trailingWhitespace
+		}
+	}
+
+	// No key-value pattern, just handle curly brackets
+	styledContent := styleCurlyBrackets(content)
+	return leadingWhitespace + styledContent + trailingWhitespace
+}
+
+// styleCurlyBrackets styles { and } characters in pink while leaving everything else unstyled
+func styleCurlyBrackets(text string) string {
+	if text == "" {
+		return text
+	}
+
+	var result strings.Builder
+	for _, r := range text {
+		if r == '{' || r == '}' {
+			// Style curly brackets pink (using syntaxDashStyle which is pink)
+			result.WriteString(syntaxDashStyle.Render(string(r)))
+		} else {
+			// Leave everything else unstyled
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 // ApplySyntaxHighlightingToLine applies syntax highlighting to a single line
