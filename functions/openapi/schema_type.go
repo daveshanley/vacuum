@@ -4,6 +4,7 @@ package openapi
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
@@ -86,6 +87,12 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
+		}
+
+		// validate const value matches declared types
+		if len(schemaType) > 0 {
+			constErrs := st.validateConst(schema, &context)
+			results = append(results, constErrs...)
 		}
 	}
 
@@ -463,5 +470,127 @@ func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyNa
 		}
 	}
 
+	return false
+}
+
+func (st SchemaTypeCheck) validateConst(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	// check if const is present
+	if schema.Value.Const == nil {
+		return results
+	}
+
+	constValueNode := schema.Value.GoLow().Const.ValueNode
+	schemaTypes := schema.Value.Type
+
+	// if no types declared, cannot validate const
+	if len(schemaTypes) == 0 {
+		return results
+	}
+
+	// check if const value matches any of the declared types
+	isValid := false
+	for _, schemaType := range schemaTypes {
+		if st.isConstNodeValidForType(constValueNode, schemaType) {
+			isValid = true
+			break
+		}
+	}
+
+	if !isValid {
+		typeList := fmt.Sprintf("[%s]", strings.Join(schemaTypes, ", "))
+		message := fmt.Sprintf("`const` value type does not match schema type %s", typeList)
+
+		result := st.buildResult(message,
+			schema.GenerateJSONPath(), "const", -1,
+			schema, schema.Value.GoLow().Const.KeyNode, context)
+		results = append(results, result)
+	}
+
+	return results
+}
+
+func (st SchemaTypeCheck) isConstNodeValidForType(node *yaml.Node, schemaType string) bool {
+	switch schemaType {
+	case "string":
+		return node.Tag == "!!str"
+	case "integer":
+		if node.Tag == "!!int" {
+			return true
+		}
+		// allow float values that have no fractional part (e.g., 42.0)
+		if node.Tag == "!!float" {
+			return st.isFloatWhole(node.Value)
+		}
+		return false
+	case "number":
+		return node.Tag == "!!int" || node.Tag == "!!float"
+	case "boolean":
+		return node.Tag == "!!bool"
+	case "null":
+		return node.Tag == "!!null"
+	case "array":
+		return node.Tag == "!!seq"
+	case "object":
+		return node.Tag == "!!map"
+	}
+	return false
+}
+
+func (st SchemaTypeCheck) isFloatWhole(value string) bool {
+	// check if a float string represents a whole number (e.g., "42.0" -> true, "42.5" -> false)
+	if !strings.Contains(value, ".") {
+		return true
+	}
+	parts := strings.Split(value, ".")
+	if len(parts) != 2 {
+		return false
+	}
+	// check if fractional part is all zeros
+	fractional := parts[1]
+	for _, char := range fractional {
+		if char != '0' {
+			return false
+		}
+	}
+	return true
+}
+
+func (st SchemaTypeCheck) isConstValueValidForType(value interface{}, schemaType string) bool {
+	switch schemaType {
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "integer":
+		// integers can be int, int64, or float64 with no fractional part
+		switch v := value.(type) {
+		case int, int64:
+			return true
+		case float64:
+			return v == float64(int64(v))
+		}
+		return false
+	case "number":
+		// numbers can be int, int64, or float64
+		switch value.(type) {
+		case int, int64, float64:
+			return true
+		}
+		return false
+	case "boolean":
+		_, ok := value.(bool)
+		return ok
+	case "null":
+		return value == nil
+	case "array":
+		// arrays are represented as []interface{}
+		_, ok := value.([]interface{})
+		return ok
+	case "object":
+		// objects are represented as map[string]interface{}
+		_, ok := value.(map[string]interface{})
+		return ok
+	}
 	return false
 }
