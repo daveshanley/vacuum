@@ -50,21 +50,21 @@ func HighlightYAMLKeyValue(line string) (string, bool) {
 	var styledContent string
 	if strings.HasPrefix(content, "$ref:") {
 		// Style $ref lines green (entire content)
-		styledContent = syntaxRefStyle.Render(content)
+		styledContent = SyntaxRefStyle.Render(content)
 	} else {
 		// For regular key-value lines, style only the key portion (before colon)
 		// Find the colon position within the content
 		contentColonIdx := strings.Index(content, ":")
 		if contentColonIdx != -1 {
 			// Split into key part and value part
-			keyPart := content[:contentColonIdx+1] // include the colon
+			keyPart := content[:contentColonIdx+1]   // include the colon
 			valuePart := content[contentColonIdx+1:] // everything after colon
 
 			// Style only the key part, leave value unstyled
-			styledContent = syntaxKeyStyle.Render(keyPart) + valuePart
+			styledContent = SyntaxKeyStyle.Render(keyPart) + valuePart
 		} else {
 			// Fallback: no colon found in content, style entire content
-			styledContent = syntaxKeyStyle.Render(content)
+			styledContent = SyntaxKeyStyle.Render(content)
 		}
 	}
 
@@ -106,7 +106,7 @@ func HighlightJSONLine(line string) string {
 	// Check for $ref pattern in JSON
 	if strings.Contains(content, "\"$ref\":") {
 		// Style entire $ref line green
-		styledContent := syntaxRefStyle.Render(content)
+		styledContent := SyntaxRefStyle.Render(content)
 		return leadingWhitespace + styledContent + trailingWhitespace
 	}
 
@@ -122,7 +122,7 @@ func HighlightJSONLine(line string) string {
 
 			// Style key blue, leave value unstyled, handle brackets in beforeKey and valuePart
 			beforeKeyStyled := styleBrackets(beforeKey)
-			keyStyled := syntaxKeyStyle.Render(keyPart)
+			keyStyled := SyntaxKeyStyle.Render(keyPart)
 			valuePartStyled := styleBrackets(valuePart)
 
 			styledContent := beforeKeyStyled + keyStyled + valuePartStyled
@@ -144,11 +144,11 @@ func styleBrackets(text string) string {
 	var result strings.Builder
 	for _, r := range text {
 		if r == '{' || r == '}' {
-			// Style curly brackets pink (using syntaxDashStyle which is pink)
-			result.WriteString(syntaxDashStyle.Render(string(r)))
+			// Style curly brackets pink (using SyntaxDashStyle which is pink)
+			result.WriteString(SyntaxDashStyle.Render(string(r)))
 		} else if r == '[' || r == ']' {
-			// Style square brackets yellow (using syntaxNumberStyle which is yellow)
-			result.WriteString(syntaxNumberStyle.Render(string(r)))
+			// Style square brackets yellow (using SyntaxNumberStyle which is yellow)
+			result.WriteString(SyntaxNumberStyle.Render(string(r)))
 		} else {
 			// Leave everything else unstyled
 			result.WriteRune(r)
@@ -160,7 +160,7 @@ func styleBrackets(text string) string {
 // ApplySyntaxHighlightingToLine applies syntax highlighting to a single line
 func ApplySyntaxHighlightingToLine(line string, isYAML bool) string {
 	// Ensure styles are initialized
-	if !syntaxStylesInit {
+	if !SyntaxStylesInit {
 		InitSyntaxStyles()
 	}
 

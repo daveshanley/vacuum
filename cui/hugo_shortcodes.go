@@ -81,7 +81,6 @@ func (p *ShortcodeParser) AddHandler(pattern *regexp.Regexp, transform func([]st
 func (p *ShortcodeParser) Parse(input string) string {
 	result := input
 
-	// Process each handler in order
 	for _, handler := range p.handlers {
 		matches := handler.Pattern.FindAllStringSubmatch(result, -1)
 		for _, match := range matches {
@@ -104,7 +103,6 @@ func ConvertHugoShortcodesToMarkdown(content string) string {
 func ConvertHugoShortcodesToMarkdownWithCustomHandlers(content string, customHandlers []ShortcodeHandler) string {
 	parser := NewShortcodeParser()
 
-	// Add custom handlers
 	for _, handler := range customHandlers {
 		parser.handlers = append(parser.handlers, handler)
 	}

@@ -29,6 +29,8 @@ import (
 	"golang.org/x/term"
 )
 
+type WatchState int
+
 const (
 	DocsStateLoading DocsState = iota
 	DocsStateLoaded
@@ -42,69 +44,52 @@ const (
 	FilterInfo                        // Show only info messages
 )
 
-// watch constants
-const (
-	WatchDebounceDelay = 200 * time.Millisecond
-)
-
-type WatchState int
-
 const (
 	WatchStateIdle WatchState = iota
 	WatchStateProcessing
 	WatchStateError
+	WatchDebounceDelay = 200 * time.Millisecond
 )
 
 // layout constants
 const (
-	DefaultTerminalWidth   = 180
-	DefaultTerminalHeight  = 40
-	MinTableHeight         = 10
-	ModalWidthReduction    = 40 // How much to reduce width for modal
-	ModalHeightMargin      = 5  // Margin from bottom for modal
-	SplitViewHeight        = 15 // Fixed height for detail view
-	SplitViewMargin        = 4  // Margin for split view
-	SplitContentHeight     = 11 // Fixed content height inside detail view
-	DetailsColumnPercent   = 30 // 30% for details column
-	HowToFixColumnPercent  = 30 // 30% for how-to-fix column
-	SeverityColumnWidth    = 10
-	MinMessageWidth        = 40
-	MinPathWidth           = 20
-	MinPathWidthCompressed = 35
-	CodeWindowSize         = 3000 // Max lines to show above/below target line
-	ViewportPadding        = 4
-	ContentHeightMargin    = 4
+	DefaultTerminalWidth  = 180
+	DefaultTerminalHeight = 40
+	MinTableHeight        = 10
+	ModalWidthReduction   = 40 // How much to reduce width for modal
+	ModalHeightMargin     = 5  // Margin from bottom for modal
+	SplitViewHeight       = 15 // Fixed height for detail view
+	SplitViewMargin       = 4  // Margin for split view
+	SplitContentHeight    = 11 // Fixed content height inside detail view
+	DetailsColumnPercent  = 30 // 30% for details column
+	HowToFixColumnPercent = 30 // 30% for how-to-fix column
+	SeverityColumnWidth   = 10
+	CodeWindowSize        = 3000 // Max lines to show above/below target line
+	ViewportPadding       = 4
+	ContentHeightMargin   = 4
 )
 
-var LocationRegex = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
-var JsonPathRegex = regexp.MustCompile(`\$\.\S+`)
-var CircularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
-var PartRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
-
-// pre-compiled regex patterns for syntax highlighting
 var (
-	YamlKeyValueRegex = regexp.MustCompile(`^(\s*)([$a-zA-Z0-9_-]+)(\s*:\s*)(.*)`)
-	YamlListItemRegex = regexp.MustCompile(`^(\s*)(- )(.*)`)
-	NumberValueRegex  = regexp.MustCompile(`^-?\d+\.?\d*$`)
-	JsonKeyRegex      = regexp.MustCompile(`"([^"]+)"\s*:`)
-	JsonStringRegex   = regexp.MustCompile(`:\s*"[^"]*"`)
-	BacktickRegex     = regexp.MustCompile("`([^`]+)`")
-	SingleQuoteRegex  = regexp.MustCompile(`'([^']+)'`)
-	LogPrefixRegex    = regexp.MustCompile(`\[([^\]]+)\]`)
+	LocationRegex    = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
+	JsonPathRegex    = regexp.MustCompile(`\$\.\S+`)
+	CircularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
+	PartRegex        = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
+	BacktickRegex    = regexp.MustCompile("`([^`]+)`")
+	SingleQuoteRegex = regexp.MustCompile(`'([^']+)'`)
+	LogPrefixRegex   = regexp.MustCompile(`\[([^]]+)]`)
 )
 
-// syntax highlighting styles are now centralized in styles.go
 var (
-	syntaxKeyStyle         lipgloss.Style
-	syntaxStringStyle      lipgloss.Style
-	syntaxNumberStyle      lipgloss.Style
-	syntaxBoolStyle        lipgloss.Style
-	syntaxCommentStyle     lipgloss.Style
-	syntaxDashStyle        lipgloss.Style
-	syntaxRefStyle         lipgloss.Style // For $ref values
-	syntaxDefaultStyle     lipgloss.Style // Default pink for unmatched text
-	syntaxSingleQuoteStyle lipgloss.Style // Pink italic for single-quoted strings
-	syntaxStylesInit       bool
+	SyntaxKeyStyle         lipgloss.Style
+	SyntaxStringStyle      lipgloss.Style
+	SyntaxNumberStyle      lipgloss.Style
+	SyntaxBoolStyle        lipgloss.Style
+	SyntaxCommentStyle     lipgloss.Style
+	SyntaxDashStyle        lipgloss.Style
+	SyntaxRefStyle         lipgloss.Style
+	SyntaxDefaultStyle     lipgloss.Style
+	SyntaxSingleQuoteStyle lipgloss.Style
+	SyntaxStylesInit       bool
 )
 
 // FilterState represents the current filter mode for cycling through severities
@@ -260,7 +245,7 @@ func ShowDashboard(cuiCommands chan interface{}, userInputs chan interface{}, fi
 	// For now, just display a placeholder until we fully implement the channel architecture
 	fmt.Printf("Dashboard with channel architecture - file: %s\n", fileName)
 	fmt.Println("Press 'q' to quit")
-	
+
 	// Simple input loop
 	for {
 		var input string
@@ -269,7 +254,7 @@ func ShowDashboard(cuiCommands chan interface{}, userInputs chan interface{}, fi
 			break
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1187,12 +1172,12 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 	}
 
 	filteredResults := utils.FilterIgnoredResults(result.Results, ignoredItems)
-	
+
 	// Create result set and sort by line number
 	tempResultSet := model.NewRuleResultSet(filteredResults)
 	tempResultSet.SortResultsByLineNumber()
 	sortedResults := tempResultSet.Results
-	
+
 	resultPointers := make([]*model.RuleFunctionResult, len(sortedResults))
 	for i := range sortedResults {
 		resultPointers[i] = sortedResults[i]

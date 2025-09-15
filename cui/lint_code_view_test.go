@@ -12,21 +12,21 @@ import (
 
 func TestInitSyntaxStyles(t *testing.T) {
 	// reset the init flag for testing
-	syntaxStylesInit = false
+	SyntaxStylesInit = false
 
 	InitSyntaxStyles()
-	assert.True(t, syntaxStylesInit)
+	assert.True(t, SyntaxStylesInit)
 
 	// verify styles are initialized
-	assert.NotNil(t, syntaxKeyStyle)
-	assert.NotNil(t, syntaxStringStyle)
-	assert.NotNil(t, syntaxNumberStyle)
-	assert.NotNil(t, syntaxBoolStyle)
-	assert.NotNil(t, syntaxCommentStyle)
-	assert.NotNil(t, syntaxDashStyle)
-	assert.NotNil(t, syntaxRefStyle)
-	assert.NotNil(t, syntaxDefaultStyle)
-	assert.NotNil(t, syntaxSingleQuoteStyle)
+	assert.NotNil(t, SyntaxKeyStyle)
+	assert.NotNil(t, SyntaxStringStyle)
+	assert.NotNil(t, SyntaxNumberStyle)
+	assert.NotNil(t, SyntaxBoolStyle)
+	assert.NotNil(t, SyntaxCommentStyle)
+	assert.NotNil(t, SyntaxDashStyle)
+	assert.NotNil(t, SyntaxRefStyle)
+	assert.NotNil(t, SyntaxDefaultStyle)
+	assert.NotNil(t, SyntaxSingleQuoteStyle)
 }
 
 func TestCalculateCodeWindow(t *testing.T) {
@@ -70,7 +70,7 @@ func TestCalculateCodeWindow(t *testing.T) {
 			name:       "large file with target near end",
 			lines:      make([]string, 200),
 			targetLine: 190,
-			wantStart:  1,   // With window size 3000, no windowing
+			wantStart:  1, // With window size 3000, no windowing
 			wantEnd:    200,
 			wantAbove:  false,
 			wantBelow:  false,

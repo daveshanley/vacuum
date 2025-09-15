@@ -17,17 +17,17 @@ import (
 // InitSyntaxStyles initializes the syntax highlighting styles once
 // Now uses centralized styles from styles.go
 func InitSyntaxStyles() {
-	if !syntaxStylesInit {
-		syntaxKeyStyle = StyleSyntaxKey
-		syntaxStringStyle = StyleSyntaxString
-		syntaxNumberStyle = StyleSyntaxNumber
-		syntaxBoolStyle = StyleSyntaxBool
-		syntaxCommentStyle = StyleSyntaxComment
-		syntaxDashStyle = StyleSyntaxDash
-		syntaxRefStyle = StyleSyntaxRef
-		syntaxDefaultStyle = StyleSyntaxDefault
-		syntaxSingleQuoteStyle = StyleSyntaxSingleQuote
-		syntaxStylesInit = true
+	if !SyntaxStylesInit {
+		SyntaxKeyStyle = StyleSyntaxKey
+		SyntaxStringStyle = StyleSyntaxString
+		SyntaxNumberStyle = StyleSyntaxNumber
+		SyntaxBoolStyle = StyleSyntaxBool
+		SyntaxCommentStyle = StyleSyntaxComment
+		SyntaxDashStyle = StyleSyntaxDash
+		SyntaxRefStyle = StyleSyntaxRef
+		SyntaxDefaultStyle = StyleSyntaxDefault
+		SyntaxSingleQuoteStyle = StyleSyntaxSingleQuote
+		SyntaxStylesInit = true
 	}
 }
 
@@ -177,25 +177,25 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxWidth int) string {
 	allLines := strings.Split(string(m.specContent), "\n")
 	window := calculateCodeWindow(allLines, targetLine)
-	
+
 	var result strings.Builder
-	
+
 	// add top notice if needed
 	if window.showAbove {
 		result.WriteString(formatLinesNotShown(window.startLine-1, "above"))
 		result.WriteString("\n")
 	}
-	
+
 	// format the code lines
 	isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
 	result.WriteString(m.formatCodeLines(window, targetLine, maxWidth, isYAML))
-	
+
 	// add bottom notice if needed
 	if window.showBelow {
 		result.WriteString("\n")
 		result.WriteString(formatLinesNotShown(len(allLines)-window.endLine, "below"))
 	}
-	
+
 	return result.String()
 }
 
@@ -305,7 +305,7 @@ func calculateCodeWindow(allLines []string, targetLine int) codeWindow {
 		startLine: 1,
 		endLine:   totalLines,
 	}
-	
+
 	// check if we need windowing
 	if totalLines > (windowSize*2 + 1) {
 		if targetLine > 0 {
@@ -314,7 +314,7 @@ func calculateCodeWindow(allLines []string, targetLine int) codeWindow {
 			if window.startLine < 1 {
 				window.startLine = 1
 			}
-			
+
 			window.endLine = targetLine + windowSize
 			if window.endLine > totalLines {
 				window.endLine = totalLines
@@ -327,12 +327,12 @@ func calculateCodeWindow(allLines []string, targetLine int) codeWindow {
 			}
 		}
 	}
-	
+
 	// extract lines (convert to 0-based indexing)
 	window.lines = allLines[window.startLine-1 : window.endLine]
 	window.showAbove = window.startLine > 1
 	window.showBelow = window.endLine < totalLines
-	
+
 	return window
 }
 
@@ -345,27 +345,27 @@ func formatLinesNotShown(count int, position string) string {
 // formatCodeLines formats the actual code lines with line numbers and syntax highlighting
 func (m *ViolationResultTableModel) formatCodeLines(window codeWindow, targetLine int, maxWidth int, isYAML bool) string {
 	var result strings.Builder
-	
+
 	lineNumWidth := calculateLineNumberWidth(window.endLine)
 	lineStyles := getLineFormattingStyles()
-	
+
 	for i, line := range window.lines {
 		lineNum := window.startLine + i
 		isHighlighted := lineNum == targetLine
-		
+
 		// format line number
 		lineNumStr := formatLineNumber(lineNum, lineNumWidth, isHighlighted, lineStyles)
 		result.WriteString(lineNumStr)
-		
+
 		// format line content
 		lineContent := formatLineContent(line, maxWidth-lineNumWidth, isHighlighted, isYAML, lineStyles)
 		result.WriteString(lineContent)
-		
+
 		if i < len(window.lines)-1 {
 			result.WriteString("\n")
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -401,7 +401,7 @@ func getLineFormattingStyles() lineFormattingStyles {
 // formatLineNumber formats the line number and marker
 func formatLineNumber(lineNum int, width int, isHighlighted bool, styles lineFormattingStyles) string {
 	lineNumStr := fmt.Sprintf("%*d ", width-1, lineNum)
-	
+
 	if isHighlighted {
 		return styles.lineNumHighlight.Render(lineNumStr) + styles.triangle.Render("▶ ")
 	}
