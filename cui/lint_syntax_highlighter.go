@@ -4,7 +4,6 @@
 package cui
 
 import (
-	"github.com/charmbracelet/lipgloss/v2"
 	"strings"
 )
 
@@ -23,33 +22,23 @@ func HighlightYAMLComment(line string, isYAML bool) (string, bool) {
 // HighlightYAMLKeyValue handles key-value pair highlighting for YAML
 func HighlightYAMLKeyValue(line string) (string, bool) {
 
-	if strings.Contains(line, "$ref") {
-		colonIdx := strings.Index(line, ":")
-		keyAndColon := line[:colonIdx+1]
-		after := line[colonIdx+1:]
-
-		// Find linebreak in 'after' and style only up to it
-		lineBreakIdx := strings.IndexAny(after, "\n\r")
-
-		// Style value up to linebreak, keep linebreak unstyled
-		valueBeforeBreak := after[:lineBreakIdx]
-		lineBreakAndRest := after[lineBreakIdx:]
-		s := lipgloss.NewStyle().Foreground(RGBGreen).Bold(true)
-		return s.Render(keyAndColon+valueBeforeBreak) + lineBreakAndRest, true
-
-	}
-
 	// SUPER SIMPLE: Find colon, color everything before it (key) + colon blue
 	colonIdx := strings.Index(line, ":")
 	if colonIdx == -1 {
 		return "", false
 	}
 
-	// Color: blue(everything before colon + colon) + everything after
-	keyAndColon := line[:colonIdx+1]
-	after := line[colonIdx+1:]
+	// TEST: Style the entire line blue, but only the actual text content
+	// Trim trailing whitespace and newlines to get the actual text boundary
+	trimmedLine := strings.TrimRight(line, " \t\r\n")
 
-	return syntaxKeyStyle.Render(keyAndColon) + after, true
+	// Style only the trimmed content (no trailing whitespace)
+	styledContent := syntaxKeyStyle.Render(trimmedLine)
+
+	// Add back any trailing whitespace that was trimmed, but unstyled
+	trailingWhitespace := line[len(trimmedLine):]
+
+	return styledContent + trailingWhitespace, true
 }
 
 // HighlightYAMLValue applies appropriate styling to a YAML value
