@@ -4,11 +4,8 @@
 package cui
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
 	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -20,16 +17,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
-	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 	"golang.org/x/term"
 )
 
 type WatchState int
+type FilterState int
+type ViewMode int
+
+// ModalType represents which modal is currently open
+type ModalType int
+type DocsState int
 
 const (
 	DocsStateLoading DocsState = iota
@@ -69,6 +67,25 @@ const (
 	ContentHeightMargin   = 4
 )
 
+const (
+	AllSeverity FilterState = iota
+	ErrorSeverity
+	WarningSeverity
+	InfoSeverity
+)
+
+// ViewMode represents the primary view state
+const (
+	ViewModeTable ViewMode = iota
+	ViewModeTableWithSplit
+)
+
+const (
+	ModalNone ModalType = iota
+	ModalDocs
+	ModalCode
+)
+
 var (
 	LocationRegex    = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
 	JsonPathRegex    = regexp.MustCompile(`\$\.\S+`)
@@ -92,16 +109,6 @@ var (
 	SyntaxStylesInit       bool
 )
 
-// FilterState represents the current filter mode for cycling through severities
-type FilterState int
-
-const (
-	AllSeverity FilterState = iota
-	ErrorSeverity
-	WarningSeverity
-	InfoSeverity
-)
-
 // String returns the string representation of the FilterState
 func (f FilterState) String() string {
 	switch f {
@@ -118,23 +125,6 @@ func (f FilterState) String() string {
 	}
 }
 
-// ViewMode represents the primary view state
-type ViewMode int
-
-const (
-	ViewModeTable ViewMode = iota
-	ViewModeTableWithSplit
-)
-
-// ModalType represents which modal is currently open
-type ModalType int
-
-const (
-	ModalNone ModalType = iota
-	ModalDocs
-	ModalCode
-)
-
 // UIState encapsulates all UI state
 type UIState struct {
 	ViewMode       ViewMode
@@ -146,7 +136,6 @@ type UIState struct {
 }
 
 // DocsState represents the state of documentation fetching
-type DocsState int
 
 // docsLoadedMsg is sent when documentation is successfully loaded
 type docsLoadedMsg struct {
@@ -219,43 +208,6 @@ type ViolationResultTableModel struct {
 	debounceTimer  *time.Timer       // Timer for debouncing file changes
 	lastChangeTime time.Time         // Last time a file change was detected
 	watchMsgChan   chan tea.Msg      // Channel for file watcher messages
-}
-
-// WatchConfig holds configuration for file watching
-type WatchConfig struct {
-	Enabled         bool
-	BaseFlag        string
-	SkipCheckFlag   bool
-	TimeoutFlag     int
-	HardModeFlag    bool
-	RemoteFlag      bool
-	IgnoreFile      string
-	FunctionsFlag   string
-	RulesetFlag     string
-	CertFile        string
-	KeyFile         string
-	CAFile          string
-	Insecure        bool
-	Silent          bool
-	CustomFunctions map[string]model.RuleFunction // Pre-loaded custom functions
-}
-
-// ShowDashboard displays the dashboard with channel-based communication
-func ShowDashboard(cuiCommands chan interface{}, userInputs chan interface{}, fileName string) error {
-	// For now, just display a placeholder until we fully implement the channel architecture
-	fmt.Printf("Dashboard with channel architecture - file: %s\n", fileName)
-	fmt.Println("Press 'q' to quit")
-
-	// Simple input loop
-	for {
-		var input string
-		fmt.Scanln(&input)
-		if input == "q" {
-			break
-		}
-	}
-
-	return nil
 }
 
 // ShowViolationTableView displays results in an interactive console table (legacy)
@@ -341,7 +293,7 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		watchConfig:  watchConfig,
 		watchState:   WatchStateIdle,
 		watchedFiles: []string{},
-		watchMsgChan: make(chan tea.Msg, 10), // Buffered channel for messages
+		watchMsgChan: make(chan tea.Msg, 10),
 	}
 
 	p := tea.NewProgram(m,
@@ -350,13 +302,12 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 
 	finalModel, err := p.Run()
 	if err != nil {
-		// Log the error details
 		fmt.Fprintf(os.Stderr, "\n\033[31mDashboard error: %v\033[0m\n", err)
 		return fmt.Errorf("dashboard exited with error: %w", err)
 	}
 
 	if finalM, ok := finalModel.(*ViolationResultTableModel); ok {
-		// Cleanup watcher before exit
+		// cleanup watcher before exit
 		if finalM.watcher != nil {
 			_ = finalM.watcher.Close()
 		}
@@ -377,7 +328,7 @@ func (m *ViolationResultTableModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.docsSpinner.Tick)
 
-	// Initialize file watcher if enabled
+	// initialize file watcher if enabled
 	if m.watchConfig != nil && m.watchConfig.Enabled {
 		cmd := m.setupFileWatcher()
 		if cmd != nil {
@@ -437,54 +388,49 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
-			// Continue listening for channel messages
+			// continue listening for channel messages
 			cmds = append(cmds, m.listenForChannelMessages())
 		}
 
 	case relintCompleteMsg:
-		// Update results immediately but keep processing state for 700ms
+		// update results immediately but keep processing state for 700ms
 		m.allResults = msg.results
 		m.specContent = msg.specContent
 
-		// Rebuild filtered results with current filters
 		m.filterResults()
 
-		// Rebuild table data
 		columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
 		m.rows = rows
 
-		// Preserve selection by line number and column
 		m.preserveSelection(msg.selectedRow)
 
-		// Schedule clearing the processing state after 700ms
 		cmds = append(cmds, m.clearProcessingStateAfterDelay())
 
-		// Continue listening for channel messages
 		cmds = append(cmds, m.listenForChannelMessages())
 
 	case relintErrorMsg:
-		// Re-linting failed
+
 		m.watchState = WatchStateError
 		m.watchError = msg.err.Error()
 
-		// Continue listening for channel messages even after error
 		cmds = append(cmds, m.listenForChannelMessages())
 
 	case continueWatchingMsg:
-		// Restart listening for channel messages
+		// restart listening for channel messages
 		if m.watchConfig != nil && m.watchConfig.Enabled {
 			cmds = append(cmds, m.listenForChannelMessages())
 		}
 
 	case clearProcessingStateMsg:
-		// Clear the processing state to hide the green circle
+		// clear the processing state to hide the green circle
 		if m.watchState == WatchStateProcessing {
 			m.watchState = WatchStateIdle
 		}
 
 	case tea.MouseWheelMsg:
+
 		// mouse wheel scrolling
 		mouse := msg.Mouse()
 		switch mouse.Button {
@@ -839,53 +785,6 @@ func (m *ViolationResultTableModel) View() string {
 	return canvas.Render()
 }
 
-// buildNavBar builds the navigation bar at the bottom
-func (m *ViolationResultTableModel) buildNavBar() string {
-	navStyle := lipgloss.NewStyle().
-		Foreground(RGBGrey).
-		Width(m.width)
-
-	rowText := ""
-	if len(m.filteredResults) > 0 {
-		rowText = fmt.Sprintf(" %d/%d", m.table.Cursor()+1, len(m.filteredResults))
-	}
-
-	// Add watch status indicator
-	watchIndicator := ""
-	if m.watchConfig != nil && m.watchConfig.Enabled {
-		switch m.watchState {
-		case WatchStateIdle:
-			// No indicator when idle
-		case WatchStateProcessing:
-			watchIndicator = " ●" // Green filled circle for processing
-		case WatchStateError:
-			watchIndicator = " ●" // Red filled circle for error
-		}
-	}
-
-	// Add watch error message if present
-	watchErrorText := ""
-	if m.watchState == WatchStateError && m.watchError != "" {
-		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Bold(true)
-		watchErrorText = fmt.Sprintf(" | %s", errorStyle.Render(fmt.Sprintf("the specification '%s' is invalid: %s", m.fileName, m.watchError)))
-	}
-
-	baseNavText := fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | x: code | q: quit", rowText)
-
-	if watchIndicator != "" {
-		var indicatorColor string
-		if m.watchState == WatchStateProcessing {
-			indicatorColor = "#00ff00" // Green
-		} else if m.watchState == WatchStateError {
-			indicatorColor = "#ff0000" // Red
-		}
-		coloredIndicator := lipgloss.NewStyle().Foreground(lipgloss.Color(indicatorColor)).Render(watchIndicator)
-		return navStyle.Render(baseNavText + coloredIndicator + watchErrorText)
-	}
-
-	return navStyle.Render(baseNavText + watchErrorText)
-}
-
 // renderActiveModal renders the currently active modal
 func (m *ViolationResultTableModel) renderActiveModal() string {
 	switch m.uiState.ActiveModal {
@@ -958,238 +857,6 @@ func (m *ViolationResultTableModel) TogglePathColumn() {
 	}
 }
 
-// UpdateFilterState updates filter state
-func (m *ViolationResultTableModel) UpdateFilterState(filter FilterState) {
-	m.uiState.FilterState = filter
-}
-
-// UpdateCategoryFilter updates category filter
-func (m *ViolationResultTableModel) UpdateCategoryFilter(category string) {
-	m.uiState.CategoryFilter = category
-}
-
-// UpdateRuleFilter updates rule filter
-func (m *ViolationResultTableModel) UpdateRuleFilter(rule string) {
-	m.uiState.RuleFilter = rule
-}
-
-// setupFileWatcher initializes file watching if enabled
-func (m *ViolationResultTableModel) setupFileWatcher() tea.Cmd {
-	if m.watchConfig == nil || !m.watchConfig.Enabled {
-		return nil
-	}
-
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		m.watchError = fmt.Sprintf("Failed to create file watcher: %v", err)
-		m.watchState = WatchStateError
-		return nil
-	}
-
-	m.watcher = watcher
-
-	absPath, err := filepath.Abs(m.fileName)
-	if err != nil {
-		m.watchError = fmt.Sprintf("Failed to get absolute path for %s: %v", m.fileName, err)
-		m.watchState = WatchStateError
-		return nil
-	}
-
-	err = m.watcher.Add(absPath)
-	if err != nil {
-		m.watchError = fmt.Sprintf("Failed to watch file %s: %v", absPath, err)
-		m.watchState = WatchStateError
-		return nil
-	}
-
-	m.watchedFiles = []string{absPath}
-
-	go m.watchFileChanges()
-
-	return m.listenForChannelMessages()
-}
-
-// watchFileChanges runs in a goroutine to monitor file system events
-func (m *ViolationResultTableModel) watchFileChanges() {
-	for {
-		select {
-		case event, ok := <-m.watcher.Events:
-			if !ok {
-				return
-			}
-
-			if event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) {
-				select {
-				case m.watchMsgChan <- fileChangeMsg{fileName: event.Name}:
-				default:
-				}
-			}
-
-		case err, ok := <-m.watcher.Errors:
-			if !ok {
-				return
-			}
-			select {
-			case m.watchMsgChan <- relintErrorMsg{err: fmt.Errorf("file watcher error: %w", err)}:
-			default:
-			}
-		}
-	}
-}
-
-// listenForChannelMessages returns a command that listens for messages from the watcher channel
-func (m *ViolationResultTableModel) listenForChannelMessages() tea.Cmd {
-	return tea.Cmd(func() tea.Msg {
-		select {
-		case msg := <-m.watchMsgChan:
-			return msg
-		case <-time.After(100 * time.Millisecond):
-			return continueWatchingMsg{}
-		}
-	})
-}
-
-// handleFileChange processes file change events with debouncing
-func (m *ViolationResultTableModel) handleFileChange(fileName string) tea.Cmd {
-	m.lastChangeTime = time.Now()
-
-	if m.debounceTimer != nil {
-		m.debounceTimer.Stop()
-	}
-
-	// new debounce timer
-	m.debounceTimer = time.NewTimer(WatchDebounceDelay)
-
-	return tea.Cmd(func() tea.Msg {
-		<-m.debounceTimer.C
-
-		if time.Since(m.lastChangeTime) >= WatchDebounceDelay {
-			return m.performRelint()
-		}
-
-		return nil
-	})
-}
-
-// performRelint re-lints the specification with current configuration
-func (m *ViolationResultTableModel) performRelint() tea.Msg {
-	m.watchState = WatchStateProcessing
-
-	currentRow := m.table.Cursor()
-
-	specBytes, err := os.ReadFile(m.fileName)
-	if err != nil {
-		return relintErrorMsg{err: fmt.Errorf("failed to read spec file: %w", err)}
-	}
-
-	// Restored working linting logic
-	var bufferedLogger *slog.Logger
-	bufferedLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-
-	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(bufferedLogger)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-
-	// Use pre-loaded custom functions from dashboard command
-	customFuncs := m.watchConfig.CustomFunctions
-
-	// hard mode
-	if m.watchConfig.HardModeFlag {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-		owaspRules := rulesets.GetAllOWASPRules()
-		for k, v := range owaspRules {
-			selectedRS.Rules[k] = v
-		}
-	}
-
-	// custom ruleset if specified
-	if m.watchConfig.RulesetFlag != "" {
-		if strings.HasPrefix(m.watchConfig.RulesetFlag, "http") {
-			if !m.watchConfig.RemoteFlag {
-				return relintErrorMsg{err: fmt.Errorf("remote ruleset specified but remote flag is disabled")}
-			}
-			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), m.watchConfig.RulesetFlag, nil)
-			if rsErr != nil {
-				return relintErrorMsg{err: fmt.Errorf("unable to load remote ruleset '%s': %w", m.watchConfig.RulesetFlag, rsErr)}
-			}
-			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(downloadedRS)
-		} else {
-			rsBytes, rsErr := os.ReadFile(m.watchConfig.RulesetFlag)
-			if rsErr != nil {
-				return relintErrorMsg{err: fmt.Errorf("unable to read ruleset file '%s': %w", m.watchConfig.RulesetFlag, rsErr)}
-			}
-			userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
-			if userErr != nil {
-				return relintErrorMsg{err: fmt.Errorf("unable to parse ruleset file '%s': %w", m.watchConfig.RulesetFlag, userErr)}
-			}
-			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
-		}
-
-		// Merge OWASP rules if hard mode is enabled
-		if m.watchConfig.HardModeFlag {
-			owaspRules := rulesets.GetAllOWASPRules()
-			if selectedRS.Rules == nil {
-				selectedRS.Rules = make(map[string]*model.Rule)
-			}
-			for k, v := range owaspRules {
-				if selectedRS.Rules[k] == nil {
-					selectedRS.Rules[k] = v
-				}
-			}
-		}
-	}
-
-	// ignore file if specified
-	var ignoredItems model.IgnoredItems
-	if m.watchConfig.IgnoreFile != "" {
-		raw, ferr := os.ReadFile(m.watchConfig.IgnoreFile)
-		if ferr == nil {
-			_ = yaml.Unmarshal(raw, &ignoredItems)
-		}
-	}
-
-	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:           selectedRS,
-		Spec:              specBytes,
-		SpecFileName:      m.fileName,
-		CustomFunctions:   customFuncs,
-		Base:              m.watchConfig.BaseFlag,
-		AllowLookup:       m.watchConfig.RemoteFlag,
-		SkipDocumentCheck: m.watchConfig.SkipCheckFlag,
-		Logger:            bufferedLogger,
-		Timeout:           time.Duration(m.watchConfig.TimeoutFlag) * time.Second,
-		HTTPClientConfig: utils.HTTPClientConfig{
-			CertFile: m.watchConfig.CertFile,
-			KeyFile:  m.watchConfig.KeyFile,
-			CAFile:   m.watchConfig.CAFile,
-			Insecure: m.watchConfig.Insecure,
-		},
-	})
-
-	m.updateWatchedFilesFromRolodex(result.Index)
-
-	if len(result.Errors) > 0 {
-		return relintErrorMsg{err: fmt.Errorf("linting failed: %v", result.Errors[0])}
-	}
-
-	filteredResults := utils.FilterIgnoredResults(result.Results, ignoredItems)
-
-	// Create result set and sort by line number
-	tempResultSet := model.NewRuleResultSet(filteredResults)
-	tempResultSet.SortResultsByLineNumber()
-	sortedResults := tempResultSet.Results
-
-	resultPointers := make([]*model.RuleFunctionResult, len(sortedResults))
-	for i := range sortedResults {
-		resultPointers[i] = sortedResults[i]
-	}
-
-	return relintCompleteMsg{
-		results:     resultPointers,
-		specContent: specBytes,
-		selectedRow: currentRow,
-	}
-}
-
 // preserveSelection tries to maintain selection at the same line/column or moves to next available
 func (m *ViolationResultTableModel) preserveSelection(previousRow int) {
 	if len(m.filteredResults) == 0 {
@@ -1226,115 +893,10 @@ func (m *ViolationResultTableModel) preserveSelection(previousRow int) {
 	}
 }
 
-// filterResults applies current filters to allResults and updates filteredResults
-func (m *ViolationResultTableModel) filterResults() {
-	filtered := m.allResults
-
-	// severity filter
-	if m.uiState.FilterState != FilterAll {
-		var severityFiltered []*model.RuleFunctionResult
-		for _, result := range filtered {
-			switch m.uiState.FilterState {
-			case FilterErrors:
-				if result.Rule.Severity == "error" {
-					severityFiltered = append(severityFiltered, result)
-				}
-			case FilterWarnings:
-				if result.Rule.Severity == "warn" {
-					severityFiltered = append(severityFiltered, result)
-				}
-			case FilterInfo:
-				if result.Rule.Severity == "info" {
-					severityFiltered = append(severityFiltered, result)
-				}
-			}
-		}
-		filtered = severityFiltered
-	}
-
-	// category filter
-	if m.uiState.CategoryFilter != "" {
-		var categoryFiltered []*model.RuleFunctionResult
-		for _, result := range filtered {
-			if result.Rule.Formats != nil {
-				for _, format := range result.Rule.Formats {
-					if format == m.uiState.CategoryFilter {
-						categoryFiltered = append(categoryFiltered, result)
-						break
-					}
-				}
-			}
-		}
-		filtered = categoryFiltered
-	}
-
-	// rule filter
-	if m.uiState.RuleFilter != "" {
-		var ruleFiltered []*model.RuleFunctionResult
-		for _, result := range filtered {
-			if result.Rule.Id == m.uiState.RuleFilter {
-				ruleFiltered = append(ruleFiltered, result)
-			}
-		}
-		filtered = ruleFiltered
-	}
-
-	m.filteredResults = filtered
-}
-
 // clearProcessingStateAfterDelay returns a command that clears the processing state after 700ms
 func (m *ViolationResultTableModel) clearProcessingStateAfterDelay() tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		time.Sleep(700 * time.Millisecond)
 		return clearProcessingStateMsg{}
 	})
-}
-
-// updateWatchedFilesFromRolodex adds all files from the document rolodex to the watcher
-func (m *ViolationResultTableModel) updateWatchedFilesFromRolodex(specIndex *index.SpecIndex) {
-	if m.watcher == nil || specIndex == nil {
-		return
-	}
-
-	rolodex := specIndex.GetRolodex()
-	if rolodex == nil {
-		return
-	}
-
-	// track new files to avoid duplicates
-	newFiles := make(map[string]bool)
-	for _, existingFile := range m.watchedFiles {
-		newFiles[existingFile] = true
-	}
-
-	allIndexes := rolodex.GetIndexes()
-	for _, idx := range allIndexes {
-		if idx == nil {
-			continue
-		}
-
-		config := idx.GetConfig()
-		if config != nil && config.SpecFilePath != "" {
-			filePath := config.SpecFilePath
-
-			absPath, err := filepath.Abs(filePath)
-			if err != nil {
-				continue
-			}
-
-			// skip if already watching
-			if newFiles[absPath] {
-				continue
-			}
-
-			// add to watcher
-			err = m.watcher.Add(absPath)
-			if err != nil {
-				continue
-			}
-
-			m.watchedFiles = append(m.watchedFiles, absPath)
-			newFiles[absPath] = true
-		}
-	}
 }
