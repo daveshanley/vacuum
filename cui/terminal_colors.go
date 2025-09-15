@@ -285,20 +285,19 @@ func ColorizeLocation(location string) string {
 	file := filepath.Base(filePath)
 	dir := filepath.Dir(filePath)
 
-	// Build colored path
-	var coloredPath string
+	// Build colored path using lipgloss styles
+	var result strings.Builder
 	if dir != "." {
-		coloredPath = fmt.Sprintf("%s%s/%s%s%s", ASCIIGrey, dir, ASCIILightGreyItalic, file, ASCIIReset)
-	} else {
-		coloredPath = fmt.Sprintf("%s%s%s", ASCIILightGreyItalic, file, ASCIIReset)
+		result.WriteString(StyleDirectoryGrey.Render(dir))
+		result.WriteString("/")
 	}
+	result.WriteString(StyleFileItalic.Render(file))
+	result.WriteString(StyleLocationSeparator.Render(":"))
+	result.WriteString(StyleLineNumber.Render(lineNum))
+	result.WriteString(StyleLocationSeparator.Render(":"))
+	result.WriteString(StyleColumnNumber.Render(colNum))
 
-	// Color line and column numbers
-	coloredLine := fmt.Sprintf("%s%s%s", ASCIIBold, lineNum, ASCIIReset)
-	coloredCol := fmt.Sprintf("%s%s%s", ASCIILightGrey, colNum, ASCIIReset)
-	sep := fmt.Sprintf("%s:%s", ASCIILightGrey, ASCIIReset)
-
-	return fmt.Sprintf("%s%s%s%s%s", coloredPath, sep, coloredLine, sep, coloredCol)
+	return result.String()
 }
 
 // ColorizeTableOutput adds ASCII color codes to a table output string based on the
@@ -422,43 +421,55 @@ func ColorizePath(path string) string {
 			parts := PartRegex.FindAllStringSubmatch(match, -1)
 			for _, part := range parts {
 				if part[1] != "" {
-					// ref
-					result.WriteString(ASCIILightGrey)
-					result.WriteString(part[1])
-					result.WriteString(ASCIIReset)
-					result.WriteString(ASCIIGrey)
+					// ref - use lipgloss style
+					result.WriteString(StylePathRef.Render(part[1]))
 				} else if part[2] != "" {
-					// arrow
-					result.WriteString(ASCIIRed)
-					result.WriteString(part[2])
-					result.WriteString(ASCIIReset)
-					result.WriteString(ASCIIGrey)
+					// arrow - use lipgloss style
+					result.WriteString(StylePathArrow.Render(part[2]))
 				}
 			}
 			return result.String()
 		})
 	}
 
+	// Handle quoted content
 	if strings.Contains(path, "'") {
-		path = SingleQuoteRegex.ReplaceAllStringFunc(path, func(match string) string {
-			content := SingleQuoteRegex.FindStringSubmatch(match)
-			if len(content) > 1 {
-				return fmt.Sprintf("%s'%s'%s%s", ASCIILightGreyItalic, content[1], ASCIIReset, ASCIIGrey)
+		var result strings.Builder
+		lastIdx := 0
+
+		// Find all single-quoted sections
+		matches := SingleQuoteRegex.FindAllStringSubmatchIndex(path, -1)
+		for _, match := range matches {
+			// Add content before the quote
+			result.WriteString(StylePathGrey.Render(path[lastIdx:match[0]]))
+			// Add the quoted content
+			if match[3] > match[2] {
+				quotedText := "'" + path[match[2]:match[3]] + "'"
+				result.WriteString(StylePathQuoted.Render(quotedText))
 			}
-			return match
-		})
+			lastIdx = match[1]
+		}
+		// Add any remaining content
+		if lastIdx < len(path) {
+			result.WriteString(StylePathGrey.Render(path[lastIdx:]))
+		}
+		return result.String()
 	}
 
 	// handle unclosed quotes with truncation (e.g., 'text...)
 	truncatedQuoteRegex := regexp.MustCompile(`'([^']+\.\.\.?)$`)
 	if truncatedQuoteRegex.MatchString(path) {
-		path = truncatedQuoteRegex.ReplaceAllStringFunc(path, func(match string) string {
-			return fmt.Sprintf("%s%s%s%s", ASCIILightGreyItalic, match, ASCIIReset, ASCIIGrey)
-		})
+		idx := strings.LastIndex(path, "'")
+		if idx >= 0 {
+			var result strings.Builder
+			result.WriteString(StylePathGrey.Render(path[:idx]))
+			result.WriteString(StylePathQuoted.Render(path[idx:]))
+			return result.String()
+		}
 	}
 
 	// The entire path should be wrapped in grey
-	return fmt.Sprintf("%s%s%s", ASCIIGrey, path, ASCIIReset)
+	return StylePathGrey.Render(path)
 }
 
 // ApplyLintDetailsTableStyles applies custom styles to a table.Model for lint details display

@@ -83,7 +83,7 @@ var PartRegex = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
 
 // pre-compiled regex patterns for syntax highlighting
 var (
-	YamlKeyValueRegex = regexp.MustCompile(`^(\s*)([a-zA-Z0-9_-]+)(\s*:\s*)(.*)`)
+	YamlKeyValueRegex = regexp.MustCompile(`^(\s*)([$a-zA-Z0-9_-]+)(\s*:\s*)(.*)`)
 	YamlListItemRegex = regexp.MustCompile(`^(\s*)(- )(.*)`)
 	NumberValueRegex  = regexp.MustCompile(`^-?\d+\.?\d*$`)
 	JsonKeyRegex      = regexp.MustCompile(`"([^"]+)"\s*:`)

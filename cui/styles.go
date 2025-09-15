@@ -4,6 +4,8 @@
 package cui
 
 import (
+	"runtime"
+
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
@@ -43,19 +45,29 @@ var (
 	StylePathRef           = lipgloss.NewStyle().Foreground(RGBLightGrey)
 
 	// Syntax highlighting styles (consolidate from existing variables)
-	StyleSyntaxKey         = lipgloss.NewStyle().Foreground(RGBBlue)
+	StyleSyntaxKey         = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true)
 	StyleSyntaxString      = lipgloss.NewStyle().Foreground(RGBGreen)
 	StyleSyntaxNumber      = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true).Bold(true)
 	StyleSyntaxBool        = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).Bold(true)
 	StyleSyntaxComment     = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 	StyleSyntaxDash        = lipgloss.NewStyle().Foreground(RGBPink)
-	StyleSyntaxRef         = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
+	StyleSyntaxRef         lipgloss.Style // initialized in init()
 	StyleSyntaxDefault     = lipgloss.NewStyle().Foreground(RGBPink)
 	StyleSyntaxSingleQuote = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 )
 
 // InitStyles initializes all styles once - replaces InitSyntaxStyles
 var stylesInitialized bool
+
+func init() {
+	// Initialize StyleSyntaxRef based on platform
+	if runtime.GOOS == "windows" {
+		// no background on windows as it breaks alignment
+		StyleSyntaxRef = lipgloss.NewStyle().Foreground(RGBGreen).Bold(true)
+	} else {
+		StyleSyntaxRef = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
+	}
+}
 
 func InitStyles() {
 	if !stylesInitialized {
