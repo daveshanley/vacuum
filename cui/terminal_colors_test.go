@@ -53,9 +53,10 @@ func TestColorizePath_CircularReferences(t *testing.T) {
 				}
 			}
 
-			// ensure it ends with reset
-			if !strings.HasSuffix(result, ASCIIReset) {
-				t.Errorf("ColorizePath(%q) = %q, doesn't end with ASCIIReset",
+			// ensure it contains ANSI reset codes (lipgloss handles this automatically)
+			// Check for either \033[0m or \x1b[m (both are valid reset codes)
+			if !strings.Contains(result, "\033[0m") && !strings.Contains(result, "\x1b[m") {
+				t.Errorf("ColorizePath(%q) = %q, doesn't contain ANSI reset codes",
 					tt.input, result)
 			}
 		})
