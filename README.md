@@ -144,7 +144,26 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.17` 🔥 : **Github Action**.
+🔥 **New in** `v0.18` 🔥 : **New dashboard, new lint command, new rules!**.
+
+Upgrades all around. There is a completely new `dashboard` command with a completely new dashboard terminal UI. It's 
+completely interactive and allows you to explore, and filter violations, view full docs and see code. The `dashboard` command
+also adds a new `-w` / `--watch` flag that will watch your OpenAPI file for changes and re-lint and re-render results automatically.
+
+A re-written `lint` command that has a whole new rendering engine and output. Everything is much more readable, 
+easier to see on a screen, matches the new `dashboard` style. It's 100% backwards compatible with previous versions, all flags as they were. 
+
+New rules:
+
+ - [no-request-body](https://quobix.com/vacuum/rules/operations/no-request-body/) - Ensures GET and DELETE operations do not have request bodies.
+ - [duplicate-paths](https://quobix.com/vacuum/rules/operations/duplicate-paths/) - Ensures there are no duplicate paths exist
+ - [no-unnecessary-combinator](https://quobix.com/vacuum/rules/schemas/no-unnecessary-combinator/) - Ensures no `allOf`, `oneOf` or `anyOf` combinators exist with a single schema inside them.
+
+---
+
+
+
+`v0.17`: **Github Action**.
 
 vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
 in the [GitHub Marketplace](https://github.com/marketplace/actions/vacuum-openapi-linter-and-quality-analysis-tool).
