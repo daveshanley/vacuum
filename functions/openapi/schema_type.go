@@ -94,6 +94,10 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			constErrs := st.validateConst(schema, &context)
 			results = append(results, constErrs...)
 		}
+
+		// validate enum and const are not conflicting
+		enumConstErrs := st.validateEnumConst(schema, &context)
+		results = append(results, enumConstErrs...)
 	}
 
 	return results
@@ -501,6 +505,38 @@ func (st SchemaTypeCheck) validateConst(schema *v3.Schema, context *model.RuleFu
 	if !isValid {
 		typeList := fmt.Sprintf("[%s]", strings.Join(schemaTypes, ", "))
 		message := fmt.Sprintf("`const` value type does not match schema type %s", typeList)
+
+		result := st.buildResult(message,
+			schema.GenerateJSONPath(), "const", -1,
+			schema, schema.Value.GoLow().Const.KeyNode, context)
+		results = append(results, result)
+	}
+
+	return results
+}
+
+func (st SchemaTypeCheck) validateEnumConst(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	// check if both enum and const are present
+	if schema.Value.Enum == nil || schema.Value.Const == nil {
+		return results
+	}
+
+	constValue := schema.Value.Const.Value
+	enumValues := schema.Value.Enum
+
+	// check if const value exists in enum values
+	constInEnum := false
+	for _, enumValue := range enumValues {
+		if enumValue.Value == constValue {
+			constInEnum = true
+			break
+		}
+	}
+
+	if !constInEnum {
+		message := fmt.Sprintf("`const` value `%s` is not present in `enum` values", constValue)
 
 		result := st.buildResult(message,
 			schema.GenerateJSONPath(), "const", -1,

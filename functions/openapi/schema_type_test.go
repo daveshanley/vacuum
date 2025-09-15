@@ -1787,7 +1787,6 @@ components:
 
 	drDocument := drModel.NewDrDocument(m)
 
-
 	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
@@ -2465,6 +2464,256 @@ components:
   schemas:
     NoConstSchema:
       type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_EnumConstValid(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    ValidEnumConst:
+      type: string
+      enum:
+        - "foo"
+        - "bar"
+        - "baz"
+      const: "bar"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_EnumConstInvalid(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    InvalidEnumConst:
+      type: string
+      enum:
+        - "foo"
+        - "bar"
+        - "baz"
+      const: "invalid"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`const` value `invalid` is not present in `enum` values", res[0].Message)
+	assert.Equal(t, "$.components.schemas['InvalidEnumConst'].const", res[0].Path)
+}
+
+func TestSchemaType_EnumConstNumericValid(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    ValidNumericEnumConst:
+      type: number
+      enum:
+        - 1
+        - 2
+        - 3.14
+      const: 3.14`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_EnumConstNumericInvalid(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    InvalidNumericEnumConst:
+      type: number
+      enum:
+        - 1
+        - 2
+        - 3.14
+      const: 5`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`const` value `5` is not present in `enum` values", res[0].Message)
+	assert.Equal(t, "$.components.schemas['InvalidNumericEnumConst'].const", res[0].Path)
+}
+
+func TestSchemaType_EnumConstBooleanValid(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    ValidBooleanEnumConst:
+      type: boolean
+      enum:
+        - true
+        - false
+      const: true`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_EnumOnly(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    EnumOnly:
+      type: string
+      enum:
+        - "foo"
+        - "bar"
+        - "baz"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_ConstOnly(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    ConstOnly:
+      type: string
+      const: "hello"`
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
