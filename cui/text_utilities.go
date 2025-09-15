@@ -272,7 +272,8 @@ func addTableBorders(tableView string) string {
 func formatFileLocation(r *model.RuleFunctionResult, fileName string) string {
 	startLine := 0
 	startCol := 0
-	f := fileName
+	// Normalize the fileName path separators for the current OS
+	f := filepath.FromSlash(fileName)
 
 	if r != nil {
 		if r.StartNode != nil {
@@ -281,7 +282,8 @@ func formatFileLocation(r *model.RuleFunctionResult, fileName string) string {
 		}
 
 		if r.Origin != nil {
-			f = r.Origin.AbsoluteLocation
+			// Normalize path separators for the current OS
+			f = filepath.FromSlash(r.Origin.AbsoluteLocation)
 			startLine = r.Origin.Line
 			startCol = r.Origin.Column
 		}

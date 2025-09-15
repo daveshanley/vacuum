@@ -289,7 +289,7 @@ func ColorizeLocation(location string) string {
 	var result strings.Builder
 	if dir != "." {
 		result.WriteString(StyleDirectoryGrey.Render(dir))
-		result.WriteString("/")
+		result.WriteString(string(filepath.Separator))
 	}
 	result.WriteString(StyleFileItalic.Render(file))
 	result.WriteString(StyleLocationSeparator.Render(":"))
