@@ -92,6 +92,8 @@ var (
 	origRGBBlack      = lipgloss.Color("16")
 	origRGBSubtleBlue = lipgloss.Color("#1a3a5a")
 	origRGBSubtlePink = lipgloss.Color("#2a1a2a")
+	origRGBLightGrey  = lipgloss.Color("253")
+	origRGBMutedPink  = lipgloss.Color("164")
 
 	// Current lipgloss colors (may be modified)
 	RGBBlue       = origRGBBlue
@@ -111,6 +113,8 @@ var (
 	RGBBlack      = origRGBBlack
 	RGBSubtleBlue = origRGBSubtleBlue
 	RGBSubtlePink = origRGBSubtlePink
+	RGBLightGrey  = origRGBLightGrey
+	RGBMutedPink  = origRGBMutedPink
 )
 
 func strPtr(s string) *string { return &s }
@@ -207,8 +211,8 @@ func ColorizeMessage(message string) string {
 		// Extract the content between backticks
 		content := BacktickRegex.FindStringSubmatch(match)
 		if len(content) > 1 {
-			// Apply blue bold italic styling to backtick AND content
-			return fmt.Sprintf("%s`%s`%s", ASCIIBlueBoldItalic, content[1], ASCIIReset)
+			// Apply blue bold italic styling to backtick AND content using lipgloss
+			return "`" + StyleCodeHighlight.Render(content[1]) + "`"
 		}
 		return match
 	})
@@ -216,10 +220,10 @@ func ColorizeMessage(message string) string {
 
 func ColorizeLogMessage(message, severity string) string {
 	if severity == LogLevelError {
-		return fmt.Sprintf("%s%s%s%s", ASCIIBold, ASCIIRed, message, ASCIIReset)
+		return StyleLogError.Render(message)
 	}
 	if severity == LogLevelDebug {
-		return fmt.Sprintf("%s%s%s", ASCIIGrey, message, ASCIIReset)
+		return StyleLogDebug.Render(message)
 	}
 
 	if !strings.HasPrefix(message, "[") {
@@ -231,16 +235,16 @@ func ColorizeLogMessage(message, severity string) string {
 		// Extract the content between backticks
 		content := LogPrefixRegex.FindStringSubmatch(match)
 		if len(content) > 1 {
-			// Apply blue bold italic styling to backtick AND content
+			// Apply styling using lipgloss
 			switch severity {
 			case LogLevelError:
-				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIRed, content[1], ASCIIReset)
+				return StyleLogError.Copy().Italic(true).Render("[" + content[1] + "]")
 			case LogLevelWarn:
-				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIYellow, content[1], ASCIIReset)
+				return StyleLogWarn.Copy().Render("[" + content[1] + "]")
 			case LogLevelInfo:
-				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIInfo, content[1], ASCIIReset)
+				return StyleLogInfo.Copy().Render("[" + content[1] + "]")
 			case LogLevelDebug:
-				return fmt.Sprintf("%s%s[%s]%s", ASCIIItalic, ASCIIGrey, content[1], ASCIIReset)
+				return StyleLogDebug.Copy().Render("[" + content[1] + "]")
 			}
 
 		}
@@ -312,7 +316,7 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		isSelectedLine := selectedLocation != "" && strings.Contains(line, selectedLocation)
 
 		if isSelectedLine && i > 0 {
-			line = ASCIIMutedPink + line + ASCIIReset
+			line = StyleSelectedRow.Render(line)
 		}
 
 		if i >= 1 && !isSelectedLine {
@@ -363,13 +367,13 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 				})
 			}
 
-			// severity
+			// severity - replace with lipgloss styles
 			line = strings.Replace(line, "✗ error",
-				fmt.Sprintf("%s%s%s", ASCIIRed, "✗ error", ASCIIReset), -1)
+				StyleSeverityError.Render("✗ error"), -1)
 			line = strings.Replace(line, "▲ warning",
-				fmt.Sprintf("%s%s%s", ASCIIYellow, "▲ warning", ASCIIReset), -1)
+				StyleSeverityWarning.Render("▲ warning"), -1)
 			line = strings.Replace(line, "● info",
-				fmt.Sprintf("%s%s%s", ASCIIBlue, "● info", ASCIIReset), -1)
+				StyleSeverityInfo.Render("● info"), -1)
 		}
 
 		result.WriteString(line)
@@ -401,8 +405,7 @@ func ColorizeLogEntry(log, color string) string {
 				} else if strings.HasSuffix(match, "]") {
 					suffix = "]"
 				}
-				return fmt.Sprintf("%s%s'%s'%s%s%s", prefix,
-					ASCIIBlueBoldItalic, content[1], ASCIIReset, color, suffix)
+				return prefix + StyleQuotedText.Render("'"+content[1]+"'") + color + suffix
 			}
 			return match
 		})
@@ -734,6 +737,8 @@ func DisableColors() {
 	RGBBlack = lipgloss.NoColor{}
 	RGBSubtleBlue = lipgloss.Color("238")
 	RGBSubtlePink = lipgloss.Color("238")
+	RGBLightGrey = lipgloss.NoColor{}
+	RGBMutedPink = lipgloss.NoColor{}
 }
 
 // AreColorsDisabled returns true if colors are currently disabled
@@ -779,4 +784,6 @@ func EnableColors() {
 	RGBBlack = origRGBBlack
 	RGBSubtleBlue = origRGBSubtleBlue
 	RGBSubtlePink = origRGBSubtlePink
+	RGBLightGrey = origRGBLightGrey
+	RGBMutedPink = origRGBMutedPink
 }

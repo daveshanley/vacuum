@@ -11,8 +11,11 @@ import (
 func HighlightYAMLRefLine(line string) (string, bool) {
 	if strings.Contains(line, "$ref:") {
 		if idx := strings.Index(line, "$ref:"); idx >= 0 {
-			beforeRef := line[:idx]
-			return beforeRef + syntaxRefStyle.Render(line[idx:]), true
+			// Build the styled line using proper string building for Windows compatibility
+			var result strings.Builder
+			result.WriteString(line[:idx]) // before ref
+			result.WriteString(syntaxRefStyle.Render(line[idx:])) // ref part
+			return result.String(), true
 		}
 	}
 
@@ -36,9 +39,11 @@ func HighlightYAMLComment(line string, isYAML bool) (string, bool) {
 	if commentIndex := strings.IndexByte(line, '#'); commentIndex >= 0 {
 		// make sure it's actually a comment, not part of a $ref
 		if !strings.Contains(line[:commentIndex], "$ref") {
-			beforeComment := line[:commentIndex]
-			comment := line[commentIndex:]
-			return ApplySyntaxHighlightingToLine(beforeComment, isYAML) + syntaxCommentStyle.Render(comment), true
+			// Build the styled line using proper string building for Windows compatibility
+			var result strings.Builder
+			result.WriteString(ApplySyntaxHighlightingToLine(line[:commentIndex], isYAML)) // before comment
+			result.WriteString(syntaxCommentStyle.Render(line[commentIndex:])) // comment
+			return result.String(), true
 		}
 	}
 	return "", false
@@ -52,19 +57,22 @@ func HighlightYAMLKeyValue(line string) (string, bool) {
 		separator := matches[3]
 		value := matches[4]
 
-		// special handling for $ref key
-		coloredKey := key
-		coloredValue := value
+		// Build the styled line using proper string building for Windows compatibility
+		var result strings.Builder
+		result.WriteString(indent)
 
+		// special handling for $ref key
 		if key == "$ref" {
-			coloredKey = syntaxRefStyle.Render(key)
-			coloredValue = syntaxRefStyle.Render(value)
+			result.WriteString(syntaxRefStyle.Render(key))
+			result.WriteString(separator)
+			result.WriteString(syntaxRefStyle.Render(value))
 		} else {
-			coloredKey = syntaxKeyStyle.Render(key)
-			coloredValue = HighlightYAMLValue(value)
+			result.WriteString(syntaxKeyStyle.Render(key))
+			result.WriteString(separator)
+			result.WriteString(HighlightYAMLValue(value))
 		}
 
-		return indent + coloredKey + separator + coloredValue, true
+		return result.String(), true
 	}
 	return "", false
 }
@@ -97,10 +105,12 @@ func HighlightYAMLValue(value string) string {
 // HighlightYAMLListItem handles list item highlighting for YAML
 func HighlightYAMLListItem(line string) (string, bool) {
 	if matches := YamlListItemRegex.FindStringSubmatch(line); matches != nil {
-		// apply highlighting to the list item value
-		itemValue := matches[3]
-		coloredItem := HighlightYAMLValue(itemValue)
-		return matches[1] + syntaxDashStyle.Render(matches[2]) + coloredItem, true
+		// Build the styled line using proper string building for Windows compatibility
+		var result strings.Builder
+		result.WriteString(matches[1]) // indent
+		result.WriteString(syntaxDashStyle.Render(matches[2])) // dash
+		result.WriteString(HighlightYAMLValue(matches[3])) // item value
+		return result.String(), true
 	}
 	return "", false
 }
@@ -114,7 +124,6 @@ func HighlightJSONLine(line string) string {
 	if strings.Contains(line, "\"$ref\"") {
 		refIndex := strings.Index(line, "\"$ref\"")
 		if refIndex >= 0 {
-			beforeRef := line[:refIndex]
 			// find the end of the $ref value (next quote after the colon)
 			afterRefStart := refIndex + 6 // length of "$ref"
 			colonIndex := strings.Index(line[afterRefStart:], ":")
@@ -126,9 +135,12 @@ func HighlightJSONLine(line string) string {
 					quoteEnd := strings.Index(line[valueStart+quoteStart+1:], "\"")
 					if quoteEnd >= 0 {
 						refEnd := valueStart + quoteStart + quoteEnd + 2
-						refPart := line[refIndex:refEnd]
-						afterRef := line[refEnd:]
-						return beforeRef + syntaxRefStyle.Render(refPart) + afterRef
+						// Build the styled line using proper string building for Windows compatibility
+						var result strings.Builder
+						result.WriteString(line[:refIndex]) // before ref
+						result.WriteString(syntaxRefStyle.Render(line[refIndex:refEnd])) // ref part
+						result.WriteString(line[refEnd:]) // after ref
+						return result.String()
 					}
 				}
 			}
@@ -147,7 +159,11 @@ func HighlightJSONLine(line string) string {
 		processed = true
 		parts := strings.SplitN(match, "\"", 2)
 		if len(parts) > 1 {
-			return parts[0] + syntaxStringStyle.Render("\""+parts[1])
+			// Build styled string properly for Windows compatibility
+			var result strings.Builder
+			result.WriteString(parts[0])
+			result.WriteString(syntaxStringStyle.Render("\"" + parts[1]))
+			return result.String()
 		}
 		return match
 	})

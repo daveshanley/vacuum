@@ -11,6 +11,7 @@ import (
 
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/dustin/go-humanize"
 	"golang.org/x/term"
 )
 
@@ -382,7 +383,7 @@ func printTableSeparator(config *TableConfig) {
 func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, fileName string, errors, allResults bool) {
 	for i, r := range results {
 		if i > 1000 && !allResults {
-			fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
+			fmt.Printf("%s...%s more violations not rendered%s\n", cui.ASCIIRed, humanize.Comma(int64(len(results)-1000)), cui.ASCIIReset)
 			break
 		}
 
@@ -547,7 +548,7 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 
 		for i, r := range results {
 			if i > 1000 && !allResults {
-				fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
+				fmt.Printf("%s...%s more violations not rendered%s\n", cui.ASCIIRed, humanize.Comma(int64(len(results)-1000)), cui.ASCIIReset)
 				break
 			}
 
@@ -568,7 +569,7 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 
 		for i, r := range results {
 			if i > 1000 && !allResults {
-				fmt.Printf("%s...%d more violations not rendered%s\n", cui.ASCIIRed, len(results)-1000, cui.ASCIIReset)
+				fmt.Printf("%s...%s more violations not rendered%s\n", cui.ASCIIRed, humanize.Comma(int64(len(results)-1000)), cui.ASCIIReset)
 				break
 			}
 

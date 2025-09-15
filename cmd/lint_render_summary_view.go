@@ -349,7 +349,7 @@ func renderRuleViolationsTable(violations []ruleViolation, widths columnWidths) 
 	renderRuleTotals(total, widths)
 
 	if len(violations) > maxRules {
-		fmt.Printf(" %s... and %d more rules%s\n", cui.ASCIIGrey, len(violations)-maxRules, cui.ASCIIReset)
+		fmt.Printf(" %s... and %s more rules%s\n", cui.ASCIIGrey, humanize.Comma(int64(len(violations)-maxRules)), cui.ASCIIReset)
 	}
 	fmt.Println()
 }

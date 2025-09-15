@@ -14,17 +14,18 @@ import (
 )
 
 // InitSyntaxStyles initializes the syntax highlighting styles once
+// Now uses centralized styles from styles.go
 func InitSyntaxStyles() {
 	if !syntaxStylesInit {
-		syntaxKeyStyle = lipgloss.NewStyle().Foreground(RGBBlue)
-		syntaxStringStyle = lipgloss.NewStyle().Foreground(RGBGreen)
-		syntaxNumberStyle = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true).Bold(true)
-		syntaxBoolStyle = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).Bold(true)
-		syntaxCommentStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
-		syntaxDashStyle = lipgloss.NewStyle().Foreground(RGBPink)
-		syntaxRefStyle = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
-		syntaxDefaultStyle = lipgloss.NewStyle().Foreground(RGBPink)
-		syntaxSingleQuoteStyle = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
+		syntaxKeyStyle = StyleSyntaxKey
+		syntaxStringStyle = StyleSyntaxString
+		syntaxNumberStyle = StyleSyntaxNumber
+		syntaxBoolStyle = StyleSyntaxBool
+		syntaxCommentStyle = StyleSyntaxComment
+		syntaxDashStyle = StyleSyntaxDash
+		syntaxRefStyle = StyleSyntaxRef
+		syntaxDefaultStyle = StyleSyntaxDefault
+		syntaxSingleQuoteStyle = StyleSyntaxSingleQuote
 		syntaxStylesInit = true
 	}
 }

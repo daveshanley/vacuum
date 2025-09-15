@@ -93,7 +93,7 @@ var (
 	LogPrefixRegex    = regexp.MustCompile(`\[([^\]]+)\]`)
 )
 
-// pre-created styles for syntax highlighting
+// syntax highlighting styles are now centralized in styles.go
 var (
 	syntaxKeyStyle         lipgloss.Style
 	syntaxStringStyle      lipgloss.Style
