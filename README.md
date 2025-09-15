@@ -365,7 +365,14 @@ vacuum will work at scale and is designed as a CLI (with a web or console UI) an
 vacuum comes with an interactive dashboard (`vacuum dashboard <your-openapi-spec.yaml>`) allowing you to explore
 rules and violations in a console, without having to scroll through thousands of results.
 
-![vacuum dashboard](dashboard-screenshot.png)
+<a href="https://quobix.com/vacuum/commands/dashboard/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dashboard.gif">
+  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg">
+</picture>
+</a>
+
+To read about the dashboard, see the [dashboard command docs](https://quobix.com/vacuum/commands/dashboard/).
 
 ### HTML Report
 
