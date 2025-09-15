@@ -5,12 +5,14 @@ package openapi
 
 import (
 	"fmt"
+	"net/http"
+	"regexp"
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	doctorModel "github.com/pb33f/doctor/model/high/v3"
 	"go.yaml.in/yaml/v4"
-	"regexp"
-	"strings"
 )
 
 // AmbiguousPaths will determine if paths can be confused by a compiler.
@@ -82,31 +84,45 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 		return results
 	}
 
-	// Build a slice of path entries with their path items
-	type pathEntry struct {
-		path string
-		item *doctorModel.PathItem
+	type pathMethodEntry struct {
+		path   string
+		method string
+		item   *doctorModel.PathItem
 	}
 
-	var pathEntries []pathEntry
+	var pathMethodEntries []pathMethodEntry
 	for path, pathItem := range paths.PathItems.FromOldest() {
-		pathEntries = append(pathEntries, pathEntry{path: path, item: pathItem})
+
+		methods := getMethodsFromPathItem(pathItem)
+		for _, method := range methods {
+			pathMethodEntries = append(pathMethodEntries, pathMethodEntry{
+				path:   path,
+				method: method,
+				item:   pathItem,
+			})
+		}
 	}
 
-	// Compare each pair of paths
-	for i := 0; i < len(pathEntries); i++ {
-		for j := i + 1; j < len(pathEntries); j++ {
-			pathA := pathEntries[i]
-			pathB := pathEntries[j]
+	// compare each pair of path+method combinations
+	for i := 0; i < len(pathMethodEntries); i++ {
+		for j := i + 1; j < len(pathMethodEntries); j++ {
+			entryA := pathMethodEntries[i]
+			entryB := pathMethodEntries[j]
 
-			// Check if paths are potentially ambiguous
-			if checkPaths(pathA.path, pathB.path, pathA.item, pathB.item) {
-				// Paths are ambiguous based on structure and parameter types
+			// skip if different methods - they cannot be ambiguous
+			if entryA.method != entryB.method {
+				continue
+			}
+
+			// check if paths are potentially ambiguous for the same HTTP method
+			if checkPaths(entryA.path, entryB.path, entryA.item, entryB.item) {
+				// paths are ambiguous based on structure and parameter types for the same method
 				results = append(results, model.RuleFunctionResult{
-					Message:   fmt.Sprintf("paths are ambiguous with one another: `%s` and `%s`", pathA.path, pathB.path),
-					StartNode: pathB.item.KeyNode,
-					EndNode:   vacuumUtils.BuildEndNode(pathB.item.KeyNode),
-					Path:      fmt.Sprintf("$.paths['%s']", pathB.path),
+					Message: fmt.Sprintf("paths are ambiguous with one another: `%s` (%s) and `%s` (%s)",
+						entryA.path, entryA.method, entryB.path, entryB.method),
+					StartNode: entryB.item.KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(entryB.item.KeyNode),
+					Path:      fmt.Sprintf("$.paths['%s']", entryB.path),
 					Rule:      context.Rule,
 				})
 			}
@@ -114,6 +130,38 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 	}
 
 	return results
+}
+
+// getMethodsFromPathItem extracts all HTTP methods defined in a PathItem
+func getMethodsFromPathItem(pathItem *doctorModel.PathItem) []string {
+	var methods []string
+
+	if pathItem.Get != nil {
+		methods = append(methods, http.MethodGet)
+	}
+	if pathItem.Post != nil {
+		methods = append(methods, http.MethodPost)
+	}
+	if pathItem.Put != nil {
+		methods = append(methods, http.MethodPut)
+	}
+	if pathItem.Delete != nil {
+		methods = append(methods, http.MethodDelete)
+	}
+	if pathItem.Options != nil {
+		methods = append(methods, http.MethodOptions)
+	}
+	if pathItem.Head != nil {
+		methods = append(methods, http.MethodHead)
+	}
+	if pathItem.Patch != nil {
+		methods = append(methods, http.MethodPatch)
+	}
+	if pathItem.Trace != nil {
+		methods = append(methods, http.MethodTrace)
+	}
+
+	return methods
 }
 
 var reggie, _ = regexp.Compile(`^{(.+?)}$`)
