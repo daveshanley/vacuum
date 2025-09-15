@@ -5,6 +5,7 @@ package cui
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -167,10 +168,18 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 
 		codeLines := strings.Split(codeSnippet, "\n")
 		lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey).Bold(true)
-		highlightStyle := lipgloss.NewStyle().
-			Background(RGBSubtlePink).
-			Foreground(RGBPink).
-			Bold(true)
+		// on windows, skip background as it breaks alignment
+		var highlightStyle lipgloss.Style
+		if runtime.GOOS == "windows" {
+			highlightStyle = lipgloss.NewStyle().
+				Foreground(RGBPink).
+				Bold(true)
+		} else {
+			highlightStyle = lipgloss.NewStyle().
+				Background(RGBSubtlePink).
+				Foreground(RGBPink).
+				Bold(true)
+		}
 
 		maxLineNum := startLine + len(codeLines) - 1
 		lineNumWidth := len(fmt.Sprintf("%d", maxLineNum)) + 1 // +1 for space after number
@@ -220,20 +229,24 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 			}
 
 			if isHighlighted {
-				// for highlighted lines, we need to apply the background color
-				// to calculate padding needed
-				currentWidth := lipgloss.Width(syntaxHighlightedLine)
-				paddingNeeded := maxLineWidth - currentWidth
-				if paddingNeeded > 0 {
-					// add padding to the raw line, then apply highlighting
-					paddedLine := codeLine + strings.Repeat(" ", paddingNeeded)
-					if len(paddedLine) > maxLineWidth {
-						paddedLine = codeLine[:minimum(len(codeLine), maxLineWidth)]
-					}
-					codeContent.WriteString(highlightStyle.Render(paddedLine))
+				// on windows, just use syntax highlighting without background
+				if runtime.GOOS == "windows" {
+					codeContent.WriteString(syntaxHighlightedLine)
 				} else {
-					// apply background to the truncated line
-					codeContent.WriteString(highlightStyle.Render(codeLine[:minimum(len(codeLine), maxLineWidth)]))
+					// for other platforms, apply background color with padding
+					currentWidth := lipgloss.Width(syntaxHighlightedLine)
+					paddingNeeded := maxLineWidth - currentWidth
+					if paddingNeeded > 0 {
+						// add padding to the raw line, then apply highlighting
+						paddedLine := codeLine + strings.Repeat(" ", paddingNeeded)
+						if len(paddedLine) > maxLineWidth {
+							paddedLine = codeLine[:minimum(len(codeLine), maxLineWidth)]
+						}
+						codeContent.WriteString(highlightStyle.Render(paddedLine))
+					} else {
+						// apply background to the truncated line
+						codeContent.WriteString(highlightStyle.Render(codeLine[:minimum(len(codeLine), maxLineWidth)]))
+					}
 				}
 			} else {
 				// use the syntax-highlighted line for normal lines

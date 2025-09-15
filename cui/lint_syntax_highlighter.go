@@ -10,25 +10,65 @@ import (
 // HighlightYAMLRefLine handles special highlighting for $ref lines
 func HighlightYAMLRefLine(line string) (string, bool) {
 	if strings.Contains(line, "$ref:") {
-		if idx := strings.Index(line, "$ref:"); idx >= 0 {
-			// Build the styled line using proper string building for Windows compatibility
+		idx := strings.Index(line, "$ref:")
+		if idx >= 0 {
+			// extract parts
+			before := line[:idx]
+			refKey := "$ref"
+			colon := ":"
+			afterColon := line[idx+5:] // after "$ref:"
+
+			// build result styling individual tokens
 			var result strings.Builder
-			result.WriteString(line[:idx]) // before ref
-			result.WriteString(syntaxRefStyle.Render(line[idx:])) // ref part
+			result.WriteString(before)
+			result.WriteString(syntaxRefStyle.Render(refKey))
+			result.WriteString(colon)
+
+			// find and style the value
+			trimmed := strings.TrimSpace(afterColon)
+			leadingSpaces := afterColon[:len(afterColon)-len(trimmed)]
+			result.WriteString(leadingSpaces)
+
+			// style just the value, not trailing content
+			if trimmed != "" {
+				// find where value ends (at comment or end of line)
+				valueEnd := len(trimmed)
+				if commentIdx := strings.Index(trimmed, "#"); commentIdx > 0 {
+					valueEnd = commentIdx
+				}
+				value := strings.TrimSpace(trimmed[:valueEnd])
+				afterValue := trimmed[valueEnd:]
+
+				result.WriteString(syntaxRefStyle.Render(value))
+				result.WriteString(afterValue)
+			}
+
 			return result.String(), true
 		}
 	}
 
+	// check for ref paths - but only style the path, not the whole line
 	trimmed := strings.TrimSpace(line)
-	if strings.Contains(trimmed, "'#/") || strings.Contains(trimmed, "\"#/") ||
-		strings.Contains(trimmed, "#/components/") ||
-		strings.Contains(trimmed, "#/definitions/") ||
-		strings.Contains(trimmed, "#/schemas/") ||
-		strings.Contains(trimmed, "#/parameters/") ||
-		strings.Contains(trimmed, "#/responses/") ||
-		strings.Contains(trimmed, "#/paths/") {
-		// This is a $ref path - style the entire line
-		return syntaxRefStyle.Render(line), true
+	if strings.Contains(trimmed, "'#/") || strings.Contains(trimmed, "\"#/") {
+		// find the ref path and style just that
+		start := strings.Index(line, "'#/")
+		if start == -1 {
+			start = strings.Index(line, "\"#/")
+		}
+		if start >= 0 {
+			// find the end quote
+			quote := line[start]
+			end := strings.IndexByte(line[start+1:], quote)
+			if end > 0 {
+				end += start + 2
+
+				var result strings.Builder
+				result.WriteString(line[:start])
+				result.WriteString(syntaxRefStyle.Render(line[start:end]))
+				result.WriteString(line[end:])
+				return result.String(), true
+			}
+		}
 	}
 
 	return "", false
@@ -117,62 +157,108 @@ func HighlightYAMLListItem(line string) (string, bool) {
 
 // HighlightJSONLine handles JSON syntax highlighting
 func HighlightJSONLine(line string) string {
-	processed := false
-	originalLine := line
+	// windows-safe approach: parse and style individual tokens
+	if strings.Contains(line, "\":") {
+		// find the key
+		keyStart := strings.Index(line, "\"")
+		if keyStart >= 0 {
+			keyEnd := strings.Index(line[keyStart+1:], "\"")
+			if keyEnd > 0 {
+				keyEnd += keyStart + 1
 
-	// handle $ref lines specially - highlight only the $ref part
-	if strings.Contains(line, "\"$ref\"") {
-		refIndex := strings.Index(line, "\"$ref\"")
-		if refIndex >= 0 {
-			// find the end of the $ref value (next quote after the colon)
-			afterRefStart := refIndex + 6 // length of "$ref"
-			colonIndex := strings.Index(line[afterRefStart:], ":")
-			if colonIndex >= 0 {
-				valueStart := afterRefStart + colonIndex + 1
-				// find the closing quote
-				quoteStart := strings.Index(line[valueStart:], "\"")
-				if quoteStart >= 0 {
-					quoteEnd := strings.Index(line[valueStart+quoteStart+1:], "\"")
-					if quoteEnd >= 0 {
-						refEnd := valueStart + quoteStart + quoteEnd + 2
-						// Build the styled line using proper string building for Windows compatibility
-						var result strings.Builder
-						result.WriteString(line[:refIndex]) // before ref
-						result.WriteString(syntaxRefStyle.Render(line[refIndex:refEnd])) // ref part
-						result.WriteString(line[refEnd:]) // after ref
+				// extract parts
+				before := line[:keyStart]
+				key := line[keyStart:keyEnd+1]
+				afterKey := line[keyEnd+1:]
+
+				// check if it's a $ref
+				isRef := strings.Contains(key, "$ref")
+
+				// find the colon and value
+				colonIndex := strings.Index(afterKey, ":")
+				if colonIndex >= 0 {
+					beforeValue := afterKey[:colonIndex+1]
+					afterColon := afterKey[colonIndex+1:]
+
+					// trim to find value
+					trimmed := strings.TrimSpace(afterColon)
+					leadingSpaces := afterColon[:len(afterColon)-len(trimmed)]
+
+					// build result
+					var result strings.Builder
+					result.WriteString(before)
+
+					// style the key
+					if isRef {
+						result.WriteString(syntaxRefStyle.Render(key))
+					} else {
+						result.WriteString(syntaxKeyStyle.Render(key))
+					}
+
+					result.WriteString(beforeValue)
+					result.WriteString(leadingSpaces)
+
+					// style the value if it's a string
+					if strings.HasPrefix(trimmed, "\"") {
+						endQuote := strings.Index(trimmed[1:], "\"")
+						if endQuote > 0 {
+							endQuote += 2
+							value := trimmed[:endQuote]
+							afterValue := trimmed[endQuote:]
+
+							if isRef {
+								result.WriteString(syntaxRefStyle.Render(value))
+							} else {
+								result.WriteString(syntaxStringStyle.Render(value))
+							}
+							result.WriteString(afterValue)
+							return result.String()
+						}
+					} else if trimmed != "" && !strings.HasPrefix(trimmed, "{") && !strings.HasPrefix(trimmed, "[") {
+						// simple value (number, boolean, etc)
+						valueEnd := len(trimmed)
+						for i, char := range trimmed {
+							if char == ',' || char == ' ' || char == '\t' {
+								valueEnd = i
+								break
+							}
+						}
+
+						value := trimmed[:valueEnd]
+						afterValue := trimmed[valueEnd:]
+
+						// style based on type
+						if value == "true" || value == "false" || value == "null" {
+							result.WriteString(syntaxBoolStyle.Render(value))
+						} else if NumberValueRegex.MatchString(value) {
+							result.WriteString(syntaxNumberStyle.Render(value))
+						} else {
+							result.WriteString(syntaxDefaultStyle.Render(value))
+						}
+						result.WriteString(afterValue)
 						return result.String()
 					}
+
+					// couldn't parse value, just add the rest
+					result.WriteString(afterColon)
+					return result.String()
 				}
+
+				// no colon, just style the key
+				var result strings.Builder
+				result.WriteString(before)
+				if isRef {
+					result.WriteString(syntaxRefStyle.Render(key))
+				} else {
+					result.WriteString(syntaxKeyStyle.Render(key))
+				}
+				result.WriteString(afterKey)
+				return result.String()
 			}
 		}
-		// fallback: highlight the key only if we can't parse the value
-		line = strings.ReplaceAll(line, "\"$ref\"", syntaxRefStyle.Render("\"$ref\""))
-		processed = true
 	}
 
-	line = JsonKeyRegex.ReplaceAllStringFunc(line, func(match string) string {
-		processed = true
-		return syntaxKeyStyle.Render(match)
-	})
-
-	line = JsonStringRegex.ReplaceAllStringFunc(line, func(match string) string {
-		processed = true
-		parts := strings.SplitN(match, "\"", 2)
-		if len(parts) > 1 {
-			// Build styled string properly for Windows compatibility
-			var result strings.Builder
-			result.WriteString(parts[0])
-			result.WriteString(syntaxStringStyle.Render("\"" + parts[1]))
-			return result.String()
-		}
-		return match
-	})
-
-	// default pink for any remaining strings
-	if !processed && line != "" {
-		return syntaxDefaultStyle.Render(originalLine)
-	}
-
+	// no key-value pair found
 	return line
 }
 

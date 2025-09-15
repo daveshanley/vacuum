@@ -6,6 +6,7 @@ package cui
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/v2/viewport"
@@ -410,15 +411,21 @@ func formatLineNumber(lineNum int, width int, isHighlighted bool, styles lineFor
 // formatLineContent formats the actual line content with syntax highlighting
 func formatLineContent(line string, maxWidth int, isHighlighted bool, isYAML bool, styles lineFormattingStyles) string {
 	displayLine := ApplySyntaxHighlightingToLine(line, isYAML)
-	
+
 	if isHighlighted {
-		// pad the line for full-width background
+		// on windows, skip background highlighting as it breaks alignment
+		if runtime.GOOS == "windows" {
+			// just use syntax highlighting without background
+			return displayLine
+		}
+
+		// on other platforms, apply background
 		paddedLine := line
 		if len(line) < maxWidth {
 			paddedLine = line + strings.Repeat(" ", maxWidth-len(line))
 		}
 		return styles.highlight.Render(paddedLine)
 	}
-	
+
 	return displayLine
 }
