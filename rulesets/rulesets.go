@@ -96,6 +96,7 @@ const (
 	PathItemReferences                   = "path-item-refs"
 	DuplicatePathsRule                   = "duplicate-paths"
 	UnnecessaryCombinatorRule            = "no-unnecessary-combinator"
+	CamelCasePropertiesRule              = "camel-case-properties"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -503,6 +504,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[PathItemReferences] = GetPathItemReferencesRule()
 	rules[DuplicatePathsRule] = GetDuplicatePathsRule()
 	rules[UnnecessaryCombinatorRule] = GetUnnecessaryCombinatorRule()
+	rules[CamelCasePropertiesRule] = GetCamelCasePropertiesRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()

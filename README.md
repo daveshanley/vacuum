@@ -155,9 +155,10 @@ easier to see on a screen, matches the new `dashboard` style. It's 100% backward
 
 New rules:
 
- - [no-request-body](https://quobix.com/vacuum/rules/operations/no-request-body/) - Ensures GET and DELETE operations do not have request bodies.
+ - [no-request-body](https://quobix.com/vacuum/rules/operations/no-request-body/) - Ensures `GET` and `DELETE` operations do not have request bodies.
  - [duplicate-paths](https://quobix.com/vacuum/rules/operations/duplicate-paths/) - Ensures there are no duplicate paths exist
  - [no-unnecessary-combinator](https://quobix.com/vacuum/rules/schemas/no-unnecessary-combinator/) - Ensures no `allOf`, `oneOf` or `anyOf` combinators exist with a single schema inside them.
+ - [camel-case-properties](https://quobix.com/vacuum/rules/schemas/camel-case-properties/) - Ensures all schema properties are `camelCase`.
 
 ---
 

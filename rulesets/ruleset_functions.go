@@ -1391,31 +1391,6 @@ func GetDuplicatePathsRule() *model.Rule {
 	}
 }
 
-var duplicatePathsFix = `Duplicate path definitions found in your OpenAPI specification. In YAML, duplicate keys are allowed, but only the last occurrence is used. This means earlier path definitions are silently ignored, which can lead to missing API endpoints in your specification.
-
-**Incorrect:**
-~~~yaml
-paths:
-  /users/{id}:
-    get:
-      # This definition will be lost
-  /users/{id}:
-    post:
-      # Only this definition will be kept
-~~~
-
-**Correct:**
-~~~yaml
-paths:
-  /users/{id}:
-    get:
-      # GET operation
-    post:
-      # POST operation - combine operations under one path
-~~~
-
-**Solution:** Combine all operations for a path under a single path definition. Each HTTP method (GET, POST, PUT, DELETE, etc.) should be defined as a separate operation under the same path key.`
-
 // GetUnnecessaryCombinatorRule will check for schema combinators with only a single item.
 func GetUnnecessaryCombinatorRule() *model.Rule {
 	return &model.Rule{
@@ -1436,34 +1411,22 @@ func GetUnnecessaryCombinatorRule() *model.Rule {
 	}
 }
 
-var unnecessaryCombinatorFix = `Schema combinators (allOf, anyOf, oneOf) with only a single item are unnecessary and should be replaced with the item directly for cleaner, more readable schemas.
-
-**Incorrect:**
-~~~yaml
-components:
-  schemas:
-    User:
-      allOf:
-        - $ref: "#/components/schemas/Person"  # Only one item - unnecessary
-    Product:
-      oneOf:
-        - type: string  # Only one item - unnecessary
-~~~
-
-**Correct:**
-~~~yaml
-components:
-  schemas:
-    User:
-      $ref: "#/components/schemas/Person"  # Direct reference
-    Product:
-      type: string  # Direct type definition
-~~~
-
-**Why fix this:**
-- **Clarity**: Direct references are easier to understand
-- **Performance**: Eliminates unnecessary validation layers
-- **Maintenance**: Simpler schemas are easier to maintain
-- **Tooling**: Some tools may have issues with single-item combinators
-
-**Solution:** Replace single-item combinators with their content directly. For allOf/anyOf/oneOf with one item, use the item itself instead of wrapping it in a combinator array.`
+// GetCamelCasePropertiesRule will check that all schema property names are in camelCase format.
+func GetCamelCasePropertiesRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check schema property names are camelCase",
+		Id:           CamelCasePropertiesRule,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Schema property names should use camelCase instead of snake_case, PascalCase, kebab-case, or other formats.",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Recommended:  true,
+		Type:         Style,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "oasCamelCaseProperties",
+		},
+		HowToFix: camelCasePropertiesFix,
+	}
+}
