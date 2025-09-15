@@ -556,6 +556,9 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		informs = rs.GetInfoCount()
 	}
 
+	fmt.Printf(" --> use the %s<dashboard>%s command to be able to navigate results interactively <--\n",
+		cui.ASCIIGreenBold, cui.ASCIIReset)
+
 	// render quality score if available
 	if stats != nil {
 		fmt.Println()
