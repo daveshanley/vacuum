@@ -53,6 +53,12 @@ func (j *JSRuleFunction) RegisterCoreFunction(name string, function CoreFunction
 }
 
 func (j *JSRuleFunction) RunScript() error {
+	j.l.Lock()
+	defer j.l.Unlock()
+	return j.runScriptUnsafe()
+}
+
+func (j *JSRuleFunction) runScriptUnsafe() error {
 	_, err := j.runtime.RunString(j.script)
 	if err != nil {
 		return err
@@ -66,6 +72,9 @@ func (j *JSRuleFunction) GetCategory() string {
 }
 
 func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {
+	j.l.Lock()
+	defer j.l.Unlock()
+
 	var ok bool
 	var schemaFunc goja.Callable
 	basic := model.RuleFunctionSchema{
@@ -73,7 +82,7 @@ func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {
 	}
 
 	if !j.scriptParsed {
-		err := j.RunScript()
+		err := j.runScriptUnsafe()
 		if err != nil {
 
 			return basic
@@ -97,8 +106,11 @@ func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {
 }
 
 func (j *JSRuleFunction) CheckScript() error {
+	j.l.Lock()
+	defer j.l.Unlock()
+
 	if !j.scriptParsed {
-		err := j.RunScript()
+		err := j.runScriptUnsafe()
 		if err != nil {
 			return err
 		}
