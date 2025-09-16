@@ -8,28 +8,22 @@ import (
 )
 
 var (
-	StyleCodeHighlight = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true).Italic(true)
-	StyleQuotedText    = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true).Italic(true)
-
+	StyleCodeHighlight     = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true).Italic(true)
+	StyleQuotedText        = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true).Italic(true)
 	StylePathGrey          = lipgloss.NewStyle().Foreground(RGBGrey)
 	StyleFileItalic        = lipgloss.NewStyle().Foreground(RGBLightGrey).Italic(true)
 	StyleDirectoryGrey     = lipgloss.NewStyle().Foreground(RGBGrey)
 	StyleLineNumber        = lipgloss.NewStyle().Bold(true)
 	StyleColumnNumber      = lipgloss.NewStyle().Foreground(RGBLightGrey)
 	StyleLocationSeparator = lipgloss.NewStyle().Foreground(RGBLightGrey)
-
-	StyleLogError  = lipgloss.NewStyle().Foreground(RGBRed).Bold(true)
-	StyleLogWarn   = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true)
-	StyleLogInfo   = lipgloss.NewStyle().Foreground(RGBBlue).Italic(true)
-	StyleLogDebug  = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
-	StyleLogPrefix = lipgloss.NewStyle().Italic(true)
-
-	StyleSeverityError   = lipgloss.NewStyle().Foreground(RGBRed)
-	StyleSeverityWarning = lipgloss.NewStyle().Foreground(RBGYellow)
-	StyleSeverityInfo    = lipgloss.NewStyle().Foreground(RGBBlue)
-
-	StyleSelectedRow = lipgloss.NewStyle().Foreground(RGBMutedPink)
-
+	StyleLogError          = lipgloss.NewStyle().Foreground(RGBRed).Bold(true)
+	StyleLogWarn           = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true)
+	StyleLogInfo           = lipgloss.NewStyle().Foreground(RGBBlue).Italic(true)
+	StyleLogDebug          = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
+	StyleSeverityError     = lipgloss.NewStyle().Foreground(RGBRed)
+	StyleSeverityWarning   = lipgloss.NewStyle().Foreground(RBGYellow)
+	StyleSeverityInfo      = lipgloss.NewStyle().Foreground(RGBBlue)
+	StyleSelectedRow       = lipgloss.NewStyle().Foreground(RGBMutedPink)
 	StylePathQuoted        = lipgloss.NewStyle().Foreground(RGBLightGrey).Italic(true)
 	StylePathArrow         = lipgloss.NewStyle().Foreground(RGBRed)
 	StylePathRef           = lipgloss.NewStyle().Foreground(RGBLightGrey)

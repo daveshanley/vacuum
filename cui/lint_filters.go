@@ -3,7 +3,9 @@
 
 package cui
 
-import "github.com/daveshanley/vacuum/model"
+import (
+	"github.com/daveshanley/vacuum/model"
+)
 
 func (m *ViolationResultTableModel) ApplyFilter() {
 	// pre-allocate with estimated capacity to reduce allocations

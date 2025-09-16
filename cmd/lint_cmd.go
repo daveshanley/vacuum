@@ -567,6 +567,8 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 
 	renderResultBox(errs, warnings, informs)
 
+	fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", cui.ASCIILightGreyItalic, cui.ASCIIReset)
+
 }
 
 func renderFixedTiming(duration time.Duration, fileSize int64) {

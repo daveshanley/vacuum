@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -16,11 +17,12 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 
+	"os"
+	"time"
+
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
-	"os"
-	"time"
 )
 
 // GetHTMLReportCommand returns a cobra command for generating an HTML Report.

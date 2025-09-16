@@ -29,7 +29,6 @@ const (
 	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
 )
 
-
 // BuildRuleSetFromUserSuppliedSet creates a ready to run ruleset, augmented or provided by a user
 // configured ruleset. This ruleset could be lifted directly from a Spectral configuration.
 func BuildRuleSetFromUserSuppliedSet(rsBytes []byte, rs rulesets.RuleSets) (*rulesets.RuleSet, error) {

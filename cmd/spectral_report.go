@@ -8,18 +8,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 
-	"github.com/daveshanley/vacuum/cui"
-	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/daveshanley/vacuum/cui"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetSpectralReportCommand() *cobra.Command {

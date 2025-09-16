@@ -14,15 +14,9 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
-// Log level constants
-const (
-	LogLevelError = "ERROR"
-	LogLevelWarn  = "WARN"
-	LogLevelInfo  = "INFO"
-	LogLevelDebug = "DEBUG"
-)
-
 type ColorizeMode int
+
+var QuotedTextPattern = regexp.MustCompile(`(?:^|\s|\[)'([^']+)'(?:\s|\]|$)`)
 
 const (
 	ColorizeDefault ColorizeMode = iota
@@ -36,8 +30,8 @@ const (
 var (
 	ASCIIRed             = "\033[38;5;196m"
 	ASCIIGrey            = "\033[38;5;246m"
-	ASCIIPink            = "\033[38;5;201m" // Bright neon pink to match RGBPink
-	ASCIIMutedPink       = "\033[38;5;164m" // Muted pink for selected table rows
+	ASCIIPink            = "\033[38;5;201m"
+	ASCIIMutedPink       = "\033[38;5;164m"
 	ASCIILightGrey       = "\033[38;5;253m"
 	ASCIIBlue            = "\033[38;5;45m"
 	ASCIIYellow          = "\033[38;5;220m"
@@ -47,106 +41,84 @@ var (
 	ASCIIBold            = "\033[1m"
 	ASCIIItalic          = "\033[3m"
 	ASCIIReset           = "\033[0m"
-	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m"        // Blue text with bold and italic
-	ASCIIWarn            = "\033[48;5;220;1;38;5;0m"  // Yellow background with bold black text
-	ASCIIError           = "\033[48;5;196;1;38;5;15m" // Red background with bold white text
-	ASCIIInfo            = "\033[48;5;45;1;38;5;0m"   // Blue background with bold black text
-
-	// Regex pattern to match text between single quotes with proper boundaries
-	// Matches 'text' when preceded by space, start of string, or [ and followed by space, end of string, or ]
-	QuotedTextPattern = regexp.MustCompile(`(?:^|\s|\[)'([^']+)'(?:\s|\]|$)`)
-
-	// Store original values for restoration
-	origRed             = "\033[38;5;196m"
-	origGrey            = "\033[38;5;246m"
-	origPink            = "\033[38;5;201m"
-	origMutedPink       = "\033[38;5;164m"
-	origLightGrey       = "\033[38;5;253m"
-	origBlue            = "\033[38;5;45m"
-	origYellow          = "\033[38;5;220m"
-	origGreen           = "\033[38;5;46m"
-	origLightGreyItalic = "\033[3;38;5;251m"
-	origBold            = "\033[1m"
-	origItalic          = "\033[3m"
-	origReset           = "\033[0m"
-	origBlueBoldItalic  = "\033[1;3;38;5;45m"
-	origWarn            = "\033[48;5;220;1;38;5;0m"
-	origError           = "\033[48;5;196;1;38;5;15m"
-	origInfo            = "\033[48;5;45;1;38;5;0m"
-
-	// Store original lipgloss colors
-	origRGBBlue       = lipgloss.Color("45")
-	origRGBPink       = lipgloss.Color("201")
-	origRGBRed        = lipgloss.Color("196")
-	origRGBDarkRed    = lipgloss.Color("124")
-	origRGBYellow     = lipgloss.Color("220")
-	origRGBDarkYellow = lipgloss.Color("172")
-	origRGBGreen      = lipgloss.Color("46")
-	origRGBDarkGreen  = lipgloss.Color("22")
-	origRGBDarkBlue   = lipgloss.Color("24")
-	origRGBOrange     = lipgloss.Color("208")
-	origRGBPurple     = lipgloss.Color("135")
-	origRGBGrey       = lipgloss.Color("246")
-	origRGBDarkGrey   = lipgloss.Color("236")
-	origRGBWhite      = lipgloss.Color("255")
-	origRGBBlack      = lipgloss.Color("16")
-	origRGBSubtleBlue = lipgloss.Color("#1a3a5a")
-	origRGBSubtlePink = lipgloss.Color("#2a1a2a")
-	origRGBLightGrey  = lipgloss.Color("253")
-	origRGBMutedPink  = lipgloss.Color("164")
-
-	// Current lipgloss colors (may be modified)
-	RGBBlue       = origRGBBlue
-	RGBPink       = origRGBPink
-	RGBRed        = origRGBRed
-	RGBDarkRed    = origRGBDarkRed
-	RBGYellow     = origRGBYellow
-	RGBDarkYellow = origRGBDarkYellow
-	RGBGreen      = origRGBGreen
-	RGBDarkGreen  = origRGBDarkGreen
-	RGBDarkBlue   = origRGBDarkBlue
-	RGBOrange     = origRGBOrange
-	RGBPurple     = origRGBPurple
-	RGBGrey       = origRGBGrey
-	RGBDarkGrey   = origRGBDarkGrey
-	RGBWhite      = origRGBWhite
-	RGBBlack      = origRGBBlack
-	RGBSubtleBlue = origRGBSubtleBlue
-	RGBSubtlePink = origRGBSubtlePink
-	RGBLightGrey  = origRGBLightGrey
-	RGBMutedPink  = origRGBMutedPink
+	ASCIIBlueBoldItalic  = "\033[1;3;38;5;45m"
+	ASCIIWarn            = "\033[48;5;220;1;38;5;0m"
+	ASCIIError           = "\033[48;5;196;1;38;5;15m"
+	ASCIIInfo            = "\033[48;5;45;1;38;5;0m"
+	OrigRed              = "\033[38;5;196m"
+	OrigGrey             = "\033[38;5;246m"
+	OrigPink             = "\033[38;5;201m"
+	OrigMutedPink        = "\033[38;5;164m"
+	OrigLightGrey        = "\033[38;5;253m"
+	OrigBlue             = "\033[38;5;45m"
+	OrigYellow           = "\033[38;5;220m"
+	OrigGreen            = "\033[38;5;46m"
+	OrigLightGreyItalic  = "\033[3;38;5;251m"
+	OrigBold             = "\033[1m"
+	OrigItalic           = "\033[3m"
+	OrigReset            = "\033[0m"
+	OrigBlueBoldItalic   = "\033[1;3;38;5;45m"
+	OrigWarn             = "\033[48;5;220;1;38;5;0m"
+	OrigError            = "\033[48;5;196;1;38;5;15m"
+	OrigInfo             = "\033[48;5;45;1;38;5;0m"
+	OrigRGBBlue          = lipgloss.Color("45")
+	OrigRGBPink          = lipgloss.Color("201")
+	OrigRGBRed           = lipgloss.Color("196")
+	OrigRGBDarkRed       = lipgloss.Color("124")
+	OrigRGBYellow        = lipgloss.Color("220")
+	OrigRGBDarkYellow    = lipgloss.Color("172")
+	OrigRGBGreen         = lipgloss.Color("46")
+	OrigRGBDarkGreen     = lipgloss.Color("22")
+	OrigRGBDarkBlue      = lipgloss.Color("24")
+	OrigRGBOrange        = lipgloss.Color("208")
+	OrigRGBPurple        = lipgloss.Color("135")
+	OrigRGBGrey          = lipgloss.Color("246")
+	OrigRGBDarkGrey      = lipgloss.Color("236")
+	OrigRGBWhite         = lipgloss.Color("255")
+	OrigRGBBlack         = lipgloss.Color("16")
+	OrigRGBSubtleBlue    = lipgloss.Color("#1a3a5a")
+	OrigRGBSubtlePink    = lipgloss.Color("#2a1a2a")
+	OrigRGBLightGrey     = lipgloss.Color("253")
+	OrigRGBMutedPink     = lipgloss.Color("164")
+	RGBBlue              = OrigRGBBlue
+	RGBPink              = OrigRGBPink
+	RGBRed               = OrigRGBRed
+	RGBDarkRed           = OrigRGBDarkRed
+	RBGYellow            = OrigRGBYellow
+	RGBDarkYellow        = OrigRGBDarkYellow
+	RGBGreen             = OrigRGBGreen
+	RGBDarkGreen         = OrigRGBDarkGreen
+	RGBDarkBlue          = OrigRGBDarkBlue
+	RGBOrange            = OrigRGBOrange
+	RGBPurple            = OrigRGBPurple
+	RGBGrey              = OrigRGBGrey
+	RGBDarkGrey          = OrigRGBDarkGrey
+	RGBWhite             = OrigRGBWhite
+	RGBBlack             = OrigRGBBlack
+	RGBSubtleBlue        = OrigRGBSubtleBlue
+	RGBSubtlePink        = OrigRGBSubtlePink
+	RGBLightGrey         = OrigRGBLightGrey
+	RGBMutedPink         = OrigRGBMutedPink
+	ColorBlue            = strPtr("45")
+	ColorSoftBlue        = strPtr("117")
+	ColorBlueBg          = strPtr("#002329")
+	ColorPink            = strPtr("201")
+	ColorPinkBg          = strPtr("#2a1a2a")
+	ColorGreen           = strPtr("46")
+	ColorGrey            = strPtr("246")
+	ColorDarkGrey        = strPtr("236")
+	ColorLightGrey       = strPtr("253")
+	ChromaBlue           = strPtr("#00d7ff")
+	ChromaPink           = strPtr("#ff5fff")
+	ChromaYellow         = strPtr("#ffd700")
+	ChromaGreen          = strPtr("#00ff00")
+	ChromaGrey           = strPtr("#8a8a8a")
+	ChromaLightPink      = strPtr("#d75fd7")
 )
 
 func strPtr(s string) *string { return &s }
 func boolPtr(b bool) *bool    { return &b }
 func uintPtr(u uint) *uint    { return &u }
-
-// Color constants for Glamour styles (as string pointers)
-var (
-	// ANSI 256 colors for general text
-	ColorBlue       = strPtr("45")
-	ColorSoftBlue   = strPtr("117")
-	ColorBlueBg     = strPtr("#002329")
-	ColorPink       = strPtr("201")
-	ColorPinkBg     = strPtr("#2a1a2a")
-	ColorRed        = strPtr("196")
-	ColorYellow     = strPtr("220")
-	ColorSoftYellow = strPtr("226")
-	ColorGreen      = strPtr("46")
-	ColorGrey       = strPtr("246")
-	ColorDarkGrey   = strPtr("236")
-	ColorLightGrey  = strPtr("253")
-	ColorLightPink  = strPtr("164")
-
-	// chroma specifc colors (non ANSI256)
-	ChromaBlue      = strPtr("#00d7ff")
-	ChromaPink      = strPtr("#ff5fff")
-	ChromaRed       = strPtr("#ff0000")
-	ChromaYellow    = strPtr("#ffd700")
-	ChromaGreen     = strPtr("#00ff00")
-	ChromaGrey      = strPtr("#8a8a8a")
-	ChromaLightPink = strPtr("#d75fd7")
-)
 
 // ColorizeString highlights backtick-enclosed text with the specified style
 func ColorizeString(text string, mode ColorizeMode) string {
@@ -729,8 +701,6 @@ func DisableColors() {
 	ASCIIWarn = ""
 	ASCIIError = ""
 	ASCIIInfo = ""
-
-	// Also disable lipgloss colors - use NoColor for most, dark grey for backgrounds
 	RGBBlue = lipgloss.NoColor{}
 	RGBPink = lipgloss.NoColor{}
 	RGBRed = lipgloss.NoColor{}
@@ -760,41 +730,39 @@ func AreColorsDisabled() bool {
 // EnableColors restores all ANSI color codes to their original values
 func EnableColors() {
 	colorsDisabled = false
-	ASCIIRed = origRed
-	ASCIIGrey = origGrey
-	ASCIIPink = origPink
-	ASCIIMutedPink = origMutedPink
-	ASCIILightGrey = origLightGrey
-	ASCIIBlue = origBlue
-	ASCIIYellow = origYellow
-	ASCIIGreen = origGreen
-	ASCIILightGreyItalic = origLightGreyItalic
-	ASCIIBold = origBold
-	ASCIIItalic = origItalic
-	ASCIIReset = origReset
-	ASCIIBlueBoldItalic = origBlueBoldItalic
-	ASCIIWarn = origWarn
-	ASCIIError = origError
-	ASCIIInfo = origInfo
-
-	// Restore lipgloss colors
-	RGBBlue = origRGBBlue
-	RGBPink = origRGBPink
-	RGBRed = origRGBRed
-	RGBDarkRed = origRGBDarkRed
-	RBGYellow = origRGBYellow
-	RGBDarkYellow = origRGBDarkYellow
-	RGBGreen = origRGBGreen
-	RGBDarkGreen = origRGBDarkGreen
-	RGBDarkBlue = origRGBDarkBlue
-	RGBOrange = origRGBOrange
-	RGBPurple = origRGBPurple
-	RGBGrey = origRGBGrey
-	RGBDarkGrey = origRGBDarkGrey
-	RGBWhite = origRGBWhite
-	RGBBlack = origRGBBlack
-	RGBSubtleBlue = origRGBSubtleBlue
-	RGBSubtlePink = origRGBSubtlePink
-	RGBLightGrey = origRGBLightGrey
-	RGBMutedPink = origRGBMutedPink
+	ASCIIRed = OrigRed
+	ASCIIGrey = OrigGrey
+	ASCIIPink = OrigPink
+	ASCIIMutedPink = OrigMutedPink
+	ASCIILightGrey = OrigLightGrey
+	ASCIIBlue = OrigBlue
+	ASCIIYellow = OrigYellow
+	ASCIIGreen = OrigGreen
+	ASCIILightGreyItalic = OrigLightGreyItalic
+	ASCIIBold = OrigBold
+	ASCIIItalic = OrigItalic
+	ASCIIReset = OrigReset
+	ASCIIBlueBoldItalic = OrigBlueBoldItalic
+	ASCIIWarn = OrigWarn
+	ASCIIError = OrigError
+	ASCIIInfo = OrigInfo
+	RGBBlue = OrigRGBBlue
+	RGBPink = OrigRGBPink
+	RGBRed = OrigRGBRed
+	RGBDarkRed = OrigRGBDarkRed
+	RBGYellow = OrigRGBYellow
+	RGBDarkYellow = OrigRGBDarkYellow
+	RGBGreen = OrigRGBGreen
+	RGBDarkGreen = OrigRGBDarkGreen
+	RGBDarkBlue = OrigRGBDarkBlue
+	RGBOrange = OrigRGBOrange
+	RGBPurple = OrigRGBPurple
+	RGBGrey = OrigRGBGrey
+	RGBDarkGrey = OrigRGBDarkGrey
+	RGBWhite = OrigRGBWhite
+	RGBBlack = OrigRGBBlack
+	RGBSubtleBlue = OrigRGBSubtleBlue
+	RGBSubtlePink = OrigRGBSubtlePink
+	RGBLightGrey = OrigRGBLightGrey
+	RGBMutedPink = OrigRGBMutedPink
 }

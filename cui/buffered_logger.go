@@ -15,6 +15,14 @@ import (
 	"github.com/charmbracelet/lipgloss/v2/tree"
 )
 
+// Log level constants
+const (
+	LogLevelError = "ERROR"
+	LogLevelWarn  = "WARN"
+	LogLevelInfo  = "INFO"
+	LogLevelDebug = "DEBUG"
+)
+
 type LogEntry struct {
 	Level   string
 	Message string

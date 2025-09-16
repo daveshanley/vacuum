@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -16,12 +17,13 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 
-	"github.com/daveshanley/vacuum/cui"
-	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/daveshanley/vacuum/cui"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetVacuumReportCommand() *cobra.Command {

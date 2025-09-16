@@ -315,7 +315,6 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 	return tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
 }
 
-
 // HandleEscapeKey handles the escape key with context-aware behavior
 func (m *ViolationResultTableModel) HandleEscapeKey() (tea.Model, tea.Cmd) {
 	// empty state (no results), clear all filters
