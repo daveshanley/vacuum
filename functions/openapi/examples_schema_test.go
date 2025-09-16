@@ -720,3 +720,55 @@ components:
 	// should pass - type: [string, "null"] is the correct OpenAPI 3.1 syntax
 	assert.Len(t, res, 0)
 }
+
+// TestExamplesSchema_Issue520_OneOfNonDiscriminant tests the specific issue from #520
+// where oneOf validation was not being reported due to non-discriminant alternatives
+func TestExamplesSchema_Issue520_OneOfNonDiscriminant(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Issue 520 Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      type: object
+      oneOf:
+        - properties:
+            pim:
+              type: string
+        - properties:
+            pam:
+              type: string
+      example:
+        pam: nop`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	// Should detect oneOf violation - example matches both alternatives
+	// The example {pam: "nop"} matches:
+	// 1. First alternative (allows objects with "pim" property - no required fields)
+	// 2. Second alternative (allows objects with "pam" property - example has "pam")
+	// Since oneOf requires exactly one match, this should be invalid
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "'oneOf' failed")
+	assert.Contains(t, res[0].Message, "subschemas 0, 1 matched")
+	assert.Equal(t, "$.components.schemas['Test'].example", res[0].Path)
+}
