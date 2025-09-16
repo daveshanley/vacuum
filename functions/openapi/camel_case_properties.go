@@ -80,19 +80,12 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		seen[key] = true
 
 		// check all property names
-		for propertyName, _ := range schema.Value.Properties.FromOldest() {
+		for propertyName, prop := range schema.Value.Properties.FromOldest() {
 			if !ccp.isCamelCase(propertyName) {
 				caseType := ccp.identifyCaseType(propertyName)
 				path := fmt.Sprintf("%s.properties['%s']", schema.GenerateJSONPath(), propertyName)
 				message := fmt.Sprintf("property `%s` is `%s` not `camelCase`", propertyName, caseType)
-
-				var keyNode *yaml.Node
-				if schema.Value.GoLow() != nil && schema.Value.GoLow().Properties.GetKeyNode() != nil {
-					keyNode = schema.Value.GoLow().Properties.GetKeyNode()
-				}
-
-				result := buildResult(message, path, keyNode, schema)
-				results = append(results, result)
+				results = append(results, buildResult(message, path, prop.GoLow().GetKeyNode(), schema))
 			}
 		}
 	}
