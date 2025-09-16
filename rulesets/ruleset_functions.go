@@ -986,7 +986,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 	}
 }
 
-// GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
+// GetNoRefSiblingsRule // disabled for OAS3.1 as it's allowed there and libopenapi supports it.
 func GetOAS3NoRefSiblingsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check for siblings to $ref values",
