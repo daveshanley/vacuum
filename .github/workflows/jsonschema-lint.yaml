@@ -1,0 +1,45 @@
+name: JSON Schema Lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'rulesets/schemas/**/*.json'
+      - '.github/workflows/jsonschema-lint.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'rulesets/schemas/**/*.json'
+      - '.github/workflows/jsonschema-lint.yaml'
+
+jobs:
+  lint-jsonschema:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install JSON Schema CLI
+        run: npm install @sourcemeta/jsonschema@11.5.1
+      - name: Lint JSON Schemas
+        run: npx jsonschema lint rulesets/schemas
+        continue-on-error: true
+      - name: Fix JSON Schema issues
+        run: npx jsonschema lint rulesets/schemas --fix
+      - name: Commit fixes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add rulesets/schemas/
+          if ! git diff --staged --quiet; then
+            git commit -m "fix(schema): auto-fix JSON schema linting issues"
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          fi
