@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/daveshanley/vacuum/cui"
 	languageserver "github.com/daveshanley/vacuum/language-server"
+	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
@@ -31,8 +31,8 @@ IDE and start linting your OpenAPI documents in real-time.`,
 
 			// setup logging to be discarded, it will invalidate the LSP protocol
 			// use discard logger to prevent memory accumulation
-			bufferedLogger := cui.NewDiscardLogger()
-			handler := cui.NewBufferedLogHandler(bufferedLogger)
+			bufferedLogger := logging.NewDiscardLogger()
+			handler := logging.NewBufferedLogHandler(bufferedLogger)
 			logger := slog.New(handler)
 
 			// extract flags

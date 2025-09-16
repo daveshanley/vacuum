@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/spf13/cobra"
 )
@@ -29,9 +30,9 @@ type FileProcessingResult struct {
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	flags := ReadLintFlags(cmd)
-	logger, _ := createLogger(flags.DebugFlag)
+	bufferedLogger, _ := createLogger(flags.DebugFlag)
 
-	selectedRS, err := LoadRulesetWithConfig(flags, logger)
+	selectedRS, err := LoadRulesetWithConfig(flags, bufferedLogger)
 	if err != nil {
 		return err
 	}
@@ -41,7 +42,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	if !flags.SilentFlag && !flags.PipelineOutput {
 		if !flags.NoStyleFlag {
-			fmt.Printf(" vacuuming %s%d%s files...\n\n", cui.ASCIIGreenBold, len(filesToLint), cui.ASCIIReset)
+			fmt.Printf(" vacuuming %s%d%s files...\n\n", color.ASCIIGreenBold, len(filesToLint), color.ASCIIReset)
 		} else {
 			fmt.Printf(" vacuuming %d files...\n\n", len(filesToLint))
 		}
@@ -86,22 +87,22 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					bar := ""
 					for j := 0; j < barWidth; j++ {
 						if j < filledWidth {
-							bar += cui.ASCIIBlue + "█"
+							bar += color.ASCIIBlue + "█"
 						} else {
-							bar += cui.ASCIIGrey + "░"
+							bar += color.ASCIIGrey + "░"
 						}
 					}
-					bar += cui.ASCIIReset
+					bar += color.ASCIIReset
 
 					// clear line and redraw
 					fmt.Printf("\r%s", strings.Repeat(" ", 150))
 					if currentFileName != "" {
 						processed := int(currentProgress*float64(len(filesToLint))) + 1
 						fmt.Printf("\r %s%s%s %s%s[%d/%d]%s %s %s%s%s%s",
-							cui.ASCIIPink, spinner, cui.ASCIIReset,
-							cui.ASCIIPink, cui.ASCIIBold, processed, len(filesToLint), cui.ASCIIReset,
+							color.ASCIIPink, spinner, color.ASCIIReset,
+							color.ASCIIPink, color.ASCIIBold, processed, len(filesToLint), color.ASCIIReset,
 							bar,
-							cui.ASCIIGrey, cui.ASCIIItalic, currentFileName, cui.ASCIIReset)
+							color.ASCIIGrey, color.ASCIIItalic, currentFileName, color.ASCIIReset)
 					}
 				}
 			}
@@ -121,16 +122,16 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 		}
 
-		var bufferedLogger *cui.BufferedLogger
+		var bf *logging.BufferedLogger
 		if flags.DebugFlag {
-			bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelDebug)
+			bf = logging.NewBufferedLoggerWithLevel(logging.LogLevelDebug)
 		} else {
-			bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
+			bf = logging.NewBufferedLoggerWithLevel(logging.LogLevelError)
 		}
 
 		processingConfig := &FileProcessingConfig{
 			Flags:           flags,
-			BufferedLogger:  bufferedLogger,
+			BufferedLogger:  bf,
 			SelectedRuleset: selectedRS,
 			CustomFunctions: customFuncs,
 			IgnoredItems:    ignoredItems,
@@ -180,10 +181,10 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			// only print header if we're not showing details (details prints its own header)
 			if !(flags.DetailsFlag && len(fr.results) > 0 && fr.err == nil) {
 				if !flags.NoStyleFlag {
-					fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIPink, cui.ASCIIBold,
-						cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
-					fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1),
-						cui.ASCIIReset)
+					fmt.Printf("\n %s%s>%s %s%s%s\n", color.ASCIIPink, color.ASCIIBold,
+						color.ASCIIReset, color.ASCIIBlue, fr.fileName, color.ASCIIReset)
+					fmt.Printf(" %s%s%s\n\n", color.ASCIIPink, strings.Repeat("-", tableWidth-1),
+						color.ASCIIReset)
 				} else {
 					fmt.Printf("\n > %s\n", fr.fileName)
 					fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
@@ -194,17 +195,17 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				// for errors, we need to print the header since details won't be shown
 				if flags.DetailsFlag && len(fr.results) > 0 {
 					if !flags.NoStyleFlag {
-						fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold,
-							cui.ASCIIReset, cui.ASCIIBlue, fr.fileName, cui.ASCIIReset)
-						fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1),
-							cui.ASCIIReset)
+						fmt.Printf("\n %s%s>%s %s%s%s\n", color.ASCIIBlue, color.ASCIIBold,
+							color.ASCIIReset, color.ASCIIBlue, fr.fileName, color.ASCIIReset)
+						fmt.Printf(" %s%s%s\n\n", color.ASCIIPink, strings.Repeat("-", tableWidth-1),
+							color.ASCIIReset)
 					} else {
 						fmt.Printf("\n > %s\n", fr.fileName)
 						fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
 					}
 				}
 				if !flags.NoStyleFlag {
-					fmt.Printf("%sError: %v%s\n", cui.ASCIIRed, fr.err, cui.ASCIIReset)
+					fmt.Printf("%sError: %v%s\n", color.ASCIIRed, fr.err, color.ASCIIReset)
 				} else {
 					fmt.Printf("Error: %v\n", fr.err)
 				}
@@ -244,8 +245,8 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			// show logs if any with nice tree formatting
 			if len(fr.logs) > 0 && len(fr.logs[0]) > 0 {
 				if !flags.NoStyleFlag {
-					fmt.Printf("%s※※ vacuumed logs for %s'%s%s%s%s' %s※※%s\n", cui.ASCIIGrey, cui.ASCIIReset,
-						cui.ASCIIItalic, cui.ASCIIGreenBold, fr.fileName, cui.ASCIIReset, cui.ASCIIGrey, cui.ASCIIReset)
+					fmt.Printf("%s※※ vacuumed logs for %s'%s%s%s%s' %s※※%s\n", color.ASCIIGrey, color.ASCIIReset,
+						color.ASCIIItalic, color.ASCIIGreenBold, fr.fileName, color.ASCIIReset, color.ASCIIGrey, color.ASCIIReset)
 				} else {
 					fmt.Println("vacuumed logs:")
 				}

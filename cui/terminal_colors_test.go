@@ -3,6 +3,8 @@ package cui
 import (
 	"strings"
 	"testing"
+
+	"github.com/daveshanley/vacuum/color"
 )
 
 func TestColorizePath_CircularReferences(t *testing.T) {
@@ -15,35 +17,35 @@ func TestColorizePath_CircularReferences(t *testing.T) {
 			name:  "Simple circular reference",
 			input: "Parent -> Child -> Parent",
 			contains: []string{
-				ASCIILightGrey + "Parent",
-				ASCIIRed + " -> ",
-				ASCIILightGrey + "Child",
-				ASCIILightGrey + "Parent",
+				color.ASCIILightGrey + "Parent",
+				color.ASCIIRed + " -> ",
+				color.ASCIILightGrey + "Child",
+				color.ASCIILightGrey + "Parent",
 			},
 		},
 		{
 			name:  "Complex circular reference",
 			input: "payment_intent -> customer -> bank_account -> account",
 			contains: []string{
-				ASCIILightGrey + "payment_intent",
-				ASCIIRed + " -> ",
-				ASCIILightGrey + "customer",
-				ASCIILightGrey + "bank_account",
-				ASCIILightGrey + "account",
+				color.ASCIILightGrey + "payment_intent",
+				color.ASCIIRed + " -> ",
+				color.ASCIILightGrey + "customer",
+				color.ASCIILightGrey + "bank_account",
+				color.ASCIILightGrey + "account",
 			},
 		},
 		{
 			name:  "JSON path (no arrows)",
 			input: "$.components.schemas.Parent",
 			contains: []string{
-				ASCIIGrey + "$.components.schemas.Parent",
+				color.ASCIIGrey + "$.components.schemas.Parent",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ColorizePath(tt.input)
+			result := color.ColorizePath(tt.input)
 
 			// check that all expected substrings are present
 			for _, expected := range tt.contains {

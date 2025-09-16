@@ -6,6 +6,8 @@ package cui
 import (
 	"fmt"
 	"strings"
+
+	color2 "github.com/daveshanley/vacuum/color"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 func renderMessage(prefix, color, message string) {
 	lines := strings.Split(message, "\n")
 
-	if AreColorsDisabled() {
+	if color2.AreColorsDisabled() {
 		fmt.Printf("%s %s\n", prefix, lines[0])
 		for i := 1; i < len(lines); i++ {
 			if lines[i] != "" {
@@ -28,7 +30,7 @@ func renderMessage(prefix, color, message string) {
 		}
 		fmt.Println()
 	} else {
-		fmt.Printf("%s%s %s%s\n", color, prefix, lines[0], ASCIIReset)
+		fmt.Printf("%s%s %s%s\n", color, prefix, lines[0], color2.ASCIIReset)
 		for i := 1; i < len(lines); i++ {
 			if lines[i] != "" {
 				fmt.Printf("%s%s\n", indentSpace, lines[i])
@@ -40,22 +42,22 @@ func renderMessage(prefix, color, message string) {
 
 func RenderError(err error) {
 	if err != nil {
-		renderMessage(errorPrefix, ASCIIRed, err.Error())
+		renderMessage(errorPrefix, color2.ASCIIRed, err.Error())
 	}
 }
 
 func RenderErrorString(format string, args ...interface{}) {
-	renderMessage(errorPrefix, ASCIIRed, fmt.Sprintf(format, args...))
+	renderMessage(errorPrefix, color2.ASCIIRed, fmt.Sprintf(format, args...))
 }
 
 func RenderWarning(format string, args ...interface{}) {
-	renderMessage(warningPrefix, ASCIIYellow, fmt.Sprintf(format, args...))
+	renderMessage(warningPrefix, color2.ASCIIYellow, fmt.Sprintf(format, args...))
 }
 
 func RenderInfo(format string, args ...interface{}) {
-	renderMessage(infoPrefix, ASCIIBlue, fmt.Sprintf(format, args...))
+	renderMessage(infoPrefix, color2.ASCIIBlue, fmt.Sprintf(format, args...))
 }
 
 func RenderSuccess(format string, args ...interface{}) {
-	renderMessage(successPrefix, ASCIIGreen, fmt.Sprintf(format, args...))
+	renderMessage(successPrefix, color2.ASCIIGreen, fmt.Sprintf(format, args...))
 }

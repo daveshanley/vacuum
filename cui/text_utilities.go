@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 )
 
@@ -29,22 +30,22 @@ func GetSeverityInfo(severity string) SeverityInfo {
 		return SeverityInfo{
 			Icon:      "✗",
 			Text:      "✗ error",
-			IconStyle: lipgloss.NewStyle().Foreground(RGBRed).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RGBRed),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBRed).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBRed),
 		}
 	case model.SeverityWarn:
 		return SeverityInfo{
 			Icon:      "▲",
 			Text:      "▲ warning",
-			IconStyle: lipgloss.NewStyle().Foreground(RBGYellow).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RBGYellow),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RBGYellow).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RBGYellow),
 		}
 	default: // model.SeverityInfo and others
 		return SeverityInfo{
 			Icon:      "●",
 			Text:      "● info",
-			IconStyle: lipgloss.NewStyle().Foreground(RGBBlue).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RGBBlue),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBBlue),
 		}
 	}
 }
@@ -56,29 +57,29 @@ func GetSeverityInfoFromText(severityText string) SeverityInfo {
 		return SeverityInfo{
 			Icon:      "✗",
 			Text:      severityText,
-			IconStyle: lipgloss.NewStyle().Foreground(RGBRed).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RGBRed),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBRed).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBRed),
 		}
 	case "▲ warning":
 		return SeverityInfo{
 			Icon:      "▲",
 			Text:      severityText,
-			IconStyle: lipgloss.NewStyle().Foreground(RBGYellow).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RBGYellow),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RBGYellow).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RBGYellow),
 		}
 	case "● info":
 		return SeverityInfo{
 			Icon:      "●",
 			Text:      severityText,
-			IconStyle: lipgloss.NewStyle().Foreground(RGBBlue).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RGBBlue),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBBlue),
 		}
 	default:
 		return SeverityInfo{
 			Icon:      "●",
 			Text:      "● info",
-			IconStyle: lipgloss.NewStyle().Foreground(RGBGrey).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(RGBGrey),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBGrey).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBGrey),
 		}
 	}
 }
@@ -255,7 +256,7 @@ func renderEmptyState(width, height int) string {
 	}
 
 	textStyle := lipgloss.NewStyle().
-		Foreground(RGBRed).
+		Foreground(color.RGBRed).
 		Width(width)
 	return textStyle.Render(strings.Join(resultLines, "\n"))
 }
@@ -263,7 +264,7 @@ func renderEmptyState(width, height int) string {
 func addTableBorders(tableView string) string {
 	tableStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(RGBPink).
+		BorderForeground(color.RGBPink).
 		PaddingTop(0)
 
 	return tableStyle.Render(tableView)

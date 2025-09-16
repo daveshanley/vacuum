@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/daveshanley/vacuum/color"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
@@ -59,7 +60,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				cui.DisableColors()
+				color.DisableColors()
 			}
 
 			PrintBanner()

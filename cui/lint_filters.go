@@ -4,6 +4,7 @@
 package cui
 
 import (
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 )
 
@@ -68,7 +69,7 @@ func (m *ViolationResultTableModel) ApplyFilter() {
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)
 
-	ApplyLintDetailsTableStyles(&m.table)
+	color.ApplyLintDetailsTableStyles(&m.table)
 
 	// reset cursor.
 	m.table.SetCursor(0)

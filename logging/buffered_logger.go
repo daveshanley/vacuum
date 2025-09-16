@@ -1,7 +1,7 @@
 // Copyright 2025 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // SPDX-License-Identifier: MIT
 
-package cui
+package logging
 
 import (
 	"context"
@@ -13,6 +13,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/lipgloss/v2/tree"
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/utils"
 )
 
 // Log level constants
@@ -187,10 +189,10 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 
 	var output strings.Builder
 
-	errorText := lipgloss.NewStyle().Foreground(RGBRed)
-	debugText := lipgloss.NewStyle().Foreground(RGBGrey)
-	treeStyleOriginal := lipgloss.NewStyle().Foreground(RGBPink)
-	keyStyleOriginal := lipgloss.NewStyle().Bold(true).Foreground(RGBBlue)
+	errorText := lipgloss.NewStyle().Foreground(color.RGBRed)
+	debugText := lipgloss.NewStyle().Foreground(color.RGBGrey)
+	treeStyleOriginal := lipgloss.NewStyle().Foreground(color.RGBPink)
+	keyStyleOriginal := lipgloss.NewStyle().Bold(true).Foreground(color.RGBBlue)
 
 	keyStyle := keyStyleOriginal
 	treeStyle := treeStyleOriginal
@@ -212,8 +214,8 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 			treeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(severityColor))
 		case LogLevelDebug:
 			keyStyle = lipgloss.NewStyle().Bold(true).
-				Foreground(RGBGrey)
-			treeStyle = lipgloss.NewStyle().Foreground(RGBGrey)
+				Foreground(color.RGBGrey)
+			treeStyle = lipgloss.NewStyle().Foreground(color.RGBGrey)
 		}
 
 		var mainMsg string
@@ -222,7 +224,7 @@ func (l *BufferedLogger) RenderTree(noStyle bool) string {
 		} else {
 			severityStyle := lipgloss.NewStyle().
 				Background(lipgloss.Color(severityColor)).
-				Foreground(RGBBlack).
+				Foreground(color.RGBBlack).
 				Bold(true)
 
 			severityPrefix = severityStyle.Render(fmt.Sprintf(" %s ", severityPrefix))
@@ -381,4 +383,39 @@ func (h *BufferedLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 func (h *BufferedLogHandler) WithGroup(name string) slog.Handler {
 	return h
+}
+
+func ColorizeLogMessage(message, severity string) string {
+	if severity == LogLevelError {
+		return color.StyleLogError.Render(message)
+	}
+	if severity == LogLevelDebug {
+		return color.StyleLogDebug.Render(message)
+	}
+
+	if !strings.HasPrefix(message, "[") {
+		return message
+	}
+
+	// Use regex to find and colorize backtick-enclosed text
+	res := utils.LogPrefixRegex.ReplaceAllStringFunc(message, func(match string) string {
+		// Extract the content between backticks
+		content := utils.LogPrefixRegex.FindStringSubmatch(match)
+		if len(content) > 1 {
+			// Apply styling using lipgloss
+			switch severity {
+			case LogLevelError:
+				return color.StyleLogError.Copy().Italic(true).Render("[" + content[1] + "]")
+			case LogLevelWarn:
+				return color.StyleLogWarn.Copy().Render("[" + content[1] + "]")
+			case LogLevelInfo:
+				return color.StyleLogInfo.Copy().Render("[" + content[1] + "]")
+			case LogLevelDebug:
+				return color.StyleLogDebug.Copy().Render("[" + content[1] + "]")
+			}
+
+		}
+		return match
+	})
+	return res
 }

@@ -10,7 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -59,7 +60,7 @@ type LintFlags struct {
 type FileProcessingConfig struct {
 	Flags           *LintFlags
 	Logger          *slog.Logger
-	BufferedLogger  *cui.BufferedLogger
+	BufferedLogger  *logging.BufferedLogger
 	SelectedRuleset *rulesets.RuleSet
 	CustomFunctions map[string]model.RuleFunction
 	IgnoredItems    model.IgnoredItems
@@ -113,7 +114,7 @@ func SetupVacuumEnvironment(flags *LintFlags) {
 	}
 
 	if flags.NoStyleFlag && !flags.PipelineOutput {
-		cui.DisableColors()
+		color.DisableColors()
 	}
 
 	if !flags.SilentFlag && !flags.NoBannerFlag && !flags.PipelineOutput {
@@ -132,7 +133,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 	if err != nil {
 		if !silent {
 			fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
-				cui.ASCIIRed, ignoreFile, err, cui.ASCIIReset)
+				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
 	}
@@ -141,7 +142,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 	if err != nil {
 		if !silent {
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
-				cui.ASCIIRed, ignoreFile, err, cui.ASCIIReset)
+				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
 	}
@@ -215,11 +216,11 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 					flags.RulesetFlag, len(selectedRS.Rules))
 			} else {
 				fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
-					cui.ASCIIGrey,
-					cui.ASCIIBold+cui.ASCIIItalic, flags.RulesetFlag, cui.ASCIIReset+cui.ASCIIGrey,
-					cui.ASCIIGrey,
-					cui.ASCIIBold+cui.ASCIIItalic, len(selectedRS.Rules), cui.ASCIIReset+cui.ASCIIGrey,
-					cui.ASCIIReset)
+					color.ASCIIGrey,
+					color.ASCIIBold+color.ASCIIItalic, flags.RulesetFlag, color.ASCIIReset+color.ASCIIGrey,
+					color.ASCIIGrey,
+					color.ASCIIBold+color.ASCIIItalic, len(selectedRS.Rules), color.ASCIIReset+color.ASCIIGrey,
+					color.ASCIIReset)
 			}
 		}
 
@@ -240,7 +241,7 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 }
 
 // RenderBufferedLogs renders the buffered logs with proper formatting and spacing
-func RenderBufferedLogs(bufferedLogger *cui.BufferedLogger, noStyle bool) {
+func RenderBufferedLogs(bufferedLogger *logging.BufferedLogger, noStyle bool) {
 	if bufferedLogger == nil {
 		return
 	}
@@ -271,7 +272,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	var logger *slog.Logger
-	var bufferedLogger *cui.BufferedLogger
+	var bufferedLogger *logging.BufferedLogger
 
 	if config.Logger != nil {
 		logger = config.Logger
@@ -279,12 +280,12 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	} else if config.BufferedLogger != nil {
 		// Use the provided BufferedLogger
 		bufferedLogger = config.BufferedLogger
-		handler := cui.NewBufferedLogHandler(bufferedLogger)
+		handler := logging.NewBufferedLogHandler(bufferedLogger)
 		logger = slog.New(handler)
 	} else {
 		// Create a new BufferedLogger
-		bufferedLogger = cui.NewBufferedLogger()
-		handler := cui.NewBufferedLogHandler(bufferedLogger)
+		bufferedLogger = logging.NewBufferedLogger()
+		handler := logging.NewBufferedLogHandler(bufferedLogger)
 		logger = slog.New(handler)
 	}
 

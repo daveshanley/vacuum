@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 )
 
 // minimum returns the minimum of two integers
@@ -69,7 +70,7 @@ func (m *ViolationResultTableModel) buildPathBar(splitWidth int) string {
 	JSONPathBarStyle := lipgloss.NewStyle().
 		Width(splitWidth-2).
 		Padding(0, 1).
-		Foreground(RGBGrey)
+		Foreground(color.RGBGrey)
 
 	path := m.modalContent.Path
 	if path == "" && m.modalContent.Paths != nil && len(m.modalContent.Paths) > 0 {
@@ -112,11 +113,11 @@ func (m *ViolationResultTableModel) buildDetailsPanel(detailsWidth, contentHeigh
 
 	// add location
 	location := formatFileLocation(m.modalContent, m.fileName)
-	detailsContent.WriteString(lipgloss.NewStyle().Foreground(RGBBlue).Render(location))
+	detailsContent.WriteString(lipgloss.NewStyle().Foreground(color.RGBBlue).Render(location))
 	detailsContent.WriteString("\n\n")
 
 	// add message
-	colorizedMessage := ColorizeMessage(m.modalContent.Message)
+	colorizedMessage := color.ColorizeMessage(m.modalContent.Message)
 	msgStyle := lipgloss.NewStyle().Width(detailsWidth - 2)
 	detailsContent.WriteString(msgStyle.Render(colorizedMessage))
 
@@ -144,7 +145,7 @@ func (m *ViolationResultTableModel) buildHowToFixPanel(howToFixWidth, contentHei
 			howToFixContent.WriteString(wrapped)
 		}
 	} else {
-		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).
+		howToFixContent.WriteString(lipgloss.NewStyle().Foreground(color.RGBGrey).Italic(true).
 			Render("No fix suggestions available"))
 	}
 
@@ -167,17 +168,17 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 		isYAML := strings.HasSuffix(m.fileName, ".yaml") || strings.HasSuffix(m.fileName, ".yml")
 
 		codeLines := strings.Split(codeSnippet, "\n")
-		lineNumStyle := lipgloss.NewStyle().Foreground(RGBGrey).Bold(true)
+		lineNumStyle := lipgloss.NewStyle().Foreground(color.RGBGrey).Bold(true)
 		// on windows, skip background as it breaks alignment
 		var highlightStyle lipgloss.Style
 		if runtime.GOOS == "windows" {
 			highlightStyle = lipgloss.NewStyle().
-				Foreground(RGBPink).
+				Foreground(color.RGBPink).
 				Bold(true)
 		} else {
 			highlightStyle = lipgloss.NewStyle().
-				Background(RGBSubtlePink).
-				Foreground(RGBPink).
+				Background(color.RGBSubtlePink).
+				Foreground(color.RGBPink).
 				Bold(true)
 		}
 
@@ -202,13 +203,13 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 			lineNumStr := fmt.Sprintf("%*d ", lineNumWidth-1, actualLineNum)
 
 			if isHighlighted {
-				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+				highlightedLineNumStyle := lipgloss.NewStyle().Foreground(color.RGBPink).Bold(true)
 				codeContent.WriteString(highlightedLineNumStyle.Render(lineNumStr))
-				triangleStyle := lipgloss.NewStyle().Foreground(RGBPink).Bold(true)
+				triangleStyle := lipgloss.NewStyle().Foreground(color.RGBPink).Bold(true)
 				codeContent.WriteString(triangleStyle.Render("▶ "))
 			} else {
 				codeContent.WriteString(lineNumStyle.Render(lineNumStr))
-				pipeStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+				pipeStyle := lipgloss.NewStyle().Foreground(color.RGBGrey)
 				codeContent.WriteString(pipeStyle.Render("│ "))
 			}
 
@@ -258,7 +259,7 @@ func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int)
 			}
 		}
 	} else {
-		codeContent.WriteString(lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).
+		codeContent.WriteString(lipgloss.NewStyle().Foreground(color.RGBGrey).Italic(true).
 			Render("No code context available"))
 	}
 
@@ -285,7 +286,7 @@ func (m *ViolationResultTableModel) assembleSplitView(dims splitViewDimensions, 
 
 	containerStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(RGBBlue).
+		BorderForeground(color.RGBBlue).
 		Width(dims.splitWidth).
 		Height(dims.splitHeight)
 

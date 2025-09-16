@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/progress"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/lipgloss/v2/list"
+	color2 "github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/dustin/go-humanize"
@@ -56,7 +57,7 @@ func getTerminalWidth() int {
 	}
 
 	// In no-style mode, reduce width by 3 to avoid off-by-one truncation issues
-	if cui.AreColorsDisabled() && width > 3 {
+	if color2.AreColorsDisabled() && width > 3 {
 		width = width - 3
 	}
 
@@ -109,14 +110,14 @@ func calculateColumnWidths(width int) columnWidths {
 
 // render table separator line
 func renderTableSeparator(widths []int) {
-	fmt.Printf(" %s", cui.ASCIIPink)
+	fmt.Printf(" %s", color2.ASCIIPink)
 	for i, w := range widths {
 		if i > 0 {
 			fmt.Print("  ")
 		}
 		fmt.Print(strings.Repeat("─", w))
 	}
-	fmt.Printf("%s\n", cui.ASCIIReset)
+	fmt.Printf("%s\n", color2.ASCIIReset)
 }
 
 // render category table headers
@@ -125,20 +126,20 @@ func renderCategoryHeaders(widths columnWidths) {
 	infoWidth := 56
 
 	headers := []tableHeader{
-		{label: "category", color: cui.ASCIIPink, width: widths.category},
+		{label: "category", color: color2.ASCIIPink, width: widths.category},
 	}
 
 	if widths.fullHeaders {
 		headers = append(headers,
-			tableHeader{label: "✗ errors", color: cui.ASCIIRed, width: widths.number},
-			tableHeader{label: "▲ warnings", color: cui.ASCIIYellow, width: widths.number},
-			tableHeader{label: "● info", color: cui.ASCIIBlue, width: infoWidth},
+			tableHeader{label: "✗ errors", color: color2.ASCIIRed, width: widths.number},
+			tableHeader{label: "▲ warnings", color: color2.ASCIIYellow, width: widths.number},
+			tableHeader{label: "● info", color: color2.ASCIIBlue, width: infoWidth},
 		)
 	} else {
 		headers = append(headers,
-			tableHeader{label: "✗ error", color: cui.ASCIIRed, width: widths.number},
-			tableHeader{label: "▲ warn", color: cui.ASCIIYellow, width: widths.number},
-			tableHeader{label: "● info", color: cui.ASCIIBlue, width: infoWidth},
+			tableHeader{label: "✗ error", color: color2.ASCIIRed, width: widths.number},
+			tableHeader{label: "▲ warn", color: color2.ASCIIYellow, width: widths.number},
+			tableHeader{label: "● info", color: color2.ASCIIBlue, width: infoWidth},
 		)
 	}
 
@@ -147,7 +148,7 @@ func renderCategoryHeaders(widths columnWidths) {
 		if i > 0 {
 			fmt.Print("  ")
 		}
-		fmt.Printf("%s%-*s%s", h.color, h.width, h.label, cui.ASCIIReset)
+		fmt.Printf("%s%-*s%s", h.color, h.width, h.label, color2.ASCIIReset)
 	}
 	fmt.Println()
 
@@ -179,10 +180,10 @@ func renderCategoryTotals(totals summaryTotals, widths columnWidths) {
 	renderTableSeparator([]int{widths.category, widths.number, widths.number, 56})
 
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s  %s%s%-*s%s  %s%s%-*s%s\n",
-		cui.ASCIIBold, widths.category, "total", cui.ASCIIReset,
-		cui.ASCIIRed, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.errors)), cui.ASCIIReset,
-		cui.ASCIIYellow, cui.ASCIIBold, widths.number, humanize.Comma(int64(totals.warnings)), cui.ASCIIReset,
-		cui.ASCIIBlue, cui.ASCIIBold, 56, humanize.Comma(int64(totals.info)), cui.ASCIIReset)
+		color2.ASCIIBold, widths.category, "total", color2.ASCIIReset,
+		color2.ASCIIRed, color2.ASCIIBold, widths.number, humanize.Comma(int64(totals.errors)), color2.ASCIIReset,
+		color2.ASCIIYellow, color2.ASCIIBold, widths.number, humanize.Comma(int64(totals.warnings)), color2.ASCIIReset,
+		color2.ASCIIBlue, color2.ASCIIBold, 56, humanize.Comma(int64(totals.info)), color2.ASCIIReset)
 }
 
 // render category summary table
@@ -258,9 +259,9 @@ func calculateViolationStats(violations []ruleViolation) (total, max int) {
 // render rule violations table headers
 func renderRuleHeaders(widths columnWidths) {
 	fmt.Printf(" %s%-*s%s  %s%-*s%s  %s%-*s%s\n",
-		cui.ASCIIPink, widths.rule, "rule", cui.ASCIIReset,
-		cui.ASCIIPink, widths.violation, "violations", cui.ASCIIReset,
-		cui.ASCIIPink, widths.impact, "quality impact", cui.ASCIIReset)
+		color2.ASCIIPink, widths.rule, "rule", color2.ASCIIReset,
+		color2.ASCIIPink, widths.violation, "violations", color2.ASCIIReset,
+		color2.ASCIIPink, widths.impact, "quality impact", color2.ASCIIReset)
 
 	renderTableSeparator([]int{widths.rule, widths.violation, widths.impact})
 }
@@ -274,7 +275,7 @@ func renderRuleRow(rv ruleViolation, widths columnWidths, percentage float64, pr
 	}
 
 	// render plain progress bar if colors are disabled
-	if cui.AreColorsDisabled() {
+	if color2.AreColorsDisabled() {
 		barLength := int(float64(widths.impact) * percentage)
 		if barLength < 0 {
 			barLength = 0
@@ -300,10 +301,10 @@ func renderRuleTotals(total int, widths columnWidths) {
 	renderTableSeparator([]int{widths.rule, widths.violation, widths.impact})
 
 	fmt.Printf(" %s%-*s%s  %s%s%-*s%s\n",
-		cui.ASCIIBold, widths.rule, "total", cui.ASCIIReset,
-		cui.ASCIIPink, cui.ASCIIBold,
+		color2.ASCIIBold, widths.rule, "total", color2.ASCIIReset,
+		color2.ASCIIPink, color2.ASCIIBold,
 		widths.violation, humanize.Comma(int64(total)),
-		cui.ASCIIReset)
+		color2.ASCIIReset)
 }
 
 // render rule violations table
@@ -316,7 +317,7 @@ func renderRuleViolationsTable(violations []ruleViolation, widths columnWidths) 
 
 	// create progress bar
 	var prog progress.Model
-	if cui.AreColorsDisabled() {
+	if color2.AreColorsDisabled() {
 		// Use grey to white gradient in no-style mode
 		prog = progress.New(
 			progress.WithScaledGradient("#606060", "#ffffff"),
@@ -349,7 +350,7 @@ func renderRuleViolationsTable(violations []ruleViolation, widths columnWidths) 
 	renderRuleTotals(total, widths)
 
 	if len(violations) > maxRules {
-		fmt.Printf(" %s... and %s more rules%s\n", cui.ASCIIGrey, humanize.Comma(int64(len(violations)-maxRules)), cui.ASCIIReset)
+		fmt.Printf(" %s... and %s more rules%s\n", color2.ASCIIGrey, humanize.Comma(int64(len(violations)-maxRules)), color2.ASCIIReset)
 	}
 	fmt.Println()
 }
@@ -371,7 +372,7 @@ func createResultBoxStyle(foreground, background color.Color) lipgloss.Style {
 
 // render result box
 func renderResultBox(errors, warnings, informs int) {
-	if cui.AreColorsDisabled() {
+	if color2.AreColorsDisabled() {
 		if errors > 0 {
 			fmt.Printf(" | \u2717 Failed with %s errors, %s warnings and %s informs.\n",
 				humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
@@ -392,20 +393,20 @@ func renderResultBox(errors, warnings, informs int) {
 	if errors > 0 {
 		message := fmt.Sprintf("\u2717 Failed with %s errors, %s warnings and %s informs.",
 			humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
-		style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+		style := createResultBoxStyle(color2.RGBRed, color2.RGBDarkRed)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if warnings > 0 {
 		message := fmt.Sprintf("\u25B2 Passed, but with %s warnings and %s informs.",
 			humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
-		style := createResultBoxStyle(cui.RBGYellow, cui.RGBDarkYellow)
+		style := createResultBoxStyle(color2.RBGYellow, color2.RGBDarkYellow)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if informs > 0 {
 		message := fmt.Sprintf("\u25CF Passed, with %s informs.", humanize.Comma(int64(informs)))
-		style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
+		style := createResultBoxStyle(color2.RGBBlue, color2.RGBDarkBlue)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else {
 		message := "\u2713 A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!"
-		style := createResultBoxStyle(cui.RGBGreen, cui.RGBDarkGreen)
+		style := createResultBoxStyle(color2.RGBGreen, color2.RGBDarkGreen)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	}
 	fmt.Println()
@@ -453,7 +454,7 @@ func renderQualityScore(score int) {
 	}
 
 	message := fmt.Sprintf("Quality Score: %d/100 [%s]", score, grade)
-	cui.RenderStyledBox(message, boxType, cui.AreColorsDisabled())
+	cui.RenderStyledBox(message, boxType, color2.AreColorsDisabled())
 }
 
 // renderRulesList renders the list of rules using lipgloss list
@@ -498,10 +499,10 @@ func renderRulesList(rules map[string]*model.Rule) {
 		// Format: bold pink rule ID + normal description
 		// Using ANSI codes directly: bold pink for rule ID, reset for description
 		formattedItem := fmt.Sprintf("%s%s%s%s: %s",
-			cui.ASCIIBold,
-			cui.ASCIIPink,
+			color2.ASCIIBold,
+			color2.ASCIIPink,
 			rule.Id,
-			cui.ASCIIReset,
+			color2.ASCIIReset,
 			rule.Description)
 		l.Item(formattedItem)
 	}

@@ -6,6 +6,7 @@ package cui
 import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
+	"github.com/daveshanley/vacuum/color"
 	"github.com/muesli/termenv"
 )
 
@@ -20,7 +21,7 @@ func (m *ViolationResultTableModel) HandleDocsMessages(msg tea.Msg) (bool, tea.C
 
 		modalWidth := int(float64(m.width) - ModalWidthReduction)
 
-		customStyle := CreatePb33fDocsStyle(modalWidth - 4)
+		customStyle := color.CreatePb33fDocsStyle(modalWidth - 4)
 		renderer, err := glamour.NewTermRenderer(
 			glamour.WithColorProfile(termenv.TrueColor),
 			glamour.WithStyles(customStyle),
@@ -72,7 +73,7 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 		m.table.SetHeight(msg.Height - 4)
 	}
 
-	ApplyLintDetailsTableStyles(&m.table)
+	color.ApplyLintDetailsTableStyles(&m.table)
 
 	return nil
 }
@@ -278,7 +279,7 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 		// re-render markdown based on the current terminal size
 		modalWidth := int(float64(m.width) - ModalWidthReduction)
 
-		customStyle := CreatePb33fDocsStyle(modalWidth - 4)
+		customStyle := color.CreatePb33fDocsStyle(modalWidth - 4)
 		renderer, err := glamour.NewTermRenderer(
 			glamour.WithColorProfile(termenv.TrueColor),
 			glamour.WithStyles(customStyle),

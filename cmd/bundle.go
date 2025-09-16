@@ -13,6 +13,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/logging"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
 
@@ -49,7 +51,7 @@ func GetBundleCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				cui.DisableColors()
+				color.DisableColors()
 			}
 
 			if !stdIn && !stdOut {
@@ -97,8 +99,8 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			// setup logging
-			bufferedLogger := cui.NewBufferedLoggerWithLevel(cui.LogLevelWarn)
-			handler := cui.NewBufferedLogHandler(bufferedLogger)
+			bufferedLogger := logging.NewBufferedLoggerWithLevel(logging.LogLevelWarn)
+			handler := logging.NewBufferedLogHandler(bufferedLogger)
 			logger := slog.New(handler)
 			docConfig := &datamodel.DocumentConfiguration{
 				BasePath:                baseFlag,

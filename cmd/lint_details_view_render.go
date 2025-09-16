@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/dustin/go-humanize"
@@ -238,34 +239,34 @@ func getSeverityInfo(r *model.RuleFunctionResult, showRule bool) *SeverityInfo {
 		case model.SeverityError:
 			info.Icon = "✗"
 			info.Text = "error"
-			info.Color = cui.ASCIIRed
+			info.Color = color.ASCIIRed
 		case model.SeverityWarn:
 			info.Icon = "▲"
 			info.Text = "warning"
-			info.Color = cui.ASCIIYellow
+			info.Color = color.ASCIIYellow
 		case model.SeverityInfo:
 			info.Icon = "●"
 			info.Text = "info"
-			info.Color = cui.ASCIIBlue
+			info.Color = color.ASCIIBlue
 		default:
 			info.Icon = "●"
 			info.Text = string(r.Rule.Severity)
-			info.Color = cui.ASCIIBlue
+			info.Color = color.ASCIIBlue
 		}
 	} else {
 		info.Icon = "●"
 		info.Text = "info"
-		info.Color = cui.ASCIIBlue
+		info.Color = color.ASCIIBlue
 	}
 
 	// format based on display mode
 	if !showRule {
 		// narrow mode - just the colored symbol
-		info.Formatted = fmt.Sprintf("%s%-2s%s", info.Color, info.Icon, cui.ASCIIReset)
+		info.Formatted = fmt.Sprintf("%s%-2s%s", info.Color, info.Icon, color.ASCIIReset)
 	} else {
 		// normal mode - symbol and text
 		paddedText := fmt.Sprintf("%s %-7s", info.Icon, info.Text)
-		info.Formatted = fmt.Sprintf("%s%s%s", info.Color, paddedText, cui.ASCIIReset)
+		info.Formatted = fmt.Sprintf("%s%s%s", info.Color, paddedText, color.ASCIIReset)
 	}
 
 	return info
@@ -298,10 +299,10 @@ func printFileHeader(fileName string, silent bool) {
 	}
 
 	// use the same nice formatting as multi-file
-	noStyle := cui.AreColorsDisabled()
+	noStyle := color.AreColorsDisabled()
 	if !noStyle {
-		fmt.Printf("\n %s%s>%s %s%s%s\n", cui.ASCIIBlue, cui.ASCIIBold, cui.ASCIIReset, cui.ASCIIBlue, displayPath, cui.ASCIIReset)
-		fmt.Printf(" %s%s%s\n\n", cui.ASCIIPink, strings.Repeat("-", tableWidth-1), cui.ASCIIReset)
+		fmt.Printf("\n %s%s>%s %s%s%s\n", color.ASCIIBlue, color.ASCIIBold, color.ASCIIReset, color.ASCIIBlue, displayPath, color.ASCIIReset)
+		fmt.Printf(" %s%s%s\n\n", color.ASCIIPink, strings.Repeat("-", tableWidth-1), color.ASCIIReset)
 	} else {
 		fmt.Printf("\n > %s\n", displayPath)
 		fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
@@ -310,7 +311,7 @@ func printFileHeader(fileName string, silent bool) {
 
 // printTableHeaders prints the table headers based on configuration
 func printTableHeaders(config *TableConfig) {
-	fmt.Printf("%s%s", cui.ASCIIPink, cui.ASCIIBold)
+	fmt.Printf("%s%s", color.ASCIIPink, color.ASCIIBold)
 
 	printColumns := []struct {
 		show  bool
@@ -337,7 +338,7 @@ func printTableHeaders(config *TableConfig) {
 		first = false
 	}
 
-	fmt.Printf("%s\n", cui.ASCIIReset)
+	fmt.Printf("%s\n", color.ASCIIReset)
 }
 
 // getSeverityHeaderText returns the header text for severity column
@@ -350,7 +351,7 @@ func getSeverityHeaderText(config *TableConfig) string {
 
 // printTableSeparator prints the separator line
 func printTableSeparator(config *TableConfig) {
-	fmt.Printf("%s%s", cui.ASCIIPink, cui.ASCIIBold)
+	fmt.Printf("%s%s", color.ASCIIPink, color.ASCIIBold)
 
 	printColumns := []struct {
 		show  bool
@@ -376,14 +377,14 @@ func printTableSeparator(config *TableConfig) {
 		first = false
 	}
 
-	fmt.Printf("%s\n", cui.ASCIIReset)
+	fmt.Printf("%s\n", color.ASCIIReset)
 }
 
 // renderTreeFormat renders results in tree format for narrow terminals
 func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, fileName string, errors, allResults bool) {
 	for i, r := range results {
 		if i > 1000 && !allResults {
-			fmt.Printf("%s...%s more violations not rendered%s\n", cui.ASCIIRed, humanize.Comma(int64(len(results)-1000)), cui.ASCIIReset)
+			fmt.Printf("%s...%s more violations not rendered%s\n", color.ASCIIRed, humanize.Comma(int64(len(results)-1000)), color.ASCIIReset)
 			break
 		}
 
@@ -392,11 +393,11 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 		}
 
 		location := formatLocation(r, fileName)
-		coloredLocation := cui.ColorizeLocation(location)
+		coloredLocation := color.ColorizeLocation(location)
 		severity := getSeverityInfo(r, false)
 
 		// location line with severity
-		fmt.Printf("%s  %s%s %s%s\n", coloredLocation, severity.Color, severity.Icon, severity.Text, cui.ASCIIReset)
+		fmt.Printf("%s  %s%s %s%s\n", coloredLocation, severity.Color, severity.Icon, severity.Text, color.ASCIIReset)
 
 		// message line with truncation
 		maxMsgWidth := config.Width - 4
@@ -404,8 +405,8 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 		if len(message) > maxMsgWidth && maxMsgWidth > 3 {
 			message = message[:maxMsgWidth-3] + "..."
 		}
-		coloredMessage := cui.ColorizeMessage(message)
-		fmt.Printf(" %s├─%s %s\n", cui.ASCIIGrey, cui.ASCIIReset, coloredMessage)
+		coloredMessage := color.ColorizeMessage(message)
+		fmt.Printf(" %s├─%s %s\n", color.ASCIIGrey, color.ASCIIReset, coloredMessage)
 
 		// rule and category line
 		ruleId := ""
@@ -431,7 +432,7 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 			if len(ruleCatLine) > maxRuleCatWidth && maxRuleCatWidth > 3 {
 				ruleCatLine = ruleCatLine[:maxRuleCatWidth-3] + "..."
 			}
-			fmt.Printf(" %s├─%s %s\n", cui.ASCIIGrey, cui.ASCIIReset, ruleCatLine)
+			fmt.Printf(" %s├─%s %s\n", color.ASCIIGrey, color.ASCIIReset, ruleCatLine)
 		}
 
 		// path line
@@ -441,8 +442,8 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 			if len(pathText) > maxPathWidth && maxPathWidth > 3 {
 				pathText = pathText[:maxPathWidth-3] + "..."
 			}
-			coloredPath := cui.ColorizePath(pathText)
-			fmt.Printf(" %s└─%s Path: %s%s%s\n", cui.ASCIIGrey, cui.ASCIIReset, cui.ASCIIGrey, coloredPath, cui.ASCIIReset)
+			coloredPath := color.ColorizePath(pathText)
+			fmt.Printf(" %s└─%s Path: %s%s%s\n", color.ASCIIGrey, color.ASCIIReset, color.ASCIIGrey, coloredPath, color.ASCIIReset)
 		}
 
 		fmt.Println()
@@ -452,7 +453,7 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 // renderTableRow renders a single table row
 func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName string) {
 	location := formatLocation(r, fileName)
-	coloredLocation := cui.ColorizeLocation(location)
+	coloredLocation := color.ColorizeLocation(location)
 
 	// truncate message and path if needed
 	message := r.Message
@@ -473,14 +474,14 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 		}
 	}
 
-	coloredMessage := cui.ColorizeMessage(message)
+	coloredMessage := color.ColorizeMessage(message)
 	coloredPath := ""
 	if config.ShowPath {
 		truncatedPath := path
 		if len(truncatedPath) > config.PathWidth {
 			truncatedPath = truncate(truncatedPath, config.PathWidth)
 		}
-		coloredPath = cui.ColorizePath(truncatedPath)
+		coloredPath = color.ColorizePath(truncatedPath)
 	}
 
 	severity := getSeverityInfo(r, config.ShowRule)
@@ -495,21 +496,21 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 	}
 
 	// calculate padding for colored fields
-	locPadding := config.LocationWidth - cui.VisibleLength(coloredLocation)
+	locPadding := config.LocationWidth - color.VisibleLength(coloredLocation)
 	if locPadding < 0 {
 		locPadding = 0
 	}
 
 	// After truncation, the message should already be at or under MessageWidth
 	// So we calculate padding based on the actual visible length
-	msgPadding := config.MessageWidth - cui.VisibleLength(coloredMessage)
+	msgPadding := config.MessageWidth - color.VisibleLength(coloredMessage)
 	if msgPadding < 0 {
 		msgPadding = 0
 	}
 
 	pathPadding := 0
 	if config.ShowPath {
-		pathPadding = config.PathWidth - cui.VisibleLength(coloredPath)
+		pathPadding = config.PathWidth - color.VisibleLength(coloredPath)
 		if pathPadding < 0 {
 			pathPadding = 0
 		}
@@ -532,7 +533,7 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 	}
 
 	if config.ShowPath {
-		fmt.Printf("  %s%s%*s%s", cui.ASCIIGrey, coloredPath, pathPadding, "", cui.ASCIIReset)
+		fmt.Printf("  %s%s%*s%s", color.ASCIIGrey, coloredPath, pathPadding, "", color.ASCIIReset)
 	}
 
 	fmt.Println()
@@ -548,7 +549,7 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 
 		for i, r := range results {
 			if i > 1000 && !allResults {
-				fmt.Printf("%s...%s more violations not rendered%s\n", cui.ASCIIRed, humanize.Comma(int64(len(results)-1000)), cui.ASCIIReset)
+				fmt.Printf("%s...%s more violations not rendered%s\n", color.ASCIIRed, humanize.Comma(int64(len(results)-1000)), color.ASCIIReset)
 				break
 			}
 
@@ -569,7 +570,7 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 
 		for i, r := range results {
 			if i > 1000 && !allResults {
-				fmt.Printf("%s...%s more violations not rendered%s\n", cui.ASCIIRed, humanize.Comma(int64(len(results)-1000)), cui.ASCIIReset)
+				fmt.Printf("%s...%s more violations not rendered%s\n", color.ASCIIRed, humanize.Comma(int64(len(results)-1000)), color.ASCIIReset)
 				break
 			}
 
@@ -658,7 +659,7 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 	highlightWidth := calculateCodeSnippetHighlightWidth(lineNumWidth)
 
 	// Only add blank line before snippet if colors are enabled
-	if cui.ASCIIReset != "" {
+	if color.ASCIIReset != "" {
 		fmt.Println()
 	}
 
@@ -678,24 +679,24 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 			// error line with pink arrow, bold line number, and full-line background
 			// use dynamic width format string for padding
 			fmt.Printf("%s%s%s %s%s▶%s \033[48;5;53m%s%s%-*s%s\n",
-				cui.ASCIIPink,
-				cui.ASCIIBold,
+				color.ASCIIPink,
+				color.ASCIIBold,
 				lineNum,
-				cui.ASCIIReset,
-				cui.ASCIIPink,
-				cui.ASCIIReset,
-				cui.ASCIIPink,
-				cui.ASCIIBold,
+				color.ASCIIReset,
+				color.ASCIIPink,
+				color.ASCIIReset,
+				color.ASCIIPink,
+				color.ASCIIBold,
 				highlightWidth,
 				line, // use raw line instead of highlighted to avoid color conflicts
-				cui.ASCIIReset)
+				color.ASCIIReset)
 		} else {
 			// normal line
 			fmt.Printf("%s%s %s│%s %s\n",
-				cui.ASCIIGrey,
+				color.ASCIIGrey,
 				lineNum,
-				cui.ASCIIGrey,
-				cui.ASCIIReset,
+				color.ASCIIGrey,
+				color.ASCIIReset,
 				highlightedLine)
 		}
 	}

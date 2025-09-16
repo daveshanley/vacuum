@@ -6,7 +6,6 @@ package cui
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/viewport"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/term"
@@ -84,16 +84,6 @@ const (
 	ModalNone ModalType = iota
 	ModalDocs
 	ModalCode
-)
-
-var (
-	LocationRegex    = regexp.MustCompile(`((?:[a-zA-Z]:)?[^\s│]*?[/\\]?[^\s│/\\]+\.[a-zA-Z]+):(\d+):(\d+)`)
-	JsonPathRegex    = regexp.MustCompile(`\$\.\S+`)
-	CircularRefRegex = regexp.MustCompile(`\b[a-zA-Z0-9_-]+(?:\s*->\s*[a-zA-Z0-9_-]+)+\b`)
-	PartRegex        = regexp.MustCompile(`([a-zA-Z0-9_-]+)|(\s*->\s*)`)
-	BacktickRegex    = regexp.MustCompile("`([^`]+)`")
-	SingleQuoteRegex = regexp.MustCompile(`'([^']+)'`)
-	LogPrefixRegex   = regexp.MustCompile(`\[([^]]+)]`)
 )
 
 var (
@@ -250,14 +240,14 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		table.WithWidth(tableActualWidth),
 	)
 
-	ApplyLintDetailsTableStyles(&t)
+	color.ApplyLintDetailsTableStyles(&t)
 
 	categories := extractCategories(results)
 	rules := extractRules(results)
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(RGBPink)
+	s.Style = lipgloss.NewStyle().Foreground(color.RGBPink)
 
 	// initialize viewport (will be sized when modal opens)
 	vp := viewport.New()
@@ -530,7 +520,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 
 	// Build the title with total count and severity breakdown
 	titleStyle := lipgloss.NewStyle().
-		Foreground(RGBPink)
+		Foreground(color.RGBPink)
 
 	totalCount := fmt.Sprintf(" %d Violations", len(m.allResults))
 	builder.WriteString(titleStyle.Render(totalCount))
@@ -539,19 +529,19 @@ func (m *ViolationResultTableModel) buildTableView() string {
 	builder.WriteString("  ")
 
 	// Errors (red cross)
-	errorStyle := lipgloss.NewStyle().Foreground(RGBRed)
+	errorStyle := lipgloss.NewStyle().Foreground(color.RGBRed)
 	builder.WriteString(errorStyle.Render(fmt.Sprintf("✗ %d", errorCount)))
 
 	builder.WriteString("  ")
 
 	// Warnings (yellow triangle)
-	warningStyle := lipgloss.NewStyle().Foreground(RBGYellow)
+	warningStyle := lipgloss.NewStyle().Foreground(color.RBGYellow)
 	builder.WriteString(warningStyle.Render(fmt.Sprintf("▲ %d", warningCount)))
 
 	builder.WriteString("  ")
 
 	// Info (blue dot)
-	infoStyle := lipgloss.NewStyle().Foreground(RGBBlue)
+	infoStyle := lipgloss.NewStyle().Foreground(color.RGBBlue)
 	builder.WriteString(infoStyle.Render(fmt.Sprintf("● %d", infoCount)))
 
 	// Now add filters if any are active
@@ -559,7 +549,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		builder.WriteString(" | ")
 
 		// "Severity:" in gray, then colored icon and label
-		grayStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+		grayStyle := lipgloss.NewStyle().Foreground(color.RGBGrey)
 		builder.WriteString(grayStyle.Render("severity: "))
 
 		// Build severity filter with colored icon
@@ -583,14 +573,14 @@ func (m *ViolationResultTableModel) buildTableView() string {
 	if m.uiState.CategoryFilter != "" {
 		builder.WriteString(" | ")
 		categoryStyle := lipgloss.NewStyle().
-			Foreground(RGBGrey)
+			Foreground(color.RGBGrey)
 		builder.WriteString(categoryStyle.Render("category: " + m.uiState.CategoryFilter))
 	}
 
 	if m.uiState.RuleFilter != "" {
 		builder.WriteString(" | ")
 		ruleStyle := lipgloss.NewStyle().
-			Foreground(RGBGrey)
+			Foreground(color.RGBGrey)
 		builder.WriteString(ruleStyle.Render("rule: " + m.uiState.RuleFilter))
 	}
 
@@ -608,7 +598,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		builder.WriteString(borderedEmpty)
 	} else {
 
-		tableView := ColorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
+		tableView := color.ColorizeTableOutput(m.table.View(), m.table.Cursor(), m.rows)
 		borderedTable := addTableBorders(tableView)
 		builder.WriteString(borderedTable)
 	}
@@ -630,12 +620,12 @@ func (m *ViolationResultTableModel) buildModalView() string {
 		Height(modalHeight).
 		Padding(0, 1, 0, 1).
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(RGBPink)
+		BorderForeground(color.RGBPink)
 
 	var content strings.Builder
 
 	titleStyle := lipgloss.NewStyle().
-		Foreground(RGBBlue).
+		Foreground(color.RGBBlue).
 		Bold(true).
 		Width(modalWidth - 4)
 
@@ -647,7 +637,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 	content.WriteString("\n")
 
 	sepStyle := lipgloss.NewStyle().
-		Foreground(RGBPink).
+		Foreground(color.RGBPink).
 		Width(modalWidth - 4)
 	content.WriteString(sepStyle.Render(strings.Repeat("-", (modalWidth)-4)))
 	content.WriteString("\n\n")
@@ -673,7 +663,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 			Width(modalWidth-4).
 			Height(contentHeight).
 			Align(lipgloss.Left, lipgloss.Top).
-			Foreground(RGBRed)
+			Foreground(color.RGBRed)
 
 		errorMsg := fmt.Sprintf("❌ oh dear, failed to load documentation.\n\n%s\n\n"+
 			"This is a mistake. It should not have happened, sorry!", m.docsError)
@@ -694,11 +684,11 @@ func (m *ViolationResultTableModel) buildModalView() string {
 	if m.docsState == DocsStateLoaded && m.docsViewport.TotalLineCount() > m.docsViewport.Height() {
 		scrollPercent := fmt.Sprintf(" %.0f%%", m.docsViewport.ScrollPercent()*100)
 		scrollStyle := lipgloss.NewStyle().
-			Foreground(RGBBlue)
+			Foreground(color.RGBBlue)
 
 		controls := "↑↓/jk: scroll | pgup/pgdn: page | esc/d: close "
 		controlsStyle := lipgloss.NewStyle().
-			Foreground(RGBGrey)
+			Foreground(color.RGBGrey)
 
 		// calculate spacing to align left and right
 		scrollWidth := lipgloss.Width(scrollPercent)
@@ -716,7 +706,7 @@ func (m *ViolationResultTableModel) buildModalView() string {
 
 		// no scrolling, just show controls centered
 		navStyle := lipgloss.NewStyle().
-			Foreground(RGBDarkGrey).
+			Foreground(color.RGBDarkGrey).
 			Width(modalWidth - 4).
 			Align(lipgloss.Center)
 		bottomBar = navStyle.Render("esc/d: close")
@@ -840,7 +830,7 @@ func (m *ViolationResultTableModel) TogglePathColumn() {
 	m.table.SetRows(rows)
 
 	// reapply styles
-	ApplyLintDetailsTableStyles(&m.table)
+	color.ApplyLintDetailsTableStyles(&m.table)
 
 	// restore cursor position
 	if currentCursor < len(rows) {

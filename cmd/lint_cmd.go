@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
@@ -85,13 +86,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	filesToLint, err := getFilesToLint(flags.GlobPattern, args, validFileExtensions)
 	if cmd.Flags().Changed("globbed-files") && err != nil {
-		fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", cui.ASCIIBold, cui.ASCIIRed, err, cui.ASCIIReset)
+		fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", color.ASCIIBold, color.ASCIIRed, err, color.ASCIIReset)
 		return err
 	}
 
 	if len(filesToLint) < 1 {
 		fmt.Printf("🚨 %s%sPlease supply an OpenAPI specification to lint%s\n\n",
-			cui.ASCIIBold, cui.ASCIIRed, cui.ASCIIReset)
+			color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
 		return fmt.Errorf("no file supplied")
 	}
 
@@ -160,7 +161,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		if !flags.SilentFlag && !flags.PipelineOutput {
 			fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
-				cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
+				color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 		}
 
 		// deep graph is required if we have ignored items
@@ -234,7 +235,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		default:
 			if !flags.SilentFlag {
 				fmt.Printf("%sWarning: Category '%s' is unknown, all categories are being considered.%s\n\n",
-					cui.ASCIIYellow, flags.CategoryFlag, cui.ASCIIReset)
+					color.ASCIIYellow, flags.CategoryFlag, color.ASCIIReset)
 			}
 			cats = model.RuleCategoriesOrdered
 		}
@@ -301,9 +302,9 @@ func runLint(cmd *cobra.Command, args []string) error {
 	if flags.MinScore > 10 && stats != nil {
 		if stats.OverallScore < flags.MinScore {
 			if !flags.PipelineOutput && !flags.SilentFlag {
-				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", cui.ASCIIRed, cui.ASCIIReset)
+				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
 				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
-					cui.ASCIIRed, stats.OverallScore, flags.MinScore, cui.ASCIIReset)
+					color.ASCIIRed, stats.OverallScore, flags.MinScore, color.ASCIIReset)
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
@@ -351,10 +352,10 @@ func PrintBanner(noStyle ...bool) {
 		fmt.Printf(" version: %s | compiled: %s\n", GetVersion(), GetDate())
 		fmt.Printf(" https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum\n\n")
 	} else {
-		fmt.Printf(" %s%s%s\n", cui.ASCIIPink, banner, cui.ASCIIReset)
-		fmt.Printf(" %sversion: %s%s%s%s | compiled: %s%s%s\n", cui.ASCIIGreen,
-			cui.ASCIIGreenBold, GetVersion(), cui.ASCIIReset, cui.ASCIIGreen, cui.ASCIIGreenBold, GetDate(), cui.ASCIIReset)
-		fmt.Printf("%s https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum%s\n\n", cui.ASCIIBlue, cui.ASCIIReset)
+		fmt.Printf(" %s%s%s\n", color.ASCIIPink, banner, color.ASCIIReset)
+		fmt.Printf(" %sversion: %s%s%s%s | compiled: %s%s%s\n", color.ASCIIGreen,
+			color.ASCIIGreenBold, GetVersion(), color.ASCIIReset, color.ASCIIGreen, color.ASCIIGreenBold, GetDate(), color.ASCIIReset)
+		fmt.Printf("%s https://quobix.com/vacuum/ | https://github.com/daveshanley/vacuum%s\n\n", color.ASCIIBlue, color.ASCIIReset)
 	}
 }
 
@@ -404,7 +405,7 @@ func renderInfoMessage(message string, noStyle bool) {
 		return
 	}
 
-	fmt.Printf(" %s%s%s\n", cui.ASCIIBlue, message, cui.ASCIIReset)
+	fmt.Printf(" %s%s%s\n", color.ASCIIBlue, message, color.ASCIIReset)
 }
 
 // renderIgnoredItems displays the ignored paths and rules in tree format
@@ -431,7 +432,7 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 		return
 	}
 
-	fmt.Printf(" %signored items:%s\n", cui.ASCIIGrey, cui.ASCIIReset)
+	fmt.Printf(" %signored items:%s\n", color.ASCIIGrey, color.ASCIIReset)
 
 	// render in tree format
 	for i, item := range items {
@@ -439,13 +440,13 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 		if !noStyle {
 			// format: rule (pink bold) : path (colorized)
 			formattedItem := fmt.Sprintf("%s%s%s%s: %s",
-				cui.ASCIIPink, cui.ASCIIBold, item.rule, cui.ASCIIReset,
-				cui.ColorizePath(item.path))
+				color.ASCIIPink, color.ASCIIBold, item.rule, color.ASCIIReset,
+				color.ColorizePath(item.path))
 
 			if isLast {
-				fmt.Printf(" %s└─%s %s\n", cui.ASCIIPink, cui.ASCIIReset, formattedItem)
+				fmt.Printf(" %s└─%s %s\n", color.ASCIIPink, color.ASCIIReset, formattedItem)
 			} else {
-				fmt.Printf(" %s├─%s %s\n", cui.ASCIIPink, cui.ASCIIReset, formattedItem)
+				fmt.Printf(" %s├─%s %s\n", color.ASCIIPink, color.ASCIIReset, formattedItem)
 			}
 		} else {
 			if isLast {
@@ -459,15 +460,15 @@ func renderIgnoredItems(ignoredItems model.IgnoredItems, noStyle bool) {
 }
 
 // createLogger creates a debug logger using slog with lipgloss formatting
-func createLogger(debugFlag bool) (*slog.Logger, *cui.BufferedLogger) {
-	var bufferedLogger *cui.BufferedLogger
+func createLogger(debugFlag bool) (*slog.Logger, *logging.BufferedLogger) {
+	var bufferedLogger *logging.BufferedLogger
 	if debugFlag {
-		bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelDebug)
+		bufferedLogger = logging.NewBufferedLoggerWithLevel(logging.LogLevelDebug)
 	} else {
-		bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
+		bufferedLogger = logging.NewBufferedLoggerWithLevel(logging.LogLevelError)
 	}
 
-	handler := cui.NewBufferedLogHandler(bufferedLogger)
+	handler := logging.NewBufferedLogHandler(bufferedLogger)
 
 	logger := slog.New(handler)
 
@@ -557,7 +558,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 	}
 
 	fmt.Printf(" --> use the %s<dashboard>%s command to be able to navigate results interactively <--\n",
-		cui.ASCIIGreenBold, cui.ASCIIReset)
+		color.ASCIIGreenBold, color.ASCIIReset)
 
 	// render quality score if available
 	if stats != nil {
@@ -567,7 +568,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 
 	renderResultBox(errs, warnings, informs)
 
-	fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", cui.ASCIILightGreyItalic, cui.ASCIIReset)
+	fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)
 
 }
 

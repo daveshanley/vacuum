@@ -1,7 +1,7 @@
 // Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
-package cui
+package color
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/v2/table"
 	"github.com/charmbracelet/glamour/ansi"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/utils"
 )
 
 type ColorizeMode int
@@ -179,50 +180,15 @@ func ColorizeMessage(message string) string {
 	}
 
 	// Use regex to find and colorize backtick-enclosed text
-	return BacktickRegex.ReplaceAllStringFunc(message, func(match string) string {
+	return utils.BacktickRegex.ReplaceAllStringFunc(message, func(match string) string {
 		// Extract the content between backticks
-		content := BacktickRegex.FindStringSubmatch(match)
+		content := utils.BacktickRegex.FindStringSubmatch(match)
 		if len(content) > 1 {
 			// Apply blue bold italic styling to backtick AND content using lipgloss
 			return "`" + StyleCodeHighlight.Render(content[1]) + "`"
 		}
 		return match
 	})
-}
-
-func ColorizeLogMessage(message, severity string) string {
-	if severity == LogLevelError {
-		return StyleLogError.Render(message)
-	}
-	if severity == LogLevelDebug {
-		return StyleLogDebug.Render(message)
-	}
-
-	if !strings.HasPrefix(message, "[") {
-		return message
-	}
-
-	// Use regex to find and colorize backtick-enclosed text
-	res := LogPrefixRegex.ReplaceAllStringFunc(message, func(match string) string {
-		// Extract the content between backticks
-		content := LogPrefixRegex.FindStringSubmatch(match)
-		if len(content) > 1 {
-			// Apply styling using lipgloss
-			switch severity {
-			case LogLevelError:
-				return StyleLogError.Copy().Italic(true).Render("[" + content[1] + "]")
-			case LogLevelWarn:
-				return StyleLogWarn.Copy().Render("[" + content[1] + "]")
-			case LogLevelInfo:
-				return StyleLogInfo.Copy().Render("[" + content[1] + "]")
-			case LogLevelDebug:
-				return StyleLogDebug.Copy().Render("[" + content[1] + "]")
-			}
-
-		}
-		return match
-	})
-	return res
 }
 
 // VisibleLength calculates the visible length of a string, excluding ANSI escape codes.
@@ -293,9 +259,9 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 		if i >= 1 && !isSelectedLine {
 
 			// location
-			if LocationRegex.MatchString(line) {
-				line = LocationRegex.ReplaceAllStringFunc(line, func(match string) string {
-					parts := LocationRegex.FindStringSubmatch(match)
+			if utils.LocationRegex.MatchString(line) {
+				line = utils.LocationRegex.ReplaceAllStringFunc(line, func(match string) string {
+					parts := utils.LocationRegex.FindStringSubmatch(match)
 					if len(parts) == 4 {
 						location := fmt.Sprintf("%s:%s:%s", parts[1], parts[2], parts[3])
 						return ColorizeLocation(location)
@@ -325,15 +291,15 @@ func ColorizeTableOutput(tableView string, cursor int, rows []table.Row) string 
 			}
 
 			// handle inline paths that might appear in messages
-			if JsonPathRegex.MatchString(line) {
-				line = JsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
+			if utils.JsonPathRegex.MatchString(line) {
+				line = utils.JsonPathRegex.ReplaceAllStringFunc(line, func(match string) string {
 					return ColorizePath(match)
 				})
 			}
 
 			// check for circular references (with arrows)
-			if CircularRefRegex.MatchString(line) {
-				line = CircularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
+			if utils.CircularRefRegex.MatchString(line) {
+				line = utils.CircularRefRegex.ReplaceAllStringFunc(line, func(match string) string {
 					return ColorizePath(match)
 				})
 			}
@@ -387,10 +353,10 @@ func ColorizeLogEntry(log, color string) string {
 // ColorizePath formats a JSON/YAML path string with inline quote highlighting and circular reference detection.
 func ColorizePath(path string) string {
 	// Handle circular references first
-	if CircularRefRegex.MatchString(path) {
-		path = CircularRefRegex.ReplaceAllStringFunc(path, func(match string) string {
+	if utils.CircularRefRegex.MatchString(path) {
+		path = utils.CircularRefRegex.ReplaceAllStringFunc(path, func(match string) string {
 			var result strings.Builder
-			parts := PartRegex.FindAllStringSubmatch(match, -1)
+			parts := utils.PartRegex.FindAllStringSubmatch(match, -1)
 			for _, part := range parts {
 				if part[1] != "" {
 					// ref - use lipgloss style
@@ -410,7 +376,7 @@ func ColorizePath(path string) string {
 		lastIdx := 0
 
 		// Find all single-quoted sections
-		matches := SingleQuoteRegex.FindAllStringSubmatchIndex(path, -1)
+		matches := utils.SingleQuoteRegex.FindAllStringSubmatchIndex(path, -1)
 		for _, match := range matches {
 			// Add content before the quote
 			result.WriteString(StylePathGrey.Render(path[lastIdx:match[0]]))

@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 	"golang.org/x/term"
 )
 
@@ -27,7 +28,7 @@ func getTerminalWidth() int {
 		width = 120
 	}
 
-	if AreColorsDisabled() && width > 3 {
+	if color.AreColorsDisabled() && width > 3 {
 		width = width - 3
 	}
 
@@ -65,37 +66,37 @@ func RenderStyledBox(message string, boxType BoxType, noStyle bool) {
 	case BoxTypeError, BoxTypeHard:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(RGBRed).
+			Foreground(color.RGBRed).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(RGBRed).
+			BorderForeground(color.RGBRed).
 			Bold(true)
 	case BoxTypeWarning:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(RBGYellow).
+			Foreground(color.RBGYellow).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(RBGYellow).
+			BorderForeground(color.RBGYellow).
 			Bold(true)
 	case BoxTypeInfo:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(RGBBlue).
+			Foreground(color.RGBBlue).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(RGBBlue).
+			BorderForeground(color.RGBBlue).
 			Bold(true)
 	case BoxTypeSuccess:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(RGBGreen).
+			Foreground(color.RGBGreen).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(RGBGreen).
+			BorderForeground(color.RGBGreen).
 			Bold(true)
 	default:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(RGBWhite).
+			Foreground(color.RGBWhite).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(RGBWhite).
+			BorderForeground(color.RGBWhite).
 			Bold(true)
 	}
 

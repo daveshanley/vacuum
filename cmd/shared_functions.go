@@ -6,21 +6,18 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 // Hard mode message constants
@@ -141,132 +138,13 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 		if !silence && len(customFunctions) > 0 {
 			cui.RenderInfo("Available custom functions:")
 			for funcName := range customFunctions {
-				fmt.Printf("  - %s%s%s\n", cui.ASCIIBlue, funcName, cui.ASCIIReset)
+				fmt.Printf("  - %s%s%s\n", color.ASCIIBlue, funcName, color.ASCIIReset)
 			}
 		}
 
 		return customFunctions, nil
 	}
 	return nil, nil
-}
-
-// PerformLinting executes linting with the given configuration - shared by dashboard and lint commands
-func PerformLinting(specBytes []byte, specFileName string, config LintExecutionConfig) (*LintResult, error) {
-	var logger *slog.Logger
-	var bufferedLogger *cui.BufferedLogger
-	bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
-	handler := cui.NewBufferedLogHandler(bufferedLogger)
-	logger = slog.New(handler)
-
-	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-
-	// Load custom functions if specified
-	var customFuncs map[string]model.RuleFunction
-	if config.FunctionsFlag != "" {
-		var err error
-		customFuncs, err = LoadCustomFunctions(config.FunctionsFlag, config.Silent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load custom functions: %w", err)
-		}
-	}
-
-	// Handle hard mode
-	if config.HardModeFlag {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-		owaspRules := rulesets.GetAllOWASPRules()
-		for k, v := range owaspRules {
-			selectedRS.Rules[k] = v
-		}
-	}
-
-	// Handle custom ruleset
-	if config.RulesetFlag != "" {
-		var rsErr error
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(config.RulesetFlag, defaultRuleSets, config.RemoteFlag, nil)
-		if rsErr != nil {
-			return nil, rsErr
-		}
-		if config.HardModeFlag {
-			MergeOWASPRulesToRuleSet(selectedRS, true)
-		}
-	}
-
-	// Load ignore file if specified
-	var ignoredItems model.IgnoredItems
-	if config.IgnoreFile != "" {
-		raw, ferr := os.ReadFile(config.IgnoreFile)
-		if ferr == nil {
-			_ = yaml.Unmarshal(raw, &ignoredItems)
-		}
-	}
-
-	// Apply rules to spec
-	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:           selectedRS,
-		Spec:              specBytes,
-		SpecFileName:      specFileName,
-		CustomFunctions:   customFuncs,
-		Base:              config.BaseFlag,
-		AllowLookup:       config.RemoteFlag,
-		SkipDocumentCheck: config.SkipCheckFlag,
-		Logger:            logger,
-		Timeout:           time.Duration(config.TimeoutFlag) * time.Second,
-		HTTPClientConfig: utils.HTTPClientConfig{
-			CertFile: config.CertFile,
-			KeyFile:  config.KeyFile,
-			CAFile:   config.CAFile,
-			Insecure: config.Insecure,
-		},
-	})
-
-	// Filter ignored results
-	result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
-
-	// Check for errors
-	if len(result.Errors) > 0 {
-		return nil, fmt.Errorf("linting failed: %v", result.Errors[0])
-	}
-
-	// Create result set and sort
-	resultSet := model.NewRuleResultSet(result.Results)
-	resultSet.SortResultsByLineNumber()
-
-	// Convert to pointer slice
-	resultPointers := make([]*model.RuleFunctionResult, len(resultSet.Results))
-	for i := range resultSet.Results {
-		resultPointers[i] = resultSet.Results[i]
-	}
-
-	return &LintResult{
-		Results:   resultPointers,
-		SpecBytes: specBytes,
-		Index:     result.Index,
-	}, nil
-}
-
-// LintExecutionConfig holds linting configuration
-type LintExecutionConfig struct {
-	BaseFlag      string
-	SkipCheckFlag bool
-	TimeoutFlag   int
-	HardModeFlag  bool
-	RemoteFlag    bool
-	IgnoreFile    string
-	FunctionsFlag string
-	RulesetFlag   string
-	CertFile      string
-	KeyFile       string
-	CAFile        string
-	Insecure      bool
-	Silent        bool
-}
-
-// LintResult holds the results of a linting operation
-type LintResult struct {
-	Results   []*model.RuleFunctionResult
-	SpecBytes []byte
-	Index     *index.SpecIndex
 }
 
 func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int) error {

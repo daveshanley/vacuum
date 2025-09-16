@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -38,7 +40,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report"
-				style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(errText)))
 				fmt.Println()
@@ -75,7 +77,7 @@ func GetDashboardCommand() *cobra.Command {
 			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
 			if err != nil {
 				message := fmt.Sprintf("Failed to load file: %v", err)
-				style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(message)))
 				fmt.Println()
@@ -89,7 +91,7 @@ func GetDashboardCommand() *cobra.Command {
 			if reportOrSpec.IsReport {
 				if !silent {
 					message := fmt.Sprintf("loading pre-compiled vacuum report from '%s'", args[0])
-					style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
+					style := createResultBoxStyle(color.RGBBlue, color.RGBDarkBlue)
 					messageStyle := lipgloss.NewStyle().Padding(1, 1)
 					fmt.Println(style.Render(messageStyle.Render(message)))
 					fmt.Println()
@@ -108,9 +110,9 @@ func GetDashboardCommand() *cobra.Command {
 				specBytes = reportOrSpec.SpecBytes
 
 				var logger *slog.Logger
-				var bufferedLogger *cui.BufferedLogger
-				bufferedLogger = cui.NewBufferedLoggerWithLevel(cui.LogLevelError)
-				handler := cui.NewBufferedLogHandler(bufferedLogger)
+				var bufferedLogger *logging.BufferedLogger
+				bufferedLogger = logging.NewBufferedLoggerWithLevel(logging.LogLevelError)
+				handler := logging.NewBufferedLogHandler(bufferedLogger)
 				logger = slog.New(handler)
 
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
@@ -134,7 +136,7 @@ func GetDashboardCommand() *cobra.Command {
 					if rsErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
-							style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 							messageStyle := lipgloss.NewStyle().Padding(1, 1)
 							fmt.Println(style.Render(messageStyle.Render(message)))
 						}
@@ -151,7 +153,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				if !silent {
 					fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
-						cui.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, cui.ASCIIReset)
+						color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 				}
 
 				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -181,7 +183,7 @@ func GetDashboardCommand() *cobra.Command {
 						// Create error box for each error
 						for _, err := range result.Errors {
 							message := fmt.Sprintf("Unable to process spec '%s': %s", displayFileName, err.Error())
-							style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 							messageStyle := lipgloss.NewStyle().Padding(1, 1)
 							fmt.Println(style.Render(messageStyle.Render(message)))
 						}
@@ -202,7 +204,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			if !silent {
 				message := "launching interactive vacuum dashboard..."
-				style := createResultBoxStyle(cui.RGBBlue, cui.RGBDarkBlue)
+				style := createResultBoxStyle(color.RGBBlue, color.RGBDarkBlue)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(message)))
 
@@ -218,7 +220,7 @@ func GetDashboardCommand() *cobra.Command {
 				customFuncs, err = LoadCustomFunctions(functionsFlag, silent)
 				if err != nil && !silent {
 					message := fmt.Sprintf("Failed to load custom functions: %v", err)
-					style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+					style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 					messageStyle := lipgloss.NewStyle().Padding(1, 1)
 					fmt.Println(style.Render(messageStyle.Render(message)))
 				}
@@ -246,7 +248,7 @@ func GetDashboardCommand() *cobra.Command {
 			if err != nil {
 				if !silent {
 					message := fmt.Sprintf("Failed to show dashboard: %v", err)
-					style := createResultBoxStyle(cui.RGBRed, cui.RGBDarkRed)
+					style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 					messageStyle := lipgloss.NewStyle().Padding(1, 1)
 					fmt.Println(style.Render(messageStyle.Render(message)))
 				}

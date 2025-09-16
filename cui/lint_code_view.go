@@ -11,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/v2/viewport"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 )
 
@@ -18,15 +19,15 @@ import (
 // Now uses centralized styles from styles.go
 func InitSyntaxStyles() {
 	if !SyntaxStylesInit {
-		SyntaxKeyStyle = StyleSyntaxKey
-		SyntaxStringStyle = StyleSyntaxString
-		SyntaxNumberStyle = StyleSyntaxNumber
-		SyntaxBoolStyle = StyleSyntaxBool
-		SyntaxCommentStyle = StyleSyntaxComment
-		SyntaxDashStyle = StyleSyntaxDash
-		SyntaxRefStyle = StyleSyntaxRef
-		SyntaxDefaultStyle = StyleSyntaxDefault
-		SyntaxSingleQuoteStyle = StyleSyntaxSingleQuote
+		SyntaxKeyStyle = color.StyleSyntaxKey
+		SyntaxStringStyle = color.StyleSyntaxString
+		SyntaxNumberStyle = color.StyleSyntaxNumber
+		SyntaxBoolStyle = color.StyleSyntaxBool
+		SyntaxCommentStyle = color.StyleSyntaxComment
+		SyntaxDashStyle = color.StyleSyntaxDash
+		SyntaxRefStyle = color.StyleSyntaxRef
+		SyntaxDefaultStyle = color.StyleSyntaxDefault
+		SyntaxSingleQuoteStyle = color.StyleSyntaxSingleQuote
 		SyntaxStylesInit = true
 	}
 }
@@ -103,12 +104,12 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 		Height(modalHeight).
 		Padding(0, 1, 0, 1).
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(RGBPink)
+		BorderForeground(color.RGBPink)
 
 	var content strings.Builder
 
 	titleStyle := lipgloss.NewStyle().
-		Foreground(RGBBlue).
+		Foreground(color.RGBBlue).
 		Bold(true).
 		Width(modalWidth - 4)
 
@@ -124,7 +125,7 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	content.WriteString("\n")
 
 	sepStyle := lipgloss.NewStyle().
-		Foreground(RGBPink).
+		Foreground(color.RGBPink).
 		Width(modalWidth - 4)
 	content.WriteString(sepStyle.Render(strings.Repeat("-", modalWidth-4)))
 	content.WriteString("\n\n")
@@ -143,10 +144,10 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	var bottomBar string
 	if m.codeViewport.TotalLineCount() > m.codeViewport.Height() {
 		scrollPercent := fmt.Sprintf(" %.0f%%", m.codeViewport.ScrollPercent()*100)
-		scrollStyle := lipgloss.NewStyle().Foreground(RGBBlue)
+		scrollStyle := lipgloss.NewStyle().Foreground(color.RGBBlue)
 
 		controls := "↑↓/jk: scroll | pgup/pgdn: page | space: recenter | esc/x: close "
-		controlsStyle := lipgloss.NewStyle().Foreground(RGBGrey)
+		controlsStyle := lipgloss.NewStyle().Foreground(color.RGBGrey)
 
 		// calculate spacing
 		scrollWidth := lipgloss.Width(scrollPercent)
@@ -162,7 +163,7 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	} else {
 		// no scrolling needed
 		navStyle := lipgloss.NewStyle().
-			Foreground(RGBDarkGrey).
+			Foreground(color.RGBDarkGrey).
 			Width(modalWidth - 4).
 			Align(lipgloss.Center)
 		bottomBar = navStyle.Render("esc/x: close")
@@ -338,7 +339,7 @@ func calculateCodeWindow(allLines []string, targetLine int) codeWindow {
 
 // formatLinesNotShown creates the "lines not shown" notice
 func formatLinesNotShown(count int, position string) string {
-	noticeStyle := lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
+	noticeStyle := lipgloss.NewStyle().Foreground(color.RGBGrey).Italic(true)
 	return noticeStyle.Render(fmt.Sprintf("    ... (%d lines %s not shown) ...", count, position))
 }
 
@@ -390,11 +391,11 @@ type lineFormattingStyles struct {
 // getLineFormattingStyles returns all styles used for formatting
 func getLineFormattingStyles() lineFormattingStyles {
 	return lineFormattingStyles{
-		lineNum:          lipgloss.NewStyle().Foreground(RGBGrey).Bold(true),
-		lineNumHighlight: lipgloss.NewStyle().Foreground(RGBPink).Bold(true),
-		pipe:             lipgloss.NewStyle().Foreground(RGBGrey),
-		triangle:         lipgloss.NewStyle().Foreground(RGBPink).Bold(true),
-		highlight:        lipgloss.NewStyle().Background(RGBSubtlePink).Foreground(RGBPink).Bold(true),
+		lineNum:          lipgloss.NewStyle().Foreground(color.RGBGrey).Bold(true),
+		lineNumHighlight: lipgloss.NewStyle().Foreground(color.RGBPink).Bold(true),
+		pipe:             lipgloss.NewStyle().Foreground(color.RGBGrey),
+		triangle:         lipgloss.NewStyle().Foreground(color.RGBPink).Bold(true),
+		highlight:        lipgloss.NewStyle().Background(color.RGBSubtlePink).Foreground(color.RGBPink).Bold(true),
 	}
 }
 

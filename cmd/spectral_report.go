@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -60,7 +61,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				cui.DisableColors()
+				color.DisableColors()
 			}
 
 			if !stdIn && !stdOut {

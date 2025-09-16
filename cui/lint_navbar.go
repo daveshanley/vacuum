@@ -7,12 +7,13 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
 )
 
 // buildNavBar builds the navigation bar at the bottom
 func (m *ViolationResultTableModel) buildNavBar() string {
 	navStyle := lipgloss.NewStyle().
-		Foreground(RGBGrey).
+		Foreground(color.RGBGrey).
 		Width(m.width)
 
 	rowText := ""
