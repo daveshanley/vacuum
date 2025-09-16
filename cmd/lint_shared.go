@@ -17,6 +17,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -83,24 +84,67 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.PipelineOutput, _ = cmd.Flags().GetBool("pipeline-output")
 	flags.FailSeverityFlag, _ = cmd.Flags().GetString("fail-severity")
 	flags.BaseFlag, _ = cmd.Flags().GetString("base")
+	if flags.BaseFlag == "" && viper.IsSet("lint.base") {
+		flags.BaseFlag = viper.GetString("lint.base")
+	}
 	flags.RemoteFlag, _ = cmd.Flags().GetBool("remote")
+	if !cmd.Flags().Changed("remote") && viper.IsSet("lint.remote") {
+		flags.RemoteFlag = viper.GetBool("lint.remote")
+	}
 	flags.SkipCheckFlag, _ = cmd.Flags().GetBool("skip-check")
+	if !cmd.Flags().Changed("skip-check") && viper.IsSet("lint.skip-check") {
+		flags.SkipCheckFlag = viper.GetBool("lint.skip-check")
+	}
 	flags.TimeoutFlag, _ = cmd.Flags().GetInt("timeout")
+	if !cmd.Flags().Changed("timeout") && viper.IsSet("lint.timeout") {
+		flags.TimeoutFlag = viper.GetInt("lint.timeout")
+	}
 	flags.RulesetFlag, _ = cmd.Flags().GetString("ruleset")
+	// Fallback to lint-scoped config if no ruleset was provided via flag/env/root-config
+	if flags.RulesetFlag == "" && viper.IsSet("lint.ruleset") {
+		flags.RulesetFlag = viper.GetString("lint.ruleset")
+	}
 	flags.FunctionsFlag, _ = cmd.Flags().GetString("functions")
+	if flags.FunctionsFlag == "" && viper.IsSet("lint.functions") {
+		flags.FunctionsFlag = viper.GetString("lint.functions")
+	}
 	flags.TimeFlag, _ = cmd.Flags().GetBool("time")
+	if !cmd.Flags().Changed("time") && viper.IsSet("lint.time") {
+		flags.TimeFlag = viper.GetBool("lint.time")
+	}
 	flags.HardModeFlag, _ = cmd.Flags().GetBool("hard-mode")
+	if !cmd.Flags().Changed("hard-mode") && viper.IsSet("lint.hard-mode") {
+		flags.HardModeFlag = viper.GetBool("lint.hard-mode")
+	}
 	flags.IgnoreFile, _ = cmd.Flags().GetString("ignore-file")
 	flags.NoClipFlag, _ = cmd.Flags().GetBool("no-clip")
 	flags.ExtRefsFlag, _ = cmd.Flags().GetBool("ext-refs")
+	if !cmd.Flags().Changed("ext-refs") && viper.IsSet("lint.ext-refs") {
+		flags.ExtRefsFlag = viper.GetBool("lint.ext-refs")
+	}
 	flags.IgnoreArrayCircleRef, _ = cmd.Flags().GetBool("ignore-array-circle-ref")
 	flags.IgnorePolymorphCircleRef, _ = cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 	flags.MinScore, _ = cmd.Flags().GetInt("min-score")
 	flags.CertFile, _ = cmd.Flags().GetString("cert-file")
+	if flags.CertFile == "" && viper.IsSet("lint.cert-file") {
+		flags.CertFile = viper.GetString("lint.cert-file")
+	}
 	flags.KeyFile, _ = cmd.Flags().GetString("key-file")
+	if flags.KeyFile == "" && viper.IsSet("lint.key-file") {
+		flags.KeyFile = viper.GetString("lint.key-file")
+	}
 	flags.CAFile, _ = cmd.Flags().GetString("ca-file")
+	if flags.CAFile == "" && viper.IsSet("lint.ca-file") {
+		flags.CAFile = viper.GetString("lint.ca-file")
+	}
 	flags.Insecure, _ = cmd.Flags().GetBool("insecure")
+	if !cmd.Flags().Changed("insecure") && viper.IsSet("lint.insecure") {
+		flags.Insecure = viper.GetBool("lint.insecure")
+	}
 	flags.DebugFlag, _ = cmd.Flags().GetBool("debug")
+	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
+		flags.DebugFlag = viper.GetBool("lint.debug")
+	}
 	return flags
 }
 
