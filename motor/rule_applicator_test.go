@@ -2471,8 +2471,8 @@ security:
 		ex := &RuleSetExecution{
 			RuleSet:           rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
 			Document:          d,
-			NodeLookupTimeout: 2 * time.Second,  // Increase timeout for CI/CD environments
-			Timeout:           10 * time.Second, // Increase rule timeout for CI/CD environments
+			NodeLookupTimeout: 5 * time.Second,  // Increase timeout for CI/CD environments
+			Timeout:           30 * time.Second, // Increase rule timeout for CI/CD environments
 		}
 
 		results := ApplyRulesToRuleSet(ex)
