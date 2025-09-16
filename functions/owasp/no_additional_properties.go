@@ -4,11 +4,11 @@
 package owasp
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "slices"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"slices"
 )
 
 type NoAdditionalProperties struct{}
@@ -38,10 +38,10 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 				if schema.Value.AdditionalProperties.IsA() || schema.Value.AdditionalProperties.B {
 					node := schema.Value.GoLow().Type.KeyNode
 					valueNode := schema.Value.GoLow().Type.ValueNode
-					
+
 					// Find all locations where this schema appears
 					locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-					
+
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							"`additionalProperties` should not be set, or set to `false`"),
@@ -50,7 +50,7 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 						Path:      locatedPath,
 						Rule:      context.Rule,
 					}
-					
+
 					// Set the Paths array if there are multiple locations
 					if len(allPaths) > 1 {
 						result.Paths = allPaths

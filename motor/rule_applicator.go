@@ -7,19 +7,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/sourcegraph/conc"
 	"io"
 	"io/fs"
 	"log/slog"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/sourcegraph/conc"
 
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
@@ -30,8 +30,7 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/pterm/pterm"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 type ruleContext struct {
@@ -173,20 +172,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				Level: slog.LevelError,
 			}))
 		} else {
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Formatter: pterm.LogFormatterColorful,
-				Writer:    os.Stdout,
-				Level:     pterm.LogLevelError,
-				ShowTime:  false,
-				MaxWidth:  280,
-				KeyStyles: map[string]pterm.Style{
-					"error":  *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"err":    *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"caller": *pterm.NewStyle(pterm.FgGray, pterm.Bold),
-				},
-			})
-			logger = slog.New(handler)
-			pterm.DefaultLogger.Level = pterm.LogLevelError
+			// use simple logger that discards output for internal motor operations
+			logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 		}
 		docConfig.Logger = logger
 		indexConfig.Logger = logger
@@ -204,7 +191,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		if httpErr != nil {
 			return &RuleSetExecutionResult{Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}
 		}
-		
+
 		// Set the custom RemoteURLHandler for libopenapi
 		docConfig.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 	}
@@ -977,7 +964,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
 			if !ctx.silenceLogs {
-				pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
+				fmt.Printf("⚠️  Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
 			}
 			return ctx.ruleResults
 		}
@@ -1049,16 +1036,16 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					availableCustomFuncs = append(availableCustomFuncs, funcName)
 				}
 			}
-			
+
 			if len(availableCustomFuncs) > 0 {
-				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. Available custom functions: %v\n", 
+				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. Available custom functions: %v\n",
 					ctx.rule.Id, ruleAction.Function, availableCustomFuncs)
 			} else {
-				pterm.Error.Printf("Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n", 
+				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n",
 					ctx.rule.Id, ruleAction.Function)
 			}
 		}
-		
+
 		// Add error result to make the missing function visible in reports
 		lock.Lock()
 		*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{

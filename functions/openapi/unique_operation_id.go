@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // UniqueOperationId is a rule that will check if each operation provides an operationId, as well as making sure

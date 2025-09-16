@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/high"
 	"github.com/pb33f/libopenapi/index"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // ExamplesMissing will check anything that can have an example, has one.
@@ -231,12 +231,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			propErr := false
 			hasProps := false
 			hasArrayItemsWithExamples := false
-			
+
 			// Check for array items with examples
 			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil {
 				hasArrayItemsWithExamples = checkArrayItems(mt.SchemaProxy.Schema)
 			}
-			
+
 			if mt.SchemaProxy != nil &&
 				mt.SchemaProxy.Schema != nil &&
 				mt.SchemaProxy.Schema.Properties != nil &&
@@ -258,17 +258,17 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						// Find all locations where this property schema appears
 						locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop,
 							prop.Value.GoLow().Type.KeyNode, prop.Value.GoLow().Type.ValueNode)
-						
+
 						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							model.GetStringTemplates().BuildMissingExampleMessage(propName)),
 							locatedPath,
 							prop.KeyNode, mt.ValueNode, mt)
-						
+
 						// Set the Paths array if there are multiple locations
 						if len(allPaths) > 1 {
 							result.Paths = allPaths
 						}
-						
+
 						results = append(results, result)
 					}
 				}
@@ -359,12 +359,12 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			propErr := false
 			hasProps := false
 			hasArrayItemsWithExamples := checkArrayItems(s)
-			
+
 			// Skip if array items have examples
 			if hasArrayItemsWithExamples {
 				continue
 			}
-			
+
 			if s.Properties != nil && s.Properties.Len() > 0 {
 				hasProps = true
 				var prop *v3.Schema
@@ -381,17 +381,17 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 					// Find all locations where this property schema appears
 					locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop,
 						prop.Value.GoLow().Type.KeyNode, prop.Value.GoLow().Type.ValueNode)
-					
+
 					result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 						fmt.Sprintf("schema property `%s` is missing `examples` or `example`", propName)),
 						locatedPath,
 						prop.KeyNode, s.ValueNode, s)
-					
+
 					// Set the Paths array if there are multiple locations
 					if len(allPaths) > 1 {
 						result.Paths = allPaths
 					}
-					
+
 					results = append(results, result)
 				}
 			}
@@ -400,16 +400,16 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				// Find all locations where this schema appears
 				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s,
 					s.Value.GoLow().Type.KeyNode, s.Value.GoLow().Type.ValueNode)
-				
+
 				result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 					locatedPath,
 					s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s)
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					result.Paths = allPaths
 				}
-				
+
 				results = append(results, result)
 			}
 
@@ -417,16 +417,16 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				// Find all locations where this schema appears
 				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s,
 					s.Value.GoLow().Type.KeyNode, s.Value.GoLow().Type.ValueNode)
-				
+
 				result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 					locatedPath,
 					s.Value.ParentProxy.GetSchemaKeyNode(), s.Value.ParentProxy.GetValueNode(), s)
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					result.Paths = allPaths
 				}
-				
+
 				results = append(results, result)
 			}
 		}
@@ -460,17 +460,17 @@ func checkArrayItems(s *v3.Schema) bool {
 	if s == nil || s.Value == nil {
 		return false
 	}
-	
+
 	// Check if this is an array type
 	if !slices.Contains(s.Value.Type, "array") {
 		return false
 	}
-	
+
 	// Check if items exist
 	if s.Value.Items == nil {
 		return false
 	}
-	
+
 	// Check if items is a single schema (A) - OpenAPI 3.0 style
 	if s.Value.Items.IsA() && s.Value.Items.A != nil {
 		itemSchema := s.Value.Items.A.Schema()
@@ -479,7 +479,7 @@ func checkArrayItems(s *v3.Schema) bool {
 			if itemSchema.Example != nil || len(itemSchema.Examples) > 0 {
 				return true
 			}
-			
+
 			// Check if all properties have examples
 			if itemSchema.Properties != nil && itemSchema.Properties.Len() > 0 {
 				allHaveExamples := true
@@ -499,11 +499,11 @@ func checkArrayItems(s *v3.Schema) bool {
 			}
 		}
 	}
-	
+
 	// Items.B is a boolean in OpenAPI 3.1, not an array of schemas
 	// In OpenAPI 3.1, Items can be either a schema or boolean
 	// We only need to handle the schema case (A), not B
-	
+
 	return false
 }
 func checkParent(s any, depth int) bool {

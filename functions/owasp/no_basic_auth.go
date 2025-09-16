@@ -4,12 +4,11 @@
 package owasp
 
 import (
-    
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "strings"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"strings"
 )
 
 type NoBasicAuth struct{}

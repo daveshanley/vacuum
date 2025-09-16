@@ -5,8 +5,7 @@ import (
 	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin/javascript"
-	"github.com/pterm/pterm"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"os"
 	"path/filepath"
 	"plugin"
@@ -30,7 +29,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			// found something
 			if !silence {
-				pterm.Info.Printf("Located custom function plugin: %s\n", fPath)
+				fmt.Printf("● Located custom function plugin: %s\n", fPath)
 			}
 			// let's try and open it.
 			p, e := plugin.Open(fPath)
@@ -49,7 +48,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			if bootFunc != nil {
 				bootFunc.(func(*Manager))(pm)
 			} else {
-				pterm.Error.Printf("Unable to boot plugin")
+				fmt.Printf("✗ Unable to boot plugin\n")
 			}
 		}
 
@@ -67,17 +66,17 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			// found something
 			if !silence {
-				pterm.Info.Printf("Located custom javascript function: '%s' from file: %s\n", function.GetSchema().Name, fPath)
+				fmt.Printf("● Located custom javascript function: '%s' from file: %s\n", function.GetSchema().Name, fPath)
 			}
 			// check if the function is valid
 			sErr := function.CheckScript()
 
 			if sErr != nil {
-				pterm.Error.Printf("Failed to load function '%s': %s\n", fName, sErr.Error())
+				fmt.Printf("✗ Failed to load function '%s': %s\n", fName, sErr.Error())
 				continue // Skip registering invalid functions
 			} else {
 				if !silence {
-					pterm.Success.Printf("Successfully validated JavaScript function: '%s'\n", fName)
+					fmt.Printf("✓ Successfully validated JavaScript function: '%s'\n", fName)
 				}
 			}
 
@@ -87,9 +86,9 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			// register this function with the plugin manager using the schema name
 			schemaName := function.GetSchema().Name
 			pm.RegisterFunction(schemaName, function)
-			
+
 			if !silence {
-				pterm.Info.Printf("Registered custom function: '%s' -> available for use in rulesets\n", schemaName)
+				fmt.Printf("● Registered custom function: '%s' -> available for use in rulesets\n", schemaName)
 			}
 		}
 	}
@@ -113,7 +112,7 @@ var extractInput = func(input any) *yaml.Node {
 
 var coreError = func() {
 	if r := recover(); r != nil {
-		pterm.Error.Printf("Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
+		fmt.Printf("✗ Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
 	}
 }
 

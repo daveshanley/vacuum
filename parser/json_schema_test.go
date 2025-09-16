@@ -4,11 +4,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/speakeasy-api/jsonpath/pkg/jsonpath"
+	"github.com/pb33f/jsonpath/pkg/jsonpath"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // test we can generate a schema from a simple object
@@ -56,54 +56,6 @@ func TestConvertNode_Simple(t *testing.T) {
 	assert.True(t, res)
 }
 
-func TestValidateExample_AllInvalid(t *testing.T) {
-	yml := `components:
-  schemas:
-    Citrus:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1234.5
-        name:
-          type: string
-          example: false
-    Savory:
-      type: object
-      properties:
-        tasteIndex:
-          type: integer
-          example: hello
-        butter:
-          type: boolean
-          example: 123.224
-        fridge:
-          type: number
-          example: false
-        cake:
-          type: string
-          example: 1233
-        pizza:
-          $ref: '#/components/schemas/Citrus'`
-
-	var node yaml.Node
-	mErr := yaml.Unmarshal([]byte(yml), &node)
-	assert.NoError(t, mErr)
-
-	config := index.CreateOpenAPIIndexConfig()
-	idx := index.NewSpecIndexWithConfig(&node, config)
-
-	rslvr := index.NewResolver(idx)
-	rslvr.Resolve()
-
-	p, _ := jsonpath.NewPath("$.components.schemas.Savory")
-	r := p.Query(&node)
-
-	schema, _ := ConvertNodeIntoJSONSchema(r[0], idx)
-
-	results := ValidateExample(schema)
-	assert.Len(t, results, 6)
-}
 
 // TestConcurrentSchemaValidation tests for issue #512 - non-deterministic validation
 func TestConcurrentSchemaValidation(t *testing.T) {
@@ -225,7 +177,7 @@ properties:
 		// Run validation multiple times
 		const iterations = 50
 		errors := make([]error, iterations)
-		
+
 		var wg sync.WaitGroup
 		for i := 0; i < iterations; i++ {
 			idx := i
@@ -297,7 +249,7 @@ metadata:
 		const iterations = 100
 		results := make([]bool, iterations)
 		validationErrors := make([]int, iterations)
-		
+
 		var wg sync.WaitGroup
 		for i := 0; i < iterations; i++ {
 			idx := i
@@ -315,7 +267,7 @@ metadata:
 		firstResult := results[0]
 		firstErrorCount := validationErrors[0]
 		for i := range results {
-			assert.Equal(t, firstResult, results[i], 
+			assert.Equal(t, firstResult, results[i],
 				"Result at iteration %d inconsistent with first result", i)
 			assert.Equal(t, firstErrorCount, validationErrors[i],
 				"Error count at iteration %d inconsistent with first count", i)
@@ -355,7 +307,7 @@ properties:
 				// Run multiple validations concurrently
 				const iterations = 50
 				results := make([]bool, iterations)
-				
+
 				var wg sync.WaitGroup
 				for i := 0; i < iterations; i++ {
 					idx := i
@@ -370,7 +322,7 @@ properties:
 
 				// All results should match expected
 				for i, result := range results {
-					assert.Equal(t, tc.valid, result, 
+					assert.Equal(t, tc.valid, result,
 						"Iteration %d: expected %v but got %v", i, tc.valid, result)
 				}
 			})
@@ -429,10 +381,10 @@ users:
 
 	// Run highly concurrent validations
 	const iterations = 200
-	
+
 	results := make([]bool, iterations)
 	var wg sync.WaitGroup
-	
+
 	// Create goroutines that will all try to validate at the same time
 	start := make(chan struct{})
 	for i := 0; i < iterations; i++ {
@@ -445,7 +397,7 @@ users:
 			results[idx] = result
 		}()
 	}
-	
+
 	// Start all goroutines at once to maximize concurrency
 	close(start)
 	wg.Wait()

@@ -4,12 +4,12 @@
 package openapi
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
 )
 
 // DuplicatedEnum will check enum values match the types provided
@@ -49,9 +49,9 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			// iterate through duplicate results and add results.
 			for _, res := range duplicates {
 				// Find all locations where this schema appears
-				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema, 
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema,
 					schema.Value.GoLow().Type.KeyNode, schema.Value.GoLow().Type.ValueNode)
-				
+
 				result := model.RuleFunctionResult{
 					Message:   fmt.Sprintf("enum contains a duplicate: `%s`", res.Value),
 					StartNode: node,
@@ -59,7 +59,7 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					Path:      fmt.Sprintf("%s.%s", locatedPath, "enum"),
 					Rule:      context.Rule,
 				}
-				
+
 				// Set the Paths array if there are multiple locations
 				if len(allPaths) > 1 {
 					// Add .enum suffix to all paths
@@ -69,7 +69,7 @@ func (de DuplicatedEnum) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					}
 					result.Paths = enumPaths
 				}
-				
+
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}

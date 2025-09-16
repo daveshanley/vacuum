@@ -6,17 +6,17 @@ package cmd
 
 import (
 	"fmt"
-	languageserver "github.com/daveshanley/vacuum/language-server"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
+
+	languageserver "github.com/daveshanley/vacuum/language-server"
+	"github.com/daveshanley/vacuum/logging"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/utils"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -30,9 +30,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// setup logging to be discarded, it will invalidate the LSP protocol
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Writer: io.Discard,
-			})
+			// use discard logger to prevent memory accumulation
+			bufferedLogger := logging.NewDiscardLogger()
+			handler := logging.NewBufferedLogHandler(bufferedLogger)
 			logger := slog.New(handler)
 
 			// extract flags
@@ -66,13 +66,13 @@ IDE and start linting your OpenAPI documents in real-time.`,
 
 			if rulesetFlag != "" {
 				remoteFlag, _ := cmd.Flags().GetBool("remote")
-				
+
 				// Certificate/TLS configuration for language server
 				certFile, _ := cmd.Flags().GetString("cert-file")
 				keyFile, _ := cmd.Flags().GetString("key-file")
 				caFile, _ := cmd.Flags().GetString("ca-file")
 				insecure, _ := cmd.Flags().GetBool("insecure")
-				
+
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
 				httpClientConfig := utils.HTTPClientConfig{
@@ -88,7 +88,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 						return clientErr
 					}
 				}
-				
+
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
@@ -123,7 +123,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				IgnoredResults:           ignoredItems,
 			}
 
-			return languageserver.NewServer(Version, &lfr).Run()
+			return languageserver.NewServer(GetVersion(), &lfr).Run()
 		},
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")

@@ -6,21 +6,23 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/plugin"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/dustin/go-humanize"
-	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/tui"
+	"github.com/dustin/go-humanize"
+	"github.com/pb33f/libopenapi/index"
 )
 
 // Hard mode message constants
 const (
-	HardModeEnabled = "🚨 HARD MODE ENABLED 🚨"
+	HardModeEnabled           = "🚨 HARD MODE ENABLED 🚨"
 	HardModeWithCustomRuleset = "🚨 OWASP Rules added to custom ruleset 🚨"
 )
 
@@ -37,8 +39,7 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 	// load in our user supplied ruleset and try to validate it.
 	userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
 	if userErr != nil {
-		pterm.Error.Printf("Unable to parse ruleset file: %s\n", userErr.Error())
-		pterm.Println()
+		tui.RenderErrorString("Unable to parse ruleset file: %s", userErr.Error())
 		return nil, userErr
 
 	}
@@ -74,19 +75,19 @@ func MergeOWASPRulesToRuleSet(selectedRS *rulesets.RuleSet, hardModeFlag bool) b
 	if !hardModeFlag || selectedRS == nil {
 		return false
 	}
-	
+
 	owaspRules := rulesets.GetAllOWASPRules()
 	if selectedRS.Rules == nil {
 		selectedRS.Rules = make(map[string]*model.Rule)
 	}
-	
+
 	for k, v := range owaspRules {
 		// Add OWASP rule if it doesn't already exist in the custom ruleset
 		if selectedRS.Rules[k] == nil {
 			selectedRS.Rules[k] = v
 		}
 	}
-	
+
 	return true
 }
 
@@ -94,52 +95,31 @@ func MergeOWASPRulesToRuleSet(selectedRS *rulesets.RuleSet, hardModeFlag bool) b
 // it will also render out how many files were processed.
 func RenderTimeAndFiles(timeFlag bool, duration time.Duration, fileSize int64, totalFiles int) {
 	if timeFlag {
-		pterm.Println()
+		fmt.Println()
 		l := "milliseconds"
 		d := fmt.Sprintf("%d", duration.Milliseconds())
 		if duration.Milliseconds() > 1000 {
 			l = "seconds"
 			d = humanize.FormatFloat("##.##", duration.Seconds())
 		}
-		pterm.Info.Println(fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
-			index.HumanFileSize(float64(fileSize)), totalFiles))
-		pterm.Println()
+		message := fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
+			index.HumanFileSize(float64(fileSize)), totalFiles)
+		tui.RenderStyledBox(message, tui.BoxTypeInfo, false)
 	}
 }
 
 // RenderTime will render out the time taken to process a specification, and the size of the file in kb.
 func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 	if timeFlag {
-		pterm.Println()
+		fmt.Println()
+		var message string
 		if (fi / 1000) <= 1024 {
-			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi/1000))
+			message = fmt.Sprintf("vacuum took %d milliseconds to lint %dkb", duration.Milliseconds(), fi/1000)
 		} else {
-			pterm.Info.Println(fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000))
+			message = fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000)
 		}
-		pterm.Println()
+		tui.RenderStyledBox(message, tui.BoxTypeInfo, false)
 	}
-}
-
-func PrintBanner() {
-	pterm.Println()
-
-	//_ = pterm.DefaultBigText.WithLetters(
-	//	putils.LettersFromString(pterm.LightMagenta("vacuum"))).Render()
-	banner := `
-██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗
-██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║
-██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║
-╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║
- ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
-  ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝
-`
-
-	pterm.Println(pterm.LightMagenta(banner))
-	pterm.Println()
-	pterm.Printf("version: %s | compiled: %s\n", pterm.LightGreen(Version), pterm.LightGreen(Date))
-	pterm.Println(pterm.Cyan("🔗 https://quobix.com/vacuum | https://github.com/daveshanley/vacuum"))
-	pterm.Println()
-	pterm.Println()
 }
 
 // LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
@@ -148,22 +128,20 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 	if functionsFlag != "" {
 		pm, err := plugin.LoadFunctions(functionsFlag, silence)
 		if err != nil {
-			pterm.Error.Printf("Unable to open custom functions: %v\n", err)
-			pterm.Println()
+			tui.RenderError(err)
 			return nil, err
 		}
-		
+
 		customFunctions := pm.GetCustomFunctions()
-		pterm.Info.Printf("Loaded %d custom function(s) successfully.\n", pm.LoadedFunctionCount())
-		
+		tui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
+
 		if !silence && len(customFunctions) > 0 {
-			pterm.Info.Println("Available custom functions:")
+			tui.RenderInfo("Available custom functions:")
 			for funcName := range customFunctions {
-				pterm.Printf("  - %s\n", pterm.LightCyan(funcName))
+				fmt.Printf("  - %s%s%s\n", color.ASCIIBlue, funcName, color.ASCIIReset)
 			}
-			pterm.Println()
 		}
-		
+
 		return customFunctions, nil
 	}
 	return nil, nil

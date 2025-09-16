@@ -166,6 +166,12 @@ const (
 	postSuccessResponseFix string = "Make sure your POST operations return a 'success' response via 2xx or 3xx response code. "
 
 	noRequestBodyResponseFix string = "Remove 'requestBody' from HTTP GET and DELETE methods"
+
+	duplicatePathsFix = `Duplicate path definitions found in your OpenAPI specification. In YAML, duplicate keys are allowed, but only the last occurrence is used. This means earlier path definitions are silently ignored, which can lead to missing API endpoints in your specification.`
+
+	unnecessaryCombinatorFix = `Schema combinators (allOf, anyOf, oneOf) with only a single item are unnecessary and should be replaced with the item directly for cleaner, more readable schemas.`
+
+	camelCasePropertiesFix = `Schema property names should use camelCase for consistency and better compatibility with code generation tools. Property names should start with a lowercase letter and use uppercase letters for word boundaries.`
 )
 
 const (

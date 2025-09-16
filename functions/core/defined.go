@@ -4,12 +4,12 @@
 package core
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
 )
 
 // Defined is a rule that will determine if a field has been set on a node slice.

@@ -7,7 +7,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"strings"
 )
 

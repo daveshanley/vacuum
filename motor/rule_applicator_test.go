@@ -16,7 +16,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -2471,7 +2471,7 @@ security:
 		ex := &RuleSetExecution{
 			RuleSet:           rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
 			Document:          d,
-			NodeLookupTimeout: 2 * time.Second, // Increase timeout for CI/CD environments
+			NodeLookupTimeout: 2 * time.Second,  // Increase timeout for CI/CD environments
 			Timeout:           10 * time.Second, // Increase rule timeout for CI/CD environments
 		}
 
@@ -2509,7 +2509,7 @@ func TestIssue523_ExtensionReferenceToNonYAMLFile(t *testing.T) {
 	t.Run("ext-refs disabled", func(t *testing.T) {
 		// Load default rulesets
 		defaultRuleSets := rulesets.BuildDefaultRuleSets()
-		
+
 		// Use the recommended ruleset
 		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 
@@ -2543,7 +2543,7 @@ func TestIssue523_ExtensionReferenceToNonYAMLFile(t *testing.T) {
 	t.Run("ext-refs enabled", func(t *testing.T) {
 		// Load default rulesets
 		defaultRuleSets := rulesets.BuildDefaultRuleSets()
-		
+
 		// Use the recommended ruleset
 		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 

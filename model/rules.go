@@ -9,7 +9,7 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"log/slog"
 	"regexp"
 	"sync"
@@ -58,7 +58,7 @@ type RuleFunctionContext struct {
 	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 	DrDocument *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
-	
+
 	// optionsCache caches the converted options map to avoid repeated interface conversions
 	optionsCache map[string]string `json:"-" yaml:"-"`
 }
@@ -176,18 +176,18 @@ func (ctx *RuleFunctionContext) GetOptionsStringMap() map[string]string {
 	if ctx.optionsCache != nil {
 		return ctx.optionsCache
 	}
-	
+
 	if ctx.Options == nil {
 		ctx.optionsCache = make(map[string]string)
 		return ctx.optionsCache
 	}
-	
+
 	// Convert interface{} to map[string]string using libopenapi utils and cache the result
 	ctx.optionsCache = utils.ConvertInterfaceIntoStringMap(ctx.Options)
 	if ctx.optionsCache == nil {
 		ctx.optionsCache = make(map[string]string)
 	}
-	
+
 	return ctx.optionsCache
 }
 

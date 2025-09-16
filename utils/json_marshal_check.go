@@ -6,7 +6,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"reflect"
 	"regexp"
 	"strings"
@@ -14,11 +14,11 @@ import (
 
 // MarshalingIssue represents a location where JSON marshaling will fail
 type MarshalingIssue struct {
-	Line        int
-	Column      int
-	Path        string
-	Reason      string
-	KeyValue    string // The actual key that's problematic
+	Line     int
+	Column   int
+	Path     string
+	Reason   string
+	KeyValue string // The actual key that's problematic
 }
 
 // CheckJSONMarshaling attempts to marshal the data and returns any marshaling issues found.
@@ -33,13 +33,13 @@ func CheckJSONMarshaling(data interface{}, rootNode *yaml.Node) []MarshalingIssu
 
 	// Marshaling failed, now find all the locations where it fails
 	var issues []MarshalingIssue
-	
+
 	// The error usually contains "json: unsupported type: map[interface {}]interface {}"
 	// This means we have maps with non-string keys
 	if rootNode != nil {
 		findMarshalingIssues(rootNode, "$", &issues)
 	}
-	
+
 	return issues
 }
 
@@ -80,12 +80,12 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 	case yaml.MappingNode:
 		// Pre-allocate capacity to avoid repeated allocations
 		mapLen := len(node.Content) / 2
-		
+
 		// Process all keys first, then recurse
 		for i := 0; i < len(node.Content); i += 2 {
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
-			
+
 			// Build JSONPath efficiently
 			var keyPath string
 			if currentPath == "$" {
@@ -95,7 +95,7 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 				// Append to existing path
 				keyPath = currentPath + formatAsJSONPath(keyNode.Value)
 			}
-			
+
 			// Check if the key is not a string (this is a marshaling problem)
 			if keyNode.Tag != "!!str" && keyNode.Tag != "!!null" {
 				var keyType string
@@ -120,7 +120,7 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 						}
 					}
 				case "!!float":
-					keyType = "float"  
+					keyType = "float"
 				case "!!bool":
 					keyType = "boolean"
 				case "!!map":
@@ -135,7 +135,7 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 						keyType = "unknown"
 					}
 				}
-				
+
 				issue := MarshalingIssue{
 					Line:     keyNode.Line,
 					Column:   keyNode.Column,
@@ -145,7 +145,7 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 				}
 				*issues = append(*issues, issue)
 			}
-			
+
 			// Recurse into the value
 			findMarshalingIssues(valueNode, keyPath, issues)
 		}
@@ -157,11 +157,11 @@ func findMarshalingIssues(node *yaml.Node, currentPath string, issues *[]Marshal
 			arrayPath := fmt.Sprintf("%s[%d]", currentPath, i)
 			findMarshalingIssues(child, arrayPath, issues)
 		}
-		
+
 	case yaml.ScalarNode:
 		// Check for other problematic scalar types if needed
 		// Currently, scalars are generally fine for JSON marshaling
-		
+
 	case yaml.AliasNode:
 		// Aliases (references) might cause circular reference issues
 		// For now, we'll skip these as they're handled differently
@@ -204,7 +204,7 @@ func convertValue(v reflect.Value) interface{} {
 			result.SetMapIndex(key, reflect.ValueOf(convertValue(value)))
 		}
 		return result.Interface()
-		
+
 	case reflect.Slice, reflect.Array:
 		// Convert slice/array elements
 		result := make([]interface{}, v.Len())
@@ -212,19 +212,19 @@ func convertValue(v reflect.Value) interface{} {
 			result[i] = convertValue(v.Index(i))
 		}
 		return result
-		
+
 	case reflect.Interface:
 		if v.IsNil() {
 			return nil
 		}
 		return convertValue(v.Elem())
-		
+
 	case reflect.Ptr:
 		if v.IsNil() {
 			return nil
 		}
 		return convertValue(v.Elem())
-		
+
 	default:
 		// For other types, return as is
 		return v.Interface()

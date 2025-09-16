@@ -11,7 +11,7 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/mitchellh/mapstructure"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"sync"
 )
 

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // NoEvalInDescriptions will check if a description contains potentially malicious javascript

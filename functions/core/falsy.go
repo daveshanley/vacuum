@@ -4,13 +4,13 @@
 package core
 
 import (
-    "fmt"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
+	"fmt"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
 
-    "github.com/daveshanley/vacuum/model"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
 )
 
 // Falsy is a rule that will determine if something is seen as 'false' (could be a 0 or missing, or actually 'false')

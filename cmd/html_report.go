@@ -5,21 +5,25 @@ package cmd
 
 import (
 	"errors"
-	html_report "github.com/daveshanley/vacuum/html-report"
 	"fmt"
+
+	"github.com/daveshanley/vacuum/color"
+	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
-	"gopkg.in/yaml.v3"
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
+
 	"os"
 	"time"
+
+	"github.com/daveshanley/vacuum/tui"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 // GetHTMLReportCommand returns a cobra command for generating an HTML Report.
@@ -56,8 +60,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				color.DisableColors()
 			}
 
 			PrintBanner()
@@ -65,8 +68,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -83,7 +85,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 			if len(specBytes) <= 0 {
-				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
+				tui.RenderErrorString("Failed to read specification: %v", args[0])
 				return err
 			}
 
@@ -112,13 +114,13 @@ func GetHTMLReportCommand() *cobra.Command {
 				customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
-				
+
 				// Certificate/TLS configuration
 				certFile, _ := cmd.Flags().GetString("cert-file")
 				keyFile, _ := cmd.Flags().GetString("key-file")
 				caFile, _ := cmd.Flags().GetString("ca-file")
 				insecure, _ := cmd.Flags().GetBool("insecure")
-				
+
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
 					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
 						CertFile: certFile,
@@ -127,7 +129,7 @@ func GetHTMLReportCommand() *cobra.Command {
 						Insecure: insecure,
 					}, ignoredItems)
 				if err != nil {
-					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
+					tui.RenderError(err)
 					return err
 				}
 				specIndex = ruleset.Index
@@ -143,6 +145,66 @@ func GetHTMLReportCommand() *cobra.Command {
 				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 				specInfo = vacuumReport.SpecInfo
 				stats = vacuumReport.Statistics
+
+				// Recalculate error/warning/info counts and score after filtering
+				if stats != nil && len(ignoredItems) > 0 {
+					stats.TotalErrors = resultSet.GetErrorCount()
+					stats.TotalWarnings = resultSet.GetWarnCount()
+					stats.TotalInfo = resultSet.GetInfoCount()
+
+					// Recalculate category statistics
+					var catStats []*reports.CategoryStatistic
+					for _, cat := range model.RuleCategoriesOrdered {
+						var numIssues, numWarnings, numErrors, numInfo, numHints int
+						numIssues = len(resultSet.GetResultsByRuleCategory(cat.Id))
+						numWarnings = len(resultSet.GetWarningsByRuleCategory(cat.Id))
+						numErrors = len(resultSet.GetErrorsByRuleCategory(cat.Id))
+						numInfo = len(resultSet.GetInfoByRuleCategory(cat.Id))
+						numHints = len(resultSet.GetHintByRuleCategory(cat.Id))
+						numResults := len(resultSet.Results)
+						var score int
+						if numResults == 0 && numIssues == 0 {
+							score = 100 // perfect
+						} else {
+							score = numIssues / numResults * 100
+						}
+						catStats = append(catStats, &reports.CategoryStatistic{
+							CategoryName: cat.Name,
+							CategoryId:   cat.Id,
+							NumIssues:    numIssues,
+							Warnings:     numWarnings,
+							Errors:       numErrors,
+							Info:         numInfo,
+							Hints:        numHints,
+							Score:        score,
+						})
+					}
+					stats.CategoryStatistics = catStats
+
+					// Recalculate overall score
+					total := 100.0
+					score := total - float64(resultSet.GetInfoCount())*0.1
+					score = score - (0.4 * float64(resultSet.GetWarnCount()))
+					score = score - (15.0 * float64(resultSet.GetErrorCount()))
+
+					if resultSet.GetErrorCount() <= 0 && score < 0 {
+						score = 25.0
+					}
+
+					// Check for oas3-schema violations
+					for _, result := range resultSet.Results {
+						if result.Rule != nil && result.Rule.Id == "oas3-schema" {
+							score = score - 90
+						}
+					}
+
+					if score < 0 {
+						score = 10
+					}
+
+					stats.OverallScore = int(score)
+				}
+
 				specInfo.Generated = vacuumReport.Generated
 			}
 
@@ -151,19 +213,17 @@ func GetHTMLReportCommand() *cobra.Command {
 			// generate html report
 			report := html_report.NewHTMLReport(specIndex, specInfo, resultSet, stats, disableTimestamp)
 
-			generatedBytes := report.GenerateReport(false, Version)
+			generatedBytes := report.GenerateReport(false, GetVersion())
 			//generatedBytes := report.GenerateReport(true) // test mode
 
 			err = os.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to write HTML report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("HTML Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			tui.RenderSuccess("HTML Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())

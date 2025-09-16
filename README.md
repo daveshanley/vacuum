@@ -144,7 +144,27 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.17` 🔥 : **Github Action**.
+🔥 **New in** `v0.18` 🔥 : **New dashboard, new lint command, new rules!**.
+
+Upgrades all around. There is a completely new `dashboard` command with a completely new dashboard terminal UI. It's 
+completely interactive and allows you to explore, and filter violations, view full docs and see code. The `dashboard` command
+also adds a new `-w` / `--watch` flag that will watch your OpenAPI file for changes and re-lint and re-render results automatically.
+
+A re-written `lint` command that has a whole new rendering engine and output. Everything is much more readable, 
+easier to see on a screen, matches the new `dashboard` style. It's 100% backwards compatible with previous versions, all flags as they were. 
+
+New rules:
+
+ - [no-request-body](https://quobix.com/vacuum/rules/operations/no-request-body/) - Ensures `GET` and `DELETE` operations do not have request bodies.
+ - [duplicate-paths](https://quobix.com/vacuum/rules/operations/duplicate-paths/) - Ensures there are no duplicate paths exist
+ - [no-unnecessary-combinator](https://quobix.com/vacuum/rules/schemas/no-unnecessary-combinator/) - Ensures no `allOf`, `oneOf` or `anyOf` combinators exist with a single schema inside them.
+ - [camel-case-properties](https://quobix.com/vacuum/rules/schemas/camel-case-properties/) - Ensures all schema properties are `camelCase`.
+
+---
+
+
+
+`v0.17`: **Github Action**.
 
 vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
 in the [GitHub Marketplace](https://github.com/marketplace/actions/vacuum-openapi-linter-and-quality-analysis-tool).
@@ -345,7 +365,14 @@ vacuum will work at scale and is designed as a CLI (with a web or console UI) an
 vacuum comes with an interactive dashboard (`vacuum dashboard <your-openapi-spec.yaml>`) allowing you to explore
 rules and violations in a console, without having to scroll through thousands of results.
 
-![vacuum dashboard](dashboard-screenshot.png)
+<a href="https://quobix.com/vacuum/commands/dashboard/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dashboard.gif">
+  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg">
+</picture>
+</a>
+
+To read about the dashboard, see the [dashboard command docs](https://quobix.com/vacuum/commands/dashboard/).
 
 ### HTML Report
 

@@ -2,7 +2,7 @@ package plugin
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 type FunctionSchema func() model.RuleFunctionSchema

@@ -7,7 +7,8 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pterm/pterm"
+
+	"github.com/daveshanley/vacuum/tui"
 	"net/http"
 	"os"
 	"strings"
@@ -58,17 +59,14 @@ func BuildResultsWithDocCheckSkip(
 			allRules[k] = v
 		}
 		if !silent {
-			box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-			box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-			box.Println(pterm.LightRed(HardModeEnabled))
-			pterm.Println()
+			tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, false)
 		}
 	}
 
 	// if ruleset has been supplied, lets make sure it exists, then load it in
 	// and see if it's valid. If so - let's go!
 	if rulesetFlag != "" {
-		
+
 		// Create HTTP client for remote ruleset downloads if needed
 		var httpClient *http.Client
 		if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
@@ -84,7 +82,7 @@ func BuildResultsWithDocCheckSkip(
 			if !remote {
 				return nil, nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
 			}
-			
+
 			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
 			if rsErr != nil {
 				return nil, nil, rsErr
@@ -105,15 +103,12 @@ func BuildResultsWithDocCheckSkip(
 		// Merge OWASP rules if hard mode is enabled
 		if MergeOWASPRulesToRuleSet(selectedRS, hardMode) {
 			if !silent {
-				box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-				box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-				box.Println(pterm.LightRed(HardModeWithCustomRuleset))
-				pterm.Println()
+				tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, false)
 			}
 		}
 	}
 
-	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+	tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           selectedRS,
