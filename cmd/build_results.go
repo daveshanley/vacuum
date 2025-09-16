@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 
-	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/tui"
 	"net/http"
 	"os"
 	"strings"

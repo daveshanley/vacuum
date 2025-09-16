@@ -13,8 +13,8 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/lipgloss/v2/list"
 	color2 "github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/dustin/go-humanize"
 	"golang.org/x/term"
 )

@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
 )

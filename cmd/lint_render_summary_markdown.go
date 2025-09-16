@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 )

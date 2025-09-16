@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/dustin/go-humanize"
 	"golang.org/x/term"
 )

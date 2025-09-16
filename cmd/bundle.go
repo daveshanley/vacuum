@@ -18,7 +18,7 @@ import (
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
 
-	"github.com/daveshanley/vacuum/cui"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
 )
 

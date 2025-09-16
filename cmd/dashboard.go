@@ -12,11 +12,11 @@ import (
 
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
-	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
