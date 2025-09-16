@@ -159,12 +159,18 @@ func runLint(cmd *cobra.Command, args []string) error {
 			deepGraph = true
 		}
 
+		// Resolve base path for this specific file
+		resolvedBase, baseErr := ResolveBasePathForFile(fileName, flags.BaseFlag)
+		if baseErr != nil {
+			return fmt.Errorf("failed to resolve base path: %w", baseErr)
+		}
+
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
 			SpecFileName:                    displayFileName,
 			CustomFunctions:                 customFuncs,
-			Base:                            flags.BaseFlag,
+			Base:                            resolvedBase,
 			AllowLookup:                     flags.RemoteFlag,
 			SkipDocumentCheck:               flags.SkipCheckFlag,
 			Logger:                          logger,

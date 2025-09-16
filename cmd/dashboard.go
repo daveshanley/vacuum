@@ -156,12 +156,18 @@ func GetDashboardCommand() *cobra.Command {
 						color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 				}
 
+				// Resolve base path for this specific file
+				resolvedBase, baseErr := ResolveBasePathForFile(args[0], baseFlag)
+				if baseErr != nil {
+					return fmt.Errorf("failed to resolve base path: %w", baseErr)
+				}
+
 				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 					RuleSet:           selectedRS,
 					Spec:              specBytes,
 					SpecFileName:      displayFileName, // THIS IS THE KEY FIX
 					CustomFunctions:   customFuncs,
-					Base:              baseFlag,
+					Base:              resolvedBase,
 					AllowLookup:       remoteFlag,
 					SkipDocumentCheck: skipCheckFlag,
 					Logger:            logger,

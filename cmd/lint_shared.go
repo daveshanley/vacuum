@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/daveshanley/vacuum/color"
@@ -20,6 +21,24 @@ import (
 	"github.com/spf13/viper"
 	"go.yaml.in/yaml/v4"
 )
+
+// ResolveBasePathForFile determines the base path to use for a given spec file.
+// If baseFlag is explicitly set (not empty), it returns that value unchanged.
+// If baseFlag is empty, it returns the absolute directory of the spec file.
+func ResolveBasePathForFile(specFilePath string, baseFlag string) (string, error) {
+	// If base is explicitly set, use it as-is
+	if baseFlag != "" {
+		return baseFlag, nil
+	}
+
+	// Auto-detect base from spec file location
+	absPath, err := filepath.Abs(specFilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path for %s: %w", specFilePath, err)
+	}
+
+	return filepath.Dir(absPath), nil
+}
 
 // LintFlags holds all the command line flags for lint operations
 type LintFlags struct {
@@ -341,12 +360,21 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
+	// Resolve base path for this specific file
+	resolvedBase, baseErr := ResolveBasePathForFile(fileName, config.Flags.BaseFlag)
+	if baseErr != nil {
+		return &FileProcessingResult{
+			FileSize: fileSize,
+			Error:    fmt.Errorf("failed to resolve base path: %w", baseErr),
+		}
+	}
+
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                         config.SelectedRuleset,
 		Spec:                            specBytes,
 		SpecFileName:                    fileName,
 		CustomFunctions:                 config.CustomFunctions,
-		Base:                            config.Flags.BaseFlag,
+		Base:                            resolvedBase,
 		AllowLookup:                     config.Flags.RemoteFlag,
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,
 		SilenceLogs:                     config.Flags.SilentFlag,
