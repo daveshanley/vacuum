@@ -142,38 +142,58 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 	}
 	// 160+ shows everything
 
-	// calculate message and path widths
-	separators := calculateSeparatorCount(config)
-	fixedWidth := config.LocationWidth + config.SeverityWidth + config.RuleWidth + config.CategoryWidth + separators
-	remainingWidth := width - fixedWidth
+	// special handling for no-clip mode
+	if config.NoClip && !config.UseTreeFormat {
+		// in no-clip mode, we only show location, severity, and message on first line
+		// rule and category are shown on second line with path
+		config.ShowRule = false
+		config.ShowCategory = false
+		config.ShowPath = false
+		config.RuleWidth = 0
+		config.CategoryWidth = 0
+		config.PathWidth = 0
 
-	if remainingWidth > 0 {
-		if config.ShowPath {
-			// message gets only what it needs, rest goes to path
-			config.MessageWidth = msgWidth
-			if config.MessageWidth > remainingWidth-20 {
-				config.MessageWidth = remainingWidth - 20
-			}
-			config.PathWidth = remainingWidth - config.MessageWidth
-
-			// enforce minimums
-			if config.MessageWidth < 20 {
-				config.MessageWidth = 20
-				config.PathWidth = remainingWidth - config.MessageWidth
-			}
-			if config.PathWidth < 10 {
-				config.PathWidth = 10
-			}
-		} else {
-			config.MessageWidth = remainingWidth
-			if config.MessageWidth < 20 {
-				config.MessageWidth = 20
-			}
+		// calculate message width for no-clip mode
+		separators := 4 // location + severity spacing
+		fixedWidth := config.LocationWidth + config.SeverityWidth + separators
+		config.MessageWidth = width - fixedWidth
+		if config.MessageWidth < 20 {
+			config.MessageWidth = 20
 		}
 	} else {
-		config.MessageWidth = 20
-		if config.ShowPath {
-			config.PathWidth = 10
+		// calculate message and path widths for normal mode
+		separators := calculateSeparatorCount(config)
+		fixedWidth := config.LocationWidth + config.SeverityWidth + config.RuleWidth + config.CategoryWidth + separators
+		remainingWidth := width - fixedWidth
+
+		if remainingWidth > 0 {
+			if config.ShowPath {
+				// message gets only what it needs, rest goes to path
+				config.MessageWidth = msgWidth
+				if config.MessageWidth > remainingWidth-20 {
+					config.MessageWidth = remainingWidth - 20
+				}
+				config.PathWidth = remainingWidth - config.MessageWidth
+
+				// enforce minimums
+				if config.MessageWidth < 20 {
+					config.MessageWidth = 20
+					config.PathWidth = remainingWidth - config.MessageWidth
+				}
+				if config.PathWidth < 10 {
+					config.PathWidth = 10
+				}
+			} else {
+				config.MessageWidth = remainingWidth
+				if config.MessageWidth < 20 {
+					config.MessageWidth = 20
+				}
+			}
+		} else {
+			config.MessageWidth = 20
+			if config.ShowPath {
+				config.PathWidth = 10
+			}
 		}
 	}
 
@@ -539,11 +559,50 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 	fmt.Println()
 }
 
+// renderNoClipAdditionalLines renders additional lines below the table row when --no-clip is active
+func renderNoClipAdditionalLines(r *model.RuleFunctionResult, config *TableConfig) {
+	// render the full path flush against the left edge (no indentation)
+	path := r.Path
+	if path != "" {
+		coloredPath := fmt.Sprintf("%s%s%s", color.ASCIIGrey, color.ColorizePath(path), color.ASCIIReset)
+		fmt.Printf("%s\n", coloredPath)
+	}
+
+	// render rule and category on a new line with lowercase labels and bold values
+	ruleId := ""
+	category := ""
+	if r.Rule != nil {
+		ruleId = r.Rule.Id
+		if r.Rule.RuleCategory != nil {
+			category = r.Rule.RuleCategory.Name
+		}
+	}
+
+	if ruleId != "" || category != "" {
+		if ruleId != "" {
+			// rule in pink and bold
+			fmt.Printf("rule: %s%s%s%s", color.ASCIIPink, color.ASCIIBold, ruleId, color.ASCIIReset)
+		}
+		if category != "" {
+			if ruleId != "" {
+				fmt.Printf("  ")
+			}
+			// category in bold
+			fmt.Printf("category: %s%s%s", color.ASCIIBold, category, color.ASCIIReset)
+		}
+		fmt.Println()
+	}
+
+	// add a blank line for visual separation
+	fmt.Println()
+}
+
 // renderTableFormat renders the results in table format
 func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 	fileName string, errors, allResults, snippets bool, specData []string) {
 
-	if !snippets {
+	if !snippets && !config.NoClip {
+		// standard mode - single line per result
 		printTableHeaders(config)
 		printTableSeparator(config)
 
@@ -558,6 +617,29 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 			}
 
 			renderTableRow(r, config, fileName)
+		}
+
+		if !config.NoStyle {
+			fmt.Println()
+		}
+	} else if config.NoClip && !snippets {
+		// no-clip mode - render each result with full content across multiple lines
+		// no headers in no-clip mode since columns don't align
+
+		for i, r := range results {
+			if i > 1000 && !allResults {
+				fmt.Printf("%s...%s more violations not rendered%s\n", color.ASCIIRed, humanize.Comma(int64(len(results)-1000)), color.ASCIIReset)
+				break
+			}
+
+			if errors && r.Rule != nil && r.Rule.Severity != model.SeverityError {
+				continue
+			}
+
+			renderTableRow(r, config, fileName)
+
+			// render additional line(s) with full path and metadata
+			renderNoClipAdditionalLines(r, config)
 		}
 
 		if !config.NoStyle {
@@ -581,7 +663,8 @@ func renderTableFormat(results []*model.RuleFunctionResult, config *TableConfig,
 			renderTableRow(r, config, fileName)
 
 			renderCodeSnippetWithHighlight(r, specData, fileName)
-			// Only add blank line after snippet if colors are enabled
+
+			// only add blank line after snippet if colors are enabled
 			if !config.NoStyle {
 				fmt.Println()
 			}
