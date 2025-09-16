@@ -121,8 +121,14 @@ func GetHTMLReportCommand() *cobra.Command {
 				caFile, _ := cmd.Flags().GetString("ca-file")
 				insecure, _ := cmd.Flags().GetBool("insecure")
 
+				// Resolve base path for this specific file
+				resolvedBase, baseErr := ResolveBasePathForFile(args[0], baseFlag)
+				if baseErr != nil {
+					return fmt.Errorf("failed to resolve base path: %w", baseErr)
+				}
+
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					baseFlag, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
+					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
 						CertFile: certFile,
 						KeyFile:  keyFile,
 						CAFile:   caFile,

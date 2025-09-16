@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
@@ -198,12 +199,32 @@ func GetVacuumReportCommand() *cobra.Command {
 				deepGraph = true
 			}
 
+			// Resolve base path for this specific file
+			var resolvedBase string
+			var baseErr error
+			if stdIn {
+				// For stdin input, use the provided base flag or current directory as fallback
+				if baseFlag != "" {
+					resolvedBase = baseFlag
+				} else {
+					resolvedBase, baseErr = filepath.Abs(".")
+					if baseErr != nil {
+						return fmt.Errorf("failed to resolve current directory as base path: %w", baseErr)
+					}
+				}
+			} else {
+				resolvedBase, baseErr = ResolveBasePathForFile(args[0], baseFlag)
+				if baseErr != nil {
+					return fmt.Errorf("failed to resolve base path: %w", baseErr)
+				}
+			}
+
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet:                         selectedRS,
 				Spec:                            specBytes,
 				CustomFunctions:                 customFunctions,
 				SilenceLogs:                     true,
-				Base:                            baseFlag,
+				Base:                            resolvedBase,
 				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				BuildDeepGraph:                  deepGraph,
