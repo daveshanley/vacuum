@@ -1,7 +1,7 @@
 // Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
-package cui
+package tui
 
 import (
 	"github.com/charmbracelet/bubbles/v2/table"
@@ -31,28 +31,28 @@ func BuildResultTableData(results []*model.RuleFunctionResult, fileName string, 
 	contentWidths := calculateContentWidths(results, fileName)
 	columnWidths := calculateColumnWidths(terminalWidth, contentWidths, showPath)
 	columns := buildTableColumns(columnWidths, showPath)
-	
+
 	return columns, rows
 }
 
 // buildTableRows creates the table rows from results
 func buildTableRows(results []*model.RuleFunctionResult, fileName string, showPath bool) []table.Row {
 	var rows []table.Row
-	
+
 	for _, r := range results {
 		location := formatFileLocation(r, fileName)
 		severity := getRuleSeverity(r)
-		
+
 		category := ""
 		if r.Rule != nil && r.Rule.RuleCategory != nil {
 			category = r.Rule.RuleCategory.Name
 		}
-		
+
 		ruleID := ""
 		if r.Rule != nil {
 			ruleID = r.Rule.Id
 		}
-		
+
 		if showPath {
 			rows = append(rows, table.Row{
 				location,
@@ -72,7 +72,7 @@ func buildTableRows(results []*model.RuleFunctionResult, fileName string, showPa
 			})
 		}
 	}
-	
+
 	return rows
 }
 
@@ -83,13 +83,13 @@ func calculateContentWidths(results []*model.RuleFunctionResult, fileName string
 		rule:     len("Rule"),
 		category: len("Category"),
 	}
-	
+
 	for _, r := range results {
 		location := formatFileLocation(r, fileName)
 		if len(location) > widths.location {
 			widths.location = len(location)
 		}
-		
+
 		if r.Rule != nil {
 			if len(r.Rule.Id) > widths.rule {
 				widths.rule = len(r.Rule.Id)
@@ -99,7 +99,7 @@ func calculateContentWidths(results []*model.RuleFunctionResult, fileName string
 			}
 		}
 	}
-	
+
 	return widths
 }
 
@@ -113,26 +113,26 @@ func calculateColumnWidths(terminalWidth int, content contentWidths, showPath bo
 	}
 	columnPadding := columnCount * 2
 	availableWidth := actualTableWidth - columnPadding
-	
+
 	widths := columnWidths{
 		location: content.location,
 		severity: SeverityColumnWidth + 1, // +1 for icon space
 		rule:     content.rule,
 		category: content.category,
 	}
-	
+
 	if showPath {
 		calculateWithPathColumn(availableWidth, &widths, content)
 	} else {
 		calculateWithoutPathColumn(availableWidth, &widths, content)
 	}
-	
+
 	// ensure exact width match
 	totalColWidth := widths.location + widths.severity + widths.message + widths.rule + widths.category
 	if showPath {
 		totalColWidth += widths.path
 	}
-	
+
 	widthDiff := availableWidth - totalColWidth
 	if widthDiff > 0 {
 		if showPath {
@@ -147,7 +147,7 @@ func calculateColumnWidths(terminalWidth int, content contentWidths, showPath bo
 			widths.message += widthDiff
 		}
 	}
-	
+
 	return widths
 }
 
@@ -161,15 +161,15 @@ func calculateWithPathColumn(availableWidth int, widths *columnWidths, content c
 		minRuleWidth     = 20
 		minCatWidth      = 20
 	)
-	
-	totalNaturalWidth := widths.location + widths.severity + naturalMsgWidth + 
-	                    content.rule + content.category + naturalPathWidth
-	
+
+	totalNaturalWidth := widths.location + widths.severity + naturalMsgWidth +
+		content.rule + content.category + naturalPathWidth
+
 	if totalNaturalWidth <= availableWidth {
 		// enough space - use natural widths and distribute extra
 		widths.message = naturalMsgWidth
 		widths.path = naturalPathWidth
-		
+
 		extraSpace := availableWidth - totalNaturalWidth
 		if extraSpace > 0 {
 			widths.message += extraSpace / 2
@@ -179,18 +179,18 @@ func calculateWithPathColumn(availableWidth int, widths *columnWidths, content c
 		// need compression - apply hierarchically
 		widths.message = naturalMsgWidth
 		widths.path = naturalPathWidth
-		
+
 		needToSave := totalNaturalWidth - availableWidth
-		
+
 		// compress path first
 		needToSave = compressColumn(&widths.path, minPathWidth, needToSave)
-		
+
 		// then category
 		needToSave = compressColumn(&widths.category, minCatWidth, needToSave)
-		
+
 		// then rule
 		needToSave = compressColumn(&widths.rule, minRuleWidth, needToSave)
-		
+
 		// finally message
 		compressColumn(&widths.message, minMsgWidth, needToSave)
 	}
@@ -204,25 +204,25 @@ func calculateWithoutPathColumn(availableWidth int, widths *columnWidths, conten
 		minRuleWidth    = 20
 		minCatWidth     = 20
 	)
-	
-	totalNaturalWidth := widths.location + widths.severity + naturalMsgWidth + 
-	                    content.rule + content.category
-	
+
+	totalNaturalWidth := widths.location + widths.severity + naturalMsgWidth +
+		content.rule + content.category
+
 	if totalNaturalWidth <= availableWidth {
 		// enough space - give extra to message
 		widths.message = naturalMsgWidth + (availableWidth - totalNaturalWidth)
 	} else {
 		// need compression
 		widths.message = naturalMsgWidth
-		
+
 		needToSave := totalNaturalWidth - availableWidth
-		
+
 		// compress category first
 		needToSave = compressColumn(&widths.category, minCatWidth, needToSave)
-		
+
 		// then rule
 		needToSave = compressColumn(&widths.rule, minRuleWidth, needToSave)
-		
+
 		// finally message
 		compressColumn(&widths.message, minMsgWidth, needToSave)
 	}
@@ -233,13 +233,13 @@ func compressColumn(width *int, minWidth int, needToSave int) int {
 	if needToSave <= 0 || *width <= minWidth {
 		return needToSave
 	}
-	
+
 	canSave := *width - minWidth
 	if canSave >= needToSave {
 		*width -= needToSave
 		return 0
 	}
-	
+
 	*width = minWidth
 	return needToSave - canSave
 }
@@ -253,13 +253,13 @@ func buildTableColumns(widths columnWidths, showPath bool) []table.Column {
 		{Title: "Rule", Width: widths.rule},
 		{Title: "Category", Width: widths.category},
 	}
-	
+
 	if showPath {
 		columns = append(columns, table.Column{
-			Title: "Path", 
+			Title: "Path",
 			Width: widths.path,
 		})
 	}
-	
+
 	return columns
 }

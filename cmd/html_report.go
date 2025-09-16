@@ -68,7 +68,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -85,7 +85,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 			if len(specBytes) <= 0 {
-				cui.RenderErrorString("Failed to read specification: %v", args[0])
+				tui.RenderErrorString("Failed to read specification: %v", args[0])
 				return err
 			}
 
@@ -129,7 +129,7 @@ func GetHTMLReportCommand() *cobra.Command {
 						Insecure: insecure,
 					}, ignoredItems)
 				if err != nil {
-					cui.RenderError(err)
+					tui.RenderError(err)
 					return err
 				}
 				specIndex = ruleset.Index
@@ -219,11 +219,11 @@ func GetHTMLReportCommand() *cobra.Command {
 			err = os.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
-				cui.RenderErrorString("Unable to write HTML report file: '%s': %s", reportOutput, err.Error())
+				tui.RenderErrorString("Unable to write HTML report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			cui.RenderSuccess("HTML Report generated for '%s', written to '%s'", args[0], reportOutput)
+			tui.RenderSuccess("HTML Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())

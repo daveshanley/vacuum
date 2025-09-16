@@ -52,7 +52,7 @@ func GetRootCommand() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := useConfigFile(cmd)
 			if err != nil {
-				cui.RenderError(err)
+				tui.RenderError(err)
 			}
 			return err
 		},

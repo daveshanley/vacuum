@@ -39,7 +39,7 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 	// load in our user supplied ruleset and try to validate it.
 	userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
 	if userErr != nil {
-		cui.RenderErrorString("Unable to parse ruleset file: %s", userErr.Error())
+		tui.RenderErrorString("Unable to parse ruleset file: %s", userErr.Error())
 		return nil, userErr
 
 	}
@@ -104,7 +104,7 @@ func RenderTimeAndFiles(timeFlag bool, duration time.Duration, fileSize int64, t
 		}
 		message := fmt.Sprintf("vacuum took %s %s to lint %s across %d files", d, l,
 			index.HumanFileSize(float64(fileSize)), totalFiles)
-		cui.RenderStyledBox(message, cui.BoxTypeInfo, false)
+		tui.RenderStyledBox(message, tui.BoxTypeInfo, false)
 	}
 }
 
@@ -118,7 +118,7 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 		} else {
 			message = fmt.Sprintf("vacuum took %d milliseconds to lint %dmb", duration.Milliseconds(), fi/1000000)
 		}
-		cui.RenderStyledBox(message, cui.BoxTypeInfo, false)
+		tui.RenderStyledBox(message, tui.BoxTypeInfo, false)
 	}
 }
 
@@ -128,15 +128,15 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 	if functionsFlag != "" {
 		pm, err := plugin.LoadFunctions(functionsFlag, silence)
 		if err != nil {
-			cui.RenderError(err)
+			tui.RenderError(err)
 			return nil, err
 		}
 
 		customFunctions := pm.GetCustomFunctions()
-		cui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
+		tui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
 
 		if !silence && len(customFunctions) > 0 {
-			cui.RenderInfo("Available custom functions:")
+			tui.RenderInfo("Available custom functions:")
 			for funcName := range customFunctions {
 				fmt.Printf("  - %s%s%s\n", color.ASCIIBlue, funcName, color.ASCIIReset)
 			}

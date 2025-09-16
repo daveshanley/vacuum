@@ -618,7 +618,7 @@ func calculateCodeSnippetHighlightWidth(lineNumWidth int) int {
 
 // renderCodeSnippetWithHighlight renders a code snippet around the error line with syntax highlighting
 func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []string, fileName string) {
-	cui.InitSyntaxStyles()
+	tui.InitSyntaxStyles()
 
 	if specData == nil {
 		return
@@ -672,7 +672,7 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 		}
 
 		// apply syntax highlighting
-		highlightedLine := cui.ApplySyntaxHighlightingToLine(line, isYAML)
+		highlightedLine := tui.ApplySyntaxHighlightingToLine(line, isYAML)
 
 		// highlight the error line
 		if i == targetLine {

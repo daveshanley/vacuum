@@ -8,10 +8,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/daveshanley/vacuum/cui"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
-	"github.com/daveshanley/vacuum/cui"
 )
 
 func RenderMarkdownSummary(rso RenderSummaryOptions) {
@@ -226,7 +226,7 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 
 	// render console table if we have results and not silent
 	if len(rs.Results) > 0 && !silent {
-		markdownTable := cui.RenderMarkdownTable(headers, rows)
+		markdownTable := tui.RenderMarkdownTable(headers, rows)
 		// convert markdown table to console display by removing markdown formatting
 		lines := strings.Split(markdownTable, "\n")
 		for _, line := range lines {
@@ -242,13 +242,13 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 
 	// helper function to render styled messages using our new renderers
 	renderError := func(msg string, args ...interface{}) {
-		cui.RenderErrorString(msg, args...)
+		tui.RenderErrorString(msg, args...)
 	}
 	renderSuccess := func(msg string, args ...interface{}) {
-		cui.RenderSuccess(msg, args...)
+		tui.RenderSuccess(msg, args...)
 	}
 	renderWarning := func(msg string, args ...interface{}) {
-		cui.RenderWarning(msg, args...)
+		tui.RenderWarning(msg, args...)
 	}
 
 	if totalFiles <= 1 {

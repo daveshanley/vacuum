@@ -59,14 +59,14 @@ func BuildResultsWithDocCheckSkip(
 			allRules[k] = v
 		}
 		if !silent {
-			cui.RenderStyledBox(HardModeEnabled, cui.BoxTypeHard, false)
+			tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, false)
 		}
 	}
 
 	// if ruleset has been supplied, lets make sure it exists, then load it in
 	// and see if it's valid. If so - let's go!
 	if rulesetFlag != "" {
-		
+
 		// Create HTTP client for remote ruleset downloads if needed
 		var httpClient *http.Client
 		if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
@@ -82,7 +82,7 @@ func BuildResultsWithDocCheckSkip(
 			if !remote {
 				return nil, nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
 			}
-			
+
 			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
 			if rsErr != nil {
 				return nil, nil, rsErr
@@ -103,12 +103,12 @@ func BuildResultsWithDocCheckSkip(
 		// Merge OWASP rules if hard mode is enabled
 		if MergeOWASPRulesToRuleSet(selectedRS, hardMode) {
 			if !silent {
-				cui.RenderStyledBox(HardModeWithCustomRuleset, cui.BoxTypeHard, false)
+				tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, false)
 			}
 		}
 	}
 
-	cui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
+	tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           selectedRS,

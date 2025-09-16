@@ -1,7 +1,7 @@
 // Copyright 2024 Dave Shanley / Quobix
 // SPDX-License-Identifier: MIT
 
-package cui
+package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea/v2"

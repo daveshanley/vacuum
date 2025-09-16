@@ -71,7 +71,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// check for file args
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report, or use the -i flag to use stdin"
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -112,7 +112,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				cui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
+				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -145,7 +145,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				}
 
 				if !stdIn && !stdOut {
-					cui.RenderStyledBox(HardModeEnabled, cui.BoxTypeHard, noStyleFlag)
+					tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
 				}
 
 			}
@@ -169,7 +169,7 @@ func GetVacuumReportCommand() *cobra.Command {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
 					if clientErr != nil {
-						cui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
+						tui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
 						return clientErr
 					}
 				}
@@ -177,20 +177,20 @@ func GetVacuumReportCommand() *cobra.Command {
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					cui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 
 				// Merge OWASP rules if hard mode is enabled
 				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
 					if !stdIn && !stdOut {
-						cui.RenderStyledBox(HardModeWithCustomRuleset, cui.BoxTypeHard, noStyleFlag)
+						tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, noStyleFlag)
 					}
 				}
 			}
 
 			if !stdIn && !stdOut {
-				cui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			deepGraph := false
@@ -237,11 +237,11 @@ func GetVacuumReportCommand() *cobra.Command {
 
 					err := os.WriteFile(reportOutputName, junitXML, 0664)
 					if err != nil {
-						cui.RenderErrorString("Unable to write junit report file: '%s': %s", reportOutputName, err.Error())
+						tui.RenderErrorString("Unable to write junit report file: '%s': %s", reportOutputName, err.Error())
 						return err
 					}
 
-					cui.RenderSuccess("JUnit Report generated for '%s', written to '%s'", args[0], reportOutputName)
+					tui.RenderSuccess("JUnit Report generated for '%s', written to '%s'", args[0], reportOutputName)
 					return nil
 				}
 			}
@@ -325,16 +325,16 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			err = os.WriteFile(reportOutputName, reportData, 0664)
 			if err != nil {
-				cui.RenderErrorString("Unable to write report file: '%s': %s", reportOutputName, err.Error())
+				tui.RenderErrorString("Unable to write report file: '%s': %s", reportOutputName, err.Error())
 				return err
 			}
 
 			if len(args) > 0 {
-				cui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutputName)
+				tui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutputName)
 				fi, _ := os.Stat(args[0])
 				RenderTime(timeFlag, duration, fi.Size())
 			} else {
-				cui.RenderSuccess("Report generated, written to '%s'", reportOutputName)
+				tui.RenderSuccess("Report generated, written to '%s'", reportOutputName)
 			}
 
 			if minScore > 10 {

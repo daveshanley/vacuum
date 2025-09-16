@@ -47,7 +47,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 			// check for report file args
 			if len(args) < 1 {
 				errText := "please supply the lint report file"
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -55,7 +55,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 			_, err := os.Stat(lintReportPath)
 			if os.IsNotExist(err) {
 				errText := fmt.Sprintf("cannot find lint report file at '%s'", lintReportPath)
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -64,7 +64,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 				outputFile = args[1]
 			}
 
-			cui.RenderInfo("Generating Ignorefile from lint errors in: %s", lintReportPath)
+			tui.RenderInfo("Generating Ignorefile from lint errors in: %s", lintReportPath)
 
 			// Read JSON file
 			jsonFile, err := os.Open(lintReportPath)
@@ -108,7 +108,7 @@ func GetGenerateIgnoreFileCommand() *cobra.Command {
 				log.Fatalf("Failed to write YAML file: %v", err)
 			}
 
-			cui.RenderSuccess("Ingorefile generated at '%s'", outputFile)
+			tui.RenderSuccess("Ingorefile generated at '%s'", outputFile)
 
 			return nil
 		},

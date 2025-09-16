@@ -60,7 +60,7 @@ func GetBundleCommand() *cobra.Command {
 
 			if !stdIn && len(args) == 0 {
 				errText := "please supply input (unbundled) OpenAPI document, or use the -i flag to use stdin"
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
 				fmt.Println()
 				return errors.New(errText)
@@ -69,7 +69,7 @@ func GetBundleCommand() *cobra.Command {
 			// check for file args
 			if !stdOut && len(args) == 1 {
 				errText := "please supply output (bundled) OpenAPI document, or use the -o flag to use stdout"
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
 				fmt.Println()
 				return errors.New(errText)
@@ -91,7 +91,7 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				cui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
+				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 			if baseFlag == "" {
@@ -121,7 +121,7 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if err != nil {
-				cui.RenderError(err)
+				tui.RenderError(err)
 				// render any buffered logs
 				logOutput := bufferedLogger.RenderTree(noStyleFlag)
 				if logOutput != "" {
@@ -140,11 +140,11 @@ func GetBundleCommand() *cobra.Command {
 			err = os.WriteFile(args[1], bundled, 0664)
 
 			if err != nil {
-				cui.RenderErrorString("Unable to write bundled file: '%s': %s", args[1], err.Error())
+				tui.RenderErrorString("Unable to write bundled file: '%s': %s", args[1], err.Error())
 				return err
 			}
 
-			cui.RenderSuccess("Bundled OpenAPI document written to '%s'", args[1])
+			tui.RenderSuccess("Bundled OpenAPI document written to '%s'", args[1])
 
 			return nil
 		},

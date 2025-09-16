@@ -414,47 +414,47 @@ func renderResultBox(errors, warnings, informs int) {
 
 // render quality score box
 func renderQualityScore(score int) {
-	var boxType cui.BoxType
+	var boxType tui.BoxType
 	var grade string
 
 	switch {
 	case score > 95:
-		boxType = cui.BoxTypeSuccess
+		boxType = tui.BoxTypeSuccess
 		grade = "A+"
 	case score > 90 && score <= 95:
-		boxType = cui.BoxTypeSuccess
+		boxType = tui.BoxTypeSuccess
 		grade = "A"
 	case score > 85 && score <= 90:
-		boxType = cui.BoxTypeSuccess
+		boxType = tui.BoxTypeSuccess
 		grade = "B"
 	case score > 75 && score <= 85:
-		boxType = cui.BoxTypeInfo
+		boxType = tui.BoxTypeInfo
 		grade = "C"
 	case score > 65 && score <= 75:
-		boxType = cui.BoxTypeWarning
+		boxType = tui.BoxTypeWarning
 		grade = "D"
 	case score > 55 && score <= 65:
-		boxType = cui.BoxTypeWarning
+		boxType = tui.BoxTypeWarning
 		grade = "F"
 	case score > 25 && score <= 55:
-		boxType = cui.BoxTypeError
+		boxType = tui.BoxTypeError
 		grade = "🤒"
 	case score >= 10 && score <= 25:
-		boxType = cui.BoxTypeError
+		boxType = tui.BoxTypeError
 		grade = "🥵"
 	case score >= 5 && score < 10:
-		boxType = cui.BoxTypeError
+		boxType = tui.BoxTypeError
 		grade = "😵"
 	case score >= 1 && score < 5:
-		boxType = cui.BoxTypeError
+		boxType = tui.BoxTypeError
 		grade = "💀"
 	default:
-		boxType = cui.BoxTypeError
+		boxType = tui.BoxTypeError
 		grade = "💀"
 	}
 
 	message := fmt.Sprintf("Quality Score: %d/100 [%s]", score, grade)
-	cui.RenderStyledBox(message, boxType, color2.AreColorsDisabled())
+	tui.RenderStyledBox(message, boxType, color2.AreColorsDisabled())
 }
 
 // renderRulesList renders the list of rules using lipgloss list

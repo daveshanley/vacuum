@@ -72,7 +72,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a spectral report, or use " +
 					"the -i flag to use stdin"
-				cui.RenderErrorString("%s", errText)
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -109,7 +109,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				cui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
+				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -144,7 +144,7 @@ func GetSpectralReportCommand() *cobra.Command {
 					allRules[k] = v
 				}
 				if !stdIn && !stdOut {
-					cui.RenderStyledBox(HardModeEnabled, cui.BoxTypeHard, noStyleFlag)
+					tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
 				}
 
 			}
@@ -167,7 +167,7 @@ func GetSpectralReportCommand() *cobra.Command {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
 					if clientErr != nil {
-						cui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
+						tui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
 						return clientErr
 					}
 				}
@@ -175,20 +175,20 @@ func GetSpectralReportCommand() *cobra.Command {
 				var rsErr error
 				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					cui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 
 				// Merge OWASP rules if hard mode is enabled
 				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
 					if !stdIn && !stdOut {
-						cui.RenderStyledBox(HardModeWithCustomRuleset, cui.BoxTypeHard, noStyleFlag)
+						tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, noStyleFlag)
 					}
 				}
 			}
 
 			if !stdIn && !stdOut {
-				cui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -248,11 +248,11 @@ func GetSpectralReportCommand() *cobra.Command {
 			err := os.WriteFile(reportOutput, data, 0664)
 
 			if err != nil {
-				cui.RenderErrorString("Unable to write report file: '%s': %s", reportOutput, err.Error())
+				tui.RenderErrorString("Unable to write report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			cui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutput)
+			tui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())

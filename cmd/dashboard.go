@@ -226,7 +226,7 @@ func GetDashboardCommand() *cobra.Command {
 				}
 			}
 
-			watchConfig := &cui.WatchConfig{
+			watchConfig := &tui.WatchConfig{
 				Enabled:         watchFlag,
 				BaseFlag:        baseFlag,
 				SkipCheckFlag:   skipCheckFlag,
@@ -244,7 +244,7 @@ func GetDashboardCommand() *cobra.Command {
 				CustomFunctions: customFuncs,
 			}
 
-			err = cui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig)
+			err = tui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig)
 			if err != nil {
 				if !silent {
 					message := fmt.Sprintf("Failed to show dashboard: %v", err)

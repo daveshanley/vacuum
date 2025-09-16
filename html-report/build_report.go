@@ -223,7 +223,7 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 	if len(specStringData) <= 2 {
 		// to prevent chroma from failing to render, we need to ensure the spec was not
 		// minimized, because we have less than 2 lines of code, it means there are no line breaks
-		cui.RenderWarning("Specification was minified (compressed onto a single line), code snippets will not be rendered in the report.")
+		tui.RenderWarning("Specification was minified (compressed onto a single line), code snippets will not be rendered in the report.")
 		html.disableSnippets = true
 	}
 
