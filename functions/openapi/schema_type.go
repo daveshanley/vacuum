@@ -542,6 +542,23 @@ func (st SchemaTypeCheck) validateEnumConst(schema *v3.Schema, context *model.Ru
 			schema.GenerateJSONPath(), "const", -1,
 			schema, schema.Value.GoLow().Const.KeyNode, context)
 		results = append(results, result)
+
+	} else {
+
+		// both enum and const are present and compatible - flag as potentially redundant
+		if len(enumValues) == 1 {
+			message := "schema uses both `enum` with single value and `const` - consider using only `const`"
+			result := st.buildResult(message,
+				schema.GenerateJSONPath(), "enum", -1,
+				schema, schema.Value.GoLow().Enum.KeyNode, context)
+			results = append(results, result)
+		} else {
+			message := "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value"
+			result := st.buildResult(message,
+				schema.GenerateJSONPath(), "enum", -1,
+				schema, schema.Value.GoLow().Enum.KeyNode, context)
+			results = append(results, result)
+		}
 	}
 
 	return results
