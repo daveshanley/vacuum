@@ -2521,7 +2521,10 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 0)
+	// Now expects warning about using both enum and const
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
+	assert.Equal(t, "$.components.schemas['ValidEnumConst'].enum", res[0].Path)
 }
 
 func TestSchemaType_EnumConstInvalid(t *testing.T) {
@@ -2595,7 +2598,10 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 0)
+	// Now expects warning about using both enum and const
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
+	assert.Equal(t, "$.components.schemas['ValidNumericEnumConst'].enum", res[0].Path)
 }
 
 func TestSchemaType_EnumConstNumericInvalid(t *testing.T) {
@@ -2668,7 +2674,10 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 0)
+	// Now expects warning about using both enum and const
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
+	assert.Equal(t, "$.components.schemas['ValidBooleanEnumConst'].enum", res[0].Path)
 }
 
 func TestSchemaType_EnumOnly(t *testing.T) {
@@ -2736,4 +2745,154 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_EnumConstBothWarning(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    BothEnumConst:
+      type: string
+      enum:
+        - "foo"
+        - "bar"
+        - "baz"
+      const: "bar"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
+	assert.Equal(t, "$.components.schemas['BothEnumConst'].enum", res[0].Path)
+}
+
+func TestSchemaType_EnumConstSingleValueInfo(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    SingleEnumConst:
+      type: string
+      enum:
+        - "bar"
+      const: "bar"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` with single value and `const` - consider using only `const`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['SingleEnumConst'].enum", res[0].Path)
+}
+
+func TestSchemaType_EnumConstNumericBothWarning(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    NumericBothEnumConst:
+      type: number
+      enum:
+        - 1
+        - 2
+        - 3.14
+      const: 3.14`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
+	assert.Equal(t, "$.components.schemas['NumericBothEnumConst'].enum", res[0].Path)
+}
+
+func TestSchemaType_EnumConstMixedTypesConflict(t *testing.T) {
+
+	yml := `openapi: 3.1
+components:
+  schemas:
+    MixedTypesConflict:
+      enum:
+        - 1
+        - 2
+        - 3.14
+      const: 3.14`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	// Should warn about using both enum and const, even without explicit type
+	assert.Len(t, res, 1)
+	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
+	assert.Equal(t, "$.components.schemas['MixedTypesConflict'].enum", res[0].Path)
 }
