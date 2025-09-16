@@ -676,7 +676,7 @@ components:
 
 	// should fail - nullable: true is not valid in OpenAPI 3.1
 	assert.Greater(t, len(res), 0)
-	assert.Contains(t, res[0].Message, "failed to compile JSON schema: OpenAPI keyword 'nullable': The `nullable` keyword is not supported in OpenAPI 3.1+. Use `type: ['string', 'null']`")
+	assert.Contains(t, res[0].Message, "JSON schema compile failed: OpenAPI keyword 'nullable': The `nullable` keyword is not supported in OpenAPI 3.1+. Use `type: ['string', 'null']`")
 }
 
 // TestExamplesSchema_OpenAPI31_ProperNullable demonstrates proper nullable syntax in OpenAPI 3.1
