@@ -52,28 +52,17 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-message", "m", false, "Hide message output when using -d")
 	cmd.Flags().BoolP("all-results", "a", false, "Render all results when using -d")
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
-	cmd.Flags().StringP("base", "p", "", "Base URL or path for resolving references")
-	cmd.Flags().BoolP("remote", "u", true, "Allow remote references")
-	cmd.Flags().BoolP("skip-check", "k", false, "Skip OpenAPI document validation")
-	cmd.Flags().IntP("timeout", "g", 5, "Timeout in seconds for each rule")
-	cmd.Flags().StringP("ruleset", "r", "", "Path to custom ruleset")
-	cmd.Flags().StringP("functions", "f", "", "Path to custom functions")
-	cmd.Flags().BoolP("time", "t", false, "Show execution time")
-	cmd.Flags().BoolP("hard-mode", "z", false, "Enable hard mode (all rules)")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths")
-	cmd.Flags().Bool("ext-refs", false, "Enable $ref lookups for extension objects")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-	cmd.Flags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
-	cmd.Flags().String("key-file", "", "Path to client private key file for HTTPS requests")
-	cmd.Flags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
-	cmd.Flags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
-	cmd.Flags().BoolP("debug", "w", false, "Enable debug logging")
 	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
+	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
+	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
+	// ext-refs is inherited from root as a persistent flag
 
 	return cmd
 }
