@@ -181,28 +181,8 @@ func GetHTMLReportCommand() *cobra.Command {
 					}
 					stats.CategoryStatistics = catStats
 
-					// Recalculate overall score
-					total := 100.0
-					score := total - float64(resultSet.GetInfoCount())*0.1
-					score = score - (0.4 * float64(resultSet.GetWarnCount()))
-					score = score - (15.0 * float64(resultSet.GetErrorCount()))
-
-					if resultSet.GetErrorCount() <= 0 && score < 0 {
-						score = 25.0
-					}
-
-					// Check for oas3-schema violations
-					for _, result := range resultSet.Results {
-						if result.Rule != nil && result.Rule.Id == "oas3-schema" {
-							score = score - 90
-						}
-					}
-
-					if score < 0 {
-						score = 10
-					}
-
-					stats.OverallScore = int(score)
+					// Use the shared score calculation function
+					stats.OverallScore = statistics.CalculateQualityScore(resultSet)
 				}
 
 				specInfo.Generated = vacuumReport.Generated
