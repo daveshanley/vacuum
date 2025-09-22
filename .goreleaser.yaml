@@ -1,5 +1,3 @@
-version: 2
-
 project_name: vacuum
 # before:
 #   hooks:
@@ -43,4 +41,5 @@ brews:
     install: |
       bin.install "vacuum"
 
-# snapshot section removed - deprecated in v2
+snapshot:
+  name_template: "{{ .Tag }}"
