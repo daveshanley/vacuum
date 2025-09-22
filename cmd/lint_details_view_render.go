@@ -251,7 +251,7 @@ func formatLocation(r *model.RuleFunctionResult, fileName string) string {
 }
 
 // getSeverityInfo returns formatted severity information
-func getSeverityInfo(r *model.RuleFunctionResult, showRule bool) *SeverityInfo {
+func getSeverityInfo(r *model.RuleFunctionResult, showRule bool, noStyle bool) *SeverityInfo {
 	info := &SeverityInfo{}
 
 	if r.Rule != nil {
@@ -282,11 +282,19 @@ func getSeverityInfo(r *model.RuleFunctionResult, showRule bool) *SeverityInfo {
 	// format based on display mode
 	if !showRule {
 		// narrow mode - just the colored symbol
-		info.Formatted = fmt.Sprintf("%s%-2s%s", info.Color, info.Icon, color.ASCIIReset)
+		if noStyle {
+			info.Formatted = fmt.Sprintf("%-2s", info.Icon)
+		} else {
+			info.Formatted = fmt.Sprintf("%s%-2s%s", info.Color, info.Icon, color.ASCIIReset)
+		}
 	} else {
 		// normal mode - symbol and text
 		paddedText := fmt.Sprintf("%s %-7s", info.Icon, info.Text)
-		info.Formatted = fmt.Sprintf("%s%s%s", info.Color, paddedText, color.ASCIIReset)
+		if noStyle {
+			info.Formatted = paddedText
+		} else {
+			info.Formatted = fmt.Sprintf("%s%s%s", info.Color, paddedText, color.ASCIIReset)
+		}
 	}
 
 	return info
@@ -331,7 +339,9 @@ func printFileHeader(fileName string, silent bool) {
 
 // printTableHeaders prints the table headers based on configuration
 func printTableHeaders(config *TableConfig) {
-	fmt.Printf("%s%s", color.ASCIIPink, color.ASCIIBold)
+	if !config.NoStyle {
+		fmt.Printf("%s%s", color.ASCIIPink, color.ASCIIBold)
+	}
 
 	printColumns := []struct {
 		show  bool
@@ -358,7 +368,10 @@ func printTableHeaders(config *TableConfig) {
 		first = false
 	}
 
-	fmt.Printf("%s\n", color.ASCIIReset)
+	if !config.NoStyle {
+		fmt.Printf("%s", color.ASCIIReset)
+	}
+	fmt.Println()
 }
 
 // getSeverityHeaderText returns the header text for severity column
@@ -371,7 +384,9 @@ func getSeverityHeaderText(config *TableConfig) string {
 
 // printTableSeparator prints the separator line
 func printTableSeparator(config *TableConfig) {
-	fmt.Printf("%s%s", color.ASCIIPink, color.ASCIIBold)
+	if !config.NoStyle {
+		fmt.Printf("%s%s", color.ASCIIPink, color.ASCIIBold)
+	}
 
 	printColumns := []struct {
 		show  bool
@@ -397,14 +412,21 @@ func printTableSeparator(config *TableConfig) {
 		first = false
 	}
 
-	fmt.Printf("%s\n", color.ASCIIReset)
+	if !config.NoStyle {
+		fmt.Printf("%s", color.ASCIIReset)
+	}
+	fmt.Println()
 }
 
 // renderTreeFormat renders results in tree format for narrow terminals
 func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, fileName string, errors, allResults bool) {
 	for i, r := range results {
 		if i > 1000 && !allResults {
-			fmt.Printf("%s...%s more violations not rendered%s\n", color.ASCIIRed, humanize.Comma(int64(len(results)-1000)), color.ASCIIReset)
+			if !config.NoStyle {
+				fmt.Printf("%s...%s more violations not rendered%s\n", color.ASCIIRed, humanize.Comma(int64(len(results)-1000)), color.ASCIIReset)
+			} else {
+				fmt.Printf("...%s more violations not rendered\n", humanize.Comma(int64(len(results)-1000)))
+			}
 			break
 		}
 
@@ -413,11 +435,18 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 		}
 
 		location := formatLocation(r, fileName)
-		coloredLocation := color.ColorizeLocation(location)
-		severity := getSeverityInfo(r, false)
+		coloredLocation := location
+		if !config.NoStyle {
+			coloredLocation = color.ColorizeLocation(location)
+		}
+		severity := getSeverityInfo(r, false, config.NoStyle)
 
 		// location line with severity
-		fmt.Printf("%s  %s%s %s%s\n", coloredLocation, severity.Color, severity.Icon, severity.Text, color.ASCIIReset)
+		if !config.NoStyle {
+			fmt.Printf("%s  %s%s %s%s\n", coloredLocation, severity.Color, severity.Icon, severity.Text, color.ASCIIReset)
+		} else {
+			fmt.Printf("%s  %s %s\n", coloredLocation, severity.Icon, severity.Text)
+		}
 
 		// message line with truncation
 		maxMsgWidth := config.Width - 4
@@ -425,8 +454,13 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 		if len(message) > maxMsgWidth && maxMsgWidth > 3 {
 			message = message[:maxMsgWidth-3] + "..."
 		}
-		coloredMessage := color.ColorizeMessage(message)
-		fmt.Printf(" %s├─%s %s\n", color.ASCIIGrey, color.ASCIIReset, coloredMessage)
+		coloredMessage := message
+		if !config.NoStyle {
+			coloredMessage = color.ColorizeMessage(message)
+			fmt.Printf(" %s├─%s %s\n", color.ASCIIGrey, color.ASCIIReset, coloredMessage)
+		} else {
+			fmt.Printf(" ├─ %s\n", coloredMessage)
+		}
 
 		// rule and category line
 		ruleId := ""
@@ -452,7 +486,11 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 			if len(ruleCatLine) > maxRuleCatWidth && maxRuleCatWidth > 3 {
 				ruleCatLine = ruleCatLine[:maxRuleCatWidth-3] + "..."
 			}
-			fmt.Printf(" %s├─%s %s\n", color.ASCIIGrey, color.ASCIIReset, ruleCatLine)
+			if !config.NoStyle {
+				fmt.Printf(" %s├─%s %s\n", color.ASCIIGrey, color.ASCIIReset, ruleCatLine)
+			} else {
+				fmt.Printf(" ├─ %s\n", ruleCatLine)
+			}
 		}
 
 		// path line
@@ -462,8 +500,13 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 			if len(pathText) > maxPathWidth && maxPathWidth > 3 {
 				pathText = pathText[:maxPathWidth-3] + "..."
 			}
-			coloredPath := color.ColorizePath(pathText)
-			fmt.Printf(" %s└─%s Path: %s%s%s\n", color.ASCIIGrey, color.ASCIIReset, color.ASCIIGrey, coloredPath, color.ASCIIReset)
+			coloredPath := pathText
+			if !config.NoStyle {
+				coloredPath = color.ColorizePath(pathText)
+				fmt.Printf(" %s└─%s Path: %s%s%s\n", color.ASCIIGrey, color.ASCIIReset, color.ASCIIGrey, coloredPath, color.ASCIIReset)
+			} else {
+				fmt.Printf(" └─ Path: %s\n", coloredPath)
+			}
 		}
 
 		fmt.Println()
@@ -473,7 +516,10 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 // renderTableRow renders a single table row
 func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName string) {
 	location := formatLocation(r, fileName)
-	coloredLocation := color.ColorizeLocation(location)
+	coloredLocation := location
+	if !config.NoStyle {
+		coloredLocation = color.ColorizeLocation(location)
+	}
 
 	// truncate message and path if needed
 	message := r.Message
@@ -494,17 +540,23 @@ func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName s
 		}
 	}
 
-	coloredMessage := color.ColorizeMessage(message)
+	coloredMessage := message
+	if !config.NoStyle {
+		coloredMessage = color.ColorizeMessage(message)
+	}
 	coloredPath := ""
 	if config.ShowPath {
 		truncatedPath := path
 		if len(truncatedPath) > config.PathWidth {
 			truncatedPath = truncate(truncatedPath, config.PathWidth)
 		}
-		coloredPath = color.ColorizePath(truncatedPath)
+		coloredPath = truncatedPath
+		if !config.NoStyle {
+			coloredPath = color.ColorizePath(truncatedPath)
+		}
 	}
 
-	severity := getSeverityInfo(r, config.ShowRule)
+	severity := getSeverityInfo(r, config.ShowRule, config.NoStyle)
 
 	ruleId := ""
 	category := ""

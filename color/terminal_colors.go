@@ -175,6 +175,11 @@ func ColorizeString(text string, mode ColorizeMode) string {
 // Text between backticks (`code`) or backtick with truncation (`code...)
 // will be displayed in blue with bold and italic styling, keeping the backticks.
 func ColorizeMessage(message string) string {
+	// If colors are disabled globally, return the plain message
+	if colorsDisabled {
+		return message
+	}
+
 	if !strings.Contains(message, "`") {
 		return message // No backticks, return as-is
 	}
@@ -202,6 +207,11 @@ func VisibleLength(s string) int {
 
 // ColorizeLocation formats a file location string with color codes for a terminal.
 func ColorizeLocation(location string) string {
+	// If colors are disabled globally, return the plain location
+	if colorsDisabled {
+		return location
+	}
+
 	// Expected format: path/to/file.ext:line:col
 	// We need to parse and colorize each part
 	if !strings.Contains(location, ":") {
@@ -352,6 +362,11 @@ func ColorizeLogEntry(log, color string) string {
 
 // ColorizePath formats a JSON/YAML path string with inline quote highlighting and circular reference detection.
 func ColorizePath(path string) string {
+	// If colors are disabled globally, return the plain path
+	if colorsDisabled {
+		return path
+	}
+
 	// Handle circular references first
 	if utils.CircularRefRegex.MatchString(path) {
 		path = utils.CircularRefRegex.ReplaceAllStringFunc(path, func(match string) string {
@@ -678,6 +693,9 @@ func DisableColors() {
 	RGBDarkBlue = lipgloss.Color("238")
 	RGBOrange = lipgloss.NoColor{}
 	RGBPurple = lipgloss.NoColor{}
+
+	// Also disable all lipgloss styles
+	DisableLipglossStyles()
 	RGBGrey = lipgloss.NoColor{}
 	RGBDarkGrey = lipgloss.Color("238")
 	RGBWhite = lipgloss.NoColor{}

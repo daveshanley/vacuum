@@ -37,3 +37,36 @@ var (
 	StyleSyntaxSingleQuote = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 	StyleSyntaxRef         = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
 )
+
+// DisableLipglossStyles sets all lipgloss styles to render without any styling
+func DisableLipglossStyles() {
+	noStyle := lipgloss.NewStyle()
+	StyleCodeHighlight = noStyle
+	StyleQuotedText = noStyle
+	StylePathGrey = noStyle
+	StyleFileItalic = noStyle
+	StyleDirectoryGrey = noStyle
+	StyleLineNumber = noStyle
+	StyleColumnNumber = noStyle
+	StyleLocationSeparator = noStyle
+	StyleLogError = noStyle
+	StyleLogWarn = noStyle
+	StyleLogInfo = noStyle
+	StyleLogDebug = noStyle
+	StyleSeverityError = noStyle
+	StyleSeverityWarning = noStyle
+	StyleSeverityInfo = noStyle
+	StyleSelectedRow = noStyle
+	StylePathQuoted = noStyle
+	StylePathArrow = noStyle
+	StylePathRef = noStyle
+	StyleSyntaxKey = noStyle
+	StyleSyntaxString = noStyle
+	StyleSyntaxNumber = noStyle
+	StyleSyntaxBool = noStyle
+	StyleSyntaxComment = noStyle
+	StyleSyntaxDash = noStyle
+	StyleSyntaxDefault = noStyle
+	StyleSyntaxSingleQuote = noStyle
+	StyleSyntaxRef = noStyle
+}
