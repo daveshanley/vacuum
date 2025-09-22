@@ -210,7 +210,7 @@ paths:
 	doc, err := libopenapi.NewDocument([]byte(yml))
 	assert.NoError(t, err)
 	v3Model, modelErrors := doc.BuildV3Model()
-	assert.Len(t, modelErrors, 0)
+	assert.NoError(t, modelErrors)
 	drDocument := drModel.NewDrDocument(v3Model)
 	ctx.DrDocument = drDocument
 
@@ -267,7 +267,7 @@ paths:
 	doc, err := libopenapi.NewDocument([]byte(yml))
 	assert.NoError(t, err)
 	v3Model, modelErrors := doc.BuildV3Model()
-	assert.Len(t, modelErrors, 0)
+	assert.NoError(t, modelErrors)
 	drDocument := drModel.NewDrDocument(v3Model)
 	ctx.DrDocument = drDocument
 
@@ -321,7 +321,7 @@ paths:
 	doc, err := libopenapi.NewDocument([]byte(yml))
 	assert.NoError(t, err)
 	v3Model, modelErrors := doc.BuildV3Model()
-	assert.Len(t, modelErrors, 0)
+	assert.NoError(t, modelErrors)
 	drDocument := drModel.NewDrDocument(v3Model)
 	ctx.DrDocument = drDocument
 
@@ -393,7 +393,7 @@ paths:
 	doc, err := libopenapi.NewDocument([]byte(yml))
 	assert.NoError(t, err)
 	v3Model, modelErrors := doc.BuildV3Model()
-	assert.Len(t, modelErrors, 0)
+	assert.NoError(t, modelErrors)
 	drDocument := drModel.NewDrDocument(v3Model)
 	ctx.DrDocument = drDocument
 

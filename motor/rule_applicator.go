@@ -327,7 +327,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	indexConfig.Logger.Debug("building docs completed", "ms", timeTaken)
 
 	// build model
-	var resolvedModelErrors []error
+	var resolvedModelErrors error
 	var indexResolved *index.SpecIndex
 	var indexUnresolved *index.SpecIndex
 
@@ -429,7 +429,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexConfig.Logger.Debug("built resolved model", "ms", then)
 
 			now = time.Now()
-			var errs []error
+			var errs error
 			mod, errs = docUnresolved.BuildV3Model()
 			if mod != nil {
 				v3DocumentModel = &mod.Model
@@ -532,10 +532,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	execution.IndexResolved = indexResolved
 	execution.IndexUnresolved = indexUnresolved
-
-	for i := range resolvedModelErrors {
+	r := utils.UnwrapErrors(resolvedModelErrors)
+	for i := range r {
 		var m *index.ResolvingError
-		if errors.As(resolvedModelErrors[i], &m) {
+		if errors.As(r[i], &m) {
 			resolvingErrors = append(resolvingErrors, m)
 		}
 	}
