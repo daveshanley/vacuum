@@ -552,9 +552,12 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		informs = rs.GetInfoCount()
 	}
 
-	fmt.Printf(" --> use the %s<dashboard>%s command to be able to navigate results interactively <--\n",
-		color.ASCIIGreenBold, color.ASCIIReset)
-
+	if !opts.NoStyle {
+		fmt.Printf(" --> use the %s<dashboard>%s command to be able to navigate results interactively <--\n",
+			color.ASCIIGreenBold, color.ASCIIReset)
+	} else {
+		fmt.Println(" --> use the <dashboard> command to be able to navigate results interactively <--")
+	}
 	// render quality score if available
 	if stats != nil {
 		fmt.Println()
@@ -563,7 +566,11 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 
 	renderResultBox(errs, warnings, informs)
 
-	fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)
+	if !opts.NoStyle {
+		fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)
+	} else {
+		fmt.Print(" use --debug if you want to enable developer logging\n\n")
+	}
 
 }
 
