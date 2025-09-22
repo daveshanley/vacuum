@@ -221,6 +221,7 @@ rules:
 		"-r",
 		tmp.Name(),
 		"../model/test_files/burgershop.openapi.yaml",
+		"--stdout",
 	})
 	cmdErr := cmd.Execute()
 	assert.NoError(t, cmdErr)
