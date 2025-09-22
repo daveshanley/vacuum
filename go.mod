@@ -9,16 +9,16 @@ require (
 	github.com/charmbracelet/colorprofile v0.3.2 // indirect
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3
-	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
+	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/dop251/goja_nodejs v0.0.0-20250409162600-f7acab6894b0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/muesli/termenv v0.16.0
-	github.com/pb33f/doctor v0.0.38
+	github.com/pb33f/doctor v0.0.39
 	github.com/pb33f/jsonpath v0.1.2
-	github.com/pb33f/libopenapi v0.27.2
+	github.com/pb33f/libopenapi v0.28.0
 	github.com/pb33f/libopenapi-validator v0.6.3
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
