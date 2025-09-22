@@ -25,3 +25,11 @@ go.work.sum
 .env
 
 /bin
+/dist
+
+# Goreleaser artifacts
+dist/
+
+# Vacuum report files
+vacuum-report-*.json
+cmd/vacuum-report-*.json
