@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -91,7 +92,11 @@ const (
 	Oas2Schema                           = "oas2-schema"
 	Oas3Schema                           = "oas3-schema"
 	OasSchemaCheck                       = "oas-schema-check"
+	OasMissingType                       = "oas-missing-type"
 	PathItemReferences                   = "path-item-refs"
+	DuplicatePathsRule                   = "duplicate-paths"
+	UnnecessaryCombinatorRule            = "no-unnecessary-combinator"
+	CamelCasePropertiesRule              = "camel-case-properties"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -121,6 +126,7 @@ const (
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
+	VacuumAllRulesets                    = "vacuum:all"  // Combined OpenAPI + OWASP rules
 	VacuumRecommended                    = "recommended"
 	VacuumAll                            = "all"
 	VacuumOff                            = "off"
@@ -148,6 +154,11 @@ type RuleSets interface {
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
+	
+	// GenerateRuleSetFromSuppliedRuleSetWithHTTPClient will generate a ready to run ruleset based on a supplied configuration. This
+	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
+	// It accepts an HTTP client for downloading remote rulesets with certificate authentication.
+	GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(config *RuleSet, httpClient *http.Client) *RuleSet
 }
 
 //var rulesetsSingleton *ruleSetsModel
@@ -189,6 +200,10 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
+	return rsm.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset, nil)
+}
+
+func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset *RuleSet, httpClient *http.Client) *RuleSet {
 
 	extends := ruleset.GetExtendsValue()
 
@@ -214,6 +229,27 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 	// all rules
 	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
 		rs = rsm.openAPIRuleSet
+	}
+
+	// vacuum:all - combines both OpenAPI and OWASP rules
+	if extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
+		// Start with OpenAPI rules
+		rs = rsm.openAPIRuleSet
+		// Add all OWASP rules
+		for ruleName, rule := range GetAllOWASPRules() {
+			rs.Rules[ruleName] = rule
+		}
+		rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/all-combined"
+		rs.Description = "All OpenAPI and OWASP rules combined"
+	}
+
+	// vacuum:all with off - start with empty ruleset
+	if extends[VacuumAllRulesets] == VacuumOff {
+		if rs.DocumentationURI == "" {
+			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
+		}
+		rs.Rules = make(map[string]*model.Rule)
+		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
 	// no rules!
@@ -277,7 +313,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 					if strings.HasPrefix(k, "http") {
 						remote = true
 					}
-					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote)
+					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote, httpClient)
 				}
 			}
 			doneChan <- true
@@ -322,11 +358,24 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 		// otherwise it means delete it
 		if eval, ok := v.(bool); ok {
 			if eval {
-				if rsm.openAPIRuleSet.Rules[k] == nil {
-					rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
-					continue
+				// First check if it's in the OpenAPI ruleset
+				if rsm.openAPIRuleSet.Rules[k] != nil {
+					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
+				} else {
+					// Check if it's an OWASP rule when vacuum:all is used
+					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
+						allOWASPRules := GetAllOWASPRules()
+						if allOWASPRules[k] != nil {
+							rs.Rules[k] = allOWASPRules[k]
+						} else {
+							rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
+							continue
+						}
+					} else {
+						rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
+						continue
+					}
 				}
-				rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
 			} else {
 				delete(rs.Rules, k) // remove it completely
 			}
@@ -449,9 +498,13 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas3ExampleMissingCheck] = GetOAS3ExamplesMissingRule()
 	rules[Oas3ExampleExternalCheck] = GetOAS3ExamplesExternalCheck()
 	rules[OasSchemaCheck] = GetSchemaTypeCheckRule()
+	rules[OasMissingType] = GetMissingTypeRule()
 	rules[PostResponseSuccess] = GetPostSuccessResponseRule()
 	rules[NoRequestBody] = GetNoRequestBodyRule()
 	rules[PathItemReferences] = GetPathItemReferencesRule()
+	rules[DuplicatePathsRule] = GetDuplicatePathsRule()
+	rules[UnnecessaryCombinatorRule] = GetUnnecessaryCombinatorRule()
+	rules[CamelCasePropertiesRule] = GetCamelCasePropertiesRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()

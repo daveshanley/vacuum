@@ -7,8 +7,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // NoEvalInDescriptions will check if a description contains potentially malicious javascript
@@ -45,8 +44,8 @@ func (ne NoEvalInDescriptions) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 	var results []model.RuleFunctionResult
 
-	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied type - use cached options
+	props := context.GetOptionsStringMap()
 
 	pattern := props["pattern"]
 

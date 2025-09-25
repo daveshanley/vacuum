@@ -986,7 +986,7 @@ func GetNoRefSiblingsRule() *model.Rule {
 	}
 }
 
-// GetNoRefSiblingsRule will check that there are no sibling nodes next to a $ref (which is technically invalid)
+// GetNoRefSiblingsRule // disabled for OAS3.1 as it's allowed there and libopenapi supports it.
 func GetOAS3NoRefSiblingsRule() *model.Rule {
 	return &model.Rule{
 		Name:         "Check for siblings to $ref values",
@@ -1288,6 +1288,26 @@ func GetSchemaTypeCheckRule() *model.Rule {
 	}
 }
 
+// GetMissingTypeRule will check that all schemas and their properties have a type defined
+func GetMissingTypeRule() *model.Rule {
+	return &model.Rule{
+		Name:         "schemas and properties must have a type defined",
+		Id:           OasMissingType,
+		Formats:      model.OAS3AllFormat,
+		Description:  "All schemas and their properties should have a type field (unless using enum, const, or a composition)",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityInfo,
+		Then: model.RuleAction{
+			Function: "missingType",
+		},
+		HowToFix: "Add a `type` field to all schemas and properties. Valid types are: string, number, integer, boolean, array, object, or null.",
+	}
+}
+
 // GetPostSuccessResponseRule will check that all POST operations have a success response defined.
 func GetPostSuccessResponseRule() *model.Rule {
 	opts := make(map[string][]string)
@@ -1348,5 +1368,65 @@ func GetPathItemReferencesRule() *model.Rule {
 			Function: "pathItemReferences",
 		},
 		HowToFix: PathItemReferencesFix,
+	}
+}
+
+// GetDuplicatePathsRule will check for duplicate path definitions in the OpenAPI spec.
+func GetDuplicatePathsRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check for duplicate paths",
+		Id:           DuplicatePathsRule,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Paths cannot be duplicated; only the last definition will be kept.",
+		Given:        "$",
+		Resolved:     false, // we want raw YAML nodes to detect duplicates before parsing
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "duplicatePaths",
+		},
+		HowToFix: duplicatePathsFix,
+	}
+}
+
+// GetUnnecessaryCombinatorRule will check for schema combinators with only a single item.
+func GetUnnecessaryCombinatorRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check for unnecessary combinators",
+		Id:           UnnecessaryCombinatorRule,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Schema combinators (allOf, anyOf, oneOf) with only one item should be replaced with the item directly.",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Recommended:  true,
+		Type:         Style,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "oasUnnecessaryCombinator",
+		},
+		HowToFix: unnecessaryCombinatorFix,
+	}
+}
+
+// GetCamelCasePropertiesRule will check that all schema property names are in camelCase format.
+func GetCamelCasePropertiesRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check schema property names are camelCase",
+		Id:           CamelCasePropertiesRule,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Schema property names should use camelCase instead of snake_case, PascalCase, kebab-case, or other formats.",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Recommended:  true,
+		Type:         Style,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "oasCamelCaseProperties",
+		},
+		HowToFix: camelCasePropertiesFix,
 	}
 }

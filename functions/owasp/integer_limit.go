@@ -4,11 +4,11 @@
 package owasp
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "slices"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"slices"
 )
 
 type IntegerLimit struct{}
@@ -36,14 +36,24 @@ func (il IntegerLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext
 		if slices.Contains(schema.Value.Type, "integer") {
 
 			node := schema.Value.GoLow().Type.KeyNode
+			valueNode := schema.Value.GoLow().Type.ValueNode
+
+			// Find all locations where this schema appears
+			locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
+
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 					"schema of type `integer` must specify `minimum` and `maximum` or "+
 						"`exclusiveMinimum` and `exclusiveMaximum`"),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
-				Path:      schema.GenerateJSONPath(),
+				Path:      locatedPath,
 				Rule:      context.Rule,
+			}
+
+			// Set the Paths array if there are multiple locations
+			if len(allPaths) > 1 {
+				result.Paths = allPaths
 			}
 			if schema.Value.Minimum == nil && schema.Value.Maximum == nil &&
 				schema.Value.ExclusiveMinimum == nil && schema.Value.ExclusiveMaximum == nil {

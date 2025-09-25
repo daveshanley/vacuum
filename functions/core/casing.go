@@ -4,14 +4,14 @@
 package core
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "regexp"
-    "strconv"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"regexp"
+	"strconv"
 )
 
 const (
@@ -106,7 +106,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	message := context.Rule.Message
 
 	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	props := context.GetOptionsStringMap()
 	if props["type"] == "" {
 		return nil
 	}

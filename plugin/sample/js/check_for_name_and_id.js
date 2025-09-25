@@ -1,6 +1,13 @@
 // Copyright 2023 Princess Beef Heavy Industries / Dave Shanley.
 // SPDX-License-Identifier: MIT
 
+function getSchema() {
+    return {
+        "name": "checkForNameAndId",
+        "description": "Checks that input has the correct name and id values"
+    };
+}
+
 function runRule(input) {
 
     // create an array to hold the results

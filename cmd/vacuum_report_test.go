@@ -3,13 +3,13 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"github.com/pterm/pterm"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetVacuumReportCommand(t *testing.T) {
@@ -213,9 +213,6 @@ rules:
 
 	defer os.Remove(tmp.Name())
 
-	b := bytes.NewBufferString("")
-	pterm.SetDefaultOutput(b)
-
 	cmd := GetVacuumReportCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 	cmd.SetArgs([]string{
@@ -224,6 +221,7 @@ rules:
 		"-r",
 		tmp.Name(),
 		"../model/test_files/burgershop.openapi.yaml",
+		"--stdout",
 	})
 	cmdErr := cmd.Execute()
 	assert.NoError(t, cmdErr)

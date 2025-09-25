@@ -50,8 +50,13 @@ func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 						"schema of type `string` must specify `maxLength`, `const` or `enum`"),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
-					Path:      schema.GenerateJSONPath(),
+					Path:      locatedPath,
 					Rule:      context.Rule,
+				}
+
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
 				}
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)

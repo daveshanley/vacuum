@@ -10,7 +10,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // TypedEnum will check enum values match the types provided

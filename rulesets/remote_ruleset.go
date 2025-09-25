@@ -41,13 +41,22 @@ func CheckForLocalExtends(extends map[string]string) bool {
 
 // DownloadRemoteRuleSet downloads a remote ruleset and returns a *RuleSet
 // returns an error if it cannot download the ruleset
-func DownloadRemoteRuleSet(_ context.Context, location string) (*RuleSet, error) {
+func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *http.Client) (*RuleSet, error) {
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot download ruleset, location is empty")
 	}
 
-	ruleResp, ruleRemoteErr := http.Get(location)
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", location, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request for %s: %w", location, err)
+	}
+
+	ruleResp, ruleRemoteErr := httpClient.Do(req)
 	if ruleRemoteErr != nil {
 		return nil, ruleRemoteErr
 	}
@@ -103,13 +112,14 @@ func SniffOutAllExternalRules(
 	location string,
 	visited []string,
 	rs *RuleSet,
-	remote bool) {
+	remote bool,
+	httpClient *http.Client) {
 
 	var drs *RuleSet
 	var err error
 
 	if remote {
-		drs, err = DownloadRemoteRuleSet(ctx, location)
+		drs, err = DownloadRemoteRuleSet(ctx, location, httpClient)
 	} else {
 		drs, err = LoadLocalRuleSet(ctx, location)
 	}
@@ -191,7 +201,7 @@ func SniffOutAllExternalRules(
 				}
 
 				// do down the rabbit hole.
-				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, remote)
+				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, remote, httpClient)
 			}
 		}
 	}

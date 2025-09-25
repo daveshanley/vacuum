@@ -4,7 +4,8 @@
 package cmd
 
 import (
-	"github.com/pterm/pterm"
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,7 @@ func GetGenerateVersionCommand() *cobra.Command {
 		Long:    "Prints out the current version of vacuum to the terminal",
 		Example: "vacuum version",
 		Run: func(cmd *cobra.Command, args []string) {
-			pterm.Println(Version)
+			fmt.Println(GetVersion())
 		},
 	}
 	return cmd

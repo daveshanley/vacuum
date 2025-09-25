@@ -1,15 +1,14 @@
 package owasp
 
 import (
-    "fmt"
-    "slices"
+	"slices"
 
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    drV3 "github.com/pb33f/doctor/model/high/v3"
-    v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
+	v3 "github.com/pb33f/libopenapi/datamodel/low/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
 )
 
 type CheckSecurity struct {
@@ -93,7 +92,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				if opValue.Security == nil && globalSecurity == nil {
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("`security` was not defined for path `%s` in method `%s`", path, opType)),
+							model.GetStringTemplates().BuildSecurityDefinedMessage(path, opType)),
 						StartNode: opNode,
 						EndNode:   vacuumUtils.BuildEndNode(opNode),
 						Path:      op.GenerateJSONPath(),
@@ -108,7 +107,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 				if opValue.Security != nil && len(opValue.Security) <= 0 {
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							fmt.Sprintf("`security` is empty for path `%s` in method `%s`", path, opType)),
+							model.GetStringTemplates().BuildSecurityEmptyMessage(path, opType)),
 						StartNode: opNode,
 						EndNode:   vacuumUtils.BuildEndNode(opNode),
 						Path:      op.GenerateJSONPath(),
@@ -124,7 +123,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 							securityNode := opValue.Security[i].Value.GoLow().Requirements.ValueNode
 							result := model.RuleFunctionResult{
 								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-									fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
+									model.GetStringTemplates().BuildSecurityNullElementsMessage(path, opType)),
 								StartNode: securityNode,
 								EndNode:   vacuumUtils.BuildEndNode(securityNode),
 								Path:      opValue.Security[i].GenerateJSONPath(),
@@ -143,7 +142,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 							securityNode := globalSecurity[i].Value.GoLow().Requirements.ValueNode
 							result := model.RuleFunctionResult{
 								Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-									fmt.Sprintf("`security` has null elements for path `%s` in method `%s`", path, opType)),
+									model.GetStringTemplates().BuildSecurityNullElementsMessage(path, opType)),
 								StartNode: securityNode,
 								EndNode:   vacuumUtils.BuildEndNode(securityNode),
 								Path:      globalSecurity[i].GenerateJSONPath(),

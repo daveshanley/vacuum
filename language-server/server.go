@@ -70,7 +70,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	}
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 		doc := state.documentStore.Add(params.TextDocument.URI, params.TextDocument.Text)
-		state.runDiagnostic(doc, context.Notify, false)
+		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
 	handler.TextDocumentDidChange = func(context *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
@@ -87,7 +87,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 				doc.Content = c.Text
 			}
 		}
-		state.runDiagnostic(doc, context.Notify, true)
+		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
 
@@ -103,43 +103,58 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 }
 
 func (s *ServerState) Run() error {
+	s.initializeConfig()
+
 	viper.OnConfigChange(s.onConfigChange)
 	viper.WatchConfig()
 	return s.server.RunStdio()
 }
 
-func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc, delay bool) {
+func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 
 	go func() {
+		specFileName := strings.TrimPrefix(doc.URI, "file://")
 
-		if s.lintRequest.BaseFlag == "" {
-			s.lintRequest.BaseFlag = filepath.Dir(strings.TrimPrefix(doc.URI, "file://"))
+		baseForDoc := s.lintRequest.BaseFlag
+		if baseForDoc == "" {
+			baseForDoc = filepath.Dir(specFileName)
+		}
+
+		deepGraph := false
+		if len(s.lintRequest.IgnoredResults) > 0 {
+			deepGraph = true
 		}
 
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-			RuleSet:                      s.lintRequest.SelectedRS,
-			Timeout:                      time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
-			CustomFunctions:              s.lintRequest.Functions,
-			IgnoreCircularArrayRef:       s.lintRequest.IgnoreArrayCircleRef,
-			IgnoreCircularPolymorphicRef: s.lintRequest.IgnorePolymorphCircleRef,
-			AllowLookup:                  true,
-			Base:                         s.lintRequest.BaseFlag,
-			Spec:                         []byte(doc.Content),
-			SkipDocumentCheck:            s.lintRequest.SkipCheckFlag,
-			Logger:                       s.lintRequest.Logger,
+			RuleSet:                         s.lintRequest.SelectedRS,
+			Spec:                            []byte(doc.Content),
+			SpecFileName:                    specFileName,
+			Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
+			CustomFunctions:                 s.lintRequest.Functions,
+			IgnoreCircularArrayRef:          s.lintRequest.IgnoreArrayCircleRef,
+			IgnoreCircularPolymorphicRef:    s.lintRequest.IgnorePolymorphCircleRef,
+			AllowLookup:                     s.lintRequest.Remote,
+			Base:                            baseForDoc,
+			SkipDocumentCheck:               s.lintRequest.SkipCheckFlag,
+			Logger:                          s.lintRequest.Logger,
+			BuildDeepGraph:                  deepGraph,
+			ExtractReferencesFromExtensions: s.lintRequest.ExtensionRefs,
+			HTTPClientConfig:                s.lintRequest.HTTPClientConfig,
 		})
+
+		filteredResults := utils.FilterIgnoredResults(result.Results, s.lintRequest.IgnoredResults)
+		result.Results = filteredResults
 		diagnostics := ConvertResultsIntoDiagnostics(result)
-		if len(diagnostics) > 0 {
-			go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
-				URI:         doc.URI,
-				Diagnostics: diagnostics,
-			})
-		}
+		go notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+			URI:         doc.URI,
+			Diagnostics: diagnostics,
+		})
 	}()
 }
 
 func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
 	var diagnostics []protocol.Diagnostic
+
 	for _, vacuumResult := range result.Results {
 		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
 

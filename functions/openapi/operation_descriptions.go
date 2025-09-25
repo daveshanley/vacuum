@@ -4,16 +4,15 @@
 package openapi
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/model/reports"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    v3 "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "net/http"
-    "strconv"
-    "strings"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	v3 "github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"net/http"
+	"strconv"
+	"strings"
 )
 
 // OperationDescription will check if an operation has a description, and if the description is useful
@@ -44,8 +43,8 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 
 	var results []model.RuleFunctionResult
 
-	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied type - use cached options
+	props := context.GetOptionsStringMap()
 
 	minWordsString := props["minWords"]
 	minWords, _ := strconv.Atoi(minWordsString)
@@ -85,9 +84,9 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 					fmt.Sprintf("operation method `%s` %s is missing a `%s`", method, location, missing)),
 					JSONPath, node, component))
-		} 
+		}
 	}
-	
+
 	checkTextLength := func(text string, method, location, missing, JSONPath string, node *yaml.Node, component v3.AcceptsRuleResults) {
 		if text != "" {
 			words := strings.Split(text, " ")
@@ -98,12 +97,11 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 			}
 		}
 	}
-	
 
 	checkOperation := func(desc, summary, path, method, location, reqLocation, jsonPath string, node *yaml.Node,
 		requestBody *v3.RequestBody, responses *v3.Responses, op v3.AcceptsRuleResults) {
 
-		if desc == "" && summary == "" { 
+		if desc == "" && summary == "" {
 			results = append(results,
 				buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 					fmt.Sprintf("operation method `%s` %s is missing a description or summary", method, location)),
@@ -119,7 +117,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 				"description", requestBody.GenerateJSONPath(), requestBody.Value.GoLow().KeyNode, op)
 			checkTextLength(requestBody.Value.Description, method, reqLocation,
 				"description", requestBody.GenerateJSONPath(), requestBody.Value.GoLow().KeyNode, op)
-					
+
 		}
 
 		// check responses

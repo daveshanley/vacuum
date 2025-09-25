@@ -8,13 +8,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
+	"github.com/daveshanley/vacuum/utils"
+
+	"net/http"
 	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/daveshanley/vacuum/tui"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetSpectralReportCommand() *cobra.Command {
@@ -47,12 +55,13 @@ func GetSpectralReportCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				color.DisableColors()
 			}
 
 			if !stdIn && !stdOut {
@@ -63,13 +72,18 @@ func GetSpectralReportCommand() *cobra.Command {
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a spectral report, or use " +
 					"the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
 			timeFlag, _ := cmd.Flags().GetBool("time")
 			noPretty, _ := cmd.Flags().GetBool("no-pretty")
+
+			// Certificate/TLS configuration
+			certFile, _ := cmd.Flags().GetString("cert-file")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			caFile, _ := cmd.Flags().GetString("ca-file")
+			insecure, _ := cmd.Flags().GetBool("insecure")
 
 			reportOutput := "vacuum-spectral-report.json"
 
@@ -95,9 +109,20 @@ func GetSpectralReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
+			}
+
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to parse ignore file: %w", ferr)
+				}
 			}
 
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
@@ -119,36 +144,71 @@ func GetSpectralReportCommand() *cobra.Command {
 					allRules[k] = v
 				}
 				if !stdIn && !stdOut {
-					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
-					pterm.Println()
+					tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
 				}
 
 			}
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
-			var customFunctions map[string]model.RuleFunction
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
+				// Create HTTP client for remote ruleset downloads if needed
+				var httpClient *http.Client
+				httpClientConfig := utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+					var clientErr error
+					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
+					if clientErr != nil {
+						tui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
+						return clientErr
+					}
+				}
 
-				customFunctions, _ = LoadCustomFunctions(functionsFlag, true)
-				rsBytes, rsErr := os.ReadFile(rulesetFlag)
+				var rsErr error
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-				if rsErr != nil {
-					return rsErr
+
+				// Merge OWASP rules if hard mode is enabled
+				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
+					if !stdIn && !stdOut {
+						tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, noStyleFlag)
+					}
 				}
 			}
 
 			if !stdIn && !stdOut {
-				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
+			}
+
+			// Resolve base path for this specific file
+			var resolvedBase string
+			var baseErr error
+			if stdIn {
+				// For stdin input, use the provided base flag or current directory as fallback
+				if baseFlag != "" {
+					resolvedBase = baseFlag
+				} else {
+					resolvedBase, baseErr = filepath.Abs(".")
+					if baseErr != nil {
+						return fmt.Errorf("failed to resolve current directory as base path: %w", baseErr)
+					}
+				}
+			} else {
+				resolvedBase, baseErr = ResolveBasePathForFile(args[0], baseFlag)
+				if baseErr != nil {
+					return fmt.Errorf("failed to resolve base path: %w", baseErr)
+				}
 			}
 
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -156,14 +216,23 @@ func GetSpectralReportCommand() *cobra.Command {
 				Spec:                            specBytes,
 				CustomFunctions:                 customFunctions,
 				SilenceLogs:                     true,
-				Base:                            baseFlag,
+				Base:                            resolvedBase,
+				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
+				HTTPClientConfig: utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				},
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
 			resultSet.SortResultsByLineNumber()
+
+			resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 
 			duration := time.Since(start)
 
@@ -171,7 +240,15 @@ func GetSpectralReportCommand() *cobra.Command {
 			if stdIn {
 				source = "stdin"
 			} else {
-				source = args[0] // todo: convert to full path.
+				source = args[0]
+				// Make the path relative to current working directory for consistency
+				if absPath, err := filepath.Abs(source); err == nil {
+					if cwd, err := os.Getwd(); err == nil {
+						if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+							source = relPath
+						}
+					}
+				}
 			}
 			// serialize
 			spectralReport := resultSet.GenerateSpectralReport(source)
@@ -191,13 +268,11 @@ func GetSpectralReportCommand() *cobra.Command {
 			err := os.WriteFile(reportOutput, data, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to write report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			tui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())
@@ -209,6 +284,7 @@ func GetSpectralReportCommand() *cobra.Command {
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	return cmd
 
 }

@@ -48,8 +48,13 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 					Message:   utils.SuppliedOrDefault(context.Rule.Message, "schema of type `array` must specify `maxItems`"),
 					StartNode: node,
 					EndNode:   utils.BuildEndNode(node),
-					Path:      schema.GenerateJSONPath(),
+					Path:      locatedPath,
 					Rule:      context.Rule,
+				}
+
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					result.Paths = allPaths
 				}
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)

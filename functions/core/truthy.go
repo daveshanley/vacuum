@@ -4,13 +4,12 @@
 package core
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "sort"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"sort"
 )
 
 // Truthy is a rule that will determine if something is seen as 'true' (could be a 1 or "pizza", or actually 'true')
@@ -62,7 +61,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			fieldNodeValue.Value == "0" || fieldNodeValue.Value == "" {
 
 			if isArray {
-				pathValue = fmt.Sprintf("%s[%d]", pathValue, x)
+				pathValue = model.GetStringTemplates().BuildArrayPath(pathValue, x)
 			}
 
 			if !utils.IsNodeMap(fieldNode) && !utils.IsNodeArray(fieldNodeValue) && !utils.IsNodeMap(fieldNodeValue) {
@@ -99,7 +98,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 					}
 					if err == nil && locatedObjects != nil {
 						for x, obj := range locatedObjects {
-							p := fmt.Sprintf("%s.%s", obj.GenerateJSONPath(), context.RuleAction.Field)
+							p := model.GetStringTemplates().BuildJSONPath(obj.GenerateJSONPath(), context.RuleAction.Field)
 							if x == 0 {
 								locatedPath = p
 							}
@@ -109,7 +108,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				}
 				result := model.RuleFunctionResult{
 					Message: vacuumUtils.SuppliedOrDefault(message,
-						fmt.Sprintf("%s: `%s` must be set", ruleMessage, context.RuleAction.Field)),
+						model.GetStringTemplates().BuildFieldValidationMessage(ruleMessage, context.RuleAction.Field, "set")),
 					StartNode: node,
 					EndNode:   vacuumUtils.BuildEndNode(node),
 					Path:      locatedPath,

@@ -97,6 +97,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["pathsKebabCase"] = openapi_functions.PathsKebabCase{}
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
 		funcs["schemaTypeCheck"] = openapi_functions.SchemaTypeCheck{}
+		funcs["missingType"] = openapi_functions.MissingType{}
 		funcs["tagDescription"] = openapi_functions.TagDescription{}
 		funcs["infoDescription"] = openapi_functions.InfoDescription{}
 		funcs["infoContact"] = openapi_functions.InfoContact{}
@@ -106,6 +107,9 @@ func MapBuiltinFunctions() Functions {
 		funcs["infoContactProperties"] = openapi_functions.InfoContactProperties{}
 		funcs["noRequestBody"] = openapi_functions.NoRequestBody{}
 		funcs["pathItemReferences"] = openapi_functions.PathItemReferences{}
+		funcs["duplicatePaths"] = openapi_functions.DuplicatePaths{}
+		funcs["oasUnnecessaryCombinator"] = openapi_functions.UnnecessaryCombinator{}
+		funcs["oasCamelCaseProperties"] = openapi_functions.CamelCaseProperties{}
 
 		// add owasp functions used by the owasp rules
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}

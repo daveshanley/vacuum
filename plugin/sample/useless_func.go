@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	yaml "gopkg.in/yaml.v3"
+	yaml "go.yaml.in/yaml/v4"
 )
 
 // uselessFunc is an example custom rule that does nothing.

@@ -4,19 +4,19 @@
 package core
 
 import (
-    ctx "context"
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/parser"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    validationErrors "github.com/pb33f/libopenapi-validator/errors"
-    highBase "github.com/pb33f/libopenapi/datamodel/high/base"
-    "github.com/pb33f/libopenapi/datamodel/low"
-    lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "strings"
+	ctx "context"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/parser"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	validationErrors "github.com/pb33f/libopenapi-validator/errors"
+	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/datamodel/low"
+	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"strings"
 )
 
 // Schema is a rule that creates a schema check against a field value
@@ -125,10 +125,27 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	// use the current node to validate (field not needed)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
-	if _, ok := forceValidationOnCurrentNode.(bool); ok && len(nodes) > 0 {
-		schema.GoLow().Index = context.Index
-		results = append(results, validateNodeAgainstSchema(&context, schema, nil, nodes[0], context, 0)...)
-		return results
+
+	// Auto-enable forceValidationOnCurrentNode when:
+	// 1. The given path is "$" (root)
+	// 2. No field is specified in the rule action
+	// This makes the behavior consistent with Spectral for root-level schema validation
+	autoForce := false
+	if context.RuleAction.Field == "" {
+		// Check if we're at the root level
+		if givenStr, ok := context.Given.(string); ok && givenStr == "$" {
+			autoForce = true
+		} else if givenArr, ok := context.Given.([]string); ok && len(givenArr) > 0 && givenArr[0] == "$" {
+			autoForce = true
+		}
+	}
+
+	if forceBool, ok := forceValidationOnCurrentNode.(bool); (ok && forceBool) || autoForce {
+		if len(nodes) > 0 {
+			schema.GoLow().Index = context.Index
+			results = append(results, validateNodeAgainstSchema(&context, schema, nil, nodes[0], context, 0)...)
+			return results
+		}
 	}
 
 	for x, node := range nodes {

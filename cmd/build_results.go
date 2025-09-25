@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/pterm/pterm"
+	"github.com/daveshanley/vacuum/utils"
+
+	"github.com/daveshanley/vacuum/tui"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -16,8 +22,11 @@ func BuildResults(
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
-	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, false, timeout)
+	remote bool,
+	timeout time.Duration,
+	httpClientConfig utils.HTTPClientConfig,
+	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, httpClientConfig, ignoredItems)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -27,8 +36,11 @@ func BuildResultsWithDocCheckSkip(
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
+	remote bool,
 	skipCheck bool,
-	timeout time.Duration) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	timeout time.Duration,
+	httpClientConfig utils.HTTPClientConfig,
+	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -47,10 +59,7 @@ func BuildResultsWithDocCheckSkip(
 			allRules[k] = v
 		}
 		if !silent {
-			box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-			box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-			box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
-			pterm.Println()
+			tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, false)
 		}
 	}
 
@@ -58,17 +67,48 @@ func BuildResultsWithDocCheckSkip(
 	// and see if it's valid. If so - let's go!
 	if rulesetFlag != "" {
 
-		rsBytes, rsErr := os.ReadFile(rulesetFlag)
-		if rsErr != nil {
-			return nil, nil, rsErr
+		// Create HTTP client for remote ruleset downloads if needed
+		var httpClient *http.Client
+		if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+			var clientErr error
+			httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
+			if clientErr != nil {
+				return nil, nil, fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
+			}
 		}
-		selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-		if rsErr != nil {
-			return nil, nil, rsErr
+
+		if strings.HasPrefix(rulesetFlag, "http") {
+			// Handle remote ruleset URL
+			if !remote {
+				return nil, nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
+			}
+
+			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
+			if rsErr != nil {
+				return nil, nil, rsErr
+			}
+			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
+		} else {
+			// Handle local ruleset file
+			rsBytes, rsErr := os.ReadFile(rulesetFlag)
+			if rsErr != nil {
+				return nil, nil, rsErr
+			}
+			selectedRS, rsErr = BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, defaultRuleSets, httpClient)
+			if rsErr != nil {
+				return nil, nil, rsErr
+			}
+		}
+
+		// Merge OWASP rules if hard mode is enabled
+		if MergeOWASPRulesToRuleSet(selectedRS, hardMode) {
+			if !silent {
+				tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, false)
+			}
 		}
 	}
 
-	pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+	tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
 	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           selectedRS,
@@ -76,11 +116,13 @@ func BuildResultsWithDocCheckSkip(
 		CustomFunctions:   customFunctions,
 		Base:              base,
 		SkipDocumentCheck: skipCheck,
-		AllowLookup:       true,
+		AllowLookup:       remote,
 		Timeout:           timeout,
+		HTTPClientConfig:  httpClientConfig,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	resultSet.SortResultsByLineNumber()
+	resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 	return resultSet, ruleset, nil
 }

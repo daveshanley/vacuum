@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Test API with Code Samples
+  version: 1.0.0
+paths:
+  /echo:
+    post:
+      summary: Echo test endpoint
+      description: Returns the exact message sent to it
+      operationId: echo
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+              examples:
+                response:
+                  value: 'Hello world!'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              example: 'Hello world!'
+        required: true
+      x-codeSamples:
+        - lang: Go
+          label: Go Example
+          source:
+            $ref: './issue523_echo.go'
+        - lang: YAML
+          label: YAML Reference Test
+          source:
+            $ref: './issue523_test.yaml'

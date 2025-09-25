@@ -6,7 +6,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
 [![Docs](https://img.shields.io/badge/godoc-reference-5fafd7)](https:/-/pkg.go.dev/github.com/daveshanley/vacuum)
-[![GitHub downloads](https://img.shields.io/github/downloads/daveshanley/vacuum/total?label=github%20downloads&style=flat-square)](https://github.com/daveshanley/vacuum/releases)
 [![npm](https://img.shields.io/npm/dm/@quobix/vacuum?style=flat-square&label=npm%20downloads)](https://www.npmjs.com/package/@quobix/vacuum)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
@@ -35,9 +34,34 @@ yarn global add @quobix/vacuum
 
 ## Install using curl
 
-```
+```bash
 curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
 ```
+
+### For CI/CD environments 
+
+To avoid GitHub API rate limiting in automated environments, set a GitHub token:
+
+```bash
+# Using repository token (GitHub Actions)
+GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+
+# Using personal access token
+GITHUB_TOKEN=your_github_token curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+```
+
+#### GitHub Actions example
+
+```yaml
+- name: Install vacuum
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Increases rate limit from 60 to 5000 requests/hour
+  run: |
+    curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh
+```
+
+> **Note**: The GitHub token prevents intermittent installation failures in CI/CD environments caused by API rate limiting. 
+> No additional permissions are required, the token only accesses public repository information.
 
 ## Install using [Docker](https://hub.docker.com/r/dshanley/vacuum)
 
@@ -46,6 +70,8 @@ The image is available at: https://hub.docker.com/r/dshanley/vacuum
 ```
 docker pull dshanley/vacuum
 ```
+
+> **Multi-platform support**: Docker images are available for both `linux/amd64` and `linux/arm64` architectures, including native ARM64 support for Apple Silicon Macs.
 
 To run, mount the current working dir to the container and use a relative path to your spec, like so
 
@@ -118,7 +144,27 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.17` 🔥 : **Github Action**.
+🔥 **New in** `v0.18` 🔥 : **New dashboard, new lint command, new rules!**.
+
+Upgrades all around. There is a completely new `dashboard` command with a completely new dashboard terminal UI. It's 
+completely interactive and allows you to explore, and filter violations, view full docs and see code. The `dashboard` command
+also adds a new `-w` / `--watch` flag that will watch your OpenAPI file for changes and re-lint and re-render results automatically.
+
+A re-written `lint` command that has a whole new rendering engine and output. Everything is much more readable, 
+easier to see on a screen, matches the new `dashboard` style. It's 100% backwards compatible with previous versions, all flags as they were. 
+
+New rules:
+
+ - [no-request-body](https://quobix.com/vacuum/rules/operations/no-request-body/) - Ensures `GET` and `DELETE` operations do not have request bodies.
+ - [duplicate-paths](https://quobix.com/vacuum/rules/operations/duplicate-paths/) - Ensures there are no duplicate paths exist
+ - [no-unnecessary-combinator](https://quobix.com/vacuum/rules/schemas/no-unnecessary-combinator/) - Ensures no `allOf`, `oneOf` or `anyOf` combinators exist with a single schema inside them.
+ - [camel-case-properties](https://quobix.com/vacuum/rules/schemas/camel-case-properties/) - Ensures all schema properties are `camelCase`.
+
+---
+
+
+
+`v0.17`: **Github Action**.
 
 vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
 in the [GitHub Marketplace](https://github.com/marketplace/actions/vacuum-openapi-linter-and-quality-analysis-tool).
@@ -319,7 +365,14 @@ vacuum will work at scale and is designed as a CLI (with a web or console UI) an
 vacuum comes with an interactive dashboard (`vacuum dashboard <your-openapi-spec.yaml>`) allowing you to explore
 rules and violations in a console, without having to scroll through thousands of results.
 
-![vacuum dashboard](dashboard-screenshot.png)
+<a href="https://quobix.com/vacuum/commands/dashboard/">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dashboard.gif">
+  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg">
+</picture>
+</a>
+
+To read about the dashboard, see the [dashboard command docs](https://quobix.com/vacuum/commands/dashboard/).
 
 ### HTML Report
 

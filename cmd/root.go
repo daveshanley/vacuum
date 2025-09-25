@@ -8,28 +8,40 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pterm/pterm"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
-// TODO: This is a temporary UI, it's to help figure out the best experience, and it is not intended as a final face
-// of vacuum. It's going to change around a good bit, so don't get too comfy with it :)
 var (
-	configFile string
-	Version    string
-	Commit     string
-	Date       string
+	configFile  string
+	versionInfo VersionInfo
 )
 
-func Execute(version, commit, date string) {
-	Version = version
-	Commit = commit
-	Date = date
+func init() {
+	versionInfo = GetVersionInfo()
+}
+
+func Execute() {
 	if err := GetRootCommand().Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+// GetVersion returns the current version string for compatibility
+func GetVersion() string {
+	return versionInfo.Version
+}
+
+// GetCommit returns the current commit hash for compatibility
+func GetCommit() string {
+	return versionInfo.Commit
+}
+
+// GetDate returns the current build date for compatibility
+func GetDate() string {
+	return versionInfo.Date
 }
 
 func GetRootCommand() *cobra.Command {
@@ -40,17 +52,16 @@ func GetRootCommand() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := useConfigFile(cmd)
 			if err != nil {
-				pterm.Error.Printf("%s", err)
+				tui.RenderError(err)
 			}
 			return err
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			PrintBanner()
-			pterm.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
-			pterm.Println()
-			pterm.Println("To see all the options, try 'vacuum --help'")
-			pterm.Println()
-
+			fmt.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
+			fmt.Println()
+			fmt.Println("To see all the options, try 'vacuum --help'")
+			fmt.Println()
 			return nil
 		},
 	}
@@ -65,6 +76,20 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
 	rootCmd.PersistentFlags().BoolP("hard-mode", "z", false, "Enable all the built-in rules, even the OWASP ones. This is the level to beat!")
 	rootCmd.PersistentFlags().BoolP("ext-refs", "", false, "Turn on $ref lookups and resolving for extensions (x-) objects")
+	rootCmd.PersistentFlags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
+	rootCmd.PersistentFlags().String("key-file", "", "Path to client private key file for HTTPS requests")
+	rootCmd.PersistentFlags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
+	rootCmd.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
+	rootCmd.AddCommand(GetLintCommand())
+	rootCmd.AddCommand(GetVacuumReportCommand())
+	rootCmd.AddCommand(GetSpectralReportCommand())
+	rootCmd.AddCommand(GetHTMLReportCommand())
+	rootCmd.AddCommand(GetDashboardCommand())
+	rootCmd.AddCommand(GetGenerateRulesetCommand())
+	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
+	rootCmd.AddCommand(GetGenerateVersionCommand())
+	rootCmd.AddCommand(GetLanguageServerCommand())
+	rootCmd.AddCommand(GetBundleCommand())
 
 	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
@@ -79,17 +104,24 @@ func GetRootCommand() *cobra.Command {
 	if regErr := rootCmd.RegisterFlagCompletionFunc("timeout", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
-
-	rootCmd.AddCommand(GetLintCommand())
-	rootCmd.AddCommand(GetVacuumReportCommand())
-	rootCmd.AddCommand(GetSpectralReportCommand())
-	rootCmd.AddCommand(GetHTMLReportCommand())
-	rootCmd.AddCommand(GetDashboardCommand())
-	rootCmd.AddCommand(GetGenerateRulesetCommand())
-	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
-	rootCmd.AddCommand(GetGenerateVersionCommand())
-	rootCmd.AddCommand(GetLanguageServerCommand())
-	rootCmd.AddCommand(GetBundleCommand())
+	if regErr := rootCmd.RegisterFlagCompletionFunc("cert-file", cobra.FixedCompletions(
+		[]string{"crt", "pem", "cert"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("key-file", cobra.FixedCompletions(
+		[]string{"key", "pem"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("ca-file", cobra.FixedCompletions(
+		[]string{"crt", "pem", "cert"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("insecure", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
 
 	return rootCmd
 }

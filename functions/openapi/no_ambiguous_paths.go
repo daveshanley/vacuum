@@ -5,11 +5,14 @@ package openapi
 
 import (
 	"fmt"
-	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"gopkg.in/yaml.v3"
+	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	doctorModel "github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // AmbiguousPaths will determine if paths can be confused by a compiler.
@@ -34,10 +37,15 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	}
 
 	var results []model.RuleFunctionResult
+
+	// Try to use doctor model if available for more accurate checking
+	if context.DrDocument != nil && context.DrDocument.V3Document != nil && context.DrDocument.V3Document.Paths != nil {
+		return ap.checkWithDoctorModel(context)
+	}
+
+	// Fallback to simple path checking without parameter type information
 	var seen []string
-
 	ops := context.Index.GetPathsNode()
-
 	var opPath string
 
 	if ops != nil {
@@ -50,9 +58,8 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 			}
 			path := fmt.Sprintf("$.paths['%s']", opPath)
 			for _, p := range seen {
-				ambiguous := checkPaths(p, opPath)
+				ambiguous := checkPaths(p, opPath, nil, nil)
 				if ambiguous {
-
 					results = append(results, model.RuleFunctionResult{
 						Message:   fmt.Sprintf("paths are ambiguous with one another: `%s` and `%s`", p, opPath),
 						StartNode: opNode,
@@ -60,7 +67,6 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 						Path:      path,
 						Rule:      context.Rule,
 					})
-
 				}
 			}
 			seen = append(seen, opPath)
@@ -69,35 +75,264 @@ func (ap AmbiguousPaths) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 	return results
 }
 
-var reggie, _ = regexp.Compile(`^{.+?}$`)
+// checkWithDoctorModel uses the doctor model to check for ambiguous paths with parameter type checking
+func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+	paths := context.DrDocument.V3Document.Paths
 
-func checkPaths(pA, pB string) bool {
-	segsA := strings.Split(pA, "/")[1:]
-	segsB := strings.Split(pB, "/")[1:]
+	if paths == nil || paths.PathItems == nil {
+		return results
+	}
+
+	type pathMethodEntry struct {
+		path   string
+		method string
+		item   *doctorModel.PathItem
+	}
+
+	var pathMethodEntries []pathMethodEntry
+	for path, pathItem := range paths.PathItems.FromOldest() {
+
+		methods := getMethodsFromPathItem(pathItem)
+		for _, method := range methods {
+			pathMethodEntries = append(pathMethodEntries, pathMethodEntry{
+				path:   path,
+				method: method,
+				item:   pathItem,
+			})
+		}
+	}
+
+	// compare each pair of path+method combinations
+	for i := 0; i < len(pathMethodEntries); i++ {
+		for j := i + 1; j < len(pathMethodEntries); j++ {
+			entryA := pathMethodEntries[i]
+			entryB := pathMethodEntries[j]
+
+			// skip if different methods - they cannot be ambiguous
+			if entryA.method != entryB.method {
+				continue
+			}
+
+			// check if paths are potentially ambiguous for the same HTTP method
+			if checkPaths(entryA.path, entryB.path, entryA.item, entryB.item) {
+				// paths are ambiguous based on structure and parameter types for the same method
+				results = append(results, model.RuleFunctionResult{
+					Message: fmt.Sprintf("paths are ambiguous with one another: `%s` (%s) and `%s` (%s)",
+						entryA.path, entryA.method, entryB.path, entryB.method),
+					StartNode: entryB.item.KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(entryB.item.KeyNode),
+					Path:      fmt.Sprintf("$.paths['%s']", entryB.path),
+					Rule:      context.Rule,
+				})
+			}
+		}
+	}
+
+	return results
+}
+
+// getMethodsFromPathItem extracts all HTTP methods defined in a PathItem
+func getMethodsFromPathItem(pathItem *doctorModel.PathItem) []string {
+	var methods []string
+
+	if pathItem.Get != nil {
+		methods = append(methods, http.MethodGet)
+	}
+	if pathItem.Post != nil {
+		methods = append(methods, http.MethodPost)
+	}
+	if pathItem.Put != nil {
+		methods = append(methods, http.MethodPut)
+	}
+	if pathItem.Delete != nil {
+		methods = append(methods, http.MethodDelete)
+	}
+	if pathItem.Options != nil {
+		methods = append(methods, http.MethodOptions)
+	}
+	if pathItem.Head != nil {
+		methods = append(methods, http.MethodHead)
+	}
+	if pathItem.Patch != nil {
+		methods = append(methods, http.MethodPatch)
+	}
+	if pathItem.Trace != nil {
+		methods = append(methods, http.MethodTrace)
+	}
+
+	return methods
+}
+
+var reggie, _ = regexp.Compile(`^{(.+?)}$`)
+
+type segment struct {
+	value     string
+	isVar     bool
+	paramName string
+	paramType string
+}
+
+func parseSegments(path string, pathItem *doctorModel.PathItem) []segment {
+	parts := strings.Split(path, "/")[1:]
+	segments := make([]segment, len(parts))
+
+	for i, part := range parts {
+		seg := segment{value: part}
+		if matches := reggie.FindStringSubmatch(part); len(matches) > 1 {
+			seg.isVar = true
+			seg.paramName = matches[1]
+			if pathItem != nil {
+				seg.paramType = getParameterType(pathItem, seg.paramName)
+			}
+		}
+		segments[i] = seg
+	}
+	return segments
+}
+
+func getParameterType(pathItem *doctorModel.PathItem, paramName string) string {
+	if pathItem == nil {
+		return ""
+	}
+
+	for _, param := range pathItem.Parameters {
+		if param.Value != nil && param.Value.In == "path" && param.Value.Name == paramName {
+			if param.Value.Schema != nil {
+				if schema := param.Value.Schema.Schema(); schema != nil && len(schema.Type) > 0 {
+					return schema.Type[0]
+				}
+			}
+		}
+	}
+
+	for _, op := range pathItem.GetOperations().FromOldest() {
+		if op.Value == nil {
+			continue
+		}
+		for _, param := range op.Value.Parameters {
+			if param != nil && param.In == "path" && param.Name == paramName {
+				if param.Schema != nil {
+					if schema := param.Schema.Schema(); schema != nil && len(schema.Type) > 0 {
+						return schema.Type[0]
+					}
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool {
+	segsA := parseSegments(pA, pathItemA)
+	segsB := parseSegments(pB, pathItemB)
 
 	if len(segsA) != len(segsB) {
 		return false
 	}
 
-	a := 0
-	b := 0
-	amb := true
-	for i, part := range segsA {
-		aVar := reggie.MatchString(part)
-		bVar := reggie.MatchString(segsB[i])
-		if aVar || bVar {
-			if aVar {
-				a++
+	// Track variable vs literal mismatches
+	varLiteralPositions := make([]int, 0, len(segsA))
+
+	for i := range segsA {
+		a, b := &segsA[i], &segsB[i]
+
+		if a.isVar && b.isVar {
+			if a.paramType != "" && b.paramType != "" && !areTypesCompatible(a.paramType, b.paramType) {
+				return false
 			}
-			if bVar {
-				b++
+		} else if !a.isVar && !b.isVar {
+			if a.value != b.value {
+				return false
 			}
-			continue
 		} else {
-			if segsA[i] != segsB[i] {
-				amb = false
+			// Variable vs literal
+			varLiteralPositions = append(varLiteralPositions, i)
+
+			var varType, literal string
+			if a.isVar {
+				varType, literal = a.paramType, b.value
+			} else {
+				varType, literal = b.paramType, a.value
+			}
+
+			if varType != "" && !canLiteralMatchType(literal, varType) {
+				return false
 			}
 		}
 	}
-	return amb && a == b
+
+	// Key logic for issue #504: paths with conflicting variable/literal patterns
+	// Example: /a/{x}/b/c/{y} vs /a/{x}/b/{z}/d
+	// Position 3: c vs {z} (literal vs var)
+	// Position 4: {y} vs d (var vs literal)
+	// These conflict - no URL can match both patterns
+	if len(varLiteralPositions) >= 2 {
+		// Check if we have opposite patterns (literal-var in one position, var-literal in another)
+		for i := 0; i < len(varLiteralPositions)-1; i++ {
+			pos1 := varLiteralPositions[i]
+			for j := i + 1; j < len(varLiteralPositions); j++ {
+				pos2 := varLiteralPositions[j]
+				// If the variable/literal pattern is reversed, paths cannot be ambiguous
+				if segsA[pos1].isVar != segsA[pos2].isVar {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+func areTypesCompatible(typeA, typeB string) bool {
+	if typeA == typeB {
+		return true
+	}
+	return (typeA == "integer" && typeB == "number") || (typeA == "number" && typeB == "integer")
+}
+
+func canLiteralMatchType(literal, paramType string) bool {
+	switch paramType {
+	case "integer":
+		if literal == "" || (literal[0] == '-' && len(literal) == 1) {
+			return false
+		}
+		start := 0
+		if literal[0] == '-' {
+			start = 1
+		}
+		for i := start; i < len(literal); i++ {
+			if literal[i] < '0' || literal[i] > '9' {
+				return false
+			}
+		}
+		return true
+	case "number":
+		if literal == "" || literal == "." || literal == "-" || literal == "-." {
+			return false
+		}
+		hasDot := false
+		start := 0
+		if literal[0] == '-' {
+			start = 1
+		}
+		for i := start; i < len(literal); i++ {
+			if literal[i] == '.' {
+				if hasDot {
+					return false
+				}
+				hasDot = true
+			} else if literal[i] < '0' || literal[i] > '9' {
+				return false
+			}
+		}
+		return true
+	case "boolean":
+		return literal == "true" || literal == "false"
+	case "string":
+		return true
+	default:
+		return true
+	}
 }

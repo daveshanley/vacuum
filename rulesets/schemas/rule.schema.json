@@ -2,16 +2,30 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://quobix.com/vacuum/schemas/rule.schema.json",
   "type": "object",
-  "additionalProperties": false,
+  "required": [ "given", "then" ],
   "properties": {
+    "id": {
+      "type": "string"
+    },
     "description": {
       "type": "string"
     },
-    "howToFix": {
-      "type": "string"
+    "type": {
+      "enum": [ "style", "validation" ],
+      "x-errorMessage": "allowed types are \"style\" and \"validation\""
     },
-    "id": {
-      "type": "string"
+    "then": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Then"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Then"
+          }
+        }
+      ]
     },
     "category": {
       "oneOf": [
@@ -24,10 +38,10 @@
             "id": {
               "type": "string"
             },
-            "name": {
+            "description": {
               "type": "string"
             },
-            "description": {
+            "name": {
               "type": "string"
             }
           }
@@ -37,10 +51,10 @@
     "documentationUrl": {
       "type": "string",
       "format": "url",
-      "errorMessage": "must be a valid URL"
+      "x-errorMessage": "must be a valid URL"
     },
-    "recommended": {
-      "type": "boolean"
+    "formats": {
+      "$ref": "#/definitions/Formats"
     },
     "given": {
       "oneOf": [
@@ -55,99 +69,82 @@
         }
       ]
     },
-    "resolved": {
-      "type": "boolean"
-    },
-    "severity": {
-      "$ref": "#/$defs/Severity"
+    "howToFix": {
+      "type": "string"
     },
     "message": {
       "type": "string"
     },
+    "recommended": {
+      "type": "boolean"
+    },
+    "resolved": {
+      "type": "boolean"
+    },
+    "severity": {
+      "$ref": "#/definitions/Severity"
+    },
     "tags": {
+      "type": "array",
       "items": {
         "type": "string"
-      },
-      "type": "array"
-    },
-    "formats": {
-      "$ref": "#/$defs/Formats"
-    },
-    "then": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Then"
-        },
-        {
-          "items": {
-            "$ref": "#/$defs/Then"
-          },
-          "type": "array"
-        }
-      ]
-    },
-    "type": {
-      "enum": ["style", "validation"],
-      "type": "string",
-      "errorMessage": "allowed types are \"style\" and \"validation\""
+      }
     }
   },
-  "required": ["given", "then"],
-  "$defs": {
-    "Format": {
-      "$anchor": "format",
-      "spectral-runtime": "spectral-format",
-      "errorMessage": "must be a valid format"
-    },
+  "additionalProperties": false,
+  "definitions": {
     "DiagnosticSeverity": {
-      "enum": [-1, 0, 1, 2, 3]
+      "enum": [ -1, 0, 1, 2, 3 ]
+    },
+    "Format": {
+      "x-$anchor": "format",
+      "x-errorMessage": "must be a valid format",
+      "x-spectral-runtime": "spectral-format"
+    },
+    "Formats": {
+      "x-$anchor": "formats",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Format"
+      },
+      "x-errorMessage": "must be an array of formats"
     },
     "Functions": {
-      "$anchor": "functions",
+      "x-$anchor": "functions",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "Then": {
-      "type": "object",
-      "allOf": [
-        {
-          "properties": {
-            "field": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "spectral-runtime": "ruleset-function",
-          "required": ["function"]
-        }
-      ]
-    },
-    "Formats": {
-      "$anchor": "formats",
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/Format"
-      },
-      "errorMessage": "must be an array of formats"
-    },
     "HumanReadableSeverity": {
-      "enum": ["error", "warn", "info", "hint", "off"]
+      "enum": [ "error", "warn", "info", "hint", "off" ]
     },
     "Severity": {
-      "$anchor": "severity",
+      "x-$anchor": "severity",
       "oneOf": [
         {
-          "$ref": "#/$defs/DiagnosticSeverity"
+          "$ref": "#/definitions/DiagnosticSeverity"
         },
         {
-          "$ref": "#/$defs/HumanReadableSeverity"
+          "$ref": "#/definitions/HumanReadableSeverity"
         }
       ],
-      "errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
+      "x-errorMessage": "the value has to be one of: 0, 1, 2, 3 or \"error\", \"warn\", \"info\", \"hint\", \"off\""
+    },
+    "Then": {
+      "type": "object",
+      "properties": {
+        "field": {
+          "type": "string"
+        }
+      },
+      "required": [ "function" ],
+      "x-spectral-runtime": "ruleset-function",
+      "allOf": [
+        {
+          "type": "object"
+        }
+      ]
     }
   }
 }

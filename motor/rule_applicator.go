@@ -7,18 +7,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
-	"github.com/sourcegraph/conc"
 	"io"
 	"io/fs"
 	"log/slog"
 	"net/url"
-	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/sourcegraph/conc"
 
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
@@ -29,8 +30,7 @@ import (
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/pterm/pterm"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 type ruleContext struct {
@@ -85,6 +85,21 @@ type RuleSetExecution struct {
 	// not generally used.
 	StorageRoot string // The root path for storage, used for storing files upstream by the doctorModel. You probably don't need this.
 	RolodexFS   fs.FS  // supply a custom local filesystem to be used by the rolodex, useful if you need fine grained control over local file references.
+
+	// HTTP client configuration for TLS/certificate support
+	HTTPClientConfig vacuumUtils.HTTPClientConfig // Configuration for custom HTTP client with certificate support
+}
+
+// buildLocationString efficiently builds a location string in format "line:column"
+// This replaces fmt.Sprintf("%d:%d", line, column) which was a performance bottleneck
+func buildLocationString(line, column int) string {
+	// Pre-allocate with reasonable capacity for most line numbers
+	var builder strings.Builder
+	builder.Grow(12) // Should handle most line:column combinations efficiently
+	builder.WriteString(strconv.Itoa(line))
+	builder.WriteByte(':')
+	builder.WriteString(strconv.Itoa(column))
+	return builder.String()
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -157,20 +172,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				Level: slog.LevelError,
 			}))
 		} else {
-			handler := pterm.NewSlogHandler(&pterm.Logger{
-				Formatter: pterm.LogFormatterColorful,
-				Writer:    os.Stdout,
-				Level:     pterm.LogLevelError,
-				ShowTime:  false,
-				MaxWidth:  280,
-				KeyStyles: map[string]pterm.Style{
-					"error":  *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"err":    *pterm.NewStyle(pterm.FgRed, pterm.Bold),
-					"caller": *pterm.NewStyle(pterm.FgGray, pterm.Bold),
-				},
-			})
-			logger = slog.New(handler)
-			pterm.DefaultLogger.Level = pterm.LogLevelError
+			// use simple logger that discards output for internal motor operations
+			logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 		}
 		docConfig.Logger = logger
 		indexConfig.Logger = logger
@@ -181,6 +184,17 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	indexConfig.Logger.Debug("applying rules to rule set")
+
+	// Configure custom HTTP client if TLS/certificate options are provided
+	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
+		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
+		if httpErr != nil {
+			return &RuleSetExecutionResult{Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}
+		}
+
+		// Set the custom RemoteURLHandler for libopenapi
+		docConfig.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+	}
 
 	if execution.Base != "" {
 
@@ -211,8 +225,22 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	if execution.AllowLookup {
 		if indexConfig.BasePath == "" && indexConfig.BaseURL == nil {
-			indexConfig.BasePath = "."
-			docConfig.BasePath = "."
+			// Use the directory of the spec file as the base path if available
+			// This ensures relative references in the spec work correctly
+			if execution.SpecFileName != "" {
+				specDir := filepath.Dir(execution.SpecFileName)
+				if specDir != "" && specDir != "." {
+					indexConfig.BasePath = specDir
+					docConfig.BasePath = specDir
+					indexConfigUnresolved.BasePath = specDir
+				} else {
+					indexConfig.BasePath = "."
+					docConfig.BasePath = "."
+				}
+			} else {
+				indexConfig.BasePath = "."
+				docConfig.BasePath = "."
+			}
 		}
 		indexConfig.AllowFileLookup = true
 		indexConfigUnresolved.AllowFileLookup = true
@@ -299,11 +327,58 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	indexConfig.Logger.Debug("building docs completed", "ms", timeTaken)
 
 	// build model
-	var resolvedModelErrors []error
+	var resolvedModelErrors error
 	var indexResolved *index.SpecIndex
 	var indexUnresolved *index.SpecIndex
 
 	version := docResolved.GetVersion()
+
+	// When skip-check is enabled, the document version might not be detected
+	// but we still need to know if it's OAS2 or OAS3 for rule filtering
+	if version == "" && execution.SkipDocumentCheck && specInfo != nil {
+		// Try to detect the version from the spec directly
+		if specInfo.SpecType != "" {
+			if strings.HasPrefix(strings.ToLower(specInfo.SpecType), "swagger") {
+				version = "2.0"
+				specInfo.SpecFormat = model.OAS2
+				if specInfoUnresolved != nil {
+					specInfoUnresolved.SpecFormat = model.OAS2
+				}
+			} else if strings.HasPrefix(strings.ToLower(specInfo.SpecType), "openapi") {
+				// Try to get more specific version from SpecVersion field
+				if specInfo.Version != "" {
+					version = specInfo.Version
+					if strings.HasPrefix(specInfo.Version, "3.2") {
+						// Note: OAS 3.2 is set in specInfo when skip-check is NOT used,
+						// but libopenapi's BuildV3Model doesn't handle OAS32 yet, so we
+						// temporarily map it to OAS3 for model building while preserving
+						// the actual format for rule filtering
+						specInfo.SpecFormat = model.OAS32
+						if specInfoUnresolved != nil {
+							specInfoUnresolved.SpecFormat = model.OAS32
+						}
+					} else if strings.HasPrefix(specInfo.Version, "3.1") {
+						specInfo.SpecFormat = model.OAS31
+						if specInfoUnresolved != nil {
+							specInfoUnresolved.SpecFormat = model.OAS31
+						}
+					} else {
+						specInfo.SpecFormat = model.OAS3
+						if specInfoUnresolved != nil {
+							specInfoUnresolved.SpecFormat = model.OAS3
+						}
+					}
+				} else {
+					// Default to OAS3 if we know it's OpenAPI but not the specific version
+					version = "3.0"
+					specInfo.SpecFormat = model.OAS3
+					if specInfoUnresolved != nil {
+						specInfoUnresolved.SpecFormat = model.OAS3
+					}
+				}
+			}
+		}
+	}
 
 	var resolvingErrors []*index.ResolvingError
 	var circularReferences []*index.CircularReferenceResult
@@ -354,7 +429,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexConfig.Logger.Debug("built resolved model", "ms", then)
 
 			now = time.Now()
-			var errs []error
+			var errs error
 			mod, errs = docUnresolved.BuildV3Model()
 			if mod != nil {
 				v3DocumentModel = &mod.Model
@@ -457,10 +532,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	execution.IndexResolved = indexResolved
 	execution.IndexUnresolved = indexUnresolved
-
-	for i := range resolvedModelErrors {
+	r := utils.UnwrapErrors(resolvedModelErrors)
+	for i := range r {
 		var m *index.ResolvingError
-		if errors.As(resolvedModelErrors[i], &m) {
+		if errors.As(r[i], &m) {
 			resolvingErrors = append(resolvingErrors, m)
 		}
 	}
@@ -568,7 +643,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			Rule:      circularRefRule,
 			StartNode: cr.ParentNode,
 			EndNode:   vacuumUtils.BuildEndNode(cr.ParentNode),
-			Message:   fmt.Sprintf("circular reference detected from %s", cr.Start.Definition),
+			Message:   "circular reference detected from " + cr.Start.Definition,
 			Path:      cr.GenerateJourneyPath(),
 		}
 		if res.StartNode == nil {
@@ -889,7 +964,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
 			if !ctx.silenceLogs {
-				pterm.Warning.Printf("Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
+				fmt.Printf("⚠️  Specification version not detected, cannot apply rule `%s`\n", ctx.rule.Id)
 			}
 			return ctx.ruleResults
 		}
@@ -929,6 +1004,20 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
+				// Ensure RuleId and RuleSeverity are populated from the rule context
+				// This is necessary for programmatic API usage where these fields might not be set
+				for i := range runRuleResults {
+					if runRuleResults[i].RuleId == "" {
+						runRuleResults[i].RuleId = ctx.rule.Id
+					}
+					if runRuleResults[i].RuleSeverity == "" {
+						runRuleResults[i].RuleSeverity = ctx.rule.Severity
+					}
+					if runRuleResults[i].Rule == nil {
+						runRuleResults[i].Rule = ctx.rule
+					}
+				}
+
 				// because this function is running in multiple threads, we need to sync access to the final result
 				// list, otherwise things can get a bit random.
 				lock.Lock()
@@ -937,6 +1026,38 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 
 		}
+	} else {
+		// Function not found - report detailed error
+		if !ctx.silenceLogs {
+			// Build list of available custom functions for debugging
+			var availableCustomFuncs []string
+			if ctx.customFunctions != nil {
+				for funcName := range ctx.customFunctions {
+					availableCustomFuncs = append(availableCustomFuncs, funcName)
+				}
+			}
+
+			if len(availableCustomFuncs) > 0 {
+				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. Available custom functions: %v\n",
+					ctx.rule.Id, ruleAction.Function, availableCustomFuncs)
+			} else {
+				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n",
+					ctx.rule.Id, ruleAction.Function)
+			}
+		}
+
+		// Add error result to make the missing function visible in reports
+		lock.Lock()
+		*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
+			Message:      fmt.Sprintf("Unknown function '%s' in rule '%s'", ruleAction.Function, ctx.rule.Id),
+			Rule:         ctx.rule,
+			StartNode:    &yaml.Node{},
+			EndNode:      &yaml.Node{},
+			RuleId:       ctx.rule.Id,
+			RuleSeverity: "error",
+			Path:         fmt.Sprint(ctx.rule.Given),
+		})
+		lock.Unlock()
 	}
 	return ctx.ruleResults
 }
@@ -957,7 +1078,7 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 			if result.StartNode != nil {
 				seen[result.RuleId] = []*seenResult{
 					{
-						fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
+						buildLocationString(result.StartNode.Line, result.StartNode.Column),
 						result.Message,
 					},
 				}
@@ -981,14 +1102,14 @@ func removeDuplicates(results *[]model.RuleFunctionResult, rse *RuleSetExecution
 					continue
 				}
 
-				if line.location == fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column) &&
+				if line.location == buildLocationString(result.StartNode.Line, result.StartNode.Column) &&
 					line.message == result.Message {
 					break stopNowPlease
 				}
 				if result.StartNode != nil {
 					seen[result.RuleId] = []*seenResult{
 						{
-							fmt.Sprintf("%d:%d", result.StartNode.Line, result.StartNode.Column),
+							buildLocationString(result.StartNode.Line, result.StartNode.Column),
 							result.Message,
 						},
 					}

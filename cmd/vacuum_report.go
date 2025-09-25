@@ -9,16 +9,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+
+	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
+	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/daveshanley/vacuum/tui"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetVacuumReportCommand() *cobra.Command {
@@ -50,12 +57,12 @@ func GetVacuumReportCommand() *cobra.Command {
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			minScore, _ := cmd.Flags().GetInt("min-score")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				color.DisableColors()
 			}
 
 			if !stdIn && !stdOut {
@@ -65,8 +72,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			// check for file args
 			if !stdIn && len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate a report, or use the -i flag to use stdin"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -74,6 +80,12 @@ func GetVacuumReportCommand() *cobra.Command {
 			noPretty, _ := cmd.Flags().GetBool("no-pretty")
 			compress, _ := cmd.Flags().GetBool("compress")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+
+			// Certificate/TLS configuration
+			certFile, _ := cmd.Flags().GetString("cert-file")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			caFile, _ := cmd.Flags().GetString("ca-file")
+			insecure, _ := cmd.Flags().GetBool("insecure")
 
 			extension := ".json"
 
@@ -101,8 +113,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				pterm.Error.Printf("Unable to read file '%s': %s\n", args[0], fileError.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
 
@@ -135,37 +146,52 @@ func GetVacuumReportCommand() *cobra.Command {
 				}
 
 				if !stdIn && !stdOut {
-					box := pterm.DefaultBox.WithLeftPadding(5).WithRightPadding(5)
-					box.BoxStyle = pterm.NewStyle(pterm.FgLightRed)
-					box.Println(pterm.LightRed("🚨 HARD MODE ENABLED 🚨"))
-					pterm.Println()
+					tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
 				}
 
 			}
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
-			var customFunctions map[string]model.RuleFunction
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
 			if rulesetFlag != "" {
 
-				customFunctions, _ = LoadCustomFunctions(functionsFlag, true)
+				// Create HTTP client for remote ruleset downloads if needed
+				var httpClient *http.Client
+				httpClientConfig := utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+					var clientErr error
+					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
+					if clientErr != nil {
+						tui.RenderErrorString("Failed to create custom HTTP client: %s", clientErr.Error())
+						return clientErr
+					}
+				}
 
-				rsBytes, rsErr := os.ReadFile(rulesetFlag)
+				var rsErr error
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					pterm.Error.Printf("Unable to read ruleset file '%s': %s\n", rulesetFlag, rsErr.Error())
-					pterm.Println()
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedSet(rsBytes, defaultRuleSets)
-				if rsErr != nil {
-					return rsErr
+
+				// Merge OWASP rules if hard mode is enabled
+				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
+					if !stdIn && !stdOut {
+						tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, noStyleFlag)
+					}
 				}
 			}
 
 			if !stdIn && !stdOut {
-				pterm.Info.Printf("Linting against %d rules: %s\n", len(selectedRS.Rules), selectedRS.DocumentationURI)
+				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
 			deepGraph := false
@@ -173,22 +199,49 @@ func GetVacuumReportCommand() *cobra.Command {
 				deepGraph = true
 			}
 
+			// Resolve base path for this specific file
+			var resolvedBase string
+			var baseErr error
+			if stdIn {
+				// For stdin input, use the provided base flag or current directory as fallback
+				if baseFlag != "" {
+					resolvedBase = baseFlag
+				} else {
+					resolvedBase, baseErr = filepath.Abs(".")
+					if baseErr != nil {
+						return fmt.Errorf("failed to resolve current directory as base path: %w", baseErr)
+					}
+				}
+			} else {
+				resolvedBase, baseErr = ResolveBasePathForFile(args[0], baseFlag)
+				if baseErr != nil {
+					return fmt.Errorf("failed to resolve base path: %w", baseErr)
+				}
+			}
+
 			ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 				RuleSet:                         selectedRS,
 				Spec:                            specBytes,
 				CustomFunctions:                 customFunctions,
 				SilenceLogs:                     true,
-				Base:                            baseFlag,
+				Base:                            resolvedBase,
+				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
+				HTTPClientConfig: utils.HTTPClientConfig{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				},
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
 			resultSet.SortResultsByLineNumber()
 
-			resultSet.Results = filterIgnoredResultsPtr(resultSet.Results, ignoredItems)
+			resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 
 			duration := time.Since(start)
 
@@ -205,13 +258,11 @@ func GetVacuumReportCommand() *cobra.Command {
 
 					err := os.WriteFile(reportOutputName, junitXML, 0664)
 					if err != nil {
-						pterm.Error.Printf("Unable to write junit report file: '%s': %s\n", reportOutputName, err.Error())
-						pterm.Println()
+						tui.RenderErrorString("Unable to write junit report file: '%s': %s", reportOutputName, err.Error())
 						return err
 					}
 
-					pterm.Success.Printf("JUnit Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
-					pterm.Println()
+					tui.RenderSuccess("JUnit Report generated for '%s', written to '%s'", args[0], reportOutputName)
 					return nil
 				}
 			}
@@ -225,12 +276,21 @@ func GetVacuumReportCommand() *cobra.Command {
 			// generate statistics
 			stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
+			// Extract all unique rules used in the results
+			usedRules := make(map[string]*model.Rule)
+			for _, result := range resultSet.Results {
+				if result.Rule != nil && result.RuleId != "" {
+					usedRules[result.RuleId] = result.Rule
+				}
+			}
+
 			// create vacuum report
 			vr := vacuum_report.VacuumReport{
 				Generated:  time.Now(),
 				SpecInfo:   ruleset.SpecInfo,
 				ResultSet:  resultSet,
 				Statistics: stats,
+				Rules:      usedRules,
 			}
 
 			if noPretty || compress {
@@ -286,19 +346,17 @@ func GetVacuumReportCommand() *cobra.Command {
 
 			err = os.WriteFile(reportOutputName, reportData, 0664)
 			if err != nil {
-				pterm.Error.Printf("Unable to write report file: '%s': %s\n", reportOutputName, err.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to write report file: '%s': %s", reportOutputName, err.Error())
 				return err
 			}
 
 			if len(args) > 0 {
-				pterm.Success.Printf("Report generated for '%s', written to '%s'\n", args[0], reportOutputName)
+				tui.RenderSuccess("Report generated for '%s', written to '%s'", args[0], reportOutputName)
 				fi, _ := os.Stat(args[0])
 				RenderTime(timeFlag, duration, fi.Size())
 			} else {
-				pterm.Success.Printf("Report generated, written to '%s'\n", reportOutputName)
+				tui.RenderSuccess("Report generated, written to '%s'", reportOutputName)
 			}
-			pterm.Println()
 
 			if minScore > 10 {
 				// check overall-score is above the threshold

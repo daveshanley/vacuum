@@ -7,6 +7,8 @@ package openapi
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/helpers"
@@ -14,8 +16,7 @@ import (
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
-	"strings"
+	"go.yaml.in/yaml/v4"
 )
 
 // OASSchema  will check that the document is a valid OpenAPI schema.
@@ -51,10 +52,60 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
+	// Always check if the document can be marshaled to JSON ourselves
+	// Don't depend on info.SpecJSON as it may be nil or in an inconsistent state
+	// This catches issues like maps with non-string keys that would cause validation to fail
+	var marshalingIssues []vacuumUtils.MarshalingIssue
+
+	if info.RootNode != nil && info.SpecBytes != nil {
+		// Decode the YAML ourselves to check for marshaling issues
+		var yamlData interface{}
+		decoder := yaml.NewDecoder(strings.NewReader(string(*info.SpecBytes)))
+		if err := decoder.Decode(&yamlData); err == nil {
+			// Check if it can marshal to JSON
+			marshalingIssues = vacuumUtils.CheckJSONMarshaling(yamlData, info.RootNode)
+			// Clear the decoded data to free memory
+			yamlData = nil
+		} else {
+			// If we can't decode the YAML, check the AST directly for issues
+			marshalingIssues = vacuumUtils.FindMarshalingIssuesInYAML(info.RootNode)
+		}
+	}
+
+	if len(marshalingIssues) > 0 {
+		// Report all marshaling issues
+		for _, issue := range marshalingIssues {
+			n := &yaml.Node{
+				Line:   issue.Line,
+				Column: issue.Column,
+			}
+
+			result := model.RuleFunctionResult{
+				Message:   fmt.Sprintf("schema invalid: cannot marshal: %s", issue.Reason),
+				StartNode: n,
+				EndNode:   vacuumUtils.BuildEndNode(n),
+				Path:      issue.Path,
+				Rule:      context.Rule,
+			}
+			results = append(results, result)
+		}
+		// Return marshaling errors without attempting schema validation
+		// since it would fail with unhelpful "got null, want object" errors
+		return results
+	}
+
 	// use libopenapi-validator
 	valid, validationErrors := schema_validation.ValidateOpenAPIDocument(context.Document)
+
+	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
+	version := context.Document.GetSpecInfo().VersionNumeric
+	if version >= 3.1 {
+		nullableResults := checkForNullableKeyword(context)
+		results = append(results, nullableResults...)
+	}
+
 	if valid {
-		return nil
+		return results // Return any nullable violations even if document is otherwise valid
 	}
 
 	// duplicates are possible, so we need to de-dupe them.
@@ -165,5 +216,32 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 func hashResult(sve *errors.SchemaValidationFailure) string {
 	return fmt.Sprintf("%x",
 		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.Location, sve.Line, sve.Column, sve.Reason))))
+}
 
+// checkForNullableKeyword searches for nullable keyword usage in OpenAPI 3.1+ documents
+func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	if context.DrDocument == nil {
+		return results
+	}
+
+	// Check all schemas for nullable keyword
+	if context.DrDocument.Schemas != nil {
+		for _, schema := range context.DrDocument.Schemas {
+			if schema.Value != nil && schema.Value.Nullable != nil && *schema.Value.Nullable {
+				// Found nullable keyword in OpenAPI 3.1+ schema
+				result := model.RuleFunctionResult{
+					Message:   "The `nullable` keyword is not supported in OpenAPI 3.1. Use `type: ['string', 'null']` instead.",
+					StartNode: schema.Value.GoLow().Nullable.KeyNode,
+					EndNode:   vacuumUtils.BuildEndNode(schema.Value.GoLow().Nullable.KeyNode),
+					Path:      schema.GenerateJSONPath() + ".nullable",
+					Rule:      context.Rule,
+				}
+				results = append(results, result)
+			}
+		}
+	}
+
+	return results
 }

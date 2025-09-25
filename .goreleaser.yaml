@@ -1,8 +1,7 @@
 project_name: vacuum
-before:
-  hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
+# before:
+#   hooks:
+#     # Removed go mod tidy to prevent dirty state during build
 builds:
   - env:
       - CGO_ENABLED=0

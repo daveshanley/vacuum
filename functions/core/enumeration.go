@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"strconv"
 	"strings"
 )
@@ -109,8 +109,7 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
-					fmt.Sprintf("%s: `%s` must equal to one of: %v", ruleMessage,
-						node.Value, values)),
+					model.GetStringTemplates().BuildEnumValidationMessage(ruleMessage, node.Value, values)),
 				StartNode: node,
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      locatedPath,

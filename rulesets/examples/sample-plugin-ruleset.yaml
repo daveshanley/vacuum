@@ -15,7 +15,7 @@ rules:
     severity: error
     recommended: true
     formats: [ oas2, oas3 ]
-    given: $
+    given: $.paths
     then:
-      function: checkSinglePathExists
+      function: checkSinglePath
     howToFix: use a spec with only a single path defined.

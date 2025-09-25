@@ -4,14 +4,13 @@
 package openapi
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    "github.com/daveshanley/vacuum/model/reports"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "gopkg.in/yaml.v3"
-    "regexp"
-    "strings"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"go.yaml.in/yaml/v4"
+	"regexp"
+	"strings"
 )
 
 // PathsKebabCase Checks to ensure each segment of a path is using kebab case.
@@ -48,7 +47,7 @@ func (vp PathsKebabCase) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					n := v.Value.GoLow().KeyNode
 					endNode := vacuumUtils.BuildEndNode(n)
 					result := model.RuleFunctionResult{
-						Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, fmt.Sprintf("path segments `%s` do not use kebab-case", strings.Join(segments, "`, `"))),
+						Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, model.GetStringTemplates().BuildKebabCaseMessage(strings.Join(segments, "`, `"))),
 						StartNode: n,
 						EndNode:   endNode,
 						Path:      v.GenerateJSONPath(),

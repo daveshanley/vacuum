@@ -5,18 +5,25 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/daveshanley/vacuum/color"
 	html_report "github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/statistics"
+	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
+
 	"os"
 	"time"
+
+	"github.com/daveshanley/vacuum/tui"
+	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 // GetHTMLReportCommand returns a cobra command for generating an HTML Report.
@@ -47,12 +54,13 @@ func GetHTMLReportCommand() *cobra.Command {
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
+			remoteFlag, _ := cmd.Flags().GetBool("remote")
+			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
 			if noStyleFlag {
-				pterm.DisableColor()
-				pterm.DisableStyling()
+				color.DisableColors()
 			}
 
 			PrintBanner()
@@ -60,8 +68,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			// check for file args
 			if len(args) == 0 {
 				errText := "please supply an OpenAPI specification to generate an HTML Report"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -78,7 +85,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			var err error
 			vacuumReport, specBytes, _ := vacuum_report.BuildVacuumReportFromFile(args[0])
 			if len(specBytes) <= 0 {
-				pterm.Error.Printf("Failed to read specification: %v\n\n", args[0])
+				tui.RenderErrorString("Failed to read specification: %v", args[0])
 				return err
 			}
 
@@ -88,6 +95,18 @@ func GetHTMLReportCommand() *cobra.Command {
 			var specInfo *datamodel.SpecInfo
 			var stats *reports.ReportStatistics
 
+			ignoredItems := model.IgnoredItems{}
+			if ignoreFile != "" {
+				raw, ferr := os.ReadFile(ignoreFile)
+				if ferr != nil {
+					return fmt.Errorf("failed to read ignore file: %w", ferr)
+				}
+				ferr = yaml.Unmarshal(raw, &ignoredItems)
+				if ferr != nil {
+					return fmt.Errorf("failed to parse ignore file: %w", ferr)
+				}
+			}
+
 			// if we have a pre-compiled report, jump straight to the end and collect $500
 			if vacuumReport == nil {
 
@@ -95,10 +114,28 @@ func GetHTMLReportCommand() *cobra.Command {
 				customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
 
 				rulesetFlag, _ := cmd.Flags().GetString("ruleset")
+
+				// Certificate/TLS configuration
+				certFile, _ := cmd.Flags().GetString("cert-file")
+				keyFile, _ := cmd.Flags().GetString("key-file")
+				caFile, _ := cmd.Flags().GetString("ca-file")
+				insecure, _ := cmd.Flags().GetBool("insecure")
+
+				// Resolve base path for this specific file
+				resolvedBase, baseErr := ResolveBasePathForFile(args[0], baseFlag)
+				if baseErr != nil {
+					return fmt.Errorf("failed to resolve base path: %w", baseErr)
+				}
+
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					baseFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second)
+					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
+						CertFile: certFile,
+						KeyFile:  keyFile,
+						CAFile:   caFile,
+						Insecure: insecure,
+					}, ignoredItems)
 				if err != nil {
-					pterm.Error.Printf("Failed to generate report: %v\n\n", err)
+					tui.RenderError(err)
 					return err
 				}
 				specIndex = ruleset.Index
@@ -110,8 +147,50 @@ func GetHTMLReportCommand() *cobra.Command {
 			} else {
 
 				resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
+				// Apply ignore filter to pre-compiled report results
+				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
 				specInfo = vacuumReport.SpecInfo
 				stats = vacuumReport.Statistics
+
+				// Recalculate error/warning/info counts and score after filtering
+				if stats != nil && len(ignoredItems) > 0 {
+					stats.TotalErrors = resultSet.GetErrorCount()
+					stats.TotalWarnings = resultSet.GetWarnCount()
+					stats.TotalInfo = resultSet.GetInfoCount()
+
+					// Recalculate category statistics
+					var catStats []*reports.CategoryStatistic
+					for _, cat := range model.RuleCategoriesOrdered {
+						var numIssues, numWarnings, numErrors, numInfo, numHints int
+						numIssues = len(resultSet.GetResultsByRuleCategory(cat.Id))
+						numWarnings = len(resultSet.GetWarningsByRuleCategory(cat.Id))
+						numErrors = len(resultSet.GetErrorsByRuleCategory(cat.Id))
+						numInfo = len(resultSet.GetInfoByRuleCategory(cat.Id))
+						numHints = len(resultSet.GetHintByRuleCategory(cat.Id))
+						numResults := len(resultSet.Results)
+						var score int
+						if numResults == 0 && numIssues == 0 {
+							score = 100 // perfect
+						} else {
+							score = numIssues / numResults * 100
+						}
+						catStats = append(catStats, &reports.CategoryStatistic{
+							CategoryName: cat.Name,
+							CategoryId:   cat.Id,
+							NumIssues:    numIssues,
+							Warnings:     numWarnings,
+							Errors:       numErrors,
+							Info:         numInfo,
+							Hints:        numHints,
+							Score:        score,
+						})
+					}
+					stats.CategoryStatistics = catStats
+
+					// Use the shared score calculation function
+					stats.OverallScore = statistics.CalculateQualityScore(resultSet)
+				}
+
 				specInfo.Generated = vacuumReport.Generated
 			}
 
@@ -120,19 +199,17 @@ func GetHTMLReportCommand() *cobra.Command {
 			// generate html report
 			report := html_report.NewHTMLReport(specIndex, specInfo, resultSet, stats, disableTimestamp)
 
-			generatedBytes := report.GenerateReport(false, Version)
+			generatedBytes := report.GenerateReport(false, GetVersion())
 			//generatedBytes := report.GenerateReport(true) // test mode
 
 			err = os.WriteFile(reportOutput, generatedBytes, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write HTML report file: '%s': %s\n", reportOutput, err.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to write HTML report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("HTML Report generated for '%s', written to '%s'\n", args[0], reportOutput)
-			pterm.Println()
+			tui.RenderSuccess("HTML Report generated for '%s', written to '%s'", args[0], reportOutput)
 
 			fi, _ := os.Stat(args[0])
 			RenderTime(timeFlag, duration, fi.Size())
@@ -142,6 +219,7 @@ func GetHTMLReportCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 
 	return cmd
 }

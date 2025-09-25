@@ -2,18 +2,21 @@ package motor
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
-	"log"
-	"os"
-	"sync"
-	"testing"
-	"time"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
@@ -2093,7 +2096,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc(t *testing.T) {
     given: $.custom
     severity: error
     then:
-      function: check_for_name_and_id
+      function: checkForNameAndId
 `
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -2140,7 +2143,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction(t *testi
     given: $
     severity: error
     then:
-      function: use_core_function
+      function: useCoreFunction
       field: "custom"
 `
 
@@ -2187,7 +2190,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CheckPaths(t *testing
     given: $.paths
     severity: error
     then:
-      function: check_single_path
+      function: checkSinglePath
 `
 
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -2225,7 +2228,7 @@ paths:
 	results := ApplyRulesToRuleSet(rse)
 
 	assert.Len(t, results.Results, 1)
-	assert.Equal(t, "more than a single path exists, there are 3", results.Results[0].Message)
+	assert.Equal(t, "More than a single path exists, found 3 paths", results.Results[0].Message)
 }
 
 func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction_FunctionOptions(t *testing.T) {
@@ -2236,7 +2239,7 @@ func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc_CoreFunction_Function
     given: $
     severity: error
     then:
-      function: use_function_options
+      function: useFunctionOptions
       field: "custom"
       functionOptions:
          someOption: "someValue"
@@ -2338,6 +2341,20 @@ func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 
 func Benchmark_StripeSpecAgainstDefaultRuleSet(b *testing.B) {
 	m, _ := os.ReadFile("../model/test_files/stripe.yaml")
+	rs := rulesets.BuildDefaultRuleSets()
+	for n := 0; n < b.N; n++ {
+		rse := &RuleSetExecution{
+			RuleSet: rs.GenerateOpenAPIDefaultRuleSet(),
+			Spec:    m,
+		}
+		results := ApplyRulesToRuleSet(rse)
+		assert.Len(b, results.Errors, 0)
+		assert.NotNil(b, results)
+	}
+}
+
+func Benchmark_PetStoreSpecAgainstDefaultRuleSet(b *testing.B) {
+	m, _ := os.ReadFile("../model/test_files/petstorev3.json")
 	rs := rulesets.BuildDefaultRuleSets()
 	for n := 0; n < b.N; n++ {
 		rse := &RuleSetExecution{
@@ -2452,8 +2469,10 @@ security:
 		d.BuildV3Model()
 
 		ex := &RuleSetExecution{
-			RuleSet:  rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
-			Document: d,
+			RuleSet:           rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
+			Document:          d,
+			NodeLookupTimeout: 5 * time.Second,  // Increase timeout for CI/CD environments
+			Timeout:           30 * time.Second, // Increase rule timeout for CI/CD environments
 		}
 
 		results := ApplyRulesToRuleSet(ex)
@@ -2475,4 +2494,86 @@ security:
 		go run(&wg)
 	}
 	wg.Wait()
+}
+
+// TestIssue523_ExtensionReferenceToNonYAMLFile tests that vacuum handles references
+// to non-YAML files (like .go files) in extensions when ext-refs flag is enabled
+// Issue: https://github.com/daveshanley/vacuum/issues/523
+func TestIssue523_ExtensionReferenceToNonYAMLFile(t *testing.T) {
+	// Load the test spec
+	testFile := "../model/test_files/issue523_spec.yaml"
+	specBytes, err := os.ReadFile(testFile)
+	assert.NoError(t, err)
+
+	// Test with ext-refs disabled (default behavior)
+	t.Run("ext-refs disabled", func(t *testing.T) {
+		// Load default rulesets
+		defaultRuleSets := rulesets.BuildDefaultRuleSets()
+
+		// Use the recommended ruleset
+		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+		// Set base path to where the files are
+		execution := &RuleSetExecution{
+			RuleSet:                         selectedRS,
+			SpecFileName:                    testFile,
+			Spec:                            specBytes,
+			ExtractReferencesFromExtensions: false, // ext-refs disabled
+			Base:                            filepath.Dir(testFile),
+			AllowLookup:                     true,
+			SilenceLogs:                     true,
+		}
+
+		results := ApplyRulesToRuleSet(execution)
+
+		// With ext-refs disabled, references in extensions should be ignored
+		// so we shouldn't get errors about references in x-codeSamples
+		refErrors := 0
+		for _, res := range results.Results {
+			if res.Rule.Id == "resolving-references" && strings.Contains(res.Message, "issue523") {
+				refErrors++
+			}
+		}
+
+		// When ext-refs is disabled, references in extensions should be ignored
+		assert.Equal(t, 0, refErrors, "Should not have reference errors for files in x-codeSamples when ext-refs is disabled")
+	})
+
+	// Test with ext-refs enabled
+	t.Run("ext-refs enabled", func(t *testing.T) {
+		// Load default rulesets
+		defaultRuleSets := rulesets.BuildDefaultRuleSets()
+
+		// Use the recommended ruleset
+		selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+
+		// Set base path to where the files are
+		execution := &RuleSetExecution{
+			RuleSet:                         selectedRS,
+			SpecFileName:                    testFile,
+			Spec:                            specBytes,
+			ExtractReferencesFromExtensions: true, // ext-refs enabled
+			Base:                            filepath.Dir(testFile),
+			AllowLookup:                     true,
+			SilenceLogs:                     true,
+		}
+
+		results := ApplyRulesToRuleSet(execution)
+
+		// With ext-refs enabled and the fix applied, vacuum should now be able to
+		// find and load the referenced files without errors
+		refErrors := 0
+		for _, res := range results.Results {
+			// Look for any errors related to our test files
+			if strings.Contains(res.Message, "issue523_echo.go") || strings.Contains(res.Message, "issue523_test.yaml") {
+				if res.Rule.Id == "resolving-references" || res.Rule.Id == "oas3-unused-component" {
+					refErrors++
+				}
+			}
+		}
+
+		// After the fix, the files should be found and loaded successfully
+		// The rolodex can handle non-YAML files by creating a fake YAML node with the content
+		assert.Equal(t, 0, refErrors, "Should not have reference errors after fix - files are found and loaded")
+	})
 }

@@ -1,13 +1,8 @@
 package openapi
 
 import (
-	"github.com/pb33f/libopenapi/index"
-	"strings"
-
 	"github.com/daveshanley/vacuum/model"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/libopenapi/utils"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // OASNoRefSiblings validates that no properties other than `description` and `summary` are added alongside a `$ref`.
@@ -27,58 +22,15 @@ func (nrs OASNoRefSiblings) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-func notAllowedKeys(node *yaml.Node) []string {
-	var keys []string
-
-	for i := 0; i < len(node.Content); i += 2 {
-		key := node.Content[i].Value
-		switch key {
-		case "$ref", "summary", "description":
-			continue
-		default:
-			keys = append(keys, key)
-		}
-	}
-	return keys
-}
-
 // RunRule will execute the OASNoRefSiblings rule, based on supplied context and a supplied []*yaml.Node slice.
 func (nrs OASNoRefSiblings) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
-	if len(nodes) <= 0 {
-		return nil
-	}
-
-	var results []model.RuleFunctionResult
-	results = applyOASNoRefSiblingRuleToIndex(context.Index, results, context)
-
-	rolodex := context.Index.GetRolodex()
-
-	if rolodex != nil {
-		for _, idx := range rolodex.GetIndexes() {
-			results = applyOASNoRefSiblingRuleToIndex(idx, results, context)
-		}
-	}
-
-	return results
-}
-
-// applyOASNoRefSiblingRuleToIndex is a helper that applies the OASNoRefSiblings rule to a given index and returns the results.
-func applyOASNoRefSiblingRuleToIndex(idx *index.SpecIndex, results []model.RuleFunctionResult, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	siblings := idx.GetReferencesWithSiblings()
-	for _, ref := range siblings {
-		keys := notAllowedKeys(ref.Node)
-		if len(keys) != 0 {
-			key, val := utils.FindKeyNode("$ref", ref.Node.Content)
-			results = append(results, model.RuleFunctionResult{
-				Message:   "a `$ref` can only be placed next to `summary` and `description` but got:" + strings.Join(keys, " ,"),
-				StartNode: key,
-				Origin:    idx.FindNodeOrigin(val),
-				EndNode:   vacuumUtils.BuildEndNode(val),
-				Path:      ref.Path,
-				Rule:      context.Rule,
-			})
-		}
-	}
-	return results
+	// In OpenAPI 3.1+ this rule is no longer useful, as libopenapi now handles this internally by correctly handling $ref nodes siblings
+	// any siblings are supported by the model and can be accessed via the model, so this rule is redundant.
+	//
+	// keeping it here for historical purposes, but it will always return no results.
+	//
+	// https://github.com/pb33f/libopenapi/issues/90
+	// https://github.com/pb33f/libopenapi/blob/main/document_test.go#L1675
+	return []model.RuleFunctionResult{}
 }

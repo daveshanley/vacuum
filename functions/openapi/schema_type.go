@@ -4,11 +4,13 @@ package openapi
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
 	"github.com/pb33f/doctor/model/high/v3"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // SchemaTypeCheck will determine if document schemas contain the correct type
@@ -60,17 +62,42 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				results = append(results, errs...)
 			case "null":
 			default:
+				// Find all locations where this schema appears
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema,
+					schema.Value.GoLow().Type.KeyNode, schema.Value.GoLow().Type.ValueNode)
+
 				result := model.RuleFunctionResult{
-					Message:   fmt.Sprintf("unknown schema type: `%s`", t),
+					Message:   model.GetStringTemplates().BuildUnknownSchemaTypeMessage(t),
 					StartNode: schema.Value.GoLow().Type.KeyNode,
 					EndNode:   vacuumUtils.BuildEndNode(schema.Value.GoLow().Type.KeyNode),
-					Path:      fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), "type"),
+					Path:      model.GetStringTemplates().BuildJSONPath(locatedPath, "type"),
 					Rule:      context.Rule,
 				}
+
+				// Set the Paths array if there are multiple locations
+				if len(allPaths) > 1 {
+					// Add .type suffix to all paths
+					typePaths := make([]string, len(allPaths))
+					for i, p := range allPaths {
+						typePaths[i] = model.GetStringTemplates().BuildJSONPath(p, "type")
+					}
+					result.Paths = typePaths
+				}
+
 				schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 				results = append(results, result)
 			}
 		}
+
+		// validate const value matches declared types
+		if len(schemaType) > 0 {
+			constErrs := st.validateConst(schema, &context)
+			results = append(results, constErrs...)
+		}
+
+		// validate enum and const are not conflicting
+		enumConstErrs := st.validateEnumConst(schema, &context)
+		results = append(results, enumConstErrs...)
 	}
 
 	return results
@@ -216,44 +243,36 @@ func (st SchemaTypeCheck) validateArray(schema *v3.Schema, context *model.RuleFu
 
 func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, segment int, schema *v3.Schema, node *yaml.Node, context *model.RuleFunctionContext) model.RuleFunctionResult {
 
-	// locate all paths that this model is referenced by
-	var allPaths []string
-	var modelByLine []v3.Foundational
-	var modelErr error
-	if context.DrDocument != nil {
-		modelByLine, modelErr = context.DrDocument.LocateModelByLine(node.Line + 1)
-		if modelErr == nil {
-			if modelByLine != nil && len(modelByLine) >= 1 {
-				for j := 0; j < len(modelByLine); j++ {
-					p := modelByLine[j].GenerateJSONPath()
-					allPaths = append(allPaths, p)
-					if violationProperty != "" {
-						if segment >= 0 {
-							p = fmt.Sprintf("%s.%s[%d]", p, violationProperty, segment)
-							path = p
-						} else {
-							p = fmt.Sprintf("%s.%s", p, violationProperty)
-							path = p
-						}
-						allPaths = append(allPaths, p)
-					}
-				}
-			}
+	// Find all locations where this schema appears
+	locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(*context, schema, node, node)
+
+	// Build the complete path with the violation property
+	if violationProperty != "" {
+		if segment >= 0 {
+			locatedPath = model.GetStringTemplates().BuildPropertyArrayPath(locatedPath, violationProperty, segment)
 		} else {
-			if violationProperty != "" {
+			locatedPath = model.GetStringTemplates().BuildJSONPath(locatedPath, violationProperty)
+		}
+
+		// Update all paths with the violation property
+		if len(allPaths) > 1 {
+			updatedPaths := make([]string, len(allPaths))
+			for i, p := range allPaths {
 				if segment >= 0 {
-					path = fmt.Sprintf("%s.%s[%d]", path, violationProperty, segment)
+					updatedPaths[i] = model.GetStringTemplates().BuildPropertyArrayPath(p, violationProperty, segment)
 				} else {
-					path = fmt.Sprintf("%s.%s", path, violationProperty)
+					updatedPaths[i] = model.GetStringTemplates().BuildJSONPath(p, violationProperty)
 				}
 			}
+			allPaths = updatedPaths
 		}
 	}
+
 	result := model.RuleFunctionResult{
 		Message:   message,
 		StartNode: node,
 		EndNode:   vacuumUtils.BuildEndNode(node),
-		Path:      path,
+		Path:      locatedPath,
 		Rule:      context.Rule,
 	}
 	if len(allPaths) > 1 {
@@ -339,8 +358,20 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 				break
 			}
 
-			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) == nil && !polyDefined {
-				result := st.buildResult(fmt.Sprintf("`required` field `%s` is not defined in `properties`", required),
+			// Check if the required field is defined in properties (direct or polymorphic)
+			propertyExists := false
+			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) != nil {
+				propertyExists = true
+			}
+
+			// If not in direct properties, check if it was found in polymorphic schemas
+			if !propertyExists && polyDefined {
+				propertyExists = true
+			}
+
+			// Report error if property is not defined anywhere
+			if !propertyExists {
+				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
 					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
 				results = append(results, result)
@@ -348,6 +379,271 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 		}
 	}
 
-	// TODO: DependentRequired
+	// Validate DependentRequired
+	dependentRequiredResults := st.validateDependentRequired(schema, context)
+	results = append(results, dependentRequiredResults...)
+
 	return results
+}
+
+func (st SchemaTypeCheck) validateDependentRequired(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	// Check if DependentRequired is present
+	if schema.Value.DependentRequired == nil {
+		return results
+	}
+
+	// Iterate through all dependent required entries
+	for pair := schema.Value.DependentRequired.First(); pair != nil; pair = pair.Next() {
+		triggerProp := pair.Key()
+		requiredProps := pair.Value()
+
+		// Validate that trigger property exists in schema properties if properties are defined
+		if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(triggerProp) == nil {
+			// Check if the property exists in polymorphic schemas (anyOf, oneOf, allOf)
+			polyDefined := st.checkPolymorphicProperty(schema, triggerProp)
+			if !polyDefined {
+				result := st.buildResult(
+					fmt.Sprintf("property `%s` referenced in `dependentRequired` does not exist in schema `properties`", triggerProp),
+					schema.GenerateJSONPath(), "dependentRequired", -1,
+					schema, schema.Value.GoLow().DependentRequired.KeyNode, context)
+				results = append(results, result)
+			}
+		}
+
+		// Validate that all dependent properties exist in schema
+		for _, reqProp := range requiredProps {
+			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(reqProp) == nil {
+				// Check if the property exists in polymorphic schemas
+				polyDefined := st.checkPolymorphicProperty(schema, reqProp)
+				if !polyDefined {
+					result := st.buildResult(
+						fmt.Sprintf("property `%s` referenced in `dependentRequired` does not exist in schema `properties`", reqProp),
+						schema.GenerateJSONPath(), "dependentRequired", -1,
+						schema, schema.Value.GoLow().DependentRequired.KeyNode, context)
+					results = append(results, result)
+				}
+			}
+		}
+
+		// Validate no self-referential dependencies
+		for _, reqProp := range requiredProps {
+			if reqProp == triggerProp {
+				result := st.buildResult(
+					fmt.Sprintf("circular dependency detected: property `%s` requires itself in `dependentRequired`", triggerProp),
+					schema.GenerateJSONPath(), "dependentRequired", -1,
+					schema, schema.Value.GoLow().DependentRequired.KeyNode, context)
+				results = append(results, result)
+			}
+		}
+	}
+
+	return results
+}
+
+// checkPolymorphicProperty checks if a property is defined in anyOf, oneOf, or allOf schemas
+func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyName string) bool {
+	// Check in AnyOf schemas
+	if schema.Value.AnyOf != nil {
+		for _, anyOfSchema := range schema.Value.AnyOf {
+			if anyOfSchema.Schema() != nil && anyOfSchema.Schema().Properties != nil &&
+				anyOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
+				return true
+			}
+		}
+	}
+
+	// Check in OneOf schemas
+	if schema.Value.OneOf != nil {
+		for _, oneOfSchema := range schema.Value.OneOf {
+			if oneOfSchema.Schema() != nil && oneOfSchema.Schema().Properties != nil &&
+				oneOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
+				return true
+			}
+		}
+	}
+
+	// Check in AllOf schemas
+	if schema.Value.AllOf != nil {
+		for _, allOfSchema := range schema.Value.AllOf {
+			if allOfSchema.Schema() != nil && allOfSchema.Schema().Properties != nil &&
+				allOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (st SchemaTypeCheck) validateConst(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	// check if const is present
+	if schema.Value.Const == nil {
+		return results
+	}
+
+	constValueNode := schema.Value.GoLow().Const.ValueNode
+	schemaTypes := schema.Value.Type
+
+	// if no types declared, cannot validate const
+	if len(schemaTypes) == 0 {
+		return results
+	}
+
+	// check if const value matches any of the declared types
+	isValid := false
+	for _, schemaType := range schemaTypes {
+		if st.isConstNodeValidForType(constValueNode, schemaType) {
+			isValid = true
+			break
+		}
+	}
+
+	if !isValid {
+		typeList := fmt.Sprintf("[%s]", strings.Join(schemaTypes, ", "))
+		message := fmt.Sprintf("`const` value type does not match schema type %s", typeList)
+
+		result := st.buildResult(message,
+			schema.GenerateJSONPath(), "const", -1,
+			schema, schema.Value.GoLow().Const.KeyNode, context)
+		results = append(results, result)
+	}
+
+	return results
+}
+
+func (st SchemaTypeCheck) validateEnumConst(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	// check if both enum and const are present
+	if schema.Value.Enum == nil || schema.Value.Const == nil {
+		return results
+	}
+
+	constValue := schema.Value.Const.Value
+	enumValues := schema.Value.Enum
+
+	// check if const value exists in enum values
+	constInEnum := false
+	for _, enumValue := range enumValues {
+		if enumValue.Value == constValue {
+			constInEnum = true
+			break
+		}
+	}
+
+	if !constInEnum {
+		message := fmt.Sprintf("`const` value `%s` is not present in `enum` values", constValue)
+
+		result := st.buildResult(message,
+			schema.GenerateJSONPath(), "const", -1,
+			schema, schema.Value.GoLow().Const.KeyNode, context)
+		results = append(results, result)
+
+	} else {
+
+		// both enum and const are present and compatible - flag as potentially redundant
+		if len(enumValues) == 1 {
+			message := "schema uses both `enum` with single value and `const` - consider using only `const`"
+			result := st.buildResult(message,
+				schema.GenerateJSONPath(), "enum", -1,
+				schema, schema.Value.GoLow().Enum.KeyNode, context)
+			results = append(results, result)
+		} else {
+			message := "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value"
+			result := st.buildResult(message,
+				schema.GenerateJSONPath(), "enum", -1,
+				schema, schema.Value.GoLow().Enum.KeyNode, context)
+			results = append(results, result)
+		}
+	}
+
+	return results
+}
+
+func (st SchemaTypeCheck) isConstNodeValidForType(node *yaml.Node, schemaType string) bool {
+	switch schemaType {
+	case "string":
+		return node.Tag == "!!str"
+	case "integer":
+		if node.Tag == "!!int" {
+			return true
+		}
+		// allow float values that have no fractional part (e.g., 42.0)
+		if node.Tag == "!!float" {
+			return st.isFloatWhole(node.Value)
+		}
+		return false
+	case "number":
+		return node.Tag == "!!int" || node.Tag == "!!float"
+	case "boolean":
+		return node.Tag == "!!bool"
+	case "null":
+		return node.Tag == "!!null"
+	case "array":
+		return node.Tag == "!!seq"
+	case "object":
+		return node.Tag == "!!map"
+	}
+	return false
+}
+
+func (st SchemaTypeCheck) isFloatWhole(value string) bool {
+	// check if a float string represents a whole number (e.g., "42.0" -> true, "42.5" -> false)
+	if !strings.Contains(value, ".") {
+		return true
+	}
+	parts := strings.Split(value, ".")
+	if len(parts) != 2 {
+		return false
+	}
+	// check if fractional part is all zeros
+	fractional := parts[1]
+	for _, char := range fractional {
+		if char != '0' {
+			return false
+		}
+	}
+	return true
+}
+
+func (st SchemaTypeCheck) isConstValueValidForType(value interface{}, schemaType string) bool {
+	switch schemaType {
+	case "string":
+		_, ok := value.(string)
+		return ok
+	case "integer":
+		// integers can be int, int64, or float64 with no fractional part
+		switch v := value.(type) {
+		case int, int64:
+			return true
+		case float64:
+			return v == float64(int64(v))
+		}
+		return false
+	case "number":
+		// numbers can be int, int64, or float64
+		switch value.(type) {
+		case int, int64, float64:
+			return true
+		}
+		return false
+	case "boolean":
+		_, ok := value.(bool)
+		return ok
+	case "null":
+		return value == nil
+	case "array":
+		// arrays are represented as []interface{}
+		_, ok := value.([]interface{})
+		return ok
+	case "object":
+		// objects are represented as map[string]interface{}
+		_, ok := value.(map[string]interface{})
+		return ok
+	}
+	return false
 }

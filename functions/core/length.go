@@ -4,12 +4,12 @@
 package core
 
 import (
-    "github.com/daveshanley/vacuum/model"
-    vacuumUtils "github.com/daveshanley/vacuum/utils"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi/utils"
-    "gopkg.in/yaml.v3"
-    "strconv"
+	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi/utils"
+	"go.yaml.in/yaml/v4"
+	"strconv"
 )
 
 // TODO: come back and reduce the amount of code in here, it's not very efficient.
@@ -56,7 +56,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	if context.Options == nil {
 		return results
 	}
-	if opts := utils.ConvertInterfaceIntoStringMap(context.Options); opts != nil {
+	if opts := context.GetOptionsStringMap(); opts != nil {
 		if v, ok := opts["min"]; ok {
 			minVal, _ = strconv.Atoi(v)
 		}

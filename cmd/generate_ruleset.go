@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/pterm/pterm"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 	"os"
 )
 
@@ -40,15 +40,13 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			// check for file args
 			if len(args) < 1 {
 				errText := "please supply 'recommended', 'owasp' or 'all' and a file path to output the ruleset"
-				pterm.Error.Println(errText)
-				pterm.Println()
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
 			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" {
 				errText := fmt.Sprintf("please use 'all', 'owasp' or 'recommended' your choice '%s' is not valid", args[0])
-				pterm.Error.Println(errText)
-				pterm.Println()
+				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
@@ -87,8 +85,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			selectedRuleSet.RuleDefinitions = encodedMap
 
-			pterm.Info.Printf("Generating RuleSet rules: %s", selectedRuleSet.DocumentationURI)
-			pterm.Println()
+			tui.RenderInfo("Generating RuleSet rules: %s", selectedRuleSet.DocumentationURI)
 
 			yamlBytes, _ := yaml.Marshal(selectedRuleSet)
 
@@ -97,13 +94,11 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			err = os.WriteFile(reportOutputName, yamlBytes, 0664)
 
 			if err != nil {
-				pterm.Error.Printf("Unable to write RuleSet file: '%s': %s\n", reportOutputName, err.Error())
-				pterm.Println()
+				tui.RenderErrorString("Unable to write RuleSet file: '%s': %s", reportOutputName, err.Error())
 				return err
 			}
 
-			pterm.Success.Printf("RuleSet generated for '%s', written to '%s'\n", args[0], reportOutputName)
-			pterm.Println()
+			tui.RenderSuccess("RuleSet generated for '%s', written to '%s'", args[0], reportOutputName)
 
 			return nil
 		},

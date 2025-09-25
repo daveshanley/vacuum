@@ -40,4 +40,5 @@ type LintFileRequest struct {
 	Logger                   *slog.Logger
 	PipelineOutput           bool
 	ShowRules                bool
+	HTTPClientConfig         HTTPClientConfig
 }
