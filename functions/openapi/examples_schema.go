@@ -5,6 +5,9 @@ package openapi
 
 import (
 	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
@@ -16,8 +19,6 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/sourcegraph/conc"
 	"go.yaml.in/yaml/v4"
-	"strings"
-	"sync"
 )
 
 // ExamplesSchema will check anything that has an example, has a schema and it's valid.
@@ -226,13 +227,17 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			wg.Go(func() {
 				if p.Value.Examples.Len() >= 1 && p.SchemaProxy != nil {
 					expLock.Lock()
-					results = append(results, parseExamples(p.SchemaProxy.Schema, p, p.Value.Examples)...)
+					if p.Value.Examples != nil && p.Value.Examples.Len() > 0 {
+						results = append(results, parseExamples(p.SchemaProxy.Schema, p, p.Value.Examples)...)
+					}
 					expLock.Unlock()
 				} else {
 					if p.Value.Example != nil && p.SchemaProxy != nil {
 						expLock.Lock()
-						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
-							p.Value.GoLow().Example.GetKeyNode())...)
+						if p.Value.Examples != nil && p.Value.Examples.Len() > 0 {
+							results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
+								p.Value.GoLow().Example.GetKeyNode())...)
+						}
 						expLock.Unlock()
 					}
 				}
