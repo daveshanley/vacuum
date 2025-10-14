@@ -58,7 +58,6 @@ func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
 	rs, err := CreateRuleSetUsingJSON([]byte(json))
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 1)
-
 }
 
 func TestRuleSet_GetExtendsValue_Single(t *testing.T) {
@@ -267,6 +266,10 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRule(t *testing.T) {
     - all
 rules:
  fish-cakes:
+   category:
+     id: snacks
+     name: snacks name
+     description: snacks description
    description: yummy sea food
    recommended: true
    type: style
@@ -281,6 +284,9 @@ rules:
 	assert.Len(t, newrs.Rules, totalRules+1)
 	assert.Equal(t, true, newrs.Rules["fish-cakes"].Recommended)
 	assert.Equal(t, "yummy sea food", newrs.Rules["fish-cakes"].Description)
+	assert.Equal(t, "snacks", newrs.Rules["fish-cakes"].RuleCategory.Id)
+	assert.Equal(t, "snacks name", newrs.Rules["fish-cakes"].RuleCategory.Name)
+	assert.Equal(t, "snacks description", newrs.Rules["fish-cakes"].RuleCategory.Description)
 
 }
 

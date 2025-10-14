@@ -405,6 +405,9 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 			} else {
 				if model.RuleCategories[rc.Id] != nil {
 					nr.RuleCategory = model.RuleCategories[rc.Id]
+				} else {
+					model.RuleCategories[rc.Id] = &rc
+					nr.RuleCategory = model.RuleCategories[rc.Id]
 				}
 			}
 
