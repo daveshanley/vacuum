@@ -16,8 +16,10 @@ type VersionInfo struct {
 	Modified  bool
 }
 
-// GetVersionInfo returns version information using modern debug.ReadBuildInfo approach
-// this works correctly with go install unlike the old ldflags method
+// GetVersionInfo returns version information using ldflags (if set) or debug.ReadBuildInfo as fallback
+// This hybrid approach supports both:
+// - Package managers using ldflags: go build -ldflags "-X main.version=v1.0.0 ..."
+// - Direct go install: go install github.com/daveshanley/vacuum@latest
 func GetVersionInfo() VersionInfo {
 	info := VersionInfo{
 		Version:   "unknown",
@@ -27,13 +29,39 @@ func GetVersionInfo() VersionInfo {
 		Modified:  false,
 	}
 
+	// First, check if ldflags were provided (package managers use this)
+	if ldVersion != "" {
+		info.Version = ldVersion
+	}
+	if ldCommit != "" {
+		info.Commit = ldCommit
+	}
+	if ldDate != "" {
+		// Parse the date if it's in RFC3339 format, otherwise use as-is
+		if parsed, err := time.Parse(time.RFC3339, ldDate); err == nil {
+			info.Date = parsed.Format("Mon, 02 Jan 2006 15:04:05 MST")
+		} else {
+			info.Date = ldDate
+		}
+	}
+
+	// If ldflags provided version info, we're done
+	if ldVersion != "" || ldCommit != "" {
+		// Get Go version from buildInfo if available
+		if buildInfo, ok := debug.ReadBuildInfo(); ok {
+			info.GoVersion = buildInfo.GoVersion
+		}
+		return info
+	}
+
+	// Fall back to debug.ReadBuildInfo for go install compatibility
 	buildInfo, ok := debug.ReadBuildInfo()
 	if !ok {
 		return info
 	}
 
 	// get version from go install (e.g., v0.14.2)
-	if buildInfo.Main.Version != "" && buildInfo.Main.Version != "(dev)" {
+	if buildInfo.Main.Version != "" && buildInfo.Main.Version != "(devel)" {
 		info.Version = buildInfo.Main.Version
 	}
 

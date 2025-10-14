@@ -17,13 +17,25 @@ import (
 var (
 	configFile  string
 	versionInfo VersionInfo
+	// Variables to hold ldflags values
+	ldVersion string
+	ldCommit  string
+	ldDate    string
 )
 
 func init() {
-	versionInfo = GetVersionInfo()
+	// Initialize version info after Execute() is called with ldflags
 }
 
-func Execute() {
+func Execute(version, commit, date string) {
+	// Store ldflags values
+	ldVersion = version
+	ldCommit = commit
+	ldDate = date
+
+	// Now initialize version info with ldflags available
+	versionInfo = GetVersionInfo()
+
 	if err := GetRootCommand().Execute(); err != nil {
 		os.Exit(1)
 	}
