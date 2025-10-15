@@ -902,7 +902,9 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 		}
 
 		if err != nil {
+			lock.Lock()
 			*ctx.errors = append(*ctx.errors, err)
+			lock.Unlock()
 			doneChan <- true
 			return
 		}
