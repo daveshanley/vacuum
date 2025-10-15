@@ -113,6 +113,7 @@ type RuleAction struct {
 type Rule struct {
 	Id                 string         `json:"id,omitempty" yaml:"id,omitempty"`
 	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURL   string         `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
 	Message            string         `json:"message,omitempty" yaml:"message,omitempty"`
 	Given              interface{}    `json:"given,omitempty" yaml:"given,omitempty"`
 	Formats            []string       `json:"formats,omitempty" yaml:"formats,omitempty"`
