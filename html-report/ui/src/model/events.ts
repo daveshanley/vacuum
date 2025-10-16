@@ -22,5 +22,6 @@ export interface ViolationSelectedEvent extends VacuumEvent {
   category: string;
   violationId?: string;
   howToFix?: string;
+  documentationUrl?: string;
   renderedCode: Element;
 }

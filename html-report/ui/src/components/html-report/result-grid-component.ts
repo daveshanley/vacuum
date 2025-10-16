@@ -31,6 +31,7 @@ export class ResultGridComponent extends BaseComponent {
     drawer.message = e.detail.message;
     drawer.code = e.detail.renderedCode;
     drawer.howToFix = e.detail.howToFix;
+    drawer.documentationUrl = e.detail.documentationUrl;
     drawer.category = e.detail.category;
     drawer.path = e.detail.path;
   }

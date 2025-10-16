@@ -38,6 +38,9 @@ export class CategoryRuleResultComponent extends BaseComponent {
   @property({ type: String })
   howToFix: string;
 
+  @property({ type: String })
+  documentationUrl: string;
+
   @property({ type: Boolean })
   selected: boolean;
 
@@ -87,6 +90,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       path: this.path,
       category: this.category,
       howToFix: this.howToFix,
+      documentationUrl: this.documentationUrl,
       violationId: this.violationId,
       renderedCode: renderedCode,
     };
