@@ -993,8 +993,11 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				lock.Unlock()
 			}
 		} else {
+			// Filter out ignore nodes to prevent them from being processed by other rules
+			filteredNodes := filterIgnoreNodes(nodes)
+
 			// iterate through nodes and supply them one at a time so we don't pollute each run
-			for _, node := range nodes {
+			for _, node := range filteredNodes {
 
 				// if this rule is designed for a different version, skip it.
 				if len(ctx.rule.Formats) > 0 {
@@ -1011,7 +1014,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				if checkInlineIgnore(node, ctx.rule.Id) {
 					ignoredResult := model.RuleFunctionResult{
-						Message:      "Rule ignored due to x-vacuum-ignore directive",
+						Message:      "Rule ignored due to inline ignore directive",
 						RuleId:       ctx.rule.Id,
 						RuleSeverity: ctx.rule.Severity,
 						Rule:         ctx.rule,

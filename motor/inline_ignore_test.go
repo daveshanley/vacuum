@@ -137,7 +137,7 @@ rules:
 	assert.Equal(t, "info-description", result.IgnoredResults[0].RuleId)
 	assert.Equal(
 		t,
-		"Rule ignored due to x-vacuum-ignore directive",
+		"Rule ignored due to inline ignore directive",
 		result.IgnoredResults[0].Message,
 	)
 }
@@ -299,4 +299,96 @@ rules:
 	// Should have one ignored result (/users path was ignored)
 	assert.Len(t, result.IgnoredResults, 1)
 	assert.Equal(t, "path-rule", result.IgnoredResults[0].RuleId)
+}
+
+func TestFilterIgnoreNodes(t *testing.T) {
+	spec := `
+info:
+  title: Test API
+  x-vacuum-ignore: ["rule-id"]
+  description: Test description
+`
+	var node yaml.Node
+	err := yaml.Unmarshal([]byte(spec), &node)
+	require.NoError(t, err)
+
+	infoNode := node.Content[0].Content[1]
+	allNodes := infoNode.Content
+
+	var testNodes []*yaml.Node
+	testNodes = append(testNodes, allNodes...)
+
+	filtered := filterIgnoreNodes(testNodes)
+
+	// Should have filtered out the ignore key and its value
+	assert.Len(t, filtered, 4)
+
+	for _, filteredNode := range filtered {
+		if filteredNode.Kind == yaml.ScalarNode {
+			assert.NotEqual(t, ignoreKey, filteredNode.Value)
+		}
+	}
+}
+
+func TestIsIgnoreNode(t *testing.T) {
+	ignoreKeyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: ignoreKey}
+	assert.True(t, isIgnoreNode(ignoreKeyNode))
+
+	regularKeyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: "title"}
+	assert.False(t, isIgnoreNode(regularKeyNode))
+
+	assert.False(t, isIgnoreNode(nil))
+
+	mappingNode := &yaml.Node{Kind: yaml.MappingNode}
+	assert.False(t, isIgnoreNode(mappingNode))
+}
+
+func TestInlineIgnore_Integration_CustomRuleFiltering(t *testing.T) {
+	spec := `
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+  x-vacuum-ignore: ["info-description"]
+  description: Test description
+paths: {}
+`
+
+	// Create a custom rule that targets all properties under info (including ignore key)
+	rulesetYaml := `
+extends: []
+rules:
+  custom-info-rule:
+    description: Custom rule that targets all info properties
+    given: $.info.*
+    severity: error
+    then:
+      function: truthy
+`
+
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(rulesetYaml))
+	require.NoError(t, err)
+
+	execution := &RuleSetExecution{
+		RuleSet:      rs,
+		Spec:         []byte(spec),
+		SpecFileName: "test.yaml",
+	}
+
+	result := ApplyRulesToRuleSet(execution)
+
+	// Verify none of the results are for ignore key
+	for _, res := range result.Results {
+		if res.StartNode != nil && res.StartNode.Kind == yaml.ScalarNode {
+			assert.NotEqual(
+				t,
+				ignoreKey,
+				res.StartNode.Value,
+				"ignore key should be filtered out",
+			)
+		}
+	}
+
+	assert.Greater(t, len(result.Results), 0, "Should have some results from the custom rule")
 }
