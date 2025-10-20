@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -10,8 +9,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 )
 
@@ -41,6 +38,22 @@ func BuildResultsWithDocCheckSkip(
 	timeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+
+	resolvedHTTPConfig := httpClientConfig
+	var err error
+	if resolvedHTTPConfig.CertFile, err = ResolveConfigPath(httpClientConfig.CertFile); err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve cert file path: %w", err)
+	}
+
+	if resolvedHTTPConfig.KeyFile, err = ResolveConfigPath(httpClientConfig.KeyFile); err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve key file path: %w", err)
+	}
+
+	if resolvedHTTPConfig.CAFile, err = ResolveConfigPath(httpClientConfig.CAFile); err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve CA file path: %w", err)
+	}
+
+	httpClientConfig = resolvedHTTPConfig
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -77,27 +90,10 @@ func BuildResultsWithDocCheckSkip(
 			}
 		}
 
-		if strings.HasPrefix(rulesetFlag, "http") {
-			// Handle remote ruleset URL
-			if !remote {
-				return nil, nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
-			}
-
-			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
-			if rsErr != nil {
-				return nil, nil, rsErr
-			}
-			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
-		} else {
-			// Handle local ruleset file
-			rsBytes, rsErr := os.ReadFile(rulesetFlag)
-			if rsErr != nil {
-				return nil, nil, rsErr
-			}
-			selectedRS, rsErr = BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, defaultRuleSets, httpClient)
-			if rsErr != nil {
-				return nil, nil, rsErr
-			}
+		var rsErr error
+		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient)
+		if rsErr != nil {
+			return nil, nil, rsErr
 		}
 
 		// Merge OWASP rules if hard mode is enabled

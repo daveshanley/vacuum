@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
@@ -16,7 +15,6 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -75,10 +73,22 @@ IDE and start linting your OpenAPI documents in real-time.`,
 
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
+				resolvedCertFile, err := ResolveConfigPath(certFile)
+				if err != nil {
+					return fmt.Errorf("failed to resolve cert file path: %w", err)
+				}
+				resolvedKeyFile, err := ResolveConfigPath(keyFile)
+				if err != nil {
+					return fmt.Errorf("failed to resolve key file path: %w", err)
+				}
+				resolvedCAFile, err := ResolveConfigPath(caFile)
+				if err != nil {
+					return fmt.Errorf("failed to resolve CA file path: %w", err)
+				}
 				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
+					CertFile: resolvedCertFile,
+					KeyFile:  resolvedKeyFile,
+					CAFile:   resolvedCAFile,
 					Insecure: insecure,
 				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
@@ -89,23 +99,21 @@ IDE and start linting your OpenAPI documents in real-time.`,
 					}
 				}
 
+				resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
+				if resolveErr != nil {
+					return resolveErr
+				}
+
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
 					return rsErr
 				}
 			}
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false)
+			if err != nil {
+				return err
 			}
 
 			lfr := utils.LintFileRequest{

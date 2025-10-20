@@ -22,7 +22,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetSpectralReportCommand() *cobra.Command {
@@ -85,6 +84,28 @@ func GetSpectralReportCommand() *cobra.Command {
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 
+			resolvedCertFile, err := ResolveConfigPath(certFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve cert file path: %w", err)
+			}
+
+			resolvedKeyFile, err := ResolveConfigPath(keyFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve key file path: %w", err)
+			}
+
+			resolvedCAFile, err := ResolveConfigPath(caFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve CA file path: %w", err)
+			}
+
+			httpClientConfig := utils.HTTPClientConfig{
+				CertFile: resolvedCertFile,
+				KeyFile:  resolvedKeyFile,
+				CAFile:   resolvedCAFile,
+				Insecure: insecure,
+			}
+
 			reportOutput := "vacuum-spectral-report.json"
 
 			if len(args) > 1 {
@@ -113,16 +134,9 @@ func GetSpectralReportCommand() *cobra.Command {
 				return fileError
 			}
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, stdOut, noStyleFlag)
+			if err != nil {
+				return err
 			}
 
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
@@ -157,12 +171,6 @@ func GetSpectralReportCommand() *cobra.Command {
 			if rulesetFlag != "" {
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
-				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
@@ -172,10 +180,15 @@ func GetSpectralReportCommand() *cobra.Command {
 					}
 				}
 
+				resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
+				if resolveErr != nil {
+					return resolveErr
+				}
+
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", resolvedRulesetPath, rsErr.Error())
 					return rsErr
 				}
 
@@ -221,12 +234,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				SkipDocumentCheck:               skipCheckFlag,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
-				HTTPClientConfig: utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				},
+				HTTPClientConfig:                httpClientConfig,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)

@@ -192,11 +192,20 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 		return ignoredItems, nil
 	}
 
-	raw, err := os.ReadFile(ignoreFile)
+	resolvedPath, err := ResolveConfigPath(ignoreFile)
+	if err != nil {
+		if !silent {
+			fmt.Printf("%sError: Failed to resolve ignore file path '%s': %v%s\n\n",
+				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
+		}
+		return ignoredItems, fmt.Errorf("failed to resolve ignore file path: %w", err)
+	}
+
+	raw, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		if !silent {
 			fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
-				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
+				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
 	}
@@ -205,13 +214,13 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 	if err != nil {
 		if !silent {
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
-				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
+				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
 	}
 
 	if !silent && !pipeline {
-		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", ignoreFile), noStyle)
+		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", resolvedPath), noStyle)
 		renderIgnoredItems(ignoredItems, noStyle)
 	}
 
@@ -220,11 +229,9 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 
 // CreateHTTPClientFromFlags creates an HTTP client based on certificate flags
 func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
-	httpClientConfig := utils.HTTPClientConfig{
-		CertFile: flags.CertFile,
-		KeyFile:  flags.KeyFile,
-		CAFile:   flags.CAFile,
-		Insecure: flags.Insecure,
+	httpClientConfig, err := GetHTTPClientConfig(flags)
+	if err != nil {
+		return nil, err
 	}
 
 	if !utils.ShouldUseCustomHTTPClient(httpClientConfig) {
@@ -259,6 +266,13 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 	}
 
 	if flags.RulesetFlag != "" {
+		resolvedRulesetPath, err := ResolveConfigPath(flags.RulesetFlag)
+		if err != nil {
+			fmt.Printf("\033[31mUnable to resolve ruleset path '%s': %s\033[0m\n",
+				flags.RulesetFlag, err.Error())
+			return nil, err
+		}
+
 		httpClient, err := CreateHTTPClientFromFlags(flags)
 		if err != nil {
 			return nil, err
@@ -266,21 +280,21 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 
 		var rsErr error
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(
-			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient)
+			resolvedRulesetPath, defaultRuleSets, flags.RemoteFlag, httpClient)
 		if rsErr != nil {
 			fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
-				flags.RulesetFlag, rsErr.Error())
+				resolvedRulesetPath, rsErr.Error())
 			return nil, rsErr
 		}
 
 		if !flags.SilentFlag && !flags.PipelineOutput {
 			if flags.NoStyleFlag {
 				fmt.Printf(" using ruleset '%s' (containing %d rules)\n",
-					flags.RulesetFlag, len(selectedRS.Rules))
+					resolvedRulesetPath, len(selectedRS.Rules))
 			} else {
 				fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
 					color.ASCIIGrey,
-					color.ASCIIBold+color.ASCIIItalic, flags.RulesetFlag, color.ASCIIReset+color.ASCIIGrey,
+					color.ASCIIBold+color.ASCIIItalic, resolvedRulesetPath, color.ASCIIReset+color.ASCIIGrey,
 					color.ASCIIGrey,
 					color.ASCIIBold+color.ASCIIItalic, len(selectedRS.Rules), color.ASCIIReset+color.ASCIIGrey,
 					color.ASCIIReset)
@@ -317,13 +331,28 @@ func RenderBufferedLogs(bufferedLogger *logging.BufferedLogger, noStyle bool) {
 }
 
 // GetHTTPClientConfig creates HTTPClientConfig from flags
-func GetHTTPClientConfig(flags *LintFlags) utils.HTTPClientConfig {
-	return utils.HTTPClientConfig{
-		CertFile: flags.CertFile,
-		KeyFile:  flags.KeyFile,
-		CAFile:   flags.CAFile,
-		Insecure: flags.Insecure,
+func GetHTTPClientConfig(flags *LintFlags) (utils.HTTPClientConfig, error) {
+	certFile, err := ResolveConfigPath(flags.CertFile)
+	if err != nil {
+		return utils.HTTPClientConfig{}, err
 	}
+
+	keyFile, err := ResolveConfigPath(flags.KeyFile)
+	if err != nil {
+		return utils.HTTPClientConfig{}, err
+	}
+
+	caFile, err := ResolveConfigPath(flags.CAFile)
+	if err != nil {
+		return utils.HTTPClientConfig{}, err
+	}
+
+	return utils.HTTPClientConfig{
+		CertFile: certFile,
+		KeyFile:  keyFile,
+		CAFile:   caFile,
+		Insecure: flags.Insecure,
+	}, nil
 }
 
 // ProcessSingleFileOptimized processes a single file using pre-loaded configuration
@@ -369,6 +398,14 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
+	httpClientConfig, err := GetHTTPClientConfig(config.Flags)
+	if err != nil {
+		return &FileProcessingResult{
+			FileSize: fileSize,
+			Error:    err,
+		}
+	}
+
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                         config.SelectedRuleset,
 		Spec:                            specBytes,
@@ -384,7 +421,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		BuildDeepGraph:                  len(config.IgnoredItems) > 0,
 		ExtractReferencesFromExtensions: config.Flags.ExtRefsFlag,
 		Logger:                          logger,
-		HTTPClientConfig:                GetHTTPClientConfig(config.Flags),
+		HTTPClientConfig:                httpClientConfig,
 	})
 
 	if len(result.Errors) > 0 {

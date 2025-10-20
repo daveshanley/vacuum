@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetDashboardCommand() *cobra.Command {
@@ -62,16 +62,9 @@ func GetDashboardCommand() *cobra.Command {
 			insecure, _ := cmd.Flags().GetBool("insecure")
 			watchFlag, _ := cmd.Flags().GetBool("watch")
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false)
+			if err != nil {
+				return err
 			}
 
 			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
@@ -131,11 +124,51 @@ func GetDashboardCommand() *cobra.Command {
 				}
 
 				if rulesetFlag != "" {
+					resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
+					if resolveErr != nil {
+						if !silent {
+							message := fmt.Sprintf("Unable to resolve ruleset path '%s': %s", rulesetFlag, resolveErr.Error())
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
+						return resolveErr
+					}
+
+					httpCertPath, certErr := ResolveConfigPath(certFile)
+					if certErr != nil {
+						return fmt.Errorf("failed to resolve cert file path: %w", certErr)
+					}
+					httpKeyPath, keyErr := ResolveConfigPath(keyFile)
+					if keyErr != nil {
+						return fmt.Errorf("failed to resolve key file path: %w", keyErr)
+					}
+					httpCAPath, caErr := ResolveConfigPath(caFile)
+					if caErr != nil {
+						return fmt.Errorf("failed to resolve CA file path: %w", caErr)
+					}
+
+					httpConfig := utils.HTTPClientConfig{
+						CertFile: httpCertPath,
+						KeyFile:  httpKeyPath,
+						CAFile:   httpCAPath,
+						Insecure: insecure,
+					}
+
+					var httpClient *http.Client
+					if utils.ShouldUseCustomHTTPClient(httpConfig) {
+						var clientErr error
+						httpClient, clientErr = utils.CreateCustomHTTPClient(httpConfig)
+						if clientErr != nil {
+							return fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
+						}
+					}
+
 					var rsErr error
-					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
+					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
 					if rsErr != nil {
 						if !silent {
-							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
+							message := fmt.Sprintf("Unable to load ruleset '%s': %s", resolvedRulesetPath, rsErr.Error())
 							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 							messageStyle := lipgloss.NewStyle().Padding(1, 1)
 							fmt.Println(style.Render(messageStyle.Render(message)))
@@ -172,12 +205,7 @@ func GetDashboardCommand() *cobra.Command {
 					SkipDocumentCheck: skipCheckFlag,
 					Logger:            logger,
 					Timeout:           time.Duration(timeoutFlag) * time.Second,
-					HTTPClientConfig: utils.HTTPClientConfig{
-						CertFile: certFile,
-						KeyFile:  keyFile,
-						CAFile:   caFile,
-						Insecure: insecure,
-					},
+					HTTPClientConfig:  httpConfig,
 				})
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)

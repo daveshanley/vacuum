@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/daveshanley/vacuum/tui"
@@ -21,6 +22,9 @@ var (
 	ldVersion string
 	ldCommit  string
 	ldDate    string
+
+	// Directory that contains the active configuration file, used for resolving relative paths
+	configDirectory string
 )
 
 func init() {
@@ -168,6 +172,7 @@ func useDefaultConfigFile() error {
 	viper.AddConfigPath(getXdgConfigHome())
 	err := viper.ReadInConfig()
 	if err == nil {
+		setConfigDirectoryFromViper()
 		return nil
 	}
 	if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -186,8 +191,16 @@ func useEnvironmentConfiguration() {
 }
 
 func useUserSuppliedConfigFile(configFilePath string) error {
-	viper.SetConfigFile(os.ExpandEnv(configFilePath))
-	return viper.ReadInConfig()
+	expandedPath, err := expandUserPath(configFilePath)
+	if err != nil {
+		return err
+	}
+	viper.SetConfigFile(expandedPath)
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+	setConfigDirectoryFromViper()
+	return nil
 }
 
 // Get config directory as per the xdg basedir spec
@@ -209,4 +222,68 @@ func bindFlags(flags *pflag.FlagSet, viperTree *viper.Viper) error {
 		}
 	})
 	return err
+}
+
+// expandUserPath expands environment variables and a leading ~ in a user-supplied path.
+func expandUserPath(pathValue string) (string, error) {
+	if pathValue == "" {
+		return "", nil
+	}
+
+	expanded := os.ExpandEnv(pathValue)
+
+	if strings.HasPrefix(expanded, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("unable to resolve home directory: %w", err)
+		}
+		if expanded == "~" {
+			expanded = home
+		} else if strings.HasPrefix(expanded, "~/") || strings.HasPrefix(expanded, "~\\") {
+			expanded = filepath.Join(home, expanded[2:])
+		}
+	}
+
+	return expanded, nil
+}
+
+// setConfigDirectoryFromViper captures the directory of the currently loaded configuration file, if any.
+func setConfigDirectoryFromViper() {
+	if used := viper.ConfigFileUsed(); used != "" {
+		configDirectory = filepath.Dir(used)
+	}
+}
+
+// ResolveConfigPath normalizes paths supplied via flags or configuration.
+// It expands ~ and environment variables, and if the path is relative,
+// resolves it against the configuration directory when available.
+func ResolveConfigPath(raw string) (string, error) {
+	if raw == "" {
+		return "", nil
+	}
+
+	// Skip resolution for URLs or other schemes
+	if strings.Contains(raw, "://") {
+		return raw, nil
+	}
+
+	expanded, err := expandUserPath(raw)
+	if err != nil {
+		return "", err
+	}
+
+	if filepath.IsAbs(expanded) {
+		return filepath.Clean(expanded), nil
+	}
+
+	baseDir := configDirectory
+	if baseDir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("unable to resolve working directory: %w", err)
+		}
+		baseDir = cwd
+	}
+
+	return filepath.Clean(filepath.Join(baseDir, expanded)), nil
 }
