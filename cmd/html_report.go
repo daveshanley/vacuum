@@ -23,7 +23,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 // GetHTMLReportCommand returns a cobra command for generating an HTML Report.
@@ -95,16 +94,9 @@ func GetHTMLReportCommand() *cobra.Command {
 			var specInfo *datamodel.SpecInfo
 			var stats *reports.ReportStatistics
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, noStyleFlag)
+			if err != nil {
+				return err
 			}
 
 			// if we have a pre-compiled report, jump straight to the end and collect $500

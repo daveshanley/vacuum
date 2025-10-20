@@ -25,7 +25,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetVacuumReportCommand() *cobra.Command {
@@ -87,6 +86,28 @@ func GetVacuumReportCommand() *cobra.Command {
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 
+			resolvedCertFile, err := ResolveConfigPath(certFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve cert file path: %w", err)
+			}
+
+			resolvedKeyFile, err := ResolveConfigPath(keyFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve key file path: %w", err)
+			}
+
+			resolvedCAFile, err := ResolveConfigPath(caFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve CA file path: %w", err)
+			}
+
+			httpClientConfig := utils.HTTPClientConfig{
+				CertFile: resolvedCertFile,
+				KeyFile:  resolvedKeyFile,
+				CAFile:   resolvedCAFile,
+				Insecure: insecure,
+			}
+
 			extension := ".json"
 
 			reportOutput := "vacuum-report"
@@ -117,16 +138,9 @@ func GetVacuumReportCommand() *cobra.Command {
 				return fileError
 			}
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, noStyleFlag)
+			if err != nil {
+				return err
 			}
 
 			// read spec and parse to dashboard.
@@ -160,12 +174,6 @@ func GetVacuumReportCommand() *cobra.Command {
 
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
-				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
@@ -175,10 +183,15 @@ func GetVacuumReportCommand() *cobra.Command {
 					}
 				}
 
+				resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
+				if resolveErr != nil {
+					return resolveErr
+				}
+
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", resolvedRulesetPath, rsErr.Error())
 					return rsErr
 				}
 
@@ -230,12 +243,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
-				HTTPClientConfig: utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				},
+				HTTPClientConfig:                httpClientConfig,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)

@@ -165,6 +165,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve base path: %w", baseErr)
 		}
 
+		httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
+		if cfgErr != nil {
+			return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		}
+
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
@@ -179,7 +184,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			IgnoreCircularArrayRef:          flags.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef:    flags.IgnorePolymorphCircleRef,
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
-			HTTPClientConfig:                GetHTTPClientConfig(flags),
+			HTTPClientConfig:                httpClientConfig,
 		})
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
