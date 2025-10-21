@@ -39,22 +39,6 @@ func BuildResultsWithDocCheckSkip(
 	httpClientConfig utils.HTTPClientConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
-	resolvedHTTPConfig := httpClientConfig
-	var err error
-	if resolvedHTTPConfig.CertFile, err = ResolveConfigPath(httpClientConfig.CertFile); err != nil {
-		return nil, nil, fmt.Errorf("failed to resolve cert file path: %w", err)
-	}
-
-	if resolvedHTTPConfig.KeyFile, err = ResolveConfigPath(httpClientConfig.KeyFile); err != nil {
-		return nil, nil, fmt.Errorf("failed to resolve key file path: %w", err)
-	}
-
-	if resolvedHTTPConfig.CAFile, err = ResolveConfigPath(httpClientConfig.CAFile); err != nil {
-		return nil, nil, fmt.Errorf("failed to resolve CA file path: %w", err)
-	}
-
-	httpClientConfig = resolvedHTTPConfig
-
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 

@@ -143,6 +143,7 @@ func GetRootCommand() *cobra.Command {
 }
 
 func useConfigFile(cmd *cobra.Command) error {
+	configDirectory = ""
 	useEnvironmentConfiguration()
 	var err error
 	if len(configFile) != 0 {
@@ -250,7 +251,11 @@ func expandUserPath(pathValue string) (string, error) {
 // setConfigDirectoryFromViper captures the directory of the currently loaded configuration file, if any.
 func setConfigDirectoryFromViper() {
 	if used := viper.ConfigFileUsed(); used != "" {
-		configDirectory = filepath.Dir(used)
+		if absPath, err := filepath.Abs(used); err == nil {
+			configDirectory = filepath.Dir(absPath)
+		} else {
+			configDirectory = filepath.Dir(used)
+		}
 	}
 }
 
@@ -276,14 +281,14 @@ func ResolveConfigPath(raw string) (string, error) {
 		return filepath.Clean(expanded), nil
 	}
 
-	baseDir := configDirectory
-	if baseDir == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return "", fmt.Errorf("unable to resolve working directory: %w", err)
-		}
-		baseDir = cwd
+	if configDirectory != "" && !strings.HasPrefix(expanded, ".") {
+		return filepath.Clean(filepath.Join(configDirectory, expanded)), nil
 	}
 
-	return filepath.Clean(filepath.Join(baseDir, expanded)), nil
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("unable to resolve working directory: %w", err)
+	}
+
+	return filepath.Clean(filepath.Join(cwd, expanded)), nil
 }

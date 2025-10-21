@@ -192,6 +192,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 		return ignoredItems, nil
 	}
 
+	originalPath := ignoreFile
 	resolvedPath, err := ResolveConfigPath(ignoreFile)
 	if err != nil {
 		if !silent {
@@ -203,11 +204,23 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 
 	raw, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		if !silent {
-			fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
-				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
+		if !os.IsNotExist(err) || originalPath == resolvedPath {
+			if !silent {
+				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
+					color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
+			}
+			return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
 		}
-		return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
+		// fallback to original path if resolution-based path not found
+		raw, err = os.ReadFile(originalPath)
+		if err != nil {
+			if !silent {
+				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
+					color.ASCIIRed, originalPath, err, color.ASCIIReset)
+			}
+			return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
+		}
+		resolvedPath = originalPath
 	}
 
 	err = yaml.Unmarshal(raw, &ignoredItems)
@@ -266,13 +279,6 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 	}
 
 	if flags.RulesetFlag != "" {
-		resolvedRulesetPath, err := ResolveConfigPath(flags.RulesetFlag)
-		if err != nil {
-			fmt.Printf("\033[31mUnable to resolve ruleset path '%s': %s\033[0m\n",
-				flags.RulesetFlag, err.Error())
-			return nil, err
-		}
-
 		httpClient, err := CreateHTTPClientFromFlags(flags)
 		if err != nil {
 			return nil, err
@@ -280,21 +286,21 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 
 		var rsErr error
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(
-			resolvedRulesetPath, defaultRuleSets, flags.RemoteFlag, httpClient)
+			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient)
 		if rsErr != nil {
 			fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
-				resolvedRulesetPath, rsErr.Error())
+				flags.RulesetFlag, rsErr.Error())
 			return nil, rsErr
 		}
 
 		if !flags.SilentFlag && !flags.PipelineOutput {
 			if flags.NoStyleFlag {
 				fmt.Printf(" using ruleset '%s' (containing %d rules)\n",
-					resolvedRulesetPath, len(selectedRS.Rules))
+					flags.RulesetFlag, len(selectedRS.Rules))
 			} else {
 				fmt.Printf(" %susing ruleset %s'%s'%s %s(containing %s%d%s rules)%s\n",
 					color.ASCIIGrey,
-					color.ASCIIBold+color.ASCIIItalic, resolvedRulesetPath, color.ASCIIReset+color.ASCIIGrey,
+					color.ASCIIBold+color.ASCIIItalic, flags.RulesetFlag, color.ASCIIReset+color.ASCIIGrey,
 					color.ASCIIGrey,
 					color.ASCIIBold+color.ASCIIItalic, len(selectedRS.Rules), color.ASCIIReset+color.ASCIIGrey,
 					color.ASCIIReset)

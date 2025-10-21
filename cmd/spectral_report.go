@@ -84,26 +84,16 @@ func GetSpectralReportCommand() *cobra.Command {
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 
-			resolvedCertFile, err := ResolveConfigPath(certFile)
-			if err != nil {
-				return fmt.Errorf("failed to resolve cert file path: %w", err)
-			}
-
-			resolvedKeyFile, err := ResolveConfigPath(keyFile)
-			if err != nil {
-				return fmt.Errorf("failed to resolve key file path: %w", err)
-			}
-
-			resolvedCAFile, err := ResolveConfigPath(caFile)
-			if err != nil {
-				return fmt.Errorf("failed to resolve CA file path: %w", err)
-			}
-
-			httpClientConfig := utils.HTTPClientConfig{
-				CertFile: resolvedCertFile,
-				KeyFile:  resolvedKeyFile,
-				CAFile:   resolvedCAFile,
+			lintFlags := &LintFlags{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
 				Insecure: insecure,
+			}
+
+			httpClientConfig, cfgErr := GetHTTPClientConfig(lintFlags)
+			if cfgErr != nil {
+				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
 			}
 
 			reportOutput := "vacuum-spectral-report.json"
@@ -180,15 +170,10 @@ func GetSpectralReportCommand() *cobra.Command {
 					}
 				}
 
-				resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
-				if resolveErr != nil {
-					return resolveErr
-				}
-
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
-					tui.RenderErrorString("Unable to load ruleset '%s': %s", resolvedRulesetPath, rsErr.Error())
+					tui.RenderErrorString("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 					return rsErr
 				}
 
@@ -273,9 +258,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				return nil
 			}
 
-			err := os.WriteFile(reportOutput, data, 0664)
-
-			if err != nil {
+			if err = os.WriteFile(reportOutput, data, 0664); err != nil {
 				tui.RenderErrorString("Unable to write report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}
