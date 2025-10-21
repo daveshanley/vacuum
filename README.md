@@ -144,7 +144,16 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.18` 🔥 : **New dashboard, new lint command, new rules!**.
+🔥 **New in** `v0.19` 🔥: **Ignore rules with `x-lint-ignore`**
+
+Got an error in your spec you know about but can't get round to fixing yet?
+Migrating from zally and wanting to keep your existing `x-zally-ignore` issues silenced?
+
+Now you can! Just add `x-lint-ignore: rule-id` to the yaml node reporting the failure (or `x-lint-ignore: [rule-one, rule-two]` if there are multiple issues to ignore).
+
+---
+
+`v0.18`: **New dashboard, new lint command, new rules!**.
 
 Upgrades all around. There is a completely new `dashboard` command with a completely new dashboard terminal UI. It's 
 completely interactive and allows you to explore, and filter violations, view full docs and see code. The `dashboard` command
