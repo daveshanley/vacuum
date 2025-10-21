@@ -107,7 +107,7 @@ func buildLocationString(line, column int) string {
 type RuleSetExecutionResult struct {
 	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
 	Results          []model.RuleFunctionResult       // The results of the execution.
-	IgnoredResults   []model.RuleFunctionResult       // Results that were ignored due to inline x-vacuum-ignore directives.
+	IgnoredResults   []model.RuleFunctionResult       // Results that were ignored due to inline ignore directives.
 	Index            *index.SpecIndex                 // The index that was created from the specification, used by the rules.
 	SpecInfo         *datamodel.SpecInfo              // A reference to the SpecInfo object, used by all the rules.
 	Errors           []error                          // Any errors that were returned.

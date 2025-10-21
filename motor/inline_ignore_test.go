@@ -12,7 +12,7 @@ func TestCheckInlineIgnore_SingleRule(t *testing.T) {
 	spec := `
 info:
   title: Test
-  x-vacuum-ignore: ["rule-id"]
+  x-lint-ignore: ["rule-id"]
   description: missing
 `
 	var node yaml.Node
@@ -32,7 +32,7 @@ func TestCheckInlineIgnore_ArrayOfRules(t *testing.T) {
 	spec := `
 info:
   title: Test
-  x-vacuum-ignore: 
+  x-lint-ignore: 
     - rule-one
     - rule-two
   description: missing
@@ -52,7 +52,7 @@ func TestCheckInlineIgnore_StringRule(t *testing.T) {
 	spec := `
 info:
   title: Test
-  x-vacuum-ignore: single-rule
+  x-lint-ignore: single-rule
   description: missing
 `
 	var node yaml.Node
@@ -100,7 +100,7 @@ openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
-  x-vacuum-ignore: ["info-description"]
+  x-lint-ignore: ["info-description"]
 paths: {}
 `
 
@@ -190,7 +190,7 @@ openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
-  x-vacuum-ignore: 
+  x-lint-ignore: 
     - info-description
     - info-contact
 paths: {}
@@ -259,7 +259,7 @@ info:
   version: 1.0.0
 paths:
   /users:
-    x-vacuum-ignore: ["path-rule"]
+    x-lint-ignore: ["path-rule"]
     get:
       summary: Get users
   /posts:
@@ -305,7 +305,7 @@ func TestFilterIgnoreNodes(t *testing.T) {
 	spec := `
 info:
   title: Test API
-  x-vacuum-ignore: ["rule-id"]
+  x-lint-ignore: ["rule-id"]
   description: Test description
 `
 	var node yaml.Node
@@ -349,7 +349,7 @@ openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
-  x-vacuum-ignore: ["info-description"]
+  x-lint-ignore: ["info-description"]
   description: Test description
 paths: {}
 `
