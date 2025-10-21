@@ -119,13 +119,19 @@ func GetHTMLReportCommand() *cobra.Command {
 					return fmt.Errorf("failed to resolve base path: %w", baseErr)
 				}
 
+				httpFlags := &LintFlags{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				httpClientConfig, cfgErr := GetHTTPClientConfig(httpFlags)
+				if cfgErr != nil {
+					return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+				}
+
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
-						CertFile: certFile,
-						KeyFile:  keyFile,
-						CAFile:   caFile,
-						Insecure: insecure,
-					}, ignoredItems)
+					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, httpClientConfig, ignoredItems)
 				if err != nil {
 					tui.RenderError(err)
 					return err

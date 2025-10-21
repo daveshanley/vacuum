@@ -11,7 +11,6 @@ import (
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
-	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
@@ -62,35 +61,28 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
+			var httpClientConfig utils.HTTPClientConfig
+			certFile, _ := cmd.Flags().GetString("cert-file")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			caFile, _ := cmd.Flags().GetString("ca-file")
+			insecure, _ := cmd.Flags().GetBool("insecure")
+
+			lintFlags := &LintFlags{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+
+			httpConfig, cfgErr := GetHTTPClientConfig(lintFlags)
+			if cfgErr != nil {
+				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+			}
+			httpClientConfig = httpConfig
+
 			if rulesetFlag != "" {
-				remoteFlag, _ := cmd.Flags().GetBool("remote")
-
-				// Certificate/TLS configuration for language server
-				certFile, _ := cmd.Flags().GetString("cert-file")
-				keyFile, _ := cmd.Flags().GetString("key-file")
-				caFile, _ := cmd.Flags().GetString("ca-file")
-				insecure, _ := cmd.Flags().GetBool("insecure")
-
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
-				resolvedCertFile, err := ResolveConfigPath(certFile)
-				if err != nil {
-					return fmt.Errorf("failed to resolve cert file path: %w", err)
-				}
-				resolvedKeyFile, err := ResolveConfigPath(keyFile)
-				if err != nil {
-					return fmt.Errorf("failed to resolve key file path: %w", err)
-				}
-				resolvedCAFile, err := ResolveConfigPath(caFile)
-				if err != nil {
-					return fmt.Errorf("failed to resolve CA file path: %w", err)
-				}
-				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: resolvedCertFile,
-					KeyFile:  resolvedKeyFile,
-					CAFile:   resolvedCAFile,
-					Insecure: insecure,
-				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
@@ -99,13 +91,8 @@ IDE and start linting your OpenAPI documents in real-time.`,
 					}
 				}
 
-				resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
-				if resolveErr != nil {
-					return resolveErr
-				}
-
 				var rsErr error
-				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
+				selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 				if rsErr != nil {
 					return rsErr
 				}
@@ -129,6 +116,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				Logger:                   logger,
 				ExtensionRefs:            extensionRefsFlag,
 				IgnoredResults:           ignoredItems,
+				HTTPClientConfig:         httpClientConfig,
 			}
 
 			return languageserver.NewServer(GetVersion(), &lfr).Run()

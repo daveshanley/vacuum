@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -123,38 +122,18 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				}
 
+				tempLintFlags := &LintFlags{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				httpConfig, err := GetHTTPClientConfig(tempLintFlags)
+				if err != nil {
+					return fmt.Errorf("failed to resolve TLS configuration: %w", err)
+				}
+
 				if rulesetFlag != "" {
-					resolvedRulesetPath, resolveErr := ResolveConfigPath(rulesetFlag)
-					if resolveErr != nil {
-						if !silent {
-							message := fmt.Sprintf("Unable to resolve ruleset path '%s': %s", rulesetFlag, resolveErr.Error())
-							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
-							messageStyle := lipgloss.NewStyle().Padding(1, 1)
-							fmt.Println(style.Render(messageStyle.Render(message)))
-						}
-						return resolveErr
-					}
-
-					httpCertPath, certErr := ResolveConfigPath(certFile)
-					if certErr != nil {
-						return fmt.Errorf("failed to resolve cert file path: %w", certErr)
-					}
-					httpKeyPath, keyErr := ResolveConfigPath(keyFile)
-					if keyErr != nil {
-						return fmt.Errorf("failed to resolve key file path: %w", keyErr)
-					}
-					httpCAPath, caErr := ResolveConfigPath(caFile)
-					if caErr != nil {
-						return fmt.Errorf("failed to resolve CA file path: %w", caErr)
-					}
-
-					httpConfig := utils.HTTPClientConfig{
-						CertFile: httpCertPath,
-						KeyFile:  httpKeyPath,
-						CAFile:   httpCAPath,
-						Insecure: insecure,
-					}
-
 					var httpClient *http.Client
 					if utils.ShouldUseCustomHTTPClient(httpConfig) {
 						var clientErr error
@@ -165,10 +144,10 @@ func GetDashboardCommand() *cobra.Command {
 					}
 
 					var rsErr error
-					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(resolvedRulesetPath, defaultRuleSets, remoteFlag, httpClient)
+					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 					if rsErr != nil {
 						if !silent {
-							message := fmt.Sprintf("Unable to load ruleset '%s': %s", resolvedRulesetPath, rsErr.Error())
+							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
 							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 							messageStyle := lipgloss.NewStyle().Padding(1, 1)
 							fmt.Println(style.Render(messageStyle.Render(message)))
