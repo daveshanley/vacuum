@@ -4,7 +4,7 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-const ignoreKey = "x-vacuum-ignore"
+const ignoreKey = "x-lint-ignore"
 
 // checkInlineIgnore checks if a node should be ignored for a specific rule
 // by looking for the ignore key ignore in the node itself.
