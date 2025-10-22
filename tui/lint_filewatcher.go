@@ -63,9 +63,11 @@ func (m *ViolationResultTableModel) setupFileWatcher() tea.Cmd {
 		return nil
 	}
 
-	err = m.watcher.Add(absPath)
+	// Watch the directory instead of the specific file to handle atomic saves
+	watchDir := filepath.Dir(absPath)
+	err = m.watcher.Add(watchDir)
 	if err != nil {
-		m.watchError = fmt.Sprintf("Failed to watch file %s: %v", absPath, err)
+		m.watchError = fmt.Sprintf("Failed to watch directory %s: %v", watchDir, err)
 		m.watchState = WatchStateError
 		return nil
 	}
@@ -86,7 +88,13 @@ func (m *ViolationResultTableModel) watchFileChanges() {
 				return
 			}
 
-			if event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) {
+			// Only process events for our target file
+			targetFile := m.watchedFiles[0] // The absolute path of our spec file
+			if event.Name != targetFile {
+				continue
+			}
+
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Rename) || event.Has(fsnotify.Create) {
 				select {
 				case m.watchMsgChan <- fileChangeMsg{fileName: event.Name}:
 				default:
