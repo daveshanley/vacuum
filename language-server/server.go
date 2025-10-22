@@ -47,7 +47,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 		lintRequest:   lintRequest,
 		documentStore: newDocumentStore(),
 	}
-	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
+	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
 		if params.Trace != nil {
 			protocol.SetTraceValue(*params.Trace)
 		}
@@ -153,7 +153,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 }
 
 func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
-	var diagnostics []protocol.Diagnostic
+	diagnostics := []protocol.Diagnostic{}
 
 	for _, vacuumResult := range result.Results {
 		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
