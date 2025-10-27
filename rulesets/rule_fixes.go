@@ -172,6 +172,8 @@ const (
 	unnecessaryCombinatorFix = `Schema combinators (allOf, anyOf, oneOf) with only a single item are unnecessary and should be replaced with the item directly for cleaner, more readable schemas.`
 
 	camelCasePropertiesFix = `Schema property names should use camelCase for consistency and better compatibility with code generation tools. Property names should start with a lowercase letter and use uppercase letters for word boundaries.`
+
+	migrateZallyIgnoreFix = `Migrate x-zally-ignore directives to vacuum's x-lint-ignore. Rename the key to x-lint-ignore and update the ignored rule id to the vacuum equivalent rule.`
 )
 
 const (
