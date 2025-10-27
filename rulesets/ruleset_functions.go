@@ -1430,3 +1430,23 @@ func GetCamelCasePropertiesRule() *model.Rule {
 		HowToFix: camelCasePropertiesFix,
 	}
 }
+
+// GetMigrateZallyIgnoreRule will check for x-zally-ignore keys and suggest migration to x-lint-ignore
+func GetMigrateZallyIgnoreRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Migrate from x-zally-ignore to x-lint-ignore",
+		Id:           MigrateZallyIgnoreRule,
+		Formats:      model.AllFormats,
+		Description:  "x-zally-ignore keys should be migrated to x-lint-ignore for compatibility with vacuum",
+		Given:        "$",
+		Resolved:     true,
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "migrateZallyIgnore",
+		},
+		HowToFix: migrateZallyIgnoreFix,
+	}
+}

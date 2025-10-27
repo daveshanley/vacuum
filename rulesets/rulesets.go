@@ -97,6 +97,7 @@ const (
 	DuplicatePathsRule                   = "duplicate-paths"
 	UnnecessaryCombinatorRule            = "no-unnecessary-combinator"
 	CamelCasePropertiesRule              = "camel-case-properties"
+	MigrateZallyIgnoreRule               = "migrate-zally-ignore"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -508,6 +509,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[DuplicatePathsRule] = GetDuplicatePathsRule()
 	rules[UnnecessaryCombinatorRule] = GetUnnecessaryCombinatorRule()
 	rules[CamelCasePropertiesRule] = GetCamelCasePropertiesRule()
+	rules[MigrateZallyIgnoreRule] = GetMigrateZallyIgnoreRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
