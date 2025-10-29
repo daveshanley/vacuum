@@ -19,7 +19,7 @@ require (
 	github.com/pb33f/doctor v0.0.40
 	github.com/pb33f/jsonpath v0.1.2
 	github.com/pb33f/libopenapi v0.28.1
-	github.com/pb33f/libopenapi-validator v0.6.3
+	github.com/pb33f/libopenapi-validator v0.9.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.1
@@ -30,7 +30,7 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.2
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/term v0.35.0
-	golang.org/x/text v0.29.0
+	golang.org/x/text v0.30.0
 )
 
 require gopkg.in/yaml.v3 v3.0.1 // indirect
