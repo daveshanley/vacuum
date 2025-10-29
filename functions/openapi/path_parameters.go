@@ -63,8 +63,18 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		return results
 	}
 
-	// check for duplicate paths
-	seenPaths := make(map[string]string)
+	// check for duplicate paths per HTTP method
+	// map[method]map[normalizedPath]originalPath
+	seenPathsByMethod := make(map[string]map[string]string)
+
+	// First pass: collect all paths and their operations
+	pathOperations := make(map[string]map[string]bool) // map[pathKey]map[method]exists
+	for pathKey, pathValue := range paths.PathItems.FromOldest() {
+		pathOperations[pathKey] = make(map[string]bool)
+		for opVerb := range pathValue.GetOperations().FromOldest() {
+			pathOperations[pathKey][opVerb] = true
+		}
+	}
 
 	// iterate through each path and do the things.
 	for pathKey, pathValue := range paths.PathItems.FromOldest() {
@@ -75,18 +85,25 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		//currentPath = pathKey
 		currentPathNormalized := pp.rx.ReplaceAllString(pathKey, "%")
 
-		// check if it's been seen
-		if seenPaths[currentPathNormalized] != "" {
-			res := model.BuildFunctionResultString(
-				fmt.Sprintf("paths `%s` and `%s` must not be equivalent, paths must be unique",
-					seenPaths[currentPathNormalized], pathKey))
-			res.StartNode = pathValue.KeyNode
-			res.EndNode = vacuumUtils.BuildEndNode(pathValue.KeyNode)
-			res.Path = pathValue.GenerateJSONPath()
-			res.Rule = context.Rule
-			results = append(results, res)
-		} else {
-			seenPaths[currentPathNormalized] = pathKey
+		// Check for duplicates per HTTP method
+		for opVerb := range pathOperations[pathKey] {
+			if seenPathsByMethod[opVerb] == nil {
+				seenPathsByMethod[opVerb] = make(map[string]string)
+			}
+
+			// Check if this normalized path has been seen for this specific method
+			if existingPath, exists := seenPathsByMethod[opVerb][currentPathNormalized]; exists {
+				res := model.BuildFunctionResultString(
+					fmt.Sprintf("%s: paths `%s` and `%s` must not be equivalent, paths must be unique for the same HTTP method",
+						strings.ToUpper(opVerb), existingPath, pathKey))
+				res.StartNode = pathValue.KeyNode
+				res.EndNode = vacuumUtils.BuildEndNode(pathValue.KeyNode)
+				res.Path = pathValue.GenerateJSONPath()
+				res.Rule = context.Rule
+				results = append(results, res)
+			} else {
+				seenPathsByMethod[opVerb][currentPathNormalized] = pathKey
+			}
 		}
 
 		pathElements := make(map[string]bool)
