@@ -52,6 +52,7 @@ func GetHTMLReportCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -134,7 +135,7 @@ func GetHTMLReportCommand() *cobra.Command {
 				}
 
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, httpClientConfig, ignoredItems)
+					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, ignoredItems)
 				if err != nil {
 					tui.RenderError(err)
 					return err

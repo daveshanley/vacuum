@@ -166,6 +166,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 			Spec:                            []byte(doc.Content),
 			SpecFileName:                    specFileName,
 			Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
+			NodeLookupTimeout:               time.Duration(s.lintRequest.LookupTimeoutFlag) * time.Millisecond,
 			CustomFunctions:                 s.lintRequest.Functions,
 			IgnoreCircularArrayRef:          s.lintRequest.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef:    s.lintRequest.IgnorePolymorphCircleRef,

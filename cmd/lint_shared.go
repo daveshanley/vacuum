@@ -74,6 +74,7 @@ type LintFlags struct {
 	CAFile                   string
 	Insecure                 bool
 	DebugFlag                bool
+	LookupTimeoutFlag        int
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -117,6 +118,10 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.TimeoutFlag, _ = cmd.Flags().GetInt("timeout")
 	if !cmd.Flags().Changed("timeout") && viper.IsSet("lint.timeout") {
 		flags.TimeoutFlag = viper.GetInt("lint.timeout")
+	}
+	flags.LookupTimeoutFlag, _ = cmd.Flags().GetInt("lookup-timeout")
+	if !cmd.Flags().Changed("lookup-timeout") && viper.IsSet("lint.lookup-timeout") {
+		flags.LookupTimeoutFlag = viper.GetInt("lint.lookup-timeout")
 	}
 	flags.RulesetFlag, _ = cmd.Flags().GetString("ruleset")
 	// Fallback to lint-scoped config if no ruleset was provided via flag/env/root-config
@@ -422,6 +427,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,
 		SilenceLogs:                     config.Flags.SilentFlag,
 		Timeout:                         time.Duration(config.Flags.TimeoutFlag) * time.Second,
+		NodeLookupTimeout:               time.Duration(config.Flags.LookupTimeoutFlag) * time.Millisecond,
 		IgnoreCircularArrayRef:          config.Flags.IgnoreArrayCircleRef,
 		IgnoreCircularPolymorphicRef:    config.Flags.IgnorePolymorphCircleRef,
 		BuildDeepGraph:                  len(config.IgnoredItems) > 0,

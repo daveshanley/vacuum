@@ -39,6 +39,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
@@ -111,6 +112,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				SelectedRS:               selectedRS,
 				Functions:                customFunctions,
 				TimeoutFlag:              timeoutFlag,
+				LookupTimeoutFlag:        lookupTimeoutFlag,
 				IgnoreArrayCircleRef:     ignoreArrayCircleRef,
 				IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 				Logger:                   logger,

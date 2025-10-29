@@ -90,6 +90,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("skip-check", "k", false, "Skip checking for a valid OpenAPI document, useful for linting fragments or non-OpenAPI documents")
 	rootCmd.PersistentFlags().BoolP("debug", "w", false, "Turn on debug logging")
 	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
+	rootCmd.PersistentFlags().Int("lookup-timeout", 500, "Node lookup timeout in milliseconds for JSONPath queries, default is 500ms")
 	rootCmd.PersistentFlags().BoolP("hard-mode", "z", false, "Enable all the built-in rules, even the OWASP ones. This is the level to beat!")
 	rootCmd.PersistentFlags().BoolP("ext-refs", "", false, "Turn on $ref lookups and resolving for extensions (x-) objects")
 	rootCmd.PersistentFlags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
@@ -118,6 +119,9 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("timeout", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("lookup-timeout", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("cert-file", cobra.FixedCompletions(

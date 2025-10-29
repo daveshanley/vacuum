@@ -181,6 +181,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			Logger:                          logger,
 			BuildDeepGraph:                  deepGraph,
 			Timeout:                         time.Duration(flags.TimeoutFlag) * time.Second,
+			NodeLookupTimeout:               time.Duration(flags.LookupTimeoutFlag) * time.Millisecond,
 			IgnoreCircularArrayRef:          flags.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef:    flags.IgnorePolymorphCircleRef,
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
