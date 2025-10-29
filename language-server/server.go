@@ -185,6 +185,15 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 		endChar = vacuumResult.EndNode.Column - 1
 	}
 
+	// Build comprehensive message with rule details
+	message := vacuumResult.Message
+	if vacuumResult.Rule.Description != "" {
+		message += "\n\nDescription: " + vacuumResult.Rule.Description
+	}
+	if vacuumResult.Rule.HowToFix != "" {
+		message += "\n\nHow to fix: " + vacuumResult.Rule.HowToFix + "\n\nRule ID:"
+	}
+
 	return protocol.Diagnostic{
 		Range: protocol.Range{
 			Start: protocol.Position{Line: protocol.UInteger(startLine),
@@ -196,7 +205,7 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 		Source:          &serverName,
 		Code:            &protocol.IntegerOrString{Value: vacuumResult.Rule.Id},
 		CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
-		Message:         vacuumResult.Message,
+		Message:         message,
 	}
 }
 
