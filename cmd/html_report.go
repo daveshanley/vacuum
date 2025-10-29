@@ -48,6 +48,7 @@ func GetHTMLReportCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			noBannerFlag, _ := cmd.Flags().GetBool("no-banner")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
@@ -62,7 +63,9 @@ func GetHTMLReportCommand() *cobra.Command {
 				color.DisableColors()
 			}
 
-			PrintBanner()
+			if !noBannerFlag {
+				PrintBanner()
+			}
 
 			// check for file args
 			if len(args) == 0 {
@@ -217,6 +220,7 @@ func GetHTMLReportCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner output")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 
 	return cmd
