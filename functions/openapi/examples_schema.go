@@ -4,9 +4,12 @@
 package openapi
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
@@ -17,7 +20,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/sourcegraph/conc"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -38,19 +40,41 @@ func (es ExamplesSchema) GetCategory() string {
 var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}
 
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.
-func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
 
-	if context.DrDocument == nil {
+	if ruleContext.DrDocument == nil {
 		return results
 	}
+
+	// Get configuration values from context, use defaults if not set
+	maxConcurrentValidations := ruleContext.MaxConcurrentValidations
+	if maxConcurrentValidations <= 0 {
+		maxConcurrentValidations = 10 // Default: 10 parallel validations
+	}
+
+	validationTimeout := ruleContext.ValidationTimeout
+	if validationTimeout <= 0 {
+		validationTimeout = 10 * time.Second // Default: 10 seconds
+	}
+
+	// Create a timeout context for the entire validation process
+	ctx, cancel := context.WithTimeout(context.Background(), validationTimeout)
+	defer cancel()
+
+	// Create semaphore for concurrency limiting
+	sem := make(chan struct{}, maxConcurrentValidations)
+
+	// Track active workers
+	var activeWorkers int32
+	var completedWorkers int32
 
 	buildResult := func(message, path string, key, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
 		// Try to find all paths for this node if it's a schema
 		var allPaths []string
 		if schema, ok := component.(*v3.Schema); ok {
-			_, allPaths = vacuumUtils.LocateSchemaPropertyPaths(context, schema, key, node)
+			_, allPaths = vacuumUtils.LocateSchemaPropertyPaths(ruleContext, schema, key, node)
 		}
 
 		result := model.RuleFunctionResult{
@@ -58,7 +82,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 			StartNode: key,
 			EndNode:   vacuumUtils.BuildEndNode(key),
 			Path:      path,
-			Rule:      context.Rule,
+			Rule:      ruleContext.Rule,
 		}
 
 		// Set the Paths array if we found multiple locations
@@ -69,11 +93,58 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
 	}
-	wg := conc.WaitGroup{}
+
 	var expLock sync.Mutex
+	var wg sync.WaitGroup
+
+	// Helper function to spawn workers with context and concurrency control
+	spawnWorker := func(work func()) {
+		// Check if context is already cancelled before spawning
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		atomic.AddInt32(&activeWorkers, 1)
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			defer atomic.AddInt32(&completedWorkers, 1)
+			defer atomic.AddInt32(&activeWorkers, -1)
+
+			// Recover from panics to prevent crashes
+			defer func() {
+				if r := recover(); r != nil {
+					// Log panic if logger available
+					if ruleContext.Logger != nil {
+						ruleContext.Logger.Error("ExamplesSchema validation panic", "error", r)
+					}
+				}
+			}()
+
+			// Try to acquire semaphore with context
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				// Context cancelled while waiting for semaphore
+				return
+			}
+
+			// Check context again before starting work
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				work()
+			}
+		}()
+	}
 
 	validator := schema_validation.NewSchemaValidator()
-	version := context.Document.GetSpecInfo().VersionNumeric
+	version := ruleContext.Document.GetSpecInfo().VersionNumeric
 	validateSchema := func(iKey *int,
 		sKey, label string,
 		s *v3.Schema,
@@ -104,7 +175,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 				}
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
-						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, err.Reason),
+						result := buildResult(vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, err.Reason),
 							path, keyNode, node, s)
 
 						banned := false
@@ -124,18 +195,31 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return rx
 	}
 
-	if context.DrDocument != nil && context.DrDocument.Schemas != nil {
-		for i := range context.DrDocument.Schemas {
-			s := context.DrDocument.Schemas[i]
-			wg.Go(func() {
+	if ruleContext.DrDocument != nil && ruleContext.DrDocument.Schemas != nil {
+		for i := range ruleContext.DrDocument.Schemas {
+			s := ruleContext.DrDocument.Schemas[i]
+			spawnWorker(func() {
+				// Check context at start of work
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				if s.Value.Examples != nil {
 					for x, ex := range s.Value.Examples {
+						// Check context in loop
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
 
 						isRef, _, _ := utils.IsNodeRefValue(ex)
 						if isRef {
 							// extract node
 							fNode, _, _, _ := low.LocateRefNodeWithContext(s.Value.ParentProxy.GoLow().GetContext(),
-								ex, context.Index)
+								ex, ruleContext.Index)
 							if fNode != nil {
 								ex = fNode
 							} else {
@@ -164,7 +248,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 					if isRef {
 						// extract node
 						fNode, _, _, _ := low.LocateRefNodeWithContext(s.Value.ParentProxy.GoLow().GetContext(),
-							s.Value.Example, context.Index)
+							s.Value.Example, ruleContext.Index)
 						if fNode != nil {
 							ref = fNode
 						}
@@ -221,10 +305,17 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		return rx
 	}
 
-	if context.DrDocument != nil && context.DrDocument.Parameters != nil {
-		for i := range context.DrDocument.Parameters {
-			p := context.DrDocument.Parameters[i]
-			wg.Go(func() {
+	if ruleContext.DrDocument != nil && ruleContext.DrDocument.Parameters != nil {
+		for i := range ruleContext.DrDocument.Parameters {
+			p := ruleContext.DrDocument.Parameters[i]
+			spawnWorker(func() {
+				// Check context at start of work
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				if p.Value.Examples.Len() >= 1 && p.SchemaProxy != nil {
 					expLock.Lock()
 					if p.Value.Examples != nil && p.Value.Examples.Len() > 0 {
@@ -245,10 +336,17 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 
-	if context.DrDocument != nil && context.DrDocument.Headers != nil {
-		for i := range context.DrDocument.Headers {
-			h := context.DrDocument.Headers[i]
-			wg.Go(func() {
+	if ruleContext.DrDocument != nil && ruleContext.DrDocument.Headers != nil {
+		for i := range ruleContext.DrDocument.Headers {
+			h := ruleContext.DrDocument.Headers[i]
+			spawnWorker(func() {
+				// Check context at start of work
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				if h.Value.Examples.Len() >= 1 && h.Schema != nil {
 					expLock.Lock()
 					results = append(results, parseExamples(h.Schema.Schema, h, h.Value.Examples)...)
@@ -265,11 +363,18 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 
-	if context.DrDocument != nil && context.DrDocument.MediaTypes != nil {
+	if ruleContext.DrDocument != nil && ruleContext.DrDocument.MediaTypes != nil {
 
-		for i := range context.DrDocument.MediaTypes {
-			mt := context.DrDocument.MediaTypes[i]
-			wg.Go(func() {
+		for i := range ruleContext.DrDocument.MediaTypes {
+			mt := ruleContext.DrDocument.MediaTypes[i]
+			spawnWorker(func() {
+				// Check context at start of work
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
 				if mt.Value.Examples.Len() >= 1 && mt.SchemaProxy != nil {
 					expLock.Lock()
 					results = append(results, parseExamples(mt.SchemaProxy.Schema, mt, mt.Value.Examples)...)
@@ -286,7 +391,32 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, context model.RuleFunctionConte
 		}
 
 	}
-	wg.Wait()
+
+	// Wait for all workers to complete or context to timeout
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// All workers completed normally
+		if ruleContext.Logger != nil && atomic.LoadInt32(&completedWorkers) > 0 {
+			ruleContext.Logger.Debug("ExamplesSchema completed validations",
+				"completed", atomic.LoadInt32(&completedWorkers))
+		}
+	case <-ctx.Done():
+		// Timeout occurred - return whatever results we have
+		if ruleContext.Logger != nil {
+			ruleContext.Logger.Warn("ExamplesSchema validation timeout",
+				"timeout", validationTimeout,
+				"active", atomic.LoadInt32(&activeWorkers),
+				"completed", atomic.LoadInt32(&completedWorkers),
+				"results", len(results))
+		}
+	}
+
 	return results
 }
 

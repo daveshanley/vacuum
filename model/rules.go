@@ -59,6 +59,14 @@ type RuleFunctionContext struct {
 	DrDocument *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 
+	// MaxConcurrentValidations controls the maximum number of parallel validations for functions that support
+	// concurrency limiting (e.g., oasExampleSchema). Default is 10 if not set or 0.
+	MaxConcurrentValidations int `json:"-" yaml:"-"`
+
+	// ValidationTimeout controls the maximum time allowed for validation functions that support timeouts
+	// (e.g., oasExampleSchema). Default is 10 seconds if not set or 0.
+	ValidationTimeout time.Duration `json:"-" yaml:"-"`
+
 	// optionsCache caches the converted options map to avoid repeated interface conversions
 	optionsCache map[string]string `json:"-" yaml:"-"`
 }

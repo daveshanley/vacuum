@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
@@ -771,4 +772,50 @@ components:
 	assert.Contains(t, res[0].Message, "'oneOf' failed")
 	assert.Contains(t, res[0].Message, "subschemas 0, 1 matched")
 	assert.Equal(t, "$.components.schemas['Test'].example", res[0].Path)
+}
+
+func TestExamplesSchema_CustomConfiguration(t *testing.T) {
+	// This test demonstrates how to use the new MaxConcurrentValidations and ValidationTimeout
+	// configuration fields in RuleFunctionContext for programmatic control
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+      example:
+        name: "Widget"
+        price: 19.99`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	// Configure custom timeout and concurrency limits
+	// These values can be set programmatically to control resource usage
+	ctx.MaxConcurrentValidations = 5        // Limit to 5 concurrent validations (default: 10)
+	ctx.ValidationTimeout = 5 * time.Second // 5 second timeout (default: 10 seconds)
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	// Valid example should pass
+	assert.Len(t, res, 0)
 }
