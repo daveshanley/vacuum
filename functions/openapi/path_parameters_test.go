@@ -138,7 +138,7 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "paths `/pizza/{cake}/{limes}` and `/pizza/{minty}/{tape}` must not be equivalent, paths must be unique", res[0].Message)
+	assert.Equal(t, "GET: paths `/pizza/{cake}/{limes}` and `/pizza/{minty}/{tape}` must not be equivalent, paths must be unique for the same HTTP method", res[0].Message)
 
 }
 
@@ -603,9 +603,9 @@ paths:
                 name: yeah
                 example: fish
                 description: fingers
-        post: 
+        post:
           description: minty fresh
-          summary: crispy fresh  
+          summary: crispy fresh
           parameters:
             - name: cakes
               in: path`
@@ -631,4 +631,122 @@ paths:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 0)
+}
+
+func TestPathParameters_RunRule_Issue740_ThreeDifferentMethods(t *testing.T) {
+	// Test that three paths with same normalized pattern but different methods don't conflict
+	yml := `openapi: 3.1.0
+paths:
+  /api/users/{userId}/items/{itemId}:
+    get:
+      summary: Get user item
+      parameters:
+        - name: userId
+          in: path
+          required: true
+        - name: itemId
+          in: path
+          required: true
+  /api/users/{customerId}/items/{productId}:
+    post:
+      summary: Create user item
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+        - name: productId
+          in: path
+          required: true
+  /api/users/{accountId}/items/{objectId}:
+    delete:
+      summary: Delete user item
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+        - name: objectId
+          in: path
+          required: true`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
+
+	// Should be NO errors - all different methods
+	assert.Len(t, res, 0)
+}
+
+func TestPathParameters_RunRule_Issue740_SameMethodConflict(t *testing.T) {
+	// Test that two paths with same normalized pattern and SAME method DO conflict
+	yml := `openapi: 3.1.0
+paths:
+  /api/resources/{id}:
+    get:
+      summary: Get resource by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+    post:
+      summary: Create resource
+      parameters:
+        - name: id
+          in: path
+          required: true
+  /api/resources/{resourceId}:
+    get:  # This should conflict with the GET above
+      summary: Get resource by resource ID
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+    put:  # This should NOT conflict (different method)
+      summary: Update resource
+      parameters:
+        - name: resourceId
+          in: path
+          required: true`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
+
+	// Should have exactly 1 error for the duplicate GET methods
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "GET: paths")
+	assert.Contains(t, res[0].Message, "must not be equivalent")
+	assert.Contains(t, res[0].Message, "/api/resources/{id}")
+	assert.Contains(t, res[0].Message, "/api/resources/{resourceId}")
 }
