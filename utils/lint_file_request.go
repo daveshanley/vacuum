@@ -29,6 +29,7 @@ type LintFileRequest struct {
 	TotalFiles               int
 	FileIndex                int
 	TimeoutFlag              int
+	LookupTimeoutFlag        int
 	IgnoreArrayCircleRef     bool
 	IgnorePolymorphCircleRef bool
 	NoClip                   bool

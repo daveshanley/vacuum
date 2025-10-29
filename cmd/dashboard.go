@@ -49,6 +49,7 @@ func GetDashboardCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -184,6 +185,7 @@ func GetDashboardCommand() *cobra.Command {
 					SkipDocumentCheck: skipCheckFlag,
 					Logger:            logger,
 					Timeout:           time.Duration(timeoutFlag) * time.Second,
+					NodeLookupTimeout: time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					HTTPClientConfig:  httpConfig,
 				})
 

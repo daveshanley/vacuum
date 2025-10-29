@@ -52,6 +52,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -218,6 +219,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
+				NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
 				HTTPClientConfig:                httpClientConfig,
 			})

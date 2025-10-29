@@ -52,6 +52,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			junitFlag, _ := cmd.Flags().GetBool("junit")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
@@ -226,6 +227,7 @@ func GetVacuumReportCommand() *cobra.Command {
 				SkipDocumentCheck:               skipCheckFlag,
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
+				NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
 				HTTPClientConfig:                httpClientConfig,
 			})

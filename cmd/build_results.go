@@ -21,9 +21,10 @@ func BuildResults(
 	base string,
 	remote bool,
 	timeout time.Duration,
+	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, httpClientConfig, ignoredItems)
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, ignoredItems)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -36,6 +37,7 @@ func BuildResultsWithDocCheckSkip(
 	remote bool,
 	skipCheck bool,
 	timeout time.Duration,
+	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
@@ -98,6 +100,7 @@ func BuildResultsWithDocCheckSkip(
 		SkipDocumentCheck: skipCheck,
 		AllowLookup:       remote,
 		Timeout:           timeout,
+		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
 	})
 
