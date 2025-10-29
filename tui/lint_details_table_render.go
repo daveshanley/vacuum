@@ -5,13 +5,12 @@ package tui
 
 import (
 	"fmt"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/muesli/termenv"
 )
 
@@ -330,20 +329,7 @@ func (m *ViolationResultTableModel) fetchDocumentation(ruleID string) tea.Cmd {
 		// If it's not the default quobix.com pattern, open in browser
 		if !strings.Contains(customURL, "quobix.com/vacuum/rules/") {
 			return func() tea.Msg {
-				// Open URL in default browser
-				var cmd *exec.Cmd
-				switch runtime.GOOS {
-				case "linux":
-					cmd = exec.Command("xdg-open", customURL)
-				case "windows":
-					cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", customURL)
-				case "darwin":
-					cmd = exec.Command("open", customURL)
-				default:
-					return docsErrorMsg{ruleID: ruleID, err: "Unsupported platform for opening browser", is404: false}
-				}
-				
-				if err := cmd.Start(); err != nil {
+				if err := utils.OpenURL(customURL); err != nil {
 					return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("Failed to open browser: %s", err.Error()), is404: false}
 				}
 				
