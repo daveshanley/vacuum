@@ -84,6 +84,7 @@ type RuleFunctionResult struct {
 	StartNode    *yaml.Node        `json:"-" yaml:"-"`                               // Start of the violation
 	EndNode      *yaml.Node        `json:"-" yaml:"-"`                               // end of the violation
 	Timestamp    *time.Time        `json:"-" yaml:"-"`                               // When the result was created.
+	AutoFixed    bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"` // Whether this violation was auto-fixed
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
 	// populated, then this is a reference to the model that fired the rule. (not currently used yet)
@@ -117,23 +118,27 @@ type RuleAction struct {
 	FunctionOptions interface{} `json:"functionOptions,omitempty" yaml:"functionOptions,omitempty"`
 }
 
+// AutoFixFunction defines the signature for auto-fix functions
+type AutoFixFunction func(node *yaml.Node, document *yaml.Node, context *RuleFunctionContext) (*yaml.Node, error)
+
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
-	Id                 string         `json:"id,omitempty" yaml:"id,omitempty"`
-	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
-	DocumentationURL   string         `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
-	Message            string         `json:"message,omitempty" yaml:"message,omitempty"`
-	Given              interface{}    `json:"given,omitempty" yaml:"given,omitempty"`
-	Formats            []string       `json:"formats,omitempty" yaml:"formats,omitempty"`
-	Resolved           bool           `json:"resolved,omitempty" yaml:"resolved,omitempty"`
-	Recommended        bool           `json:"recommended,omitempty" yaml:"recommended,omitempty"`
-	Type               string         `json:"type,omitempty" yaml:"type,omitempty"`
-	Severity           string         `json:"severity,omitempty" yaml:"severity,omitempty"`
-	Then               interface{}    `json:"then,omitempty" yaml:"then,omitempty"`
-	PrecompiledPattern *regexp.Regexp `json:"-" yaml:"-"` // regex is slow.
-	RuleCategory       *RuleCategory  `json:"category,omitempty" yaml:"category,omitempty"`
-	Name               string         `json:"-" yaml:"-"`
-	HowToFix           string         `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
+	Id                 string           `json:"id,omitempty" yaml:"id,omitempty"`
+	Description        string           `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURL   string           `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Message            string           `json:"message,omitempty" yaml:"message,omitempty"`
+	Given              interface{}      `json:"given,omitempty" yaml:"given,omitempty"`
+	Formats            []string         `json:"formats,omitempty" yaml:"formats,omitempty"`
+	Resolved           bool             `json:"resolved,omitempty" yaml:"resolved,omitempty"`
+	Recommended        bool             `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+	Type               string           `json:"type,omitempty" yaml:"type,omitempty"`
+	Severity           string           `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Then               interface{}      `json:"then,omitempty" yaml:"then,omitempty"`
+	PrecompiledPattern *regexp.Regexp   `json:"-" yaml:"-"` // regex is slow.
+	RuleCategory       *RuleCategory    `json:"category,omitempty" yaml:"category,omitempty"`
+	Name               string           `json:"-" yaml:"-"`
+	HowToFix           string           `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
+	AutoFixFunction    AutoFixFunction  `json:"-" yaml:"-"` // Auto-fix function for this rule
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
