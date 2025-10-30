@@ -60,6 +60,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
+	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
 	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
 	// ext-refs is inherited from root as a persistent flag

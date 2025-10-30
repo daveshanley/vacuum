@@ -51,6 +51,7 @@ type ruleContext struct {
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
+	applyAutoFixes     bool
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -78,6 +79,7 @@ type RuleSetExecution struct {
 	BuildDeepGraph                  bool                          // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
 	ExtractReferencesSequentially   bool                          // Extract references sequentially, defaults to false, can be slow.
 	ExtractReferencesFromExtensions bool                          // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
+	ApplyAutoFixes                  bool                          // Apply auto-fixes for rules that support it
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
 	IgnoreCircularArrayRef       bool // Ignore array circular references
@@ -766,6 +768,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					skipDocumentCheck:  execution.SkipDocumentCheck,
 					logger:             docConfig.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
+					applyAutoFixes:     execution.ApplyAutoFixes,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -1029,6 +1032,28 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				}
 
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
+
+				// Apply auto-fix if available and enabled
+				if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != nil {
+					for i := range runRuleResults {
+						// Only attempt auto-fix if there's a violation and we have the node
+						if runRuleResults[i].StartNode != nil {
+							fixedNode, err := ctx.rule.AutoFixFunction(runRuleResults[i].StartNode, ctx.specNode, &rfc)
+							if err != nil {
+								// Log auto-fix failure but don't break the linting process
+								if !ctx.silenceLogs {
+									slog.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
+								}
+							} else if fixedNode != nil {
+								// Mark the result as auto-fixed
+								runRuleResults[i].AutoFixed = true
+								if !ctx.silenceLogs {
+									slog.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", runRuleResults[i].Path)
+								}
+							}
+						}
+					}
+				}
 
 				// Ensure RuleId and RuleSeverity are populated from the rule context
 				// This is necessary for programmatic API usage where these fields might not be set
