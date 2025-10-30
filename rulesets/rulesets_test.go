@@ -831,3 +831,22 @@ func TestRuleSet_GetExtendsLocalSpec_Multi_Chain_Loop(t *testing.T) {
 	assert.Contains(t, logBuffer.String(), "ruleset links to its self, circular rulesets are not permitted")
 
 }
+func TestRuleSetsModel_GenerateRuleSetFromConfig_OwaspOff_EnableSpecificRule(t *testing.T) {
+	// This test captures the bug where extending [vacuum:owasp, off] and then
+	// enabling a specific OWASP rule fails with "Rule does not exist, ignoring it"
+	yaml := `extends: 
+  - [vacuum:oas, all]
+  - [vacuum:owasp, off]
+rules:
+  owasp-integer-format: true`
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+
+	assert.NotNil(t, repl.Rules["owasp-integer-format"], "owasp-integer-format rule should be available")
+	assert.Nil(t, repl.Rules["owasp-no-numeric-ids"], "other OWASP rules should be disabled")
+	assert.Greater(t, len(repl.Rules), 1, "should have OpenAPI rules plus the one OWASP rule")
+}
