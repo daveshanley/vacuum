@@ -210,6 +210,116 @@ paths:
 	assert.Greater(t, autoFixedCount, 0, "Should have auto-fixed some violations")
 }
 
+// TestAutoFixStats tests that fix statistics are tracked correctly
+func TestAutoFixStats(t *testing.T) {
+	spec := `
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+  description: ""
+paths:
+  /test:
+    get:
+      summary: Test endpoint
+      description: ""
+      responses:
+        '200':
+          description: ""
+`
+
+	emptyDescriptionFix := func(node *yaml.Node, document *yaml.Node, context *model.RuleFunctionContext) (*yaml.Node, error) {
+		if node.Value == "" {
+			node.Value = "TODO: Add description"
+		}
+		return node, nil
+	}
+
+	customRule := model.Rule{
+		Id:              "empty-description-stats",
+		Description:     "Descriptions should not be empty",
+		Message:         "Empty description found",
+		Given:           "$..description",
+		Severity:        model.SeverityWarn,
+		AutoFixFunction: emptyDescriptionFix,
+		Then: &model.RuleAction{
+			Function: "truthy",
+		},
+	}
+
+	customRuleSet := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"empty-description-stats": &customRule,
+		},
+	}
+
+	execution := &RuleSetExecution{
+		RuleSet:        customRuleSet,
+		Spec:           []byte(spec),
+		SpecFileName:   "test.yaml",
+		ApplyAutoFixes: true,
+	}
+
+	result := ApplyRulesToRuleSet(execution)
+
+	assert.Greater(t, len(result.Results), 0, "Should find violations")
+	assert.Greater(t, result.FixesApplied, 0, "Should have applied fixes")
+
+	// Count auto-fixed results manually to verify
+	autoFixedCount := 0
+	for _, r := range result.Results {
+		if r.AutoFixed {
+			autoFixedCount++
+		}
+	}
+
+	assert.Equal(t, autoFixedCount, result.FixesApplied, "FixesApplied should match auto-fixed result count")
+}
+
+// TestAutoFixStats_NoFixes tests that fix count is 0 when no fixes are applied
+func TestAutoFixStats_NoFixes(t *testing.T) {
+	spec := `
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+  description: ""
+`
+
+	customRule := model.Rule{
+		Id:          "empty-description-no-fix",
+		Description: "Descriptions should not be empty",
+		Message:     "Empty description found",
+		Given:       "$..description",
+		Severity:    model.SeverityWarn,
+		Then: &model.RuleAction{
+			Function: "truthy",
+		},
+	}
+
+	customRuleSet := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"empty-description-no-fix": &customRule,
+		},
+	}
+
+	execution := &RuleSetExecution{
+		RuleSet:        customRuleSet,
+		Spec:           []byte(spec),
+		SpecFileName:   "test.yaml",
+		ApplyAutoFixes: true,
+	}
+
+	result := ApplyRulesToRuleSet(execution)
+
+	assert.Greater(t, len(result.Results), 0, "Should find violations")
+	assert.Equal(t, 0, result.FixesApplied, "Should have applied no fixes")
+
+	for _, r := range result.Results {
+		assert.False(t, r.AutoFixed, "No results should be auto-fixed")
+	}
+}
+
 // TestAutoFixIntegration_ErrorHandling tests auto-fix error scenarios
 func TestAutoFixIntegration_ErrorHandling(t *testing.T) {
 	spec := `

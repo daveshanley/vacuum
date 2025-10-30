@@ -116,6 +116,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	var specBytes []byte
 	var displayFileName string
 	var stats *reports.ReportStatistics
+	var fixesApplied int
 	start := time.Now()
 
 	if reportOrSpec.IsReport {
@@ -202,6 +203,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		}
 
 		resultSet = model.NewRuleResultSet(result.Results)
+		fixesApplied = result.FixesApplied
 
 		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
@@ -287,6 +289,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		NoStyle:        flags.NoStyleFlag,
 		PipelineOutput: flags.PipelineOutput,
 		ShowRules:      flags.ShowRules,
+		FixesApplied:   fixesApplied,
 	})
 
 	// timing
@@ -328,14 +331,15 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 // fileResult holds the results and logs for a single file
 type fileResult struct {
-	fileName string
-	results  []*model.RuleFunctionResult
-	errors   int
-	warnings int
-	informs  int
-	size     int64
-	logs     []string
-	err      error
+	fileName     string
+	results      []*model.RuleFunctionResult
+	errors       int
+	warnings     int
+	informs      int
+	size         int64
+	logs         []string
+	err          error
+	fixesApplied int
 }
 
 func PrintBanner(noStyle ...bool) {
@@ -571,7 +575,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		renderQualityScore(stats.OverallScore)
 	}
 
-	renderResultBox(errs, warnings, informs)
+	renderResultBox(errs, warnings, informs, opts.FixesApplied)
 
 	if !opts.NoStyle {
 		fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)

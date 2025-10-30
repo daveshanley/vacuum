@@ -48,6 +48,8 @@ type ruleContext struct {
 	silenceLogs        bool
 	document           libopenapi.Document
 	drDocument         *doctorModel.DrDocument
+	fixesMutex         *sync.Mutex
+	fixesApplied       *int
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
@@ -116,6 +118,7 @@ type RuleSetExecutionResult struct {
 	FilesProcessed   int                              // number of files extracted by the rolodex
 	FileSize         int64                            // total filesize loaded by the rolodex
 	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
+	FixesApplied     int                              // Number of auto-fixes that were successfully applied.
 }
 
 // todo: move copy into virtual file system or some kind of map.
@@ -133,6 +136,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
 	var ignoredResults []model.RuleFunctionResult
+	var fixesApplied int
+	var fixesMutex sync.Mutex
 	var ruleWaitGroup sync.WaitGroup
 	if execution.RuleSet != nil && execution.RuleSet.Rules != nil {
 		ruleWaitGroup.Add(len(execution.RuleSet.Rules))
@@ -769,6 +774,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					logger:             docConfig.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
+					fixesMutex:         &fixesMutex,
+					fixesApplied:       &fixesApplied,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -822,6 +829,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		FilesProcessed:   filesProcessed,
 		FileSize:         fileSize,
 		DocumentConfig:   docConfig,
+		FixesApplied:     fixesApplied,
 	}
 }
 
@@ -1047,6 +1055,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 							} else if fixedNode != nil {
 								// Mark the result as auto-fixed
 								runRuleResults[i].AutoFixed = true
+								ctx.fixesMutex.Lock()
+								(*ctx.fixesApplied)++
+								ctx.fixesMutex.Unlock()
 								if !ctx.silenceLogs {
 									slog.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", runRuleResults[i].Path)
 								}
