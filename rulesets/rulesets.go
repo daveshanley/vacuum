@@ -363,8 +363,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				if rsm.openAPIRuleSet.Rules[k] != nil {
 					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
 				} else {
-					// Check if it's an OWASP rule when vacuum:all is used
-					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
+					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
+					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
+						extends[VacuumOwasp] == VacuumOff || extends[VacuumOwasp] == VacuumAll || extends[VacuumOwasp] == VacuumRecommended ||
+						extends[SpectralOwasp] == VacuumOff || extends[SpectralOwasp] == VacuumAll || extends[SpectralOwasp] == VacuumRecommended {
 						allOWASPRules := GetAllOWASPRules()
 						if allOWASPRules[k] != nil {
 							rs.Rules[k] = allOWASPRules[k]
