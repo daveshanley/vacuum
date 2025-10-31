@@ -60,6 +60,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
+	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
 	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
 	// ext-refs is inherited from root as a persistent flag
@@ -115,6 +116,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	var specBytes []byte
 	var displayFileName string
 	var stats *reports.ReportStatistics
+	var fixesApplied int
 	start := time.Now()
 
 	if reportOrSpec.IsReport {
@@ -170,11 +172,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
 		}
 
-		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		execution := &motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
 			SpecFileName:                    displayFileName,
 			CustomFunctions:                 customFuncs,
+			AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 			Base:                            resolvedBase,
 			AllowLookup:                     flags.RemoteFlag,
 			SkipDocumentCheck:               flags.SkipCheckFlag,
@@ -186,7 +189,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 			IgnoreCircularPolymorphicRef:    flags.IgnorePolymorphCircleRef,
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
 			HTTPClientConfig:                httpClientConfig,
-		})
+			ApplyAutoFixes:                  flags.FixFlag,
+		}
+
+		result := motor.ApplyRulesToRuleSet(execution)
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
@@ -201,6 +207,16 @@ func runLint(cmd *cobra.Command, args []string) error {
 		}
 
 		resultSet = model.NewRuleResultSet(result.Results)
+		resultSet.AddFixedResults(result.FixedResults)
+		fixesApplied = len(result.FixedResults)
+
+		// Write back to file if fixes were applied
+		if fixesApplied > 0 && flags.FixFlag {
+			err := writeFixedFile(result, fileName)
+			if err != nil {
+				return fmt.Errorf("failed to write fixed file: %w", err)
+			}
+		}
 
 		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
@@ -286,6 +302,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		NoStyle:        flags.NoStyleFlag,
 		PipelineOutput: flags.PipelineOutput,
 		ShowRules:      flags.ShowRules,
+		FixesApplied:   fixesApplied,
 	})
 
 	// timing
@@ -327,14 +344,15 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 // fileResult holds the results and logs for a single file
 type fileResult struct {
-	fileName string
-	results  []*model.RuleFunctionResult
-	errors   int
-	warnings int
-	informs  int
-	size     int64
-	logs     []string
-	err      error
+	fileName     string
+	results      []*model.RuleFunctionResult
+	errors       int
+	warnings     int
+	informs      int
+	size         int64
+	logs         []string
+	err          error
+	fixesApplied int
 }
 
 func PrintBanner(noStyle ...bool) {
@@ -570,7 +588,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		renderQualityScore(stats.OverallScore)
 	}
 
-	renderResultBox(errs, warnings, informs)
+	renderResultBox(errs, warnings, informs, opts.FixesApplied)
 
 	if !opts.NoStyle {
 		fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)
@@ -654,4 +672,37 @@ func hasValidExtension(filename string, extensions []string) bool {
 		}
 	}
 	return false
+}
+
+func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string) error {
+	// Get current file permissions
+	fileInfo, err := os.Stat(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to get file info for %s: %w", fileName, err)
+	}
+
+	// Use the modified spec from the result
+	if result.ModifiedSpec == nil {
+		return fmt.Errorf("no modified spec available")
+	}
+
+	// Create backup file in /tmp/ with vacuum prefix
+	backupFileName := filepath.Join("/tmp", "vacuum-"+filepath.Base(fileName)+".bak")
+	originalContent, err := os.ReadFile(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to read original file %s: %w", fileName, err)
+	}
+	
+	err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)
+	}
+
+	// Write back to the original file with original permissions
+	err = os.WriteFile(fileName, result.ModifiedSpec, fileInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to write file %s: %w", fileName, err)
+	}
+
+	return nil
 }
