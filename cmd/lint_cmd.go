@@ -686,6 +686,18 @@ func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string) error
 		return fmt.Errorf("no modified spec available")
 	}
 
+	// Create backup file in /tmp/ with vacuum prefix
+	backupFileName := filepath.Join("/tmp", "vacuum-"+filepath.Base(fileName)+".bak")
+	originalContent, err := os.ReadFile(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to read original file %s: %w", fileName, err)
+	}
+	
+	err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)
+	}
+
 	// Write back to the original file with original permissions
 	err = os.WriteFile(fileName, result.ModifiedSpec, fileInfo.Mode())
 	if err != nil {
