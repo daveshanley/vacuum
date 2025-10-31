@@ -392,3 +392,87 @@ rules:
 
 	assert.Greater(t, len(result.Results), 0, "Should have some results from the custom rule")
 }
+
+func TestInlineIgnore_Integration_PathBasedIgnore(t *testing.T) {
+	// Test both root-level ignore (when path doesn't exist) and target-path ignore (when path exists)
+	specs := []struct {
+		name string
+		yaml string
+		rule string
+	}{
+		{
+			name: "root level ignore for missing path",
+			yaml: `
+x-lint-ignore: missing-servers-rule
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}`,
+			rule: "missing-servers-rule",
+		},
+		{
+			name: "target path ignore when path exists", 
+			yaml: `
+openapi: 3.0.3
+info:
+  title: Test API
+  version: 1.0.0
+servers:
+  - x-lint-ignore: servers-description-rule
+    url: https://api.example.com
+paths: {}`,
+			rule: "servers-description-rule",
+		},
+	}
+
+	rulesetYaml := `
+extends: []
+rules:
+  missing-servers-rule:
+    description: Check for missing servers
+    given: $
+    severity: error
+    then:
+      function: truthy
+      field: servers
+  servers-description-rule:
+    description: Servers must have description
+    given: $.servers[*]
+    severity: error
+    then:
+      function: truthy
+      field: description
+`
+
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(rulesetYaml))
+	require.NoError(t, err)
+
+	for _, spec := range specs {
+		t.Run(spec.name, func(t *testing.T) {
+			execution := &RuleSetExecution{
+				RuleSet:      rs,
+				Spec:         []byte(spec.yaml),
+				SpecFileName: "test.yaml",
+			}
+
+			result := ApplyRulesToRuleSet(execution)
+
+			// Should have no regular results (rule was ignored)
+			for _, res := range result.Results {
+				assert.NotEqual(t, spec.rule, res.RuleId, "%s should be ignored", spec.rule)
+			}
+
+			// Should have ignored result for the specific rule
+			var foundIgnored bool
+			for _, res := range result.IgnoredResults {
+				if res.RuleId == spec.rule {
+					foundIgnored = true
+					break
+				}
+			}
+			assert.True(t, foundIgnored, "%s should be in ignored results", spec.rule)
+		})
+	}
+}

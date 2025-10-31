@@ -15,17 +15,25 @@ func checkInlineIgnoreByPath(specNode *yaml.Node, path string, ruleId string) bo
 		return false
 	}
 
+	// First try to find the target path
 	nodes, err := utils.FindNodesWithoutDeserializingWithTimeout(specNode, path, time.Millisecond*500)
-	if err != nil || len(nodes) == 0 {
-		// If the target path doesn't exist, check the root node as fallback
-		if path != "$" {
-			return checkInlineIgnore(specNode, ruleId)
+	if err == nil && len(nodes) > 0 {
+		// Check the first matching node
+		if checkInlineIgnore(nodes[0], ruleId) {
+			return true
 		}
-		return false
 	}
 
-	// Check the first matching node
-	return checkInlineIgnore(nodes[0], ruleId)
+	// If target path doesn't exist or doesn't have ignore, check the document root
+	// The specNode might be the document wrapper, so check its first content node
+	var rootNode *yaml.Node
+	if specNode.Kind == yaml.DocumentNode && len(specNode.Content) > 0 {
+		rootNode = specNode.Content[0]
+	} else {
+		rootNode = specNode
+	}
+
+	return checkInlineIgnore(rootNode, ruleId)
 }
 
 // checkInlineIgnore checks if a node should be ignored for a specific rule
