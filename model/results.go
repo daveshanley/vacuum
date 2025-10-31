@@ -47,14 +47,21 @@ func (rr *RuleResultsForCategory) Swap(i, j int) {
 func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 	// use pointers for speed down the road, we don't need to keep copying this data.
 	var pointerResults []*RuleFunctionResult
+	var fixedResults []*RuleFunctionResult
+	
 	for _, res := range results {
 		n := res
-		pointerResults = append(pointerResults, &n)
-
+		if res.AutoFixed {
+			fixedResults = append(fixedResults, &n)
+		} else {
+			pointerResults = append(pointerResults, &n)
+		}
 	}
+	
 	rrs := &RuleResultSet{
-		Results:     pointerResults,
-		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
+		Results:      pointerResults,
+		FixedResults: fixedResults,
+		categoryMap:  make(map[*RuleCategory][]*RuleFunctionResult),
 	}
 	rrs.GetErrorCount()
 	rrs.GetInfoCount()
@@ -62,7 +69,12 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 	return rrs
 }
 
-// NewRuleResultSetPointer will encapsulate a set of results into a set, that can then be queried.
+// AddFixedResults adds fixed results from execution result to the RuleResultSet
+func (rr *RuleResultSet) AddFixedResults(fixedResults []RuleFunctionResult) {
+	for i := range fixedResults {
+		rr.FixedResults = append(rr.FixedResults, &fixedResults[i])
+	}
+}
 // the function will create pointers to results, instead of copying them again.
 func NewRuleResultSetPointer(results []*RuleFunctionResult) *RuleResultSet {
 	// use pointers for speed down the road, we don't need to keep copying this data.

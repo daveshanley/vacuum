@@ -207,7 +207,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 		}
 
 		resultSet = model.NewRuleResultSet(result.Results)
-		fixesApplied = result.FixesApplied
+		resultSet.AddFixedResults(result.FixedResults)
+		fixesApplied = len(result.FixedResults)
 
 		// Write back to file if fixes were applied
 		if fixesApplied > 0 && flags.FixFlag {

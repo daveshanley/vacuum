@@ -40,6 +40,7 @@ type ruleContext struct {
 	builtinFunctions   functions.Functions
 	ruleResults        *[]model.RuleFunctionResult
 	ignoredResults     *[]model.RuleFunctionResult
+	fixedResults       *[]model.RuleFunctionResult
 	errors             *[]error
 	index              *index.SpecIndex
 	specInfo           *datamodel.SpecInfo
@@ -49,8 +50,6 @@ type ruleContext struct {
 	silenceLogs        bool
 	document           libopenapi.Document
 	drDocument         *doctorModel.DrDocument
-	fixesMutex         *sync.Mutex
-	fixesApplied       *int
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
@@ -115,13 +114,13 @@ type RuleSetExecutionResult struct {
 	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
 	Results          []model.RuleFunctionResult       // The results of the execution.
 	IgnoredResults   []model.RuleFunctionResult       // Results that were ignored due to inline ignore directives.
+	FixedResults     []model.RuleFunctionResult       // Results that were automatically fixed.
 	Index            *index.SpecIndex                 // The index that was created from the specification, used by the rules.
 	SpecInfo         *datamodel.SpecInfo              // A reference to the SpecInfo object, used by all the rules.
 	Errors           []error                          // Any errors that were returned.
 	FilesProcessed   int                              // number of files extracted by the rolodex
 	FileSize         int64                            // total filesize loaded by the rolodex
 	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
-	FixesApplied     int                              // Number of auto-fixes that were successfully applied.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
 }
 
@@ -140,8 +139,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	builtinFunctions := functions.MapBuiltinFunctions()
 	var ruleResults []model.RuleFunctionResult
 	var ignoredResults []model.RuleFunctionResult
-	var fixesApplied int
-	var fixesMutex sync.Mutex
+	var fixedResults []model.RuleFunctionResult
 	var ruleWaitGroup sync.WaitGroup
 	if execution.RuleSet != nil && execution.RuleSet.Rules != nil {
 		ruleWaitGroup.Add(len(execution.RuleSet.Rules))
@@ -770,6 +768,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					builtinFunctions:   builtinFunctions,
 					ruleResults:        &ruleResults,
 					ignoredResults:     &ignoredResults,
+					fixedResults:       &fixedResults,
 					errors:             &errs,
 					specInfo:           info,
 					index:              ruleIndex,
@@ -782,8 +781,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					logger:             docConfig.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
-					fixesMutex:         &fixesMutex,
-					fixesApplied:       &fixesApplied,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -829,7 +826,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	// Marshal modified spec if fixes were applied
 	var modifiedSpec []byte
-	if fixesApplied > 0 {
+	if len(fixedResults) > 0 {
 		var err error
 		// Use the canonical document which contains all modifications
 		modifiedSpec, err = yaml.Marshal(execution.CanonicalDocument)
@@ -844,13 +841,13 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		RuleSetExecution: execution,
 		Results:          ruleResults,
 		IgnoredResults:   ignoredResults,
+		FixedResults:     fixedResults,
 		Index:            indexResolved,
 		SpecInfo:         specInfo,
 		Errors:           errs,
 		FilesProcessed:   filesProcessed,
 		FileSize:         fileSize,
 		DocumentConfig:   docConfig,
-		FixesApplied:     fixesApplied,
 		ModifiedSpec:     modifiedSpec,
 	}
 }
@@ -1097,11 +1094,6 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
-				// Apply auto-fix if available and enabled
-				if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
-					applyAutoFixesToResults(ctx, runRuleResults, &rfc)
-				}
-
 				// Ensure RuleId and RuleSeverity are populated from the rule context
 				// This is necessary for programmatic API usage where these fields might not be set
 				for i := range runRuleResults {
@@ -1116,11 +1108,15 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					}
 				}
 
-				// because this function is running in multiple threads, we need to sync access to the final result
-				// list, otherwise things can get a bit random.
-				lock.Lock()
-				*ctx.ruleResults = append(*ctx.ruleResults, runRuleResults...)
-				lock.Unlock()
+				// Apply auto-fix if available and enabled
+				if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
+					applyAutoFixesToResults(ctx, runRuleResults, &rfc)
+				} else {
+					// No autofix - add all results to regular results
+					lock.Lock()
+					*ctx.ruleResults = append(*ctx.ruleResults, runRuleResults...)
+					lock.Unlock()
+				}
 			}
 
 		}
@@ -1161,33 +1157,41 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 }
 
 func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
+	lock := sync.Mutex{}
+	
 	for i := range results {
 		// Only attempt auto-fix if there's a violation and we have the node
 		if results[i].StartNode == nil {
+			lock.Lock()
+			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
+			lock.Unlock()
 			continue
 		}
 
 		autoFixFunc, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]
 		if !exists {
-			// Auto-fix function not found - error already reported earlier
+			// Auto-fix function not found - add to regular results
+			lock.Lock()
+			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
+			lock.Unlock()
 			continue
 		}
 
-		fixedNode, err := autoFixFunc(results[i].StartNode, ctx.specNode, rfc)
+		_, err := autoFixFunc(results[i].StartNode, ctx.specNode, rfc)
 		if err != nil {
-			// Log auto-fix failure but don't break the linting process
+			// Auto-fix failed - add to regular results
 			if !ctx.silenceLogs {
 				slog.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
 			}
-
-			continue
-		}
-
-		if fixedNode != nil {
+			lock.Lock()
+			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
+			lock.Unlock()
+		} else {
+			// Auto-fix succeeded - add to fixed results
 			results[i].AutoFixed = true
-			ctx.fixesMutex.Lock()
-			(*ctx.fixesApplied)++
-			ctx.fixesMutex.Unlock()
+			lock.Lock()
+			*ctx.fixedResults = append(*ctx.fixedResults, results[i])
+			lock.Unlock()
 
 			if !ctx.silenceLogs {
 				slog.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", results[i].Path)
