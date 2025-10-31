@@ -23,7 +23,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetLintCommand() *cobra.Command {
@@ -212,7 +211,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Write back to file if fixes were applied
 		if fixesApplied > 0 && flags.FixFlag {
-			err := writeFixedFile(execution, fileName)
+			err := writeFixedFile(result, fileName)
 			if err != nil {
 				return fmt.Errorf("failed to write fixed file: %w", err)
 			}
@@ -674,21 +673,20 @@ func hasValidExtension(filename string, extensions []string) bool {
 	return false
 }
 
-func writeFixedFile(execution *motor.RuleSetExecution, fileName string) error {
+func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string) error {
 	// Get current file permissions
 	fileInfo, err := os.Stat(fileName)
 	if err != nil {
 		return fmt.Errorf("failed to get file info for %s: %w", fileName, err)
 	}
 
-	// Marshal the modified document back to bytes
-	fixedBytes, err := yaml.Marshal(execution.Document.GetSpecInfo().RootNode)
-	if err != nil {
-		return fmt.Errorf("failed to marshal fixed document: %w", err)
+	// Use the modified spec from the result
+	if result.ModifiedSpec == nil {
+		return fmt.Errorf("no modified spec available")
 	}
 
 	// Write back to the original file with original permissions
-	err = os.WriteFile(fileName, fixedBytes, fileInfo.Mode())
+	err = os.WriteFile(fileName, result.ModifiedSpec, fileInfo.Mode())
 	if err != nil {
 		return fmt.Errorf("failed to write file %s: %w", fileName, err)
 	}

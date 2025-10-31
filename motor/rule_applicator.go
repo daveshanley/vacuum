@@ -84,6 +84,7 @@ type RuleSetExecution struct {
 	ExtractReferencesSequentially   bool                          // Extract references sequentially, defaults to false, can be slow.
 	ExtractReferencesFromExtensions bool                          // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
 	ApplyAutoFixes                  bool                          // Apply auto-fixes for rules that support it
+	CanonicalDocument               *yaml.Node                    // The single source of truth for all modifications
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
 	IgnoreCircularArrayRef       bool // Ignore array circular references
@@ -121,6 +122,7 @@ type RuleSetExecutionResult struct {
 	FileSize         int64                            // total filesize loaded by the rolodex
 	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
 	FixesApplied     int                              // Number of auto-fixes that were successfully applied.
+	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
 }
 
 // todo: move copy into virtual file system or some kind of map.
@@ -144,9 +146,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	if execution.RuleSet != nil && execution.RuleSet.Rules != nil {
 		ruleWaitGroup.Add(len(execution.RuleSet.Rules))
 	}
-
-	var specResolved *yaml.Node
-	var specUnresolved *yaml.Node
 
 	// create new configurations
 	indexConfig := index.CreateClosedAPIIndexConfig()
@@ -280,7 +279,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	indexConfig.Logger.Debug("building documents")
 	nowDocs := time.Now()
 
-	var specInfo, specInfoUnresolved *datamodel.SpecInfo
+	var specInfo *datamodel.SpecInfo
+	var specInfoUnresolved *datamodel.SpecInfo
 	if docResolved == nil {
 		var err error
 		// create a new document.
@@ -417,11 +417,12 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexResolved = rolodexResolved.GetRootIndex()
 			indexUnresolved = rolodexUnresolved.GetRootIndex()
 
+			// Set the canonical document to the unresolved spec for autofix modifications
+			execution.CanonicalDocument = rolodexUnresolved.GetRootIndex().GetRootNode()
+
 			// we only resolve one.
 			rolodexResolved.Resolve()
 
-			specResolved = rolodexResolved.GetRootIndex().GetRootNode()
-			specUnresolved = rolodexUnresolved.GetRootIndex().GetRootNode()
 
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 				resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
@@ -492,8 +493,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				indexConfig.Logger.Debug("resolved model", "ms", resolvedTaken)
 			})
 			wg.Wait()
-			specResolved = rolodexResolved.GetRootIndex().GetRootNode()
-			specUnresolved = rolodexUnresolved.GetRootIndex().GetRootNode()
 
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 				//resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
@@ -530,8 +529,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexResolved = rolodexResolved.GetRootIndex()
 		indexUnresolved = rolodexUnresolved.GetRootIndex()
 
-		specResolved = rolodexResolved.GetRootNode()
-		specUnresolved = rolodexUnresolved.GetRootNode()
+
+		// Set the canonical document to the unresolved spec for autofix modifications
+		execution.CanonicalDocument = rolodexUnresolved.GetRootNode()
 
 		if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
@@ -701,6 +701,13 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// run all rules.
 	var errs []error
 
+	// Ensure CanonicalDocument is set as a fallback
+	if execution.CanonicalDocument == nil {
+		if indexUnresolved != nil && indexUnresolved.GetRootNode() != nil {
+			execution.CanonicalDocument = indexUnresolved.GetRootNode()
+		}
+	}
+
 	// add dr document build errors to the results.
 	if drDocument != nil {
 		for _, er := range drDocument.BuildErrors {
@@ -748,20 +755,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 			go func(rule *model.Rule, done chan bool) {
 
-				ruleSpec := specResolved
 				ruleIndex := indexResolved
 				info := specInfo
 				if !rule.Resolved {
 					info = specInfoUnresolved
-					ruleSpec = specUnresolved
 					ruleIndex = indexUnresolved
 				}
 
 				// this list of things is most likely going to grow a bit, so we use a nice clean message design.
 				ctx := ruleContext{
 					rule:               rule,
-					specNode:           ruleSpec,
-					specNodeUnresolved: specUnresolved,
+					specNode:           execution.CanonicalDocument,
+					specNodeUnresolved: execution.CanonicalDocument,
 					builtinFunctions:   builtinFunctions,
 					ruleResults:        &ruleResults,
 					ignoredResults:     &ignoredResults,
@@ -822,6 +827,19 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
 
+	// Marshal modified spec if fixes were applied
+	var modifiedSpec []byte
+	if fixesApplied > 0 {
+		var err error
+		// Use the canonical document which contains all modifications
+		modifiedSpec, err = yaml.Marshal(execution.CanonicalDocument)
+		if err != nil {
+			indexConfig.Logger.Warn("failed to marshal modified spec", "error", err)
+		} else {
+			indexConfig.Logger.Debug("ModifiedSpec marshaled from CanonicalDocument")
+		}
+	}
+
 	return &RuleSetExecutionResult{
 		RuleSetExecution: execution,
 		Results:          ruleResults,
@@ -833,6 +851,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		FileSize:         fileSize,
 		DocumentConfig:   docConfig,
 		FixesApplied:     fixesApplied,
+		ModifiedSpec:     modifiedSpec,
 	}
 }
 
