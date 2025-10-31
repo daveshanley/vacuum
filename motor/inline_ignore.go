@@ -1,10 +1,32 @@
 package motor
 
 import (
+	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
+	"time"
 )
 
 const ignoreKey = "x-lint-ignore"
+
+// checkInlineIgnoreByPath checks if a rule should be ignored by looking for
+// x-lint-ignore at the node specified by the JSONPath.
+func checkInlineIgnoreByPath(specNode *yaml.Node, path string, ruleId string) bool {
+	if specNode == nil || path == "" {
+		return false
+	}
+
+	nodes, err := utils.FindNodesWithoutDeserializingWithTimeout(specNode, path, time.Millisecond*500)
+	if err != nil || len(nodes) == 0 {
+		// If the target path doesn't exist, check the root node as fallback
+		if path != "$" {
+			return checkInlineIgnore(specNode, ruleId)
+		}
+		return false
+	}
+
+	// Check the first matching node
+	return checkInlineIgnore(nodes[0], ruleId)
+}
 
 // checkInlineIgnore checks if a node should be ignored for a specific rule
 // by looking for the ignore key ignore in the node itself.

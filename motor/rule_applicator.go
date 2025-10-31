@@ -1030,24 +1030,46 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
+				// Filter out results that should be ignored due to inline ignore directives
+				var filteredResults []model.RuleFunctionResult
+				for _, result := range runRuleResults {
+					// Check if this result should be ignored based on its path
+					if result.Path != "" && checkInlineIgnoreByPath(ctx.specNode, result.Path, ctx.rule.Id) {
+						ignoredResult := model.RuleFunctionResult{
+							Message:      "Rule ignored due to inline ignore directive",
+							RuleId:       ctx.rule.Id,
+							RuleSeverity: ctx.rule.Severity,
+							Rule:         ctx.rule,
+							StartNode:    result.StartNode,
+							EndNode:      result.EndNode,
+							Path:         result.Path,
+						}
+						lock.Lock()
+						*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
+						lock.Unlock()
+					} else {
+						filteredResults = append(filteredResults, result)
+					}
+				}
+
 				// Ensure RuleId and RuleSeverity are populated from the rule context
 				// This is necessary for programmatic API usage where these fields might not be set
-				for i := range runRuleResults {
-					if runRuleResults[i].RuleId == "" {
-						runRuleResults[i].RuleId = ctx.rule.Id
+				for i := range filteredResults {
+					if filteredResults[i].RuleId == "" {
+						filteredResults[i].RuleId = ctx.rule.Id
 					}
-					if runRuleResults[i].RuleSeverity == "" {
-						runRuleResults[i].RuleSeverity = ctx.rule.Severity
+					if filteredResults[i].RuleSeverity == "" {
+						filteredResults[i].RuleSeverity = ctx.rule.Severity
 					}
-					if runRuleResults[i].Rule == nil {
-						runRuleResults[i].Rule = ctx.rule
+					if filteredResults[i].Rule == nil {
+						filteredResults[i].Rule = ctx.rule
 					}
 				}
 
 				// because this function is running in multiple threads, we need to sync access to the final result
 				// list, otherwise things can get a bit random.
 				lock.Lock()
-				*ctx.ruleResults = append(*ctx.ruleResults, runRuleResults...)
+				*ctx.ruleResults = append(*ctx.ruleResults, filteredResults...)
 				lock.Unlock()
 			}
 
