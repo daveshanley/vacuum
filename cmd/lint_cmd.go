@@ -23,6 +23,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 func GetLintCommand() *cobra.Command {
@@ -172,7 +173,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
 		}
 
-		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		execution := &motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
 			SpecFileName:                    displayFileName,
@@ -190,7 +191,9 @@ func runLint(cmd *cobra.Command, args []string) error {
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
 			HTTPClientConfig:                httpClientConfig,
 			ApplyAutoFixes:                  flags.FixFlag,
-		})
+		}
+
+		result := motor.ApplyRulesToRuleSet(execution)
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
@@ -206,6 +209,14 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		resultSet = model.NewRuleResultSet(result.Results)
 		fixesApplied = result.FixesApplied
+
+		// Write back to file if fixes were applied
+		if fixesApplied > 0 && flags.FixFlag {
+			err := writeFixedFile(execution, fileName)
+			if err != nil {
+				return fmt.Errorf("failed to write fixed file: %w", err)
+			}
+		}
 
 		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
@@ -661,4 +672,26 @@ func hasValidExtension(filename string, extensions []string) bool {
 		}
 	}
 	return false
+}
+
+func writeFixedFile(execution *motor.RuleSetExecution, fileName string) error {
+	// Get current file permissions
+	fileInfo, err := os.Stat(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to get file info for %s: %w", fileName, err)
+	}
+
+	// Marshal the modified document back to bytes
+	fixedBytes, err := yaml.Marshal(execution.Document.GetSpecInfo().RootNode)
+	if err != nil {
+		return fmt.Errorf("failed to marshal fixed document: %w", err)
+	}
+
+	// Write back to the original file with original permissions
+	err = os.WriteFile(fileName, fixedBytes, fileInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to write file %s: %w", fileName, err)
+	}
+
+	return nil
 }
