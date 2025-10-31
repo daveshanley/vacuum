@@ -858,33 +858,10 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 	if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
 		if _, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]; !exists {
 			if !ctx.silenceLogs {
-				var availableAutoFixFuncs []string
-				if ctx.autoFixFunctions != nil {
-					for funcName := range ctx.autoFixFunctions {
-						availableAutoFixFuncs = append(availableAutoFixFuncs, funcName)
-					}
-				}
-				if len(availableAutoFixFuncs) > 0 {
-					fmt.Printf("✗ Rule '%s' uses unknown auto-fix function '%s'. Available auto-fix functions: %v\n",
-						ctx.rule.Id, ctx.rule.AutoFixFunction, availableAutoFixFuncs)
-				} else {
-					fmt.Printf("✗ Rule '%s' uses unknown auto-fix function '%s'. No auto-fix functions loaded.\n",
-						ctx.rule.Id, ctx.rule.AutoFixFunction)
-				}
+				ctx.logger.Warn("Rule uses unknown auto-fix function", 
+					"ruleId", ctx.rule.Id, 
+					"autoFixFunction", ctx.rule.AutoFixFunction)
 			}
-
-			// Add error result to make the missing auto-fix function visible in reports
-			lock.Lock()
-			*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
-				Message:      fmt.Sprintf("Unknown auto-fix function '%s' in rule '%s'", ctx.rule.AutoFixFunction, ctx.rule.Id),
-				Rule:         ctx.rule,
-				StartNode:    &yaml.Node{},
-				EndNode:      &yaml.Node{},
-				RuleId:       ctx.rule.Id,
-				RuleSeverity: "error",
-				Path:         fmt.Sprint(ctx.rule.Given),
-			})
-			lock.Unlock()
 		}
 	}
 
@@ -1181,7 +1158,7 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 		if err != nil {
 			// Auto-fix failed - add to regular results
 			if !ctx.silenceLogs {
-				slog.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
+				ctx.logger.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
 			}
 			lock.Lock()
 			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
@@ -1194,7 +1171,7 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 			lock.Unlock()
 
 			if !ctx.silenceLogs {
-				slog.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", results[i].Path)
+				ctx.logger.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", results[i].Path)
 			}
 		}
 	}

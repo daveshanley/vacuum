@@ -47,21 +47,14 @@ func (rr *RuleResultsForCategory) Swap(i, j int) {
 func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 	// use pointers for speed down the road, we don't need to keep copying this data.
 	var pointerResults []*RuleFunctionResult
-	var fixedResults []*RuleFunctionResult
-	
 	for _, res := range results {
 		n := res
-		if res.AutoFixed {
-			fixedResults = append(fixedResults, &n)
-		} else {
-			pointerResults = append(pointerResults, &n)
-		}
+		pointerResults = append(pointerResults, &n)
 	}
 	
 	rrs := &RuleResultSet{
-		Results:      pointerResults,
-		FixedResults: fixedResults,
-		categoryMap:  make(map[*RuleCategory][]*RuleFunctionResult),
+		Results:     pointerResults,
+		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
 	}
 	rrs.GetErrorCount()
 	rrs.GetInfoCount()
