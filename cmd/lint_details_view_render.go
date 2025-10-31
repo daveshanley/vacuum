@@ -280,7 +280,7 @@ func getSeverityInfo(r *model.RuleFunctionResult, showRule bool, noStyle bool) *
 	}
 
 	// Add auto-fix indicator if rule has auto-fix capability
-	if r.Rule != nil && r.Rule.AutoFixFunction != nil {
+	if r.Rule != nil && r.Rule.AutoFixFunction != "" {
 		info.Icon = info.Icon + " ⚙"
 	}
 

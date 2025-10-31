@@ -177,6 +177,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			Spec:                            specBytes,
 			SpecFileName:                    displayFileName,
 			CustomFunctions:                 customFuncs,
+			AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 			Base:                            resolvedBase,
 			AllowLookup:                     flags.RemoteFlag,
 			SkipDocumentCheck:               flags.SkipCheckFlag,
@@ -188,6 +189,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			IgnoreCircularPolymorphicRef:    flags.IgnorePolymorphCircleRef,
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
 			HTTPClientConfig:                httpClientConfig,
+			ApplyAutoFixes:                  flags.FixFlag,
 		})
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)

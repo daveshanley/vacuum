@@ -44,6 +44,7 @@ type ruleContext struct {
 	index              *index.SpecIndex
 	specInfo           *datamodel.SpecInfo
 	customFunctions    map[string]model.RuleFunction
+	autoFixFunctions   map[string]model.AutoFixFunction
 	panicFunc          func(p any)
 	silenceLogs        bool
 	document           libopenapi.Document
@@ -66,6 +67,7 @@ type RuleSetExecution struct {
 	IndexUnresolved                 *index.SpecIndex              // The unresolved index, even if a file is not an OpenAPI spec, it's still indexed.
 	IndexResolved                   *index.SpecIndex              // The resolved index, like the unresolved one, but with references resolved.
 	CustomFunctions                 map[string]model.RuleFunction // custom functions loaded from plugin.
+	AutoFixFunctions                map[string]model.AutoFixFunction // auto-fix functions loaded from plugin.
 	PanicFunction                   func(p any)                   // In case of emergency, do this thing here.
 	SilenceLogs                     bool                          // Prevent any warnings about rules/rule-sets being printed.
 	Base                            string                        // The base path or URL of the specification, used for resolving relative or remote paths.
@@ -769,6 +771,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					document:           docUnresolved,
 					drDocument:         drDocument,
 					customFunctions:    execution.CustomFunctions,
+					autoFixFunctions:   execution.AutoFixFunctions,
 					silenceLogs:        execution.SilenceLogs,
 					skipDocumentCheck:  execution.SkipDocumentCheck,
 					logger:             docConfig.Logger,
@@ -834,6 +837,40 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 }
 
 func runRule(ctx ruleContext, doneChan chan bool) {
+
+	// Check for missing auto-fix functions when --fix is enabled
+	if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
+		if _, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]; !exists {
+			if !ctx.silenceLogs {
+				var availableAutoFixFuncs []string
+				if ctx.autoFixFunctions != nil {
+					for funcName := range ctx.autoFixFunctions {
+						availableAutoFixFuncs = append(availableAutoFixFuncs, funcName)
+					}
+				}
+				if len(availableAutoFixFuncs) > 0 {
+					fmt.Printf("✗ Rule '%s' uses unknown auto-fix function '%s'. Available auto-fix functions: %v\n",
+						ctx.rule.Id, ctx.rule.AutoFixFunction, availableAutoFixFuncs)
+				} else {
+					fmt.Printf("✗ Rule '%s' uses unknown auto-fix function '%s'. No auto-fix functions loaded.\n",
+						ctx.rule.Id, ctx.rule.AutoFixFunction)
+				}
+			}
+
+			// Add error result to make the missing auto-fix function visible in reports
+			lock.Lock()
+			*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
+				Message:      fmt.Sprintf("Unknown auto-fix function '%s' in rule '%s'", ctx.rule.AutoFixFunction, ctx.rule.Id),
+				Rule:         ctx.rule,
+				StartNode:    &yaml.Node{},
+				EndNode:      &yaml.Node{},
+				RuleId:       ctx.rule.Id,
+				RuleSeverity: "error",
+				Path:         fmt.Sprint(ctx.rule.Given),
+			})
+			lock.Unlock()
+		}
+	}
 
 	if ctx.panicFunc != nil {
 		defer func() {
@@ -1042,28 +1079,8 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
 				// Apply auto-fix if available and enabled
-				if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != nil {
-					for i := range runRuleResults {
-						// Only attempt auto-fix if there's a violation and we have the node
-						if runRuleResults[i].StartNode != nil {
-							fixedNode, err := ctx.rule.AutoFixFunction(runRuleResults[i].StartNode, ctx.specNode, &rfc)
-							if err != nil {
-								// Log auto-fix failure but don't break the linting process
-								if !ctx.silenceLogs {
-									slog.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
-								}
-							} else if fixedNode != nil {
-								// Mark the result as auto-fixed
-								runRuleResults[i].AutoFixed = true
-								ctx.fixesMutex.Lock()
-								(*ctx.fixesApplied)++
-								ctx.fixesMutex.Unlock()
-								if !ctx.silenceLogs {
-									slog.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", runRuleResults[i].Path)
-								}
-							}
-						}
-					}
+				if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
+					applyAutoFixesToResults(ctx, runRuleResults, &rfc)
 				}
 
 				// Ensure RuleId and RuleSeverity are populated from the rule context
@@ -1122,6 +1139,42 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		lock.Unlock()
 	}
 	return ctx.ruleResults
+}
+
+func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
+	for i := range results {
+		// Only attempt auto-fix if there's a violation and we have the node
+		if results[i].StartNode == nil {
+			continue
+		}
+
+		autoFixFunc, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]
+		if !exists {
+			// Auto-fix function not found - error already reported earlier
+			continue
+		}
+
+		fixedNode, err := autoFixFunc(results[i].StartNode, ctx.specNode, rfc)
+		if err != nil {
+			// Log auto-fix failure but don't break the linting process
+			if !ctx.silenceLogs {
+				slog.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
+			}
+
+			continue
+		}
+
+		if fixedNode != nil {
+			results[i].AutoFixed = true
+			ctx.fixesMutex.Lock()
+			(*ctx.fixesApplied)++
+			ctx.fixesMutex.Unlock()
+
+			if !ctx.silenceLogs {
+				slog.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", results[i].Path)
+			}
+		}
+	}
 }
 
 type seenResult struct {

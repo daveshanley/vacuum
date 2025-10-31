@@ -424,6 +424,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Spec:                            specBytes,
 		SpecFileName:                    fileName,
 		CustomFunctions:                 config.CustomFunctions,
+		AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 		Base:                            resolvedBase,
 		AllowLookup:                     config.Flags.RemoteFlag,
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,

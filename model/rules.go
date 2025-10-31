@@ -138,7 +138,7 @@ type Rule struct {
 	RuleCategory       *RuleCategory    `json:"category,omitempty" yaml:"category,omitempty"`
 	Name               string           `json:"-" yaml:"-"`
 	HowToFix           string           `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
-	AutoFixFunction    AutoFixFunction  `json:"-" yaml:"-"` // Auto-fix function for this rule
+	AutoFixFunction    string           `json:"autoFixFunction,omitempty" yaml:"autoFixFunction,omitempty"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
