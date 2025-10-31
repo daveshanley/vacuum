@@ -118,9 +118,6 @@ type RuleAction struct {
 	FunctionOptions interface{} `json:"functionOptions,omitempty" yaml:"functionOptions,omitempty"`
 }
 
-// AutoFixFunction defines the signature for auto-fix functions
-type AutoFixFunction func(node *yaml.Node, document *yaml.Node, context *RuleFunctionContext) (*yaml.Node, error)
-
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
 	Id                 string           `json:"id,omitempty" yaml:"id,omitempty"`
