@@ -38,4 +38,5 @@ type RenderSummaryOptions struct {
 	ReportStats      *reports.ReportStatistics
 	TotalFiles       int
 	Severity         string
+	FixesApplied     int
 }

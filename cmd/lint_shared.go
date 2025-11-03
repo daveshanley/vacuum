@@ -75,6 +75,7 @@ type LintFlags struct {
 	Insecure                 bool
 	DebugFlag                bool
 	LookupTimeoutFlag        int
+	FixFlag                  bool
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -169,6 +170,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
+	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
 	return flags
 }
 
@@ -422,6 +424,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Spec:                            specBytes,
 		SpecFileName:                    fileName,
 		CustomFunctions:                 config.CustomFunctions,
+		AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 		Base:                            resolvedBase,
 		AllowLookup:                     config.Flags.RemoteFlag,
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,
@@ -434,6 +437,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		ExtractReferencesFromExtensions: config.Flags.ExtRefsFlag,
 		Logger:                          logger,
 		HTTPClientConfig:                httpClientConfig,
+		ApplyAutoFixes:                  config.Flags.FixFlag,
 	})
 
 	if len(result.Errors) > 0 {

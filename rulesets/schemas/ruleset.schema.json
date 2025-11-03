@@ -273,6 +273,9 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "autoFixFunction": {
+                "type": "string"
               }
             },
             "additionalProperties": false,
@@ -406,6 +409,9 @@
       "type": "object",
       "properties": {
         "field": {
+          "type": "string"
+        },
+        "autoFixFunction": {
           "type": "string"
         }
       },

@@ -84,6 +84,7 @@ type RuleFunctionResult struct {
 	StartNode    *yaml.Node        `json:"-" yaml:"-"`                               // Start of the violation
 	EndNode      *yaml.Node        `json:"-" yaml:"-"`                               // end of the violation
 	Timestamp    *time.Time        `json:"-" yaml:"-"`                               // When the result was created.
+	AutoFixed    bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"` // Whether this violation was auto-fixed
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
 	// populated, then this is a reference to the model that fired the rule. (not currently used yet)
@@ -96,11 +97,12 @@ type IgnoredItems map[string][]string
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results     []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"` // All the results!
-	WarnCount   int                                     `json:"warningCount" yaml:"warningCount"`           // Total warnings
-	ErrorCount  int                                     `json:"errorCount" yaml:"errorCount"`               // Total errors
-	InfoCount   int                                     `json:"infoCount" yaml:"infoCount"`                 // Total info
-	categoryMap map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
+	Results      []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"`           // All the results!
+	FixedResults []*RuleFunctionResult                   `json:"fixedResults,omitempty" yaml:"fixedResults,omitempty"` // Results that were automatically fixed
+	WarnCount    int                                     `json:"warningCount" yaml:"warningCount"`                     // Total warnings
+	ErrorCount   int                                     `json:"errorCount" yaml:"errorCount"`                         // Total errors
+	InfoCount    int                                     `json:"infoCount" yaml:"infoCount"`                           // Total info
+	categoryMap  map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
@@ -119,21 +121,22 @@ type RuleAction struct {
 
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
-	Id                 string         `json:"id,omitempty" yaml:"id,omitempty"`
-	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
-	DocumentationURL   string         `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
-	Message            string         `json:"message,omitempty" yaml:"message,omitempty"`
-	Given              interface{}    `json:"given,omitempty" yaml:"given,omitempty"`
-	Formats            []string       `json:"formats,omitempty" yaml:"formats,omitempty"`
-	Resolved           bool           `json:"resolved,omitempty" yaml:"resolved,omitempty"`
-	Recommended        bool           `json:"recommended,omitempty" yaml:"recommended,omitempty"`
-	Type               string         `json:"type,omitempty" yaml:"type,omitempty"`
-	Severity           string         `json:"severity,omitempty" yaml:"severity,omitempty"`
-	Then               interface{}    `json:"then,omitempty" yaml:"then,omitempty"`
-	PrecompiledPattern *regexp.Regexp `json:"-" yaml:"-"` // regex is slow.
-	RuleCategory       *RuleCategory  `json:"category,omitempty" yaml:"category,omitempty"`
-	Name               string         `json:"-" yaml:"-"`
-	HowToFix           string         `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
+	Id                 string           `json:"id,omitempty" yaml:"id,omitempty"`
+	Description        string           `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURL   string           `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Message            string           `json:"message,omitempty" yaml:"message,omitempty"`
+	Given              interface{}      `json:"given,omitempty" yaml:"given,omitempty"`
+	Formats            []string         `json:"formats,omitempty" yaml:"formats,omitempty"`
+	Resolved           bool             `json:"resolved,omitempty" yaml:"resolved,omitempty"`
+	Recommended        bool             `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+	Type               string           `json:"type,omitempty" yaml:"type,omitempty"`
+	Severity           string           `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Then               interface{}      `json:"then,omitempty" yaml:"then,omitempty"`
+	PrecompiledPattern *regexp.Regexp   `json:"-" yaml:"-"` // regex is slow.
+	RuleCategory       *RuleCategory    `json:"category,omitempty" yaml:"category,omitempty"`
+	Name               string           `json:"-" yaml:"-"`
+	HowToFix           string           `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
+	AutoFixFunction    string           `json:"autoFixFunction,omitempty" yaml:"autoFixFunction,omitempty"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts
