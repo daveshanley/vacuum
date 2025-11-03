@@ -76,6 +76,7 @@ type LintFlags struct {
 	DebugFlag                bool
 	LookupTimeoutFlag        int
 	FixFlag                  bool
+	FixFileFlag              string
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -171,6 +172,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
 	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
+	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
 	return flags
 }
 
