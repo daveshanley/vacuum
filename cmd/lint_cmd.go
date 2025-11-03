@@ -61,6 +61,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
+	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
 	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
 	// ext-refs is inherited from root as a persistent flag
@@ -212,7 +213,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Write back to file if fixes were applied
 		if fixesApplied > 0 && flags.FixFlag {
-			err := writeFixedFile(result, fileName)
+			err := writeFixedFile(result, fileName, flags.FixFileFlag)
 			if err != nil {
 				return fmt.Errorf("failed to write fixed file: %w", err)
 			}
@@ -674,34 +675,39 @@ func hasValidExtension(filename string, extensions []string) bool {
 	return false
 }
 
-func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string) error {
-	// Get current file permissions
+func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFile string) error {
+	if result.ModifiedSpec == nil {
+		return fmt.Errorf("no modified spec available")
+	}
+
+	outputFile := fileName
+	if fixFile != "" {
+		outputFile = fixFile
+	}
+
+	// Get permissions from original file
 	fileInfo, err := os.Stat(fileName)
 	if err != nil {
 		return fmt.Errorf("failed to get file info for %s: %w", fileName, err)
 	}
 
-	// Use the modified spec from the result
-	if result.ModifiedSpec == nil {
-		return fmt.Errorf("no modified spec available")
+	// Create backup only if overwriting original file
+	if outputFile == fileName {
+		backupFileName := filepath.Join("/tmp", "vacuum-"+filepath.Base(fileName)+".bak")
+		originalContent, err := os.ReadFile(fileName)
+		if err != nil {
+			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
+		}
+		
+		err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
+		if err != nil {
+			return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)
+		}
 	}
 
-	// Create backup file in /tmp/ with vacuum prefix
-	backupFileName := filepath.Join("/tmp", "vacuum-"+filepath.Base(fileName)+".bak")
-	originalContent, err := os.ReadFile(fileName)
+	err = os.WriteFile(outputFile, result.ModifiedSpec, fileInfo.Mode())
 	if err != nil {
-		return fmt.Errorf("failed to read original file %s: %w", fileName, err)
-	}
-	
-	err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)
-	}
-
-	// Write back to the original file with original permissions
-	err = os.WriteFile(fileName, result.ModifiedSpec, fileInfo.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", fileName, err)
+		return fmt.Errorf("failed to write file %s: %w", outputFile, err)
 	}
 
 	return nil

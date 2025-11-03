@@ -46,7 +46,7 @@ info:
 
 	result := ApplyRulesToRuleSet(execution)
 
-	assert.Greater(t, len(result.FixedResults), 0, "Should have fixed some violations")
+	assert.Equal(t, len(result.FixedResults), 1, "Should have fixed one violation")
 	
 	for _, r := range result.FixedResults {
 		assert.True(t, r.AutoFixed)
@@ -133,8 +133,8 @@ paths:
 
 	result := ApplyRulesToRuleSet(execution)
 
-	assert.Greater(t, len(result.FixedResults), 0, "Should have fixed some violations")
-	assert.Greater(t, len(result.Results), 0, "Should have unfixed violations")
+	assert.Equal(t, len(result.FixedResults), 1, "Should have fixed one violation")
+	assert.Equal(t, len(result.Results), 1, "Should have one unfixed violation")
 
 	for _, r := range result.FixedResults {
 		assert.True(t, r.AutoFixed)
