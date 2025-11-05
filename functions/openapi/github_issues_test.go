@@ -142,16 +142,12 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	// This should flag an ambiguity
-	assert.Len(t, res, 1, "Should detect ambiguity between /foo/{x} and /foo/bar")
-	if len(res) > 0 {
-		assert.Contains(t, res[0].Message, "ambiguous")
-		assert.Contains(t, res[0].Message, "/foo/{x}")
-		assert.Contains(t, res[0].Message, "/foo/bar")
-	}
+	// Per OpenAPI spec and issue #749, concrete paths take precedence over templated paths
+	// /foo/bar (concrete) vs /foo/{x} (templated) = single var/literal mismatch = NOT ambiguous
+	assert.Len(t, res, 0, "Concrete path /foo/bar and templated path /foo/{x} should not be ambiguous per OpenAPI spec")
 }
 
-// TestAmbiguousPaths_MoreCases tests additional ambiguous path cases
+// TestAmbiguousPaths_MoreCases tests additional path cases with concrete vs templated paths
 func TestAmbiguousPaths_MoreCases(t *testing.T) {
 	yml := `openapi: 3.0.0
 paths:
@@ -191,11 +187,11 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	// Should detect multiple ambiguities:
-	// 1. /users/{id} vs /users/me
-	// 2. /posts/{postId}/comments/{commentId} vs /posts/featured/comments/latest
-	// 3. /items/{name} vs /items/special
-	assert.GreaterOrEqual(t, len(res), 3, "Should detect at least 3 ambiguous path pairs")
+	// Per OpenAPI spec and issue #749, all of these have single var/literal mismatches:
+	// 1. /users/{id} vs /users/me - NOT ambiguous (concrete takes precedence)
+	// 2. /posts/{postId}/comments/{commentId} vs /posts/featured/comments/latest - NOT ambiguous (single mismatch)
+	// 3. /items/{name} vs /items/special - NOT ambiguous (concrete takes precedence)
+	assert.Len(t, res, 0, "Concrete vs templated paths should not be ambiguous per OpenAPI spec")
 }
 
 // TestAmbiguousPaths_NoFalsePositives tests that we don't flag non-ambiguous paths

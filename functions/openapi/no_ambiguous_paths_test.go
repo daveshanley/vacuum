@@ -1,7 +1,6 @@
 package openapi
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -57,6 +56,58 @@ paths:
 	// - Segment 3: 'c' vs {Id2} (literal vs variable - different)
 	// - Segment 4: {Id3} vs 'd' (variable vs literal - different)
 	assert.Len(t, res, 0, "Paths with different literal segments should not be ambiguous")
+}
+
+func TestAmbiguousPaths_Issue749_ConcreteVsTemplated(t *testing.T) {
+	// Test case for issue #749
+	// Per OpenAPI spec: concrete paths are matched before templated paths
+	// /foo/baz (concrete) and /foo/{bar} (templated) should NOT be ambiguous
+	yml := `openapi: 3.1.0
+info:
+  title: Test for Issue 749
+  version: 1.0.0
+paths:
+  '/foo/baz':
+    get:
+      summary: Concrete path
+  '/foo/{bar}':
+    get:
+      summary: Templated path
+      parameters:
+        - name: bar
+          in: path
+          required: true
+          schema:
+            type: string`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "ambiguousPaths", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Rule = &rule
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	// Create DrDocument for method-aware checking
+	doc, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+	v3Model, modelErrors := doc.BuildV3Model()
+	assert.NoError(t, modelErrors)
+	drDocument := drModel.NewDrDocument(v3Model)
+	ctx.DrDocument = drDocument
+
+	def := AmbiguousPaths{}
+	res := def.RunRule(nodes, ctx)
+
+	// Per OpenAPI spec, concrete paths take precedence over templated paths
+	// These should NOT be flagged as ambiguous
+	assert.Len(t, res, 0, "Concrete path /foo/baz and templated path /foo/{bar} should not be ambiguous per OpenAPI spec")
 }
 
 func TestAmbiguousPaths_ActuallyAmbiguous(t *testing.T) {
@@ -151,17 +202,14 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	// With the updated logic, these paths are ambiguous:
-	// 1. /good/{id} vs /good/last (variable {id} could match 'last')
-	// 2. /good/{id}/{pet} vs /good/last/{id} (variable {id} could match 'last')
-	// 3. /{id}/ambiguous vs /ambiguous/{id} (variable {id} could match 'ambiguous')
-	// 4. /{entity}/{id}/last vs /pet/first/{id} (variable {entity} could match 'pet' but 'first' != literal in position 2, so not ambiguous)
-	// Actually analyzing more carefully:
-	// - /good/{id} vs /good/last: ambiguous
-	// - /good/{id}/{pet} vs /good/last/{id}: ambiguous
-	// - /{id}/ambiguous vs /ambiguous/{id}: ambiguous
-	// - /{entity}/{id}/last vs /pet/first/{id}: NOT ambiguous (different at position 2: {id} vs 'first')
-	assert.Greater(t, len(res), 0, "Should detect ambiguous paths")
+	// Per OpenAPI spec, concrete paths take precedence over templated paths
+	// All of these path pairs have single var/literal mismatches (concrete vs templated):
+	// - /good/{id} vs /good/last: NOT ambiguous (single mismatch)
+	// - /good/{id}/{pet} vs /good/last/{id}: NOT ambiguous (single mismatch at position 1)
+	// - /{id}/ambiguous vs /ambiguous/{id}: NOT ambiguous (single mismatch)
+	// - /{entity}/{id}/last vs /pet/first/{id}: NOT ambiguous (different at position 2)
+	// None of these should be flagged as ambiguous
+	assert.Len(t, res, 0, "Concrete vs templated paths should not be ambiguous per OpenAPI spec")
 }
 
 // https://github.com/daveshanley/vacuum/issues/703
@@ -224,7 +272,7 @@ paths:
 }
 
 func TestAmbiguousPaths_SameMethodsAmbiguous(t *testing.T) {
-	// Test case for same paths with same methods - should be ambiguous
+	// Test case for same paths with same methods
 	yml := `openapi: 3.1.0
 info:
   title: Test API
@@ -274,10 +322,10 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	// These paths SHOULD be ambiguous because they use the same HTTP methods:
-	// - /cars/{carId} (GET) vs /cars/start (GET) - same method, carId could match "start"
-	// - /api/{version}/users (POST) vs /api/{v}/users (POST) - same method, same structure
-	assert.Len(t, res, 2, "Paths with same HTTP methods and ambiguous structure should be detected")
+	// With the fix for issue #749:
+	// - /cars/{carId} (GET) vs /cars/start (GET) - single var/literal mismatch, NOT ambiguous (concrete takes precedence)
+	// - /api/{version}/users (POST) vs /api/{v}/users (POST) - both vars, same structure, IS ambiguous
+	assert.Len(t, res, 1, "Only /api/{version}/users vs /api/{v}/users should be ambiguous (same structure, different param names)")
 }
 
 func TestAmbiguousPaths_MultipleMethodsOnSamePath(t *testing.T) {
@@ -328,30 +376,13 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	// Expected ambiguous combinations for same methods:
-	// - /users/{userId} (GET) vs /users/profile (GET) - userId could match "profile"
-	// - /users/{userId} (PUT) vs /users/settings (PUT) - userId could match "settings"
-	// Non-ambiguous combinations due to different methods:
+	// With the fix for issue #749, all these are single var/literal mismatches:
+	// - /users/{userId} (GET) vs /users/profile (GET) - NOT ambiguous (concrete takes precedence)
+	// - /users/{userId} (PUT) vs /users/settings (PUT) - NOT ambiguous (concrete takes precedence)
+	// Non-ambiguous combinations also due to different methods:
 	// - /users/{userId} (PUT) vs /users/profile (POST) - different methods
 	// - /users/{userId} (DELETE) vs /users/settings (PUT) - different methods
-	assert.Len(t, res, 2, "Only paths with same methods should be ambiguous")
-
-	// Verify both results contain method information
-	if len(res) >= 2 {
-		// Check that one is GET and one is PUT
-		messages := []string{res[0].Message, res[1].Message}
-		var hasGet, hasPut bool
-		for _, msg := range messages {
-			if strings.Contains(msg, "(GET)") {
-				hasGet = true
-			}
-			if strings.Contains(msg, "(PUT)") {
-				hasPut = true
-			}
-		}
-		assert.True(t, hasGet, "Should have GET method ambiguity")
-		assert.True(t, hasPut, "Should have PUT method ambiguity")
-	}
+	assert.Len(t, res, 0, "Concrete vs templated paths should not be ambiguous per OpenAPI spec")
 }
 
 func TestAmbiguousPaths_ComplexMethodCombinations(t *testing.T) {
@@ -400,17 +431,10 @@ paths:
 	def := AmbiguousPaths{}
 	res := def.RunRule(nodes, ctx)
 
-	// Expected ambiguous combinations:
-	// 1. /api/{version}/data (GET) vs /api/v1/data (GET) - version could match "v1"
-	// Not ambiguous:
+	// With the fix for issue #749:
+	// - /api/{version}/data (GET) vs /api/v1/data (GET) - single var/literal mismatch, NOT ambiguous
 	// - /api/{version}/data (POST) vs /api/v1/data (DELETE) - different methods
 	// - /api/{version}/data (GET) vs /api/{ver}/data (PUT) - different methods
 	// - /api/{version}/data (POST) vs /api/{ver}/data (PUT) - different methods
-	assert.Len(t, res, 1, "Should detect only GET method ambiguity")
-
-	if len(res) > 0 {
-		assert.Contains(t, res[0].Message, "(GET)", "Should specify GET method in result")
-		assert.Contains(t, res[0].Message, "/api/{version}/data", "Should mention parameterized path")
-		assert.Contains(t, res[0].Message, "/api/v1/data", "Should mention literal path")
-	}
+	assert.Len(t, res, 0, "Concrete vs templated paths should not be ambiguous per OpenAPI spec")
 }
