@@ -25,6 +25,9 @@ export class ViolationDrawerComponent extends BaseComponent {
   @property({ type: String })
   howToFix: string;
 
+  @property({ type: String })
+  documentationUrl: string;
+
   private _visible: boolean;
 
   private static replaceTicks(message: string): TemplateResult[] {
@@ -62,11 +65,13 @@ export class ViolationDrawerComponent extends BaseComponent {
         <p class="violated">
           Learn more about:
           <a
-            href="https://quobix.com/vacuum/rules/${this.category.toLowerCase()}/${this.ruleId
+            href="${this.documentationUrl ||
+            `https://quobix.com/vacuum/rules/${this.category.toLowerCase()}/${this.ruleId
               .replace('$', '')
-              .toLowerCase()}"
-            >${this.ruleId}</a
+              .toLowerCase()}`}"
           >
+            ${this.ruleId}
+          </a>
         </p>
       `;
     } else {

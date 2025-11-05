@@ -137,7 +137,10 @@ func SniffOutAllExternalRules(
 	}
 	for ruleName, ruleValue := range drs.RuleDefinitions {
 		rs.mutex.Lock()
-		rs.RuleDefinitions[ruleName] = ruleValue
+		// Don't overwrite parent's rule definitions - they take precedence for overrides
+		if _, exists := rs.RuleDefinitions[ruleName]; !exists {
+			rs.RuleDefinitions[ruleName] = ruleValue
+		}
 		rs.mutex.Unlock()
 	}
 

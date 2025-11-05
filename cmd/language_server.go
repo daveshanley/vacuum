@@ -8,15 +8,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
-	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetLanguageServerCommand() *cobra.Command {
@@ -42,6 +39,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
@@ -64,23 +62,28 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
+			var httpClientConfig utils.HTTPClientConfig
+			certFile, _ := cmd.Flags().GetString("cert-file")
+			keyFile, _ := cmd.Flags().GetString("key-file")
+			caFile, _ := cmd.Flags().GetString("ca-file")
+			insecure, _ := cmd.Flags().GetBool("insecure")
+
+			lintFlags := &LintFlags{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+
+			httpConfig, cfgErr := GetHTTPClientConfig(lintFlags)
+			if cfgErr != nil {
+				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+			}
+			httpClientConfig = httpConfig
+
 			if rulesetFlag != "" {
-				remoteFlag, _ := cmd.Flags().GetBool("remote")
-
-				// Certificate/TLS configuration for language server
-				certFile, _ := cmd.Flags().GetString("cert-file")
-				keyFile, _ := cmd.Flags().GetString("key-file")
-				caFile, _ := cmd.Flags().GetString("ca-file")
-				insecure, _ := cmd.Flags().GetBool("insecure")
-
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
-				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
@@ -96,16 +99,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false)
+			if err != nil {
+				return err
 			}
 
 			lfr := utils.LintFileRequest{
@@ -116,11 +112,13 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				SelectedRS:               selectedRS,
 				Functions:                customFunctions,
 				TimeoutFlag:              timeoutFlag,
+				LookupTimeoutFlag:        lookupTimeoutFlag,
 				IgnoreArrayCircleRef:     ignoreArrayCircleRef,
 				IgnorePolymorphCircleRef: ignorePolymorphCircleRef,
 				Logger:                   logger,
 				ExtensionRefs:            extensionRefsFlag,
 				IgnoredResults:           ignoredItems,
+				HTTPClientConfig:         httpClientConfig,
 			}
 
 			return languageserver.NewServer(GetVersion(), &lfr).Run()

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
+	"net/http"
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -19,7 +19,6 @@ import (
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetDashboardCommand() *cobra.Command {
@@ -50,6 +49,7 @@ func GetDashboardCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -62,16 +62,9 @@ func GetDashboardCommand() *cobra.Command {
 			insecure, _ := cmd.Flags().GetBool("insecure")
 			watchFlag, _ := cmd.Flags().GetBool("watch")
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false)
+			if err != nil {
+				return err
 			}
 
 			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
@@ -130,9 +123,29 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				}
 
+				tempLintFlags := &LintFlags{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				httpConfig, err := GetHTTPClientConfig(tempLintFlags)
+				if err != nil {
+					return fmt.Errorf("failed to resolve TLS configuration: %w", err)
+				}
+
 				if rulesetFlag != "" {
+					var httpClient *http.Client
+					if utils.ShouldUseCustomHTTPClient(httpConfig) {
+						var clientErr error
+						httpClient, clientErr = utils.CreateCustomHTTPClient(httpConfig)
+						if clientErr != nil {
+							return fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
+						}
+					}
+
 					var rsErr error
-					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, nil)
+					selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remoteFlag, httpClient)
 					if rsErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Unable to load ruleset '%s': %s", rulesetFlag, rsErr.Error())
@@ -172,12 +185,8 @@ func GetDashboardCommand() *cobra.Command {
 					SkipDocumentCheck: skipCheckFlag,
 					Logger:            logger,
 					Timeout:           time.Duration(timeoutFlag) * time.Second,
-					HTTPClientConfig: utils.HTTPClientConfig{
-						CertFile: certFile,
-						KeyFile:  keyFile,
-						CAFile:   caFile,
-						Insecure: insecure,
-					},
+					NodeLookupTimeout: time.Duration(lookupTimeoutFlag) * time.Millisecond,
+					HTTPClientConfig:  httpConfig,
 				})
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
@@ -203,7 +212,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			if resultSet == nil || len(resultSet.Results) == 0 {
 				if !silent {
-					renderResultBox(0, 0, 0) // Perfect score
+					renderResultBox(0, 0, 0, 0) // Perfect score
 				}
 				return nil
 			}

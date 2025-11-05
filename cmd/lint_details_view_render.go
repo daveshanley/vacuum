@@ -279,13 +279,18 @@ func getSeverityInfo(r *model.RuleFunctionResult, showRule bool, noStyle bool) *
 		info.Color = color.ASCIIBlue
 	}
 
+	// Add auto-fix indicator if rule has auto-fix capability
+	if r.Rule != nil && r.Rule.AutoFixFunction != "" {
+		info.Icon = info.Icon + " ⚙"
+	}
+
 	// format based on display mode
 	if !showRule {
-		// narrow mode - just the colored symbol
+		// narrow mode - just the colored symbol (wider for auto-fix icons)
 		if noStyle {
-			info.Formatted = fmt.Sprintf("%-2s", info.Icon)
+			info.Formatted = fmt.Sprintf("%-4s", info.Icon)
 		} else {
-			info.Formatted = fmt.Sprintf("%s%-2s%s", info.Color, info.Icon, color.ASCIIReset)
+			info.Formatted = fmt.Sprintf("%s%-4s%s", info.Color, info.Icon, color.ASCIIReset)
 		}
 	} else {
 		// normal mode - symbol and text

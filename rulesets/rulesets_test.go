@@ -14,9 +14,9 @@ import (
 	"time"
 )
 
-var totalRules = 64
+var totalRules = 65
 var totalOwaspRules = 23
-var totalRecommendedRules = 52
+var totalRecommendedRules = 53
 
 func TestBuildDefaultRuleSets(t *testing.T) {
 
@@ -58,7 +58,6 @@ func TestCreateRuleSetUsingJSON_Success(t *testing.T) {
 	rs, err := CreateRuleSetUsingJSON([]byte(json))
 	assert.NoError(t, err)
 	assert.Len(t, rs.Rules, 1)
-
 }
 
 func TestRuleSet_GetExtendsValue_Single(t *testing.T) {
@@ -267,6 +266,10 @@ func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRule(t *testing.T) {
     - all
 rules:
  fish-cakes:
+   category:
+     id: snacks
+     name: snacks name
+     description: snacks description
    description: yummy sea food
    recommended: true
    type: style
@@ -281,6 +284,9 @@ rules:
 	assert.Len(t, newrs.Rules, totalRules+1)
 	assert.Equal(t, true, newrs.Rules["fish-cakes"].Recommended)
 	assert.Equal(t, "yummy sea food", newrs.Rules["fish-cakes"].Description)
+	assert.Equal(t, "snacks", newrs.Rules["fish-cakes"].RuleCategory.Id)
+	assert.Equal(t, "snacks name", newrs.Rules["fish-cakes"].RuleCategory.Name)
+	assert.Equal(t, "snacks description", newrs.Rules["fish-cakes"].RuleCategory.Description)
 
 }
 
@@ -545,7 +551,7 @@ rules:
 	rs, err := CreateRuleSetFromData([]byte(yamlA))
 	assert.NoError(t, err)
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 54)
+	assert.Len(t, override.Rules, 55)
 	assert.Len(t, override.RuleDefinitions, 2)
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.NotNil(t, rs.Rules["dong"])
@@ -734,7 +740,7 @@ func TestRuleSet_GetExtendsLocalSpec_Multi_Chain(t *testing.T) {
 	rs, err := CreateRuleSetFromData([]byte(yaml))
 	assert.NoError(t, err)
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 65)
+	assert.Len(t, override.Rules, 66)
 	assert.Len(t, override.RuleDefinitions, 1)
 
 }
@@ -824,4 +830,23 @@ func TestRuleSet_GetExtendsLocalSpec_Multi_Chain_Loop(t *testing.T) {
 	_ = def.GenerateRuleSetFromSuppliedRuleSet(rs)
 	assert.Contains(t, logBuffer.String(), "ruleset links to its self, circular rulesets are not permitted")
 
+}
+func TestRuleSetsModel_GenerateRuleSetFromConfig_OwaspOff_EnableSpecificRule(t *testing.T) {
+	// This test captures the bug where extending [vacuum:owasp, off] and then
+	// enabling a specific OWASP rule fails with "Rule does not exist, ignoring it"
+	yaml := `extends: 
+  - [vacuum:oas, all]
+  - [vacuum:owasp, off]
+rules:
+  owasp-integer-format: true`
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+
+	assert.NotNil(t, repl.Rules["owasp-integer-format"], "owasp-integer-format rule should be available")
+	assert.Nil(t, repl.Rules["owasp-no-numeric-ids"], "other OWASP rules should be disabled")
+	assert.Greater(t, len(repl.Rules), 1, "should have OpenAPI rules plus the one OWASP rule")
 }

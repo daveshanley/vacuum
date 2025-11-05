@@ -22,7 +22,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetSpectralReportCommand() *cobra.Command {
@@ -53,6 +52,7 @@ func GetSpectralReportCommand() *cobra.Command {
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -85,6 +85,18 @@ func GetSpectralReportCommand() *cobra.Command {
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 
+			lintFlags := &LintFlags{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+
+			httpClientConfig, cfgErr := GetHTTPClientConfig(lintFlags)
+			if cfgErr != nil {
+				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+			}
+
 			reportOutput := "vacuum-spectral-report.json"
 
 			if len(args) > 1 {
@@ -113,16 +125,9 @@ func GetSpectralReportCommand() *cobra.Command {
 				return fileError
 			}
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, stdOut, noStyleFlag)
+			if err != nil {
+				return err
 			}
 
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
@@ -157,12 +162,6 @@ func GetSpectralReportCommand() *cobra.Command {
 			if rulesetFlag != "" {
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
-				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
@@ -220,13 +219,9 @@ func GetSpectralReportCommand() *cobra.Command {
 				AllowLookup:                     remoteFlag,
 				SkipDocumentCheck:               skipCheckFlag,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
+				NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
-				HTTPClientConfig: utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				},
+				HTTPClientConfig:                httpClientConfig,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
@@ -265,9 +260,7 @@ func GetSpectralReportCommand() *cobra.Command {
 				return nil
 			}
 
-			err := os.WriteFile(reportOutput, data, 0664)
-
-			if err != nil {
+			if err = os.WriteFile(reportOutput, data, 0664); err != nil {
 				tui.RenderErrorString("Unable to write report file: '%s': %s", reportOutput, err.Error())
 				return err
 			}

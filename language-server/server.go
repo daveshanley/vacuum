@@ -47,7 +47,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 		lintRequest:   lintRequest,
 		documentStore: newDocumentStore(),
 	}
-	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (interface{}, error) {
+	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
 		if params.Trace != nil {
 			protocol.SetTraceValue(*params.Trace)
 		}
@@ -55,6 +55,12 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 		serverCapabilities := handler.CreateServerCapabilities()
 		serverCapabilities.TextDocumentSync = protocol.TextDocumentSyncKindIncremental
 		serverCapabilities.CompletionProvider = &protocol.CompletionOptions{}
+		serverCapabilities.CodeActionProvider = &protocol.CodeActionOptions{
+			CodeActionKinds: []protocol.CodeActionKind{protocol.CodeActionKindQuickFix},
+		}
+		serverCapabilities.ExecuteCommandProvider = &protocol.ExecuteCommandOptions{
+			Commands: []string{"vacuum.openUrl"},
+		}
 
 		return protocol.InitializeResult{
 			Capabilities: serverCapabilities,
@@ -99,6 +105,36 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
 		return nil, nil
 	}
+
+	handler.TextDocumentCodeAction = func(context *glsp.Context, params *protocol.CodeActionParams) (any, error) {
+		var actions []protocol.CodeAction
+		
+		for _, diagnostic := range params.Context.Diagnostics {
+			if diagnostic.CodeDescription != nil && diagnostic.CodeDescription.HRef != "" {
+				quickFixKind := protocol.CodeActionKindQuickFix
+				actions = append(actions, protocol.CodeAction{
+					Title: "View documentation",
+					Kind:  &quickFixKind,
+					Command: &protocol.Command{
+						Title:     "Open documentation",
+						Command:   "vacuum.openUrl",
+						Arguments: []interface{}{diagnostic.CodeDescription.HRef},
+					},
+				})
+			}
+		}
+		
+		return actions, nil
+	}
+
+	handler.WorkspaceExecuteCommand = func(context *glsp.Context, params *protocol.ExecuteCommandParams) (any, error) {
+		if params.Command == "vacuum.openUrl" && len(params.Arguments) > 0 {
+			if url, ok := params.Arguments[0].(string); ok {
+				utils.OpenURL(url)
+			}
+		}
+		return nil, nil
+	}
 	return state
 }
 
@@ -130,6 +166,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 			Spec:                            []byte(doc.Content),
 			SpecFileName:                    specFileName,
 			Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
+			NodeLookupTimeout:               time.Duration(s.lintRequest.LookupTimeoutFlag) * time.Millisecond,
 			CustomFunctions:                 s.lintRequest.Functions,
 			IgnoreCircularArrayRef:          s.lintRequest.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef:    s.lintRequest.IgnorePolymorphCircleRef,
@@ -153,7 +190,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 }
 
 func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
-	var diagnostics []protocol.Diagnostic
+	diagnostics := []protocol.Diagnostic{}
 
 	for _, vacuumResult := range result.Results {
 		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
@@ -166,7 +203,9 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 	severity := GetDiagnosticSeverityFromRule(vacuumResult.Rule)
 
 	diagnosticErrorHref := fmt.Sprintf("%s/rules/unknown", model.WebsiteUrl)
-	if vacuumResult.Rule.RuleCategory != nil {
+	if vacuumResult.Rule.DocumentationURL != "" {
+		diagnosticErrorHref = vacuumResult.Rule.DocumentationURL
+	} else if vacuumResult.Rule.RuleCategory != nil {
 		diagnosticErrorHref = fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
 			strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
 			strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
@@ -185,6 +224,15 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 		endChar = vacuumResult.EndNode.Column - 1
 	}
 
+	// Build comprehensive message with rule details
+	message := vacuumResult.Message
+	if vacuumResult.Rule.Description != "" {
+		message += "\n\nDescription: " + vacuumResult.Rule.Description
+	}
+	if vacuumResult.Rule.HowToFix != "" {
+		message += "\n\nHow to fix: " + vacuumResult.Rule.HowToFix + "\n\nRule ID: " + vacuumResult.Rule.Id + "\n"
+	}
+
 	return protocol.Diagnostic{
 		Range: protocol.Range{
 			Start: protocol.Position{Line: protocol.UInteger(startLine),
@@ -196,7 +244,7 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 		Source:          &serverName,
 		Code:            &protocol.IntegerOrString{Value: vacuumResult.Rule.Id},
 		CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
-		Message:         vacuumResult.Message,
+		Message:         message,
 	}
 }
 

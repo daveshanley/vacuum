@@ -25,7 +25,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func GetVacuumReportCommand() *cobra.Command {
@@ -53,6 +52,7 @@ func GetVacuumReportCommand() *cobra.Command {
 			junitFlag, _ := cmd.Flags().GetBool("junit")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
@@ -87,6 +87,17 @@ func GetVacuumReportCommand() *cobra.Command {
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 
+			httpFlags := &LintFlags{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+			httpClientConfig, cfgErr := GetHTTPClientConfig(httpFlags)
+			if cfgErr != nil {
+				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+			}
+
 			extension := ".json"
 
 			reportOutput := "vacuum-report"
@@ -117,16 +128,9 @@ func GetVacuumReportCommand() *cobra.Command {
 				return fileError
 			}
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, noStyleFlag)
+			if err != nil {
+				return err
 			}
 
 			// read spec and parse to dashboard.
@@ -160,12 +164,6 @@ func GetVacuumReportCommand() *cobra.Command {
 
 				// Create HTTP client for remote ruleset downloads if needed
 				var httpClient *http.Client
-				httpClientConfig := utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				}
 				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 					var clientErr error
 					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
@@ -229,13 +227,9 @@ func GetVacuumReportCommand() *cobra.Command {
 				SkipDocumentCheck:               skipCheckFlag,
 				BuildDeepGraph:                  deepGraph,
 				Timeout:                         time.Duration(timeoutFlag) * time.Second,
+				NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 				ExtractReferencesFromExtensions: extensionRefsFlag,
-				HTTPClientConfig: utils.HTTPClientConfig{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
-				},
+				HTTPClientConfig:                httpClientConfig,
 			})
 
 			resultSet := model.NewRuleResultSet(ruleset.Results)
@@ -256,8 +250,7 @@ func GetVacuumReportCommand() *cobra.Command {
 					reportOutputName := fmt.Sprintf("%s-%s%s",
 						reportOutput, time.Now().Format("01-02-06-15_04_05"), ".xml")
 
-					err := os.WriteFile(reportOutputName, junitXML, 0664)
-					if err != nil {
+					if err = os.WriteFile(reportOutputName, junitXML, 0664); err != nil {
 						tui.RenderErrorString("Unable to write junit report file: '%s': %s", reportOutputName, err.Error())
 						return err
 					}
@@ -271,7 +264,6 @@ func GetVacuumReportCommand() *cobra.Command {
 			resultSet.PrepareForSerialization(ruleset.SpecInfo)
 
 			var data []byte
-			var err error
 
 			// generate statistics
 			stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)

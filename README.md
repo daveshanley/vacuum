@@ -144,7 +144,26 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.18` 🔥 : **New dashboard, new lint command, new rules!**.
+🔥 **New in** `v0.20` 🔥: **Support for auto fixing custom rules**
+
+Got some rules that don't really need a human to look at?
+
+Well now you can define an `AutoFixFunction` for your rules, and when you run with the `--fix` flag, the fixes will will be applied to the file, or use `--fix-file` to write them to a different file.
+
+See [Auto-Fixing Rule Violations](#auto-fixing-rule-violations) for more specifics.
+
+---
+
+`v0.19`: **Ignore rules with `x-lint-ignore`**
+
+Got an error in your spec you know about but can't get round to fixing yet?
+Migrating from zally and wanting to keep your existing `x-zally-ignore` issues silenced?
+
+Now you can! Just add `x-lint-ignore: rule-id` to the yaml node reporting the failure (or `x-lint-ignore: [rule-one, rule-two]` if there are multiple issues to ignore).
+
+---
+
+`v0.18`: **New dashboard, new lint command, new rules!**.
 
 Upgrades all around. There is a completely new `dashboard` command with a completely new dashboard terminal UI. It's 
 completely interactive and allows you to explore, and filter violations, view full docs and see code. The `dashboard` command
@@ -606,5 +625,110 @@ lint:
 You can configure global vacuum flags using environmental variables in the form of: `VACUUM_<flag>`
 
 If a flag, has a `-` in it, replace with `_`
+
+
+## Auto-fixing rule violations
+
+If you have a rule that doesn't need a human to look at it, and the change can be reliably automated you can configure an `AutoFixFunction` on the rule. When you then run the `lint` command you can pass the `--fix` flag and the violation will be automatically fixed.
+
+### Set up
+
+1. Define a rule that has an `autoFixFunction`, e.g.:
+```yaml
+rules:
+  use-compatible-extensions:
+    autoFixFunction: useExtensibleEnum
+    description: Prefer compatible extensions
+    id: use-compatible-extensions
+    given: "$.components.schemas[?@.enum]"
+    severity: warn
+    message: Use x-extensible-enum instead of enum for better compatibility
+    then:
+      field: enum
+      function: falsy
+```
+
+This rule flags any usage of `enum` and recommends they are updated to `x-extensible-enum`.
+A simple change which can be easily auto fixed!
+
+2. Create a function which performs the auto-fix.
+```go
+func useExtensibleEnum(
+	node *yaml.Node,
+	document *yaml.Node,
+	context *model.RuleFunctionContext,
+) (*yaml.Node, error) {
+	if node.Kind != yaml.MappingNode {
+		return node, nil
+	}
+
+	for i := 0; i < len(node.Content); i += 2 {
+		if i+1 >= len(node.Content) {
+			break
+		}
+
+		keyNode := node.Content[i]
+
+		if keyNode.Value == "enum" {
+			keyNode.Value = "x-extensible-enum"
+
+			return node, nil
+		}
+	}
+
+	return node, nil
+}
+```
+
+> [!NOTE]
+> The auto fix function must satisfy the `AutoFixFunction` type.
+> It should take in the `*yaml.Node` of the violation, the root `*yaml.Node` of the document and the `RuleFunctionContext`.
+> It should return the fixed `*yaml.Node` and an error.
+
+3. Configure your `RuleSetExecution` to use the auto fix function.
+```go
+func Lint(rulesFile string, specFile string) error {
+	rules, err := rulesets.LoadLocalRuleSet(ctx, rulesFile)
+	if err != nil {
+		return fmt.Errorf("error loading ruleset: %w", err)
+	}
+
+	rs := rulesets.BuildDefaultRuleSetsWithLogger(slog.Logger).
+		GenerateRuleSetFromSuppliedRuleSet(rules)
+
+	// NOTE: only showing the fields on the RuleSetExecution relevant to auto-fixing.
+	results := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+		AutoFixFunctions: map[string]model.AutoFixFunction{
+			"useExtensibleEnum": useExtensibleEnum,
+		},
+		ApplyAutoFixes:         true,
+		RuleSet:                rs,
+	})
+
+	// Write back to file if fixes were applied
+	if len(lintResults.FixedResults) > 0 && autoFix {
+		fileInfo, _ := os.Stat(specFile)
+
+		err = os.WriteFile(specFile, result.ModifiedSpec, fileInfo.Mode())
+		if err != nil {
+			return fmt.Errorf("failed to write file %s: %w", c.file, err)
+		}
+	}
+
+	return nil
+}
+```
+
+When the auto fix function runs, if it returns an error the fix will not be applied, the error will be logged, and the violation will be reported in the standard results.
+
+If the auto fix function succeeds the yaml node flagged by the violation will be replaced with the transformed version returned by the auto fix function.
+
+> [!TIP]
+> When using `vacuum` as a library You can access the fixed yaml content in the `RuleSetExecutionResult.ModifiedSpec`, and choose where to write the file.
+> 
+> When using `vacuum` as a cli, the `--fix` flag will overwrite the spec file in place, and `--fix-file` flag lets you specify an alternative file to write the content to, if you want to compare the outputs.
+
+### Usage
+
 
 > Logo gopher is modified, originally from [egonelbre](https://github.com/egonelbre/gophers)

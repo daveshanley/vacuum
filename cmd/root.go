@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/daveshanley/vacuum/tui"
@@ -17,13 +18,28 @@ import (
 var (
 	configFile  string
 	versionInfo VersionInfo
+	// Variables to hold ldflags values
+	ldVersion string
+	ldCommit  string
+	ldDate    string
+
+	// Directory that contains the active configuration file, used for resolving relative paths
+	configDirectory string
 )
 
 func init() {
-	versionInfo = GetVersionInfo()
+	// Initialize version info after Execute() is called with ldflags
 }
 
-func Execute() {
+func Execute(version, commit, date string) {
+	// Store ldflags values
+	ldVersion = version
+	ldCommit = commit
+	ldDate = date
+
+	// Now initialize version info with ldflags available
+	versionInfo = GetVersionInfo()
+
 	if err := GetRootCommand().Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -74,6 +90,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("skip-check", "k", false, "Skip checking for a valid OpenAPI document, useful for linting fragments or non-OpenAPI documents")
 	rootCmd.PersistentFlags().BoolP("debug", "w", false, "Turn on debug logging")
 	rootCmd.PersistentFlags().IntP("timeout", "g", 5, "Rule timeout in seconds, default is 5 seconds")
+	rootCmd.PersistentFlags().Int("lookup-timeout", 500, "Node lookup timeout in milliseconds for JSONPath queries, default is 500ms")
 	rootCmd.PersistentFlags().BoolP("hard-mode", "z", false, "Enable all the built-in rules, even the OWASP ones. This is the level to beat!")
 	rootCmd.PersistentFlags().BoolP("ext-refs", "", false, "Turn on $ref lookups and resolving for extensions (x-) objects")
 	rootCmd.PersistentFlags().String("cert-file", "", "Path to client certificate file for HTTPS requests")
@@ -104,6 +121,9 @@ func GetRootCommand() *cobra.Command {
 	if regErr := rootCmd.RegisterFlagCompletionFunc("timeout", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("lookup-timeout", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("cert-file", cobra.FixedCompletions(
 		[]string{"crt", "pem", "cert"}, cobra.ShellCompDirectiveFilterFileExt,
 	)); regErr != nil {
@@ -127,6 +147,7 @@ func GetRootCommand() *cobra.Command {
 }
 
 func useConfigFile(cmd *cobra.Command) error {
+	configDirectory = ""
 	useEnvironmentConfiguration()
 	var err error
 	if len(configFile) != 0 {
@@ -156,6 +177,7 @@ func useDefaultConfigFile() error {
 	viper.AddConfigPath(getXdgConfigHome())
 	err := viper.ReadInConfig()
 	if err == nil {
+		setConfigDirectoryFromViper()
 		return nil
 	}
 	if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -174,8 +196,16 @@ func useEnvironmentConfiguration() {
 }
 
 func useUserSuppliedConfigFile(configFilePath string) error {
-	viper.SetConfigFile(os.ExpandEnv(configFilePath))
-	return viper.ReadInConfig()
+	expandedPath, err := expandUserPath(configFilePath)
+	if err != nil {
+		return err
+	}
+	viper.SetConfigFile(expandedPath)
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+	setConfigDirectoryFromViper()
+	return nil
 }
 
 // Get config directory as per the xdg basedir spec
@@ -197,4 +227,72 @@ func bindFlags(flags *pflag.FlagSet, viperTree *viper.Viper) error {
 		}
 	})
 	return err
+}
+
+// expandUserPath expands environment variables and a leading ~ in a user-supplied path.
+func expandUserPath(pathValue string) (string, error) {
+	if pathValue == "" {
+		return "", nil
+	}
+
+	expanded := os.ExpandEnv(pathValue)
+
+	if strings.HasPrefix(expanded, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("unable to resolve home directory: %w", err)
+		}
+		if expanded == "~" {
+			expanded = home
+		} else if strings.HasPrefix(expanded, "~/") || strings.HasPrefix(expanded, "~\\") {
+			expanded = filepath.Join(home, expanded[2:])
+		}
+	}
+
+	return expanded, nil
+}
+
+// setConfigDirectoryFromViper captures the directory of the currently loaded configuration file, if any.
+func setConfigDirectoryFromViper() {
+	if used := viper.ConfigFileUsed(); used != "" {
+		if absPath, err := filepath.Abs(used); err == nil {
+			configDirectory = filepath.Dir(absPath)
+		} else {
+			configDirectory = filepath.Dir(used)
+		}
+	}
+}
+
+// ResolveConfigPath normalizes paths supplied via flags or configuration.
+// It expands ~ and environment variables, and if the path is relative,
+// resolves it against the configuration directory when available.
+func ResolveConfigPath(raw string) (string, error) {
+	if raw == "" {
+		return "", nil
+	}
+
+	// Skip resolution for URLs or other schemes
+	if strings.Contains(raw, "://") {
+		return raw, nil
+	}
+
+	expanded, err := expandUserPath(raw)
+	if err != nil {
+		return "", err
+	}
+
+	if filepath.IsAbs(expanded) {
+		return filepath.Clean(expanded), nil
+	}
+
+	if configDirectory != "" && !strings.HasPrefix(expanded, ".") {
+		return filepath.Clean(filepath.Join(configDirectory, expanded)), nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("unable to resolve working directory: %w", err)
+	}
+
+	return filepath.Clean(filepath.Join(cwd, expanded)), nil
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
@@ -10,8 +9,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 )
 
@@ -24,9 +21,10 @@ func BuildResults(
 	base string,
 	remote bool,
 	timeout time.Duration,
+	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, httpClientConfig, ignoredItems)
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, ignoredItems)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -39,6 +37,7 @@ func BuildResultsWithDocCheckSkip(
 	remote bool,
 	skipCheck bool,
 	timeout time.Duration,
+	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
@@ -77,27 +76,10 @@ func BuildResultsWithDocCheckSkip(
 			}
 		}
 
-		if strings.HasPrefix(rulesetFlag, "http") {
-			// Handle remote ruleset URL
-			if !remote {
-				return nil, nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
-			}
-
-			downloadedRS, rsErr := rulesets.DownloadRemoteRuleSet(context.Background(), rulesetFlag, httpClient)
-			if rsErr != nil {
-				return nil, nil, rsErr
-			}
-			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
-		} else {
-			// Handle local ruleset file
-			rsBytes, rsErr := os.ReadFile(rulesetFlag)
-			if rsErr != nil {
-				return nil, nil, rsErr
-			}
-			selectedRS, rsErr = BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, defaultRuleSets, httpClient)
-			if rsErr != nil {
-				return nil, nil, rsErr
-			}
+		var rsErr error
+		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient)
+		if rsErr != nil {
+			return nil, nil, rsErr
 		}
 
 		// Merge OWASP rules if hard mode is enabled
@@ -118,6 +100,7 @@ func BuildResultsWithDocCheckSkip(
 		SkipDocumentCheck: skipCheck,
 		AllowLookup:       remote,
 		Timeout:           timeout,
+		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
 	})
 

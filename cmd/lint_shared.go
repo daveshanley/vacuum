@@ -74,6 +74,9 @@ type LintFlags struct {
 	CAFile                   string
 	Insecure                 bool
 	DebugFlag                bool
+	LookupTimeoutFlag        int
+	FixFlag                  bool
+	FixFileFlag              string
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -117,6 +120,10 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.TimeoutFlag, _ = cmd.Flags().GetInt("timeout")
 	if !cmd.Flags().Changed("timeout") && viper.IsSet("lint.timeout") {
 		flags.TimeoutFlag = viper.GetInt("lint.timeout")
+	}
+	flags.LookupTimeoutFlag, _ = cmd.Flags().GetInt("lookup-timeout")
+	if !cmd.Flags().Changed("lookup-timeout") && viper.IsSet("lint.lookup-timeout") {
+		flags.LookupTimeoutFlag = viper.GetInt("lint.lookup-timeout")
 	}
 	flags.RulesetFlag, _ = cmd.Flags().GetString("ruleset")
 	// Fallback to lint-scoped config if no ruleset was provided via flag/env/root-config
@@ -164,6 +171,8 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
+	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
+	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
 	return flags
 }
 
@@ -192,26 +201,48 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 		return ignoredItems, nil
 	}
 
-	raw, err := os.ReadFile(ignoreFile)
+	originalPath := ignoreFile
+	resolvedPath, err := ResolveConfigPath(ignoreFile)
 	if err != nil {
 		if !silent {
-			fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
+			fmt.Printf("%sError: Failed to resolve ignore file path '%s': %v%s\n\n",
 				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
-		return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
+		return ignoredItems, fmt.Errorf("failed to resolve ignore file path: %w", err)
+	}
+
+	raw, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		if !os.IsNotExist(err) || originalPath == resolvedPath {
+			if !silent {
+				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
+					color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
+			}
+			return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
+		}
+		// fallback to original path if resolution-based path not found
+		raw, err = os.ReadFile(originalPath)
+		if err != nil {
+			if !silent {
+				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
+					color.ASCIIRed, originalPath, err, color.ASCIIReset)
+			}
+			return ignoredItems, fmt.Errorf("failed to read ignore file: %w", err)
+		}
+		resolvedPath = originalPath
 	}
 
 	err = yaml.Unmarshal(raw, &ignoredItems)
 	if err != nil {
 		if !silent {
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
-				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
+				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
 	}
 
 	if !silent && !pipeline {
-		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", ignoreFile), noStyle)
+		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", resolvedPath), noStyle)
 		renderIgnoredItems(ignoredItems, noStyle)
 	}
 
@@ -220,11 +251,9 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 
 // CreateHTTPClientFromFlags creates an HTTP client based on certificate flags
 func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
-	httpClientConfig := utils.HTTPClientConfig{
-		CertFile: flags.CertFile,
-		KeyFile:  flags.KeyFile,
-		CAFile:   flags.CAFile,
-		Insecure: flags.Insecure,
+	httpClientConfig, err := GetHTTPClientConfig(flags)
+	if err != nil {
+		return nil, err
 	}
 
 	if !utils.ShouldUseCustomHTTPClient(httpClientConfig) {
@@ -317,13 +346,28 @@ func RenderBufferedLogs(bufferedLogger *logging.BufferedLogger, noStyle bool) {
 }
 
 // GetHTTPClientConfig creates HTTPClientConfig from flags
-func GetHTTPClientConfig(flags *LintFlags) utils.HTTPClientConfig {
-	return utils.HTTPClientConfig{
-		CertFile: flags.CertFile,
-		KeyFile:  flags.KeyFile,
-		CAFile:   flags.CAFile,
-		Insecure: flags.Insecure,
+func GetHTTPClientConfig(flags *LintFlags) (utils.HTTPClientConfig, error) {
+	certFile, err := ResolveConfigPath(flags.CertFile)
+	if err != nil {
+		return utils.HTTPClientConfig{}, err
 	}
+
+	keyFile, err := ResolveConfigPath(flags.KeyFile)
+	if err != nil {
+		return utils.HTTPClientConfig{}, err
+	}
+
+	caFile, err := ResolveConfigPath(flags.CAFile)
+	if err != nil {
+		return utils.HTTPClientConfig{}, err
+	}
+
+	return utils.HTTPClientConfig{
+		CertFile: certFile,
+		KeyFile:  keyFile,
+		CAFile:   caFile,
+		Insecure: flags.Insecure,
+	}, nil
 }
 
 // ProcessSingleFileOptimized processes a single file using pre-loaded configuration
@@ -369,22 +413,33 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
+	httpClientConfig, err := GetHTTPClientConfig(config.Flags)
+	if err != nil {
+		return &FileProcessingResult{
+			FileSize: fileSize,
+			Error:    err,
+		}
+	}
+
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                         config.SelectedRuleset,
 		Spec:                            specBytes,
 		SpecFileName:                    fileName,
 		CustomFunctions:                 config.CustomFunctions,
+		AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 		Base:                            resolvedBase,
 		AllowLookup:                     config.Flags.RemoteFlag,
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,
 		SilenceLogs:                     config.Flags.SilentFlag,
 		Timeout:                         time.Duration(config.Flags.TimeoutFlag) * time.Second,
+		NodeLookupTimeout:               time.Duration(config.Flags.LookupTimeoutFlag) * time.Millisecond,
 		IgnoreCircularArrayRef:          config.Flags.IgnoreArrayCircleRef,
 		IgnoreCircularPolymorphicRef:    config.Flags.IgnorePolymorphCircleRef,
 		BuildDeepGraph:                  len(config.IgnoredItems) > 0,
 		ExtractReferencesFromExtensions: config.Flags.ExtRefsFlag,
 		Logger:                          logger,
-		HTTPClientConfig:                GetHTTPClientConfig(config.Flags),
+		HTTPClientConfig:                httpClientConfig,
+		ApplyAutoFixes:                  config.Flags.FixFlag,
 	})
 
 	if len(result.Errors) > 0 {

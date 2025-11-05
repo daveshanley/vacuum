@@ -4,9 +4,13 @@
 package tui
 
 import (
+	"fmt"
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/muesli/termenv"
 )
 
@@ -313,7 +317,29 @@ func (m *ViolationResultTableModel) FetchOrLoadDocumentation() tea.Cmd {
 	m.docsViewport.SetWidth(modalWidth - ViewportPadding)
 	m.docsViewport.SetHeight(m.height - 14)
 
-	return tea.Batch(fetchDocsFromDoctorAPI(ruleID), m.docsSpinner.Tick)
+	return tea.Batch(m.fetchDocumentation(ruleID), m.docsSpinner.Tick)
+}
+
+// fetchDocumentation determines whether to fetch docs via API or open browser
+func (m *ViolationResultTableModel) fetchDocumentation(ruleID string) tea.Cmd {
+	// Check if rule has custom documentation URL
+	if m.modalContent != nil && m.modalContent.Rule != nil && m.modalContent.Rule.DocumentationURL != "" {
+		customURL := m.modalContent.Rule.DocumentationURL
+		
+		// If it's not the default quobix.com pattern, open in browser
+		if !strings.Contains(customURL, "quobix.com/vacuum/rules/") {
+			return func() tea.Msg {
+				if err := utils.OpenURL(customURL); err != nil {
+					return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("Failed to open browser: %s", err.Error()), is404: false}
+				}
+				
+				return docsLoadedMsg{ruleID: ruleID, content: fmt.Sprintf("📖 Documentation opened in browser:\n\n%s", customURL)}
+			}
+		}
+	}
+	
+	// Default behavior: fetch from API
+	return fetchDocsFromDoctorAPI(ruleID)
 }
 
 // HandleEscapeKey handles the escape key with context-aware behavior

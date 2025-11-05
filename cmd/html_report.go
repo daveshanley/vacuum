@@ -23,7 +23,6 @@ import (
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 // GetHTMLReportCommand returns a cobra command for generating an HTML Report.
@@ -49,9 +48,11 @@ func GetHTMLReportCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+			noBannerFlag, _ := cmd.Flags().GetBool("no-banner")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
+			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -63,7 +64,9 @@ func GetHTMLReportCommand() *cobra.Command {
 				color.DisableColors()
 			}
 
-			PrintBanner()
+			if !noBannerFlag {
+				PrintBanner()
+			}
 
 			// check for file args
 			if len(args) == 0 {
@@ -95,16 +98,9 @@ func GetHTMLReportCommand() *cobra.Command {
 			var specInfo *datamodel.SpecInfo
 			var stats *reports.ReportStatistics
 
-			ignoredItems := model.IgnoredItems{}
-			if ignoreFile != "" {
-				raw, ferr := os.ReadFile(ignoreFile)
-				if ferr != nil {
-					return fmt.Errorf("failed to read ignore file: %w", ferr)
-				}
-				ferr = yaml.Unmarshal(raw, &ignoredItems)
-				if ferr != nil {
-					return fmt.Errorf("failed to parse ignore file: %w", ferr)
-				}
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, noStyleFlag)
+			if err != nil {
+				return err
 			}
 
 			// if we have a pre-compiled report, jump straight to the end and collect $500
@@ -127,13 +123,19 @@ func GetHTMLReportCommand() *cobra.Command {
 					return fmt.Errorf("failed to resolve base path: %w", baseErr)
 				}
 
+				httpFlags := &LintFlags{
+					CertFile: certFile,
+					KeyFile:  keyFile,
+					CAFile:   caFile,
+					Insecure: insecure,
+				}
+				httpClientConfig, cfgErr := GetHTTPClientConfig(httpFlags)
+				if cfgErr != nil {
+					return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+				}
+
 				resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, utils.HTTPClientConfig{
-						CertFile: certFile,
-						KeyFile:  keyFile,
-						CAFile:   caFile,
-						Insecure: insecure,
-					}, ignoredItems)
+					resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, ignoredItems)
 				if err != nil {
 					tui.RenderError(err)
 					return err
@@ -219,6 +221,7 @@ func GetHTMLReportCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner output")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 
 	return cmd

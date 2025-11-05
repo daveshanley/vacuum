@@ -60,7 +60,11 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
 	} else {
 		// Handle local ruleset file
-		rsBytes, rsErr := os.ReadFile(rulesetFlag)
+		resolvedPath, err := ResolveConfigPath(rulesetFlag)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve ruleset path '%s': %w", rulesetFlag, err)
+		}
+		rsBytes, rsErr := os.ReadFile(resolvedPath)
 		if rsErr != nil {
 			return nil, rsErr
 		}
@@ -126,7 +130,13 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.RuleFunction, error) {
 	// check custom functions
 	if functionsFlag != "" {
-		pm, err := plugin.LoadFunctions(functionsFlag, silence)
+		resolvedFunctionsPath, err := ResolveConfigPath(functionsFlag)
+		if err != nil {
+			tui.RenderErrorString("Unable to resolve functions path '%s': %s", functionsFlag, err.Error())
+			return nil, err
+		}
+
+		pm, err := plugin.LoadFunctions(resolvedFunctionsPath, silence)
 		if err != nil {
 			tui.RenderError(err)
 			return nil, err

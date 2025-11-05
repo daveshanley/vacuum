@@ -25,7 +25,6 @@ type functionsModel struct {
 
 // Functions is used to Query available functions loaded into vacuum
 type Functions interface {
-
 	// GetAllFunctions returns a model.RuleFunction map, the key is the function name.
 	GetAllFunctions() map[string]model.RuleFunction
 
@@ -33,12 +32,13 @@ type Functions interface {
 	FindFunction(string) model.RuleFunction
 }
 
-var functionsSingleton *functionsModel
-var coreFunctionGrab sync.Once
+var (
+	functionsSingleton *functionsModel
+	coreFunctionGrab   sync.Once
+)
 
 // MapBuiltinFunctions will correctly map core (non-specific) functions to correct names.
 func MapBuiltinFunctions() Functions {
-
 	coreFunctionGrab.Do(func() {
 		funcs := make(map[string]model.RuleFunction)
 		customFuncs := make(map[string]customFunction)
@@ -110,6 +110,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["duplicatePaths"] = openapi_functions.DuplicatePaths{}
 		funcs["oasUnnecessaryCombinator"] = openapi_functions.UnnecessaryCombinator{}
 		funcs["oasCamelCaseProperties"] = openapi_functions.CamelCaseProperties{}
+		funcs["migrateZallyIgnore"] = openapi_functions.MigrateZallyIgnore{}
 
 		// add owasp functions used by the owasp rules
 		funcs["owaspHeaderDefinition"] = owasp.HeaderDefinition{}
@@ -131,13 +132,16 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspNoAdditionalProperties"] = owasp.NoAdditionalProperties{}
 		funcs["owaspNoAdditionalPropertiesConstrained"] = owasp.AdditionalPropertiesConstrained{}
 		funcs["owaspHostsHttps"] = owasp.HostsHttps{}
-
 	})
 
 	return functionsSingleton
 }
 
-func (fm functionsModel) RegisterCustomFunction(name string, function plugin.FunctionHook, schema plugin.FunctionSchema) {
+func (fm functionsModel) RegisterCustomFunction(
+	name string,
+	function plugin.FunctionHook,
+	schema plugin.FunctionSchema,
+) {
 	fm.customFunctions[name] = customFunction{functionHook: function, schemaHook: schema}
 }
 

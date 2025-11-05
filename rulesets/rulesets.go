@@ -97,6 +97,7 @@ const (
 	DuplicatePathsRule                   = "duplicate-paths"
 	UnnecessaryCombinatorRule            = "no-unnecessary-combinator"
 	CamelCasePropertiesRule              = "camel-case-properties"
+	MigrateZallyIgnoreRule               = "migrate-zally-ignore"
 	OwaspNoNumericIDs                    = "owasp-no-numeric-ids"
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
@@ -362,8 +363,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				if rsm.openAPIRuleSet.Rules[k] != nil {
 					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
 				} else {
-					// Check if it's an OWASP rule when vacuum:all is used
-					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
+					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
+					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
+						extends[VacuumOwasp] == VacuumOff || extends[VacuumOwasp] == VacuumAll || extends[VacuumOwasp] == VacuumRecommended ||
+						extends[SpectralOwasp] == VacuumOff || extends[SpectralOwasp] == VacuumAll || extends[SpectralOwasp] == VacuumRecommended {
 						allOWASPRules := GetAllOWASPRules()
 						if allOWASPRules[k] != nil {
 							rs.Rules[k] = allOWASPRules[k]
@@ -404,6 +407,9 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				nr.Id = k
 			} else {
 				if model.RuleCategories[rc.Id] != nil {
+					nr.RuleCategory = model.RuleCategories[rc.Id]
+				} else {
+					model.RuleCategories[rc.Id] = &rc
 					nr.RuleCategory = model.RuleCategories[rc.Id]
 				}
 			}
@@ -505,6 +511,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[DuplicatePathsRule] = GetDuplicatePathsRule()
 	rules[UnnecessaryCombinatorRule] = GetUnnecessaryCombinatorRule()
 	rules[CamelCasePropertiesRule] = GetCamelCasePropertiesRule()
+	rules[MigrateZallyIgnoreRule] = GetMigrateZallyIgnoreRule()
 
 	// dead.
 	//rules[Oas2ValidSchemaExample] = GetOAS2ExamplesRule()
