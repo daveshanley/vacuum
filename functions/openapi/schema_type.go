@@ -106,6 +106,10 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 func (st SchemaTypeCheck) validateNumber(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
+	// Check for type-mismatched constraints
+	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "number", context)
+	results = append(results, typeMismatchResults...)
+
 	if schema.Value.MultipleOf != nil {
 		if *schema.Value.MultipleOf <= 0 {
 			result := st.buildResult("`multipleOf` should be a number greater than `0`",
@@ -142,6 +146,10 @@ func (st SchemaTypeCheck) validateNumber(schema *v3.Schema, context *model.RuleF
 
 func (st SchemaTypeCheck) validateString(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+
+	// Check for type-mismatched constraints
+	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "string", context)
+	results = append(results, typeMismatchResults...)
 
 	if schema.Value.MinLength != nil {
 		if *schema.Value.MinLength < 0 {
@@ -185,6 +193,10 @@ func (st SchemaTypeCheck) validateString(schema *v3.Schema, context *model.RuleF
 
 func (st SchemaTypeCheck) validateArray(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+
+	// Check for type-mismatched constraints
+	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "array", context)
+	results = append(results, typeMismatchResults...)
 
 	if schema.Value.MinItems != nil {
 		if *schema.Value.MinItems < 0 {
@@ -284,6 +296,10 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 
 func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+
+	// Check for type-mismatched constraints
+	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "object", context)
+	results = append(results, typeMismatchResults...)
 
 	if schema.Value.MinProperties != nil {
 		if *schema.Value.MinProperties < 0 {
