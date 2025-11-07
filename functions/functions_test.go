@@ -8,5 +8,5 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 80)
+	assert.Len(t, funcs.GetAllFunctions(), 81)
 }
