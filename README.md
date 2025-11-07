@@ -181,8 +181,6 @@ New rules:
 
 ---
 
-
-
 `v0.17`: **Github Action**.
 
 vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
@@ -213,116 +211,7 @@ $refs being used in path items.
 
 ---
 
-`v0.14+`: **Engine Speedup**.
 
-**Speed!** We've made some significant improvements to how efficiently large documents are walked
-Which means vacuum is now faster than ever.
-
----
-
-`v0.12+` : Core functions support JSON Path.
-
-Now all **core** functions return the **correct and accurate JSON path for each linting result**. Previously this was not possible
-at all, but with some clever engineering, we have made it happen. It's a small thing, but with huge impact.
-
-This feature has been available on the OpenAPI functions for some time, however core functions were without a comparison.
-But no more! core functions have joined the party.
-
-A new `--no-clip` flag is available on the `lint` command. This prevents message/path truncation.
-
----
-
-`v0.11+`: Ignore Linting Errors/Violations.
-
-v0.11 introduces the ability to ignore specific linting errors. This is useful for when you want to implement new 
-rules to existing production APIs. In some cases, correcting the lint errors would result in a breaking change. 
-
-Having a way to ignore these errors allows you to implement the new rules for new APIs while maintaining 
-backwards compatibility for existing ones.
-
-[Learn more about ignoring violations](https://quobix.com/vacuum/ignoring/)
-
----
-
-`v0.10+` : **Quality release**.
-
-v0.10 is a quality release, with a number of fixes and improvements to rule schemas, function names and more. 
-vacuum now powers [The OpenAPI doctor](https://pb33f.io/doctor/). To enable correct ruleset management and automation
-a number of functions have been renamed, interfaces have been upgraded and rule functions schemas are now accurate. 
-
-This is a breaking change for anyone using vacuum as a library with custom rules. 
-
----
-
-`v0.9+` : **Built in Language Server**.
-
-A new command is available `language-server`. This starts vacuum as an LSP compatible language server. Run vacuum
-in your favorite IDE and get linting and validation as you type, in realtime.
-
-Will support any LSP compatible editor, like VSCode, Sublime, vim, etc.
-
-[Install the VSCode extension](https://marketplace.visualstudio.com/items?itemName=pb33f.vacuum)
-[Learn more about the language-server command](https://quobix.com/vacuum/commands/language-server/)
-
----
-
-`v0.8+` : **OpenAPI Bundler**.
-
-A new command is available `bundle` will bundle all external references for an OpenAPI file into a single file.
-
-[Learn more about the bundle command](https://quobix.com/vacuum/commands/bundle/)
-
-A new linting rule is available `oas-schema-check` will perform type checks and validation on all schemas in your
-OpenAPI file. It's enabled by default in the recommended ruleset.
-
-[oas-schema-check rule docs](https://quobix.com/vacuum/rules/schemas/oas-schema-check/)
-
----
-
-`v0.7+` : **Hard Mode**.
-
-Want to lint your spec with the most strict ruleset possible? Now you can! Use the `-z` / `--hard-mode` flag to enable
-
----
-
-`v0.6+` : **Sharable / distributed rulesets**  now available.
-
-Want to share / extend / distribute your own rulesets? Now you can!
-
-[Learn more about sharable rulesets](https://quobix.com/vacuum/rulesets/sharing/)
-
----
-
-`v0.5+` : **Multi-file linting**  now available for the `lint` command.
-
-Want to lint multiple files at once? Now you can!
-
-```shell
-vacuum lint file1.json path/to/file2.yaml file3.json 
-```
-
-Want to suck in a ton of files? Use a **glob** pattern!
-
-```shell
-vacuum lint some/path/**/*.yaml 
-```
-
-
----
-`v0.3+`: [Custom JavaScript Functions](https://quobix.com/vacuum/api/custom-javascript-functions/) are now available out of the box.
-
-Write custom functions in JavaScript and use them in any ruleset. No need
-to compile golang code to extend vacuum anymore!
-
-[Learn more about building custom JavaScript functions](https://quobix.com/vacuum/api/custom-javascript-functions/).
-
-
----
-`v0.2+`: [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
-
-[Learn more about enabling OWASP API rules](https://quobix.com/vacuum/rulesets/owasp/).
-
----
 
 ### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
 
@@ -375,7 +264,7 @@ See all the documentation at https://quobix.com/vacuum
 Designed to reliably lint OpenAPI specifications, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
 
-vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
+vacuum will tell you what is wrong with your spec, why, where, and how to fix it. 
 
 vacuum will work at scale and is designed as a CLI (with a web or console UI) and a library to be consumed in other applications.
 
