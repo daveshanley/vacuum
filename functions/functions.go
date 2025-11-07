@@ -73,6 +73,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasRefSiblings"] = openapi_functions.OASNoRefSiblings{}
 		funcs["typedEnum"] = openapi_functions.TypedEnum{}
 		funcs["duplicatedEnum"] = openapi_functions.DuplicatedEnum{}
+		funcs["nullableEnum"] = openapi_functions.NullableEnum{}
 		funcs["noEvalDescription"] = openapi_functions.NoEvalInDescriptions{}
 		funcs["oasUnusedComponent"] = openapi_functions.UnusedComponent{}
 		funcs["oasExampleMissing"] = openapi_functions.ExamplesMissing{}
