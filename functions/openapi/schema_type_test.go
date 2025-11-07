@@ -2896,3 +2896,304 @@ components:
 	assert.Equal(t, "schema uses both `enum` and `const` - this is likely an oversight as `const` restricts to a single value", res[0].Message)
 	assert.Equal(t, "$.components.schemas['MixedTypesConflict'].enum", res[0].Path)
 }
+
+// Type-mismatch validation tests
+
+func TestSchemaType_TypeMismatchedConstraints(t *testing.T) {
+	tests := []struct {
+		name           string
+		yaml           string
+		expectedErrors []struct {
+			message string
+			path    string
+		}
+	}{
+		{
+			name: "StringWithNumberConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: string
+      minimum: 5
+      maximum: 10
+      multipleOf: 2`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`minimum` constraint is only applicable to number/integer types, not `string`",
+					path:    "$.components.schemas['TestSchema'].minimum",
+				},
+				{
+					message: "`maximum` constraint is only applicable to number/integer types, not `string`",
+					path:    "$.components.schemas['TestSchema'].maximum",
+				},
+				{
+					message: "`multipleOf` constraint is only applicable to number/integer types, not `string`",
+					path:    "$.components.schemas['TestSchema'].multipleOf",
+				},
+			},
+		},
+		{
+			name: "StringWithArrayConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: string
+      minItems: 1
+      maxItems: 10
+      uniqueItems: true`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`minItems` constraint is only applicable to array types, not `string`",
+					path:    "$.components.schemas['TestSchema'].minItems",
+				},
+				{
+					message: "`maxItems` constraint is only applicable to array types, not `string`",
+					path:    "$.components.schemas['TestSchema'].maxItems",
+				},
+				{
+					message: "`uniqueItems` constraint is only applicable to array types, not `string`",
+					path:    "$.components.schemas['TestSchema'].uniqueItems",
+				},
+			},
+		},
+		{
+			name: "NumberWithStringConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: integer
+      pattern: '^[a-z]+$'
+      minLength: 5
+      maxLength: 10`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`pattern` constraint is only applicable to string types, not `number`",
+					path:    "$.components.schemas['TestSchema'].pattern",
+				},
+				{
+					message: "`minLength` constraint is only applicable to string types, not `number`",
+					path:    "$.components.schemas['TestSchema'].minLength",
+				},
+				{
+					message: "`maxLength` constraint is only applicable to string types, not `number`",
+					path:    "$.components.schemas['TestSchema'].maxLength",
+				},
+			},
+		},
+		{
+			name: "NumberWithArrayConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: number
+      minItems: 1
+      maxItems: 10`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`minItems` constraint is only applicable to array types, not `number`",
+					path:    "$.components.schemas['TestSchema'].minItems",
+				},
+				{
+					message: "`maxItems` constraint is only applicable to array types, not `number`",
+					path:    "$.components.schemas['TestSchema'].maxItems",
+				},
+			},
+		},
+		{
+			name: "ArrayWithStringConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: array
+      pattern: '^[a-z]+$'
+      minLength: 5
+      maxLength: 10`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`pattern` constraint is only applicable to string types, not `array`",
+					path:    "$.components.schemas['TestSchema'].pattern",
+				},
+				{
+					message: "`minLength` constraint is only applicable to string types, not `array`",
+					path:    "$.components.schemas['TestSchema'].minLength",
+				},
+				{
+					message: "`maxLength` constraint is only applicable to string types, not `array`",
+					path:    "$.components.schemas['TestSchema'].maxLength",
+				},
+			},
+		},
+		{
+			name: "ArrayWithNumberConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: array
+      minimum: 5
+      maximum: 10
+      multipleOf: 2`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`minimum` constraint is only applicable to number/integer types, not `array`",
+					path:    "$.components.schemas['TestSchema'].minimum",
+				},
+				{
+					message: "`maximum` constraint is only applicable to number/integer types, not `array`",
+					path:    "$.components.schemas['TestSchema'].maximum",
+				},
+				{
+					message: "`multipleOf` constraint is only applicable to number/integer types, not `array`",
+					path:    "$.components.schemas['TestSchema'].multipleOf",
+				},
+			},
+		},
+		{
+			name: "ObjectWithStringConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: object
+      pattern: '^[a-z]+$'
+      minLength: 5`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`pattern` constraint is only applicable to string types, not `object`",
+					path:    "$.components.schemas['TestSchema'].pattern",
+				},
+				{
+					message: "`minLength` constraint is only applicable to string types, not `object`",
+					path:    "$.components.schemas['TestSchema'].minLength",
+				},
+			},
+		},
+		{
+			name: "ObjectWithNumberConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: object
+      minimum: 5
+      maximum: 10`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`minimum` constraint is only applicable to number/integer types, not `object`",
+					path:    "$.components.schemas['TestSchema'].minimum",
+				},
+				{
+					message: "`maximum` constraint is only applicable to number/integer types, not `object`",
+					path:    "$.components.schemas['TestSchema'].maximum",
+				},
+			},
+		},
+		{
+			name: "ObjectWithArrayConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: object
+      minItems: 1
+      maxItems: 10`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`minItems` constraint is only applicable to array types, not `object`",
+					path:    "$.components.schemas['TestSchema'].minItems",
+				},
+				{
+					message: "`maxItems` constraint is only applicable to array types, not `object`",
+					path:    "$.components.schemas['TestSchema'].maxItems",
+				},
+			},
+		},
+		{
+			name: "BooleanWithConstraints",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    TestSchema:
+      type: boolean
+      minimum: 5
+      pattern: '^[a-z]+$'
+      minItems: 1`,
+			expectedErrors: []struct{ message, path string }{
+				{
+					message: "`pattern` constraint is only applicable to string types, not `boolean`",
+					path:    "$.components.schemas['TestSchema'].pattern",
+				},
+				{
+					message: "`minimum` constraint is only applicable to number/integer types, not `boolean`",
+					path:    "$.components.schemas['TestSchema'].minimum",
+				},
+				{
+					message: "`minItems` constraint is only applicable to array types, not `boolean`",
+					path:    "$.components.schemas['TestSchema'].minItems",
+				},
+			},
+		},
+		{
+			name:           "ValidConstraintsNoErrors",
+			yaml: `openapi: 3.1
+components:
+  schemas:
+    ValidString:
+      type: string
+      minLength: 5
+      maxLength: 10
+      pattern: '^[a-z]+$'
+    ValidNumber:
+      type: number
+      minimum: 5
+      maximum: 10
+      multipleOf: 2
+    ValidArray:
+      type: array
+      minItems: 1
+      maxItems: 10
+    ValidObject:
+      type: object
+      minProperties: 1
+      maxProperties: 10`,
+			expectedErrors: []struct{ message, path string }{}, // no errors expected
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			document, err := libopenapi.NewDocument([]byte(tt.yaml))
+			if err != nil {
+				t.Fatalf("cannot create document: %v", err)
+			}
+
+			m, _ := document.BuildV3Model()
+			drDocument := drModel.NewDrDocument(m)
+
+			rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+			ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+			ctx.Document = document
+			ctx.DrDocument = drDocument
+			ctx.Rule = &rule
+
+			def := SchemaTypeCheck{}
+			res := def.RunRule(nil, ctx)
+
+			assert.Len(t, res, len(tt.expectedErrors), "number of errors should match")
+
+			for i, expectedErr := range tt.expectedErrors {
+				if i < len(res) {
+					assert.Equal(t, expectedErr.message, res[i].Message, "error message should match")
+					assert.Equal(t, expectedErr.path, res[i].Path, "error path should match")
+				}
+			}
+		})
+	}
+}
+
