@@ -103,6 +103,10 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 		// validate enum and const are not conflicting
 		enumConstErrs := st.validateEnumConst(schema, &context)
 		results = append(results, enumConstErrs...)
+
+		// validate discriminator property existence
+		discriminatorErrs := st.validateDiscriminator(schema, &context)
+		results = append(results, discriminatorErrs...)
 	}
 
 	return results
@@ -841,4 +845,46 @@ func (st SchemaTypeCheck) isConstValueValidForType(value interface{}, schemaType
 		return ok
 	}
 	return false
+}
+
+// validateDiscriminator checks that discriminator.propertyName exists in schema properties or polymorphic compositions.
+// note: discriminator properties are not required to be in the required array per OpenAPI spec.
+func (st SchemaTypeCheck) validateDiscriminator(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	if schema.Discriminator == nil {
+		return results
+	}
+
+	discriminator := schema.Discriminator
+	propertyName := discriminator.Value.PropertyName
+
+	// propertyName is required per OpenAPI 3.x spec
+	if propertyName == "" {
+		result := st.buildResult(
+			"discriminator object is missing required `propertyName` field",
+			schema.GenerateJSONPath(), "discriminator", -1,
+			schema, discriminator.KeyNode, context)
+		results = append(results, result)
+		return results
+	}
+
+	propertyExists := false
+	if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(propertyName) != nil {
+		propertyExists = true
+	}
+
+	if !propertyExists {
+		propertyExists = st.checkPolymorphicProperty(schema, propertyName)
+	}
+
+	if !propertyExists {
+		result := st.buildResult(
+			fmt.Sprintf("discriminator property `%s` is not defined in schema properties", propertyName),
+			schema.GenerateJSONPath(), "discriminator", -1,
+			schema, discriminator.KeyNode, context)
+		results = append(results, result)
+	}
+
+	return results
 }
