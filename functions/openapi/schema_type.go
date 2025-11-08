@@ -64,7 +64,7 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				errs := st.validateObject(schema, &context)
 				results = append(results, errs...)
 			case "null":
-			errs := st.validateNull(schema, &context)
+				errs := st.validateNull(schema, &context)
 				results = append(results, errs...)
 			default:
 				// find all locations where this schema appears
