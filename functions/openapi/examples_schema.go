@@ -387,10 +387,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					if p.Value.Example != nil && p.SchemaProxy != nil {
 						jsonValidator := createJSONValidator(p.SchemaProxy.Schema, version)
 						expLock.Lock()
-						if p.Value.Examples != nil && p.Value.Examples.Len() > 0 {
-							results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
-								p.Value.GoLow().Example.GetKeyNode(), jsonValidator)...)
-						}
+						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
+							p.Value.GoLow().Example.GetKeyNode(), jsonValidator)...)
 						expLock.Unlock()
 					}
 				}
