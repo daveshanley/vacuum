@@ -24,8 +24,7 @@ import (
 )
 
 // ExamplesSchema will check anything that has an example, has a schema and it's valid.
-type ExamplesSchema struct {
-}
+type ExamplesSchema struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
 func (es ExamplesSchema) GetSchema() model.RuleFunctionSchema {
@@ -41,7 +40,6 @@ var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", 
 
 // RunRule will execute the ComponentDescription rule, based on supplied context and a supplied []*yaml.Node slice.
 func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionContext) []model.RuleFunctionResult {
-
 	var results []model.RuleFunctionResult
 
 	if ruleContext.DrDocument == nil {
@@ -144,6 +142,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	}
 
 	validator := schema_validation.NewSchemaValidator()
+	xmlValidator := schema_validation.NewXMLValidator()
 	version := ruleContext.Document.GetSpecInfo().VersionNumeric
 	validateSchema := func(iKey *int,
 		sKey, label string,
@@ -151,8 +150,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		obj v3.AcceptsRuleResults,
 		node *yaml.Node,
 		keyNode *yaml.Node,
-		example any) []model.RuleFunctionResult {
-
+		example any,
+	) []model.RuleFunctionResult {
 		var rx []model.RuleFunctionResult
 		if s != nil && s.Value != nil {
 			var valid bool
@@ -303,16 +302,15 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	}
 
 	// createJSONValidator creates a validator for JSON examples
-	createJSONValidator := func(
-		iKey *int,
-		sKey, label string,
-		s *v3.Schema,
-		obj v3.AcceptsRuleResults,
-		node *yaml.Node,
-		keyNode *yaml.Node,
-	) exampleValidatorFunc {
+	createJSONValidator := func(s *v3.Schema, ver float32) exampleValidatorFunc {
 		return func(example any) (bool, []*errors.ValidationError) {
-			return validateSchema(iKey, sKey, label, s, obj, node, keyNode, example)
+			if s != nil && s.Value != nil {
+				if ver > 0 {
+					return validator.ValidateSchemaObjectWithVersion(s.Value, example, ver)
+				}
+				return validator.ValidateSchemaObject(s.Value, example)
+			}
+			return true, nil
 		}
 	}
 
@@ -321,9 +319,9 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		return func(example any) (bool, []*errors.ValidationError) {
 			if xmlStr, ok := example.(string); ok {
 				if ver > 0 {
-					return validator.ValidateXMLStringWithVersion(s.Value, xmlStr, ver)
+					return xmlValidator.ValidateXMLStringWithVersion(s.Value, xmlStr, ver)
 				}
-				return validator.ValidateXMLString(s.Value, xmlStr)
+				return xmlValidator.ValidateXMLString(s.Value, xmlStr)
 			}
 			return true, nil
 		}
@@ -332,8 +330,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	parseExamples := func(s *v3.Schema,
 		obj v3.AcceptsRuleResults,
 		examples *orderedmap.Map[string, *v3Base.Example],
-		validatorFunc exampleValidatorFunc) []model.RuleFunctionResult {
-
+		validatorFunc exampleValidatorFunc,
+	) []model.RuleFunctionResult {
 		var rx []model.RuleFunctionResult
 		for examplesPairs := examples.First(); examplesPairs != nil; examplesPairs = examplesPairs.Next() {
 			example := examplesPairs.Value()
@@ -379,7 +377,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 				}
 
 				if p.Value.Examples.Len() >= 1 && p.SchemaProxy != nil {
-					jsonValidator := createJSONValidator(nil, "", "examples", p.SchemaProxy.Schema, p, nil, nil)
+					jsonValidator := createJSONValidator(p.SchemaProxy.Schema, version)
 					expLock.Lock()
 					if p.Value.Examples != nil && p.Value.Examples.Len() > 0 {
 						results = append(results, parseExamples(p.SchemaProxy.Schema, p, p.Value.Examples, jsonValidator)...)
@@ -387,7 +385,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					expLock.Unlock()
 				} else {
 					if p.Value.Example != nil && p.SchemaProxy != nil {
-						jsonValidator := createJSONValidator(nil, "", "example", p.SchemaProxy.Schema, p, p.Value.Example, p.Value.GoLow().Example.GetKeyNode())
+						jsonValidator := createJSONValidator(p.SchemaProxy.Schema, version)
 						expLock.Lock()
 						if p.Value.Examples != nil && p.Value.Examples.Len() > 0 {
 							results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
@@ -412,13 +410,13 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 				}
 
 				if h.Value.Examples.Len() >= 1 && h.Schema != nil {
-					jsonValidator := createJSONValidator(nil, "", "examples", h.Schema.Schema, h, nil, nil)
+					jsonValidator := createJSONValidator(h.Schema.Schema, version)
 					expLock.Lock()
 					results = append(results, parseExamples(h.Schema.Schema, h, h.Value.Examples, jsonValidator)...)
 					expLock.Unlock()
 				} else {
 					if h.Value.Example != nil && h.Schema != nil {
-						jsonValidator := createJSONValidator(nil, "", "example", h.Schema.Schema, h, h.Value.Example, h.Value.GoLow().Example.GetKeyNode())
+						jsonValidator := createJSONValidator(h.Schema.Schema, version)
 						expLock.Lock()
 						results = append(results, parseExample(h.Schema.Schema, h.Value.Example,
 							h.Value.GoLow().Example.GetKeyNode(), jsonValidator)...)
@@ -430,7 +428,6 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	}
 
 	if ruleContext.DrDocument != nil && ruleContext.DrDocument.MediaTypes != nil {
-
 		for i := range ruleContext.DrDocument.MediaTypes {
 			mt := ruleContext.DrDocument.MediaTypes[i]
 			spawnWorker(func() {
@@ -450,7 +447,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					if isXML {
 						exampleValidator = createXMLValidator(mt.SchemaProxy.Schema, version)
 					} else {
-						exampleValidator = createJSONValidator(nil, "", "examples", mt.SchemaProxy.Schema, mt, nil, nil)
+						exampleValidator = createJSONValidator(mt.SchemaProxy.Schema, version)
 					}
 					expLock.Lock()
 					results = append(results, parseExamples(mt.SchemaProxy.Schema, mt, mt.Value.Examples, exampleValidator)...)
@@ -461,7 +458,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 						if isXML {
 							exampleValidator = createXMLValidator(mt.SchemaProxy.Schema, version)
 						} else {
-							exampleValidator = createJSONValidator(nil, "", "example", mt.SchemaProxy.Schema, mt, mt.Value.Example, mt.Value.GoLow().Example.GetKeyNode())
+							exampleValidator = createJSONValidator(mt.SchemaProxy.Schema, version)
 						}
 						expLock.Lock()
 						results = append(results, parseExample(mt.SchemaProxy.Schema, mt.Value.Example,
@@ -471,7 +468,6 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 				}
 			})
 		}
-
 	}
 
 	// wait for all workers to complete or context to timeout
