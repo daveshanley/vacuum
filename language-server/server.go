@@ -23,6 +23,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/viper"
 	"github.com/tliron/glsp"
@@ -32,10 +33,25 @@ import (
 
 var serverName = "vacuum"
 
+// DocumentContext contains details about the file being processed by the LSP.
+// This allows you to add logic to the RulesetSelector based on the file name or
+// content of the document being processed.
+type DocumentContext struct {
+	Content  []byte
+	Filename string
+	URI      string
+}
+
+// RulesetSelector is used in NewServerWithRulesetSelector to allow you to dynamically
+// return what rules should be used for the language server diagnostics based on
+// the actual content of the OpenAPI spec being procesed.
+type RulesetSelector func(ctx *DocumentContext) *rulesets.RuleSet
+
 type ServerState struct {
 	server        *glspserv.Server
 	documentStore *DocumentStore
 	lintRequest   *utils.LintFileRequest
+	rulesetSelector RulesetSelector
 }
 
 func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
@@ -138,6 +154,24 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	return state
 }
 
+// NewServerWithRulesetSelector creates a new instance of the language server with
+// a custom RulsetSelector function to allow you to dynamically select the ruleset
+// used based on the content of the spec being processed.
+// 
+// This allows you to determine specifically what rules should be applied per spec, e.g.:
+// 
+// Have different teams which require different rules?
+// Check the value of info.contact.name in the spec and return the releant rules for that team.
+// 
+// Want to enable OWASP rules for only a specific server?
+// Check the value of servers[0].url and return the rules including the OWASP ruleset
+// for your specific super secure sever url.
+func NewServerWithRulesetSelector(version string, lintRequest *utils.LintFileRequest, selector RulesetSelector) *ServerState {
+	state := NewServer(version, lintRequest)
+	state.rulesetSelector = selector
+	return state
+}
+
 func (s *ServerState) Run() error {
 	s.initializeConfig()
 
@@ -161,8 +195,18 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 			deepGraph = true
 		}
 
+		selectedRuleSet := s.lintRequest.SelectedRS
+		if s.rulesetSelector != nil {
+			docCtx := &DocumentContext{
+				Content:  []byte(doc.Content),
+				Filename: specFileName,
+				URI:      doc.URI,
+			}
+			selectedRuleSet = s.rulesetSelector(docCtx)
+		}
+
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-			RuleSet:                         s.lintRequest.SelectedRS,
+			RuleSet:                         selectedRuleSet,
 			Spec:                            []byte(doc.Content),
 			SpecFileName:                    specFileName,
 			Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
