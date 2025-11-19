@@ -37,6 +37,7 @@ type LintFileRequest struct {
 	DefaultRuleSets          rulesets.RuleSets
 	SelectedRS               *rulesets.RuleSet
 	Functions                map[string]model.RuleFunction
+	AutoFixFunctions         map[string]model.AutoFixFunction
 	Lock                     *sync.Mutex
 	Logger                   *slog.Logger
 	PipelineOutput           bool

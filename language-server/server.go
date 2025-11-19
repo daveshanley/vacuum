@@ -28,6 +28,7 @@ import (
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	glspserv "github.com/tliron/glsp/server"
+	"go.yaml.in/yaml/v4"
 )
 
 var serverName = "vacuum"
@@ -93,6 +94,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 				doc.Content = c.Text
 			}
 		}
+
 		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
@@ -102,13 +104,20 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 		return nil
 	}
 
+	handler.TextDocumentDidSave = func(context *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
+		if doc, ok := state.documentStore.Get(params.TextDocument.URI); ok {
+			state.runDiagnostic(doc, context.Notify)
+		}
+		return nil
+	}
+
 	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
 		return nil, nil
 	}
 
 	handler.TextDocumentCodeAction = func(context *glsp.Context, params *protocol.CodeActionParams) (any, error) {
 		var actions []protocol.CodeAction
-		
+
 		for _, diagnostic := range params.Context.Diagnostics {
 			if diagnostic.CodeDescription != nil && diagnostic.CodeDescription.HRef != "" {
 				quickFixKind := protocol.CodeActionKindQuickFix
@@ -122,8 +131,47 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 					},
 				})
 			}
+
+			// I don't know why, but accessing the rule ID directly from the code field doesn't
+			// seem to work, but reading it from the message does reliably.
+			ruleId := ""
+			if strings.Contains(diagnostic.Message, "Rule ID: ") {
+				parts := strings.Split(diagnostic.Message, "Rule ID: ")
+				if len(parts) > 1 {
+					ruleId = strings.TrimSpace(strings.Split(parts[1], "\n")[0])
+				}
+			}
+
+			if ruleId != "" && state.hasAutoFixForRule(ruleId) {
+				doc, ok := state.documentStore.Get(params.TextDocument.URI)
+				if !ok {
+					continue
+				}
+
+				fixedText, fixedRange := state.applyAutoFix(doc, ruleId, diagnostic.Range)
+				if fixedText == "" {
+					continue
+				}
+
+				quickFixKind := protocol.CodeActionKindQuickFix
+				actions = append(actions, protocol.CodeAction{
+					Title: fmt.Sprintf("Auto fix %s", ruleId),
+					Kind:  &quickFixKind,
+					Edit: &protocol.WorkspaceEdit{
+						Changes: map[string][]protocol.TextEdit{
+							params.TextDocument.URI: {
+								{
+									Range:   fixedRange,
+									NewText: fixedText,
+								},
+							},
+						},
+					},
+					Diagnostics: []protocol.Diagnostic{diagnostic},
+				})
+			}
 		}
-		
+
 		return actions, nil
 	}
 
@@ -138,6 +186,120 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	return state
 }
 
+func (s *ServerState) applyAutoFix(
+	doc *Document,
+	ruleId string,
+	diagnosticRange protocol.Range,
+) (string, protocol.Range) {
+	rule, exists := s.lintRequest.SelectedRS.Rules[ruleId]
+	if !exists || rule.AutoFixFunction == "" {
+		return "", diagnosticRange
+	}
+
+	autoFixFunc, exists := s.lintRequest.AutoFixFunctions[rule.AutoFixFunction]
+	if !exists {
+		return "", diagnosticRange
+	}
+
+	var rootNode yaml.Node
+	if err := yaml.Unmarshal([]byte(doc.Content), &rootNode); err != nil {
+		return "", diagnosticRange
+	}
+
+	// Find the node at the diagnostic location
+	targetLine := int(diagnosticRange.Start.Line) + 1
+	targetNode := s.findNodeAtLine(&rootNode, targetLine)
+	if targetNode == nil {
+		return "", diagnosticRange
+	}
+
+	// Apply the autofix function
+	fixedNode, err := autoFixFunc(targetNode, &rootNode, nil)
+	if err != nil || fixedNode == nil {
+		return "", diagnosticRange
+	}
+
+	// The autofix function modifies the node in place, so use the modified targetNode
+	modifiedNode := targetNode
+
+	// Calculate the actual range of the node that was modified
+	// For mapping nodes, we need to include the key and colon
+	nodeRange := protocol.Range{
+		Start: protocol.Position{
+			Line:      protocol.UInteger(targetNode.Line - 1),
+			Character: protocol.UInteger(targetNode.Column - 1),
+		},
+		End: protocol.Position{
+			Line:      protocol.UInteger(targetNode.Line - 1),
+			Character: protocol.UInteger(targetNode.Column - 1 + len(targetNode.Value)),
+		},
+	}
+
+	// If this is a key in a mapping, we need to replace "key: value" not just "value"
+	if targetNode.Kind == yaml.ScalarNode && fixedNode.Kind == yaml.ScalarNode {
+		// Find if this node is a key by checking if it's at an even index in parent's content
+		parent := s.findParentNode(&rootNode, targetNode)
+		if parent != nil && parent.Kind == yaml.MappingNode {
+			for i, child := range parent.Content {
+				if child == targetNode && i%2 == 0 {
+					// This is a key node, return "newkey: value" format
+					valueNode := parent.Content[i+1]
+
+					return modifiedNode.Value + ":" + valueNode.Value, nodeRange
+				}
+			}
+		}
+	}
+
+	// For complex structures, marshal the entire node
+	fixedBytes, err := yaml.Marshal(fixedNode)
+	if err != nil {
+		return "", diagnosticRange
+	}
+
+	return strings.TrimSpace(string(fixedBytes)), nodeRange
+}
+
+func (s *ServerState) hasAutoFixForRule(ruleId string) bool {
+	if s.lintRequest.SelectedRS == nil {
+		return false
+	}
+
+	rule, exists := s.lintRequest.SelectedRS.Rules[ruleId]
+	if !exists {
+		return false
+	}
+
+	return rule.AutoFixFunction != "" && s.lintRequest.AutoFixFunctions != nil &&
+		s.lintRequest.AutoFixFunctions[rule.AutoFixFunction] != nil
+}
+
+func (s *ServerState) findParentNode(root *yaml.Node, target *yaml.Node) *yaml.Node {
+	for _, child := range root.Content {
+		if child == target {
+			return root
+		}
+		if parent := s.findParentNode(child, target); parent != nil {
+			return parent
+		}
+	}
+	return nil
+}
+
+func (s *ServerState) findNodeAtLine(node *yaml.Node, targetLine int) *yaml.Node {
+	if node.Line == targetLine {
+		return node
+	}
+
+	for _, child := range node.Content {
+		if found := s.findNodeAtLine(child, targetLine); found != nil {
+			return found
+		}
+	}
+
+	return nil
+}
+
 func (s *ServerState) Run() error {
 	s.initializeConfig()
 
@@ -147,7 +309,6 @@ func (s *ServerState) Run() error {
 }
 
 func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
-
 	go func() {
 		specFileName := strings.TrimPrefix(doc.URI, "file://")
 
@@ -162,12 +323,15 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 		}
 
 		result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-			RuleSet:                         s.lintRequest.SelectedRS,
-			Spec:                            []byte(doc.Content),
-			SpecFileName:                    specFileName,
-			Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
-			NodeLookupTimeout:               time.Duration(s.lintRequest.LookupTimeoutFlag) * time.Millisecond,
+			RuleSet:      s.lintRequest.SelectedRS,
+			Spec:         []byte(doc.Content),
+			SpecFileName: specFileName,
+			Timeout:      time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
+			NodeLookupTimeout: time.Duration(
+				s.lintRequest.LookupTimeoutFlag,
+			) * time.Millisecond,
 			CustomFunctions:                 s.lintRequest.Functions,
+			AutoFixFunctions:                s.lintRequest.AutoFixFunctions,
 			IgnoreCircularArrayRef:          s.lintRequest.IgnoreArrayCircleRef,
 			IgnoreCircularPolymorphicRef:    s.lintRequest.IgnorePolymorphCircleRef,
 			AllowLookup:                     s.lintRequest.Remote,
@@ -194,7 +358,6 @@ func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []proto
 
 	for _, vacuumResult := range result.Results {
 		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
-
 	}
 	return diagnostics
 }
@@ -235,10 +398,14 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 
 	return protocol.Diagnostic{
 		Range: protocol.Range{
-			Start: protocol.Position{Line: protocol.UInteger(startLine),
-				Character: protocol.UInteger(startChar)},
-			End: protocol.Position{Line: protocol.UInteger(endLine),
-				Character: protocol.UInteger(endChar)},
+			Start: protocol.Position{
+				Line:      protocol.UInteger(startLine),
+				Character: protocol.UInteger(startChar),
+			},
+			End: protocol.Position{
+				Line:      protocol.UInteger(endLine),
+				Character: protocol.UInteger(endChar),
+			},
 		},
 		Severity:        &severity,
 		Source:          &serverName,
