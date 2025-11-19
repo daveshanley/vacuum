@@ -11,6 +11,7 @@ import (
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
@@ -111,6 +112,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				DefaultRuleSets:          defaultRuleSets,
 				SelectedRS:               selectedRS,
 				Functions:                customFunctions,
+				AutoFixFunctions:         make(map[string]model.AutoFixFunction),
 				TimeoutFlag:              timeoutFlag,
 				LookupTimeoutFlag:        lookupTimeoutFlag,
 				IgnoreArrayCircleRef:     ignoreArrayCircleRef,
