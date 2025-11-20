@@ -12,14 +12,16 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/helpers"
-	"github.com/pb33f/doctor/model/high/v3"
+	v3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
+	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 )
 
-// OASSchema  will check that the document is a valid OpenAPI schema.
+// OASSchema will check that the document is a valid OpenAPI schema.
 type OASSchema struct {
 }
 
@@ -94,8 +96,24 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
-	// use libopenapi-validator
-	valid, validationErrors := schema_validation.ValidateOpenAPIDocument(context.Document)
+	// Bundle the document to resolve external operation references before validation.
+	// The validator uses info.SpecJSON which doesn't have external refs resolved,
+	// causing false positives for specs with external path operations.
+	var docToValidate libopenapi.Document = context.Document
+
+	v3Model, err := context.Document.BuildV3Model()
+	if err == nil && v3Model != nil {
+		bundledBytes, bundleErr := bundler.BundleDocument(&v3Model.Model)
+		if bundleErr == nil && bundledBytes != nil {
+			bundledDoc, docErr := libopenapi.NewDocument(bundledBytes)
+			if docErr == nil {
+				docToValidate = bundledDoc
+			}
+		}
+	}
+
+	// use libopenapi-validator with either bundled or original doc
+	valid, validationErrors := schema_validation.ValidateOpenAPIDocument(docToValidate)
 
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
 	version := context.Document.GetSpecInfo().VersionNumeric

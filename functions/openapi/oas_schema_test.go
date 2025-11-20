@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"os"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -378,4 +379,39 @@ paths:
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "The `nullable` keyword is not supported in OpenAPI 3.1. Use `type: ['string', 'null']` instead.", res[0].Message)
+}
+
+// TestOAS3Schema_RunRule_ExternalOperationRefs tests that specs with external operation references validate without false positives.
+// See https://github.com/daveshanley/vacuum/issues/760
+func TestOAS3Schema_RunRule_ExternalOperationRefs(t *testing.T) {
+	specPath := "testdata/external_refs/openapi.yaml"
+	specBytes, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Fatalf("Failed to read test spec: %v", err)
+	}
+
+	path := "$"
+
+	docConfig := datamodel.NewDocumentConfiguration()
+	docConfig.BasePath = "testdata/external_refs"
+	docConfig.AllowFileReferences = true
+	docConfig.AllowRemoteReferences = false
+
+	specInfo, _ := datamodel.ExtractSpecInfo(specBytes)
+
+	rule := buildOpenApiTestRuleAction(path, "oas3_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	config := index.CreateOpenAPIIndexConfig()
+	config.BasePath = docConfig.BasePath
+	config.AllowFileLookup = true
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+	ctx.SpecInfo = specInfo
+
+	ctx.Document, _ = libopenapi.NewDocumentWithConfiguration(specBytes, docConfig)
+
+	def := OASSchema{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 0)
 }

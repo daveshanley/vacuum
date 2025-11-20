@@ -1,0 +1,8 @@
+TestParam:
+  name: test
+  in: query
+  required: false
+  description: A test parameter
+  schema:
+    type: string
+  example: "test-value"
