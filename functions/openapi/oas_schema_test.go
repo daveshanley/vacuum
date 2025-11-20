@@ -117,7 +117,7 @@ info:
   license:
     name: MIT
   termsOfService: https://quobix.com/vacuum
-  title: Quobix 
+  title: Quobix
   version: "1.0"
 paths:
   /hi:
@@ -155,7 +155,7 @@ info:
   license:
     name: MIT
   termsOfService: https://quobix.com/vacuum
-  title: Quobix 
+  title: Quobix
   version: "1.0"
 paths:
   /hi:
@@ -216,7 +216,7 @@ info:
   license:
     name: MIT
   termsOfService: https://quobix.com/vacuum
-  title: Quobix 
+  title: Quobix
   version: "1.0"
 paths:
   /hi:
