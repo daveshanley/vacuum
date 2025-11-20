@@ -1,0 +1,15 @@
+getTest:
+  operationId: getTest
+  summary: Test operation
+  parameters:
+    - $ref: "../components/params.yaml#/TestParam"
+  responses:
+    '200':
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
