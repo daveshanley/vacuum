@@ -674,6 +674,7 @@ func DisableColors() {
 	ASCIIBlue = ""
 	ASCIIYellow = ""
 	ASCIIGreen = ""
+	ASCIIGreenBold = ""
 	ASCIILightGreyItalic = ""
 	ASCIIBold = ""
 	ASCIIItalic = ""
