@@ -92,10 +92,9 @@ go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
 
 ---
 
-
 ## Sponsors
 If your company is using `vacuum`, please considering [supporting this project](https://github.com/sponsors/daveshanley),
-like our _very kind_ sponsors:
+like our _very kind_ sponsors, past and present:
 
 
 <a href="https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship">
@@ -106,15 +105,6 @@ like our _very kind_ sponsors:
 </a>
 
 [Speakeasy](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
-
-<a href="https://bump.sh/?utm_source=quobix&utm_campaign=sponsor">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/bump-sh-dark.png">
-  <img alt="bump.sh'" src=".github/sponsors/bump-sh-light.png">
-</picture>
-</a>
-
-[bump.sh](https://bump.sh/?utm_source=quobix&utm_campaign=sponsor)
 
 <a href="https://scalar.com">
 <picture>
@@ -133,7 +123,6 @@ like our _very kind_ sponsors:
 </a>
 
 [apideck](https://apideck.com)
-
 
 ---
 
