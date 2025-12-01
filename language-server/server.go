@@ -161,7 +161,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 // This allows you to determine specifically what rules should be applied per spec, e.g.:
 // 
 // Have different teams which require different rules?
-// Check the value of info.contact.name in the spec and return the releant rules for that team.
+// Check the value of info.contact.name in the spec and return the relevant rules for that team.
 // 
 // Want to enable OWASP rules for only a specific server?
 // Check the value of servers[0].url and return the rules including the OWASP ruleset
