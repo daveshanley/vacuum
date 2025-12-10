@@ -247,7 +247,57 @@ components:
 	assert.Len(t, res, 0) // Schemas without combinators should not trigger
 }
 
-// Helper function to build test context with DrDocument
+// OAS 3.0.x: single allOf with $ref and sibling description is legitimate workaround
+func TestUnnecessaryCombinator_RunRule_OAS30_AllOfWithRefAndDescription(t *testing.T) {
+	def := UnnecessaryCombinator{}
+	yml := `openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    BaseModel:
+      type: object
+      properties:
+        id:
+          type: string
+    ExtendedModel:
+      description: "Extended description that overrides the ref"
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+`
+	ctx := buildTestContext(yml, t)
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 0, "OAS 3.0.x allOf with $ref and sibling description should not trigger")
+}
+
+// OAS 3.1: single allOf with $ref and sibling description should still trigger
+func TestUnnecessaryCombinator_RunRule_OAS31_AllOfWithRefAndDescription(t *testing.T) {
+	def := UnnecessaryCombinator{}
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    BaseModel:
+      type: object
+      properties:
+        id:
+          type: string
+    ExtendedModel:
+      description: "Extended description"
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+`
+	ctx := buildTestContext(yml, t)
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 1, "OAS 3.1 should trigger because $ref siblings are supported natively")
+	assert.Contains(t, res[0].Message, "allOf")
+}
+
 func buildTestContext(yamlContent string, t *testing.T) model.RuleFunctionContext {
 	document, err := libopenapi.NewDocument([]byte(yamlContent))
 	if err != nil {
@@ -259,6 +309,7 @@ func buildTestContext(yamlContent string, t *testing.T) model.RuleFunctionContex
 
 	return model.RuleFunctionContext{
 		DrDocument: drDoc,
+		SpecInfo:   document.GetSpecInfo(),
 		Rule:       &model.Rule{},
 	}
 }
