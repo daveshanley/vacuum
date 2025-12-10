@@ -11,11 +11,12 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/helpers"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
+	"github.com/santhosh-tekuri/jsonschema/v6"
+	"github.com/santhosh-tekuri/jsonschema/v6/kind"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -143,53 +144,20 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				}
 			}
 
-			var reason = validationErrors[i].SchemaValidationErrors[y].Reason
-			if reason == "validation failed" { // this is garbage, so let's look into the original error stack.
-
-				var helpfulMessages []string
-
-				// dive into the validation error and pull out something more meaningful!
-				helpers.DiveIntoValidationError(validationErrors[i].SchemaValidationErrors[y].OriginalError, &helpfulMessages,
-					strings.TrimPrefix(validationErrors[i].SchemaValidationErrors[y].Location, "/"))
-
-				// run through the helpful messages and remove any duplicates
-				seenMessages := make(map[string]string)
-				for _, message := range helpfulMessages {
-					h := helpers.HashString(message)
-					if _, exists := seenMessages[h]; !exists {
-						seenMessages[h] = message
+			schemaErr := validationErrors[i].SchemaValidationErrors[y]
+			var reason = schemaErr.Reason
+			// if reason is empty or generic, extract leaf error messages (issue #766)
+			if reason == "validation failed" || reason == "" {
+				if schemaErr.OriginalError != nil {
+					leafErrors := extractLeafValidationErrors(schemaErr.OriginalError)
+					if len(leafErrors) > 0 {
+						reason = strings.Join(leafErrors, "; ")
 					}
 				}
-				var cleanedMessages []string
-				for _, message := range seenMessages {
-					cleanedMessages = append(cleanedMessages, message)
+				// fallback to generic message
+				if reason == "" {
+					reason = "multiple components failed validation"
 				}
-
-				// wrap the root cause in a string, with a welcoming tone.
-				// define a list of join phrases
-				joinPhrases := []string{
-					". Also, ",
-					", and ",
-					". And also ",
-					", as well as ",
-				}
-				// pick a random join phrase using a random index
-				reasonBuf := strings.Builder{}
-				r := 0
-				for q, message := range cleanedMessages {
-					if r > 3 {
-						r = 0
-					}
-					reasonBuf.WriteString(message)
-					if q < len(cleanedMessages)-1 {
-						reasonBuf.WriteString(joinPhrases[r])
-					}
-					r++
-				}
-				reason = reasonBuf.String()
-			}
-			if reason == "" {
-				reason = "multiple components failed validation"
 			}
 			res := model.RuleFunctionResult{
 				Message:   fmt.Sprintf("schema invalid: %v", reason),
@@ -244,4 +212,82 @@ func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunc
 	}
 
 	return results
+}
+
+// extractLeafValidationErrors extracts only leaf error messages from a jsonschema.ValidationError tree (issue #766)
+func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
+	var results []string
+	seen := make(map[string]bool)
+	const maxDepth = 50
+
+	var extract func(e *jsonschema.ValidationError, depth int)
+	extract = func(e *jsonschema.ValidationError, depth int) {
+		if e == nil || depth > maxDepth {
+			return
+		}
+
+		// if this is a leaf node (no causes), extract the message
+		if len(e.Causes) == 0 {
+			path := "/" + strings.Join(e.InstanceLocation, "/")
+			msg := errorKindToString(e.ErrorKind)
+			if msg != "" {
+				fullMsg := fmt.Sprintf("`%s` %s", path, msg)
+				if !seen[fullMsg] {
+					seen[fullMsg] = true
+					results = append(results, fullMsg)
+				}
+			}
+		}
+
+		// recurse into causes
+		for _, cause := range e.Causes {
+			extract(cause, depth+1)
+		}
+	}
+
+	extract(err, 0)
+	return results
+}
+
+// errorKindToString converts a jsonschema ErrorKind to a human-readable string
+func errorKindToString(ek jsonschema.ErrorKind) string {
+	if ek == nil {
+		return ""
+	}
+	switch k := ek.(type) {
+	case *kind.Required:
+		return fmt.Sprintf("missing properties: `%v`", k.Missing)
+	case *kind.AdditionalProperties:
+		return fmt.Sprintf("additional properties not allowed: `%v`", k.Properties)
+	case *kind.Type:
+		return fmt.Sprintf("expected type `%v`, got `%v`", k.Want, k.Got)
+	case *kind.Enum:
+		return fmt.Sprintf("value must be one of: `%v`", k.Want)
+	case *kind.FalseSchema:
+		return "property not allowed"
+	case *kind.Pattern:
+		return fmt.Sprintf("does not match pattern `%s`", k.Want)
+	case *kind.MinLength:
+		return fmt.Sprintf("length must be >= `%d`", k.Want)
+	case *kind.MaxLength:
+		return fmt.Sprintf("length must be <= `%d`", k.Want)
+	case *kind.Minimum:
+		return fmt.Sprintf("must be >= `%v`", k.Want)
+	case *kind.Maximum:
+		return fmt.Sprintf("must be <= `%v`", k.Want)
+	case *kind.MinItems:
+		return fmt.Sprintf("must have >= `%d` items", k.Want)
+	case *kind.MaxItems:
+		return fmt.Sprintf("must have <= `%d` items", k.Want)
+	case *kind.MinProperties:
+		return fmt.Sprintf("must have >= `%d` properties", k.Want)
+	case *kind.MaxProperties:
+		return fmt.Sprintf("must have <= `%d` properties", k.Want)
+	case *kind.Const:
+		return fmt.Sprintf("must be `%v`", k.Want)
+	case *kind.Format:
+		return fmt.Sprintf("invalid format: expected `%s`", k.Want)
+	default:
+		return fmt.Sprintf("%v", ek)
+	}
 }
