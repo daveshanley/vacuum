@@ -582,6 +582,11 @@ func (st SchemaTypeCheck) validateBoolean(schema *v3.Schema, context *model.Rule
 }
 
 func (st SchemaTypeCheck) validateNull(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	// in OAS 3.1, nullable is expressed as type: [actualType, "null"]
+	// don't check constraints when null is part of a multi-type array
+	if len(schema.Value.Type) > 1 {
+		return nil
+	}
 	return st.checkTypeMismatchedConstraints(schema, "null", context)
 }
 
