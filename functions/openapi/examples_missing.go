@@ -447,6 +447,13 @@ func checkProps(s *v3.Schema) bool {
 	if s.Value.Example != nil {
 		return true
 	}
+	// const values serve as implicit examples (issue #765)
+	if s.Value.Const != nil {
+		return true
+	}
+	if s.Value.Default != nil {
+		return true
+	}
 	if s.Value.Properties != nil && s.Value.Properties.Len() > 0 {
 		for _, p := range s.Properties.FromOldest() {
 			return checkProps(p.Schema)
@@ -479,6 +486,10 @@ func checkArrayItems(s *v3.Schema) bool {
 			if itemSchema.Example != nil || len(itemSchema.Examples) > 0 {
 				return true
 			}
+			// const values serve as implicit examples (issue #765)
+			if itemSchema.Const != nil || itemSchema.Default != nil {
+				return true
+			}
 
 			// Check if all properties have examples
 			if itemSchema.Properties != nil && itemSchema.Properties.Len() > 0 {
@@ -486,7 +497,9 @@ func checkArrayItems(s *v3.Schema) bool {
 				for _, prop := range itemSchema.Properties.FromOldest() {
 					propSchema := prop.Schema()
 					if propSchema != nil {
-						if propSchema.Example == nil && len(propSchema.Examples) == 0 {
+						// const values serve as implicit examples (issue #765)
+						if propSchema.Example == nil && len(propSchema.Examples) == 0 &&
+							propSchema.Const == nil && propSchema.Default == nil {
 							allHaveExamples = false
 							break
 						}
