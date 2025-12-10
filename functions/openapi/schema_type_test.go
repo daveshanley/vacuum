@@ -3399,3 +3399,49 @@ components:
 	}
 }
 
+func TestSchemaType_OAS31_NullableTypeWithConstraints(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    NullableInteger:
+      type:
+        - integer
+        - "null"
+      format: int64
+      minimum: 0
+    NullableString:
+      type:
+        - string
+        - "null"
+      minLength: 1
+    PureNull:
+      type: "null"
+      minimum: 0
+`
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		t.Fatalf("cannot create document: %v", err)
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	// NullableInteger and NullableString should NOT trigger constraint errors
+	// PureNull (type: "null" alone) with minimum SHOULD trigger an error
+	assert.Len(t, res, 1, "only PureNull should have constraint error")
+	assert.Contains(t, res[0].Message, "minimum")
+	assert.Contains(t, res[0].Message, "null")
+}
+
