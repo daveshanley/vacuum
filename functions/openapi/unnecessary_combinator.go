@@ -39,11 +39,15 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 		return results
 	}
 
-	// cache to prevent checking the same schema twice
+	// in OAS 3.0.x, $ref siblings are ignored, so allOf is the only way to add properties
+	isOAS30 := false
+	if context.SpecInfo != nil {
+		isOAS30 = context.SpecInfo.VersionNumeric >= 3.0 && context.SpecInfo.VersionNumeric < 3.1
+	}
+
 	seen := make(map[string]bool)
 
 	buildResult := func(message, path string, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
-		// try to find all paths for this node if it's a schema
 		var allPaths []string
 		if schema, ok := component.(*v3.Schema); ok {
 			_, allPaths = vacuumUtils.LocateSchemaPropertyPaths(context, schema, node, node)
@@ -57,7 +61,6 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 			Rule:      context.Rule,
 		}
 
-		// set the Paths array if we found multiple locations
 		if len(allPaths) > 1 {
 			result.Paths = allPaths
 		}
@@ -69,6 +72,12 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 	checkCombinator := func(schema *v3.Schema, combinatorName string, combinatorSlice []*libopenapi_base.SchemaProxy,
 		keyNode *yaml.Node) {
 		if len(combinatorSlice) == 1 {
+			// OAS 3.0.x: allOf with single $ref + sibling properties is legitimate
+			if isOAS30 && combinatorName == "allOf" &&
+				hasSiblingProperties(schema) && hasRefInCombinator(combinatorSlice) {
+				return
+			}
+
 			path := fmt.Sprintf("%s.%s", schema.GenerateJSONPath(), combinatorName)
 			message := fmt.Sprintf("schema with `%s` combinator containing only one item "+
 				"should be replaced with the item directly", combinatorName)
@@ -82,7 +91,6 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 			return
 		}
 
-		// create cache key to prevent duplicate processing
 		var cacheKey strings.Builder
 		cacheKey.WriteString(schema.GenerateJSONPath())
 		key := cacheKey.String()
@@ -92,23 +100,19 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 		}
 		seen[key] = true
 
-		// check allOf combinator
 		if schema.Value.AllOf != nil && len(schema.Value.AllOf) > 0 {
 			checkCombinator(schema, "allOf", schema.Value.AllOf, schema.Value.GoLow().AllOf.GetKeyNode())
 		}
 
-		// check anyOf combinator
 		if schema.Value.AnyOf != nil && len(schema.Value.AnyOf) > 0 {
 			checkCombinator(schema, "anyOf", schema.Value.AnyOf, schema.Value.GoLow().AnyOf.GetKeyNode())
 		}
 
-		// check oneOf combinator
 		if schema.Value.OneOf != nil && len(schema.Value.OneOf) > 0 {
 			checkCombinator(schema, "oneOf", schema.Value.OneOf, schema.Value.GoLow().OneOf.GetKeyNode())
 		}
 	}
 
-	// check all schemas in the document
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			checkSchema(context.DrDocument.Schemas[i])
@@ -116,4 +120,40 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 	}
 
 	return results
+}
+
+func hasSiblingProperties(schema *v3.Schema) bool {
+	if schema == nil || schema.Value == nil {
+		return false
+	}
+	v := schema.Value
+
+	if v.Description != "" || v.Title != "" {
+		return true
+	}
+	if v.Default != nil || v.Example != nil || v.ExternalDocs != nil {
+		return true
+	}
+	if v.Nullable != nil || v.ReadOnly != nil || v.WriteOnly != nil || v.Deprecated != nil {
+		return true
+	}
+	if v.XML != nil {
+		return true
+	}
+	if len(v.Enum) > 0 {
+		return true
+	}
+	lowSchema := v.GoLow()
+	if lowSchema != nil && lowSchema.Extensions != nil && lowSchema.Extensions.Len() > 0 {
+		return true
+	}
+	return false
+}
+
+func hasRefInCombinator(combinatorSlice []*libopenapi_base.SchemaProxy) bool {
+	if len(combinatorSlice) != 1 || combinatorSlice[0] == nil {
+		return false
+	}
+	lowProxy := combinatorSlice[0].GoLow()
+	return lowProxy != nil && lowProxy.GetReference() != ""
 }
