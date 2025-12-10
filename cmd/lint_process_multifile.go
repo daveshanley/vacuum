@@ -218,12 +218,12 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					renderFixedDetails(RenderDetailsOptions{
 						Results:    fr.results,
 						SpecData:   specStringData,
-						Snippets:   false,
-						Errors:     false,
+						Snippets:   flags.SnippetsFlag,
+						Errors:     flags.ErrorsFlag,
 						Silent:     flags.SilentFlag,
-						NoMessage:  false,
-						AllResults: false,
-						NoClip:     false,
+						NoMessage:  flags.NoMessageFlag,
+						AllResults: flags.AllResultsFlag,
+						NoClip:     flags.NoClipFlag,
 						FileName:   fr.fileName,
 						NoStyle:    flags.NoStyleFlag,
 					})
