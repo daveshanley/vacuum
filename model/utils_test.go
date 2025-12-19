@@ -351,3 +351,48 @@ func (df dummyFuncMinMax) GetSchema() RuleFunctionSchema {
 func (df dummyFuncMinMax) RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult {
 	return nil
 }
+
+func TestFormatMatches(t *testing.T) {
+	tests := []struct {
+		name       string
+		ruleFormat string
+		specFormat string
+		expected   bool
+	}{
+		// oas3 family matching - oas3 should match all 3.x versions
+		{"oas3 matches oas3", OAS3, OAS3, true},
+		{"oas3 matches oas3_1", OAS3, OAS31, true},
+		{"oas3 matches oas3_2", OAS3, OAS32, true},
+		{"oas3 does not match oas2", OAS3, OAS2, false},
+
+		// Specific version matching - oas3_1 only matches oas3_1
+		{"oas3_1 matches oas3_1", OAS31, OAS31, true},
+		{"oas3_1 does not match oas3", OAS31, OAS3, false},
+		{"oas3_1 does not match oas3_2", OAS31, OAS32, false},
+		{"oas3_1 does not match oas2", OAS31, OAS2, false},
+
+		// Specific version matching - oas3_2 only matches oas3_2
+		{"oas3_2 matches oas3_2", OAS32, OAS32, true},
+		{"oas3_2 does not match oas3", OAS32, OAS3, false},
+		{"oas3_2 does not match oas3_1", OAS32, OAS31, false},
+		{"oas3_2 does not match oas2", OAS32, OAS2, false},
+
+		// oas2 matching - oas2 only matches oas2
+		{"oas2 matches oas2", OAS2, OAS2, true},
+		{"oas2 does not match oas3", OAS2, OAS3, false},
+		{"oas2 does not match oas3_1", OAS2, OAS31, false},
+		{"oas2 does not match oas3_2", OAS2, OAS32, false},
+
+		// Edge cases with empty strings
+		{"empty rule format does not match oas3", "", OAS3, false},
+		{"oas3 does not match empty spec format", OAS3, "", false},
+		{"both empty matches", "", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatMatches(tt.ruleFormat, tt.specFormat)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

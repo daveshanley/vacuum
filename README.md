@@ -12,7 +12,7 @@
 
 An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
 
-It's also compatible with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
+It's **fully compatible** with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
 ## Install using [homebrew](https://brew.sh) tap
 
@@ -133,11 +133,25 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.20` 🔥: **Support for auto fixing custom rules**
+🔥 **New in** `v0.21` 🔥: **Change detection filtering**
+
+Want to see linting results on **just** the changes you have made to an OpenAPI document? Or want to see just the results on the differences between two documents? 
+comes with a **what changed** mode. Using the new `--original` and `--changes-summary` global flags, you can filter out all the noise. 
+
+[documentation for change detection](https://quobix.com/vacuum/commands/change-detection/) is available to learn more.
+
+vacuum now supports [JSON Path Plus](https://github.com/JSONPath-Plus/JSONPath) annotations. This means that vacuum is 
+compliant with **All Spectral Paths**. One of the last remaining gaps between vacuum and spectral has been closed. 
+
+[See all the newly supported annotations](https://quobix.com/vacuum/rulesets/custom-rulesets/#anatomy-of-a-rule)
+
+---
+
+`v0.20`: **Support for auto fixing custom rules**
 
 Got some rules that don't really need a human to look at?
 
-Well now you can define an `AutoFixFunction` for your rules, and when you run with the `--fix` flag, the fixes will will be applied to the file, or use `--fix-file` to write them to a different file.
+Well now you can define an `AutoFixFunction` for your rules, and when you run with the `--fix` flag, the fixes will be applied to the file, or use `--fix-file` to write them to a different file.
 
 See [Auto-Fixing Rule Violations](#auto-fixing-rule-violations) for more specifics.
 
@@ -184,10 +198,11 @@ A different way to bundle exploded OpenAPI specifications into a single file. [R
 
 ---
 
+`v0.16+` : **RFC 9535 Compliant**.
 
-`v0.16+` : **JSON 9535 Compliant**.
+`v0.21+` : **JSON Path Plus Support**.
 
-vacuum now expects JSON Path Queries to be [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) compliant. Finally standardized!
+vacuum now supports both [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) JSONPath and **JSON Path Plus** extensions - full Spectral compatibility!
 
 ---
 
@@ -199,8 +214,6 @@ New rule `no-request-body` checks for incorrect request bodies in operations, an
 $refs being used in path items.
 
 ---
-
-
 
 ### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
 
@@ -218,6 +231,8 @@ See all the documentation at https://quobix.com/vacuum
   - [html-report](https://quobix.com/vacuum/commands/html-report/)
   - [bundle](https://quobix.com/vacuum/commands/bundle/)
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
+  - [language-server](https://quobix.com/vacuum/commands/language-server/)
+  - [change-detection](https://quobix.com/vacuum/commands/change-detection/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)

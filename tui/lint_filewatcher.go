@@ -19,26 +19,29 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pb33f/libopenapi/index"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
 	"go.yaml.in/yaml/v4"
 )
 
 // WatchConfig holds configuration for file watching
 type WatchConfig struct {
-	Enabled         bool
-	BaseFlag        string
-	SkipCheckFlag   bool
-	TimeoutFlag     int
-	HardModeFlag    bool
-	RemoteFlag      bool
-	IgnoreFile      string
-	FunctionsFlag   string
-	RulesetFlag     string
-	CertFile        string
-	KeyFile         string
-	CAFile          string
-	Insecure        bool
-	Silent          bool
-	CustomFunctions map[string]model.RuleFunction // Pre-loaded custom functions
+	Enabled           bool
+	BaseFlag          string
+	SkipCheckFlag     bool
+	TimeoutFlag       int
+	HardModeFlag      bool
+	RemoteFlag        bool
+	IgnoreFile        string
+	FunctionsFlag     string
+	RulesetFlag       string
+	CertFile          string
+	KeyFile           string
+	CAFile            string
+	Insecure          bool
+	Silent            bool
+	CustomFunctions   map[string]model.RuleFunction // Pre-loaded custom functions
+	OriginalSpecPath  string                        // Path to original spec for what-changed mode (--original)
+	ChangesReportPath string                        // Path to JSON change report for what-changed mode (--changes)
 }
 
 // setupFileWatcher initializes file watching if enabled
@@ -249,20 +252,45 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 
 	filteredResults := utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-	// Create result set and sort by line number
-	tempResultSet := model.NewRuleResultSet(filteredResults)
-	tempResultSet.SortResultsByLineNumber()
-	sortedResults := tempResultSet.Results
-
-	resultPointers := make([]*model.RuleFunctionResult, len(sortedResults))
-	for i := range sortedResults {
-		resultPointers[i] = sortedResults[i]
+	// Convert to pointers for further processing
+	resultPointers := make([]*model.RuleFunctionResult, len(filteredResults))
+	for i := range filteredResults {
+		resultPointers[i] = &filteredResults[i]
 	}
 
+	// Apply change-based filtering if in what-changed mode
+	var changeStats *utils.ChangeStats
+	var filterStats *utils.ChangeFilterStats
+	if m.watchConfig.OriginalSpecPath != "" || m.watchConfig.ChangesReportPath != "" {
+		var documentChanges *wcModel.DocumentChanges
+		var changesErr error
+
+		if m.watchConfig.OriginalSpecPath != "" {
+			documentChanges, changesErr = utils.GenerateChangeReport(m.watchConfig.OriginalSpecPath, specBytes, m.fileName)
+		} else {
+			documentChanges, changesErr = utils.LoadChangeReportFromFile(m.watchConfig.ChangesReportPath)
+		}
+
+		if changesErr == nil && documentChanges != nil {
+			changeStats = utils.ExtractChangeStats(documentChanges)
+
+			changeFilter := utils.NewChangeFilter(documentChanges, result.RuleSetExecution.DrDocument)
+			if changeFilter != nil {
+				resultPointers, filterStats = changeFilter.FilterResultsWithStats(resultPointers)
+			}
+		}
+	}
+
+	// Create result set and sort by line number
+	tempResultSet := model.NewRuleResultSetPointer(resultPointers)
+	tempResultSet.SortResultsByLineNumber()
+
 	return relintCompleteMsg{
-		results:     resultPointers,
-		specContent: specBytes,
-		selectedRow: currentRow,
+		results:           tempResultSet.Results,
+		specContent:       specBytes,
+		selectedRow:       currentRow,
+		changeStats:       changeStats,
+		changeFilterStats: filterStats,
 	}
 }
 

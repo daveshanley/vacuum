@@ -25,6 +25,21 @@ var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
 var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
 
+// FormatMatches checks if a rule format matches a spec format.
+// The oas3 format is treated as a "family" that covers oas3, oas3_1, and oas3_2.
+// This allows rules with `formats: [oas3]` to match OpenAPI 3.0, 3.1, and 3.2 specs,
+// which matches Spectral's behavior.
+func FormatMatches(ruleFormat, specFormat string) bool {
+	if ruleFormat == specFormat {
+		return true
+	}
+	// oas3 is a family format that matches all 3.x versions
+	if ruleFormat == OAS3 && (specFormat == OAS31 || specFormat == OAS32) {
+		return true
+	}
+	return false
+}
+
 const WebsiteUrl = "https://quobix.com/vacuum"
 const GithubUrl = "https://github.com/daveshanley/vacuum"
 

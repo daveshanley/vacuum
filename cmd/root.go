@@ -41,6 +41,13 @@ func Execute(version, commit, date string) {
 	versionInfo = GetVersionInfo()
 
 	if err := GetRootCommand().Execute(); err != nil {
+		// Print unknown flag errors explicitly since commands have SilenceErrors: true
+		// This ensures users get feedback when they mistype a flag name
+		errStr := err.Error()
+		if strings.Contains(errStr, "unknown flag") ||
+			strings.Contains(errStr, "unknown shorthand flag") {
+			tui.RenderErrorString("%s", errStr)
+		}
 		os.Exit(1)
 	}
 }
@@ -97,6 +104,12 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().String("key-file", "", "Path to client private key file for HTTPS requests")
 	rootCmd.PersistentFlags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
 	rootCmd.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
+	rootCmd.PersistentFlags().String("changes", "", "Path to change report JSON file for filtering results to changed areas only")
+	rootCmd.PersistentFlags().String("original", "", "Path to original/old spec file for inline comparison (filters results to changed areas)")
+	rootCmd.PersistentFlags().Bool("changes-summary", false, "Show summary of what was filtered by --changes or --original")
+	rootCmd.PersistentFlags().String("breaking-config", "", "Path to breaking rules config file (default: ./changes-rules.yaml or ~/.config/changes-rules.yaml)")
+	rootCmd.PersistentFlags().Bool("warn-on-changes", false, "Inject warning violations for each detected API change")
+	rootCmd.PersistentFlags().Bool("error-on-breaking", false, "Inject error violations for each breaking change")
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
@@ -140,6 +153,19 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("insecure", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("changes", cobra.FixedCompletions(
+		[]string{"json"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("original", cobra.FixedCompletions(
+		[]string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt,
+	)); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("changes-summary", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 

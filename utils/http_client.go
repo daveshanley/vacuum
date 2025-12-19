@@ -75,3 +75,12 @@ func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Respons
 func ShouldUseCustomHTTPClient(config HTTPClientConfig) bool {
 	return config.CertFile != "" || config.KeyFile != "" || config.CAFile != "" || config.Insecure
 }
+
+// CreateHTTPClientIfNeeded creates a custom HTTP client only if TLS configuration is provided.
+// Returns nil (no error) if no custom configuration is needed, allowing use of default client.
+func CreateHTTPClientIfNeeded(config HTTPClientConfig) (*http.Client, error) {
+	if !ShouldUseCustomHTTPClient(config) {
+		return nil, nil
+	}
+	return CreateCustomHTTPClient(config)
+}

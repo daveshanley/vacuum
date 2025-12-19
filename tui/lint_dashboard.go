@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/term"
 )
@@ -146,9 +147,11 @@ type fileChangeMsg struct {
 }
 
 type relintCompleteMsg struct {
-	results     []*model.RuleFunctionResult
-	specContent []byte
-	selectedRow int // Preserve selected row position
+	results           []*model.RuleFunctionResult
+	specContent       []byte
+	selectedRow       int                      // Preserve selected row position
+	changeStats       *utils.ChangeStats       // Updated change stats for what-changed mode
+	changeFilterStats *utils.ChangeFilterStats // Updated filter stats
 }
 
 type relintErrorMsg struct {
@@ -198,10 +201,15 @@ type ViolationResultTableModel struct {
 	debounceTimer  *time.Timer       // Timer for debouncing file changes
 	lastChangeTime time.Time         // Last time a file change was detected
 	watchMsgChan   chan tea.Msg      // Channel for file watcher messages
+
+	// what-changed mode
+	changeStats       *utils.ChangeStats       // Statistics about changes (nil if not in what-changed mode)
+	changeFilterStats *utils.ChangeFilterStats // Statistics about filtered results
 }
 
 // ShowViolationTableView displays results in an interactive console table (legacy)
-func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string, specContent []byte, watchConfig *WatchConfig) error {
+// If changeStats is non-nil, the dashboard will display "what-changed mode" indicator
+func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string, specContent []byte, watchConfig *WatchConfig, changeStats *utils.ChangeStats, filterStats *utils.ChangeFilterStats) error {
 	defer func() {
 		if r := recover(); r != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "\n\033[31mDashboard panic recovered: %v\033[0m\n", r)
@@ -284,6 +292,10 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		watchState:   WatchStateIdle,
 		watchedFiles: []string{},
 		watchMsgChan: make(chan tea.Msg, 10),
+
+		// what-changed mode
+		changeStats:       changeStats,
+		changeFilterStats: filterStats,
 	}
 
 	p := tea.NewProgram(m,
@@ -386,6 +398,14 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// update results immediately but keep processing state for 700ms
 		m.allResults = msg.results
 		m.specContent = msg.specContent
+
+		// update change stats if provided (for what-changed mode)
+		if msg.changeStats != nil {
+			m.changeStats = msg.changeStats
+		}
+		if msg.changeFilterStats != nil {
+			m.changeFilterStats = msg.changeFilterStats
+		}
 
 		m.filterResults()
 
@@ -543,6 +563,56 @@ func (m *ViolationResultTableModel) buildTableView() string {
 	// Info (blue dot)
 	infoStyle := lipgloss.NewStyle().Foreground(color.RGBBlue)
 	builder.WriteString(infoStyle.Render(fmt.Sprintf("● %d", infoCount)))
+
+	// Add what-changed mode indicator if active
+	if m.changeStats != nil && m.changeStats.HasChanges() {
+		builder.WriteString("  ")
+
+		// Pipe separator in cyan
+		cyanStyle := lipgloss.NewStyle().Foreground(color.RGBCyan)
+		builder.WriteString(cyanStyle.Render("|"))
+		builder.WriteString("  ")
+
+		// "what-changed mode: X changes" label in cyan
+		builder.WriteString(cyanStyle.Render(fmt.Sprintf("what-changed mode: %d changes", m.changeStats.TotalChanges)))
+		builder.WriteString("  ")
+
+		// Additions (green plus)
+		if m.changeStats.Added > 0 {
+			addedStyle := lipgloss.NewStyle().Foreground(color.RGBGreen)
+			builder.WriteString(addedStyle.Render(fmt.Sprintf("+ %d", m.changeStats.Added)))
+			builder.WriteString("  ")
+		}
+
+		// Modifications (yellow tilde)
+		if m.changeStats.Modified > 0 {
+			modifiedStyle := lipgloss.NewStyle().Foreground(color.RBGYellow)
+			builder.WriteString(modifiedStyle.Render(fmt.Sprintf("~ %d", m.changeStats.Modified)))
+			builder.WriteString("  ")
+		}
+
+		// Removals (red cross)
+		if m.changeStats.Removed > 0 {
+			removedStyle := lipgloss.NewStyle().Foreground(color.RGBRed)
+			builder.WriteString(removedStyle.Render(fmt.Sprintf("✗ %d", m.changeStats.Removed)))
+			builder.WriteString("  ")
+		}
+
+		// Filter stats (results and rules excluded)
+		if m.changeFilterStats != nil {
+			greyStyle := lipgloss.NewStyle().Foreground(color.RGBGrey)
+			if m.changeFilterStats.ResultsDropped > 0 {
+				builder.WriteString(greyStyle.Render(fmt.Sprintf("(%d results excluded", m.changeFilterStats.ResultsDropped)))
+				if len(m.changeFilterStats.RulesFullyFiltered) > 0 {
+					builder.WriteString(greyStyle.Render(fmt.Sprintf(", %d rules excluded)", len(m.changeFilterStats.RulesFullyFiltered))))
+				} else {
+					builder.WriteString(greyStyle.Render(")"))
+				}
+			} else if len(m.changeFilterStats.RulesFullyFiltered) > 0 {
+				builder.WriteString(greyStyle.Render(fmt.Sprintf("(%d rules excluded)", len(m.changeFilterStats.RulesFullyFiltered))))
+			}
+		}
+	}
 
 	// Now add filters if any are active
 	if m.uiState.FilterState != FilterAll {

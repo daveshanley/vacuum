@@ -77,6 +77,12 @@ type LintFlags struct {
 	LookupTimeoutFlag        int
 	FixFlag                  bool
 	FixFileFlag              string
+	ChangesFlag              string // --changes: path to JSON change report
+	OriginalFlag             string // --original: path to original spec for inline comparison
+	ChangesSummaryFlag       bool   // --changes-summary: show filtered results summary
+	BreakingConfigPath       string // --breaking-config: path to breaking rules config
+	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
+	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -173,6 +179,12 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	}
 	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
 	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
+	flags.ChangesFlag, _ = cmd.Flags().GetString("changes")
+	flags.OriginalFlag, _ = cmd.Flags().GetString("original")
+	flags.ChangesSummaryFlag, _ = cmd.Flags().GetBool("changes-summary")
+	flags.BreakingConfigPath, _ = cmd.Flags().GetString("breaking-config")
+	flags.WarnOnChanges, _ = cmd.Flags().GetBool("warn-on-changes")
+	flags.ErrorOnBreaking, _ = cmd.Flags().GetBool("error-on-breaking")
 	return flags
 }
 
@@ -256,11 +268,7 @@ func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
 		return nil, err
 	}
 
-	if !utils.ShouldUseCustomHTTPClient(httpClientConfig) {
-		return nil, nil
-	}
-
-	httpClient, err := utils.CreateCustomHTTPClient(httpClientConfig)
+	httpClient, err := utils.CreateHTTPClientIfNeeded(httpClientConfig)
 	if err != nil {
 		fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", err.Error())
 		return nil, err
@@ -463,15 +471,15 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	var results []*model.RuleFunctionResult
 	var errors, warnings, informs int
 
-	for _, r := range result.Results {
-		if shouldIgnoreResult(r, config.IgnoredItems) {
+	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
+	for i := range result.Results {
+		if shouldIgnoreResult(result.Results[i], config.IgnoredItems) {
 			continue
 		}
 
-		resultCopy := r
-		results = append(results, &resultCopy)
+		results = append(results, &result.Results[i])
 
-		switch r.Rule.Severity {
+		switch result.Results[i].Rule.Severity {
 		case "error":
 			errors++
 		case "warn":
