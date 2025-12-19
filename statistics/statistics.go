@@ -69,8 +69,8 @@ func CreateReportStatistics(index *index.SpecIndex, info *datamodel.SpecInfo, re
 		var score int
 		if numResults == 0 && numIssues == 0 {
 			score = 100 // perfect
-		} else {
-			score = numIssues / numResults * 100
+		} else if numResults > 0 {
+			score = 100 - (numIssues * 100 / numResults)
 		}
 		catStats = append(catStats, &reports.CategoryStatistic{
 			CategoryName: cat.Name,

@@ -474,9 +474,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 						useCache = false
 					}
 					drDoc = doctorModel.NewDrDocumentWithConfig(mod, &doctorModel.DrConfig{
-						BuildGraph:     buildGraph,
-						UseSchemaCache: useCache,
-						RenderChanges:  execution.RenderChanges,
+						BuildGraph:         buildGraph,
+						UseSchemaCache:     useCache,
+						RenderChanges:      execution.RenderChanges,
+						DeterministicPaths: true,
 					})
 
 					execution.DrDocument = drDoc
@@ -1044,8 +1045,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				if len(ctx.rule.Formats) > 0 {
 					match := false
 					for _, format := range ctx.rule.Formats {
-						if format == ctx.specInfo.SpecFormat {
+						if model.FormatMatches(format, ctx.specInfo.SpecFormat) {
 							match = true
+							break // early exit on match
 						}
 					}
 					if ctx.specInfo.SpecFormat != "" && !match {

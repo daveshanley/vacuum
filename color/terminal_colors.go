@@ -38,6 +38,7 @@ var (
 	ASCIIYellow          = "\033[38;5;220m"
 	ASCIIGreen           = "\033[38;5;46m"
 	ASCIIGreenBold       = "\033[1;38;5;46m"
+	ASCIICyan            = "\033[38;5;51m"
 	ASCIILightGreyItalic = "\033[3;38;5;251m"
 	ASCIIBold            = "\033[1m"
 	ASCIIItalic          = "\033[3m"
@@ -81,6 +82,8 @@ var (
 	OrigRGBSubtlePink    = lipgloss.Color("#2a1a2a")
 	OrigRGBLightGrey     = lipgloss.Color("253")
 	OrigRGBMutedPink     = lipgloss.Color("164")
+	OrigRGBCyan          = lipgloss.Color("51")
+	OrigRGBDarkCyan      = lipgloss.Color("30")
 	RGBBlue              = OrigRGBBlue
 	RGBPink              = OrigRGBPink
 	RGBRed               = OrigRGBRed
@@ -100,6 +103,8 @@ var (
 	RGBSubtlePink        = OrigRGBSubtlePink
 	RGBLightGrey         = OrigRGBLightGrey
 	RGBMutedPink         = OrigRGBMutedPink
+	RGBCyan              = OrigRGBCyan
+	RGBDarkCyan          = OrigRGBDarkCyan
 	ColorBlue            = strPtr("45")
 	ColorSoftBlue        = strPtr("117")
 	ColorBlueBg          = strPtr("#002329")
@@ -675,6 +680,7 @@ func DisableColors() {
 	ASCIIYellow = ""
 	ASCIIGreen = ""
 	ASCIIGreenBold = ""
+	ASCIICyan = ""
 	ASCIILightGreyItalic = ""
 	ASCIIBold = ""
 	ASCIIItalic = ""
@@ -705,6 +711,8 @@ func DisableColors() {
 	RGBSubtlePink = lipgloss.Color("238")
 	RGBLightGrey = lipgloss.NoColor{}
 	RGBMutedPink = lipgloss.NoColor{}
+	RGBCyan = lipgloss.NoColor{}
+	RGBDarkCyan = lipgloss.Color("238")
 }
 
 // AreColorsDisabled returns true if colors are currently disabled

@@ -1,0 +1,140 @@
+# JSONPath Plus Ruleset - Filter Expression Examples
+#
+# Filter expressions use [?(...)] syntax to conditionally select nodes.
+# Advanced features include:
+#   - @property: The name of the current property
+#   - @: The current node value
+#   - Boolean operators: &&, ||, !
+#   - Comparisons: ==, !=, <, >, <=, >=
+#   - Type checks: isString(@), isNumber(@), isArray(@), isObject(@)
+#
+# These rules demonstrate Spectral-compatible filter expressions.
+
+extends: [[vacuum:oas, off]]
+documentationUrl: https://quobix.com/vacuum/rulesets/jsonpath-plus-filters
+
+rules:
+  # Rule 1: GET/HEAD operations should not have request bodies
+  # Uses @property to check the HTTP method name
+  get-head-no-request-body:
+    description: GET and HEAD operations must not have a requestBody
+    message: "{{@property}} operation should not have a requestBody"
+    severity: error
+    recommended: true
+    formats: [oas3]
+    given: $.paths.*[?(@property == 'get' || @property == 'head')].requestBody
+    then:
+      function: undefined
+    howToFix: Remove the requestBody from GET/HEAD operations. Use query parameters instead.
+
+  # Rule 2: POST/PUT/PATCH should have request bodies
+  # Uses @property filter to identify write operations
+  write-operations-need-body:
+    description: POST, PUT, and PATCH operations should have a requestBody
+    message: "{{@property}} operation is missing a requestBody"
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $.paths.*[?(@property == 'post' || @property == 'put' || @property == 'patch')]
+    then:
+      field: requestBody
+      function: truthy
+    howToFix: Add a requestBody definition to the operation
+
+  # Rule 3: Arrays should have maxItems defined (OWASP-style)
+  # Uses filter to find array type schemas
+  array-type-has-max-items:
+    description: Array schemas should define maxItems for security
+    message: "Array schema is missing maxItems constraint"
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $..[?(@ && @.type == 'array')]
+    then:
+      field: maxItems
+      function: truthy
+    howToFix: Add maxItems property to limit array size
+
+  # Rule 4: Strings should have pattern or format
+  # Uses filter expression to find string types
+  string-type-restricted:
+    description: String schemas should have pattern or format for validation
+    message: "String schema has no pattern or format constraint"
+    severity: info
+    recommended: false
+    formats: [oas3]
+    given: $..[?(@ && @.type == 'string' && !@.enum)]
+    then:
+      - field: pattern
+        function: truthy
+      - field: format
+        function: truthy
+    howToFix: Add a pattern regex or format (email, uri, uuid, etc.) to the string schema
+
+  # Rule 5: Integer types should have format specified
+  # Filter for integer schemas without format
+  integer-type-has-format:
+    description: Integer schemas should specify format (int32 or int64)
+    message: "Integer schema is missing format specification"
+    severity: info
+    recommended: true
+    formats: [oas3]
+    given: $..[?(@ && @.type == 'integer')]
+    then:
+      field: format
+      function: truthy
+    howToFix: Add format 'int32' or 'int64' to integer schemas
+
+  # Rule 6: Objects with additionalProperties should constrain them
+  # OWASP-inspired rule using filter expression
+  constrained-additional-properties:
+    description: Objects with additionalProperties should constrain them with a schema
+    message: "Object has additionalProperties:true without constraints"
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $..[?(@ && @.type == 'object' && @.additionalProperties == true)]
+    then:
+      function: falsy
+    howToFix: Set additionalProperties to false or provide a schema object
+
+  # Rule 7: Enums should have descriptions
+  # Find schemas that have enum arrays
+  enum-has-description:
+    description: Schemas with enums should have a description
+    message: "Enum schema is missing a description"
+    severity: info
+    recommended: false
+    formats: [oas3]
+    given: $..[?(@ && @.enum)]
+    then:
+      field: description
+      function: truthy
+    howToFix: Add a description explaining the enum values
+
+  # Rule 8: Path parameters should be required
+  # Filter for path parameters
+  path-parameters-required:
+    description: Path parameters must be marked as required
+    message: "Path parameter must be required"
+    severity: error
+    recommended: true
+    formats: [oas3]
+    given: $..parameters[?(@ && @.in == 'path')]
+    then:
+      field: required
+      function: truthy
+    howToFix: "Add 'required: true' to all path parameters"
+
+  # Rule 9: Query parameters in paths (filter for 'in' field)
+  query-params-have-description:
+    description: Query parameters should have descriptions
+    message: "Query parameter is missing a description"
+    severity: info
+    recommended: true
+    formats: [oas3]
+    given: $..parameters[?(@ && @.in == 'query')]
+    then:
+      field: description
+      function: truthy
+    howToFix: Add a description to the query parameter

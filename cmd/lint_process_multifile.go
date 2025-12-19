@@ -12,6 +12,8 @@ import (
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/statistics"
 	"github.com/spf13/cobra"
 )
 
@@ -163,8 +165,46 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		time.Sleep(150 * time.Millisecond) // give spinner time to clear
 	}
 
-	// render all results
-	if !flags.SilentFlag && !flags.PipelineOutput {
+	// Render results - details and errors are "results" (shown even in silent mode)
+	// Chrome (headers, summaries, logs) are suppressed in silent mode
+	if flags.PipelineOutput {
+		// Pipeline output mode - render markdown summary for each file
+		for _, fr := range fileResults {
+			if fr.err != nil {
+				// Still report errors in pipeline mode
+				fmt.Printf("## ❌ Error processing `%s`\n\n", fr.fileName)
+				fmt.Printf("> %v\n\n", fr.err)
+				continue
+			}
+
+			resultSet := model.NewRuleResultSetPointer(fr.results)
+			score := statistics.CalculateQualityScore(resultSet)
+
+			// Create minimal stats for pipeline output
+			stats := &reports.ReportStatistics{
+				OverallScore:  score,
+				TotalErrors:   fr.errors,
+				TotalWarnings: fr.warnings,
+				TotalInfo:     fr.informs,
+			}
+
+			// Add file header for multi-file pipeline output
+			fmt.Printf("# 📄 `%s`\n\n", fr.fileName)
+
+			RenderMarkdownSummary(RenderSummaryOptions{
+				RuleResultSet:  resultSet,
+				RuleCategories: model.RuleCategoriesOrdered,
+				PipelineOutput: true,
+				ReportStats:    stats,
+				Filename:       fr.fileName,
+				TotalFiles:     len(filesToLint),
+				Silent:         false,
+			})
+
+			fmt.Println() // Add spacing between files
+		}
+	} else {
+		// Normal console output mode
 		// get terminal width and calculate table width
 		termWidth := getTerminalWidth()
 		widths := calculateColumnWidths(termWidth)
@@ -178,24 +218,12 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 
 		for _, fr := range fileResults {
-			// only print header if we're not showing details (details prints its own header)
-			if !(flags.DetailsFlag && len(fr.results) > 0 && fr.err == nil) {
-				if !flags.NoStyleFlag {
-					fmt.Printf("\n %s%s>%s %s%s%s\n", color.ASCIIPink, color.ASCIIBold,
-						color.ASCIIReset, color.ASCIIBlue, fr.fileName, color.ASCIIReset)
-					fmt.Printf(" %s%s%s\n\n", color.ASCIIPink, strings.Repeat("-", tableWidth-1),
-						color.ASCIIReset)
-				} else {
-					fmt.Printf("\n > %s\n", fr.fileName)
-					fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
-				}
-			}
-
-			if fr.err != nil {
-				// for errors, we need to print the header since details won't be shown
-				if flags.DetailsFlag && len(fr.results) > 0 {
+			// File headers are chrome - only show when not silent
+			if !flags.SilentFlag {
+				// only print header if we're not showing details (details prints its own header)
+				if !(flags.DetailsFlag && len(fr.results) > 0 && fr.err == nil) {
 					if !flags.NoStyleFlag {
-						fmt.Printf("\n %s%s>%s %s%s%s\n", color.ASCIIBlue, color.ASCIIBold,
+						fmt.Printf("\n %s%s>%s %s%s%s\n", color.ASCIIPink, color.ASCIIBold,
 							color.ASCIIReset, color.ASCIIBlue, fr.fileName, color.ASCIIReset)
 						fmt.Printf(" %s%s%s\n\n", color.ASCIIPink, strings.Repeat("-", tableWidth-1),
 							color.ASCIIReset)
@@ -204,13 +232,17 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 						fmt.Printf(" %s\n\n", strings.Repeat("-", tableWidth-1))
 					}
 				}
+			}
+
+			// Errors are results - always show them (not chrome)
+			if fr.err != nil {
 				if !flags.NoStyleFlag {
 					fmt.Printf("%sError: %v%s\n", color.ASCIIRed, fr.err, color.ASCIIReset)
 				} else {
 					fmt.Printf("Error: %v\n", fr.err)
 				}
 			} else {
-				// show details if requested
+				// Details are results - show when -d flag is set (independent of silent)
 				if flags.DetailsFlag && len(fr.results) > 0 {
 					// get spec data for snippets
 					specBytes, _ := os.ReadFile(fr.fileName)
@@ -229,6 +261,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					})
 				}
 
+				// Summary is chrome - renderFixedSummary handles silent flag internally
 				resultSet := model.NewRuleResultSetPointer(fr.results)
 				renderFixedSummary(RenderSummaryOptions{
 					RuleResultSet:  resultSet,
@@ -242,17 +275,19 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				})
 			}
 
-			// show logs if any with nice tree formatting
-			if len(fr.logs) > 0 && len(fr.logs[0]) > 0 {
-				if !flags.NoStyleFlag {
-					fmt.Printf("%s※※ vacuumed logs for %s'%s%s%s%s' %s※※%s\n", color.ASCIIGrey, color.ASCIIReset,
-						color.ASCIIItalic, color.ASCIIGreenBold, fr.fileName, color.ASCIIReset, color.ASCIIGrey, color.ASCIIReset)
-				} else {
-					fmt.Println("vacuumed logs:")
-				}
+			// Logs are chrome - only show when not silent
+			if !flags.SilentFlag {
+				if len(fr.logs) > 0 && len(fr.logs[0]) > 0 {
+					if !flags.NoStyleFlag {
+						fmt.Printf("%s※※ vacuumed logs for %s'%s%s%s%s' %s※※%s\n", color.ASCIIGrey, color.ASCIIReset,
+							color.ASCIIItalic, color.ASCIIGreenBold, fr.fileName, color.ASCIIReset, color.ASCIIGrey, color.ASCIIReset)
+					} else {
+						fmt.Println("vacuumed logs:")
+					}
 
-				fmt.Print(fr.logs[0])
-				fmt.Println() // Add spacing after logs
+					fmt.Print(fr.logs[0])
+					fmt.Println() // Add spacing after logs
+				}
 			}
 		}
 	}

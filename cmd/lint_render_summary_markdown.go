@@ -59,8 +59,14 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 
 		violationHeaders := []string{"location", "JSONPath"}
 
+		// Get overall score, defaulting to 0 if ReportStats is nil
+		overallScore := 0
+		if rso.ReportStats != nil {
+			overallScore = rso.ReportStats.OverallScore
+		}
+
 		buf.WriteString("## [vacuum](https://quobix.com/vacuum/) OpenAPI quality report")
-		buf.WriteString(fmt.Sprintf("\n> vacuum has graded this OpenAPI specification with a score of `%d` out of a possible 100\n\n", rso.ReportStats.OverallScore))
+		buf.WriteString(fmt.Sprintf("\n> vacuum has graded this OpenAPI specification with a score of `%d` out of a possible 100\n\n", overallScore))
 
 		if errs > 0 {
 			buf.WriteString(fmt.Sprintf("### %s `%d` errors detected 🚨\n\n", errIcon, errs))
@@ -169,7 +175,11 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 						var errData [][]string
 						for _, v := range catErrs {
 							if v.Rule.Id == ruleId {
-								errData = append(errData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
+								location := "unknown"
+								if v.StartNode != nil {
+									location = fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column)
+								}
+								errData = append(errData, []string{location, v.Path})
 							}
 						}
 						buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, errData)))
@@ -185,7 +195,11 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 						var warnData [][]string
 						for _, v := range warn {
 							if v.Rule.Id == ruleId {
-								warnData = append(warnData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
+								location := "unknown"
+								if v.StartNode != nil {
+									location = fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column)
+								}
+								warnData = append(warnData, []string{location, v.Path})
 							}
 						}
 						buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, warnData)))
@@ -201,7 +215,11 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 						var infoData [][]string
 						for _, v := range info {
 							if v.Rule.Id == ruleId {
-								infoData = append(infoData, []string{fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column), v.Path})
+								location := "unknown"
+								if v.StartNode != nil {
+									location = fmt.Sprintf("`%d:%d`", v.StartNode.Line, v.StartNode.Column)
+								}
+								infoData = append(infoData, []string{location, v.Path})
 							}
 						}
 						buf.WriteString(fmt.Sprintln(utils.RenderMarkdownTable(violationHeaders, infoData)))
@@ -211,7 +229,12 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 			}
 			buf.WriteString(fmt.Sprint("---\n\n"))
 		}
-		total := rso.ReportStats.TotalErrors + rso.ReportStats.TotalWarnings + rso.ReportStats.TotalInfo
+		total := 0
+		if rso.ReportStats != nil {
+			total = rso.ReportStats.TotalErrors + rso.ReportStats.TotalWarnings + rso.ReportStats.TotalInfo
+		} else {
+			total = errs + warnings + informs
+		}
 
 		if total > 0 {
 			buf.WriteString(fmt.Sprintln(summaryTableMarkdown))

@@ -1,0 +1,68 @@
+# JSONPath Plus Ruleset - Tilde (~) Operator Examples
+#
+# The tilde (~) operator extracts property NAMES instead of values.
+# This is useful for validating naming conventions like kebab-case paths.
+#
+# Spectral compatibility: These rules mirror Spectral's paths-kebab-case rule
+# which uses $.paths[*]~ to get the path keys for pattern validation.
+
+extends: [[vacuum:oas, off]]
+documentationUrl: https://quobix.com/vacuum/rulesets/jsonpath-plus
+
+rules:
+  # Rule 1: Paths must be kebab-case (using ~ to get path names)
+  # The ~ operator returns property names, allowing pattern matching on keys
+  paths-must-be-kebab-case:
+    description: API paths must use kebab-case (lowercase with hyphens)
+    message: "Path '{{value}}' is not kebab-case. Use lowercase letters and hyphens only."
+    severity: warn
+    recommended: true
+    formats: [oas2, oas3, oas3_1]
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^/([a-z0-9]+(-[a-z0-9]+)*)?(/[a-z0-9]+(-[a-z0-9]+)*)*(/(\\{[a-z][a-z0-9_]*\\}))*$"
+    howToFix: Rename the path to use kebab-case, e.g. /user-profiles instead of /userProfiles
+
+  # Rule 2: Schema names should be PascalCase (using ~ to get schema names)
+  schema-names-pascal-case:
+    description: Schema names in components should use PascalCase
+    message: "Schema name '{{value}}' should be PascalCase"
+    severity: info
+    recommended: true
+    formats: [oas3]
+    given: $.components.schemas[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z][a-zA-Z0-9]*$"
+    howToFix: Rename the schema to use PascalCase, e.g. UserProfile instead of user_profile
+
+  # Rule 3: Security scheme names should be PascalCase
+  security-scheme-names-pascal-case:
+    description: Security scheme names should use PascalCase
+    message: "Security scheme name '{{value}}' should be PascalCase"
+    severity: info
+    recommended: false
+    formats: [oas3]
+    given: $.components.securitySchemes[*]~
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[A-Z][a-zA-Z0-9]*$"
+    howToFix: Rename the security scheme to use PascalCase
+
+  # Rule 4: Tag names should be lowercase
+  tag-names-lowercase:
+    description: Tag names should be lowercase
+    message: "Tag name '{{value}}' should be lowercase"
+    severity: info
+    recommended: true
+    formats: [oas2, oas3, oas3_1]
+    given: $.tags[*].name
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z][a-z0-9-]*$"
+    howToFix: Use lowercase tag names with optional hyphens

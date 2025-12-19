@@ -2476,7 +2476,7 @@ security:
 		}
 
 		results := ApplyRulesToRuleSet(ex)
-		assert.Len(t, results.Results, 4)
+		assert.Len(t, results.Results, 4) // Should be exactly 4 with contextual inline rendering fix
 		if wg != nil {
 			wg.Done()
 		}
