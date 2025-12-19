@@ -30,6 +30,8 @@ func (td TagDefined) GetCategory() string {
 // RunRule will execute the TagDefined rule, based on supplied context and a supplied []*yaml.Node slice.
 func (td TagDefined) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
+	rolodex := context.Index.GetRolodex()
+
 	var results []model.RuleFunctionResult
 
 	if context.DrDocument == nil {
@@ -52,14 +54,16 @@ func (td TagDefined) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 				op := opPairs.Value()
 				for i, tag := range op.Value.Tags {
 					if _, ok := globalTagMap[tag]; !ok {
+						node := op.Value.GoLow().Tags.Value[i].ValueNode
 						res := model.RuleFunctionResult{
 							Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 								fmt.Sprintf("tag `%s` for `%s` operation is not defined as a global tag",
 									tag, strings.ToUpper(method))),
-							StartNode: op.Value.GoLow().Tags.Value[i].ValueNode,
-							EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().Tags.Value[i].ValueNode),
+							StartNode: node,
+							EndNode:   vacuumUtils.BuildEndNode(node),
 							Path:      fmt.Sprintf("$.paths['%s'].%s.tags[%v]", path, method, i),
 							Rule:      context.Rule,
+							Origin:    rolodex.FindNodeOrigin(node),
 						}
 						results = append(results, res)
 						op.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
