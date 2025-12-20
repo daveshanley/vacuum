@@ -20,6 +20,135 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+// ErrorClassification represents the semantic category of a validation error
+type ErrorClassification int
+
+const (
+	ErrorClassNoise       ErrorClassification = iota // Filter out - noise from oneOf/anyOf branches
+	ErrorClassLowPriority                            // Show if no high priority errors exist
+	ErrorClassHighPriority                           // Always show - represents actual validation issues
+)
+
+// ErrorContext captures the semantic context needed to interpret validation errors
+type ErrorContext struct {
+	SchemaURL        string
+	InstanceLocation []string
+	ErrorKind        jsonschema.ErrorKind
+	SchemaKeyword    string // Extracted from SchemaURL: "unevaluatedProperties", "additionalProperties", etc.
+	InstancePath     string // e.g., "/paths/v1/webhooks-events"
+}
+
+// NewErrorContext extracts semantic context from a ValidationError
+func NewErrorContext(err *jsonschema.ValidationError) ErrorContext {
+	ctx := ErrorContext{
+		SchemaURL:        err.SchemaURL,
+		InstanceLocation: err.InstanceLocation,
+		ErrorKind:        err.ErrorKind,
+		InstancePath:     "/" + strings.Join(err.InstanceLocation, "/"),
+	}
+	ctx.SchemaKeyword = extractSchemaKeyword(err.SchemaURL)
+	return ctx
+}
+
+// extractSchemaKeyword extracts the last path component from a schema URL
+// e.g., "file:///.../schema#/$defs/paths/unevaluatedProperties" -> "unevaluatedProperties"
+func extractSchemaKeyword(schemaURL string) string {
+	if idx := strings.LastIndex(schemaURL, "/"); idx != -1 && idx < len(schemaURL)-1 {
+		return schemaURL[idx+1:]
+	}
+	return ""
+}
+
+// ClassifyError determines how to handle an error based on full context
+func ClassifyError(ctx ErrorContext) ErrorClassification {
+	if ctx.ErrorKind == nil {
+		return ErrorClassNoise
+	}
+
+	switch k := ctx.ErrorKind.(type) {
+	case *kind.FalseSchema:
+		return classifyFalseSchema(ctx)
+	case *kind.Required:
+		return classifyRequired(k)
+	case *kind.Type, *kind.Pattern, *kind.Format, *kind.Const:
+		return ErrorClassHighPriority
+	case *kind.AdditionalProperties:
+		return ErrorClassHighPriority
+	case *kind.MinLength, *kind.MaxLength, *kind.Minimum, *kind.Maximum:
+		return ErrorClassHighPriority
+	case *kind.MinItems, *kind.MaxItems, *kind.MinProperties, *kind.MaxProperties:
+		return ErrorClassHighPriority
+	case *kind.UniqueItems, *kind.PropertyNames, *kind.MultipleOf:
+		return ErrorClassHighPriority
+	case *kind.Enum:
+		return ErrorClassLowPriority
+	default:
+		return ErrorClassLowPriority
+	}
+}
+
+// classifyFalseSchema determines if a FalseSchema error is signal or noise
+func classifyFalseSchema(ctx ErrorContext) ErrorClassification {
+	// FalseSchema from constraint keywords = real error (property doesn't match allowed patterns)
+	switch ctx.SchemaKeyword {
+	case "unevaluatedProperties", "additionalProperties":
+		return ErrorClassHighPriority
+	default:
+		// FalseSchema from oneOf/anyOf branches = noise
+		return ErrorClassNoise
+	}
+}
+
+// classifyRequired determines if a Required error is signal or noise
+func classifyRequired(k *kind.Required) ErrorClassification {
+	// "missing properties: [$ref]" is noise from oneOf branches in OpenAPI schemas
+	for _, missing := range k.Missing {
+		if missing == "$ref" {
+			return ErrorClassNoise
+		}
+	}
+	return ErrorClassHighPriority
+}
+
+// ErrorFormatter generates human-readable messages for validation errors
+type ErrorFormatter interface {
+	Format(ctx ErrorContext) string
+}
+
+// OpenAPIErrorFormatter provides OpenAPI-aware error formatting
+type OpenAPIErrorFormatter struct{}
+
+// Format generates a context-aware error message
+func (f OpenAPIErrorFormatter) Format(ctx ErrorContext) string {
+	// Handle FalseSchema with context-specific messages
+	if _, ok := ctx.ErrorKind.(*kind.FalseSchema); ok {
+		return f.formatFalseSchema(ctx)
+	}
+	// Fall back to generic formatting
+	return errorKindToString(ctx.ErrorKind)
+}
+
+// formatFalseSchema generates specific messages for FalseSchema errors based on context
+func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
+	// Check if this is a path validation error
+	if len(ctx.InstanceLocation) >= 2 && ctx.InstanceLocation[0] == "paths" {
+		pathKey := ctx.InstanceLocation[1]
+		if !strings.HasPrefix(pathKey, "/") && !strings.HasPrefix(pathKey, "x-") {
+			return fmt.Sprintf("path `%s` is invalid: paths must begin with `/` or `x-`", pathKey)
+		}
+		return fmt.Sprintf("path `%s` is not allowed", pathKey)
+	}
+
+	// Check for other unevaluatedProperties contexts
+	if ctx.SchemaKeyword == "unevaluatedProperties" && len(ctx.InstanceLocation) > 0 {
+		property := ctx.InstanceLocation[len(ctx.InstanceLocation)-1]
+		return fmt.Sprintf("property `%s` is not allowed", property)
+	}
+
+	// Generic fallback
+	return "property not allowed by schema"
+}
+
 // OASSchema  will check that the document is a valid OpenAPI schema.
 type OASSchema struct {
 }
@@ -223,13 +352,15 @@ func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunc
 	return results
 }
 
-// extractLeafValidationErrors extracts only meaningful leaf error messages from a jsonschema.ValidationError tree (issue #766)
-// It filters out noise from oneOf/anyOf schema structures (like "missing properties: [$ref]")
+// extractLeafValidationErrors extracts only meaningful leaf error messages from a jsonschema.ValidationError tree
+// It uses ErrorContext and ClassifyError to filter noise from oneOf/anyOf schema structures
+// and provides context-aware formatting for OpenAPI-specific errors (issues #524, #766)
 func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
-	var highPriority []string  // Type errors, pattern errors, format errors - the real issues
-	var lowPriority []string   // Enum errors (often noise from oneOf branches)
+	var highPriority []string
+	var lowPriority []string
 	seen := make(map[string]bool)
-	seenPaths := make(map[string]bool) // Track paths we've already reported errors for
+	seenPaths := make(map[string]bool)
+	formatter := OpenAPIErrorFormatter{}
 	const maxDepth = 50
 
 	var extract func(e *jsonschema.ValidationError, depth int)
@@ -240,25 +371,23 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 
 		// if this is a leaf node (no causes), extract the message
 		if len(e.Causes) == 0 {
-			path := "/" + strings.Join(e.InstanceLocation, "/")
+			ctx := NewErrorContext(e)
+			classification := ClassifyError(ctx)
 
-			// Skip noise errors from oneOf/anyOf schema structures
-			if isNoiseError(e.ErrorKind) {
+			if classification == ErrorClassNoise {
 				return
 			}
 
-			msg := errorKindToString(e.ErrorKind)
+			msg := formatter.Format(ctx)
 			if msg != "" {
-				fullMsg := fmt.Sprintf("`%s` %s", path, msg)
+				fullMsg := fmt.Sprintf("`%s` %s", ctx.InstancePath, msg)
 				if !seen[fullMsg] {
 					seen[fullMsg] = true
 
-					// Categorize by priority
-					if isHighPriorityError(e.ErrorKind) {
+					if classification == ErrorClassHighPriority {
 						highPriority = append(highPriority, fullMsg)
-						seenPaths[path] = true
-					} else if !seenPaths[path] {
-						// Only add low priority if we haven't seen this path in high priority
+						seenPaths[ctx.InstancePath] = true
+					} else if !seenPaths[ctx.InstancePath] {
 						lowPriority = append(lowPriority, fullMsg)
 					}
 				}
@@ -278,48 +407,6 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 		return highPriority
 	}
 	return lowPriority
-}
-
-// isNoiseError returns true for errors that are noise from oneOf/anyOf schema structures
-func isNoiseError(ek jsonschema.ErrorKind) bool {
-	if ek == nil {
-		return true
-	}
-	switch k := ek.(type) {
-	case *kind.Required:
-		// "missing properties: [$ref]" is noise from oneOf branches in OpenAPI schemas
-		for _, missing := range k.Missing {
-			if missing == "$ref" {
-				return true
-			}
-		}
-	case *kind.FalseSchema:
-		// "property not allowed" from false schema branches
-		return true
-	}
-	return false
-}
-
-// isHighPriorityError returns true for errors that represent the actual root cause
-func isHighPriorityError(ek jsonschema.ErrorKind) bool {
-	if ek == nil {
-		return false
-	}
-	switch ek.(type) {
-	case *kind.Type:
-		return true // Wrong type is usually the real issue
-	case *kind.Pattern:
-		return true // Pattern mismatch is specific
-	case *kind.Format:
-		return true // Format error is specific
-	case *kind.Const:
-		return true // Const mismatch is specific
-	case *kind.AdditionalProperties:
-		return true // Extra properties is specific
-	case *kind.Required:
-		return true // Missing required field (that isn't $ref)
-	}
-	return false
 }
 
 // errorKindToString converts a jsonschema ErrorKind to a human-readable string
