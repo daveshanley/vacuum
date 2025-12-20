@@ -55,6 +55,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			junitFlag, _ := cmd.Flags().GetBool("junit")
+			junitFailOnWarn, _ := cmd.Flags().GetBool("junit-fail-on-warn")
 			skipCheckFlag, _ := cmd.Flags().GetBool("skip-check")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
@@ -351,7 +352,8 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 
 				// if we want jUnit output, then build the report and be done with it.
 				if junitFlag {
-					junitXML := vacuum_report.BuildJUnitReport(resultSet, start, []string{specFile})
+					junitConfig := vacuum_report.JUnitConfig{FailOnWarn: junitFailOnWarn}
+					junitXML := vacuum_report.BuildJUnitReportWithConfig(resultSet, start, []string{specFile}, junitConfig)
 					if stdOut {
 						fmt.Print(string(junitXML))
 						return nil
@@ -485,6 +487,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 	cmd.Flags().BoolP("stdin", "i", false, "Use stdin as input, instead of a file")
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("junit", "j", false, "Generate report in JUnit format (cannot be compressed)")
+	cmd.Flags().Bool("junit-fail-on-warn", false, "Treat warnings as failures in JUnit report (default: only errors are failures)")
 	cmd.Flags().BoolP("compress", "c", false, "Compress results using gzip")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
