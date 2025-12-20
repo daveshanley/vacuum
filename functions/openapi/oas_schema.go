@@ -7,6 +7,7 @@ package openapi
 import (
 	"crypto/sha256"
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
@@ -35,7 +36,11 @@ type ErrorContext struct {
 	InstanceLocation []string
 	ErrorKind        jsonschema.ErrorKind
 	SchemaKeyword    string // Extracted from SchemaURL: "unevaluatedProperties", "additionalProperties", etc.
-	InstancePath     string // e.g., "/paths/v1/webhooks-events"
+}
+
+// InstancePath returns the instance location as a slash-delimited path (computed lazily)
+func (ec ErrorContext) InstancePath() string {
+	return "/" + strings.Join(ec.InstanceLocation, "/")
 }
 
 // NewErrorContext extracts semantic context from a ValidationError
@@ -44,7 +49,6 @@ func NewErrorContext(err *jsonschema.ValidationError) ErrorContext {
 		SchemaURL:        err.SchemaURL,
 		InstanceLocation: err.InstanceLocation,
 		ErrorKind:        err.ErrorKind,
-		InstancePath:     "/" + strings.Join(err.InstanceLocation, "/"),
 	}
 	ctx.SchemaKeyword = extractSchemaKeyword(err.SchemaURL)
 	return ctx
@@ -59,6 +63,33 @@ func extractSchemaKeyword(schemaURL string) string {
 	return ""
 }
 
+// String returns a string representation of the classification for debugging
+func (ec ErrorClassification) String() string {
+	switch ec {
+	case ErrorClassNoise:
+		return "Noise"
+	case ErrorClassLowPriority:
+		return "LowPriority"
+	case ErrorClassHighPriority:
+		return "HighPriority"
+	default:
+		return "Unknown"
+	}
+}
+
+// isConstraintViolation checks if an ErrorKind represents a concrete constraint violation
+func isConstraintViolation(ek jsonschema.ErrorKind) bool {
+	switch ek.(type) {
+	case *kind.Type, *kind.Pattern, *kind.Format, *kind.Const,
+		*kind.AdditionalProperties,
+		*kind.MinLength, *kind.MaxLength, *kind.Minimum, *kind.Maximum,
+		*kind.MinItems, *kind.MaxItems, *kind.MinProperties, *kind.MaxProperties,
+		*kind.UniqueItems, *kind.PropertyNames, *kind.MultipleOf:
+		return true
+	}
+	return false
+}
+
 // ClassifyError determines how to handle an error based on full context
 func ClassifyError(ctx ErrorContext) ErrorClassification {
 	if ctx.ErrorKind == nil {
@@ -70,19 +101,12 @@ func ClassifyError(ctx ErrorContext) ErrorClassification {
 		return classifyFalseSchema(ctx)
 	case *kind.Required:
 		return classifyRequired(k)
-	case *kind.Type, *kind.Pattern, *kind.Format, *kind.Const:
-		return ErrorClassHighPriority
-	case *kind.AdditionalProperties:
-		return ErrorClassHighPriority
-	case *kind.MinLength, *kind.MaxLength, *kind.Minimum, *kind.Maximum:
-		return ErrorClassHighPriority
-	case *kind.MinItems, *kind.MaxItems, *kind.MinProperties, *kind.MaxProperties:
-		return ErrorClassHighPriority
-	case *kind.UniqueItems, *kind.PropertyNames, *kind.MultipleOf:
-		return ErrorClassHighPriority
 	case *kind.Enum:
 		return ErrorClassLowPriority
 	default:
+		if isConstraintViolation(ctx.ErrorKind) {
+			return ErrorClassHighPriority
+		}
 		return ErrorClassLowPriority
 	}
 }
@@ -115,22 +139,67 @@ type ErrorFormatter interface {
 	Format(ctx ErrorContext) string
 }
 
-// OpenAPIErrorFormatter provides OpenAPI-aware error formatting
-type OpenAPIErrorFormatter struct{}
+// DefaultErrorFormatter provides generic jsonschema error formatting
+type DefaultErrorFormatter struct{}
 
-// Format generates a context-aware error message
+// Format converts ErrorKind to a readable string
+func (f DefaultErrorFormatter) Format(ctx ErrorContext) string {
+	if ctx.ErrorKind == nil {
+		return ""
+	}
+	switch k := ctx.ErrorKind.(type) {
+	case *kind.Required:
+		return fmt.Sprintf("missing properties: `%v`", k.Missing)
+	case *kind.AdditionalProperties:
+		return fmt.Sprintf("additional properties not allowed: `%v`", k.Properties)
+	case *kind.Type:
+		return fmt.Sprintf("expected type `%v`, got `%v`", k.Want, k.Got)
+	case *kind.Enum:
+		return fmt.Sprintf("value must be one of: `%v`", k.Want)
+	case *kind.FalseSchema:
+		return "property not allowed"
+	case *kind.Pattern:
+		return fmt.Sprintf("does not match pattern `%s`", k.Want)
+	case *kind.MinLength:
+		return fmt.Sprintf("length must be >= `%d`", k.Want)
+	case *kind.MaxLength:
+		return fmt.Sprintf("length must be <= `%d`", k.Want)
+	case *kind.Minimum:
+		return fmt.Sprintf("must be >= `%v`", k.Want)
+	case *kind.Maximum:
+		return fmt.Sprintf("must be <= `%v`", k.Want)
+	case *kind.MinItems:
+		return fmt.Sprintf("must have >= `%d` items", k.Want)
+	case *kind.MaxItems:
+		return fmt.Sprintf("must have <= `%d` items", k.Want)
+	case *kind.MinProperties:
+		return fmt.Sprintf("must have >= `%d` properties", k.Want)
+	case *kind.MaxProperties:
+		return fmt.Sprintf("must have <= `%d` properties", k.Want)
+	case *kind.Const:
+		return fmt.Sprintf("must be `%v`", k.Want)
+	case *kind.Format:
+		return fmt.Sprintf("invalid format: expected `%s`", k.Want)
+	default:
+		return fmt.Sprintf("%v", ctx.ErrorKind)
+	}
+}
+
+// OpenAPIErrorFormatter provides OpenAPI-aware error formatting with context-specific messages
+type OpenAPIErrorFormatter struct {
+	DefaultErrorFormatter
+}
+
+// Format generates a context-aware error message with OpenAPI-specific handling
 func (f OpenAPIErrorFormatter) Format(ctx ErrorContext) string {
-	// Handle FalseSchema with context-specific messages
 	if _, ok := ctx.ErrorKind.(*kind.FalseSchema); ok {
 		return f.formatFalseSchema(ctx)
 	}
-	// Fall back to generic formatting
-	return errorKindToString(ctx.ErrorKind)
+	return f.DefaultErrorFormatter.Format(ctx)
 }
 
 // formatFalseSchema generates specific messages for FalseSchema errors based on context
 func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
-	// Check if this is a path validation error
 	if len(ctx.InstanceLocation) >= 2 && ctx.InstanceLocation[0] == "paths" {
 		pathKey := ctx.InstanceLocation[1]
 		if !strings.HasPrefix(pathKey, "/") && !strings.HasPrefix(pathKey, "x-") {
@@ -139,14 +208,12 @@ func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
 		return fmt.Sprintf("path `%s` is not allowed", pathKey)
 	}
 
-	// Check for other unevaluatedProperties contexts
 	if ctx.SchemaKeyword == "unevaluatedProperties" && len(ctx.InstanceLocation) > 0 {
 		property := ctx.InstanceLocation[len(ctx.InstanceLocation)-1]
 		return fmt.Sprintf("property `%s` is not allowed", property)
 	}
 
-	// Generic fallback
-	return "property not allowed by schema"
+	return f.DefaultErrorFormatter.Format(ctx)
 }
 
 // OASSchema  will check that the document is a valid OpenAPI schema.
@@ -173,8 +240,6 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	}
 
 	var results []model.RuleFunctionResult
-
-	// grab the original bytes and the spec info from context.
 	info := context.SpecInfo
 
 	if info.SpecType == "" {
@@ -238,11 +303,10 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results // Return any nullable violations even if document is otherwise valid
 	}
 
-	// duplicates are possible, so we need to de-dupe them.
+	// validation errors can appear multiple times across different schema branches; deduplicate by hash
 	seen := make(map[string]*errors.SchemaValidationFailure)
 	for i := range validationErrors {
 		for y := range validationErrors[i].SchemaValidationErrors {
-			// skip, seen it.
 			if _, ok := seen[hashResult(validationErrors[i].SchemaValidationErrors[y])]; ok {
 				continue
 			}
@@ -288,12 +352,11 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				}
 			}
 
-			// Fallback to Reason if no leaf errors extracted
 			if reason == "" {
 				reason = schemaErr.Reason
 			}
 
-			// Final fallback
+			// guard against empty reason from upstream validator
 			if reason == "" {
 				reason = "schema validation failed"
 			}
@@ -352,15 +415,40 @@ func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunc
 	return results
 }
 
-// extractLeafValidationErrors extracts only meaningful leaf error messages from a jsonschema.ValidationError tree
-// It uses ErrorContext and ClassifyError to filter noise from oneOf/anyOf schema structures
-// and provides context-aware formatting for OpenAPI-specific errors (issues #524, #766)
+// defaultFormatter is a package-level singleton to avoid repeated allocations
+var defaultFormatter = OpenAPIErrorFormatter{}
+
+// hashInstanceLocation creates a fast hash of an instance location for deduplication
+func hashInstanceLocation(s []string) uint64 {
+	h := fnv.New64a()
+	for _, str := range s {
+		h.Write([]byte(str))
+		h.Write([]byte{0})
+	}
+	return h.Sum64()
+}
+
+// addUniqueError appends a formatted error message if not already seen
+func addUniqueError(errors *[]string, seen map[string]bool, ctx ErrorContext) {
+	msg := defaultFormatter.Format(ctx)
+	fullMsg := "`" + ctx.InstancePath() + "` " + msg
+	if !seen[fullMsg] {
+		seen[fullMsg] = true
+		*errors = append(*errors, fullMsg)
+	}
+}
+
+// extractLeafValidationErrors extracts meaningful validation errors from a jsonschema error tree.
+// It recursively walks to leaf nodes, classifies them by priority, and filters noise.
+// Returns high-priority errors if any exist, otherwise low-priority errors.
+// High-priority errors suppress low-priority errors for the same instance path.
+// Addresses issues #524 (path validation), #766 (oneOf/anyOf noise).
 func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
-	var highPriority []string
-	var lowPriority []string
-	seen := make(map[string]bool)
-	seenPaths := make(map[string]bool)
-	formatter := OpenAPIErrorFormatter{}
+	highPriority := make([]string, 0, 10)
+	lowPriority := make([]string, 0, 5)
+	seen := make(map[string]bool, 100)
+	seenPaths := make(map[uint64]bool, 50)
+	// prevent stack overflow from deeply nested schemas
 	const maxDepth = 50
 
 	var extract func(e *jsonschema.ValidationError, depth int)
@@ -369,7 +457,6 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 			return
 		}
 
-		// if this is a leaf node (no causes), extract the message
 		if len(e.Causes) == 0 {
 			ctx := NewErrorContext(e)
 			classification := ClassifyError(ctx)
@@ -378,23 +465,19 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 				return
 			}
 
-			msg := formatter.Format(ctx)
-			if msg != "" {
-				fullMsg := fmt.Sprintf("`%s` %s", ctx.InstancePath, msg)
-				if !seen[fullMsg] {
-					seen[fullMsg] = true
+			pathHash := hashInstanceLocation(ctx.InstanceLocation)
 
-					if classification == ErrorClassHighPriority {
-						highPriority = append(highPriority, fullMsg)
-						seenPaths[ctx.InstancePath] = true
-					} else if !seenPaths[ctx.InstancePath] {
-						lowPriority = append(lowPriority, fullMsg)
-					}
+			// seenPaths prevents low-priority errors for paths that already have high-priority errors
+			if classification == ErrorClassHighPriority {
+				if !seenPaths[pathHash] {
+					addUniqueError(&highPriority, seen, ctx)
+					seenPaths[pathHash] = true
 				}
+			} else if !seenPaths[pathHash] {
+				addUniqueError(&lowPriority, seen, ctx)
 			}
 		}
 
-		// recurse into causes
 		for _, cause := range e.Causes {
 			extract(cause, depth+1)
 		}
@@ -402,52 +485,14 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 
 	extract(err, 0)
 
-	// Return high priority errors first, then low priority
 	if len(highPriority) > 0 {
 		return highPriority
 	}
 	return lowPriority
 }
 
-// errorKindToString converts a jsonschema ErrorKind to a human-readable string
+// errorKindToString converts a jsonschema ErrorKind to a human-readable string.
+// Deprecated: Use DefaultErrorFormatter.Format instead.
 func errorKindToString(ek jsonschema.ErrorKind) string {
-	if ek == nil {
-		return ""
-	}
-	switch k := ek.(type) {
-	case *kind.Required:
-		return fmt.Sprintf("missing properties: `%v`", k.Missing)
-	case *kind.AdditionalProperties:
-		return fmt.Sprintf("additional properties not allowed: `%v`", k.Properties)
-	case *kind.Type:
-		return fmt.Sprintf("expected type `%v`, got `%v`", k.Want, k.Got)
-	case *kind.Enum:
-		return fmt.Sprintf("value must be one of: `%v`", k.Want)
-	case *kind.FalseSchema:
-		return "property not allowed"
-	case *kind.Pattern:
-		return fmt.Sprintf("does not match pattern `%s`", k.Want)
-	case *kind.MinLength:
-		return fmt.Sprintf("length must be >= `%d`", k.Want)
-	case *kind.MaxLength:
-		return fmt.Sprintf("length must be <= `%d`", k.Want)
-	case *kind.Minimum:
-		return fmt.Sprintf("must be >= `%v`", k.Want)
-	case *kind.Maximum:
-		return fmt.Sprintf("must be <= `%v`", k.Want)
-	case *kind.MinItems:
-		return fmt.Sprintf("must have >= `%d` items", k.Want)
-	case *kind.MaxItems:
-		return fmt.Sprintf("must have <= `%d` items", k.Want)
-	case *kind.MinProperties:
-		return fmt.Sprintf("must have >= `%d` properties", k.Want)
-	case *kind.MaxProperties:
-		return fmt.Sprintf("must have <= `%d` properties", k.Want)
-	case *kind.Const:
-		return fmt.Sprintf("must be `%v`", k.Want)
-	case *kind.Format:
-		return fmt.Sprintf("invalid format: expected `%s`", k.Want)
-	default:
-		return fmt.Sprintf("%v", ek)
-	}
+	return DefaultErrorFormatter{}.Format(ErrorContext{ErrorKind: ek})
 }
