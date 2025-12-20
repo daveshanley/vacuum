@@ -12,5 +12,5 @@
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "./build",
-    "web-test-runner.config.mjs", "webpack.config.js"]
+    "web-test-runner.config.mjs", "webpack.config.js", "**/*.test.ts"]
 }

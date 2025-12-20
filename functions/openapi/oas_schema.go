@@ -145,19 +145,28 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			}
 
 			schemaErr := validationErrors[i].SchemaValidationErrors[y]
-			var reason = schemaErr.Reason
-			// if reason is empty or generic, extract leaf error messages (issue #766)
-			if reason == "validation failed" || reason == "" {
-				if schemaErr.OriginalError != nil {
-					leafErrors := extractLeafValidationErrors(schemaErr.OriginalError)
-					if len(leafErrors) > 0 {
-						reason = strings.Join(leafErrors, "; ")
+			var reason string
+
+			// Always prefer leaf error extraction from OriginalError when available (issue #766)
+			if schemaErr.OriginalError != nil {
+				leafErrors := extractLeafValidationErrors(schemaErr.OriginalError)
+				if len(leafErrors) > 0 {
+					// Limit to last 3 leaf errors for readability
+					if len(leafErrors) > 3 {
+						leafErrors = leafErrors[len(leafErrors)-3:]
 					}
+					reason = strings.Join(leafErrors, "; ")
 				}
-				// fallback to generic message
-				if reason == "" {
-					reason = "multiple components failed validation"
-				}
+			}
+
+			// Fallback to Reason if no leaf errors extracted
+			if reason == "" {
+				reason = schemaErr.Reason
+			}
+
+			// Final fallback
+			if reason == "" {
+				reason = "schema validation failed"
 			}
 			res := model.RuleFunctionResult{
 				Message:   fmt.Sprintf("schema invalid: %v", reason),
@@ -214,10 +223,13 @@ func checkForNullableKeyword(context model.RuleFunctionContext) []model.RuleFunc
 	return results
 }
 
-// extractLeafValidationErrors extracts only leaf error messages from a jsonschema.ValidationError tree (issue #766)
+// extractLeafValidationErrors extracts only meaningful leaf error messages from a jsonschema.ValidationError tree (issue #766)
+// It filters out noise from oneOf/anyOf schema structures (like "missing properties: [$ref]")
 func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
-	var results []string
+	var highPriority []string  // Type errors, pattern errors, format errors - the real issues
+	var lowPriority []string   // Enum errors (often noise from oneOf branches)
 	seen := make(map[string]bool)
+	seenPaths := make(map[string]bool) // Track paths we've already reported errors for
 	const maxDepth = 50
 
 	var extract func(e *jsonschema.ValidationError, depth int)
@@ -229,12 +241,26 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 		// if this is a leaf node (no causes), extract the message
 		if len(e.Causes) == 0 {
 			path := "/" + strings.Join(e.InstanceLocation, "/")
+
+			// Skip noise errors from oneOf/anyOf schema structures
+			if isNoiseError(e.ErrorKind) {
+				return
+			}
+
 			msg := errorKindToString(e.ErrorKind)
 			if msg != "" {
 				fullMsg := fmt.Sprintf("`%s` %s", path, msg)
 				if !seen[fullMsg] {
 					seen[fullMsg] = true
-					results = append(results, fullMsg)
+
+					// Categorize by priority
+					if isHighPriorityError(e.ErrorKind) {
+						highPriority = append(highPriority, fullMsg)
+						seenPaths[path] = true
+					} else if !seenPaths[path] {
+						// Only add low priority if we haven't seen this path in high priority
+						lowPriority = append(lowPriority, fullMsg)
+					}
 				}
 			}
 		}
@@ -246,7 +272,54 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 	}
 
 	extract(err, 0)
-	return results
+
+	// Return high priority errors first, then low priority
+	if len(highPriority) > 0 {
+		return highPriority
+	}
+	return lowPriority
+}
+
+// isNoiseError returns true for errors that are noise from oneOf/anyOf schema structures
+func isNoiseError(ek jsonschema.ErrorKind) bool {
+	if ek == nil {
+		return true
+	}
+	switch k := ek.(type) {
+	case *kind.Required:
+		// "missing properties: [$ref]" is noise from oneOf branches in OpenAPI schemas
+		for _, missing := range k.Missing {
+			if missing == "$ref" {
+				return true
+			}
+		}
+	case *kind.FalseSchema:
+		// "property not allowed" from false schema branches
+		return true
+	}
+	return false
+}
+
+// isHighPriorityError returns true for errors that represent the actual root cause
+func isHighPriorityError(ek jsonschema.ErrorKind) bool {
+	if ek == nil {
+		return false
+	}
+	switch ek.(type) {
+	case *kind.Type:
+		return true // Wrong type is usually the real issue
+	case *kind.Pattern:
+		return true // Pattern mismatch is specific
+	case *kind.Format:
+		return true // Format error is specific
+	case *kind.Const:
+		return true // Const mismatch is specific
+	case *kind.AdditionalProperties:
+		return true // Extra properties is specific
+	case *kind.Required:
+		return true // Missing required field (that isn't $ref)
+	}
+	return false
 }
 
 // errorKindToString converts a jsonschema ErrorKind to a human-readable string
