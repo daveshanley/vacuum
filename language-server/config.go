@@ -1,11 +1,12 @@
+// Copyright 2024-2025 Princess Beef Heavy Industries / Dave Shanley
+// SPDX-License-Identifier: MIT
+
 package languageserver
 
 import (
 	"os"
 	"strings"
 
-	"github.com/daveshanley/vacuum/plugin"
-	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )
@@ -16,18 +17,21 @@ func (s *ServerState) initializeConfig() {
 	viper.SetEnvPrefix("VACUUM")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	
+
 	// Try to load config file
 	viper.SetConfigName("vacuum.conf")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath(getXdgConfigHome())
-	
+
 	// Read the config file (ignore if not found)
 	_ = viper.ReadInConfig()
-	
-	// Update lint request with loaded configuration
-	s.updateLintRequestFromConfig()
+
+	// Parse file config and apply it
+	s.fileConfig = s.parseViperConfig()
+	if err := s.applyEffectiveConfig(); err != nil {
+		s.logger.Warn("failed to apply initial config", "error", err)
+	}
 }
 
 // getXdgConfigHome gets config directory as per the xdg basedir spec
@@ -43,119 +47,77 @@ func getXdgConfigHome() string {
 	return xdgConfigHome + "/vacuum"
 }
 
-// updateLintRequestFromConfig updates the lint request with values from viper configuration
-func (s *ServerState) updateLintRequestFromConfig() {
-	// Only update if not already set by command line flags
-	if s.lintRequest.BaseFlag == "" {
-		if base := viper.GetString("base"); base != "" {
-			s.lintRequest.BaseFlag = base
-		}
+// parseViperConfig extracts configuration from viper into an LSPConfig struct
+func (s *ServerState) parseViperConfig() *LSPConfig {
+	cfg := &LSPConfig{}
+
+	if viper.IsSet("ruleset") {
+		cfg.Ruleset = viper.GetString("ruleset")
 	}
-	
-	// Update other configuration values
+	if viper.IsSet("functions") {
+		cfg.Functions = viper.GetString("functions")
+	}
+	if viper.IsSet("base") {
+		cfg.Base = viper.GetString("base")
+	}
 	if viper.IsSet("remote") {
-		s.lintRequest.Remote = viper.GetBool("remote")
+		cfg.Remote = boolPtr(viper.GetBool("remote"))
 	}
 	if viper.IsSet("skip-check") {
-		s.lintRequest.SkipCheckFlag = viper.GetBool("skip-check")
+		cfg.SkipCheck = boolPtr(viper.GetBool("skip-check"))
 	}
 	if viper.IsSet("timeout") {
-		s.lintRequest.TimeoutFlag = viper.GetInt("timeout")
+		cfg.Timeout = intPtr(viper.GetInt("timeout"))
+	}
+	if viper.IsSet("lookup-timeout") {
+		cfg.LookupTimeout = intPtr(viper.GetInt("lookup-timeout"))
+	}
+	if viper.IsSet("hard-mode") {
+		cfg.HardMode = boolPtr(viper.GetBool("hard-mode"))
 	}
 	if viper.IsSet("ignore-array-circle-ref") {
-		s.lintRequest.IgnoreArrayCircleRef = viper.GetBool("ignore-array-circle-ref")
+		cfg.IgnoreArrayCircleRef = boolPtr(viper.GetBool("ignore-array-circle-ref"))
 	}
 	if viper.IsSet("ignore-polymorph-circle-ref") {
-		s.lintRequest.IgnorePolymorphCircleRef = viper.GetBool("ignore-polymorph-circle-ref")
+		cfg.IgnorePolymorphCircleRef = boolPtr(viper.GetBool("ignore-polymorph-circle-ref"))
 	}
 	if viper.IsSet("ext-refs") {
-		s.lintRequest.ExtensionRefs = viper.GetBool("ext-refs")
+		cfg.ExtensionRefs = boolPtr(viper.GetBool("ext-refs"))
 	}
-	
-	// Handle ruleset if specified
-	if rulesetFlag := viper.GetString("ruleset"); rulesetFlag != "" && s.lintRequest.SelectedRS == nil {
-		s.loadRulesetFromConfig(rulesetFlag)
+	if viper.IsSet("ignore-file") {
+		cfg.IgnoreFile = viper.GetString("ignore-file")
 	}
-	
-	// Handle functions if specified
-	if functionsFlag := viper.GetString("functions"); functionsFlag != "" && s.lintRequest.Functions == nil {
-		s.loadFunctionsFromConfig(functionsFlag)
+	if viper.IsSet("cert-file") {
+		cfg.CertFile = viper.GetString("cert-file")
 	}
+	if viper.IsSet("key-file") {
+		cfg.KeyFile = viper.GetString("key-file")
+	}
+	if viper.IsSet("ca-file") {
+		cfg.CAFile = viper.GetString("ca-file")
+	}
+	if viper.IsSet("insecure") {
+		cfg.Insecure = boolPtr(viper.GetBool("insecure"))
+	}
+
+	return cfg
 }
 
-func (s *ServerState) loadRulesetFromConfig(rulesetFlag string) {
-	rsBytes, rsErr := os.ReadFile(rulesetFlag)
-	if rsErr == nil {
-		userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
-		if userErr == nil {
-			s.lintRequest.SelectedRS = s.lintRequest.DefaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
-		}
-	}
-}
-
-func (s *ServerState) loadFunctionsFromConfig(functionsFlag string) {
-	pm, err := plugin.LoadFunctions(functionsFlag, true)
-	if err == nil {
-		s.lintRequest.Functions = pm.GetCustomFunctions()
-	}
-}
-
+// onConfigChange is called when the config file changes on disk
 func (s *ServerState) onConfigChange(e fsnotify.Event) {
+	s.logger.Info("config file changed, reloading", "file", e.Name)
 
-	// extract flags
-	rulesetFlag := viper.GetString("ruleset")
-	functionsFlag := viper.GetString("functions")
-	baseFlag := viper.GetString("base")
-	skipCheckFlag := viper.GetBool("skip-check")
-	remoteFlag := viper.GetBool("remote")
-	timeoutFlag := viper.GetInt("timeout")
-	hardModeFlag := viper.GetBool("hard-mode")
-	ignoreArrayCircleRef := viper.GetBool("ignore-array-circle-ref")
-	ignorePolymorphCircleRef := viper.GetBool("ignore-array-circle-ref")
+	// Re-parse the config from viper
+	s.fileConfig = s.parseViperConfig()
 
-	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(s.lintRequest.Logger)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	functions := s.lintRequest.Functions
-
-	// FUNCTIONS
-	if functionsFlag != "" {
-		pm, err := plugin.LoadFunctions(functionsFlag, true)
-		if err == nil {
-			functions = pm.GetCustomFunctions()
-		}
+	// Apply the updated configuration
+	if err := s.applyEffectiveConfig(); err != nil {
+		s.logger.Warn("failed to apply config change", "error", err)
+		return
 	}
 
-	// HARD MODE
-	if hardModeFlag {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-
-		// extract all OWASP Rules
-		owaspRules := rulesets.GetAllOWASPRules()
-		allRules := selectedRS.Rules
-		for k, v := range owaspRules {
-			allRules[k] = v
-		}
+	// Re-lint all open documents if we have a notify function
+	if notify := s.getNotifyFunc(); notify != nil {
+		s.relintAllDocuments(notify)
 	}
-
-	// RULESET
-	if rulesetFlag != "" {
-		rsBytes, rsErr := os.ReadFile(rulesetFlag)
-		if rsErr == nil {
-			// load in our user supplied ruleset and try to validate it.
-			userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
-			if userErr == nil {
-				selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
-			}
-		}
-	}
-
-	s.lintRequest.BaseFlag = baseFlag
-	s.lintRequest.Remote = remoteFlag
-	s.lintRequest.SkipCheckFlag = skipCheckFlag
-	s.lintRequest.DefaultRuleSets = defaultRuleSets
-	s.lintRequest.SelectedRS = selectedRS
-	s.lintRequest.Functions = functions
-	s.lintRequest.TimeoutFlag = timeoutFlag
-	s.lintRequest.IgnoreArrayCircleRef = ignoreArrayCircleRef
-	s.lintRequest.IgnorePolymorphCircleRef = ignorePolymorphCircleRef
 }
