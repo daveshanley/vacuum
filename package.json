@@ -23,8 +23,8 @@
     "npm-install"
   ],
   "dependencies": {
-    "node-fetch": "^3.2.10",
-    "tar": "^6.1.11"
+    "node-fetch": "^3.3.2",
+    "tar": "^7.5.2"
   },
   "devDependencies": {
     "@sourcemeta/jsonschema": "^11.5.1"
