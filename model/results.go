@@ -178,6 +178,12 @@ func (rr *RuleResultSet) ResetCounts() {
 	rr.InfoCount = 0
 }
 
+// ResetCategoryCache clears the cached category results. This must be called after
+// modifying Results to ensure GetResultsByRuleCategory returns fresh data.
+func (rr *RuleResultSet) ResetCategoryCache() {
+	rr.categoryMap = make(map[*RuleCategory][]*RuleFunctionResult)
+}
+
 // GetWarnCount will return the number of warnings returned by the rule results.
 func (rr *RuleResultSet) GetWarnCount() int {
 	if rr.WarnCount > 0 {
