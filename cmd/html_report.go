@@ -321,6 +321,13 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						}
 					}
 
+					// Reset cached counts and category results after filtering/violations
+					// so that stats recalculation and HTML template use fresh data
+					if documentChanges != nil {
+						resultSet.ResetCounts()
+						resultSet.ResetCategoryCache()
+					}
+
 					// Recompute stats after change filtering/violations
 					if stats != nil && documentChanges != nil {
 						stats.TotalErrors = resultSet.GetErrorCount()
