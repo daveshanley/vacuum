@@ -2577,3 +2577,84 @@ func TestIssue523_ExtensionReferenceToNonYAMLFile(t *testing.T) {
 		assert.Equal(t, 0, refErrors, "Should not have reference errors after fix - files are found and loaded")
 	})
 }
+
+// testResolvedSchemaCounter is a test rule that counts schemas in resolved document
+type testResolvedSchemaCounter struct {
+	schemaCount int
+}
+
+func (r *testResolvedSchemaCounter) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func (r *testResolvedSchemaCounter) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	// Count all schemas in the resolved document
+	r.schemaCount = len(context.Index.GetAllComponentSchemas())
+	return nil
+}
+
+func (r *testResolvedSchemaCounter) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "schemaCounter",
+	}
+}
+
+// TestIssue441_DeterministicResolvedRules verifies that resolved rules produce
+// consistent results across multiple runs. This tests the fix for issue #441
+// where custom rules with Resolved: true were getting non-deterministic results.
+func TestIssue441_DeterministicResolvedRules(t *testing.T) {
+	// Load a large spec with many references
+	specPath := "../model/test_files/stripe.yaml"
+	specBytes, err := os.ReadFile(specPath)
+	if err != nil {
+		t.Skipf("Could not load spec: %v", err)
+	}
+
+	const runs = 10
+	var baselineSchemaCount int
+	var baselineResultCount int
+
+	for i := 0; i < runs; i++ {
+		counter := &testResolvedSchemaCounter{}
+
+		ex := &RuleSetExecution{
+			RuleSet: &rulesets.RuleSet{
+				Rules: map[string]*model.Rule{
+					"schema-counter": {
+						Id:           "schema-counter",
+						Resolved:     true,
+						Given:        "$",
+						RuleCategory: model.RuleCategories[model.CategoryValidation],
+						Type:         rulesets.Validation,
+						Severity:     model.SeverityInfo,
+						Then: model.RuleAction{
+							Function: "schemaCounter",
+						},
+					},
+				},
+			},
+			Spec:        specBytes,
+			SilenceLogs: true,
+			CustomFunctions: map[string]model.RuleFunction{
+				"schemaCounter": counter,
+			},
+		}
+
+		results := ApplyRulesToRuleSet(ex)
+
+		if i == 0 {
+			baselineSchemaCount = counter.schemaCount
+			baselineResultCount = len(results.Results)
+			t.Logf("Baseline: %d schemas, %d results", baselineSchemaCount, baselineResultCount)
+		} else {
+			if counter.schemaCount != baselineSchemaCount {
+				t.Errorf("Run %d: different schema count: got %d, want %d", i, counter.schemaCount, baselineSchemaCount)
+			}
+			if len(results.Results) != baselineResultCount {
+				t.Errorf("Run %d: different result count: got %d, want %d", i, len(results.Results), baselineResultCount)
+			}
+		}
+	}
+
+	t.Logf("All %d runs produced identical results: %d schemas", runs, baselineSchemaCount)
+}
