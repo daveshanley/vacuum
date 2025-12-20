@@ -441,7 +441,7 @@ func addUniqueError(errors *[]string, seen map[string]bool, ctx ErrorContext) {
 // extractLeafValidationErrors extracts meaningful validation errors from a jsonschema error tree.
 // It recursively walks to leaf nodes, classifies them by priority, and filters noise.
 // Returns high-priority errors if any exist, otherwise low-priority errors.
-// High-priority errors suppress low-priority errors for the same instance path.
+// When high-priority errors exist, ALL low-priority errors are suppressed to reduce noise.
 // Addresses issues #524 (path validation), #766 (oneOf/anyOf noise).
 func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 	highPriority := make([]string, 0, 10)
