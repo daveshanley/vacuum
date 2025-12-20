@@ -2,7 +2,7 @@ import { createWriteStream } from "fs";
 import * as fs from "fs/promises";
 import fetch from "node-fetch";
 import { pipeline } from "stream/promises";
-import tar from "tar";
+import * as tar from "tar";
 import { execSync } from "child_process";
 
 import { ARCH_MAPPING, CONFIG, PLATFORM_MAPPING } from "./config.js";
