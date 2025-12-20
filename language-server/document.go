@@ -15,16 +15,20 @@
 package languageserver
 
 import (
+	"sync"
+
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
 type DocumentStore struct {
 	documents map[string]*Document
+	mu        sync.RWMutex
 }
 type Document struct {
 	URI               protocol.DocumentUri
 	RunningDiagnostic bool
 	Content           string
+	mu                sync.RWMutex // Protects Content field
 }
 
 func newDocumentStore() *DocumentStore {
@@ -33,6 +37,9 @@ func newDocumentStore() *DocumentStore {
 	}
 }
 func (s *DocumentStore) Add(uri string, content string) *Document {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	doc := &Document{
 		URI:     uri,
 		Content: content,
@@ -40,10 +47,18 @@ func (s *DocumentStore) Add(uri string, content string) *Document {
 	s.documents[uri] = doc
 	return doc
 }
+
 func (s *DocumentStore) Get(uri string) (*Document, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	d, ok := s.documents[uri]
 	return d, ok
 }
+
 func (s *DocumentStore) Remove(uri string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	delete(s.documents, uri)
 }
