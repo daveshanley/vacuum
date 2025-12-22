@@ -231,7 +231,11 @@ func TestValidateRuleFunctionContextAgainstSchema_MinMax_FailMax(t *testing.T) {
 	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
 
 	assert.False(t, res)
-	assert.Len(t, errs, 2)
+	// Expected errors:
+	// 1. Max properties exceeded (3 > 2)
+	// 2. Missing required property: type
+	// 3-5. Invalid properties: beer, lime, carrot (not defined in schema)
+	assert.Len(t, errs, 5)
 }
 
 func TestBuildFunctionResult(t *testing.T) {

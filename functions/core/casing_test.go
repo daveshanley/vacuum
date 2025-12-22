@@ -578,3 +578,178 @@ pork:
 
 	assert.Len(t, res, 3, "expected all fields of 'properties' objects to be MACRO case")
 }
+
+// Tests for Spectral-compatible nested separator options (Issue #651)
+// Spectral uses nested YAML format: separator: { char: '-', allowLeading: true }
+// These tests verify that vacuum accepts both formats.
+
+func TestCasing_RunRule_SpectralNestedSeparator_Success(t *testing.T) {
+	// Test case from GitHub issue #651 - Pascal case with hyphen separator
+	sampleYaml := `header: "X-Custom-Header"`
+
+	path := "$.header"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	// Spectral format: nested YAML structure instead of dot-notation
+	opts := map[string]interface{}{
+		"type": "pascal",
+		"separator": map[string]interface{}{
+			"char": "-",
+		},
+	}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0, "Pascal case with hyphen separator should pass")
+}
+
+func TestCasing_RunRule_SpectralNestedSeparator_Fail(t *testing.T) {
+	// Invalid pascal-case with hyphen separator
+	sampleYaml := `header: "x-custom-header"`
+
+	path := "$.header"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	// Spectral format: nested YAML structure
+	opts := map[string]interface{}{
+		"type": "pascal",
+		"separator": map[string]interface{}{
+			"char": "-",
+		},
+	}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1, "lowercase with hyphen separator should fail pascal case")
+}
+
+func TestCasing_RunRule_SpectralNestedSeparatorWithAllowLeading_Success(t *testing.T) {
+	// Test with allowLeading option in nested format
+	sampleYaml := `path: "-my-path-value"`
+
+	path := "$.path"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	// Spectral format: nested YAML structure with allowLeading
+	opts := map[string]interface{}{
+		"type": "kebab",
+		"separator": map[string]interface{}{
+			"char":         "-",
+			"allowLeading": true,
+		},
+	}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0, "kebab case with leading separator should pass when allowLeading is true")
+}
+
+func TestCasing_RunRule_SpectralNestedSeparatorWithAllowLeading_Fail(t *testing.T) {
+	// Test with allowLeading=false in nested format
+	// Uses comma separator with snake case (comma is not part of snake pattern)
+	sampleYaml := `value: ",mo_problems,rub_a,dub_dub"`
+
+	path := "$.value"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	// Spectral format: nested YAML structure with allowLeading=false
+	opts := map[string]interface{}{
+		"type": "snake",
+		"separator": map[string]interface{}{
+			"char":         ",",
+			"allowLeading": false,
+		},
+	}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1, "snake case with leading separator should fail when allowLeading is false")
+}
+
+func TestCasing_RunRule_SpectralNestedSeparatorSnake_Success(t *testing.T) {
+	// Test snake case with comma separator using Spectral nested format
+	sampleYaml := `value: "after_hours,want_a_drink"`
+
+	path := "$.value"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	// Spectral format: nested YAML structure
+	opts := map[string]interface{}{
+		"type": "snake",
+		"separator": map[string]interface{}{
+			"char": ",",
+		},
+	}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0, "snake case with comma separator should pass")
+}
+
+// Test that map[interface{}]interface{} format also works (common in YAML parsing)
+func TestCasing_RunRule_SpectralNestedSeparator_MapInterfaceInterface(t *testing.T) {
+	sampleYaml := `header: "X-Custom-Header"`
+
+	path := "$.header"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	// Simulate how YAML parsing sometimes creates map[interface{}]interface{}
+	opts := map[string]interface{}{
+		"type": "pascal",
+		"separator": map[interface{}]interface{}{
+			"char": "-",
+		},
+	}
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0, "nested separator with map[interface{}]interface{} should work")
+}

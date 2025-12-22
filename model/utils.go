@@ -174,7 +174,8 @@ func BuildFunctionResultString(message string) RuleFunctionResult {
 }
 
 // ValidateRuleFunctionContextAgainstSchema will perform run-time validation against a rule to ensure that
-// options being passed in are acceptable and meet the needs of the Rule schema
+// options being passed in are acceptable and meet the needs of the Rule schema.
+// This function supports both flat dot-notation (Vacuum) and nested YAML (Spectral) formats.
 func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx RuleFunctionContext) (bool, []string) {
 
 	valid := true
@@ -211,28 +212,15 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 		errs = append(errs, fmt.Sprintf("'%s' requires a 'field' value to be set", schema.Name))
 	}
 
+	// flatten the options to handle Spectral's nested format before validation
+	flattenedOptions := make(map[string]string)
+	flattenOptions("", ctx.Options, flattenedOptions)
+
 	// check if this schema has required properties, then check them out.
 	if len(schema.Required) > 0 {
 		var missingProps []string
 		for _, req := range schema.Required {
-			found := false
-
-			if options, ok := ctx.Options.(map[string]interface{}); ok {
-				for k := range options {
-					if k == req {
-						found = true
-					}
-				}
-			}
-			if options, ok := ctx.Options.(map[string]string); ok {
-				for k := range options {
-					if k == req {
-						found = true
-					}
-				}
-			}
-
-			if !found {
+			if _, found := flattenedOptions[req]; !found {
 				missingProps = append(missingProps, req)
 			}
 		}
@@ -245,40 +233,20 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 		}
 	}
 
-	// check if the values submitted exist as properties
+	// check if the values submitted exist as properties (using flattened keys)
 	if len(schema.Properties) > 0 {
-		if options, ok := ctx.Options.(map[string]interface{}); ok {
-			for k := range options {
-				found := false
-				for _, prop := range schema.Properties {
-					if k == prop.Name {
-						found = true
-					}
-				}
-				if !found {
-					valid = false
-					errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
-						schema.ErrorMessage, k, schema.Name))
+		for k := range flattenedOptions {
+			found := false
+			for _, prop := range schema.Properties {
+				if k == prop.Name {
+					found = true
+					break
 				}
 			}
-		}
-		if options, ok := ctx.Options.([]interface{}); ok {
-			for _, v := range options {
-				if m, ko := v.(map[string]interface{}); ko {
-					for k := range m {
-						found := false
-						for _, prop := range schema.Properties {
-							if k == prop.Name {
-								found = true
-							}
-						}
-						if !found {
-							valid = false
-							errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
-								schema.ErrorMessage, k, schema.Name))
-						}
-					}
-				}
+			if !found {
+				valid = false
+				errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
+					schema.ErrorMessage, k, schema.Name))
 			}
 		}
 	}
