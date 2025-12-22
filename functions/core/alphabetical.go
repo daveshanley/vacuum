@@ -49,8 +49,8 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 
 	var keyedBy string
 
-	// check supplied type
-	props := utils.ConvertInterfaceIntoStringMap(context.Options)
+	// check supplied type - use context method for Spectral compatibility
+	props := context.GetOptionsStringMap()
 	if props["keyedBy"] != "" {
 		keyedBy = props["keyedBy"]
 	}
