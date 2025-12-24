@@ -1,4 +1,4 @@
-// Copyright 2023-2025 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2023-2025 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 // Package eventloop provides an event loop implementation for running asynchronous
