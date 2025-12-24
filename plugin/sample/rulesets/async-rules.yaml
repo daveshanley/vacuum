@@ -1,0 +1,27 @@
+# Example Ruleset: Async JavaScript Functions
+#
+# This ruleset demonstrates how to use async/await in vacuum custom JavaScript functions.
+# It includes rules that use Promises, setTimeout, and async validation patterns.
+
+extends: [[spectral:oas, recommended]]
+
+functions:
+  - plugin/sample/js/async_validation.js
+  - plugin/sample/js/async_llm_validation.js
+
+rules:
+  # Rule using the async validation function
+  async-operation-check:
+    description: Validates operations using async JavaScript (demonstrates async/await support)
+    given: $.paths[*][get,post,put,delete,patch]
+    severity: warn
+    then:
+      function: asyncValidation
+
+  # Rule using the LLM validation function (falls back to basic validation if vacuum_fetch is not available)
+  llm-powered-validation:
+    description: Validates API using LLM-powered analysis (or basic validation fallback)
+    given: $.info
+    severity: info
+    then:
+      function: llmValidation

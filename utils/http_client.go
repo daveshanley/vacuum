@@ -9,15 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/daveshanley/vacuum/config"
 )
 
-// HTTPClientConfig holds configuration for creating a custom HTTP client
-type HTTPClientConfig struct {
-	CertFile string
-	KeyFile  string
-	CAFile   string
-	Insecure bool
-}
+// HTTPClientConfig is an alias for config.HTTPClientConfig for backwards compatibility.
+type HTTPClientConfig = config.HTTPClientConfig
+
+// FetchConfig is an alias for config.FetchConfig for backwards compatibility.
+type FetchConfig = config.FetchConfig
 
 // CreateCustomHTTPClient creates an HTTP client with custom TLS configuration
 // for certificate-based authentication and custom CA certificates.
