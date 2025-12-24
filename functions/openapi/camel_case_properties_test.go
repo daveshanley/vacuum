@@ -1,4 +1,4 @@
-// Copyright 2025 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2025 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 package openapi
