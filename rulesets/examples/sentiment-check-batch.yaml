@@ -5,6 +5,8 @@ rules:
     description: Check if API descriptions are too negative using sentiment analysis (batch mode)
     severity: warn
     recommended: true
+    category:
+      id: descriptions
     formats: [oas2, oas3]
     given: $..description
     then:

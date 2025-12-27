@@ -4,6 +4,8 @@ rules:
   sentiment-check:
     description: Check if API descriptions are too negative using sentiment analysis
     severity: warn
+    category:
+      id: descriptions
     recommended: true
     formats: [oas2, oas3]
     given: $..description
