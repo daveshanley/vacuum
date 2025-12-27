@@ -1,0 +1,12 @@
+extends: [[vacuum:oas, off]]
+documentationUrl: https://pb33f.io/vacuum/plugins/javascript
+rules:
+  sentiment-check:
+    description: Check if API descriptions are too negative using sentiment analysis
+    severity: warn
+    recommended: true
+    formats: [oas2, oas3]
+    given: $..description
+    then:
+      function: sentimentCheck
+    howToFix: Reword negative descriptions to use more neutral or positive language.
