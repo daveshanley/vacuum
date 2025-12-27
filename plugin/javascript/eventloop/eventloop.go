@@ -37,16 +37,16 @@ var (
 type EventLoop struct {
 	vm *goja.Runtime
 
-	// Job queue for callbacks - using a slice protected by mutex for simplicity
+	// job queue for callbacks - using a slice protected by mutex for simplicity
 	jobQueue     []func()
 	jobQueueLock sync.Mutex
 	jobCond      *sync.Cond
 
-	// State tracking
+	// state tracking
 	pendingOps int32 // atomic counter for pending async operations (timers, etc.)
 	running    int32 // atomic flag indicating if a loop is running
 
-	// Registered timers
+	// registered timers
 	timers      map[*Timer]struct{}
 	timersLock  sync.Mutex
 	nextTimerID int64
@@ -65,7 +65,7 @@ func New(vm *goja.Runtime) *EventLoop {
 	}
 	loop.jobCond = sync.NewCond(&loop.jobQueueLock)
 
-	// Register setTimeout and clearTimeout in the runtime
+	// register setTimeout and clearTimeout in the runtime
 	loop.registerTimerFunctions()
 
 	return loop
@@ -88,7 +88,6 @@ func (e *EventLoop) Runtime() *goja.Runtime {
 //   - The context is cancelled (timeout or explicit cancellation)
 //   - An error occurs during execution
 func (e *EventLoop) Run(ctx context.Context, fn func(*goja.Runtime) (goja.Value, error)) (goja.Value, error) {
-	// Ensure only one Run at a time
 	if !atomic.CompareAndSwapInt32(&e.running, 0, 1) {
 		return nil, ErrLoopAlreadyRunning
 	}
@@ -97,18 +96,17 @@ func (e *EventLoop) Run(ctx context.Context, fn func(*goja.Runtime) (goja.Value,
 		e.cancelAllTimers()
 	}()
 
-	// Reset state
+	// reset state - clear any orphaned pendingOps from previous runs that
+	// may have timed out while async operations were still in flight
+	atomic.StoreInt32(&e.pendingOps, 0)
 	e.stopChan = make(chan struct{})
 
-	// Execute the main function
 	result, err := fn(e.vm)
 	if err != nil {
 		return nil, err
 	}
 
-	// Process the event loop
 	if loopErr := e.runLoop(ctx); loopErr != nil {
-		// Context cancellation is not necessarily an error for the result
 		if errors.Is(loopErr, context.DeadlineExceeded) || errors.Is(loopErr, context.Canceled) {
 			return result, loopErr
 		}
@@ -120,21 +118,27 @@ func (e *EventLoop) Run(ctx context.Context, fn func(*goja.Runtime) (goja.Value,
 
 // runLoop processes jobs until there's nothing left to do or context is canceled
 func (e *EventLoop) runLoop(ctx context.Context) error {
-	// Start a goroutine to broadcast on context cancellation
+	// start a goroutine to broadcast on context cancellation
+	// use a done channel to allow cleanup when runLoop exits (prevents goroutine leak)
+	done := make(chan struct{})
+	defer close(done)
+
 	go func() {
-		<-ctx.Done()
-		e.jobCond.Broadcast()
+		select {
+		case <-ctx.Done():
+			e.jobCond.Broadcast()
+		case <-done:
+			// runLoop finished, exit goroutine
+		}
 	}()
 
 	for {
-		// Check for cancellation
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
 
-		// Get a job from the queue
 		job := e.getNextJob()
 
 		if job != nil {
@@ -143,7 +147,7 @@ func (e *EventLoop) runLoop(ctx context.Context) error {
 			continue
 		}
 
-		// No jobs in queue - check if we should wait or exit
+		// no jobs in queue - check if we should wait or exit
 		e.jobQueueLock.Lock()
 		pendingOps := atomic.LoadInt32(&e.pendingOps)
 
@@ -156,9 +160,7 @@ func (e *EventLoop) runLoop(ctx context.Context) error {
 			return nil
 		}
 
-		// Wait for a job to be queued
 		for len(e.jobQueue) == 0 && atomic.LoadInt32(&e.running) == 1 {
-			// Check context before waiting
 			select {
 			case <-ctx.Done():
 				e.jobQueueLock.Unlock()
@@ -196,7 +198,7 @@ func (e *EventLoop) getNextJob() func() {
 // job queue. This is necessary for Promise reactions (resolve/reject handlers)
 // to be executed after callbacks that modify the Promise state.
 func (e *EventLoop) processGojaJobs() {
-	// Running an empty script triggers Goja to process any pending jobs
+	// running an empty script triggers Goja to process any pending jobs
 	// in its internal queue (Promise reactions, etc.)
 	_, _ = e.vm.RunString("")
 }
@@ -242,7 +244,13 @@ func (e *EventLoop) RegisterCallback() func(func()) {
 			return
 		}
 
-		// Always enqueue - EnqueueJob handles the running check
+		if atomic.LoadInt32(&e.running) == 0 {
+			// loop has stopped - just decrement pendingOps, don't try to enqueue
+			// This prevents stale pendingOps from blocking the next Run()
+			atomic.AddInt32(&e.pendingOps, -1)
+			return
+		}
+
 		e.EnqueueJob(func() {
 			callback()
 			atomic.AddInt32(&e.pendingOps, -1)
