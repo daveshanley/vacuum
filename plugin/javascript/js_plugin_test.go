@@ -654,3 +654,246 @@ async function runRule(input) {
 	assert.Contains(t, results[0].Message, "ab")
 	assert.Contains(t, results[1].Message, "x")
 }
+
+// ============================================================================
+// Batch Mode Tests - Testing batch mode result mapping and error handling
+// ============================================================================
+
+func Test_JSPlugin_BatchMode_ValidInputs(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	var results = [];
+	for (var i = 0; i < inputs.length; i++) {
+		var input = inputs[i];
+		if (input.value && input.value.length < 5) {
+			results.push({
+				message: "Value too short: " + input.value,
+				input: input
+			});
+		}
+	}
+	return results;
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	// Create multiple nodes
+	var y1, y2, y3 yaml.Node
+	_ = yaml.Unmarshal([]byte("ab"), &y1)   // too short
+	_ = yaml.Unmarshal([]byte("hello"), &y2) // valid
+	_ = yaml.Unmarshal([]byte("hi"), &y3)   // too short
+
+	results := f.RunRule([]*yaml.Node{y1.Content[0], y2.Content[0], y3.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should have 2 errors (for "ab" and "hi")
+	assert.Len(t, results, 2)
+	assert.Contains(t, results[0].Message, "ab")
+	assert.Contains(t, results[1].Message, "hi")
+	// Verify correct node mapping
+	assert.Equal(t, 1, results[0].StartNode.Line) // First node
+	assert.Equal(t, 1, results[1].StartNode.Line) // Third node (all at line 1 in this test)
+}
+
+func Test_JSPlugin_BatchMode_MissingInput(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Missing the required 'input' field - should create error
+	return [{ message: "error without input" }];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about missing input
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "missing valid 'input' object")
+}
+
+func Test_JSPlugin_BatchMode_InvalidIndex(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return with input that has invalid index type
+	return [{
+		message: "error with bad input",
+		input: { index: "not-a-number" }
+	}];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about missing valid input
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "missing valid 'input' object")
+}
+
+func Test_JSPlugin_BatchMode_OutOfBoundsIndex(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return with index that's out of bounds
+	return [{
+		message: "error with out of bounds index",
+		input: { index: 999 }
+	}];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about missing valid input (out of bounds is treated as invalid)
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "missing valid 'input' object")
+}
+
+func Test_JSPlugin_BatchMode_NonArrayReturn(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return non-array - should create error
+	return "not an array";
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about return type
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "must return an array")
+}
+
+func Test_JSPlugin_BatchMode_MalformedResult(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return array with non-object item
+	return ["not an object", { message: "valid", input: inputs[0] }];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error for malformed result and success for valid one
+	assert.Len(t, results, 2)
+	assert.Contains(t, results[0].Message, "not an object")
+	assert.Equal(t, "valid", results[1].Message)
+}
+
+func Test_JSPlugin_BatchMode_AsyncWithInput(t *testing.T) {
+	script := `
+async function runRule(inputs) {
+	var results = [];
+	for (var i = 0; i < inputs.length; i++) {
+		var input = inputs[i];
+		var value = await Promise.resolve(input.value);
+		if (value && value.indexOf("error") !== -1) {
+			results.push({
+				message: "Found error keyword in: " + value,
+				input: input
+			});
+		}
+	}
+	return results;
+}
+`
+	f := NewJSRuleFunction("asyncBatchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y1, y2 yaml.Node
+	_ = yaml.Unmarshal([]byte("this has error"), &y1)
+	_ = yaml.Unmarshal([]byte("this is fine"), &y2)
+
+	results := f.RunRule([]*yaml.Node{y1.Content[0], y2.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "error keyword")
+}
+
+func Test_JSPlugin_BatchMode_EmptyInputs(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	return inputs.map(function(input) {
+		return { message: "processed", input: input };
+	});
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	// Empty node list
+	results := f.RunRule([]*yaml.Node{}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should return nil for empty inputs
+	assert.Nil(t, results)
+}
