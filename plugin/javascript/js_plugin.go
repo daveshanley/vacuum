@@ -192,18 +192,19 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 	}
 	fetchModule.Register()
 
-	ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
-	defer cancel()
-
 	var results []model.RuleFunctionResult
 	var runtimeErr error
 
 	for _, node := range nodes {
+		// create a fresh timeout for each node - prevents cumulative timeout across all nodes
+		ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
+
 		var enc interface{}
 		_ = node.Decode(&enc)
 
 		runtimeErr = rt.Set("context", ruleContext)
 		if runtimeErr != nil {
+			cancel()
 			return j.createErrorResult(
 				fmt.Sprintf("Unable to set context in JavaScript function: '%s': %s", j.ruleName, runtimeErr.Error()),
 				node, ruleContext)
@@ -213,6 +214,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 
 		for name, function := range j.coreFunctions {
 			if coreErr := rt.Set(fmt.Sprintf("vacuum_%s", name), function); coreErr != nil {
+				cancel()
 				return j.createErrorResult(
 					fmt.Sprintf("Unable to set core vacuum function '%s': '%s': %s", name, j.ruleName, coreErr.Error()),
 					node, ruleContext)
@@ -221,6 +223,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 
 		runRuleFn, ok := goja.AssertFunction(rt.Get("runRule"))
 		if !ok {
+			cancel()
 			return j.createErrorResult(
 				fmt.Sprintf("'runRule' is not defined as a JavaScript function: '%s'", j.ruleName),
 				node, ruleContext)
@@ -232,6 +235,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 		})
 
 		if rErr != nil {
+			cancel()
 			if errors.Is(rErr, context.DeadlineExceeded) {
 				return j.createErrorResult(
 					fmt.Sprintf("JavaScript function '%s' timed out after %v", j.ruleName, j.getTimeout()),
@@ -250,12 +254,14 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 
 		functionResults, extractErr := j.extractResults(ruleOutput, node, ruleContext)
 		if extractErr != nil {
+			cancel()
 			return j.createErrorResult(
 				fmt.Sprintf("Unable to extract results from JavaScript function: '%s': %s", j.ruleName, extractErr.Error()),
 				node, ruleContext)
 		}
 
 		results = append(results, functionResults...)
+		cancel() // clean up context after each successful iteration
 	}
 	return results
 }
