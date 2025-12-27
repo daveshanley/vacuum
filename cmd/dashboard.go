@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -61,6 +62,8 @@ func GetDashboardCommand() *cobra.Command {
 			keyFile, _ := cmd.Flags().GetString("key-file")
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
+			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 			watchFlag, _ := cmd.Flags().GetBool("watch")
 			changesFlag, _ := cmd.Flags().GetString("changes")
 			originalFlag, _ := cmd.Flags().GetString("original")
@@ -96,7 +99,22 @@ func GetDashboardCommand() *cobra.Command {
 				return err
 			}
 
-			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
+			// Create HTTP client for URL support (with TLS config)
+			httpClientConfig := utils.HTTPClientConfig{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+			var httpClient *http.Client
+			if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+				httpClient, err = utils.CreateCustomHTTPClient(httpClientConfig)
+				if err != nil {
+					return fmt.Errorf("failed to create HTTP client: %w", err)
+				}
+			}
+
+			reportOrSpec, err := LoadFileAsReportOrSpecWithClient(args[0], httpClient)
 			if err != nil {
 				message := fmt.Sprintf("Failed to load file: %v", err)
 				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
@@ -154,14 +172,21 @@ func GetDashboardCommand() *cobra.Command {
 				}
 
 				tempLintFlags := &LintFlags{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
+					CertFile:             certFile,
+					KeyFile:              keyFile,
+					CAFile:               caFile,
+					Insecure:             insecure,
+					AllowPrivateNetworks: allowPrivateNetworks,
+					FetchTimeout:         fetchTimeout,
 				}
 				httpConfig, err := GetHTTPClientConfig(tempLintFlags)
 				if err != nil {
 					return fmt.Errorf("failed to resolve TLS configuration: %w", err)
+				}
+
+				fetchConfig, fetchCfgErr := GetFetchConfig(tempLintFlags)
+				if fetchCfgErr != nil {
+					return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 				}
 
 				if rulesetFlag != "" {
@@ -213,6 +238,7 @@ func GetDashboardCommand() *cobra.Command {
 					Timeout:           time.Duration(timeoutFlag) * time.Second,
 					NodeLookupTimeout: time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					HTTPClientConfig:  httpConfig,
+					FetchConfig:       fetchConfig,
 				})
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)

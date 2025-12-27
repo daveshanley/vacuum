@@ -22,8 +22,9 @@ func BuildResults(
 	timeout time.Duration,
 	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, ignoredItems)
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -38,6 +39,7 @@ func BuildResultsWithDocCheckSkip(
 	timeout time.Duration,
 	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
@@ -95,6 +97,7 @@ func BuildResultsWithDocCheckSkip(
 		Timeout:           timeout,
 		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
+		FetchConfig:       fetchConfig,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

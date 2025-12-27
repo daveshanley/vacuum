@@ -104,6 +104,8 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().String("key-file", "", "Path to client private key file for HTTPS requests")
 	rootCmd.PersistentFlags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
 	rootCmd.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
+	rootCmd.PersistentFlags().Bool("allow-private-networks", false, "Allow fetch() to access private/local networks (localhost, 10.x, 192.168.x)")
+	rootCmd.PersistentFlags().Int("fetch-timeout", 30, "Timeout for fetch() requests in seconds (default 30)")
 	rootCmd.PersistentFlags().String("changes", "", "Path to change report JSON file for filtering results to changed areas only")
 	rootCmd.PersistentFlags().String("original", "", "Path to original/old spec file for inline comparison (filters results to changed areas)")
 	rootCmd.PersistentFlags().Bool("changes-summary", false, "Show summary of what was filtered by --changes or --original")
@@ -153,6 +155,12 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("insecure", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("allow-private-networks", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("fetch-timeout", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("changes", cobra.FixedCompletions(
@@ -290,8 +298,8 @@ func setConfigDirectoryFromViper() {
 }
 
 // ResolveConfigPath normalizes paths supplied via flags or configuration.
-// It expands ~ and environment variables, and if the path is relative,
-// resolves it against the configuration directory when available.
+// It expands ~ and environment variables. For relative paths, it checks
+// CWD first, then falls back to the config directory if the path doesn't exist.
 func ResolveConfigPath(raw string) (string, error) {
 	if raw == "" {
 		return "", nil
@@ -311,14 +319,25 @@ func ResolveConfigPath(raw string) (string, error) {
 		return filepath.Clean(expanded), nil
 	}
 
-	if configDirectory != "" && !strings.HasPrefix(expanded, ".") {
-		return filepath.Clean(filepath.Join(configDirectory, expanded)), nil
-	}
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("unable to resolve working directory: %w", err)
 	}
 
-	return filepath.Clean(filepath.Join(cwd, expanded)), nil
+	// Check CWD first for relative paths
+	cwdPath := filepath.Clean(filepath.Join(cwd, expanded))
+	if _, err := os.Stat(cwdPath); err == nil {
+		return cwdPath, nil
+	}
+
+	// Fall back to config directory if path doesn't exist in CWD
+	if configDirectory != "" {
+		configPath := filepath.Clean(filepath.Join(configDirectory, expanded))
+		if _, err := os.Stat(configPath); err == nil {
+			return configPath, nil
+		}
+	}
+
+	// Default to CWD path (will fail later with appropriate error)
+	return cwdPath, nil
 }

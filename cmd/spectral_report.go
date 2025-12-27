@@ -127,17 +127,26 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 			keyFile, _ := cmd.Flags().GetString("key-file")
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
+			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 
 			lintFlags := &LintFlags{
-				CertFile: certFile,
-				KeyFile:  keyFile,
-				CAFile:   caFile,
-				Insecure: insecure,
+				CertFile:             certFile,
+				KeyFile:              keyFile,
+				CAFile:               caFile,
+				Insecure:             insecure,
+				AllowPrivateNetworks: allowPrivateNetworks,
+				FetchTimeout:         fetchTimeout,
 			}
 
 			httpClientConfig, cfgErr := GetHTTPClientConfig(lintFlags)
 			if cfgErr != nil {
 				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+			}
+
+			fetchConfig, fetchCfgErr := GetFetchConfig(lintFlags)
+			if fetchCfgErr != nil {
+				return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 			}
 
 			reportOutput := "vacuum-spectral-report.json"
@@ -286,6 +295,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					ExtractReferencesFromExtensions: extensionRefsFlag,
 					HTTPClientConfig:                httpClientConfig,
+					FetchConfig:                     fetchConfig,
 				})
 
 				resultSet := model.NewRuleResultSet(ruleset.Results)
