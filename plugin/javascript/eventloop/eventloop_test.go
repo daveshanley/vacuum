@@ -502,3 +502,73 @@ func TestEventLoop_AsyncAwaitWithStringError(t *testing.T) {
 	require.Error(t, extractErr)
 	assert.Contains(t, extractErr.Error(), "string error message")
 }
+
+func TestEventLoop_PendingOpsResetBetweenRuns(t *testing.T) {
+	// This test verifies that pendingOps is reset between Run() calls,
+	// so a previous run that timed out with pending async ops doesn't
+	// cause the next run to hang.
+	vm := goja.New()
+	loop := New(vm)
+
+	// First run: register a callback but timeout before it completes
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel1()
+
+	callbackCalled := int32(0)
+	_, err1 := loop.Run(ctx1, func(vm *goja.Runtime) (goja.Value, error) {
+		// Register an async callback that will fire after the timeout
+		callback := loop.RegisterCallback()
+		go func() {
+			time.Sleep(100 * time.Millisecond) // Will fire after Run() exits
+			callback(func() {
+				atomic.StoreInt32(&callbackCalled, 1)
+			})
+		}()
+		return vm.ToValue(nil), nil
+	})
+
+	// First run should timeout
+	require.Error(t, err1)
+	assert.ErrorIs(t, err1, context.DeadlineExceeded)
+
+	// Wait for the async callback to fire (it should be dropped)
+	time.Sleep(150 * time.Millisecond)
+
+	// Callback should NOT have been executed since loop wasn't running
+	assert.Equal(t, int32(0), atomic.LoadInt32(&callbackCalled))
+
+	// Second run: should complete immediately without hanging
+	ctx2 := context.Background()
+	result2, err2 := loop.Run(ctx2, func(vm *goja.Runtime) (goja.Value, error) {
+		return vm.RunString(`42`)
+	})
+
+	require.NoError(t, err2)
+	assert.Equal(t, int64(42), result2.Export())
+}
+
+func TestEventLoop_CallbackDroppedWhenLoopStopped(t *testing.T) {
+	// Verify that callbacks properly decrement pendingOps when dropped
+	vm := goja.New()
+	loop := New(vm)
+
+	// Get a callback but never run the loop
+	callback := loop.RegisterCallback()
+
+	// pendingOps should be 1
+	assert.Equal(t, int32(1), atomic.LoadInt32(&loop.pendingOps))
+
+	// Try to call the callback when loop isn't running
+	callback(func() {
+		t.Error("Callback should not be executed")
+	})
+
+	// pendingOps should be decremented to 0 since the job was dropped
+	assert.Equal(t, int32(0), atomic.LoadInt32(&loop.pendingOps))
+
+	// Calling callback again should be a no-op (once-only guarantee)
+	callback(func() {
+		t.Error("Callback should not be executed twice")
+	})
+	assert.Equal(t, int32(0), atomic.LoadInt32(&loop.pendingOps))
+}
