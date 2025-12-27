@@ -59,7 +59,7 @@ func NewFetchModuleFromConfig(loop EventLoop, cfg *config.FetchConfig) (*Fetch, 
 	}
 
 	fetchCfg := &FetchConfig{
-		AllowInsecure:        cfg.Insecure,
+		AllowInsecure:        cfg.AllowHTTP, // Use dedicated flag for HTTP allowance (not TLS skip)
 		AllowPrivateNetworks: cfg.AllowPrivateNetworks,
 		DefaultTimeout:       timeout,
 		MaxResponseSize:      DefaultMaxResponseSize,

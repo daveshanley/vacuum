@@ -63,6 +63,7 @@ func GetDashboardCommand() *cobra.Command {
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			allowHTTP, _ := cmd.Flags().GetBool("allow-http")
 			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 			watchFlag, _ := cmd.Flags().GetBool("watch")
 			changesFlag, _ := cmd.Flags().GetString("changes")
@@ -177,6 +178,7 @@ func GetDashboardCommand() *cobra.Command {
 					CAFile:               caFile,
 					Insecure:             insecure,
 					AllowPrivateNetworks: allowPrivateNetworks,
+					AllowHTTP:            allowHTTP,
 					FetchTimeout:         fetchTimeout,
 				}
 				httpConfig, err := GetHTTPClientConfig(tempLintFlags)

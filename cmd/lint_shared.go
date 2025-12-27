@@ -74,6 +74,7 @@ type LintFlags struct {
 	CAFile                   string
 	Insecure                 bool
 	AllowPrivateNetworks     bool
+	AllowHTTP                bool
 	FetchTimeout             int
 	DebugFlag                bool
 	LookupTimeoutFlag        int
@@ -179,6 +180,10 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.AllowPrivateNetworks, _ = cmd.Flags().GetBool("allow-private-networks")
 	if !cmd.Flags().Changed("allow-private-networks") && viper.IsSet("lint.allow-private-networks") {
 		flags.AllowPrivateNetworks = viper.GetBool("lint.allow-private-networks")
+	}
+	flags.AllowHTTP, _ = cmd.Flags().GetBool("allow-http")
+	if !cmd.Flags().Changed("allow-http") && viper.IsSet("lint.allow-http") {
+		flags.AllowHTTP = viper.GetBool("lint.allow-http")
 	}
 	flags.FetchTimeout, _ = cmd.Flags().GetInt("fetch-timeout")
 	if !cmd.Flags().Changed("fetch-timeout") && viper.IsSet("lint.fetch-timeout") {
@@ -410,6 +415,7 @@ func GetFetchConfig(flags *LintFlags) (*utils.FetchConfig, error) {
 	return &utils.FetchConfig{
 		HTTPClientConfig:     httpClientConfig,
 		AllowPrivateNetworks: flags.AllowPrivateNetworks,
+		AllowHTTP:            flags.AllowHTTP,
 		Timeout:              timeout,
 	}, nil
 }
