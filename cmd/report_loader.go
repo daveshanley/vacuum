@@ -5,8 +5,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
@@ -31,54 +34,105 @@ type ReportLoadResult struct {
 
 // LoadFileAsReportOrSpec attempts to load a file as either a pre-compiled vacuum report
 // or as a raw OpenAPI specification. It returns a ReportLoadResult with all the necessary
-// data for either case.
+// data for either case. Supports both local file paths and remote URLs (http/https).
 func LoadFileAsReportOrSpec(filePath string) (*ReportLoadResult, error) {
-	// Get the absolute path for consistent handling
-	absPath, err := filepath.Abs(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve path: %w", err)
-	}
-	
+	return LoadFileAsReportOrSpecWithClient(filePath, nil)
+}
+
+// LoadFileAsReportOrSpecWithClient attempts to load a file as either a pre-compiled vacuum report
+// or as a raw OpenAPI specification with optional HTTP client for TLS configuration.
+// Supports both local file paths and remote URLs (http/https).
+func LoadFileAsReportOrSpecWithClient(filePath string, httpClient *http.Client) (*ReportLoadResult, error) {
 	result := &ReportLoadResult{
 		FileName: filePath,
 	}
-	
-	// Try to load as a vacuum report first
-	vacuumReport, bytes, err := vacuum_report.BuildVacuumReportFromFile(absPath)
-	if err != nil {
-		// If we can't read the file at all, that's an error
-		if bytes == nil {
+
+	var bytes []byte
+	var err error
+
+	// Check if the path is a URL
+	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") {
+		bytes, err = fetchRemoteSpec(filePath, httpClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch remote spec '%s': %w", filePath, err)
+		}
+	} else {
+		// Get the absolute path for consistent handling of local files
+		absPath, pathErr := filepath.Abs(filePath)
+		if pathErr != nil {
+			return nil, fmt.Errorf("failed to resolve path: %w", pathErr)
+		}
+
+		bytes, err = os.ReadFile(absPath)
+		if err != nil {
 			return nil, fmt.Errorf("failed to read file '%s': %w", filePath, err)
 		}
+	}
+
+	// Try to parse as a vacuum report
+	vacuumReport, parseErr := vacuum_report.CheckFileForVacuumReport(bytes)
+	if parseErr != nil {
 		// File was read but isn't a report - treat as spec
 		result.SpecBytes = bytes
 		result.IsReport = false
 		return result, nil
 	}
-	
+
 	// Check if it's actually a report
 	if vacuumReport != nil && vacuumReport.ResultSet != nil {
 		result.IsReport = true
 		result.Report = vacuumReport
 		result.ResultSet = vacuumReport.ResultSet
-		
+
 		// Extract spec bytes from the report if available
 		if vacuumReport.SpecInfo != nil && vacuumReport.SpecInfo.SpecBytes != nil {
 			result.SpecBytes = *vacuumReport.SpecInfo.SpecBytes
 		}
-		
+
 		// Use the original filename from the report's execution if available
 		if vacuumReport.Execution != nil && vacuumReport.Execution.SpecFileName != "" {
 			result.FileName = vacuumReport.Execution.SpecFileName
 		}
-		
+
 		return result, nil
 	}
-	
+
 	// Not a report, treat as regular spec file
 	result.SpecBytes = bytes
 	result.IsReport = false
 	return result, nil
+}
+
+// fetchRemoteSpec downloads a spec file from a remote URL
+func fetchRemoteSpec(url string, httpClient *http.Client) ([]byte, error) {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add a reasonable user agent
+	req.Header.Set("User-Agent", "vacuum-linter/1.0")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return bytes, nil
 }
 
 // LoadReportOnly attempts to load a file specifically as a vacuum report.

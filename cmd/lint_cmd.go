@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,8 +122,21 @@ func runLint(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// try to load the file as either a report or spec
-	reportOrSpec, err := LoadFileAsReportOrSpec(fileName)
+	// Create HTTP client early for URL support (cert/TLS config)
+	httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
+	if cfgErr != nil {
+		return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+	}
+	var httpClient *http.Client
+	if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+		httpClient, err = utils.CreateCustomHTTPClient(httpClientConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+	}
+
+	// try to load the file as either a report or spec (supports URLs)
+	reportOrSpec, err := LoadFileAsReportOrSpecWithClient(fileName, httpClient)
 	if err != nil {
 		if !flags.SilentFlag {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
@@ -130,7 +144,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fileInfo, _ := os.Stat(fileName)
+	// Get file size - for URLs, we use the downloaded bytes size
+	var fileSize int64
+	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
+		fileSize = int64(len(reportOrSpec.SpecBytes))
+	} else if fileInfo, err := os.Stat(fileName); err == nil {
+		fileSize = fileInfo.Size()
+	}
 	logger, bufferedLogger := createLogger(flags.DebugFlag)
 
 	var resultSet *model.RuleResultSet
@@ -216,9 +236,9 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve base path: %w", baseErr)
 		}
 
-		httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
-		if cfgErr != nil {
-			return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		fetchConfig, fetchCfgErr := GetFetchConfig(flags)
+		if fetchCfgErr != nil {
+			return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 		}
 
 		execution := &motor.RuleSetExecution{
@@ -239,6 +259,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
 			HTTPClientConfig:                httpClientConfig,
 			ApplyAutoFixes:                  flags.FixFlag,
+			FetchConfig:                     fetchConfig,
 		}
 
 		result := motor.ApplyRulesToRuleSet(execution)
@@ -384,7 +405,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	// timing
 	duration := time.Since(start)
 	if flags.TimeFlag && !flags.PipelineOutput {
-		renderFixedTiming(duration, fileInfo.Size())
+		renderFixedTiming(duration, fileSize)
 	}
 
 	// severity failure

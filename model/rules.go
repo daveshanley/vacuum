@@ -4,16 +4,18 @@ import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"regexp"
+	"sync"
+	"time"
+
+	"github.com/daveshanley/vacuum/config"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
-	"log/slog"
-	"regexp"
-	"sync"
-	"time"
 )
 
 const (
@@ -56,8 +58,9 @@ type RuleFunctionContext struct {
 	SpecInfo   *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
 	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
 	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
-	DrDocument *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
-	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
+	DrDocument  *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
+	Logger      *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
+	FetchConfig *config.FetchConfig `json:"-" yaml:"-"`                                       // Configuration for JavaScript fetch() requests
 
 	// MaxConcurrentValidations controls the maximum number of parallel validations for functions that support
 	// concurrency limiting (e.g., oasExampleSchema). Default is 10 if not set or 0.

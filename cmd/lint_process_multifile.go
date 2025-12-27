@@ -42,6 +42,11 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
 	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
 
+	fetchConfig, fetchCfgErr := GetFetchConfig(flags)
+	if fetchCfgErr != nil {
+		return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+	}
+
 	if !flags.SilentFlag && !flags.PipelineOutput {
 		if !flags.NoStyleFlag {
 			fmt.Printf(" vacuuming %s%d%s files...\n\n", color.ASCIIGreenBold, len(filesToLint), color.ASCIIReset)
@@ -137,6 +142,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			SelectedRuleset: selectedRS,
 			CustomFunctions: customFuncs,
 			IgnoredItems:    ignoredItems,
+			FetchConfig:     fetchConfig,
 		}
 
 		result := ProcessSingleFileOptimized(fileName, processingConfig)

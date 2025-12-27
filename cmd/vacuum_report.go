@@ -131,16 +131,25 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			keyFile, _ := cmd.Flags().GetString("key-file")
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
+			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 
 			httpFlags := &LintFlags{
-				CertFile: certFile,
-				KeyFile:  keyFile,
-				CAFile:   caFile,
-				Insecure: insecure,
+				CertFile:             certFile,
+				KeyFile:              keyFile,
+				CAFile:               caFile,
+				Insecure:             insecure,
+				AllowPrivateNetworks: allowPrivateNetworks,
+				FetchTimeout:         fetchTimeout,
 			}
 			httpClientConfig, cfgErr := GetHTTPClientConfig(httpFlags)
 			if cfgErr != nil {
 				return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+			}
+
+			fetchConfig, fetchCfgErr := GetFetchConfig(httpFlags)
+			if fetchCfgErr != nil {
+				return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 			}
 
 			extension := ".json"
@@ -297,6 +306,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					ExtractReferencesFromExtensions: extensionRefsFlag,
 					HTTPClientConfig:                httpClientConfig,
+					FetchConfig:                     fetchConfig,
 				})
 
 				resultSet := model.NewRuleResultSet(ruleset.Results)

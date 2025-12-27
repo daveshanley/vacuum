@@ -178,6 +178,8 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					keyFile, _ := cmd.Flags().GetString("key-file")
 					caFile, _ := cmd.Flags().GetString("ca-file")
 					insecure, _ := cmd.Flags().GetBool("insecure")
+					allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+					fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 
 					// Resolve base path for this specific file
 					resolvedBase, baseErr := ResolveBasePathForFile(specFile, baseFlag)
@@ -190,18 +192,25 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					}
 
 					httpFlags := &LintFlags{
-						CertFile: certFile,
-						KeyFile:  keyFile,
-						CAFile:   caFile,
-						Insecure: insecure,
+						CertFile:             certFile,
+						KeyFile:              keyFile,
+						CAFile:               caFile,
+						Insecure:             insecure,
+						AllowPrivateNetworks: allowPrivateNetworks,
+						FetchTimeout:         fetchTimeout,
 					}
 					httpClientConfig, cfgErr := GetHTTPClientConfig(httpFlags)
 					if cfgErr != nil {
 						return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
 					}
 
+					fetchConfig, fetchCfgErr := GetFetchConfig(httpFlags)
+					if fetchCfgErr != nil {
+						return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+					}
+
 					resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, ignoredItems)
+						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems)
 					if err != nil {
 						tui.RenderError(err)
 						if isMultiFile {
