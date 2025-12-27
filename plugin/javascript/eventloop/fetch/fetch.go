@@ -16,21 +16,21 @@ import (
 	"github.com/dop251/goja"
 )
 
-// EventLoopInterface defines the minimal interface needed from the event loop
-type EventLoopInterface interface {
+// EventLoop defines the minimal interface needed from the event loop
+type EventLoop interface {
 	RegisterCallback() func(func())
 	Runtime() *goja.Runtime
 }
 
-// FetchModule provides the fetch() function for JavaScript
-type FetchModule struct {
+// Fetch provides the fetch() function for JavaScript
+type Fetch struct {
 	config *FetchConfig
-	loop   EventLoopInterface
+	loop   EventLoop
 	vm     *goja.Runtime
 }
 
-// NewFetchModule creates a new FetchModule with the given configuration
-func NewFetchModule(loop EventLoopInterface, config *FetchConfig) *FetchModule {
+// NewFetchModule creates a new Fetch pointer with the given configuration
+func NewFetchModule(loop EventLoop, config *FetchConfig) *Fetch {
 	if config == nil {
 		config = DefaultFetchConfig()
 	}
@@ -38,18 +38,19 @@ func NewFetchModule(loop EventLoopInterface, config *FetchConfig) *FetchModule {
 	// Ensure the HTTPClient has secure transport when private networks are blocked
 	config.HTTPClient = config.ensureSecureClient()
 
-	return &FetchModule{
+	return &Fetch{
 		config: config,
 		loop:   loop,
 		vm:     loop.Runtime(),
 	}
 }
 
-// NewFetchModuleFromConfig creates a FetchModule from config.FetchConfig.
+// NewFetchModuleFromConfig creates a Fetch from config.FetchConfig.
 // Converts CLI/config system configuration to the internal FetchConfig.
-func NewFetchModuleFromConfig(loop EventLoopInterface, cfg *config.FetchConfig) *FetchModule {
+// Returns an error if TLS certificate configuration is invalid.
+func NewFetchModuleFromConfig(loop EventLoop, cfg *config.FetchConfig) (*Fetch, error) {
 	if cfg == nil {
-		return NewFetchModule(loop, nil)
+		return NewFetchModule(loop, nil), nil
 	}
 
 	timeout := cfg.Timeout
@@ -66,54 +67,50 @@ func NewFetchModuleFromConfig(loop EventLoopInterface, cfg *config.FetchConfig) 
 	}
 
 	if utils.ShouldUseCustomHTTPClient(cfg.HTTPClientConfig) {
-		if httpClient, err := utils.CreateCustomHTTPClient(cfg.HTTPClientConfig); err == nil {
-			fetchCfg.HTTPClient = httpClient
+		httpClient, err := utils.CreateCustomHTTPClient(cfg.HTTPClientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP client for fetch(): %w", err)
 		}
+		fetchCfg.HTTPClient = httpClient
 	}
 
-	return NewFetchModule(loop, fetchCfg)
+	return NewFetchModule(loop, fetchCfg), nil
 }
 
 // Register registers the fetch function in the JavaScript runtime
-func (m *FetchModule) Register() {
+func (m *Fetch) Register() {
 	m.vm.Set("fetch", m.fetch)
 }
 
 // fetch implements the Web Fetch API fetch() function
 // https://developer.mozilla.org/en-US/docs/Web/API/fetch
-func (m *FetchModule) fetch(call goja.FunctionCall) goja.Value {
-	// Get URL (required first argument)
+func (m *Fetch) fetch(call goja.FunctionCall) goja.Value {
+
 	if len(call.Arguments) < 1 {
 		panic(m.vm.NewTypeError("fetch requires at least 1 argument"))
 	}
 
 	url := call.Argument(0).String()
 
-	// Parse options (optional second argument)
 	opts := m.parseOptions(call)
 
-	// Validate URL based on config
 	if err := m.config.ValidateURL(url); err != nil {
 		return m.rejectPromise(err)
 	}
 
-	// Create Promise
 	promise, resolve, reject := m.vm.NewPromise()
 
-	// Register async callback with event loop
 	callback := m.loop.RegisterCallback()
 
-	// Execute request in goroutine
 	go func() {
 		resp, err := m.executeRequest(url, opts)
 
 		callback(func() {
 			if err != nil {
-				reject(m.vm.NewTypeError(err.Error()))
+				_ = reject(m.vm.NewTypeError(err.Error()))
 				return
 			}
 
-			// Create Response object
 			response := NewResponse(m.vm, ResponseInit{
 				Status:     resp.statusCode,
 				StatusText: resp.statusText,
@@ -123,10 +120,10 @@ func (m *FetchModule) fetch(call goja.FunctionCall) goja.Value {
 				Redirected: resp.redirected,
 			})
 
-			// Set Promise constructor for body methods
+			// promise constructor for body methods
 			response.SetPromiseConstructor(m.vm.Get("Promise"))
 
-			resolve(response.ToGojaObject())
+			_ = resolve(response.ToGojaObject())
 		})
 	}()
 
@@ -142,7 +139,7 @@ type fetchOptions struct {
 }
 
 // parseOptions parses the optional init object
-func (m *FetchModule) parseOptions(call goja.FunctionCall) *fetchOptions {
+func (m *Fetch) parseOptions(call goja.FunctionCall) *fetchOptions {
 	opts := &fetchOptions{
 		method:   "GET",
 		headers:  make(http.Header),
@@ -160,12 +157,10 @@ func (m *FetchModule) parseOptions(call goja.FunctionCall) *fetchOptions {
 
 	initObj := initArg.ToObject(m.vm)
 
-	// Method
 	if method := initObj.Get("method"); method != nil && !goja.IsUndefined(method) {
 		opts.method = strings.ToUpper(method.String())
 	}
 
-	// Headers
 	if headers := initObj.Get("headers"); headers != nil && !goja.IsUndefined(headers) {
 		headersObj := headers.ToObject(m.vm)
 		for _, key := range headersObj.Keys() {
@@ -176,7 +171,7 @@ func (m *FetchModule) parseOptions(call goja.FunctionCall) *fetchOptions {
 		}
 	}
 
-	// Body - only accept strings to avoid silent coercion of objects to "[object Object]"
+	// only accept strings to avoid silent coercion of objects to "[object Object]"
 	if body := initObj.Get("body"); body != nil && !goja.IsUndefined(body) && !goja.IsNull(body) {
 		exported := body.Export()
 		bodyStr, ok := exported.(string)
@@ -211,11 +206,11 @@ type httpResponse struct {
 	redirected bool
 }
 
-func (m *FetchModule) executeRequest(url string, opts *fetchOptions) (*httpResponse, error) {
+func (m *Fetch) executeRequest(url string, opts *fetchOptions) (*httpResponse, error) {
 	ctx := context.Background()
 	var cancel context.CancelFunc
 
-	// Only apply timeout if configured (0 means no timeout)
+	// only apply timeout if configured (0 means no timeout)
 	if m.config.DefaultTimeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, m.config.DefaultTimeout)
 		defer cancel()
@@ -246,9 +241,9 @@ func (m *FetchModule) executeRequest(url string, opts *fetchOptions) (*httpRespo
 	var redirected bool
 	var finalURL string
 
-	// Wrap redirect handler to:
-	// 1. Validate redirect targets against security config (AllowInsecure, AllowedHosts, BlockedHosts)
-	// 2. Track whether we actually followed a redirect (for response.redirected)
+	// wrap the redirect handler to:
+	// - validate redirect targets against security config (AllowInsecure, AllowedHosts, BlockedHosts)
+	// - track whether we actually followed a redirect (for response.redirected)
 	originalCheckRedirect := client.CheckRedirect
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		if originalCheckRedirect != nil {
@@ -259,12 +254,12 @@ func (m *FetchModule) executeRequest(url string, opts *fetchOptions) (*httpRespo
 			}
 		}
 
-		// Validate redirect target URL against security config
+		// validate redirect target URL against security config
 		if err := m.config.ValidateURL(req.URL.String()); err != nil {
 			return fmt.Errorf("%w: redirect target not allowed: %v", ErrRedirectNotAllowed, err)
 		}
 
-		// We're following the redirect
+		// following the redirect
 		if len(via) > 0 {
 			redirected = true
 		}
@@ -279,7 +274,7 @@ func (m *FetchModule) executeRequest(url string, opts *fetchOptions) (*httpRespo
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, fmt.Errorf("%w after %v", ErrFetchTimeout, m.config.DefaultTimeout)
 		}
-		// Check if the error is redirect-related (redirect: "error" mode or blocked redirect target)
+		// check if the error is redirect-related (redirect: "error" mode or blocked redirect target)
 		if errors.Is(err, ErrRedirectNotAllowed) {
 			return nil, err
 		}
@@ -318,7 +313,7 @@ func (m *FetchModule) executeRequest(url string, opts *fetchOptions) (*httpRespo
 
 // createHTTPClient creates a copy of the base HTTP client configured for the redirect mode.
 // Each call returns a new client to avoid race conditions in concurrent requests.
-func (m *FetchModule) createHTTPClient(redirectMode string) *http.Client {
+func (m *Fetch) createHTTPClient(redirectMode string) *http.Client {
 	client := *m.config.HTTPClient
 
 	switch redirectMode {
@@ -337,7 +332,7 @@ func (m *FetchModule) createHTTPClient(redirectMode string) *http.Client {
 }
 
 // rejectPromise creates a rejected Promise with the given error
-func (m *FetchModule) rejectPromise(err error) goja.Value {
+func (m *Fetch) rejectPromise(err error) goja.Value {
 	promise, _, reject := m.vm.NewPromise()
 	_ = reject(m.vm.NewTypeError(err.Error()))
 	return m.vm.ToValue(promise)

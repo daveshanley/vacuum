@@ -617,8 +617,9 @@ func TestParseStatusTextFromHeader(t *testing.T) {
 func TestNewFetchModuleFromConfig(t *testing.T) {
 	t.Run("nil config uses defaults", func(t *testing.T) {
 		loop := &simpleEventLoop{vm: goja.New()}
-		module := NewFetchModuleFromConfig(loop, nil)
+		module, err := NewFetchModuleFromConfig(loop, nil)
 
+		require.NoError(t, err)
 		assert.NotNil(t, module)
 		assert.NotNil(t, module.config)
 		assert.Equal(t, DefaultTimeout, module.config.DefaultTimeout)
@@ -634,8 +635,9 @@ func TestNewFetchModuleFromConfig(t *testing.T) {
 		}
 		cfg.Insecure = true
 
-		module := NewFetchModuleFromConfig(loop, cfg)
+		module, err := NewFetchModuleFromConfig(loop, cfg)
 
+		require.NoError(t, err)
 		assert.NotNil(t, module)
 		assert.True(t, module.config.AllowInsecure)
 		assert.True(t, module.config.AllowPrivateNetworks)
@@ -648,8 +650,9 @@ func TestNewFetchModuleFromConfig(t *testing.T) {
 			Timeout: 0,
 		}
 
-		module := NewFetchModuleFromConfig(loop, cfg)
+		module, err := NewFetchModuleFromConfig(loop, cfg)
 
+		require.NoError(t, err)
 		assert.Equal(t, DefaultTimeout, module.config.DefaultTimeout)
 	})
 
@@ -659,13 +662,27 @@ func TestNewFetchModuleFromConfig(t *testing.T) {
 			Timeout: -5 * time.Second,
 		}
 
-		module := NewFetchModuleFromConfig(loop, cfg)
+		module, err := NewFetchModuleFromConfig(loop, cfg)
 
+		require.NoError(t, err)
 		assert.Equal(t, DefaultTimeout, module.config.DefaultTimeout)
+	})
+
+	t.Run("invalid cert file returns error", func(t *testing.T) {
+		loop := &simpleEventLoop{vm: goja.New()}
+		cfg := &config.FetchConfig{}
+		cfg.CertFile = "/nonexistent/cert.pem"
+		cfg.KeyFile = "/nonexistent/key.pem"
+
+		module, err := NewFetchModuleFromConfig(loop, cfg)
+
+		assert.Error(t, err)
+		assert.Nil(t, module)
+		assert.Contains(t, err.Error(), "failed to create HTTP client for fetch()")
 	})
 }
 
-// simpleEventLoop implements EventLoopInterface for simple unit tests
+// simpleEventLoop implements EventLoop for simple unit tests
 type simpleEventLoop struct {
 	vm *goja.Runtime
 }
