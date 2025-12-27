@@ -105,6 +105,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().String("ca-file", "", "Path to CA certificate file for HTTPS requests")
 	rootCmd.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (insecure)")
 	rootCmd.PersistentFlags().Bool("allow-private-networks", false, "Allow fetch() to access private/local networks (localhost, 10.x, 192.168.x)")
+	rootCmd.PersistentFlags().Bool("allow-http", false, "Allow fetch() to use HTTP (non-HTTPS) URLs")
 	rootCmd.PersistentFlags().Int("fetch-timeout", 30, "Timeout for fetch() requests in seconds (default 30)")
 	rootCmd.PersistentFlags().String("changes", "", "Path to change report JSON file for filtering results to changed areas only")
 	rootCmd.PersistentFlags().String("original", "", "Path to original/old spec file for inline comparison (filters results to changed areas)")
@@ -158,6 +159,9 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("allow-private-networks", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("allow-http", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("fetch-timeout", cobra.NoFileCompletions); regErr != nil {

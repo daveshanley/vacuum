@@ -132,6 +132,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			allowHTTP, _ := cmd.Flags().GetBool("allow-http")
 			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 
 			httpFlags := &LintFlags{
@@ -140,6 +141,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				CAFile:               caFile,
 				Insecure:             insecure,
 				AllowPrivateNetworks: allowPrivateNetworks,
+				AllowHTTP:            allowHTTP,
 				FetchTimeout:         fetchTimeout,
 			}
 			httpClientConfig, cfgErr := GetHTTPClientConfig(httpFlags)

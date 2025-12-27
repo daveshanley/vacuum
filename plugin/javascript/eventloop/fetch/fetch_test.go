@@ -631,15 +631,15 @@ func TestNewFetchModuleFromConfig(t *testing.T) {
 		loop := &simpleEventLoop{vm: goja.New()}
 		cfg := &config.FetchConfig{
 			AllowPrivateNetworks: true,
+			AllowHTTP:            true, // Separate from TLS-insecure
 			Timeout:              60 * time.Second,
 		}
-		cfg.Insecure = true
 
 		module, err := NewFetchModuleFromConfig(loop, cfg)
 
 		require.NoError(t, err)
 		assert.NotNil(t, module)
-		assert.True(t, module.config.AllowInsecure)
+		assert.True(t, module.config.AllowInsecure) // Maps from AllowHTTP
 		assert.True(t, module.config.AllowPrivateNetworks)
 		assert.Equal(t, 60*time.Second, module.config.DefaultTimeout)
 	})

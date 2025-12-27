@@ -128,6 +128,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
 			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			allowHTTP, _ := cmd.Flags().GetBool("allow-http")
 			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 
 			lintFlags := &LintFlags{
@@ -136,6 +137,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				CAFile:               caFile,
 				Insecure:             insecure,
 				AllowPrivateNetworks: allowPrivateNetworks,
+				AllowHTTP:            allowHTTP,
 				FetchTimeout:         fetchTimeout,
 			}
 
