@@ -116,11 +116,43 @@ func ExtractPromiseValue(value goja.Value) (interface{}, error) {
 		if result == nil {
 			return nil, ErrPromiseRejected
 		}
-		return nil, fmt.Errorf("%w: %v", ErrPromiseRejected, result.Export())
+		// Try to extract error message from JavaScript Error objects
+		errMsg := extractErrorMessage(result)
+		return nil, fmt.Errorf("%w: %s", ErrPromiseRejected, errMsg)
 
 	default:
 		return nil, ErrPromiseTimeout
 	}
+}
+
+// extractErrorMessage extracts a human-readable error message from a goja.Value.
+// It handles JavaScript Error objects by getting their 'message' property,
+// and falls back to String() or Export() for other types.
+func extractErrorMessage(value goja.Value) string {
+	if value == nil {
+		return "unknown error"
+	}
+
+	// Try to get 'message' property (for Error objects like TypeError, Error, etc.)
+	// Only attempt this for Object types - strings/primitives would panic with nil runtime
+	if obj, ok := value.(*goja.Object); ok && obj != nil {
+		if msg := obj.Get("message"); msg != nil && !goja.IsUndefined(msg) && !goja.IsNull(msg) {
+			return msg.String()
+		}
+	}
+
+	// Fall back to string conversion
+	if str := value.String(); str != "" && str != "[object Object]" {
+		return str
+	}
+
+	// Last resort: export and format
+	exported := value.Export()
+	if exported != nil {
+		return fmt.Sprintf("%v", exported)
+	}
+
+	return "unknown error"
 }
 
 // WrapGoFunctionAsync wraps a Go function as an async JavaScript function.
