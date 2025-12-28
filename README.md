@@ -248,7 +248,7 @@ See all the documentation at https://quobix.com/vacuum
   - [bundle](https://quobix.com/vacuum/commands/bundle/)
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
   - [language-server](https://quobix.com/vacuum/commands/language-server/)
-  - [change-detection](https://quobix.com/vacuum/commands/change-detection/)
+  - [Change Detection](https://quobix.com/vacuum/commands/change-detection/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)
