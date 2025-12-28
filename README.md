@@ -133,7 +133,24 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.21` 🔥: **Change detection filtering**
+🔥 **New in** `v0.22` 🔥: **Async Functions / Promises, Fetch & Batch mode in Custom JS Functions**
+
+Do you want to call remote APIs in your vacuum javascript functions? What about async processing or the ability to use Promises?
+
+vacuum now has its own event loop and will happily support `async` and `await`. Combined with a full implementation of [Fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API).
+
+Also added **Batch Mode**. This allows custom functions to receive the entire list of nodes, instead of firing the function 
+for each result, so you can send all your data off to an API or an LLM, and have the ability parse and process everything at once
+vs individually. 
+
+
+[Read all about async JS functions in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#async-functions--promises)
+[Learn about using fetch in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#fetch-api)
+[find out how batch mode works](https://quobix.com/vacuum/api/custom-javascript-functions/#batch-mode-processing)
+
+---
+
+`v0.21`: **Change detection filtering**
 
 Want to see linting results on **just** the changes you have made to an OpenAPI document? Or want to see just the results on the differences between two documents? 
 comes with a **what changed** mode. Using the new `--original` and `--changes-summary` global flags, you can filter out all the noise. 
