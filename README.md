@@ -143,10 +143,9 @@ Also added **Batch Mode**. This allows custom functions to receive the entire li
 for each result, so you can send all your data off to an API or an LLM, and have the ability parse and process everything at once
 vs individually. 
 
-
-[Read all about async JS functions in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#async-functions--promises)
-[Learn about using fetch in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#fetch-api)
-[find out how batch mode works](https://quobix.com/vacuum/api/custom-javascript-functions/#batch-mode-processing)
+- [Read all about async JS functions in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#async-functions--promises)
+- [Learn about using fetch in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#fetch-api)
+- [find out how batch mode works](https://quobix.com/vacuum/api/custom-javascript-functions/#batch-mode-processing)
 
 ---
 
