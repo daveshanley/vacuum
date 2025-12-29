@@ -5,10 +5,14 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -112,4 +116,58 @@ paths:
 
 	assert.Len(t, res, 1)
 	assert.Equal(t, "tag `such_a_naughty_dog` for `GET` operation is not defined as a global tag", res[0].Message)
+}
+
+func TestTagDefined_RunRule_MultiFile_CorrectOrigin(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mainSpec := `
+openapi: 3.0.1
+tags:
+  - name: "ValidTag"
+paths:
+  /external:
+    $ref: 'external-path.yaml'`
+
+	externalPath := `
+get:
+  tags:
+    - "UndefinedTag"
+  responses:
+    "200":
+      description: OK`
+
+	err := os.WriteFile(filepath.Join(tmpDir, "main.yaml"), []byte(mainSpec), 0644)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "external-path.yaml"), []byte(externalPath), 0644)
+	assert.NoError(t, err)
+
+	config := datamodel.NewDocumentConfiguration()
+	config.BasePath = tmpDir
+	config.AllowFileReferences = true
+
+	document, err := libopenapi.NewDocumentWithConfiguration([]byte(mainSpec), config)
+	assert.NoError(t, err)
+
+	m, errs := document.BuildV3Model()
+	assert.NoError(t, errs)
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "tag-defined", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+	ctx.Index = m.Index
+
+	def := TagDefined{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "tag `UndefinedTag` for `GET` operation is not defined as a global tag", res[0].Message)
+
+	assert.NotNil(t, res[0].Origin)
+	assert.True(t, strings.HasSuffix(res[0].Origin.AbsoluteLocation, "external-path.yaml"),
+		"Expected origin to be external-path.yaml but got: %s", res[0].Origin.AbsoluteLocation)
 }
