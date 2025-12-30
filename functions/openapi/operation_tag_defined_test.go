@@ -23,7 +23,9 @@ func TestOperd_GetSchema(t *testing.T) {
 
 func TestTagDefined_RunRule(t *testing.T) {
 	def := TagDefined{}
-	res := def.RunRule(nil, model.RuleFunctionContext{})
+	context := model.RuleFunctionContext{}
+	context.Index = index.NewSpecIndexWithConfig(nil, index.CreateOpenAPIIndexConfig())
+	res := def.RunRule(nil, context)
 	assert.Len(t, res, 0)
 }
 
