@@ -36,6 +36,9 @@ var (
 	StyleSyntaxDefault     = lipgloss.NewStyle().Foreground(RGBPink)
 	StyleSyntaxSingleQuote = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 	StyleSyntaxRef         = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
+	StyleStatusOK          = lipgloss.NewStyle().Foreground(RGBGreen)
+	StyleStatusWarn        = lipgloss.NewStyle().Foreground(RBGYellow)
+	StyleActionRemove      = lipgloss.NewStyle().Foreground(RGBRed)
 )
 
 // DisableLipglossStyles sets all lipgloss styles to render without any styling
@@ -69,4 +72,7 @@ func DisableLipglossStyles() {
 	StyleSyntaxDefault = noStyle
 	StyleSyntaxSingleQuote = noStyle
 	StyleSyntaxRef = noStyle
+	StyleStatusOK = noStyle
+	StyleStatusWarn = noStyle
+	StyleActionRemove = noStyle
 }

@@ -123,6 +123,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.AddCommand(GetGenerateVersionCommand())
 	rootCmd.AddCommand(GetLanguageServerCommand())
 	rootCmd.AddCommand(GetBundleCommand())
+	rootCmd.AddCommand(GetApplyOverlayCommand())
 
 	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,
