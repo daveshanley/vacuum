@@ -459,6 +459,57 @@ func ApplyLintDetailsTableStyles(t *table.Model) {
 	t.SetStyles(s)
 }
 
+// ApplyOverlayTableStyles applies the pb33f house style to an overlay actions table.
+// Uses the same pink theme as lint tables for consistency.
+func ApplyOverlayTableStyles(t *table.Model) {
+	s := table.DefaultStyles()
+
+	s.Header = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink).
+		BorderBottom(true).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderTop(false).
+		Foreground(RGBPink).
+		Bold(true).
+		Padding(0, 1)
+
+	s.Cell = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink).
+		BorderRight(false).
+		Padding(0, 1)
+
+	// Selected row looks same as normal cells - this is a static display table
+	// Note: Selected wraps the whole row, so no padding here (cells already have padding)
+	s.Selected = lipgloss.NewStyle()
+
+	t.SetStyles(s)
+}
+
+// ApplyPlainTableStyles applies plain/no-color styles to a table for --no-style mode.
+func ApplyPlainTableStyles(t *table.Model) {
+	s := table.DefaultStyles()
+
+	s.Header = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderTop(false).
+		Bold(true).
+		Padding(0, 1)
+
+	s.Cell = lipgloss.NewStyle().
+		Padding(0, 1)
+
+	// No special styling for selected row
+	s.Selected = lipgloss.NewStyle()
+
+	t.SetStyles(s)
+}
+
 // CreatePb33fDocsStyle creates a custom Glamour style for documentation rendering
 // using the existing princess beef heavy industries color scheme.
 func CreatePb33fDocsStyle(termWidth int) ansi.StyleConfig {
