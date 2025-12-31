@@ -133,7 +133,21 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.22` 🔥: **Async Functions / Promises, Fetch & Batch mode in Custom JS Functions**
+🔥 **New in** `v0.23` 🔥: **OpenAPI Overlay Support**
+
+Ever needed to tweak an OpenAPI spec for different environments without maintaining multiple copies? 
+
+Maybe swap out server URLs between dev, staging, and production? Or perhaps strip out internal endpoints before publishing the API docs?
+
+OpenAPI Overlays are the answer. They let us make non-destructive modifications to specs using JSONPath expressions to 
+target exactly what we want to change. vaccum now supports a new `apply-overlay` command.
+
+- [Learn more about the apply-overlay command](https://quobix.com/vacuum/commands/apply-overlay)
+
+---
+
+
+`v0.22`: **Async Functions / Promises, Fetch & Batch mode in Custom JS Functions**
 
 Do you want to call remote APIs in your vacuum javascript functions? What about async processing or the ability to use Promises?
 
@@ -248,6 +262,7 @@ See all the documentation at https://quobix.com/vacuum
   - [bundle](https://quobix.com/vacuum/commands/bundle/)
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
   - [language-server](https://quobix.com/vacuum/commands/language-server/)
+  - [apply-overlay](https://quobix.com/vacuum/commands/apply-overlay/)
   - [Change Detection](https://quobix.com/vacuum/commands/change-detection/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
