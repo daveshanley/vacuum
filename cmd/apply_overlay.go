@@ -1,4 +1,4 @@
-// Copyright 2023-2024 Princess Beef Heavy Industries, LLC / Dave Shanley
+// Copyright 2023-2025 Princess Beef Heavy Industries, LLC / Dave Shanley
 // https://pb33f.io
 
 // Copyright 2022 Dave Shanley / Quobix
@@ -257,14 +257,14 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// maxOverlaySize is the maximum size for remote overlay downloads (1GB)
+// maxOverlaySize is the maximum size for remote overlay downloads (1 GiB)
 const maxOverlaySize = 1024 * 1024 * 1024
 
 // defaultHTTPTimeout is the timeout for HTTP requests when no custom client is configured
 const defaultHTTPTimeout = 30 * time.Second
 
 // fetchOverlay reads overlay content from a local file or remote URL.
-// Remote URLs are limited to http/https schemes and 10MB maximum size.
+// Remote URLs are limited to http/https schemes and 1 GiB maximum size.
 func fetchOverlay(urlOrPath string, httpClientConfig utils.HTTPClientConfig) ([]byte, error) {
 	// Check if it's a remote URL (only http/https allowed)
 	if strings.HasPrefix(urlOrPath, "http://") || strings.HasPrefix(urlOrPath, "https://") {

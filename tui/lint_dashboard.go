@@ -555,7 +555,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 	builder.WriteString("  ")
 
 	// Warnings (yellow triangle)
-	warningStyle := lipgloss.NewStyle().Foreground(color.RBGYellow)
+	warningStyle := lipgloss.NewStyle().Foreground(color.RGBYellow)
 	builder.WriteString(warningStyle.Render(fmt.Sprintf("▲ %d", warningCount)))
 
 	builder.WriteString("  ")
@@ -586,7 +586,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 
 		// Modifications (yellow tilde)
 		if m.changeStats.Modified > 0 {
-			modifiedStyle := lipgloss.NewStyle().Foreground(color.RBGYellow)
+			modifiedStyle := lipgloss.NewStyle().Foreground(color.RGBYellow)
 			builder.WriteString(modifiedStyle.Render(fmt.Sprintf("~ %d", m.changeStats.Modified)))
 			builder.WriteString("  ")
 		}
