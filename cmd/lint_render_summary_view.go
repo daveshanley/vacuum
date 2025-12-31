@@ -406,7 +406,7 @@ func renderResultBox(errors, warnings, informs, fixesApplied int) {
 	} else if warnings > 0 {
 		message := fmt.Sprintf("\u25B2 Passed, but with %s warnings and %s informs.%s",
 			humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		style := createResultBoxStyle(color2.RBGYellow, color2.RGBDarkYellow)
+		style := createResultBoxStyle(color2.RGBYellow, color2.RGBDarkYellow)
 		fmt.Println(style.Render(messageStyle.Render(message)))
 	} else if informs > 0 {
 		message := fmt.Sprintf("\u25CF Passed, with %s informs.%s", humanize.Comma(int64(informs)), addFixCount(fixesApplied))

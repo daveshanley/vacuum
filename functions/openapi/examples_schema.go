@@ -6,6 +6,7 @@ package openapi
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,8 +15,10 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi-validator/config"
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
+	"github.com/pb33f/libopenapi-validator/strict"
 	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	"github.com/pb33f/libopenapi/orderedmap"
@@ -60,6 +63,20 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	// create a timeout context for the entire validation process
 	ctx, cancel := context.WithTimeout(context.Background(), validationTimeout)
 	defer cancel()
+
+	// extract strictMode option from functionOptions
+	strictMode := false
+	opts := ruleContext.GetOptionsStringMap()
+	if val := opts["strictMode"]; val != "" {
+		parsed, err := strconv.ParseBool(val)
+		if err != nil {
+			if ruleContext.Logger != nil {
+				ruleContext.Logger.Warn("invalid strictMode value", "value", val)
+			}
+		} else {
+			strictMode = parsed
+		}
+	}
 
 	// create semaphore for concurrency limiting
 	sem := make(chan struct{}, maxConcurrentValidations)
@@ -144,6 +161,33 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	validator := schema_validation.NewSchemaValidator()
 	xmlValidator := schema_validation.NewXMLValidator()
 	version := ruleContext.Document.GetSpecInfo().VersionNumeric
+
+	// appendStrictResults performs strict validation and appends any undeclared property errors.
+	// This is extracted to avoid duplicating the strict validation logic in multiple places.
+	appendStrictResults := func(
+		rx []model.RuleFunctionResult,
+		example any,
+		schema *v3.Schema,
+		path string,
+		keyNode, valueNode *yaml.Node,
+	) []model.RuleFunctionResult {
+		if !strictMode || len(rx) > 0 {
+			return rx
+		}
+		if !isObjectExample(example) || schema == nil || schema.Value == nil || schema.Value.GoLow() == nil {
+			return rx
+		}
+
+		direction := deriveDirectionFromPath(path)
+		undeclared := validateExampleStrict(schema.Value, example, version, path, direction)
+		for _, u := range undeclared {
+			rx = append(rx, buildResult(
+				vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, formatUndeclaredMessage(u)),
+				path, keyNode, valueNode, schema))
+		}
+		return rx
+	}
+
 	validateSchema := func(iKey *int,
 		sKey, label string,
 		s *v3.Schema,
@@ -161,17 +205,20 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 			} else {
 				valid, validationErrors = validator.ValidateSchemaObject(s.Value, example)
 			}
+
+			// compute path for error reporting (needed for both normal and strict validation)
+			var path string
+			if iKey == nil && sKey == "" {
+				path = fmt.Sprintf("%s.%s", obj.(v3.Foundational).GenerateJSONPath(), label)
+			}
+			if iKey != nil && sKey == "" {
+				path = fmt.Sprintf("%s.%s[%d]", obj.(v3.Foundational).GenerateJSONPath(), label, *iKey)
+			}
+			if iKey == nil && sKey != "" {
+				path = fmt.Sprintf("%s.%s['%s']", obj.(v3.Foundational).GenerateJSONPath(), label, sKey)
+			}
+
 			if !valid {
-				var path string
-				if iKey == nil && sKey == "" {
-					path = fmt.Sprintf("%s.%s", obj.(v3.Foundational).GenerateJSONPath(), label)
-				}
-				if iKey != nil && sKey == "" {
-					path = fmt.Sprintf("%s.%s[%d]", obj.(v3.Foundational).GenerateJSONPath(), label, *iKey)
-				}
-				if iKey == nil && sKey != "" {
-					path = fmt.Sprintf("%s.%s['%s']", obj.(v3.Foundational).GenerateJSONPath(), label, sKey)
-				}
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
 						result := buildResult(vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, err.Reason),
@@ -190,6 +237,11 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					}
 				}
 			}
+
+			// NOTE: Strict validation only applies to JSON examples. XML examples are strings
+			// (not maps) and use a separate validation path. If this changes, add explicit
+			// content-type check here.
+			rx = appendStrictResults(rx, example, s, path, keyNode, node)
 		}
 		return rx
 	}
@@ -342,26 +394,30 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 				_ = example.Value.Decode(&ex)
 				valid, validationErrors := validatorFunc(ex)
 
+				path := fmt.Sprintf("%s.examples['%s']", obj.(v3.Foundational).GenerateJSONPath(), exampleKey)
 				if !valid {
-					path := fmt.Sprintf("%s.examples['%s']", obj.(v3.Foundational).GenerateJSONPath(), exampleKey)
 					rx = append(rx, processValidationErrors(validationErrors, path,
 						example.GoLow().KeyNode, example.Value, s)...)
 				}
+
+				rx = appendStrictResults(rx, ex, s, path, example.GoLow().KeyNode, example.Value)
 			}
 		}
 		return rx
 	}
 
-	parseExample := func(s *v3.Schema, node, key *yaml.Node, validatorFunc exampleValidatorFunc) []model.RuleFunctionResult {
+	parseExample := func(s *v3.Schema, obj v3.AcceptsRuleResults, node, key *yaml.Node, validatorFunc exampleValidatorFunc) []model.RuleFunctionResult {
 		var rx []model.RuleFunctionResult
 		var ex any
 		_ = node.Decode(&ex)
 
 		valid, validationErrors := validatorFunc(ex)
+		path := fmt.Sprintf("%s.example", obj.(v3.Foundational).GenerateJSONPath())
 		if !valid {
-			path := ""
 			rx = append(rx, processValidationErrors(validationErrors, path, key, node, s)...)
 		}
+
+		rx = appendStrictResults(rx, ex, s, path, key, node)
 		return rx
 	}
 
@@ -387,7 +443,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					if p.Value.Example != nil && p.SchemaProxy != nil {
 						jsonValidator := createJSONValidator(p.SchemaProxy.Schema, version)
 						expLock.Lock()
-						results = append(results, parseExample(p.SchemaProxy.Schema, p.Value.Example,
+						results = append(results, parseExample(p.SchemaProxy.Schema, p, p.Value.Example,
 							p.Value.GoLow().Example.GetKeyNode(), jsonValidator)...)
 						expLock.Unlock()
 					}
@@ -416,7 +472,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					if h.Value.Example != nil && h.Schema != nil {
 						jsonValidator := createJSONValidator(h.Schema.Schema, version)
 						expLock.Lock()
-						results = append(results, parseExample(h.Schema.Schema, h.Value.Example,
+						results = append(results, parseExample(h.Schema.Schema, h, h.Value.Example,
 							h.Value.GoLow().Example.GetKeyNode(), jsonValidator)...)
 						expLock.Unlock()
 					}
@@ -459,7 +515,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 							exampleValidator = createJSONValidator(mt.SchemaProxy.Schema, version)
 						}
 						expLock.Lock()
-						results = append(results, parseExample(mt.SchemaProxy.Schema, mt.Value.Example,
+						results = append(results, parseExample(mt.SchemaProxy.Schema, mt, mt.Value.Example,
 							mt.Value.GoLow().Example.GetKeyNode(), exampleValidator)...)
 						expLock.Unlock()
 					}
@@ -515,5 +571,153 @@ func changeKeys(depth int, node *yaml.Node) {
 			depth++
 			changeKeys(depth, no)
 		}
+	}
+}
+
+// deriveDirectionFromPath determines if an example is in request or response context.
+// Uses ".responses." segment match to avoid false positives on schema names.
+func deriveDirectionFromPath(path string) strict.Direction {
+	// Match ".responses." as a path segment to avoid false positives
+	// e.g., "$.paths./pets.get.responses.200.content..." matches
+	// e.g., "$.components.schemas.MyResponses..." does NOT match
+	if strings.Contains(path, ".responses.") {
+		return strict.DirectionResponse
+	}
+	return strict.DirectionRequest
+}
+
+// needsNormalization checks if the value contains any map[interface{}]interface{} that needs conversion.
+func needsNormalization(v any) bool {
+	switch val := v.(type) {
+	case map[interface{}]interface{}:
+		return true
+	case map[string]any:
+		for _, v := range val {
+			if needsNormalization(v) {
+				return true
+			}
+		}
+		return false
+	case []any:
+		for _, item := range val {
+			if needsNormalization(item) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+// normalizeToStringMap converts map[interface{}]interface{} to map[string]any recursively.
+// YAML decoding produces map[interface{}]interface{}, but strict validator requires map[string]any.
+// Non-string keys are converted to strings via fmt.Sprintf to avoid silent data loss.
+func normalizeToStringMap(v any) any {
+	// Fast path: skip allocation if no normalization needed
+	if !needsNormalization(v) {
+		return v
+	}
+	return doNormalize(v)
+}
+
+func doNormalize(v any) any {
+	switch val := v.(type) {
+	case map[interface{}]interface{}:
+		// Always need to convert interface{} keys to string keys
+		result := make(map[string]any, len(val))
+		for k, v := range val {
+			// Convert any key type to string - don't silently drop non-string keys
+			ks := fmt.Sprintf("%v", k)
+			result[ks] = doNormalize(v)
+		}
+		return result
+	case map[string]any:
+		// Check if any child needs normalization before allocating
+		childNeedsNorm := false
+		for _, v := range val {
+			if needsNormalization(v) {
+				childNeedsNorm = true
+				break
+			}
+		}
+		if !childNeedsNorm {
+			return val // Return original without allocation
+		}
+		result := make(map[string]any, len(val))
+		for k, v := range val {
+			result[k] = doNormalize(v)
+		}
+		return result
+	case []any:
+		// Check if any element needs normalization before allocating
+		childNeedsNorm := false
+		for _, item := range val {
+			if needsNormalization(item) {
+				childNeedsNorm = true
+				break
+			}
+		}
+		if !childNeedsNorm {
+			return val // Return original without allocation
+		}
+		result := make([]any, len(val))
+		for i, item := range val {
+			result[i] = doNormalize(item)
+		}
+		return result
+	default:
+		return v
+	}
+}
+
+// validateExampleStrict performs strict validation to detect undeclared properties.
+func validateExampleStrict(
+	schema *v3Base.Schema,
+	example any,
+	version float32,
+	basePath string,
+	direction strict.Direction,
+) []strict.UndeclaredValue {
+	if schema == nil {
+		return nil
+	}
+
+	// Normalize YAML maps to map[string]any for strict validator
+	normalized := normalizeToStringMap(example)
+
+	validationOpts := config.NewValidationOptions(config.WithStrictMode())
+	v := strict.NewValidator(validationOpts, version)
+	result := v.Validate(strict.Input{
+		Schema:    schema,
+		Data:      normalized,
+		Direction: direction,
+		Options:   validationOpts,
+		BasePath:  basePath,
+		Version:   version,
+	})
+
+	if result != nil && !result.Valid {
+		return result.UndeclaredValues
+	}
+	return nil
+}
+
+// formatUndeclaredMessage formats an error message for an undeclared property
+func formatUndeclaredMessage(u strict.UndeclaredValue) string {
+	message := fmt.Sprintf("example contains undeclared property '%s' at %s", u.Name, u.Path)
+	if len(u.DeclaredProperties) > 0 {
+		message += fmt.Sprintf(" (declared properties: %v)", u.DeclaredProperties)
+	}
+	return message
+}
+
+// isObjectExample checks if example data is an object (map) type
+func isObjectExample(example any) bool {
+	switch example.(type) {
+	case map[string]any, map[interface{}]interface{}:
+		return true
+	default:
+		return false
 	}
 }
