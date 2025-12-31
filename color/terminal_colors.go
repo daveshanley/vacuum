@@ -88,7 +88,7 @@ var (
 	RGBPink              = OrigRGBPink
 	RGBRed               = OrigRGBRed
 	RGBDarkRed           = OrigRGBDarkRed
-	RBGYellow            = OrigRGBYellow
+	RGBYellow            = OrigRGBYellow
 	RGBDarkYellow        = OrigRGBDarkYellow
 	RGBGreen             = OrigRGBGreen
 	RGBDarkGreen         = OrigRGBDarkGreen
@@ -744,7 +744,7 @@ func DisableColors() {
 	RGBPink = lipgloss.NoColor{}
 	RGBRed = lipgloss.NoColor{}
 	RGBDarkRed = lipgloss.Color("238")
-	RBGYellow = lipgloss.NoColor{}
+	RGBYellow = lipgloss.NoColor{}
 	RGBDarkYellow = lipgloss.Color("238")
 	RGBGreen = lipgloss.NoColor{}
 	RGBDarkGreen = lipgloss.Color("238")

@@ -74,9 +74,9 @@ func RenderStyledBox(message string, boxType BoxType, noStyle bool) {
 	case BoxTypeWarning:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(color.RBGYellow).
+			Foreground(color.RGBYellow).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(color.RBGYellow).
+			BorderForeground(color.RGBYellow).
 			Bold(true)
 	case BoxTypeInfo:
 		boxStyle = lipgloss.NewStyle().
