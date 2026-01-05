@@ -356,6 +356,202 @@ func (df dummyFuncMinMax) RunRule(nodes []*yaml.Node, context RuleFunctionContex
 	return nil
 }
 
+// Tests for extractOptionKeys helper function
+func TestExtractOptionKeys_MapStringInterface(t *testing.T) {
+	opts := map[string]interface{}{
+		"type":   "pascal",
+		"schema": map[string]interface{}{"type": "array"},
+	}
+	keys := extractOptionKeys(opts)
+	assert.Len(t, keys, 2)
+	assert.Contains(t, keys, "type")
+	assert.Contains(t, keys, "schema")
+}
+
+func TestExtractOptionKeys_MapStringString(t *testing.T) {
+	opts := map[string]string{
+		"type":           "pascal",
+		"separator.char": "-",
+	}
+	keys := extractOptionKeys(opts)
+	assert.Len(t, keys, 2)
+	assert.Contains(t, keys, "type")
+	assert.Contains(t, keys, "separator.char")
+}
+
+func TestExtractOptionKeys_SliceInterface(t *testing.T) {
+	opts := []interface{}{
+		map[string]interface{}{"name": "value1"},
+		map[string]interface{}{"other": "value2"},
+	}
+	keys := extractOptionKeys(opts)
+	assert.Len(t, keys, 2)
+	assert.Contains(t, keys, "name")
+	assert.Contains(t, keys, "other")
+}
+
+func TestExtractOptionKeys_Nil(t *testing.T) {
+	keys := extractOptionKeys(nil)
+	assert.Nil(t, keys)
+}
+
+func TestExtractOptionKeys_UnsupportedType(t *testing.T) {
+	keys := extractOptionKeys("just a string")
+	assert.Nil(t, keys)
+}
+
+// Tests for optionKeyMatchesProperty helper function
+func TestOptionKeyMatchesProperty_ExactMatch(t *testing.T) {
+	assert.True(t, optionKeyMatchesProperty("schema", "schema"))
+	assert.True(t, optionKeyMatchesProperty("type", "type"))
+}
+
+func TestOptionKeyMatchesProperty_PrefixMatch(t *testing.T) {
+	// "separator" should match "separator.char"
+	assert.True(t, optionKeyMatchesProperty("separator", "separator.char"))
+	assert.True(t, optionKeyMatchesProperty("separator", "separator.allowLeading"))
+}
+
+func TestOptionKeyMatchesProperty_NoMatch(t *testing.T) {
+	assert.False(t, optionKeyMatchesProperty("sep", "separator.char"))
+	assert.False(t, optionKeyMatchesProperty("invalid", "schema"))
+	assert.False(t, optionKeyMatchesProperty("schema", "type"))
+}
+
+func TestOptionKeyMatchesProperty_PartialNoMatch(t *testing.T) {
+	// "separatorX" should NOT match "separator.char" (not a proper prefix)
+	assert.False(t, optionKeyMatchesProperty("separatorX", "separator.char"))
+}
+
+// Tests for findInvalidOptionKeys helper function
+func TestFindInvalidOptionKeys_AllValid(t *testing.T) {
+	keys := []string{"type", "schema"}
+	props := []RuleFunctionProperty{
+		{Name: "type"},
+		{Name: "schema"},
+	}
+	invalid := findInvalidOptionKeys(keys, props)
+	assert.Len(t, invalid, 0)
+}
+
+func TestFindInvalidOptionKeys_SomeInvalid(t *testing.T) {
+	keys := []string{"type", "invalid", "schema"}
+	props := []RuleFunctionProperty{
+		{Name: "type"},
+		{Name: "schema"},
+	}
+	invalid := findInvalidOptionKeys(keys, props)
+	assert.Len(t, invalid, 1)
+	assert.Contains(t, invalid, "invalid")
+}
+
+func TestFindInvalidOptionKeys_PrefixMatch(t *testing.T) {
+	// "separator" should be valid when "separator.char" is a property
+	keys := []string{"type", "separator"}
+	props := []RuleFunctionProperty{
+		{Name: "type"},
+		{Name: "separator.char"},
+		{Name: "separator.allowLeading"},
+	}
+	invalid := findInvalidOptionKeys(keys, props)
+	assert.Len(t, invalid, 0)
+}
+
+func TestFindInvalidOptionKeys_EmptyKeys(t *testing.T) {
+	props := []RuleFunctionProperty{{Name: "type"}}
+	invalid := findInvalidOptionKeys(nil, props)
+	assert.Len(t, invalid, 0)
+}
+
+// Test for issue #790 - schema function with nested JSON schema object
+type schemaFunc struct{}
+
+func (sf schemaFunc) GetSchema() RuleFunctionSchema {
+	return RuleFunctionSchema{
+		Required: []string{"schema"},
+		Properties: []RuleFunctionProperty{
+			{Name: "schema", Description: "A valid JSON Schema object"},
+			{Name: "unpack", Description: "Unpack the node"},
+			{Name: "forceValidation", Description: "Force validation"},
+		},
+		ErrorMessage: "'schema' function needs a 'schema' property",
+	}
+}
+
+func (sf schemaFunc) GetCategory() string { return "core" }
+func (sf schemaFunc) RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult {
+	return nil
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_NestedSchemaObject(t *testing.T) {
+	// This is the issue #790 scenario - schema function with nested JSON schema
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"type": "array",
+			"items": map[string]interface{}{
+				"type": "object",
+			},
+			"minItems": 1,
+		},
+	}
+	rf := schemaFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "tags",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
+// Test for issue #651 - casing function with Spectral nested separator format
+type casingFunc struct{}
+
+func (cf casingFunc) GetSchema() RuleFunctionSchema {
+	return RuleFunctionSchema{
+		Required: []string{"type"},
+		Properties: []RuleFunctionProperty{
+			{Name: "type", Description: "The casing type"},
+			{Name: "separator.char", Description: "Separator character"},
+			{Name: "separator.allowLeading", Description: "Allow leading separator"},
+		},
+		ErrorMessage: "'casing' function has invalid options",
+	}
+}
+
+func (cf casingFunc) GetCategory() string { return "core" }
+func (cf casingFunc) RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult {
+	return nil
+}
+
+func TestValidateRuleFunctionContextAgainstSchema_SpectralNestedSeparator(t *testing.T) {
+	// This is the issue #651 scenario - Spectral nested format for separator
+	opts := map[string]interface{}{
+		"type": "pascal",
+		"separator": map[string]interface{}{
+			"char": "-",
+		},
+	}
+	rf := casingFunc{}
+	ctx := RuleFunctionContext{
+		RuleAction: &RuleAction{
+			Field:           "none",
+			Function:        "casing",
+			FunctionOptions: opts,
+		},
+		Options: opts,
+	}
+	res, errs := ValidateRuleFunctionContextAgainstSchema(rf, ctx)
+
+	assert.True(t, res)
+	assert.Len(t, errs, 0)
+}
+
 func TestFormatMatches(t *testing.T) {
 	tests := []struct {
 		name       string
