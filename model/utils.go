@@ -173,9 +173,69 @@ func BuildFunctionResultString(message string) RuleFunctionResult {
 	}
 }
 
+// extractOptionKeys extracts top-level keys from various option types.
+// supports map[string]interface{}, map[string]string, and []interface{} containing maps.
+func extractOptionKeys(options interface{}) []string {
+	switch opts := options.(type) {
+	case map[string]interface{}:
+		keys := make([]string, 0, len(opts))
+		for k := range opts {
+			keys = append(keys, k)
+		}
+		return keys
+	case map[string]string:
+		keys := make([]string, 0, len(opts))
+		for k := range opts {
+			keys = append(keys, k)
+		}
+		return keys
+	case []interface{}:
+		var keys []string
+		for _, v := range opts {
+			if m, ok := v.(map[string]interface{}); ok {
+				for k := range m {
+					keys = append(keys, k)
+				}
+			}
+		}
+		return keys
+	default:
+		return nil
+	}
+}
+
+// optionKeyMatchesProperty checks if an option key matches a schema property.
+// supports exact matches and prefix matches for dot-notation properties.
+// e.g., "schema" matches "schema", "separator" matches "separator.char"
+func optionKeyMatchesProperty(optionKey, propName string) bool {
+	if optionKey == propName {
+		return true
+	}
+	// option key is parent of dot-notation property
+	return strings.HasPrefix(propName, optionKey+".")
+}
+
+// findInvalidOptionKeys returns option keys that don't match any schema property.
+func findInvalidOptionKeys(keys []string, properties []RuleFunctionProperty) []string {
+	var invalid []string
+	for _, k := range keys {
+		found := false
+		for _, prop := range properties {
+			if optionKeyMatchesProperty(k, prop.Name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			invalid = append(invalid, k)
+		}
+	}
+	return invalid
+}
+
 // ValidateRuleFunctionContextAgainstSchema will perform run-time validation against a rule to ensure that
 // options being passed in are acceptable and meet the needs of the Rule schema.
-// This function supports both flat dot-notation (Vacuum) and nested YAML (Spectral) formats.
+// This validates top-level option keys only, allowing nested objects (like JSON schemas) as values.
 func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx RuleFunctionContext) (bool, []string) {
 
 	valid := true
@@ -212,15 +272,22 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 		errs = append(errs, fmt.Sprintf("'%s' requires a 'field' value to be set", schema.Name))
 	}
 
-	// flatten the options to handle Spectral's nested format before validation
-	flattenedOptions := make(map[string]string)
-	flattenOptions("", ctx.Options, flattenedOptions)
-
-	// check if this schema has required properties, then check them out.
+	// check if this schema has required properties.
+	// we check the original options structure (not flattened) because some functions
+	// like 'schema' expect complex nested objects as option values. Flattening is only used
+	// at runtime via GetOptionsStringMap() for functions that need flat key-value pairs.
 	if len(schema.Required) > 0 {
+		optionKeys := extractOptionKeys(ctx.Options)
 		var missingProps []string
 		for _, req := range schema.Required {
-			if _, found := flattenedOptions[req]; !found {
+			found := false
+			for _, k := range optionKeys {
+				if k == req {
+					found = true
+					break
+				}
+			}
+			if !found {
 				missingProps = append(missingProps, req)
 			}
 		}
@@ -233,21 +300,18 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 		}
 	}
 
-	// check if the values submitted exist as properties (using flattened keys)
+	// check if the values submitted exist as properties.
+	// we check top-level keys and support two patterns:
+	// 1. key matches a property exactly (e.g., "schema" matches property "schema")
+	// 2. key is a prefix of a dot-notation property (e.g., "separator" matches "separator.char")
+	// this allows both nested objects as values and Spectral's nested YAML format.
 	if len(schema.Properties) > 0 {
-		for k := range flattenedOptions {
-			found := false
-			for _, prop := range schema.Properties {
-				if k == prop.Name {
-					found = true
-					break
-				}
-			}
-			if !found {
-				valid = false
-				errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
-					schema.ErrorMessage, k, schema.Name))
-			}
+		optionKeys := extractOptionKeys(ctx.Options)
+		invalidKeys := findInvalidOptionKeys(optionKeys, schema.Properties)
+		for _, k := range invalidKeys {
+			valid = false
+			errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
+				schema.ErrorMessage, k, schema.Name))
 		}
 	}
 
