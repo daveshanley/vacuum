@@ -583,6 +583,12 @@ func TestFormatMatches(t *testing.T) {
 		{"oas2 does not match oas3_1", OAS2, OAS31, false},
 		{"oas2 does not match oas3_2", OAS2, OAS32, false},
 
+		// oas3_0 (exact 3.0) matching - only matches 3.0, not 3.1 or 3.2
+		{"oas3_0 matches oas3 (spec detected as 3.0)", OAS30, OAS3, true},
+		{"oas3_0 does not match oas3_1", OAS30, OAS31, false},
+		{"oas3_0 does not match oas3_2", OAS30, OAS32, false},
+		{"oas3_0 does not match oas2", OAS30, OAS2, false},
+
 		// Edge cases with empty strings
 		{"empty rule format does not match oas3", "", OAS3, false},
 		{"oas3 does not match empty spec format", OAS3, "", false},

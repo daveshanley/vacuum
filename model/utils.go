@@ -12,14 +12,15 @@ import (
 
 const (
 	OAS2  = "oas2"
-	OAS3  = "oas3"
+	OAS3  = "oas3"   // family format - matches all 3.x versions
+	OAS30 = "oas3_0" // exact 3.0 only - does not match 3.1 or 3.2
 	OAS31 = "oas3_1"
 	OAS32 = "oas3_2"
 )
 
 var OAS3_1Format = []string{OAS31}
 var OAS3_2Format = []string{OAS32}
-var AllExceptOAS3_1 = []string{OAS2, OAS3}
+var AllExceptOAS3_1 = []string{OAS2, OAS30} // uses OAS30 to avoid matching 3.1
 var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
@@ -29,12 +30,17 @@ var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
 // The oas3 format is treated as a "family" that covers oas3, oas3_1, and oas3_2.
 // This allows rules with `formats: [oas3]` to match OpenAPI 3.0, 3.1, and 3.2 specs,
 // which matches Spectral's behavior.
+// The oas3_0 format is an exact match for OpenAPI 3.0 only (does not match 3.1 or 3.2).
 func FormatMatches(ruleFormat, specFormat string) bool {
 	if ruleFormat == specFormat {
 		return true
 	}
 	// oas3 is a family format that matches all 3.x versions
 	if ruleFormat == OAS3 && (specFormat == OAS31 || specFormat == OAS32) {
+		return true
+	}
+	// oas3_0 (exact 3.0) matches when spec is detected as oas3 (which means 3.0)
+	if ruleFormat == OAS30 && specFormat == OAS3 {
 		return true
 	}
 	return false
