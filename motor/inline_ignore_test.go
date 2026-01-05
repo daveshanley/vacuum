@@ -355,6 +355,7 @@ paths: {}
 `
 
 	// Create a custom rule that targets all properties under info (including ignore key)
+	// Using falsy function which will report violations for truthy values
 	rulesetYaml := `
 extends: []
 rules:
@@ -363,7 +364,7 @@ rules:
     given: $.info.*
     severity: error
     then:
-      function: truthy
+      function: falsy
 `
 
 	rc := CreateRuleComposer()
