@@ -107,7 +107,7 @@ func GetBundleCommand() *cobra.Command {
 				ExtractRefsSequentially: true,
 				Logger:                  logger,
 				AllowRemoteReferences:   remoteFlag,
-				ExcludeExtensionRefs:    extensionRefsFlag,
+				ExcludeExtensionRefs:    !extensionRefsFlag,
 			}
 
 			var bundled []byte
