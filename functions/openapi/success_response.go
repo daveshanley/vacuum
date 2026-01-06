@@ -6,6 +6,7 @@ package openapi
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 	"strconv"
@@ -61,7 +62,8 @@ func (sr SuccessResponse) RunRule(nodes []*yaml.Node, context model.RuleFunction
 					}
 					verbDataNode := operationNode.Content[h+1]
 
-					fieldNode, valNode := utils.FindKeyNodeTop(context.RuleAction.Field, verbDataNode.Content)
+					result := vacuumUtils.FindFieldPath(context.RuleAction.Field, verbDataNode.Content, vacuumUtils.FieldPathOptions{})
+					fieldNode, valNode := result.KeyNode, result.ValueNode
 
 					if fieldNode != nil && valNode != nil {
 						var responseSeen bool
