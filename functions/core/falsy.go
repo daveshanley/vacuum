@@ -5,11 +5,9 @@ package core
 
 import (
 	"fmt"
+	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-
-	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -65,8 +63,9 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 			targetNode = node
 			fieldName = "value"
 		} else {
-			// field specified - find it within the node
-			fieldNode, targetNode = utils.FindKeyNode(context.RuleAction.Field, node.Content)
+			// field specified - find it within the node (supports nested paths like "properties.data")
+			result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{RecursiveFirstSegment: true})
+			fieldNode, targetNode = result.KeyNode, result.ValueNode
 			fieldName = context.RuleAction.Field
 		}
 
