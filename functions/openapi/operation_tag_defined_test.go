@@ -112,6 +112,7 @@ paths:
 	ctx.Document = document
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
+	ctx.Index = m.Index
 
 	def := TagDefined{}
 	res := def.RunRule(nil, ctx)
