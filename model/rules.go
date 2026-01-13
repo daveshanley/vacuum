@@ -3,15 +3,16 @@ package model
 import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
+	"log/slog"
+	"regexp"
+	"time"
+
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"gopkg.in/yaml.v3"
-	"log/slog"
-	"regexp"
-	"time"
 )
 
 const (
@@ -52,17 +53,18 @@ type RuleFunctionContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message      string            `json:"message" yaml:"message"`                   // What failed and why?
-	Range        reports.Range     `json:"range" yaml:"range"`                       // Where did it happen?
-	Path         string            `json:"path" yaml:"path"`                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
-	Paths        []string          `json:"paths,omitempty" yaml:"paths,omitempty"`   // the JSONPath(s) to where it can be found, if there are multiple.
-	RuleId       string            `json:"ruleId" yaml:"ruleId"`                     // The ID of the rule
-	RuleSeverity string            `json:"ruleSeverity" yaml:"ruleSeverity"`         // the severity of the rule used
-	Origin       *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"` // Where did the result come from (source)?
-	Rule         *Rule             `json:"-" yaml:"-"`                               // The rule used
-	StartNode    *yaml.Node        `json:"-" yaml:"-"`                               // Start of the violation
-	EndNode      *yaml.Node        `json:"-" yaml:"-"`                               // end of the violation
-	Timestamp    *time.Time        `json:"-" yaml:"-"`                               // When the result was created.
+	Message        string            `json:"message" yaml:"message"`                                   // What failed and why?
+	Range          reports.Range     `json:"range" yaml:"range"`                                       // Where did it happen?
+	Path           string            `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
+	Paths          []string          `json:"paths,omitempty" yaml:"paths,omitempty"`                   // the JSONPath(s) to where it can be found, if there are multiple.
+	RuleId         string            `json:"ruleId" yaml:"ruleId"`                                     // The ID of the rule
+	RuleSeverity   string            `json:"ruleSeverity" yaml:"ruleSeverity"`                         // the severity of the rule used
+	SeverityLocked bool              `json:"severityLocked,omitempty" yaml:"severityLocked,omitempty"` // If true, this severity cannot be overridden by lint.yaml configuration
+	Origin         *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"`                 // Where did the result come from (source)?
+	Rule           *Rule             `json:"-" yaml:"-"`                                               // The rule used
+	StartNode      *yaml.Node        `json:"-" yaml:"-"`                                               // Start of the violation
+	EndNode        *yaml.Node        `json:"-" yaml:"-"`                                               // end of the violation
+	Timestamp      *time.Time        `json:"-" yaml:"-"`                                               // When the result was created.
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
 	// populated, then this is a reference to the model that fired the rule. (not currently used yet)
