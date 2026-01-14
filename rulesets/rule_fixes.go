@@ -59,7 +59,7 @@ const (
 		"then it won't be something you copy and paste. Please don't duplicate descriptions, make them deliberate and meaningful."
 
 	componentDescriptionFix string = "Components are the inputs and outputs of a specification. A user needs to be able to " +
-		"understand each component and what id does. Descriptions are critical to understanding components. Add a description!"
+		"understand each component and what it does. Descriptions are critical to understanding components. Add a description!"
 
 	oasServersFix string = "Ensure server URIs are correct and valid, check the schemes, ensure descriptions are complete."
 
