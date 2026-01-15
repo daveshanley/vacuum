@@ -490,3 +490,99 @@ components:
 		assert.NotContains(t, r.Path, "items", "array items with default should not be flagged")
 	}
 }
+func TestExamplesMissing_XExtensibleEnum(t *testing.T) {
+	yml := `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      parameters:
+        - name: country_codes
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/CountryCode'
+      responses:
+        '200':
+          description: Success
+components:
+  schemas:
+    CountryCode:
+      type: string
+      description: Country code
+      x-extensible-enum:
+        - US
+        - CA
+        - GB`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestExamplesMissing_DoubleRefWithXExtensibleEnum(t *testing.T) {
+	yml := `openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      parameters:
+        - name: codes
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RefToExtensible'
+      responses:
+        '200':
+          description: Success
+components:
+  schemas:
+    RefToExtensible:
+      $ref: '#/components/schemas/StatusCode'
+    StatusCode:
+      type: string
+      x-extensible-enum:
+        - active
+        - inactive`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	
+	assert.NotPanics(t, func() {
+		def.RunRule(nil, ctx)
+	})
+}
