@@ -130,12 +130,24 @@ func checkResponse(resp *v3.Response, usedInResponse *bool, schemaRef string) {
 
 // refMatches checks if the schema or any of its nested schemas matches the given ref.
 func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
+	return refMatchesInternal(schemaProxy, name, make(map[string]bool))
+}
+
+// refMatchesInternal recursively checks if a schema matches the given name, tracking visited schemas to avoid circular references.
+func refMatchesInternal(schemaProxy *base.SchemaProxy, name string, visited map[string]bool) bool {
 	if schemaProxy == nil || name == "" {
 		return false
 	}
 
-	parts := strings.Split(schemaProxy.GetReference(), "/")
+	reference := schemaProxy.GetReference()
+	parts := strings.Split(reference, "/")
 	actualName := parts[len(parts)-1]
+
+	// Check for circular reference - if we've already visited this schema, skip it
+	if visited[reference] {
+		return false
+	}
+	visited[reference] = true
 
 	schema := schemaProxy.Schema()
 	if schema == nil {
@@ -148,14 +160,14 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 
 	// Check composition schemas
 	for _, s := range append(append(schema.AllOf, schema.AnyOf...), schema.OneOf...) {
-		if refMatches(s, name) {
+		if refMatchesInternal(s, name, visited) {
 			return true
 		}
 	}
 
 	// Check not
 	if schema.Not != nil {
-		if refMatches(schema.Not, name) {
+		if refMatchesInternal(schema.Not, name, visited) {
 			return true
 		}
 	}
@@ -163,7 +175,7 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 	// Check properties
 	if schema.Properties != nil {
 		for pairs := schema.Properties.First(); pairs != nil; pairs = pairs.Next() {
-			if refMatches(pairs.Value(), name) {
+			if refMatchesInternal(pairs.Value(), name, visited) {
 				return true
 			}
 		}
@@ -172,7 +184,7 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 	// Check additionalProperties
 	if schema.AdditionalProperties != nil {
 		if schema.AdditionalProperties.IsA() {
-			if refMatches(schema.AdditionalProperties.A, name) {
+			if refMatchesInternal(schema.AdditionalProperties.A, name, visited) {
 				return true
 			}
 		}
@@ -182,7 +194,7 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 	// Check patternProperties
 	if schema.PatternProperties != nil {
 		for pairs := schema.PatternProperties.First(); pairs != nil; pairs = pairs.Next() {
-			if refMatches(pairs.Value(), name) {
+			if refMatchesInternal(pairs.Value(), name, visited) {
 				return true
 			}
 		}
@@ -191,7 +203,7 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 	// Check items
 	if schema.Items != nil {
 		if schema.Items.IsA() {
-			if refMatches(schema.Items.A, name) {
+			if refMatchesInternal(schema.Items.A, name, visited) {
 				return true
 			}
 		}
@@ -200,31 +212,31 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 
 	// Check prefixItems
 	for _, pi := range schema.PrefixItems {
-		if refMatches(pi, name) {
+		if refMatchesInternal(pi, name, visited) {
 			return true
 		}
 	}
 
 	// Check contains
 	if schema.Contains != nil {
-		if refMatches(schema.Contains, name) {
+		if refMatchesInternal(schema.Contains, name, visited) {
 			return true
 		}
 	}
 
 	// Check if, else, then
 	if schema.If != nil {
-		if refMatches(schema.If, name) {
+		if refMatchesInternal(schema.If, name, visited) {
 			return true
 		}
 	}
 	if schema.Else != nil {
-		if refMatches(schema.Else, name) {
+		if refMatchesInternal(schema.Else, name, visited) {
 			return true
 		}
 	}
 	if schema.Then != nil {
-		if refMatches(schema.Then, name) {
+		if refMatchesInternal(schema.Then, name, visited) {
 			return true
 		}
 	}
@@ -232,7 +244,7 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 	// Check dependentSchemas
 	if schema.DependentSchemas != nil {
 		for pairs := schema.DependentSchemas.First(); pairs != nil; pairs = pairs.Next() {
-			if refMatches(pairs.Value(), name) {
+			if refMatchesInternal(pairs.Value(), name, visited) {
 				return true
 			}
 		}
@@ -240,14 +252,14 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 
 	// Check propertyNames
 	if schema.PropertyNames != nil {
-		if refMatches(schema.PropertyNames, name) {
+		if refMatchesInternal(schema.PropertyNames, name, visited) {
 			return true
 		}
 	}
 
 	// Check unevaluatedItems
 	if schema.UnevaluatedItems != nil {
-		if refMatches(schema.UnevaluatedItems, name) {
+		if refMatchesInternal(schema.UnevaluatedItems, name, visited) {
 			return true
 		}
 	}
@@ -255,40 +267,11 @@ func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
 	// Check unevaluatedProperties
 	if schema.UnevaluatedProperties != nil {
 		if schema.UnevaluatedProperties.IsA() {
-			if refMatches(schema.UnevaluatedProperties.A, name) {
+			if refMatchesInternal(schema.UnevaluatedProperties.A, name, visited) {
 				return true
 			}
 		}
 	}
 
 	return false
-}
-
-func SchemasEqual(s1 *base.Schema, p *base.SchemaProxy) bool {
-	if p == nil {
-		return s1 == nil
-	}
-	s2 := p.Schema()
-	if s2 == nil {
-		return false // Or handle build error via p.GetBuildError()
-	}
-
-	js1, err1 := json.Marshal(s1)
-	if err1 != nil {
-		return false
-	}
-	js2, err2 := json.Marshal(s2)
-	if err2 != nil {
-		return false
-	}
-
-	var i1, i2 interface{}
-	if err := json.Unmarshal(js1, &i1); err != nil {
-		return false
-	}
-	if err := json.Unmarshal(js2, &i2); err != nil {
-		return false
-	}
-
-	return reflect.DeepEqual(i1, i2)
 }
