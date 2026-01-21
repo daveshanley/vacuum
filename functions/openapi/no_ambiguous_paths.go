@@ -263,23 +263,24 @@ func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool 
 		}
 	}
 
-	// Key logic for issue #504: paths with conflicting variable/literal patterns
-	// Example: /a/{x}/b/c/{y} vs /a/{x}/b/{z}/d
-	// Position 3: c vs {z} (literal vs var)
-	// Position 4: {y} vs d (var vs literal)
-	// These conflict - no URL can match both patterns
-	if len(varLiteralPositions) >= 2 {
-		// Check if we have opposite patterns (literal-var in one position, var-literal in another)
-		for i := 0; i < len(varLiteralPositions)-1; i++ {
-			pos1 := varLiteralPositions[i]
-			for j := i + 1; j < len(varLiteralPositions); j++ {
-				pos2 := varLiteralPositions[j]
-				// If the variable/literal pattern is reversed, paths cannot be ambiguous
-				if segsA[pos1].isVar != segsA[pos2].isVar {
-					return false
-				}
-			}
-		}
+	// Per OpenAPI spec and issue #504/#749:
+	// If there are ANY variable/literal mismatches, the paths are NOT ambiguous.
+	//
+	// Case 1 - Concrete vs Templated (OpenAPI spec, issue #749):
+	//   /foo/baz vs /foo/{bar} - /foo/baz is concrete and takes precedence
+	//   /posts/featured/comments/latest vs /posts/{postId}/comments/{commentId} - concrete takes precedence
+	//
+	// Case 2 - Conflicting Patterns (issue #504):
+	//   /a/{x}/b/c/{y} vs /a/{x}/b/{z}/d
+	//   Position 3: c (literal) vs {z} (var)
+	//   Position 4: {y} (var) vs d (literal)
+	//   No single URL can match both patterns - NOT ambiguous
+	//
+	// The key insight: Any var/literal mismatch means the paths have different matching
+	// behavior and are NOT ambiguous - either one is more concrete (case 1) or they
+	// have conflicting patterns (case 2).
+	if len(varLiteralPositions) > 0 {
+		return false
 	}
 
 	return true

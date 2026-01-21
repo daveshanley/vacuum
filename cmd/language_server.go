@@ -1,4 +1,4 @@
-// Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2024 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 // https://pb33f.io
 
@@ -7,7 +7,6 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"net/http"
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
@@ -82,14 +81,9 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			httpClientConfig = httpConfig
 
 			if rulesetFlag != "" {
-				// Create HTTP client for remote ruleset downloads if needed
-				var httpClient *http.Client
-				if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
-					var clientErr error
-					httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
-					if clientErr != nil {
-						return clientErr
-					}
+				httpClient, clientErr := utils.CreateHTTPClientIfNeeded(httpClientConfig)
+				if clientErr != nil {
+					return clientErr
 				}
 
 				var rsErr error

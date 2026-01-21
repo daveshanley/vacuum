@@ -1,4 +1,4 @@
-// Copyright 2025 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2025 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 package openapi
@@ -11,6 +11,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
+	libopenapi_base "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -247,7 +248,57 @@ components:
 	assert.Len(t, res, 0) // Schemas without combinators should not trigger
 }
 
-// Helper function to build test context with DrDocument
+// OAS 3.0.x: single allOf with $ref and sibling description is legitimate workaround
+func TestUnnecessaryCombinator_RunRule_OAS30_AllOfWithRefAndDescription(t *testing.T) {
+	def := UnnecessaryCombinator{}
+	yml := `openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    BaseModel:
+      type: object
+      properties:
+        id:
+          type: string
+    ExtendedModel:
+      description: "Extended description that overrides the ref"
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+`
+	ctx := buildTestContext(yml, t)
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 0, "OAS 3.0.x allOf with $ref and sibling description should not trigger")
+}
+
+// OAS 3.1: single allOf with $ref and sibling description should still trigger
+func TestUnnecessaryCombinator_RunRule_OAS31_AllOfWithRefAndDescription(t *testing.T) {
+	def := UnnecessaryCombinator{}
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    BaseModel:
+      type: object
+      properties:
+        id:
+          type: string
+    ExtendedModel:
+      description: "Extended description"
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+`
+	ctx := buildTestContext(yml, t)
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 1, "OAS 3.1 should trigger because $ref siblings are supported natively")
+	assert.Contains(t, res[0].Message, "allOf")
+}
+
 func buildTestContext(yamlContent string, t *testing.T) model.RuleFunctionContext {
 	document, err := libopenapi.NewDocument([]byte(yamlContent))
 	if err != nil {
@@ -259,6 +310,226 @@ func buildTestContext(yamlContent string, t *testing.T) model.RuleFunctionContex
 
 	return model.RuleFunctionContext{
 		DrDocument: drDoc,
+		SpecInfo:   document.GetSpecInfo(),
 		Rule:       &model.Rule{},
 	}
+}
+
+func TestHasSiblingProperties_NilSchema(t *testing.T) {
+	result := hasSiblingProperties(nil)
+	assert.False(t, result)
+}
+
+func TestHasSiblingProperties_Description(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      description: "Has description"
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.True(t, result, "description should be detected as sibling property")
+}
+
+func TestHasSiblingProperties_Title(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      title: "Has title"
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.True(t, result, "title should be detected as sibling property")
+}
+
+func TestHasSiblingProperties_Default(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      default: "default value"
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.True(t, result, "default should be detected as sibling property")
+}
+
+func TestHasSiblingProperties_Nullable(t *testing.T) {
+	yml := `openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      nullable: true
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.True(t, result, "nullable should be detected as sibling property")
+}
+
+func TestHasSiblingProperties_ReadOnly(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      readOnly: true
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.True(t, result, "readOnly should be detected as sibling property")
+}
+
+func TestHasSiblingProperties_Enum(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      enum: ["a", "b"]
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.True(t, result, "enum should be detected as sibling property")
+}
+
+func TestHasSiblingProperties_NoSiblings(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      allOf:
+        - type: string
+`
+	ctx := buildTestContext(yml, t)
+	schema := ctx.DrDocument.Schemas[0]
+	result := hasSiblingProperties(schema)
+	assert.False(t, result, "no siblings should return false")
+}
+
+func TestHasRefInCombinator_NilSlice(t *testing.T) {
+	result := hasRefInCombinator(nil)
+	assert.False(t, result)
+}
+
+func TestHasRefInCombinator_EmptySlice(t *testing.T) {
+	result := hasRefInCombinator([]*libopenapi_base.SchemaProxy{})
+	assert.False(t, result)
+}
+
+func TestHasRefInCombinator_MultipleItems(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Base1:
+      type: object
+    Base2:
+      type: object
+    Test:
+      allOf:
+        - $ref: '#/components/schemas/Base1'
+        - $ref: '#/components/schemas/Base2'
+`
+	ctx := buildTestContext(yml, t)
+	// Find the Test schema with allOf
+	for _, schema := range ctx.DrDocument.Schemas {
+		if schema.Value.AllOf != nil && len(schema.Value.AllOf) == 2 {
+			result := hasRefInCombinator(schema.Value.AllOf)
+			assert.False(t, result, "multiple items should return false")
+			return
+		}
+	}
+	t.Fatal("could not find Test schema with allOf")
+}
+
+func TestHasRefInCombinator_SingleRef(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Base:
+      type: object
+    Test:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+`
+	ctx := buildTestContext(yml, t)
+	// Find the Test schema with single allOf
+	for _, schema := range ctx.DrDocument.Schemas {
+		if schema.Value.AllOf != nil && len(schema.Value.AllOf) == 1 {
+			result := hasRefInCombinator(schema.Value.AllOf)
+			assert.True(t, result, "single $ref should return true")
+			return
+		}
+	}
+	t.Fatal("could not find Test schema with single allOf")
+}
+
+func TestHasRefInCombinator_SingleInlineSchema(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Test:
+      allOf:
+        - type: object
+          properties:
+            name:
+              type: string
+`
+	ctx := buildTestContext(yml, t)
+	// Find the Test schema with single allOf (inline)
+	for _, schema := range ctx.DrDocument.Schemas {
+		if schema.Value.AllOf != nil && len(schema.Value.AllOf) == 1 {
+			result := hasRefInCombinator(schema.Value.AllOf)
+			assert.False(t, result, "inline schema (no $ref) should return false")
+			return
+		}
+	}
+	t.Fatal("could not find Test schema with single allOf")
 }

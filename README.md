@@ -12,7 +12,7 @@
 
 An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
 
-It's also compatible with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
+It's **fully compatible** with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
 ## Install using [homebrew](https://brew.sh) tap
 
@@ -92,10 +92,9 @@ go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
 
 ---
 
-
 ## Sponsors
 If your company is using `vacuum`, please considering [supporting this project](https://github.com/sponsors/daveshanley),
-like our _very kind_ sponsors:
+like our _very kind_ sponsors, past and present:
 
 
 <a href="https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship">
@@ -106,15 +105,6 @@ like our _very kind_ sponsors:
 </a>
 
 [Speakeasy](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
-
-<a href="https://bump.sh/?utm_source=quobix&utm_campaign=sponsor">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/bump-sh-dark.png">
-  <img alt="bump.sh'" src=".github/sponsors/bump-sh-light.png">
-</picture>
-</a>
-
-[bump.sh](https://bump.sh/?utm_source=quobix&utm_campaign=sponsor)
 
 <a href="https://scalar.com">
 <picture>
@@ -134,7 +124,6 @@ like our _very kind_ sponsors:
 
 [apideck](https://apideck.com)
 
-
 ---
 
 ## Come chat with us
@@ -144,11 +133,55 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.20` 🔥: **Support for auto fixing custom rules**
+🔥 **New in** `v0.23` 🔥: **OpenAPI Overlay Support**
+
+Ever needed to tweak an OpenAPI spec for different environments without maintaining multiple copies? 
+
+Maybe swap out server URLs between dev, staging, and production? Or perhaps strip out internal endpoints before publishing the API docs?
+
+OpenAPI Overlays are the answer. They let us make non-destructive modifications to specs using JSONPath expressions to 
+target exactly what we want to change. vaccum now supports a new `apply-overlay` command.
+
+- [Learn more about the apply-overlay command](https://quobix.com/vacuum/commands/apply-overlay)
+
+---
+
+
+`v0.22`: **Async Functions / Promises, Fetch & Batch mode in Custom JS Functions**
+
+Do you want to call remote APIs in your vacuum javascript functions? What about async processing or the ability to use Promises?
+
+vacuum now has its own event loop and will happily support `async` and `await`. Combined with a full implementation of [Fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API).
+
+Also added **Batch Mode**. This allows custom functions to receive the entire list of nodes, instead of firing the function 
+for each result, so you can send all your data off to an API or an LLM, and have the ability parse and process everything at once
+vs individually. 
+
+- [Read all about async JS functions in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#async-functions--promises)
+- [Learn about using fetch in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#fetch-api)
+- [find out how batch mode works](https://quobix.com/vacuum/api/custom-javascript-functions/#batch-mode-processing)
+
+---
+
+`v0.21`: **Change detection filtering**
+
+Want to see linting results on **just** the changes you have made to an OpenAPI document? Or want to see just the results on the differences between two documents? 
+comes with a **what changed** mode. Using the new `--original` and `--changes-summary` global flags, you can filter out all the noise. 
+
+[documentation for change detection](https://quobix.com/vacuum/commands/change-detection/) is available to learn more.
+
+vacuum now supports [JSON Path Plus](https://github.com/JSONPath-Plus/JSONPath) annotations. This means that vacuum is 
+compliant with **All Spectral Paths**. One of the last remaining gaps between vacuum and spectral has been closed. 
+
+[See all the newly supported annotations](https://quobix.com/vacuum/rulesets/custom-rulesets/#anatomy-of-a-rule)
+
+---
+
+`v0.20`: **Support for auto fixing custom rules**
 
 Got some rules that don't really need a human to look at?
 
-Well now you can define an `AutoFixFunction` for your rules, and when you run with the `--fix` flag, the fixes will will be applied to the file, or use `--fix-file` to write them to a different file.
+Well now you can define an `AutoFixFunction` for your rules, and when you run with the `--fix` flag, the fixes will be applied to the file, or use `--fix-file` to write them to a different file.
 
 See [Auto-Fixing Rule Violations](#auto-fixing-rule-violations) for more specifics.
 
@@ -181,8 +214,6 @@ New rules:
 
 ---
 
-
-
 `v0.17`: **Github Action**.
 
 vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
@@ -197,10 +228,11 @@ A different way to bundle exploded OpenAPI specifications into a single file. [R
 
 ---
 
+`v0.16+` : **RFC 9535 Compliant**.
 
-`v0.16+` : **JSON 9535 Compliant**.
+`v0.21+` : **JSON Path Plus Support**.
 
-vacuum now expects JSON Path Queries to be [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) compliant. Finally standardized!
+vacuum now supports both [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) JSONPath and **JSON Path Plus** extensions - full Spectral compatibility!
 
 ---
 
@@ -210,117 +242,6 @@ There is a new command `generate-ignorefile` that will generate an ignore file f
 
 New rule `no-request-body` checks for incorrect request bodies in operations, and `path-item-refs` checks for
 $refs being used in path items.
-
----
-
-`v0.14+`: **Engine Speedup**.
-
-**Speed!** We've made some significant improvements to how efficiently large documents are walked
-Which means vacuum is now faster than ever.
-
----
-
-`v0.12+` : Core functions support JSON Path.
-
-Now all **core** functions return the **correct and accurate JSON path for each linting result**. Previously this was not possible
-at all, but with some clever engineering, we have made it happen. It's a small thing, but with huge impact.
-
-This feature has been available on the OpenAPI functions for some time, however core functions were without a comparison.
-But no more! core functions have joined the party.
-
-A new `--no-clip` flag is available on the `lint` command. This prevents message/path truncation.
-
----
-
-`v0.11+`: Ignore Linting Errors/Violations.
-
-v0.11 introduces the ability to ignore specific linting errors. This is useful for when you want to implement new 
-rules to existing production APIs. In some cases, correcting the lint errors would result in a breaking change. 
-
-Having a way to ignore these errors allows you to implement the new rules for new APIs while maintaining 
-backwards compatibility for existing ones.
-
-[Learn more about ignoring violations](https://quobix.com/vacuum/ignoring/)
-
----
-
-`v0.10+` : **Quality release**.
-
-v0.10 is a quality release, with a number of fixes and improvements to rule schemas, function names and more. 
-vacuum now powers [The OpenAPI doctor](https://pb33f.io/doctor/). To enable correct ruleset management and automation
-a number of functions have been renamed, interfaces have been upgraded and rule functions schemas are now accurate. 
-
-This is a breaking change for anyone using vacuum as a library with custom rules. 
-
----
-
-`v0.9+` : **Built in Language Server**.
-
-A new command is available `language-server`. This starts vacuum as an LSP compatible language server. Run vacuum
-in your favorite IDE and get linting and validation as you type, in realtime.
-
-Will support any LSP compatible editor, like VSCode, Sublime, vim, etc.
-
-[Install the VSCode extension](https://marketplace.visualstudio.com/items?itemName=pb33f.vacuum)
-[Learn more about the language-server command](https://quobix.com/vacuum/commands/language-server/)
-
----
-
-`v0.8+` : **OpenAPI Bundler**.
-
-A new command is available `bundle` will bundle all external references for an OpenAPI file into a single file.
-
-[Learn more about the bundle command](https://quobix.com/vacuum/commands/bundle/)
-
-A new linting rule is available `oas-schema-check` will perform type checks and validation on all schemas in your
-OpenAPI file. It's enabled by default in the recommended ruleset.
-
-[oas-schema-check rule docs](https://quobix.com/vacuum/rules/schemas/oas-schema-check/)
-
----
-
-`v0.7+` : **Hard Mode**.
-
-Want to lint your spec with the most strict ruleset possible? Now you can! Use the `-z` / `--hard-mode` flag to enable
-
----
-
-`v0.6+` : **Sharable / distributed rulesets**  now available.
-
-Want to share / extend / distribute your own rulesets? Now you can!
-
-[Learn more about sharable rulesets](https://quobix.com/vacuum/rulesets/sharing/)
-
----
-
-`v0.5+` : **Multi-file linting**  now available for the `lint` command.
-
-Want to lint multiple files at once? Now you can!
-
-```shell
-vacuum lint file1.json path/to/file2.yaml file3.json 
-```
-
-Want to suck in a ton of files? Use a **glob** pattern!
-
-```shell
-vacuum lint some/path/**/*.yaml 
-```
-
-
----
-`v0.3+`: [Custom JavaScript Functions](https://quobix.com/vacuum/api/custom-javascript-functions/) are now available out of the box.
-
-Write custom functions in JavaScript and use them in any ruleset. No need
-to compile golang code to extend vacuum anymore!
-
-[Learn more about building custom JavaScript functions](https://quobix.com/vacuum/api/custom-javascript-functions/).
-
-
----
-`v0.2+`: [OWASP API rules](https://quobix.com/vacuum/rules/owasp/) are now available out of the box.
-
-[Learn more about enabling OWASP API rules](https://quobix.com/vacuum/rulesets/owasp/).
 
 ---
 
@@ -340,6 +261,9 @@ See all the documentation at https://quobix.com/vacuum
   - [html-report](https://quobix.com/vacuum/commands/html-report/)
   - [bundle](https://quobix.com/vacuum/commands/bundle/)
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
+  - [language-server](https://quobix.com/vacuum/commands/language-server/)
+  - [apply-overlay](https://quobix.com/vacuum/commands/apply-overlay/)
+  - [Change Detection](https://quobix.com/vacuum/commands/change-detection/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)
@@ -375,7 +299,7 @@ See all the documentation at https://quobix.com/vacuum
 Designed to reliably lint OpenAPI specifications, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
 
-vacuum will tell you what is wrong with your spec, why, where and how to fix it. 
+vacuum will tell you what is wrong with your spec, why, where, and how to fix it. 
 
 vacuum will work at scale and is designed as a CLI (with a web or console UI) and a library to be consumed in other applications.
 

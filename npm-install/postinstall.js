@@ -1,11 +1,22 @@
 import { createWriteStream } from "fs";
 import * as fs from "fs/promises";
 import fetch from "node-fetch";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import { pipeline } from "stream/promises";
-import tar from "tar";
+import * as tar from "tar";
 import { execSync } from "child_process";
 
 import { ARCH_MAPPING, CONFIG, PLATFORM_MAPPING } from "./config.js";
+
+// Get proxy URL from environment variables (standard convention)
+function getProxyUrl() {
+    // Check common proxy environment variables (case-insensitive on some systems)
+    return process.env.HTTPS_PROXY ||
+           process.env.https_proxy ||
+           process.env.HTTP_PROXY ||
+           process.env.http_proxy ||
+           null;
+}
 
 async function install() {
     if (process.platform === "android") {
@@ -32,9 +43,16 @@ async function install() {
     url = url.replace(/{{version}}/g, version);
     url = url.replace(/{{bin_name}}/g, binName);
 
+    // Configure fetch options with proxy support
+    const fetchOptions = {};
+    const proxyUrl = getProxyUrl();
+    if (proxyUrl) {
+        console.log('Using proxy:', proxyUrl);
+        fetchOptions.agent = new HttpsProxyAgent(proxyUrl);
+    }
 
     console.log('fetching from URL', url)
-    const response = await fetch(url);
+    const response = await fetch(url, fetchOptions);
     if (!response.ok) {
         throw new Error("Failed fetching the binary: " + response.statusText);
     }

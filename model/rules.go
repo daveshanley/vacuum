@@ -3,17 +3,19 @@ package model
 import (
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
+	"fmt"
+	"log/slog"
+	"regexp"
+	"sync"
+	"time"
+
+	"github.com/daveshanley/vacuum/config"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
-	"log/slog"
-	"regexp"
-	"sync"
-	"time"
 )
 
 const (
@@ -56,8 +58,9 @@ type RuleFunctionContext struct {
 	SpecInfo   *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
 	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
 	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
-	DrDocument *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
-	Logger     *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
+	DrDocument  *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
+	Logger      *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
+	FetchConfig *config.FetchConfig `json:"-" yaml:"-"`                                       // Configuration for JavaScript fetch() requests
 
 	// MaxConcurrentValidations controls the maximum number of parallel validations for functions that support
 	// concurrency limiting (e.g., oasExampleSchema). Default is 10 if not set or 0.
@@ -184,6 +187,8 @@ func (rfs RuleFunctionSchema) GetPropertyDescription(name string) string {
 
 // GetOptionsStringMap returns the cached options as a string map, converting from interface{} if needed.
 // This method caches the result to avoid repeated interface conversions during rule execution.
+// It supports both flat dot-notation keys (Vacuum format) and nested YAML structures (Spectral format).
+// For example: { separator: { char: '-' } } becomes { "separator.char": "-" }
 func (ctx *RuleFunctionContext) GetOptionsStringMap() map[string]string {
 	if ctx.optionsCache != nil {
 		return ctx.optionsCache
@@ -194,13 +199,69 @@ func (ctx *RuleFunctionContext) GetOptionsStringMap() map[string]string {
 		return ctx.optionsCache
 	}
 
-	// Convert interface{} to map[string]string using libopenapi utils and cache the result
-	ctx.optionsCache = utils.ConvertInterfaceIntoStringMap(ctx.Options)
-	if ctx.optionsCache == nil {
-		ctx.optionsCache = make(map[string]string)
-	}
+	// create result map and flatten the entire options structure recursively.
+	// this handles both Vacuum's flat dot-notation (separator.char: '-')
+	// and Spectral's nested YAML format (separator: { char: '-' }).
+	ctx.optionsCache = make(map[string]string)
+	flattenOptions("", ctx.Options, ctx.optionsCache)
 
 	return ctx.optionsCache
+}
+
+// flattenOptions recursively flattens a nested options structure into dot-notation keys.
+// this enables compatibility between Spectral (nested YAML) and Vacuum (flat dot-notation) formats.
+// examples:
+//   - { "type": "pascal" } -> { "type": "pascal" }
+//   - { "separator": { "char": "-" } } -> { "separator.char": "-" }
+//   - { "separator.char": "-" } -> { "separator.char": "-" } (already flat)
+func flattenOptions(prefix string, value interface{}, result map[string]string) {
+	buildKey := func(key string) string {
+		if prefix == "" {
+			return key
+		}
+		return prefix + "." + key
+	}
+
+	switch v := value.(type) {
+	case map[string]interface{}:
+		for k, val := range v {
+			flattenOptions(buildKey(k), val, result)
+		}
+	case map[interface{}]interface{}:
+		for k, val := range v {
+			flattenOptions(buildKey(fmt.Sprint(k)), val, result)
+		}
+	case map[string]string:
+		// handle already-flat string maps (common in tests and some use cases)
+		for k, val := range v {
+			result[buildKey(k)] = val
+		}
+	case string:
+		if prefix != "" {
+			result[prefix] = v
+		}
+	case bool:
+		if prefix != "" {
+			result[prefix] = fmt.Sprint(v)
+		}
+	case float64:
+		if prefix != "" {
+			result[prefix] = fmt.Sprint(v)
+		}
+	case int:
+		if prefix != "" {
+			result[prefix] = fmt.Sprint(v)
+		}
+	case int64:
+		if prefix != "" {
+			result[prefix] = fmt.Sprint(v)
+		}
+	default:
+		// for other types, convert to string if possible (but not at root level)
+		if value != nil && prefix != "" {
+			result[prefix] = fmt.Sprint(value)
+		}
+	}
 }
 
 // ClearOptionsCache clears the cached options map. This should be called when the context

@@ -1,4 +1,4 @@
-// Copyright 2023 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2023 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 package vacuum_report
@@ -55,7 +55,37 @@ type Failure struct {
 	Contents string `xml:",innerxml"`
 }
 
+// JUnitConfig controls how JUnit reports are generated
+type JUnitConfig struct {
+	// FailOnWarn treats warnings as failures (default: false, only errors are failures)
+	FailOnWarn bool
+}
+
+// severityToUppercase converts severity to uppercase without allocation for known values
+func severityToUppercase(severity string) string {
+	switch severity {
+	case model.SeverityError:
+		return "ERROR"
+	case model.SeverityWarn:
+		return "WARN"
+	case model.SeverityInfo:
+		return "INFO"
+	case model.SeverityHint:
+		return "HINT"
+	default:
+		return strings.ToUpper(severity)
+	}
+}
+
+// BuildJUnitReport generates a JUnit XML report from linting results.
+// By default, only errors create failure elements. Use config.FailOnWarn to include warnings.
+// Info and hint severities always create passing test cases.
 func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string) []byte {
+	return BuildJUnitReportWithConfig(resultSet, t, args, JUnitConfig{FailOnWarn: true})
+}
+
+// BuildJUnitReportWithConfig generates a JUnit XML report with configurable failure behavior.
+func BuildJUnitReportWithConfig(resultSet *model.RuleResultSet, t time.Time, args []string, config JUnitConfig) []byte {
 
 	since := time.Since(t)
 	var suites []*TestSuite
@@ -74,7 +104,17 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string
 
 	gf, gtc := 0, 0 // global failure count, global test cases count.
 
-	// try a category print out.
+	// isFailure determines if a severity level should be treated as a failure
+	isFailure := func(severity string) bool {
+		if severity == model.SeverityError {
+			return true
+		}
+		if severity == model.SeverityWarn && config.FailOnWarn {
+			return true
+		}
+		return false
+	}
+
 	for _, val := range cats {
 		categoryResults := resultSet.GetResultsByRuleCategory(val.Id)
 
@@ -84,7 +124,9 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string
 		for _, r := range categoryResults {
 			var sb bytes.Buffer
 			_ = parsedTemplate.Execute(&sb, r)
-			if r.Rule.Severity == model.SeverityError || r.Rule.Severity == model.SeverityWarn {
+
+			treatAsFailure := isFailure(r.Rule.Severity)
+			if treatAsFailure {
 				f++
 				gf++
 			}
@@ -95,14 +137,9 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string
 			}
 
 			tCase := &TestCase{
-				Line:      r.StartNode.Line,
+				Line:      line,
 				Name:      fmt.Sprintf("%s", val.Name),
 				ClassName: r.Rule.Id,
-				Failure: &Failure{
-					Message:  r.Message,
-					Type:     strings.ToUpper(r.Rule.Severity),
-					Contents: sb.String(),
-				},
 				Properties: &Properties{
 					Properties: []*Property{
 						{
@@ -125,21 +162,32 @@ func BuildJUnitReport(resultSet *model.RuleResultSet, t time.Time, args []string
 				},
 			}
 
+			// only create failure element for errors (and warnings if configured)
+			// info and hint severities become passing test cases
+			if treatAsFailure {
+				tCase.Failure = &Failure{
+					Message:  r.Message,
+					Type:     severityToUppercase(r.Rule.Severity),
+					Contents: sb.String(),
+				}
+			}
+
+			// determine file path once and apply to all locations
+			filePath := ""
 			if r.Origin != nil && r.Origin.AbsoluteLocation != "" {
-				tCase.File = r.Origin.AbsoluteLocation
+				filePath = r.Origin.AbsoluteLocation
+			} else if len(args) > 0 {
+				filePath = args[0]
+			}
+
+			if filePath != "" {
+				tCase.File = filePath
 				tCase.Properties.Properties = append(tCase.Properties.Properties, &Property{
 					Name:  "file",
-					Value: r.Origin.AbsoluteLocation,
+					Value: filePath,
 				})
-				tCase.Failure.File = r.Origin.AbsoluteLocation
-			} else {
-				if len(args) > 0 {
-					tCase.File = args[0]
-					tCase.Properties.Properties = append(tCase.Properties.Properties, &Property{
-						Name:  "file",
-						Value: args[0],
-					})
-					tCase.Failure.File = args[0]
+				if tCase.Failure != nil {
+					tCase.Failure.File = filePath
 				}
 			}
 

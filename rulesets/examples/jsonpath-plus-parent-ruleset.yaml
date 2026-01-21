@@ -1,0 +1,93 @@
+# JSONPath Plus Ruleset - Advanced Filter Examples
+#
+# This ruleset demonstrates advanced JSONPath Plus features including:
+#   - Deep recursive descent (..)
+#   - Filter expressions with type checking
+#   - Complex boolean logic in filters
+#
+# Note: The parent (^) operator is supported but these examples focus on
+# more commonly needed advanced filter patterns.
+
+extends: [[vacuum:oas, off]]
+documentationUrl: https://quobix.com/vacuum/rulesets/jsonpath-plus-advanced
+
+rules:
+  # Rule 1: Numeric ID parameters should use string type (OWASP-style)
+  # This mirrors Spectral's OWASP no-numeric-ids rule
+  # Use a simpler filter that checks integer type on path/query parameters
+  numeric-params-should-be-string:
+    description: Path/query parameters with integer type should consider string for security
+    message: "Parameter with integer type may be vulnerable to enumeration attacks"
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $..parameters[?(@ && @.in == 'path')].schema[?(@.type == 'integer')]
+    then:
+      function: falsy
+    howToFix: Change parameter type from integer to string with format uuid or similar
+
+  # Rule 2: Required request body fields should have descriptions
+  required-fields-described:
+    description: Required fields in request bodies should have descriptions
+    message: "Required field should have a description"
+    severity: info
+    recommended: false
+    formats: [oas3]
+    given: $.components.schemas[*].properties[*]
+    then:
+      field: description
+      function: truthy
+    howToFix: Add descriptions to all required schema properties
+
+  # Rule 3: Response schemas should have descriptions
+  response-schemas-described:
+    description: Response schemas should have descriptions
+    message: "Response schema is missing a description"
+    severity: info
+    recommended: true
+    formats: [oas3]
+    given: $..responses.*.content.*.schema
+    then:
+      field: description
+      function: truthy
+    howToFix: Add a description to response schemas or reference schemas with descriptions
+
+  # Rule 4: Schema properties should have types
+  # Uses filter to find property schemas that aren't references
+  schema-properties-have-type:
+    description: Schema properties should have explicit types
+    message: "Property is missing a type definition"
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $.components.schemas[*].properties[*]
+    then:
+      field: type
+      function: truthy
+    howToFix: Add explicit type to all schema properties
+
+  # Rule 5: Inline schemas in responses should have descriptions
+  inline-response-schemas-described:
+    description: Inline response schemas should have descriptions
+    message: "Inline response schema should have a description"
+    severity: info
+    recommended: false
+    formats: [oas3]
+    given: $..responses[*].content[*].schema[?(@.type)]
+    then:
+      field: description
+      function: truthy
+    howToFix: Add description to inline schemas or use $ref to reference documented schemas
+
+  # Rule 6: Request body schemas should have descriptions
+  request-body-schemas-described:
+    description: Request body schemas should have descriptions
+    message: "Request body schema should have a description"
+    severity: info
+    recommended: true
+    formats: [oas3]
+    given: $..requestBody.content[*].schema
+    then:
+      field: description
+      function: truthy
+    howToFix: Add description to request body schemas or use $ref to reference documented schemas

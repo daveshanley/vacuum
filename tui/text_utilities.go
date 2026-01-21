@@ -37,8 +37,8 @@ func GetSeverityInfo(severity string) SeverityInfo {
 		return SeverityInfo{
 			Icon:      "▲",
 			Text:      "▲ warning",
-			IconStyle: lipgloss.NewStyle().Foreground(color.RBGYellow).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(color.RBGYellow),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBYellow).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBYellow),
 		}
 	default: // model.SeverityInfo and others
 		return SeverityInfo{
@@ -64,8 +64,8 @@ func GetSeverityInfoFromText(severityText string) SeverityInfo {
 		return SeverityInfo{
 			Icon:      "▲",
 			Text:      severityText,
-			IconStyle: lipgloss.NewStyle().Foreground(color.RBGYellow).Bold(true),
-			TextStyle: lipgloss.NewStyle().Foreground(color.RBGYellow),
+			IconStyle: lipgloss.NewStyle().Foreground(color.RGBYellow).Bold(true),
+			TextStyle: lipgloss.NewStyle().Foreground(color.RGBYellow),
 		}
 	case "● info":
 		return SeverityInfo{

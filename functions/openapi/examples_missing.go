@@ -1,4 +1,4 @@
-// Copyright 2024 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2024 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 package openapi
@@ -13,6 +13,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/datamodel/high"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
 )
@@ -101,7 +102,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				}
 
 				if p.SchemaProxy.Schema.Value.Items != nil && p.SchemaProxy.Schema.Value.Items.IsA() && p.SchemaProxy.Schema.Value.Items.A != nil {
-					if len(p.SchemaProxy.Schema.Value.Items.A.Schema().Enum) > 0 {
+					schema := p.SchemaProxy.Schema.Value.Items.A.Schema()
+					if schema != nil && (len(schema.Enum) > 0 || hasExtensibleEnum(schema)) {
 						continue
 					}
 				}
@@ -176,7 +178,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				}
 
 				if h.Schema.Schema.Value.Items != nil && h.Schema.Schema.Value.Items.IsA() && h.Schema.Schema.Value.Items.A != nil {
-					if len(h.Schema.Schema.Value.Items.A.Schema().Enum) > 0 {
+					schema := h.Schema.Schema.Value.Items.A.Schema()
+					if schema != nil && (len(schema.Enum) > 0 || hasExtensibleEnum(schema)) {
 						continue
 					}
 				}
@@ -337,7 +340,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			}
 
 			if s.Value.Items != nil && s.Value.Items.IsA() && s.Value.Items.A != nil {
-				if s.Value.Items.A.Schema() != nil && len(s.Value.Items.A.Schema().Enum) > 0 {
+				schema := s.Value.Items.A.Schema()
+				if schema != nil && (len(schema.Enum) > 0 || hasExtensibleEnum(schema)) {
 					continue
 				}
 			}
@@ -447,6 +451,13 @@ func checkProps(s *v3.Schema) bool {
 	if s.Value.Example != nil {
 		return true
 	}
+	// const values serve as implicit examples (issue #765)
+	if s.Value.Const != nil {
+		return true
+	}
+	if s.Value.Default != nil {
+		return true
+	}
 	if s.Value.Properties != nil && s.Value.Properties.Len() > 0 {
 		for _, p := range s.Properties.FromOldest() {
 			return checkProps(p.Schema)
@@ -479,6 +490,10 @@ func checkArrayItems(s *v3.Schema) bool {
 			if itemSchema.Example != nil || len(itemSchema.Examples) > 0 {
 				return true
 			}
+			// const values serve as implicit examples (issue #765)
+			if itemSchema.Const != nil || itemSchema.Default != nil {
+				return true
+			}
 
 			// Check if all properties have examples
 			if itemSchema.Properties != nil && itemSchema.Properties.Len() > 0 {
@@ -486,7 +501,9 @@ func checkArrayItems(s *v3.Schema) bool {
 				for _, prop := range itemSchema.Properties.FromOldest() {
 					propSchema := prop.Schema()
 					if propSchema != nil {
-						if propSchema.Example == nil && len(propSchema.Examples) == 0 {
+						// const values serve as implicit examples (issue #765)
+						if propSchema.Example == nil && len(propSchema.Examples) == 0 &&
+							propSchema.Const == nil && propSchema.Default == nil {
 							allHaveExamples = false
 							break
 						}
@@ -530,7 +547,8 @@ func checkParent(s any, depth int) bool {
 					}
 
 					if pp.Value.Items != nil && pp.Value.Items.IsA() && pp.Value.Items.A != nil {
-						if len(pp.Value.Items.A.Schema().Enum) > 0 {
+						schema := pp.Value.Items.A.Schema()
+						if schema != nil && (len(schema.Enum) > 0 || hasExtensibleEnum(schema)) {
 							return true
 						}
 					}
@@ -607,6 +625,23 @@ func isSchemaEnum(schema *v3.Schema) bool {
 	}
 	if len(schema.Value.Enum) > 0 {
 		return true
+	}
+	if schema.Value != nil {
+		return hasExtensibleEnum(schema.Value)
+	}
+	return false
+}
+func hasExtensibleEnum(schema *base.Schema) bool {
+	if schema == nil {
+		return false
+	}
+	lowSchema := schema.GoLow()
+	if lowSchema != nil && lowSchema.Extensions != nil {
+		for ext := lowSchema.Extensions.First(); ext != nil; ext = ext.Next() {
+			if ext.Key().Value == "x-extensible-enum" {
+				return true
+			}
+		}
 	}
 	return false
 }

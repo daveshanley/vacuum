@@ -4,8 +4,10 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,6 +24,7 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/spf13/cobra"
 )
 
@@ -74,6 +77,24 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 	SetupVacuumEnvironment(flags)
 
+	// Load and apply breaking rules config early, before any change comparison
+	breakingConfig, breakingConfigErr := utils.LoadBreakingRulesConfig(flags.BreakingConfigPath)
+	if breakingConfigErr != nil {
+		// Check for validation errors and display them nicely
+		var validationErr *utils.ConfigValidationError
+		if errors.As(breakingConfigErr, &validationErr) {
+			fmt.Printf("\033[31mBreaking config validation error in %s:\033[0m\n", validationErr.FilePath)
+			fmt.Print(validationErr.FormatValidationErrors())
+			return breakingConfigErr
+		}
+		fmt.Printf("\033[31mError loading breaking config: %v\033[0m\n", breakingConfigErr)
+		return breakingConfigErr
+	}
+	if breakingConfig != nil {
+		utils.ApplyBreakingRulesConfig(breakingConfig)
+		defer utils.ResetBreakingRulesConfig()
+	}
+
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	filesToLint, err := getFilesToLint(flags.GlobPattern, args, validFileExtensions)
 	if cmd.Flags().Changed("globbed-files") && err != nil {
@@ -101,8 +122,21 @@ func runLint(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// try to load the file as either a report or spec
-	reportOrSpec, err := LoadFileAsReportOrSpec(fileName)
+	// Create HTTP client early for URL support (cert/TLS config)
+	httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
+	if cfgErr != nil {
+		return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+	}
+	var httpClient *http.Client
+	if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+		httpClient, err = utils.CreateCustomHTTPClient(httpClientConfig)
+		if err != nil {
+			return fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+	}
+
+	// try to load the file as either a report or spec (supports URLs)
+	reportOrSpec, err := LoadFileAsReportOrSpecWithClient(fileName, httpClient)
 	if err != nil {
 		if !flags.SilentFlag {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
@@ -110,7 +144,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fileInfo, _ := os.Stat(fileName)
+	// Get file size - for URLs, we use the downloaded bytes size
+	var fileSize int64
+	if strings.HasPrefix(fileName, "http://") || strings.HasPrefix(fileName, "https://") {
+		fileSize = int64(len(reportOrSpec.SpecBytes))
+	} else if fileInfo, err := os.Stat(fileName); err == nil {
+		fileSize = fileInfo.Size()
+	}
 	logger, bufferedLogger := createLogger(flags.DebugFlag)
 
 	var resultSet *model.RuleResultSet
@@ -118,6 +158,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	var displayFileName string
 	var stats *reports.ReportStatistics
 	var fixesApplied int
+	var changeFilterStats *utils.ChangeFilterStats
 	start := time.Now()
 
 	if reportOrSpec.IsReport {
@@ -156,6 +197,33 @@ func runLint(cmd *cobra.Command, args []string) error {
 				color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 		}
 
+		// Load/generate changes early for comparison mode display
+		var documentChanges *wcModel.DocumentChanges
+		var changeResult *utils.ChangeResult
+		if flags.ChangesFlag != "" || flags.OriginalFlag != "" {
+			var changesErr error
+			if flags.OriginalFlag != "" {
+				// Use changerator for full tree support
+				changeResult, changesErr = utils.GenerateChangeReportWithTree(flags.OriginalFlag, specBytes, fileName)
+				if changeResult != nil {
+					documentChanges = changeResult.DocumentChanges
+				}
+			} else {
+				// JSON report - no tree available
+				documentChanges, changesErr = utils.LoadChangeReportFromFile(flags.ChangesFlag)
+			}
+			if changesErr != nil {
+				if !flags.SilentFlag {
+					fmt.Printf("\033[33mWarning: Failed to load changes: %v\033[0m\n", changesErr)
+					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
+				}
+				documentChanges = nil
+				changeResult = nil
+			} else if !flags.SilentFlag && !flags.PipelineOutput {
+				renderComparisonModeSummary(changeResult, documentChanges, flags.NoStyleFlag, flags.ChangesSummaryFlag)
+			}
+		}
+
 		// deep graph is required if we have ignored items
 		deepGraph := false
 		if len(ignoredItems) > 0 {
@@ -168,9 +236,9 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve base path: %w", baseErr)
 		}
 
-		httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
-		if cfgErr != nil {
-			return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		fetchConfig, fetchCfgErr := GetFetchConfig(flags)
+		if fetchCfgErr != nil {
+			return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 		}
 
 		execution := &motor.RuleSetExecution{
@@ -191,11 +259,32 @@ func runLint(cmd *cobra.Command, args []string) error {
 			ExtractReferencesFromExtensions: flags.ExtRefsFlag,
 			HTTPClientConfig:                httpClientConfig,
 			ApplyAutoFixes:                  flags.FixFlag,
+			FetchConfig:                     fetchConfig,
 		}
 
 		result := motor.ApplyRulesToRuleSet(execution)
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
+
+		// Apply change-based filtering using pre-loaded documentChanges
+		if documentChanges != nil {
+			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
+			result.Results, changeFilterStats = changeFilter.FilterResultsValues(result.Results)
+		}
+
+		// Inject change violations if requested
+		if documentChanges != nil && (flags.WarnOnChanges || flags.ErrorOnBreaking) {
+			changeViolations := utils.GenerateChangeViolations(documentChanges, utils.ChangeViolationOptions{
+				WarnOnChanges:   flags.WarnOnChanges,
+				ErrorOnBreaking: flags.ErrorOnBreaking,
+			})
+			// Convert pointer results to values for compatibility with motor.Results
+			for _, v := range changeViolations {
+				if v != nil {
+					result.Results = append(result.Results, *v)
+				}
+			}
+		}
 
 		// render out buffered logs
 		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
@@ -294,6 +383,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 		})
 	}
 
+	// Render change filter summary if requested
+	if changeFilterStats != nil && flags.ChangesSummaryFlag && !flags.SilentFlag && !flags.PipelineOutput {
+		width := getTerminalWidth()
+		widths := calculateColumnWidths(width)
+		renderChangeFilterSummary(changeFilterStats, widths, flags.NoStyleFlag)
+	}
+
 	renderFixedSummary(RenderSummaryOptions{
 		RuleResultSet:  resultSet,
 		RuleCategories: cats,
@@ -309,7 +405,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	// timing
 	duration := time.Since(start)
 	if flags.TimeFlag && !flags.PipelineOutput {
-		renderFixedTiming(duration, fileInfo.Size())
+		renderFixedTiming(duration, fileSize)
 	}
 
 	// severity failure
@@ -624,7 +720,8 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// getFilesToLint handles both individual files and glob patterns
+// getFilesToLint handles both individual files and glob patterns.
+// Supports simple bash-style brace expansion like *.{json,yaml,yml}.
 func getFilesToLint(globPattern string, filepaths []string, validFileExtensions []string) ([]string, error) {
 	// Note that if some of the paths are absolute and the others are relative,
 	// then we turn all paths into relative ones.
@@ -634,12 +731,22 @@ func getFilesToLint(globPattern string, filepaths []string, validFileExtensions 
 
 	var filesToLint = filepaths
 
-	// Get all files that match the glob pattern
-	matches, err := filepath.Glob(globPattern)
-	if err != nil {
-		return []string{}, err
+	// Expand brace patterns and get all files that match
+	patterns := expandBracePattern(globPattern)
+	seen := make(map[string]bool)
+
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return []string{}, err
+		}
+		for _, match := range matches {
+			if !seen[match] {
+				seen[match] = true
+				filesToLint = append(filesToLint, match)
+			}
+		}
 	}
-	filesToLint = append(filesToLint, matches...)
 
 	// Remove any duplicates
 	filesToLint = deduplicate(filesToLint)

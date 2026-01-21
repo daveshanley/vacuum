@@ -9,15 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/daveshanley/vacuum/config"
 )
 
-// HTTPClientConfig holds configuration for creating a custom HTTP client
-type HTTPClientConfig struct {
-	CertFile string
-	KeyFile  string
-	CAFile   string
-	Insecure bool
-}
+// HTTPClientConfig is an alias for config.HTTPClientConfig for backwards compatibility.
+type HTTPClientConfig = config.HTTPClientConfig
+
+// FetchConfig is an alias for config.FetchConfig for backwards compatibility.
+type FetchConfig = config.FetchConfig
 
 // CreateCustomHTTPClient creates an HTTP client with custom TLS configuration
 // for certificate-based authentication and custom CA certificates.
@@ -74,4 +74,13 @@ func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Respons
 // ShouldUseCustomHTTPClient returns true if any TLS-related configuration is provided
 func ShouldUseCustomHTTPClient(config HTTPClientConfig) bool {
 	return config.CertFile != "" || config.KeyFile != "" || config.CAFile != "" || config.Insecure
+}
+
+// CreateHTTPClientIfNeeded creates a custom HTTP client only if TLS configuration is provided.
+// Returns nil (no error) if no custom configuration is needed, allowing use of default client.
+func CreateHTTPClientIfNeeded(config HTTPClientConfig) (*http.Client, error) {
+	if !ShouldUseCustomHTTPClient(config) {
+		return nil, nil
+	}
+	return CreateCustomHTTPClient(config)
 }

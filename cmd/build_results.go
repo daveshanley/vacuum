@@ -2,14 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/daveshanley/vacuum/utils"
-
 	"github.com/daveshanley/vacuum/tui"
-	"net/http"
-	"time"
+	"github.com/daveshanley/vacuum/utils"
 )
 
 func BuildResults(
@@ -23,8 +22,9 @@ func BuildResults(
 	timeout time.Duration,
 	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, ignoredItems)
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems)
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -39,6 +39,7 @@ func BuildResultsWithDocCheckSkip(
 	timeout time.Duration,
 	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
 	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
@@ -65,15 +66,9 @@ func BuildResultsWithDocCheckSkip(
 	// if ruleset has been supplied, lets make sure it exists, then load it in
 	// and see if it's valid. If so - let's go!
 	if rulesetFlag != "" {
-
-		// Create HTTP client for remote ruleset downloads if needed
-		var httpClient *http.Client
-		if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
-			var clientErr error
-			httpClient, clientErr = utils.CreateCustomHTTPClient(httpClientConfig)
-			if clientErr != nil {
-				return nil, nil, fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
-			}
+		httpClient, clientErr := utils.CreateHTTPClientIfNeeded(httpClientConfig)
+		if clientErr != nil {
+			return nil, nil, fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
 		}
 
 		var rsErr error
@@ -102,6 +97,7 @@ func BuildResultsWithDocCheckSkip(
 		Timeout:           timeout,
 		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
+		FetchConfig:       fetchConfig,
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)

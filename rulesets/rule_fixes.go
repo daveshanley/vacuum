@@ -59,7 +59,7 @@ const (
 		"then it won't be something you copy and paste. Please don't duplicate descriptions, make them deliberate and meaningful."
 
 	componentDescriptionFix string = "Components are the inputs and outputs of a specification. A user needs to be able to " +
-		"understand each component and what id does. Descriptions are critical to understanding components. Add a description!"
+		"understand each component and what it does. Descriptions are critical to understanding components. Add a description!"
 
 	oasServersFix string = "Ensure server URIs are correct and valid, check the schemes, ensure descriptions are complete."
 
@@ -84,6 +84,11 @@ const (
 
 	typedEnumFix string = "Enum values lock down the number of variable inputs a parameter or schema can have. The problem here is " +
 		"that the Enum defined, does not match the specified type. Fix the type!"
+
+	nullableEnumFix string = "When a schema is marked as nullable (using 'nullable: true' in OpenAPI 3.0 or 'type: [<type>, \"null\"]' in OpenAPI 3.1), " +
+		"and also defines an enum array, the enum must explicitly contain a null value (without quotes). " +
+		"Simply marking the schema as nullable is not enough - the null value must be listed in the enum array. " +
+		"Add null (unquoted) to your enum array, for example: enum: [active, inactive, null]"
 
 	pathParamsFix string = "Path parameters need to match up with the parameters defined for the path, or in an operation " +
 		"that sits under that path. Make sure variable names match up and are defined correctly."

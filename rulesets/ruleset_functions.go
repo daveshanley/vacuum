@@ -679,6 +679,26 @@ func GetTypedEnumRule() *model.Rule {
 	}
 }
 
+// GetNullableEnumRule checks that nullable enums explicitly contain null in their enum array
+func GetNullableEnumRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Check nullable enums contain null",
+		Id:           NullableEnumRule,
+		Formats:      model.AllFormats,
+		Description:  "Nullable enums must explicitly include null in the enum array",
+		Given:        "$",
+		Resolved:     true,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "nullableEnum",
+		},
+		HowToFix: nullableEnumFix,
+	}
+}
+
 // GetPathParamsRule checks if path params are valid and defined.
 func GetPathParamsRule() *model.Rule {
 	// add operation tag defined rule

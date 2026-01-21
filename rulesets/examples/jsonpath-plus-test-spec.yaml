@@ -1,0 +1,272 @@
+openapi: "3.1.0"
+info:
+  title: JSONPath Plus Test API
+  version: "1.0.0"
+  description: A test API for validating JSONPath Plus features in vacuum
+  contact:
+    name: Test Team
+    email: test@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+tags:
+  - name: users
+    description: User management operations
+  - name: products
+    description: Product catalog operations
+  - name: orders  # Missing description - should be caught
+
+paths:
+  /users:
+    get:
+      summary: List all users
+      operationId: listUsers
+      tags:
+        - users
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserList"
+    post:
+      summary: Create a user
+      operationId: createUser
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{user_id}:
+    get:
+      summary: Get a user by ID
+      operationId: getUser
+      tags:
+        - users
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /products/list-all:
+    get:
+      summary: List all products
+      operationId: listProducts
+      tags:
+        - products
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductList"
+
+  /orders/{orderID}:
+    get:
+      summary: Get an order
+      operationId: getOrder
+      tags:
+        - orders
+      parameters:
+        - name: orderID
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+    delete:
+      summary: Delete an order
+      operationId: deleteOrder
+      tags:
+        - orders
+      parameters:
+        - name: orderID
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Order deleted
+
+  /userAccounts/active:
+    get:
+      summary: Get active user accounts (camelCase path - BAD)
+      operationId: getActiveAccounts
+      tags:
+        - users
+      responses:
+        "200":
+          description: Successful response
+
+  /Product_Categories:
+    get:
+      summary: Get product categories (underscore path - BAD)
+      operationId: getProductCategories
+      tags:
+        - products
+      responses:
+        "200":
+          description: Successful response
+
+components:
+  schemas:
+    User:
+      type: object
+      description: A user in the system
+      properties:
+        id:
+          type: string
+          description: User ID
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        role:
+          type: string
+          enum:
+            - admin
+            - user
+            - guest
+          description: User's role
+        settings:
+          type: object
+          description: User settings
+          additionalProperties: true
+          properties:
+            theme:
+              type: string
+            notifications:
+              type: boolean
+      required:
+        - id
+        - name
+        - email
+
+    CreateUserRequest:
+      type: object
+      description: Request body for creating a user
+      properties:
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          description: User's password
+      required:
+        - name
+        - email
+        - password
+
+    UserList:
+      type: object
+      description: A list of users
+      properties:
+        users:
+          type: array
+          description: Array of users
+          items:
+            $ref: "#/components/schemas/User"
+        total:
+          type: integer
+          description: Total count
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          format: double
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    ProductList:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+              quantity:
+                type: integer
+        status:
+          type: string
+          enum:
+            - pending
+            - processing
+            - shipped
+            - delivered
+            - cancelled
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - ApiKeyAuth: []

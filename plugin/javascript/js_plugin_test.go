@@ -1,4 +1,4 @@
-// Copyright 2023 Princess B33f Heavy Industries / Dave Shanley
+// Copyright 2023 Princess Beef Heavy Industries / Dave Shanley
 // SPDX-License-Identifier: MIT
 
 package javascript
@@ -224,4 +224,676 @@ func Test_JSPlugin_Fail_NoRunRuleFunc(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "runRule function not found", err.Error())
 
+}
+
+// ============================================================================
+// Async/Await Tests - Testing the new event loop functionality
+// ============================================================================
+
+func Test_JSPlugin_Async_Promise_Resolve(t *testing.T) {
+	script := `
+function runRule(input) {
+	return Promise.resolve([{ message: "async result: " + input }]);
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("hello async"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "async result: hello async", results[0].Message)
+}
+
+func Test_JSPlugin_Async_AsyncAwait_Basic(t *testing.T) {
+	script := `
+async function runRule(input) {
+	const value = await Promise.resolve("processed");
+	return [{ message: value + ": " + input }];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "processed: test input", results[0].Message)
+}
+
+func Test_JSPlugin_Async_MultipleAwaits(t *testing.T) {
+	script := `
+async function runRule(input) {
+	const a = await Promise.resolve("first");
+	const b = await Promise.resolve("second");
+	const c = await Promise.resolve("third");
+	return [{ message: a + "-" + b + "-" + c }];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "first-second-third", results[0].Message)
+}
+
+func Test_JSPlugin_Async_WithSetTimeout(t *testing.T) {
+	script := `
+function runRule(input) {
+	return new Promise(function(resolve) {
+		setTimeout(function() {
+			resolve([{ message: "delayed result" }]);
+		}, 10);
+	});
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "delayed result", results[0].Message)
+}
+
+func Test_JSPlugin_Async_EmptyResult(t *testing.T) {
+	script := `
+async function runRule(input) {
+	await Promise.resolve();
+	// Validation passed, return empty array
+	return [];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("valid input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Empty(t, results)
+}
+
+func Test_JSPlugin_Async_ConditionalValidation(t *testing.T) {
+	script := `
+async function runRule(input) {
+	const isValid = await Promise.resolve(input.valid);
+	if (!isValid) {
+		return [{ message: "validation failed for " + input.name }];
+	}
+	return [];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	// Test with invalid input
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("name: test\nvalid: false"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "validation failed for test", results[0].Message)
+
+	// Test with valid input
+	_ = yaml.Unmarshal([]byte("name: test2\nvalid: true"), &y)
+
+	results = f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Empty(t, results)
+}
+
+func Test_JSPlugin_Async_PromiseAll(t *testing.T) {
+	script := `
+async function runRule(input) {
+	const results = await Promise.all([
+		Promise.resolve("a"),
+		Promise.resolve("b"),
+		Promise.resolve("c")
+	]);
+	return [{ message: results.join("-") }];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "a-b-c", results[0].Message)
+}
+
+func Test_JSPlugin_Async_PromiseReject(t *testing.T) {
+	script := `
+async function runRule(input) {
+	throw new Error("async validation error");
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	// Error objects from JS are exported as maps, so check for promise rejection
+	assert.Contains(t, results[0].Message, "promise rejected")
+}
+
+func Test_JSPlugin_Async_PromiseRejectString(t *testing.T) {
+	// Test with string rejection which preserves the message
+	script := `
+async function runRule(input) {
+	return Promise.reject("string validation error");
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "string validation error")
+}
+
+func Test_JSPlugin_Async_NestedAsyncFunctions(t *testing.T) {
+	script := `
+async function helper(value) {
+	return await Promise.resolve(value.toUpperCase());
+}
+
+async function runRule(input) {
+	const processed = await helper(input);
+	return [{ message: "Result: " + processed }];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("hello world"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Result: HELLO WORLD", results[0].Message)
+}
+
+func Test_JSPlugin_Async_MixedSyncAsync(t *testing.T) {
+	// Test that synchronous code still works with the event loop
+	script := `
+function runRule(input) {
+	// Purely synchronous - no async/await
+	if (input.length < 5) {
+		return [{ message: "Input too short" }];
+	}
+	return [];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("hi"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Input too short", results[0].Message)
+}
+
+func Test_JSPlugin_Async_WithContext(t *testing.T) {
+	script := `
+async function runRule(input) {
+	await Promise.resolve();
+	const fieldName = context.ruleAction.field;
+	if (!input[fieldName]) {
+		return [{ message: "Field '" + fieldName + "' is required" }];
+	}
+	return [];
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("name: test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		RuleAction: &model.RuleAction{
+			Field: "description",
+		},
+	})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Field 'description' is required", results[0].Message)
+}
+
+func Test_JSPlugin_Async_MultipleResults(t *testing.T) {
+	script := `
+async function runRule(input) {
+	await Promise.resolve();
+	var errors = [];
+	if (!input.name) {
+		errors.push({ message: "name is required" });
+	}
+	if (!input.description) {
+		errors.push({ message: "description is required" });
+	}
+	return errors;
+}
+`
+	f := NewJSRuleFunction("test", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("version: 1.0"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+	})
+	assert.Len(t, results, 2)
+	assert.Equal(t, "name is required", results[0].Message)
+	assert.Equal(t, "description is required", results[1].Message)
+}
+
+// Integration test for the async_validation.js sample - tests a real-world async pattern
+func Test_JSPlugin_Async_SampleValidation(t *testing.T) {
+	// This is a simplified version of the async_validation.js sample
+	script := `
+function getSchema() {
+    return {
+        "name": "asyncValidation",
+        "description": "Demonstrates async/await in vacuum custom functions"
+    };
+}
+
+async function simulateAsyncCheck(value) {
+    return new Promise(function(resolve) {
+        setTimeout(function() {
+            var isDeprecated = value && value.toLowerCase().indexOf("deprecated") !== -1;
+            resolve({
+                valid: !isDeprecated,
+                reason: isDeprecated ? "Contains deprecated indicator" : null
+            });
+        }, 5);
+    });
+}
+
+async function runRule(input) {
+    var results = [];
+
+    if (input.description) {
+        var checkResult = await simulateAsyncCheck(input.description);
+        if (!checkResult.valid) {
+            results.push({
+                message: "Description issue: " + checkResult.reason
+            });
+        }
+    }
+
+    return results;
+}
+`
+	f := NewJSRuleFunction("asyncValidation", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	// Test with deprecated content - should return an error
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("description: This is deprecated content"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "$.info",
+	})
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "deprecated")
+
+	// Test with valid content - should return no errors
+	_ = yaml.Unmarshal([]byte("description: This is a valid API description"), &y)
+
+	results = f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "$.info",
+	})
+	assert.Empty(t, results)
+}
+
+// Test parallel async operations with Promise.all
+func Test_JSPlugin_Async_ParallelOperations(t *testing.T) {
+	script := `
+async function checkItem(item) {
+    return new Promise(function(resolve) {
+        setTimeout(function() {
+            resolve({
+                name: item,
+                valid: item.length > 2
+            });
+        }, 5);
+    });
+}
+
+async function runRule(input) {
+    if (!input.items || !Array.isArray(input.items)) {
+        return [];
+    }
+
+    var checks = input.items.map(function(item) {
+        return checkItem(item);
+    });
+
+    var results = await Promise.all(checks);
+
+    return results
+        .filter(function(r) { return !r.valid; })
+        .map(function(r) {
+            return { message: "Item '" + r.name + "' is too short" };
+        });
+}
+`
+	f := NewJSRuleFunction("parallelCheck", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("items:\n  - ab\n  - abc\n  - x\n  - valid"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "$.data",
+	})
+	// "ab" and "x" are too short (length <= 2)
+	assert.Len(t, results, 2)
+	assert.Contains(t, results[0].Message, "ab")
+	assert.Contains(t, results[1].Message, "x")
+}
+
+// ============================================================================
+// Batch Mode Tests - Testing batch mode result mapping and error handling
+// ============================================================================
+
+func Test_JSPlugin_BatchMode_ValidInputs(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	var results = [];
+	for (var i = 0; i < inputs.length; i++) {
+		var input = inputs[i];
+		if (input.value && input.value.length < 5) {
+			results.push({
+				message: "Value too short: " + input.value,
+				input: input
+			});
+		}
+	}
+	return results;
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	// Create multiple nodes
+	var y1, y2, y3 yaml.Node
+	_ = yaml.Unmarshal([]byte("ab"), &y1)   // too short
+	_ = yaml.Unmarshal([]byte("hello"), &y2) // valid
+	_ = yaml.Unmarshal([]byte("hi"), &y3)   // too short
+
+	results := f.RunRule([]*yaml.Node{y1.Content[0], y2.Content[0], y3.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should have 2 errors (for "ab" and "hi")
+	assert.Len(t, results, 2)
+	assert.Contains(t, results[0].Message, "ab")
+	assert.Contains(t, results[1].Message, "hi")
+	// Verify correct node mapping
+	assert.Equal(t, 1, results[0].StartNode.Line) // First node
+	assert.Equal(t, 1, results[1].StartNode.Line) // Third node (all at line 1 in this test)
+}
+
+func Test_JSPlugin_BatchMode_MissingInput(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Missing the required 'input' field - should create error
+	return [{ message: "error without input" }];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about missing input
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "missing valid 'input' object")
+}
+
+func Test_JSPlugin_BatchMode_InvalidIndex(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return with input that has invalid index type
+	return [{
+		message: "error with bad input",
+		input: { index: "not-a-number" }
+	}];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about missing valid input
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "missing valid 'input' object")
+}
+
+func Test_JSPlugin_BatchMode_OutOfBoundsIndex(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return with index that's out of bounds
+	return [{
+		message: "error with out of bounds index",
+		input: { index: 999 }
+	}];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about missing valid input (out of bounds is treated as invalid)
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "missing valid 'input' object")
+}
+
+func Test_JSPlugin_BatchMode_NonArrayReturn(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return non-array - should create error
+	return "not an array";
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error about return type
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "must return an array")
+}
+
+func Test_JSPlugin_BatchMode_MalformedResult(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	// Return array with non-object item
+	return ["not an object", { message: "valid", input: inputs[0] }];
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("test"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should get error for malformed result and success for valid one
+	assert.Len(t, results, 2)
+	assert.Contains(t, results[0].Message, "not an object")
+	assert.Equal(t, "valid", results[1].Message)
+}
+
+func Test_JSPlugin_BatchMode_AsyncWithInput(t *testing.T) {
+	script := `
+async function runRule(inputs) {
+	var results = [];
+	for (var i = 0; i < inputs.length; i++) {
+		var input = inputs[i];
+		var value = await Promise.resolve(input.value);
+		if (value && value.indexOf("error") !== -1) {
+			results.push({
+				message: "Found error keyword in: " + value,
+				input: input
+			});
+		}
+	}
+	return results;
+}
+`
+	f := NewJSRuleFunction("asyncBatchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y1, y2 yaml.Node
+	_ = yaml.Unmarshal([]byte("this has error"), &y1)
+	_ = yaml.Unmarshal([]byte("this is fine"), &y2)
+
+	results := f.RunRule([]*yaml.Node{y1.Content[0], y2.Content[0]}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "error keyword")
+}
+
+func Test_JSPlugin_BatchMode_EmptyInputs(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	return inputs.map(function(input) {
+		return { message: "processed", input: input };
+	});
+}
+`
+	f := NewJSRuleFunction("batchTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	// Empty node list
+	results := f.RunRule([]*yaml.Node{}, model.RuleFunctionContext{
+		Given: "test.path",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	// Should return nil for empty inputs
+	assert.Nil(t, results)
 }

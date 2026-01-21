@@ -819,3 +819,302 @@ components:
 	// Valid example should pass
 	assert.Len(t, res, 0)
 }
+
+// TestExamplesSchema_StrictMode_DetectsUndeclaredProperty tests that strict mode
+// detects undeclared properties in examples that are technically valid JSON Schema.
+func TestExamplesSchema_StrictMode_DetectsUndeclaredProperty(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+      example:
+        name: "Fluffy"
+        extra: "undeclared"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	opts := map[string]string{"strictMode": "true"}
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "undeclared property 'extra'")
+}
+
+// TestExamplesSchema_StrictMode_PassesWithDeclaredProperties tests that strict mode
+// passes when all properties are declared.
+func TestExamplesSchema_StrictMode_PassesWithDeclaredProperties(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+        tag:
+          type: string
+      example:
+        name: "Fluffy"
+        tag: "cute"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	opts := map[string]string{"strictMode": "true"}
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+// TestExamplesSchema_StrictMode_DisabledByDefault tests that undeclared properties
+// are not reported when strict mode is not enabled (default behavior).
+func TestExamplesSchema_StrictMode_DisabledByDefault(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+      example:
+        name: "Fluffy"
+        extra: "undeclared"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	// No strictMode option - should NOT report undeclared properties
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+// TestExamplesSchema_StrictMode_NestedObjects tests that strict mode detects
+// undeclared properties in nested objects.
+func TestExamplesSchema_StrictMode_NestedObjects(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: object
+          properties:
+            city:
+              type: string
+      example:
+        name: "Fluffy"
+        address:
+          city: "London"
+          unknown: "extra"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	opts := map[string]string{"strictMode": "true"}
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "undeclared property 'unknown'")
+}
+
+// TestExamplesSchema_StrictMode_ResponseUsesDirectionResponse tests that strict mode
+// correctly uses DirectionResponse for response examples (writeOnly properties ignored).
+func TestExamplesSchema_StrictMode_ResponseUsesDirectionResponse(t *testing.T) {
+	yml := `openapi: 3.1
+paths:
+  /pets:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  password:
+                    type: string
+                    writeOnly: true
+              example:
+                name: "Fluffy"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	opts := map[string]string{"strictMode": "true"}
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	// Should pass - writeOnly property 'password' is correctly ignored in response
+	assert.Len(t, res, 0)
+}
+
+// TestExamplesSchema_StrictMode_RequestUsesDirectionRequest tests that strict mode
+// correctly uses DirectionRequest for request body examples (readOnly properties ignored).
+func TestExamplesSchema_StrictMode_RequestUsesDirectionRequest(t *testing.T) {
+	yml := `openapi: 3.1
+paths:
+  /pets:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                id:
+                  type: integer
+                  readOnly: true
+            example:
+              name: "Fluffy"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	opts := map[string]string{"strictMode": "true"}
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	// Should pass - readOnly property 'id' is correctly ignored in request
+	assert.Len(t, res, 0)
+}
+
+// TestExamplesSchema_StrictMode_SkipsNonObjectExamples tests that strict mode
+// does not run on array or primitive examples.
+func TestExamplesSchema_StrictMode_SkipsNonObjectExamples(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    StringList:
+      type: array
+      items:
+        type: string
+      example:
+        - "one"
+        - "two"`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	opts := map[string]string{"strictMode": "true"}
+	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesSchema{}
+	res := def.RunRule(nil, ctx)
+
+	// Should pass - array examples are not object maps, so strict validation is skipped
+	assert.Len(t, res, 0)
+}

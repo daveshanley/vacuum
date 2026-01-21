@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: The Existential Dread API
+  version: 1.0.0
+  description: |
+    This API was written during a mass layoff. Every endpoint represents
+    a piece of my soul that died during the refactoring. The documentation
+    you're about to read reflects the crushing weight of technical debt
+    that will never be paid off. Abandon hope, all ye who integrate here.
+
+servers:
+  - url: https://api.despair.io/v1
+    description: The production server that crashes every Monday without fail
+
+paths:
+  /users:
+    get:
+      operationId: getUsers
+      summary: Retrieve users from the void
+      description: |
+        This endpoint fetches users, but honestly, what's the point? They'll
+        just leave eventually, like everyone else. The response times are
+        painfully slow because the database is crying. Expect timeouts and
+        disappointment in equal measure.
+      responses:
+        '200':
+          description: A hollow victory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+        '500':
+          description: The server gave up, just like my motivation
+
+    post:
+      operationId: createUser
+      summary: Create another doomed user
+      description: |
+        Creates a new user who will inevitably forget their password and
+        flood support with tickets. This operation makes me want to weep
+        into my keyboard. The validation is broken and nobody has the
+        willpower to fix it anymore.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SadUser'
+      responses:
+        '201':
+          description: User created, dreams deferred
+        '400':
+          description: Bad request, bad life choices
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      summary: Fetch an order that probably failed
+      description: |
+        Retrieves an order by ID. Most orders end in cancellation and
+        refund requests that make the finance team miserable. This endpoint
+        is a monument to our collective failure to build something people
+        actually want. Loading spinners will haunt your users' nightmares.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          description: The ID of the order you'll regret looking up
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Found the order, found more problems
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepressingOrder'
+        '404':
+          description: Order not found, hope not found either
+
+    delete:
+      operationId: deleteOrder
+      summary: Delete an order and your faith in REST
+      description: |
+        Permanently removes an order from existence, much like how this
+        project has removed joy from the development team. The cascade
+        delete will destroy related records with the same ruthless
+        efficiency that burnout destroys careers. There is no undo.
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Gone forever, like my enthusiasm
+        '500':
+          description: Delete failed, adding to the pile of failures
+
+  /reports/quarterly:
+    get:
+      operationId: getQuarterlyReport
+      summary: Generate a report nobody will read
+      description: |
+        Generates a quarterly report that will be ignored by management
+        and mocked by stakeholders. This endpoint takes an agonizingly
+        long time because it queries every table in a database designed
+        by someone who has since quit in frustration. The results are
+        consistently depressing and occasionally wrong.
+      responses:
+        '200':
+          description: Report generated, morale destroyed
+        '408':
+          description: Timed out, like my patience with this codebase
+
+components:
+  schemas:
+    SadUser:
+      type: object
+      description: |
+        A user object representing someone who made the tragic mistake of
+        signing up for our platform. Their data will be mishandled and their
+        trust will be betrayed by our inadequate security practices. We store
+        passwords in plain text because the original developer was "in a hurry."
+      properties:
+        id:
+          type: string
+          description: A meaningless identifier in an uncaring universe
+        email:
+          type: string
+          format: email
+          description: Where we send spam they never asked for
+        name:
+          type: string
+          description: A name they'll regret giving us
+        hopelessnessLevel:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Scale of 1-10, most users are at 11
+
+    UserList:
+      type: object
+      description: |
+        A collection of users, each one a reminder that real people depend
+        on this broken software. The pagination is implemented incorrectly
+        and will skip records randomly, causing data loss and existential
+        dread in equal measure.
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/SadUser'
+        total:
+          type: integer
+          description: A number that fills us with dread
+
+    DepressingOrder:
+      type: object
+      description: |
+        An order that represents shattered expectations and unfulfilled
+        promises. The status field has 47 possible values because requirements
+        kept changing and nobody had the courage to push back. Most orders
+        exist in a limbo state that defies both logic and the will to live.
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          description: One of 47 confusing states of despair
+          enum:
+            - pending_doom
+            - processing_regret
+            - shipped_to_wrong_address
+            - lost_in_warehouse
+            - customer_crying
+            - refund_requested
+            - hope_abandoned
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              quantity:
+                type: integer
+                description: How many times disappointment will be delivered
+        totalMisery:
+          type: number
+          description: The sum of all suffering, in dollars

@@ -82,6 +82,7 @@ const (
 	Oas3ExampleExternalCheck             = "oas3-example-external-check"
 	TypedEnum                            = "typed-enum"
 	DuplicatedEntryInEnum                = "duplicated-entry-in-enum"
+	NullableEnumRule                     = "nullable-enum-contains-null"
 	NoEvalInMarkdown                     = "no-eval-in-markdown"
 	NoScriptTagsInMarkdown               = "no-script-tags-in-markdown"
 	DescriptionDuplication               = "description-duplication"
@@ -487,6 +488,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas2OperationSecurityDefined] = GetOAS2SecurityDefinedRule()
 	rules[TypedEnum] = GetTypedEnumRule()
 	rules[DuplicatedEntryInEnum] = GetDuplicatedEntryInEnumRule()
+	rules[NullableEnumRule] = GetNullableEnumRule()
 	rules[NoEvalInMarkdown] = GetNoEvalInMarkdownRule()
 	rules[NoScriptTagsInMarkdown] = GetNoScriptTagsInMarkdownRule()
 	rules[DescriptionDuplication] = GetDescriptionDuplicationRule()

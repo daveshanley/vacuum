@@ -73,10 +73,19 @@ type LintFlags struct {
 	KeyFile                  string
 	CAFile                   string
 	Insecure                 bool
+	AllowPrivateNetworks     bool
+	AllowHTTP                bool
+	FetchTimeout             int
 	DebugFlag                bool
 	LookupTimeoutFlag        int
 	FixFlag                  bool
 	FixFileFlag              string
+	ChangesFlag              string // --changes: path to JSON change report
+	OriginalFlag             string // --original: path to original spec for inline comparison
+	ChangesSummaryFlag       bool   // --changes-summary: show filtered results summary
+	BreakingConfigPath       string // --breaking-config: path to breaking rules config
+	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
+	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -87,6 +96,7 @@ type FileProcessingConfig struct {
 	SelectedRuleset *rulesets.RuleSet
 	CustomFunctions map[string]model.RuleFunction
 	IgnoredItems    model.IgnoredItems
+	FetchConfig     *utils.FetchConfig
 }
 
 // ReadLintFlags reads all lint-related flags from the command
@@ -167,12 +177,30 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("insecure") && viper.IsSet("lint.insecure") {
 		flags.Insecure = viper.GetBool("lint.insecure")
 	}
+	flags.AllowPrivateNetworks, _ = cmd.Flags().GetBool("allow-private-networks")
+	if !cmd.Flags().Changed("allow-private-networks") && viper.IsSet("lint.allow-private-networks") {
+		flags.AllowPrivateNetworks = viper.GetBool("lint.allow-private-networks")
+	}
+	flags.AllowHTTP, _ = cmd.Flags().GetBool("allow-http")
+	if !cmd.Flags().Changed("allow-http") && viper.IsSet("lint.allow-http") {
+		flags.AllowHTTP = viper.GetBool("lint.allow-http")
+	}
+	flags.FetchTimeout, _ = cmd.Flags().GetInt("fetch-timeout")
+	if !cmd.Flags().Changed("fetch-timeout") && viper.IsSet("lint.fetch-timeout") {
+		flags.FetchTimeout = viper.GetInt("lint.fetch-timeout")
+	}
 	flags.DebugFlag, _ = cmd.Flags().GetBool("debug")
 	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
 	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
 	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
+	flags.ChangesFlag, _ = cmd.Flags().GetString("changes")
+	flags.OriginalFlag, _ = cmd.Flags().GetString("original")
+	flags.ChangesSummaryFlag, _ = cmd.Flags().GetBool("changes-summary")
+	flags.BreakingConfigPath, _ = cmd.Flags().GetString("breaking-config")
+	flags.WarnOnChanges, _ = cmd.Flags().GetBool("warn-on-changes")
+	flags.ErrorOnBreaking, _ = cmd.Flags().GetBool("error-on-breaking")
 	return flags
 }
 
@@ -256,11 +284,7 @@ func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
 		return nil, err
 	}
 
-	if !utils.ShouldUseCustomHTTPClient(httpClientConfig) {
-		return nil, nil
-	}
-
-	httpClient, err := utils.CreateCustomHTTPClient(httpClientConfig)
+	httpClient, err := utils.CreateHTTPClientIfNeeded(httpClientConfig)
 	if err != nil {
 		fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", err.Error())
 		return nil, err
@@ -370,6 +394,32 @@ func GetHTTPClientConfig(flags *LintFlags) (utils.HTTPClientConfig, error) {
 	}, nil
 }
 
+// GetFetchConfig creates FetchConfig from flags for JavaScript fetch() configuration.
+// The config struct is always allocated (small cost), but the expensive HTTP client
+// creation is deferred until a JS function actually calls fetch() - see NewFetchModuleFromConfig.
+func GetFetchConfig(flags *LintFlags) (*utils.FetchConfig, error) {
+	if flags.FetchTimeout < 0 {
+		return nil, fmt.Errorf("fetch-timeout cannot be negative: %d", flags.FetchTimeout)
+	}
+
+	httpClientConfig, err := GetHTTPClientConfig(flags)
+	if err != nil {
+		return nil, err
+	}
+
+	timeout := time.Duration(flags.FetchTimeout) * time.Second
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+
+	return &utils.FetchConfig{
+		HTTPClientConfig:     httpClientConfig,
+		AllowPrivateNetworks: flags.AllowPrivateNetworks,
+		AllowHTTP:            flags.AllowHTTP,
+		Timeout:              timeout,
+	}, nil
+}
+
 // ProcessSingleFileOptimized processes a single file using pre-loaded configuration
 func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *FileProcessingResult {
 	var fileSize int64
@@ -440,6 +490,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Logger:                          logger,
 		HTTPClientConfig:                httpClientConfig,
 		ApplyAutoFixes:                  config.Flags.FixFlag,
+		FetchConfig:                     config.FetchConfig,
 	})
 
 	if len(result.Errors) > 0 {
@@ -463,15 +514,15 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	var results []*model.RuleFunctionResult
 	var errors, warnings, informs int
 
-	for _, r := range result.Results {
-		if shouldIgnoreResult(r, config.IgnoredItems) {
+	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
+	for i := range result.Results {
+		if shouldIgnoreResult(result.Results[i], config.IgnoredItems) {
 			continue
 		}
 
-		resultCopy := r
-		results = append(results, &resultCopy)
+		results = append(results, &result.Results[i])
 
-		switch r.Rule.Severity {
+		switch result.Results[i].Rule.Severity {
 		case "error":
 			errors++
 		case "warn":

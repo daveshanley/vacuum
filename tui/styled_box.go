@@ -15,11 +15,12 @@ import (
 type BoxType string
 
 const (
-	BoxTypeError   BoxType = "error"
-	BoxTypeWarning BoxType = "warning"
-	BoxTypeInfo    BoxType = "info"
-	BoxTypeSuccess BoxType = "success"
-	BoxTypeHard    BoxType = "hard"
+	BoxTypeError      BoxType = "error"
+	BoxTypeWarning    BoxType = "warning"
+	BoxTypeInfo       BoxType = "info"
+	BoxTypeSuccess    BoxType = "success"
+	BoxTypeHard       BoxType = "hard"
+	BoxTypeComparison BoxType = "comparison"
 )
 
 func getTerminalWidth() int {
@@ -73,9 +74,9 @@ func RenderStyledBox(message string, boxType BoxType, noStyle bool) {
 	case BoxTypeWarning:
 		boxStyle = lipgloss.NewStyle().
 			Width(boxWidth).
-			Foreground(color.RBGYellow).
+			Foreground(color.RGBYellow).
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(color.RBGYellow).
+			BorderForeground(color.RGBYellow).
 			Bold(true)
 	case BoxTypeInfo:
 		boxStyle = lipgloss.NewStyle().
@@ -90,6 +91,13 @@ func RenderStyledBox(message string, boxType BoxType, noStyle bool) {
 			Foreground(color.RGBGreen).
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(color.RGBGreen).
+			Bold(true)
+	case BoxTypeComparison:
+		boxStyle = lipgloss.NewStyle().
+			Width(boxWidth).
+			Foreground(color.RGBCyan).
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(color.RGBCyan).
 			Bold(true)
 	default:
 		boxStyle = lipgloss.NewStyle().

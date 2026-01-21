@@ -38,6 +38,7 @@ var (
 	ASCIIYellow          = "\033[38;5;220m"
 	ASCIIGreen           = "\033[38;5;46m"
 	ASCIIGreenBold       = "\033[1;38;5;46m"
+	ASCIICyan            = "\033[38;5;51m"
 	ASCIILightGreyItalic = "\033[3;38;5;251m"
 	ASCIIBold            = "\033[1m"
 	ASCIIItalic          = "\033[3m"
@@ -81,11 +82,13 @@ var (
 	OrigRGBSubtlePink    = lipgloss.Color("#2a1a2a")
 	OrigRGBLightGrey     = lipgloss.Color("253")
 	OrigRGBMutedPink     = lipgloss.Color("164")
+	OrigRGBCyan          = lipgloss.Color("51")
+	OrigRGBDarkCyan      = lipgloss.Color("30")
 	RGBBlue              = OrigRGBBlue
 	RGBPink              = OrigRGBPink
 	RGBRed               = OrigRGBRed
 	RGBDarkRed           = OrigRGBDarkRed
-	RBGYellow            = OrigRGBYellow
+	RGBYellow            = OrigRGBYellow
 	RGBDarkYellow        = OrigRGBDarkYellow
 	RGBGreen             = OrigRGBGreen
 	RGBDarkGreen         = OrigRGBDarkGreen
@@ -100,6 +103,8 @@ var (
 	RGBSubtlePink        = OrigRGBSubtlePink
 	RGBLightGrey         = OrigRGBLightGrey
 	RGBMutedPink         = OrigRGBMutedPink
+	RGBCyan              = OrigRGBCyan
+	RGBDarkCyan          = OrigRGBDarkCyan
 	ColorBlue            = strPtr("45")
 	ColorSoftBlue        = strPtr("117")
 	ColorBlueBg          = strPtr("#002329")
@@ -454,6 +459,57 @@ func ApplyLintDetailsTableStyles(t *table.Model) {
 	t.SetStyles(s)
 }
 
+// ApplyOverlayTableStyles applies the pb33f house style to an overlay actions table.
+// Uses the same pink theme as lint tables for consistency.
+func ApplyOverlayTableStyles(t *table.Model) {
+	s := table.DefaultStyles()
+
+	s.Header = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink).
+		BorderBottom(true).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderTop(false).
+		Foreground(RGBPink).
+		Bold(true).
+		Padding(0, 1)
+
+	s.Cell = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(RGBPink).
+		BorderRight(false).
+		Padding(0, 1)
+
+	// Selected row looks same as normal cells - this is a static display table
+	// Note: Selected wraps the whole row, so no padding here (cells already have padding)
+	s.Selected = lipgloss.NewStyle()
+
+	t.SetStyles(s)
+}
+
+// ApplyPlainTableStyles applies plain/no-color styles to a table for --no-style mode.
+func ApplyPlainTableStyles(t *table.Model) {
+	s := table.DefaultStyles()
+
+	s.Header = lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderLeft(false).
+		BorderRight(false).
+		BorderTop(false).
+		Bold(true).
+		Padding(0, 1)
+
+	s.Cell = lipgloss.NewStyle().
+		Padding(0, 1)
+
+	// No special styling for selected row
+	s.Selected = lipgloss.NewStyle()
+
+	t.SetStyles(s)
+}
+
 // CreatePb33fDocsStyle creates a custom Glamour style for documentation rendering
 // using the existing princess beef heavy industries color scheme.
 func CreatePb33fDocsStyle(termWidth int) ansi.StyleConfig {
@@ -674,6 +730,8 @@ func DisableColors() {
 	ASCIIBlue = ""
 	ASCIIYellow = ""
 	ASCIIGreen = ""
+	ASCIIGreenBold = ""
+	ASCIICyan = ""
 	ASCIILightGreyItalic = ""
 	ASCIIBold = ""
 	ASCIIItalic = ""
@@ -686,7 +744,7 @@ func DisableColors() {
 	RGBPink = lipgloss.NoColor{}
 	RGBRed = lipgloss.NoColor{}
 	RGBDarkRed = lipgloss.Color("238")
-	RBGYellow = lipgloss.NoColor{}
+	RGBYellow = lipgloss.NoColor{}
 	RGBDarkYellow = lipgloss.Color("238")
 	RGBGreen = lipgloss.NoColor{}
 	RGBDarkGreen = lipgloss.Color("238")
@@ -704,6 +762,8 @@ func DisableColors() {
 	RGBSubtlePink = lipgloss.Color("238")
 	RGBLightGrey = lipgloss.NoColor{}
 	RGBMutedPink = lipgloss.NoColor{}
+	RGBCyan = lipgloss.NoColor{}
+	RGBDarkCyan = lipgloss.Color("238")
 }
 
 // AreColorsDisabled returns true if colors are currently disabled

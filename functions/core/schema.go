@@ -161,7 +161,8 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			no = node.Content
 		}
 
-		fieldNode, fieldNodeValue := utils.FindKeyNodeTop(context.RuleAction.Field, no)
+		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, no, vacuumUtils.FieldPathOptions{})
+		fieldNode, fieldNodeValue := result.KeyNode, result.ValueNode
 		if fieldNodeValue != nil {
 			schema.GoLow().Index = context.Index
 			results = append(results, validateNodeAgainstSchema(&context, schema, fieldNode, fieldNodeValue, context, x)...)

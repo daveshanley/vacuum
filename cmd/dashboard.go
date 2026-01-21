@@ -18,6 +18,8 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
+	drModel "github.com/pb33f/doctor/model"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/spf13/cobra"
 )
 
@@ -60,14 +62,60 @@ func GetDashboardCommand() *cobra.Command {
 			keyFile, _ := cmd.Flags().GetString("key-file")
 			caFile, _ := cmd.Flags().GetString("ca-file")
 			insecure, _ := cmd.Flags().GetBool("insecure")
+			allowPrivateNetworks, _ := cmd.Flags().GetBool("allow-private-networks")
+			allowHTTP, _ := cmd.Flags().GetBool("allow-http")
+			fetchTimeout, _ := cmd.Flags().GetInt("fetch-timeout")
 			watchFlag, _ := cmd.Flags().GetBool("watch")
+			changesFlag, _ := cmd.Flags().GetString("changes")
+			originalFlag, _ := cmd.Flags().GetString("original")
+			breakingConfigPath, _ := cmd.Flags().GetString("breaking-config")
+			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
+			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
+
+			// Load and apply breaking rules config early, before any change comparison
+			breakingConfig, breakingConfigErr := utils.LoadBreakingRulesConfig(breakingConfigPath)
+			if breakingConfigErr != nil {
+				var validationErr *utils.ConfigValidationError
+				if errors.As(breakingConfigErr, &validationErr) {
+					message := fmt.Sprintf("Breaking config validation error in %s:", validationErr.FilePath)
+					style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+					messageStyle := lipgloss.NewStyle().Padding(1, 1)
+					fmt.Println(style.Render(messageStyle.Render(message)))
+					fmt.Print(validationErr.FormatValidationErrors())
+					return breakingConfigErr
+				}
+				message := fmt.Sprintf("Error loading breaking config: %v", breakingConfigErr)
+				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+				messageStyle := lipgloss.NewStyle().Padding(1, 1)
+				fmt.Println(style.Render(messageStyle.Render(message)))
+				return breakingConfigErr
+			}
+			if breakingConfig != nil {
+				utils.ApplyBreakingRulesConfig(breakingConfig)
+				defer utils.ResetBreakingRulesConfig()
+			}
 
 			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false)
 			if err != nil {
 				return err
 			}
 
-			reportOrSpec, err := LoadFileAsReportOrSpec(args[0])
+			// Create HTTP client for URL support (with TLS config)
+			httpClientConfig := utils.HTTPClientConfig{
+				CertFile: certFile,
+				KeyFile:  keyFile,
+				CAFile:   caFile,
+				Insecure: insecure,
+			}
+			var httpClient *http.Client
+			if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
+				httpClient, err = utils.CreateCustomHTTPClient(httpClientConfig)
+				if err != nil {
+					return fmt.Errorf("failed to create HTTP client: %w", err)
+				}
+			}
+
+			reportOrSpec, err := LoadFileAsReportOrSpecWithClient(args[0], httpClient)
 			if err != nil {
 				message := fmt.Sprintf("Failed to load file: %v", err)
 				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
@@ -79,6 +127,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			var resultSet *model.RuleResultSet
 			var specBytes []byte
+			var drDocument *drModel.DrDocument // To hold DrDocument for change filtering
 			displayFileName := reportOrSpec.FileName
 
 			if reportOrSpec.IsReport {
@@ -124,24 +173,28 @@ func GetDashboardCommand() *cobra.Command {
 				}
 
 				tempLintFlags := &LintFlags{
-					CertFile: certFile,
-					KeyFile:  keyFile,
-					CAFile:   caFile,
-					Insecure: insecure,
+					CertFile:             certFile,
+					KeyFile:              keyFile,
+					CAFile:               caFile,
+					Insecure:             insecure,
+					AllowPrivateNetworks: allowPrivateNetworks,
+					AllowHTTP:            allowHTTP,
+					FetchTimeout:         fetchTimeout,
 				}
 				httpConfig, err := GetHTTPClientConfig(tempLintFlags)
 				if err != nil {
 					return fmt.Errorf("failed to resolve TLS configuration: %w", err)
 				}
 
+				fetchConfig, fetchCfgErr := GetFetchConfig(tempLintFlags)
+				if fetchCfgErr != nil {
+					return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+				}
+
 				if rulesetFlag != "" {
-					var httpClient *http.Client
-					if utils.ShouldUseCustomHTTPClient(httpConfig) {
-						var clientErr error
-						httpClient, clientErr = utils.CreateCustomHTTPClient(httpConfig)
-						if clientErr != nil {
-							return fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
-						}
+					httpClient, clientErr := utils.CreateHTTPClientIfNeeded(httpConfig)
+					if clientErr != nil {
+						return fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
 					}
 
 					var rsErr error
@@ -178,7 +231,7 @@ func GetDashboardCommand() *cobra.Command {
 				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 					RuleSet:           selectedRS,
 					Spec:              specBytes,
-					SpecFileName:      displayFileName, // THIS IS THE KEY FIX
+					SpecFileName:      displayFileName,
 					CustomFunctions:   customFuncs,
 					Base:              resolvedBase,
 					AllowLookup:       remoteFlag,
@@ -187,9 +240,15 @@ func GetDashboardCommand() *cobra.Command {
 					Timeout:           time.Duration(timeoutFlag) * time.Second,
 					NodeLookupTimeout: time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					HTTPClientConfig:  httpConfig,
+					FetchConfig:       fetchConfig,
 				})
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
+
+				// Store DrDocument for change filtering
+				if result.RuleSetExecution != nil {
+					drDocument = result.RuleSetExecution.DrDocument
+				}
 
 				RenderBufferedLogs(bufferedLogger, false)
 
@@ -208,6 +267,49 @@ func GetDashboardCommand() *cobra.Command {
 
 				resultSet = model.NewRuleResultSet(result.Results)
 				resultSet.SortResultsByLineNumber()
+			}
+
+			// Apply change-based filtering if --changes or --original is specified
+			var changeStats *utils.ChangeStats
+			var filterStats *utils.ChangeFilterStats
+			if changesFlag != "" || originalFlag != "" {
+				var documentChanges *wcModel.DocumentChanges
+				var changesErr error
+
+				if originalFlag != "" {
+					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+				} else {
+					documentChanges, changesErr = utils.LoadChangeReportFromFile(changesFlag)
+				}
+
+				if changesErr != nil {
+					if !silent {
+						message := fmt.Sprintf("Warning: Failed to load changes: %v. Proceeding without change filtering.", changesErr)
+						style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+						messageStyle := lipgloss.NewStyle().Padding(1, 1)
+						fmt.Println(style.Render(messageStyle.Render(message)))
+					}
+				} else if documentChanges != nil {
+					changeStats = utils.ExtractChangeStats(documentChanges)
+
+					changeFilter := utils.NewChangeFilter(documentChanges, drDocument)
+					if changeFilter != nil {
+						resultSet.Results, filterStats = changeFilter.FilterResultsWithStats(resultSet.Results)
+					}
+
+					// Inject change violations if requested
+					if warnOnChanges || errorOnBreaking {
+						changeViolations := utils.GenerateChangeViolations(documentChanges, utils.ChangeViolationOptions{
+							WarnOnChanges:   warnOnChanges,
+							ErrorOnBreaking: errorOnBreaking,
+						})
+						for _, v := range changeViolations {
+							if v != nil {
+								resultSet.Results = append(resultSet.Results, v)
+							}
+						}
+					}
+				}
 			}
 
 			if resultSet == nil || len(resultSet.Results) == 0 {
@@ -242,24 +344,26 @@ func GetDashboardCommand() *cobra.Command {
 			}
 
 			watchConfig := &tui.WatchConfig{
-				Enabled:         watchFlag,
-				BaseFlag:        baseFlag,
-				SkipCheckFlag:   skipCheckFlag,
-				TimeoutFlag:     timeoutFlag,
-				HardModeFlag:    hardModeFlag,
-				RemoteFlag:      remoteFlag,
-				IgnoreFile:      ignoreFile,
-				FunctionsFlag:   functionsFlag,
-				RulesetFlag:     rulesetFlag,
-				CertFile:        certFile,
-				KeyFile:         keyFile,
-				CAFile:          caFile,
-				Insecure:        insecure,
-				Silent:          silent,
-				CustomFunctions: customFuncs,
+				Enabled:           watchFlag,
+				BaseFlag:          baseFlag,
+				SkipCheckFlag:     skipCheckFlag,
+				TimeoutFlag:       timeoutFlag,
+				HardModeFlag:      hardModeFlag,
+				RemoteFlag:        remoteFlag,
+				IgnoreFile:        ignoreFile,
+				FunctionsFlag:     functionsFlag,
+				RulesetFlag:       rulesetFlag,
+				CertFile:          certFile,
+				KeyFile:           keyFile,
+				CAFile:            caFile,
+				Insecure:          insecure,
+				Silent:            silent,
+				CustomFunctions:   customFuncs,
+				OriginalSpecPath:  originalFlag,
+				ChangesReportPath: changesFlag,
 			}
 
-			err = tui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig)
+			err = tui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig, changeStats, filterStats)
 			if err != nil {
 				if !silent {
 					message := fmt.Sprintf("Failed to show dashboard: %v", err)

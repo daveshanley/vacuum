@@ -17,11 +17,11 @@ var (
 	StyleColumnNumber      = lipgloss.NewStyle().Foreground(RGBLightGrey)
 	StyleLocationSeparator = lipgloss.NewStyle().Foreground(RGBLightGrey)
 	StyleLogError          = lipgloss.NewStyle().Foreground(RGBRed).Bold(true)
-	StyleLogWarn           = lipgloss.NewStyle().Foreground(RBGYellow).Italic(true)
+	StyleLogWarn           = lipgloss.NewStyle().Foreground(RGBYellow).Italic(true)
 	StyleLogInfo           = lipgloss.NewStyle().Foreground(RGBBlue).Italic(true)
 	StyleLogDebug          = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true)
 	StyleSeverityError     = lipgloss.NewStyle().Foreground(RGBRed)
-	StyleSeverityWarning   = lipgloss.NewStyle().Foreground(RBGYellow)
+	StyleSeverityWarning   = lipgloss.NewStyle().Foreground(RGBYellow)
 	StyleSeverityInfo      = lipgloss.NewStyle().Foreground(RGBBlue)
 	StyleSelectedRow       = lipgloss.NewStyle().Foreground(RGBMutedPink)
 	StylePathQuoted        = lipgloss.NewStyle().Foreground(RGBLightGrey).Italic(true)
@@ -29,13 +29,16 @@ var (
 	StylePathRef           = lipgloss.NewStyle().Foreground(RGBLightGrey)
 	StyleSyntaxKey         = lipgloss.NewStyle().Foreground(RGBBlue).Bold(true)
 	StyleSyntaxString      = lipgloss.NewStyle().Foreground(RGBGreen)
-	StyleSyntaxNumber      = lipgloss.NewStyle().Foreground(RBGYellow).Bold(true)
+	StyleSyntaxNumber      = lipgloss.NewStyle().Foreground(RGBYellow).Bold(true)
 	StyleSyntaxBool        = lipgloss.NewStyle().Foreground(RGBGrey).Italic(true).Bold(true)
 	StyleSyntaxComment     = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 	StyleSyntaxDash        = lipgloss.NewStyle().Foreground(RGBPink)
 	StyleSyntaxDefault     = lipgloss.NewStyle().Foreground(RGBPink)
 	StyleSyntaxSingleQuote = lipgloss.NewStyle().Foreground(RGBPink).Italic(true)
 	StyleSyntaxRef         = lipgloss.NewStyle().Foreground(RGBGreen).Background(RGBDarkGrey).Bold(true)
+	StyleStatusOK          = lipgloss.NewStyle().Foreground(RGBGreen)
+	StyleStatusWarn        = lipgloss.NewStyle().Foreground(RGBYellow)
+	StyleActionRemove      = lipgloss.NewStyle().Foreground(RGBRed)
 )
 
 // DisableLipglossStyles sets all lipgloss styles to render without any styling
@@ -69,4 +72,7 @@ func DisableLipglossStyles() {
 	StyleSyntaxDefault = noStyle
 	StyleSyntaxSingleQuote = noStyle
 	StyleSyntaxRef = noStyle
+	StyleStatusOK = noStyle
+	StyleStatusWarn = noStyle
+	StyleActionRemove = noStyle
 }

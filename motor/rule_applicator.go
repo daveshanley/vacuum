@@ -54,6 +54,7 @@ type ruleContext struct {
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
 	applyAutoFixes     bool
+	fetchConfig        *vacuumUtils.FetchConfig
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -95,6 +96,11 @@ type RuleSetExecution struct {
 
 	// HTTP client configuration for TLS/certificate support
 	HTTPClientConfig vacuumUtils.HTTPClientConfig // Configuration for custom HTTP client with certificate support
+
+	// FetchConfig configures JavaScript fetch() requests in custom functions.
+	// Threading chain: CLI flags → GetFetchConfig() → RuleSetExecution.FetchConfig →
+	// ruleContext.fetchConfig → RuleFunctionContext.FetchConfig → NewFetchModuleFromConfig()
+	FetchConfig *vacuumUtils.FetchConfig
 }
 
 // buildLocationString efficiently builds a location string in format "line:column"
@@ -474,9 +480,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 						useCache = false
 					}
 					drDoc = doctorModel.NewDrDocumentWithConfig(mod, &doctorModel.DrConfig{
-						BuildGraph:     buildGraph,
-						UseSchemaCache: useCache,
-						RenderChanges:  execution.RenderChanges,
+						BuildGraph:         buildGraph,
+						UseSchemaCache:     useCache,
+						RenderChanges:      execution.RenderChanges,
+						DeterministicPaths: true,
 					})
 
 					execution.DrDocument = drDoc
@@ -781,6 +788,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					logger:             docConfig.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
+					fetchConfig:        execution.FetchConfig,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -999,15 +1007,16 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 	if ruleFunction != nil {
 
 		rfc := model.RuleFunctionContext{
-			Options:    ruleAction.FunctionOptions,
-			RuleAction: &ruleAction,
-			Rule:       ctx.rule,
-			Given:      ctx.rule.Given,
-			Index:      ctx.index,
-			SpecInfo:   ctx.specInfo,
-			Document:   ctx.document,
-			DrDocument: ctx.drDocument,
-			Logger:     ctx.logger,
+			Options:     ruleAction.FunctionOptions,
+			RuleAction:  &ruleAction,
+			Rule:        ctx.rule,
+			Given:       ctx.rule.Given,
+			Index:       ctx.index,
+			SpecInfo:    ctx.specInfo,
+			Document:    ctx.document,
+			DrDocument:  ctx.drDocument,
+			Logger:      ctx.logger,
+			FetchConfig: ctx.fetchConfig,
 		}
 
 		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {
@@ -1037,39 +1046,129 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			// Filter out ignore nodes to prevent them from being processed by other rules
 			filteredNodes := filterIgnoreNodes(nodes)
 
-			// iterate through nodes and supply them one at a time so we don't pollute each run
-			for _, node := range filteredNodes {
+			// Check if batch mode is enabled for this rule
+			if vacuumUtils.IsBatchMode(ruleAction.FunctionOptions) {
+				// BATCH MODE: Pass all nodes to the function at once
 
-				// if this rule is designed for a different version, skip it.
-				if len(ctx.rule.Formats) > 0 {
-					match := false
-					for _, format := range ctx.rule.Formats {
-						if format == ctx.specInfo.SpecFormat {
-							match = true
+				// Pre-filter nodes for format matching and inline ignores
+				var batchNodes []*yaml.Node
+				for _, node := range filteredNodes {
+					// Check format matching
+					if len(ctx.rule.Formats) > 0 {
+						match := false
+						for _, format := range ctx.rule.Formats {
+							if model.FormatMatches(format, ctx.specInfo.SpecFormat) {
+								match = true
+								break
+							}
+						}
+						if ctx.specInfo.SpecFormat != "" && !match {
+							continue // does not apply to this spec
 						}
 					}
-					if ctx.specInfo.SpecFormat != "" && !match {
-						continue // does not apply to this spec.
+
+					// Check inline ignore
+					if checkInlineIgnore(node, ctx.rule.Id) {
+						ignoredResult := model.RuleFunctionResult{
+							Message:      "Rule ignored due to inline ignore directive",
+							RuleId:       ctx.rule.Id,
+							RuleSeverity: ctx.rule.Severity,
+							Rule:         ctx.rule,
+							StartNode:    node,
+							EndNode:      node,
+						}
+						lock.Lock()
+						*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
+						lock.Unlock()
+						continue
 					}
+
+					batchNodes = append(batchNodes, node)
 				}
 
-				if checkInlineIgnore(node, ctx.rule.Id) {
-					ignoredResult := model.RuleFunctionResult{
-						Message:      "Rule ignored due to inline ignore directive",
-						RuleId:       ctx.rule.Id,
-						RuleSeverity: ctx.rule.Severity,
-						Rule:         ctx.rule,
-						StartNode:    node,
-						EndNode:      node,
-					}
-					
-					lock.Lock()
-					*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
-					lock.Unlock()
-					continue
-				}
+				// Only run if we have nodes to process
+				if len(batchNodes) > 0 {
+					runRuleResults := ruleFunction.RunRule(batchNodes, rfc)
 
-				runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
+					// Filter out results that should be ignored due to inline ignore directives
+					var filteredResults []model.RuleFunctionResult
+					for _, result := range runRuleResults {
+						if result.Path != "" && checkInlineIgnoreByPath(ctx.specNode, result.Path, ctx.rule.Id) {
+							ignoredResult := model.RuleFunctionResult{
+								Message:      "Rule ignored due to inline ignore directive",
+								RuleId:       ctx.rule.Id,
+								RuleSeverity: ctx.rule.Severity,
+								Rule:         ctx.rule,
+								StartNode:    result.StartNode,
+								EndNode:      result.EndNode,
+								Path:         result.Path,
+							}
+							lock.Lock()
+							*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
+							lock.Unlock()
+						} else {
+							filteredResults = append(filteredResults, result)
+						}
+					}
+
+					// Populate RuleId and RuleSeverity from rule context
+					for i := range filteredResults {
+						if filteredResults[i].RuleId == "" {
+							filteredResults[i].RuleId = ctx.rule.Id
+						}
+						if filteredResults[i].RuleSeverity == "" {
+							filteredResults[i].RuleSeverity = ctx.rule.Severity
+						}
+						if filteredResults[i].Rule == nil {
+							filteredResults[i].Rule = ctx.rule
+						}
+					}
+
+					// Apply auto-fix if available and enabled
+					if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
+						applyAutoFixesToResults(ctx, filteredResults, &rfc)
+					} else {
+						lock.Lock()
+						*ctx.ruleResults = append(*ctx.ruleResults, filteredResults...)
+						lock.Unlock()
+					}
+				}
+			} else {
+				// DEFAULT: Per-node invocation (original behavior)
+				// Iterate through nodes and supply them one at a time so we don't pollute each run
+				for _, node := range filteredNodes {
+
+					// if this rule is designed for a different version, skip it.
+					if len(ctx.rule.Formats) > 0 {
+						match := false
+						for _, format := range ctx.rule.Formats {
+							if model.FormatMatches(format, ctx.specInfo.SpecFormat) {
+								match = true
+								break // early exit on match
+							}
+						}
+						if ctx.specInfo.SpecFormat != "" && !match {
+							continue // does not apply to this spec.
+						}
+					}
+
+					if checkInlineIgnore(node, ctx.rule.Id) {
+						ignoredResult := model.RuleFunctionResult{
+							Message:      "Rule ignored due to inline ignore directive",
+							RuleId:       ctx.rule.Id,
+							RuleSeverity: ctx.rule.Severity,
+							Rule:         ctx.rule,
+							StartNode:    node,
+							EndNode:      node,
+						}
+
+						lock.Lock()
+						*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
+						lock.Unlock()
+						continue
+					}
+
+					runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
 				// Filter out results that should be ignored due to inline ignore directives
 				var filteredResults []model.RuleFunctionResult
@@ -1119,6 +1218,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					lock.Unlock()
 				}
 			}
+			} // end DEFAULT per-node loop
 
 		}
 	} else {
