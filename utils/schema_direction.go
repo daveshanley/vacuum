@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
-	"reflect"
 	"strings"
 
 	base "github.com/pb33f/libopenapi/datamodel/high/base"
