@@ -646,35 +646,65 @@ func (st SchemaTypeCheck) validateDependentRequired(schema *v3.Schema, context *
 	return results
 }
 
-// checkPolymorphicProperty checks if a property is defined in anyOf, oneOf, or allOf schemas
+// checkPolymorphicProperty checks if a property is defined in anyOf, oneOf, or allOf schemas,
+// including nested compositions and referenced schemas.
 func (st SchemaTypeCheck) checkPolymorphicProperty(schema *v3.Schema, propertyName string) bool {
-	// check in AnyOf schemas
-	if schema.Value.AnyOf != nil {
-		for _, anyOfSchema := range schema.Value.AnyOf {
-			if anyOfSchema.Schema() != nil && anyOfSchema.Schema().Properties != nil &&
-				anyOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
-				return true
-			}
-		}
+	if schema == nil || schema.Value == nil {
+		return false
 	}
 
-	// check in OneOf schemas
-	if schema.Value.OneOf != nil {
-		for _, oneOfSchema := range schema.Value.OneOf {
-			if oneOfSchema.Schema() != nil && oneOfSchema.Schema().Properties != nil &&
-				oneOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
-				return true
-			}
-		}
+	visited := make(map[*lowBase.Schema]struct{})
+	return st.checkSchemaPropertyRecursive(schema.Value, propertyName, visited)
+}
+
+// checkSchemaPropertyRecursive recursively traverses down the schema looking for the existance
+// of a specific property. It ensures that all references are properly resolved.
+func (st SchemaTypeCheck) checkSchemaPropertyRecursive(schema *highBase.Schema, propertyName string, visited map[*lowBase.Schema]struct{}) bool {
+	if schema == nil {
+		return false
 	}
 
-	// check in AllOf schemas
-	if schema.Value.AllOf != nil {
-		for _, allOfSchema := range schema.Value.AllOf {
-			if allOfSchema.Schema() != nil && allOfSchema.Schema().Properties != nil &&
-				allOfSchema.Schema().Properties.GetOrZero(propertyName) != nil {
-				return true
-			}
+	if low := schema.GoLow(); low != nil {
+		if _, seen := visited[low]; seen {
+			return false
+		}
+		visited[low] = struct{}{}
+	}
+
+	if schema.Properties != nil && schema.Properties.GetOrZero(propertyName) != nil {
+		return true
+	}
+
+	if st.checkSchemaProxiesForProperty(schema.AnyOf, propertyName, visited) {
+		return true
+	}
+	if st.checkSchemaProxiesForProperty(schema.OneOf, propertyName, visited) {
+		return true
+	}
+	if st.checkSchemaProxiesForProperty(schema.AllOf, propertyName, visited) {
+		return true
+	}
+
+	return false
+}
+
+func (st SchemaTypeCheck) checkSchemaProxiesForProperty(
+	proxies []*highBase.SchemaProxy,
+	propertyName string,
+	visited map[*lowBase.Schema]struct{},
+) bool {
+	for _, proxy := range proxies {
+		if proxy == nil {
+			continue
+		}
+
+		subSchema := proxy.Schema()
+		if subSchema == nil {
+			continue
+		}
+
+		if st.checkSchemaPropertyRecursive(subSchema, propertyName, visited) {
+			return true
 		}
 	}
 
