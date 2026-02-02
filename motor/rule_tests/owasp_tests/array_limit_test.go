@@ -20,6 +20,14 @@ func TestRuleSet_OWASPArrayLimit_Success(t *testing.T) {
 			yml: `openapi: "3.1.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
@@ -76,10 +84,20 @@ func TestRuleSet_OWASPArrayLimit_Error(t *testing.T) {
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
 components:
   schemas:
     Foo:
       type: array
+      items: 
+        type: string
 `,
 		},
 	}
@@ -99,6 +117,57 @@ components:
 			}
 			results := motor.ApplyRulesToRuleSet(rse)
 			assert.NotEqual(t, len(results.Results), 0)
+		})
+	}
+}
+
+func TestRuleSet_OWASPArrayLimit_ResponseSkipped(t *testing.T) {
+
+	tc := []struct {
+		name string
+		yml  string
+	}{
+		{
+			name: "invalid case: oas3 missing maxItems",
+			yml: `
+openapi: "3.0.0"
+info:
+  version: "1.0"
+paths:
+  /test:
+    post:
+      responses:
+        '200': 
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Foo'
+components:
+  schemas:
+    Foo:
+      type: array
+      items: 
+        type: string
+`,
+		},
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			rules := make(map[string]*model.Rule)
+			rules["owasp-array-limit"] = rulesets.GetOWASPArrayLimitRule()
+
+			rs := &rulesets.RuleSet{
+				Rules: rules,
+			}
+
+			rse := &motor.RuleSetExecution{
+				RuleSet: rs,
+				Spec:    []byte(tt.yml),
+			}
+			results := motor.ApplyRulesToRuleSet(rse)
+			assert.Equal(t, len(results.Results), 0)
 		})
 	}
 }
