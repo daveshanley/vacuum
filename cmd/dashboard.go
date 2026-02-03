@@ -316,7 +316,13 @@ func GetDashboardCommand() *cobra.Command {
 				if !silent {
 					renderResultBox(0, 0, 0, 0) // Perfect score
 				}
-				return nil
+				// If not in watch mode, exit early since there's nothing to show
+				if !watchFlag {
+					return nil
+				}
+				// In watch mode, continue to dashboard with empty results so user can
+				// see violations appear as they edit the file (issue #797)
+				resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
 			}
 
 			if !silent {
