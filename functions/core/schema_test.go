@@ -546,3 +546,274 @@ additionalProperties: false`
 	assert.Len(t, res, 1)
 	assert.Contains(t, res[0].Message, "additional properties 'services' not allowed")
 }
+
+// Test for Issue #799 - schema function with contains and nested object properties
+// triggers "circular reference detected during inline rendering" error
+func TestSchema_Issue799_ContainsWithNestedProperties(t *testing.T) {
+	// Simulating an OpenAPI operation with parameters array
+	yml := `parameters:
+  - name: X-Other-Header
+    in: header
+    required: true
+  - name: X-Required-Version
+    in: header
+    required: true`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	// Schema using contains with nested object properties - this triggers the bug
+	validate := `type: array
+minItems: 1
+contains:
+  type: object
+  properties:
+    name:
+      const: X-Required-Version
+    in:
+      const: header
+  required:
+    - name
+    - in`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "parameters",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Each operation must include X-Required-Version header param",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// This should pass because the parameters array contains the required header
+	// Bug: Currently fails with "circular reference detected during inline rendering"
+	assert.Len(t, res, 0, "Should pass - parameters contains X-Required-Version header")
+}
+
+// Test for Issue #799 - schema function with items and nested object properties
+func TestSchema_Issue799_ItemsWithNestedProperties(t *testing.T) {
+	// Simulating an OpenAPI operation with parameters array
+	yml := `parameters:
+  - name: X-Other-Header
+    in: header
+    required: true`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	// Schema using items with nested object properties - also triggers the bug
+	validate := `type: array
+items:
+  type: object
+  properties:
+    name:
+      type: string
+  required:
+    - name`
+
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	schema := testGenerateJSONSchema(n.Content[0])
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "parameters",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Each operation parameter must have a name",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// This should pass because all parameters have a name
+	// Bug: Currently fails with "circular reference detected during inline rendering"
+	assert.Len(t, res, 0, "Should pass - all parameters have required name field")
+}
+
+// Test for Issue #799 - schema passed as raw map (simulates ruleset YAML parsing)
+// This is the actual code path used during linting - schema is NOT pre-built
+func TestSchema_Issue799_SchemaFromRawMap(t *testing.T) {
+	// Simulating an OpenAPI operation with parameters array
+	yml := `parameters:
+  - name: X-Other-Header
+    in: header
+    required: true
+  - name: X-Required-Version
+    in: header
+    required: true`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	// Schema passed as raw map (like from YAML ruleset parsing)
+	// This is how it comes from the ruleset, NOT as a pre-built *highBase.Schema
+	schemaMap := map[string]interface{}{
+		"type":     "array",
+		"minItems": 1,
+		"contains": map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"const": "X-Required-Version",
+				},
+				"in": map[string]interface{}{
+					"const": "header",
+				},
+			},
+			"required": []interface{}{"name", "in"},
+		},
+	}
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schemaMap // Pass as raw map, NOT as *highBase.Schema
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "parameters",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Each operation must include X-Required-Version header param",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+		Index:      nil, // No index - still fails!
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// This should pass because the parameters array contains the required header
+	// Bug: This is the actual failing path - schema is built from raw map
+	assert.Len(t, res, 0, "Should pass - parameters contains X-Required-Version header")
+}
+
+// Test for Issue #799 - simpler schema from raw map that DOES work
+func TestSchema_Issue799_SimpleSchemaFromRawMap(t *testing.T) {
+	yml := `parameters:
+  - name: X-Other-Header
+    in: header`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	// Simple schema without nested properties - should work
+	schemaMap := map[string]interface{}{
+		"type":     "array",
+		"minItems": 1,
+	}
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schemaMap
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "parameters",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Parameters must exist",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// Simple schema works fine
+	assert.Len(t, res, 0, "Should pass - simple schema works")
+}
+
+// Test for Issue #799 - items with properties from raw map
+func TestSchema_Issue799_ItemsPropertiesFromRawMap(t *testing.T) {
+	yml := `parameters:
+  - name: X-Other-Header
+    in: header`
+
+	path := "$"
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	// Schema with items.properties - also triggers the bug
+	schemaMap := map[string]interface{}{
+		"type": "array",
+		"items": map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type": "string",
+				},
+			},
+			"required": []interface{}{"name"},
+		},
+	}
+
+	opts := make(map[string]interface{})
+	opts["schema"] = schemaMap
+
+	rule := model.Rule{
+		Given: path,
+		Then: &model.RuleAction{
+			Field:           "parameters",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "Each parameter must have a name",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	def := Schema{}
+	res := def.RunRule(nodes, ctx)
+
+	// Bug: This also fails with circular reference
+	assert.Len(t, res, 0, "Should pass - parameter has name")
+}
