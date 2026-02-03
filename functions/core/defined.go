@@ -8,7 +8,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -51,7 +50,8 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	for _, node := range nodes {
-		fieldNode, _ := utils.FindKeyNode(context.RuleAction.Field, node.Content)
+		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{RecursiveFirstSegment: true})
+		fieldNode := result.KeyNode
 		var locatedObjects []v3.Foundational
 		var allPaths []string
 		var err error
