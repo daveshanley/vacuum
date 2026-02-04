@@ -959,7 +959,7 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 			lock.Lock()
 			*ctx.errors = append(*ctx.errors, err)
 			lock.Unlock()
-			doneChan <- true
+			close(doneChan)
 			return
 		}
 		if len(nodes) <= 0 {
@@ -987,7 +987,7 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 			}
 		}
 	}
-	doneChan <- true
+	close(doneChan)
 }
 
 var lock sync.Mutex
