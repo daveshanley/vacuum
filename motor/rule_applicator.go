@@ -60,31 +60,31 @@ type ruleContext struct {
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
 // of ApplyRulesToRuleSet to change, without a huge refactor. The ApplyRulesToRuleSet function only returns a single error also.
 type RuleSetExecution struct {
-	RuleSet                         *rulesets.RuleSet             // The RuleSet in which to apply
-	SpecFileName                    string                        // The path of the specification file, used to correctly label location
-	Spec                            []byte                        // The raw bytes of the OpenAPI specification.
-	SpecInfo                        *datamodel.SpecInfo           // Pre-parsed spec-info.
-	IndexUnresolved                 *index.SpecIndex              // The unresolved index, even if a file is not an OpenAPI spec, it's still indexed.
-	IndexResolved                   *index.SpecIndex              // The resolved index, like the unresolved one, but with references resolved.
-	CustomFunctions                 map[string]model.RuleFunction // custom functions loaded from plugin.
+	RuleSet                         *rulesets.RuleSet                // The RuleSet in which to apply
+	SpecFileName                    string                           // The path of the specification file, used to correctly label location
+	Spec                            []byte                           // The raw bytes of the OpenAPI specification.
+	SpecInfo                        *datamodel.SpecInfo              // Pre-parsed spec-info.
+	IndexUnresolved                 *index.SpecIndex                 // The unresolved index, even if a file is not an OpenAPI spec, it's still indexed.
+	IndexResolved                   *index.SpecIndex                 // The resolved index, like the unresolved one, but with references resolved.
+	CustomFunctions                 map[string]model.RuleFunction    // custom functions loaded from plugin.
 	AutoFixFunctions                map[string]model.AutoFixFunction // auto-fix functions loaded from plugin.
-	PanicFunction                   func(p any)                   // In case of emergency, do this thing here.
-	SilenceLogs                     bool                          // Prevent any warnings about rules/rule-sets being printed.
-	Base                            string                        // The base path or URL of the specification, used for resolving relative or remote paths.
-	AllowLookup                     bool                          // Allow remote lookup of files or links
-	Document                        libopenapi.Document           // a ready to render model.
-	DrDocument                      *doctorModel.DrDocument       // a high level, more powerful model, powered by the doctorModel.
-	SkipDocumentCheck               bool                          // Skip the document check, useful for fragments and non openapi specs.
-	Logger                          *slog.Logger                  // A custom logger.
-	Timeout                         time.Duration                 // The timeout for each rule to run, prevents run-away rules, default is five seconds.
-	NodeLookupTimeout               time.Duration                 // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
-	BuildGraph                      bool                          // Build a graph of the document, powered by the doctorModel. (default is false)
-	RenderChanges                   bool                          // Not used by vacuum, used by the openapi doctor (defaults to false).
-	BuildDeepGraph                  bool                          // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
-	ExtractReferencesSequentially   bool                          // Extract references sequentially, defaults to false, can be slow.
-	ExtractReferencesFromExtensions bool                          // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
-	ApplyAutoFixes                  bool                          // Apply auto-fixes for rules that support it
-	CanonicalDocument               *yaml.Node                    // The single source of truth for all modifications
+	PanicFunction                   func(p any)                      // In case of emergency, do this thing here.
+	SilenceLogs                     bool                             // Prevent any warnings about rules/rule-sets being printed.
+	Base                            string                           // The base path or URL of the specification, used for resolving relative or remote paths.
+	AllowLookup                     bool                             // Allow remote lookup of files or links
+	Document                        libopenapi.Document              // a ready to render model.
+	DrDocument                      *doctorModel.DrDocument          // a high level, more powerful model, powered by the doctorModel.
+	SkipDocumentCheck               bool                             // Skip the document check, useful for fragments and non openapi specs.
+	Logger                          *slog.Logger                     // A custom logger.
+	Timeout                         time.Duration                    // The timeout for each rule to run, prevents run-away rules, default is five seconds.
+	NodeLookupTimeout               time.Duration                    // The timeout for each node yaml path lookup, prevents any endless loops, default is 500ms (https://github.com/daveshanley/vacuum/issues/502)
+	BuildGraph                      bool                             // Build a graph of the document, powered by the doctorModel. (default is false)
+	RenderChanges                   bool                             // Not used by vacuum, used by the openapi doctor (defaults to false).
+	BuildDeepGraph                  bool                             // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
+	ExtractReferencesSequentially   bool                             // Extract references sequentially, defaults to false, can be slow.
+	ExtractReferencesFromExtensions bool                             // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
+	ApplyAutoFixes                  bool                             // Apply auto-fixes for rules that support it
+	CanonicalDocument               *yaml.Node                       // The single source of truth for all modifications
 
 	// https://pb33f.io/libopenapi/circular-references/#circular-reference-results
 	IgnoreCircularArrayRef       bool // Ignore array circular references
@@ -427,7 +427,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			// we only resolve one.
 			rolodexResolved.Resolve()
 
-
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 				resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
 				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
@@ -533,7 +532,6 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 		indexResolved = rolodexResolved.GetRootIndex()
 		indexUnresolved = rolodexUnresolved.GetRootIndex()
-
 
 		// Set the canonical document to the unresolved spec for autofix modifications
 		execution.CanonicalDocument = rolodexUnresolved.GetRootNode()
@@ -866,8 +864,8 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 	if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
 		if _, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]; !exists {
 			if !ctx.silenceLogs {
-				ctx.logger.Warn("Rule uses unknown auto-fix function", 
-					"ruleId", ctx.rule.Id, 
+				ctx.logger.Warn("Rule uses unknown auto-fix function",
+					"ruleId", ctx.rule.Id,
 					"autoFixFunction", ctx.rule.AutoFixFunction)
 			}
 		}
@@ -1170,54 +1168,54 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 					runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
 
-				// Filter out results that should be ignored due to inline ignore directives
-				var filteredResults []model.RuleFunctionResult
-				for _, result := range runRuleResults {
-					// Check if this result should be ignored based on its path
-					if result.Path != "" && checkInlineIgnoreByPath(ctx.specNode, result.Path, ctx.rule.Id) {
-						ignoredResult := model.RuleFunctionResult{
-							Message:      "Rule ignored due to inline ignore directive",
-							RuleId:       ctx.rule.Id,
-							RuleSeverity: ctx.rule.Severity,
-							Rule:         ctx.rule,
-							StartNode:    result.StartNode,
-							EndNode:      result.EndNode,
-							Path:         result.Path,
+					// Filter out results that should be ignored due to inline ignore directives
+					var filteredResults []model.RuleFunctionResult
+					for _, result := range runRuleResults {
+						// Check if this result should be ignored based on its path
+						if result.Path != "" && checkInlineIgnoreByPath(ctx.specNode, result.Path, ctx.rule.Id) {
+							ignoredResult := model.RuleFunctionResult{
+								Message:      "Rule ignored due to inline ignore directive",
+								RuleId:       ctx.rule.Id,
+								RuleSeverity: ctx.rule.Severity,
+								Rule:         ctx.rule,
+								StartNode:    result.StartNode,
+								EndNode:      result.EndNode,
+								Path:         result.Path,
+							}
+							lock.Lock()
+							*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
+							lock.Unlock()
+						} else {
+							filteredResults = append(filteredResults, result)
 						}
-						lock.Lock()
-						*ctx.ignoredResults = append(*ctx.ignoredResults, ignoredResult)
-						lock.Unlock()
+					}
+
+					// Ensure RuleId and RuleSeverity are populated from the rule context
+					// This is necessary for programmatic API usage where these fields might not be set
+					for i := range filteredResults {
+						if filteredResults[i].RuleId == "" {
+							filteredResults[i].RuleId = ctx.rule.Id
+						}
+						if filteredResults[i].RuleSeverity == "" {
+							filteredResults[i].RuleSeverity = ctx.rule.Severity
+						}
+						if filteredResults[i].Rule == nil {
+							filteredResults[i].Rule = ctx.rule
+						}
+					}
+
+					// Apply auto-fix if available and enabled
+					if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
+						applyAutoFixesToResults(ctx, filteredResults, &rfc)
 					} else {
-						filteredResults = append(filteredResults, result)
+						// No autofix - add all results to regular results
+						// because this function is running in multiple threads, we need to sync access to the final result
+						// list, otherwise things can get a bit random.
+						lock.Lock()
+						*ctx.ruleResults = append(*ctx.ruleResults, filteredResults...)
+						lock.Unlock()
 					}
 				}
-
-				// Ensure RuleId and RuleSeverity are populated from the rule context
-				// This is necessary for programmatic API usage where these fields might not be set
-				for i := range filteredResults {
-					if filteredResults[i].RuleId == "" {
-						filteredResults[i].RuleId = ctx.rule.Id
-					}
-					if filteredResults[i].RuleSeverity == "" {
-						filteredResults[i].RuleSeverity = ctx.rule.Severity
-					}
-					if filteredResults[i].Rule == nil {
-						filteredResults[i].Rule = ctx.rule
-					}
-				}
-
-				// Apply auto-fix if available and enabled
-				if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
-					applyAutoFixesToResults(ctx, filteredResults, &rfc)
-				} else {
-					// No autofix - add all results to regular results
-					// because this function is running in multiple threads, we need to sync access to the final result
-					// list, otherwise things can get a bit random.
-					lock.Lock()
-					*ctx.ruleResults = append(*ctx.ruleResults, filteredResults...)
-					lock.Unlock()
-				}
-			}
 			} // end DEFAULT per-node loop
 
 		}
@@ -1259,7 +1257,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
 	lock := sync.Mutex{}
-	
+
 	for i := range results {
 		// Only attempt auto-fix if there's a violation and we have the node
 		if results[i].StartNode == nil {
