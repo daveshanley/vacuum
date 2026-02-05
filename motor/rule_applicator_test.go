@@ -2377,7 +2377,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "https://raw.githubusercontent.com/OAI/OpenAPI-Specification/refs/heads/main/_archive_/schemas/v3.0/schema.yaml"
+              $ref: "oas3-schema.yaml"
 `
 
 	rules := make(map[string]*model.Rule)
@@ -2391,10 +2391,22 @@ paths:
 		RuleSet:     rs,
 		Spec:        []byte(yml),
 		AllowLookup: true,
+		SpecFileName: "../model/test_files/issue486.yaml",
 	}
 	results := ApplyRulesToRuleSet(rse)
 	assert.Len(t, results.Errors, 0)
-	assert.Len(t, results.Results, 4)
+	assert.Len(t, results.Results, 3)
+	expected := map[string]bool{
+		"circular reference detected from #/definitions/Schema":   true,
+		"circular reference detected from #/definitions/Header":   true,
+		"circular reference detected from #/definitions/Callback": true,
+	}
+	for _, r := range results.Results {
+		assert.Equal(t, "circular-references", r.RuleId)
+		assert.True(t, expected[r.Message])
+		delete(expected, r.Message)
+	}
+	assert.Len(t, expected, 0)
 
 }
 
@@ -2475,8 +2487,8 @@ security:
 			Timeout:           30 * time.Second, // Increase rule timeout for CI/CD environments
 		}
 
-		results := ApplyRulesToRuleSet(ex)
-		assert.Len(t, results.Results, 4) // Should be exactly 4 with contextual inline rendering fix
+	results := ApplyRulesToRuleSet(ex)
+	assert.Len(t, results.Results, 4) // Should be exactly 4 with contextual inline rendering fix
 		if wg != nil {
 			wg.Done()
 		}
