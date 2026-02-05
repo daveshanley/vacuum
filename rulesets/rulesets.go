@@ -128,7 +128,7 @@ const (
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
-	VacuumAllRulesets                    = "vacuum:all"  // Combined OpenAPI + OWASP rules
+	VacuumAllRulesets                    = "vacuum:all" // Combined OpenAPI + OWASP rules
 	VacuumRecommended                    = "recommended"
 	VacuumAll                            = "all"
 	VacuumOff                            = "off"
@@ -156,7 +156,7 @@ type RuleSets interface {
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
-	
+
 	// GenerateRuleSetFromSuppliedRuleSetWithHTTPClient will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	// It accepts an HTTP client for downloading remote rulesets with certificate authentication.

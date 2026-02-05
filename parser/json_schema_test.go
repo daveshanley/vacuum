@@ -56,7 +56,6 @@ func TestConvertNode_Simple(t *testing.T) {
 	assert.True(t, res)
 }
 
-
 // TestConcurrentSchemaValidation tests for issue #512 - non-deterministic validation
 func TestConcurrentSchemaValidation(t *testing.T) {
 	// Schema with simple regex patterns that work with Go's regexp package

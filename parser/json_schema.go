@@ -20,7 +20,6 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-
 func ConvertYAMLIntoJSONSchema(str string, index *index.SpecIndex) (*highBase.Schema, error) {
 	node := yaml.Node{}
 	err := yaml.Unmarshal([]byte(str), &node)

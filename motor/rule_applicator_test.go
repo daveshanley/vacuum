@@ -2388,9 +2388,9 @@ paths:
 	}
 
 	rse := &RuleSetExecution{
-		RuleSet:     rs,
-		Spec:        []byte(yml),
-		AllowLookup: true,
+		RuleSet:      rs,
+		Spec:         []byte(yml),
+		AllowLookup:  true,
 		SpecFileName: "../model/test_files/issue486.yaml",
 	}
 	results := ApplyRulesToRuleSet(rse)
@@ -2487,8 +2487,8 @@ security:
 			Timeout:           30 * time.Second, // Increase rule timeout for CI/CD environments
 		}
 
-	results := ApplyRulesToRuleSet(ex)
-	assert.Len(t, results.Results, 4) // Should be exactly 4 with contextual inline rendering fix
+		results := ApplyRulesToRuleSet(ex)
+		assert.Len(t, results.Results, 4) // Should be exactly 4 with contextual inline rendering fix
 		if wg != nil {
 			wg.Done()
 		}

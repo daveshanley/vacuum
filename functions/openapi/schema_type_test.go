@@ -3139,7 +3139,7 @@ components:
 			},
 		},
 		{
-			name:           "ValidConstraintsNoErrors",
+			name: "ValidConstraintsNoErrors",
 			yaml: `openapi: 3.1
 components:
   schemas:

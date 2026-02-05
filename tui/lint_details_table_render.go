@@ -325,19 +325,19 @@ func (m *ViolationResultTableModel) fetchDocumentation(ruleID string) tea.Cmd {
 	// Check if rule has custom documentation URL
 	if m.modalContent != nil && m.modalContent.Rule != nil && m.modalContent.Rule.DocumentationURL != "" {
 		customURL := m.modalContent.Rule.DocumentationURL
-		
+
 		// If it's not the default quobix.com pattern, open in browser
 		if !strings.Contains(customURL, "quobix.com/vacuum/rules/") {
 			return func() tea.Msg {
 				if err := utils.OpenURL(customURL); err != nil {
 					return docsErrorMsg{ruleID: ruleID, err: fmt.Sprintf("Failed to open browser: %s", err.Error()), is404: false}
 				}
-				
+
 				return docsLoadedMsg{ruleID: ruleID, content: fmt.Sprintf("📖 Documentation opened in browser:\n\n%s", customURL)}
 			}
 		}
 	}
-	
+
 	// Default behavior: fetch from API
 	return fetchDocsFromDoctorAPI(ruleID)
 }

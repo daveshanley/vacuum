@@ -2,13 +2,13 @@ package model
 
 import (
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 // StringTemplates provides efficient string building for common patterns in vacuum.
 // This replaces fmt.Sprintf usage to reduce allocation overhead.
-type StringTemplates struct{
+type StringTemplates struct {
 	// messageCache caches frequently used message patterns
 	messageCache map[string]string
 }
@@ -27,11 +27,11 @@ func (st *StringTemplates) getCachedMessage(key string, builder func() string) s
 	if st.messageCache == nil {
 		st.messageCache = make(map[string]string, 50) // reasonable initial capacity
 	}
-	
+
 	if msg, exists := st.messageCache[key]; exists {
 		return msg
 	}
-	
+
 	// Build and cache the message
 	msg := builder()
 	st.messageCache[key] = msg
@@ -403,7 +403,7 @@ func (st *StringTemplates) BuildSecurityNullElementsMessage(path, method string)
 func (st *StringTemplates) BuildCachedFieldValidationMessage(ruleMessage, field, condition string) string {
 	// Create cache key for common patterns
 	key := fmt.Sprintf("field_validation:%s:%s", field, condition)
-	
+
 	return st.getCachedMessage(key, func() string {
 		return st.BuildFieldValidationMessage(ruleMessage, field, condition)
 	})
@@ -411,9 +411,9 @@ func (st *StringTemplates) BuildCachedFieldValidationMessage(ruleMessage, field,
 
 // BuildCachedPatternMessage builds a cached pattern validation message
 func (st *StringTemplates) BuildCachedPatternMessage(ruleMessage, value, pattern string) string {
-	// Create cache key for common patterns  
+	// Create cache key for common patterns
 	key := fmt.Sprintf("pattern:%s", pattern)
-	
+
 	return st.getCachedMessage(key, func() string {
 		return st.BuildPatternMessage(ruleMessage, value, pattern)
 	})
