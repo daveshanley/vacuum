@@ -413,7 +413,7 @@ paths: {}`,
 			rule: "missing-servers-rule",
 		},
 		{
-			name: "target path ignore when path exists", 
+			name: "target path ignore when path exists",
 			yaml: `
 openapi: 3.0.3
 info:

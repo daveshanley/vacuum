@@ -53,7 +53,7 @@ components:
 	// We expect 2 results: one for the property check and one for the schema check
 	// since DrDocument.Schemas contains ALL schemas including property schemas
 	assert.Len(t, res, 2)
-	
+
 	// Find the property-specific message
 	foundPropertyMessage := false
 	foundSchemaMessage := false
@@ -148,13 +148,13 @@ components:
 	// Should detect 6 results total: 3 property checks + 3 schema checks
 	// (since each property schema also appears in DrDocument.Schemas)
 	assert.Len(t, res, 6)
-	
+
 	// Check that the correct properties were flagged
 	messages := []string{}
 	for _, r := range res {
 		messages = append(messages, r.Message)
 	}
-	
+
 	assert.Contains(t, messages[0]+messages[1]+messages[2], "name")
 	assert.Contains(t, messages[0]+messages[1]+messages[2], "age")
 	assert.Contains(t, messages[0]+messages[1]+messages[2], "weight")
@@ -203,7 +203,7 @@ components:
 
 	// Should detect 4 results: 2 property checks + 2 schema checks for city and zipCode
 	assert.Len(t, res, 4)
-	
+
 	foundCity := false
 	foundZip := false
 	for _, r := range res {
@@ -214,7 +214,7 @@ components:
 			foundZip = true
 		}
 	}
-	
+
 	assert.True(t, foundCity, "Should detect city property missing type")
 	assert.True(t, foundZip, "Should detect zipCode property missing type")
 }
@@ -390,16 +390,16 @@ components:
 	mt := MissingType{}
 	res := mt.RunRule(nil, ctx)
 
-	// Should have 3 results: one for MissingTypeSchema, one property check for field1, 
+	// Should have 3 results: one for MissingTypeSchema, one property check for field1,
 	// and one schema check for field1 (since it's also in DrDocument.Schemas)
 	assert.Len(t, res, 3)
-	
+
 	// Check that all results have the Paths property set
 	for _, r := range res {
 		assert.NotNil(t, r.Paths, "Paths property should be set")
 		assert.NotEmpty(t, r.Paths, "Paths array should not be empty")
 		assert.Greater(t, len(r.Paths), 0, "Paths array should have at least one element")
-		
+
 		// The main Path should be included in Paths
 		found := false
 		for _, p := range r.Paths {
@@ -465,10 +465,10 @@ components:
 
 // Helper function for string contains check
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		   (s == substr || len(s) > len(substr) && 
-		   (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		   containsMiddle(s, substr)))
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || len(s) > len(substr) &&
+			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+				containsMiddle(s, substr)))
 }
 
 func containsMiddle(s, substr string) bool {

@@ -148,4 +148,3 @@ func TestDuplicatePaths_RunRule_EmptyNodes(t *testing.T) {
 	res := def.RunRule([]*yaml.Node{}, ctx)
 	assert.Len(t, res, 0)
 }
-

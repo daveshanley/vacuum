@@ -361,10 +361,10 @@ func TestBuildRangeFromContext(t *testing.T) {
 	col15 := 15
 
 	tests := []struct {
-		name          string
-		ctx           *wcModel.ChangeContext
-		expectedLine  int
-		expectedChar  int
+		name         string
+		ctx          *wcModel.ChangeContext
+		expectedLine int
+		expectedChar int
 	}{
 		{
 			name: "new line and column",
@@ -396,10 +396,10 @@ func TestBuildRangeFromContext(t *testing.T) {
 			expectedChar: 5,
 		},
 		{
-			name:          "empty context",
-			ctx:           &wcModel.ChangeContext{},
-			expectedLine:  0,
-			expectedChar:  0,
+			name:         "empty context",
+			ctx:          &wcModel.ChangeContext{},
+			expectedLine: 0,
+			expectedChar: 0,
 		},
 	}
 

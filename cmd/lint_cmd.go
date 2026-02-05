@@ -805,7 +805,7 @@ func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFi
 		if err != nil {
 			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
 		}
-		
+
 		err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
 		if err != nil {
 			return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)

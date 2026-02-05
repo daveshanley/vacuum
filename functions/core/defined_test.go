@@ -1,14 +1,14 @@
 package core
 
 import (
-    "fmt"
-    "github.com/daveshanley/vacuum/model"
-    drModel "github.com/pb33f/doctor/model"
-    "github.com/pb33f/doctor/model/high/v3"
-    "github.com/pb33f/libopenapi"
-    "github.com/pb33f/libopenapi/utils"
-    "github.com/stretchr/testify/assert"
-    "testing"
+	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/utils"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestDefined_GetSchema(t *testing.T) {

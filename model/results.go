@@ -51,7 +51,7 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 		n := res
 		pointerResults = append(pointerResults, &n)
 	}
-	
+
 	rrs := &RuleResultSet{
 		Results:     pointerResults,
 		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
@@ -68,6 +68,7 @@ func (rr *RuleResultSet) AddFixedResults(fixedResults []RuleFunctionResult) {
 		rr.FixedResults = append(rr.FixedResults, &fixedResults[i])
 	}
 }
+
 // the function will create pointers to results, instead of copying them again.
 func NewRuleResultSetPointer(results []*RuleFunctionResult) *RuleResultSet {
 	// use pointers for speed down the road, we don't need to keep copying this data.

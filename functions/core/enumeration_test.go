@@ -4,8 +4,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
-	"testing"
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
 func TestEnumeration_GetSchema(t *testing.T) {

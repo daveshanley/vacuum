@@ -20,9 +20,9 @@ type HTTPClientConfig struct {
 // FetchConfig contains configuration for JavaScript fetch() requests.
 // Defined in config package to avoid import cycles between model and plugin packages.
 type FetchConfig struct {
-	HTTPClientConfig                  // TLS configuration reused for fetch() requests
-	AllowPrivateNetworks bool         // Allow localhost, 10.x, 192.168.x
-	AllowHTTP            bool         // Allow HTTP (non-HTTPS) requests (separate from TLS skip)
+	HTTPClientConfig                   // TLS configuration reused for fetch() requests
+	AllowPrivateNetworks bool          // Allow localhost, 10.x, 192.168.x
+	AllowHTTP            bool          // Allow HTTP (non-HTTPS) requests (separate from TLS skip)
 	Timeout              time.Duration // Request timeout (default 30s)
 }
 

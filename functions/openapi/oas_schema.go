@@ -25,9 +25,9 @@ import (
 type ErrorClassification int
 
 const (
-	ErrorClassNoise       ErrorClassification = iota // Filter out - noise from oneOf/anyOf branches
-	ErrorClassLowPriority                            // Show if no high priority errors exist
-	ErrorClassHighPriority                           // Always show - represents actual validation issues
+	ErrorClassNoise        ErrorClassification = iota // Filter out - noise from oneOf/anyOf branches
+	ErrorClassLowPriority                             // Show if no high priority errors exist
+	ErrorClassHighPriority                            // Always show - represents actual validation issues
 )
 
 // ErrorContext captures the semantic context needed to interpret validation errors
