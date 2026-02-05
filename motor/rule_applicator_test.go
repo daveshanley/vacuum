@@ -2670,3 +2670,174 @@ func TestIssue441_DeterministicResolvedRules(t *testing.T) {
 
 	t.Logf("All %d runs produced identical results: %d schemas", runs, baselineSchemaCount)
 }
+
+// TestIssue804_ResolvedTrueDeepJSONPath verifies that rules with resolved: true
+// evaluate JSONPath against the resolved document (with $ref values dereferenced).
+// This is a regression test for issue #804 where the autofix commit hardcoded all
+// JSONPath evaluation to use the unresolved document.
+func TestIssue804_ResolvedTrueDeepJSONPath(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            type: object
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"resolve-refs-test": {
+				Id:           "resolve-refs-test",
+				Resolved:     true,
+				Given:        "$.paths[*][*].responses['404']",
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "content",
+					Function: "defined",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	// With resolved: true, the $ref is dereferenced and "content" exists on the resolved node.
+	// There should be zero violations from our custom rule.
+	ruleResults := filterResultsByRuleId(results.Results, "resolve-refs-test")
+	assert.Len(t, ruleResults, 0,
+		"resolved: true should find 'content' on the dereferenced response, got violations: %v", ruleResults)
+}
+
+// TestIssue804_ResolvedFalseDeepJSONPath verifies that rules with resolved: false
+// evaluate JSONPath against the unresolved document (with $ref nodes intact).
+func TestIssue804_ResolvedFalseDeepJSONPath(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            type: object
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"unresolved-refs-test": {
+				Id:           "unresolved-refs-test",
+				Resolved:     false,
+				Given:        "$.paths[*][*].responses['404']",
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "content",
+					Function: "defined",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	// With resolved: false, the $ref node is NOT dereferenced, so "content" is missing.
+	// This should produce a violation.
+	ruleResults := filterResultsByRuleId(results.Results, "unresolved-refs-test")
+	assert.Greater(t, len(ruleResults), 0,
+		"resolved: false should NOT find 'content' on the unresolved $ref node")
+}
+
+// TestIssue804_ResolvedTrueRootPath verifies that resolved: true works correctly
+// even when the given path is "$" (root node selection).
+func TestIssue804_ResolvedTrueRootPath(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            type: object
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"root-resolved-test": {
+				Id:           "root-resolved-test",
+				Resolved:     true,
+				Given:        "$",
+				Severity:     model.SeverityInfo,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "openapi",
+					Function: "defined",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	// The root node (resolved) should have "openapi" defined.
+	ruleResults := filterResultsByRuleId(results.Results, "root-resolved-test")
+	assert.Len(t, ruleResults, 0,
+		"resolved: true with given '$' should find 'openapi' on the root node")
+}
+
+// filterResultsByRuleId returns only results matching the given rule ID.
+func filterResultsByRuleId(results []model.RuleFunctionResult, ruleId string) []model.RuleFunctionResult {
+	var filtered []model.RuleFunctionResult
+	for _, r := range results {
+		if r.RuleId == ruleId {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}

@@ -400,6 +400,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	var circularReferences []*index.CircularReferenceResult
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
+	var specNodeResolved *yaml.Node
 
 	indexConfig.Logger.Debug("building document models")
 	nowModel := time.Now()
@@ -418,19 +419,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			docUnresolved.BuildV2Model()
 			rolodexUnresolved = docUnresolved.GetRolodex()
 
-			indexResolved = rolodexResolved.GetRootIndex()
-			indexUnresolved = rolodexUnresolved.GetRootIndex()
-
-			// Set the canonical document to the unresolved spec for autofix modifications
-			execution.CanonicalDocument = rolodexUnresolved.GetRootIndex().GetRootNode()
-
-			// we only resolve one.
-			rolodexResolved.Resolve()
-
-
-			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
-				resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+			if rolodexUnresolved != nil && rolodexUnresolved.GetRootIndex() != nil {
+				indexUnresolved = rolodexUnresolved.GetRootIndex()
+				execution.CanonicalDocument = rolodexUnresolved.GetRootIndex().GetRootNode()
+			}
+			if rolodexResolved != nil {
+				indexResolved = rolodexResolved.GetRootIndex()
+				rolodexResolved.Resolve()
+				if rolodexResolved.GetRootIndex() != nil {
+					specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
+					resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
+					circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+				}
 			}
 
 		case '3':
@@ -499,7 +499,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			})
 			wg.Wait()
 
+			if rolodexUnresolved != nil && rolodexUnresolved.GetRootIndex() != nil {
+				execution.CanonicalDocument = rolodexUnresolved.GetRootIndex().GetRootNode()
+			}
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
+				specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 				//resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
 				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 			}
@@ -534,11 +538,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		indexResolved = rolodexResolved.GetRootIndex()
 		indexUnresolved = rolodexUnresolved.GetRootIndex()
 
-
-		// Set the canonical document to the unresolved spec for autofix modifications
-		execution.CanonicalDocument = rolodexUnresolved.GetRootNode()
-
+		if rolodexUnresolved != nil && rolodexUnresolved.GetRootIndex() != nil {
+			execution.CanonicalDocument = rolodexUnresolved.GetRootIndex().GetRootNode()
+		}
 		if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
+			specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
 			circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 		}
@@ -767,10 +771,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					ruleIndex = indexUnresolved
 				}
 
+				// Select the resolved or unresolved spec node based on rule configuration.
+				ruleSpecNode := execution.CanonicalDocument
+				if rule.Resolved && specNodeResolved != nil {
+					ruleSpecNode = specNodeResolved
+				}
+
 				// this list of things is most likely going to grow a bit, so we use a nice clean message design.
 				ctx := ruleContext{
 					rule:               rule,
-					specNode:           execution.CanonicalDocument,
+					specNode:           ruleSpecNode,
 					specNodeUnresolved: execution.CanonicalDocument,
 					builtinFunctions:   builtinFunctions,
 					ruleResults:        &ruleResults,
@@ -1093,7 +1103,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
-						if result.Path != "" && checkInlineIgnoreByPath(ctx.specNode, result.Path, ctx.rule.Id) {
+						if result.Path != "" && checkInlineIgnoreByPath(ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
 							ignoredResult := model.RuleFunctionResult{
 								Message:      "Rule ignored due to inline ignore directive",
 								RuleId:       ctx.rule.Id,
@@ -1174,7 +1184,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				var filteredResults []model.RuleFunctionResult
 				for _, result := range runRuleResults {
 					// Check if this result should be ignored based on its path
-					if result.Path != "" && checkInlineIgnoreByPath(ctx.specNode, result.Path, ctx.rule.Id) {
+					if result.Path != "" && checkInlineIgnoreByPath(ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
 						ignoredResult := model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1278,7 +1288,7 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 			continue
 		}
 
-		_, err := autoFixFunc(results[i].StartNode, ctx.specNode, rfc)
+		_, err := autoFixFunc(results[i].StartNode, ctx.specNodeUnresolved, rfc)
 		if err != nil {
 			// Auto-fix failed - add to regular results
 			if !ctx.silenceLogs {
