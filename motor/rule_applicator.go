@@ -808,15 +808,31 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 				timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
 				defer ruleCancel()
-				doneChan := make(chan bool)
+				doneChan := make(chan struct{})
 
-				go runRule(ctx, doneChan)
+				localResults := []model.RuleFunctionResult{}
+				localIgnored := []model.RuleFunctionResult{}
+				localFixed := []model.RuleFunctionResult{}
+				localErrs := []error{}
+				localCtx := ctx
+				localCtx.ruleResults = &localResults
+				localCtx.ignoredResults = &localIgnored
+				localCtx.fixedResults = &localFixed
+				localCtx.errors = &localErrs
+
+				go runRule(localCtx, doneChan)
 
 				select {
 				case <-timeoutCtx.Done():
 					ctx.logger.Error("Rule timed out, skipping", "rule", rule.Id, "timeout", execution.Timeout)
 					break
 				case <-doneChan:
+					lock.Lock()
+					ruleResults = append(ruleResults, localResults...)
+					ignoredResults = append(ignoredResults, localIgnored...)
+					fixedResults = append(fixedResults, localFixed...)
+					errs = append(errs, localErrs...)
+					lock.Unlock()
 					break
 				}
 				done <- true
@@ -872,7 +888,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 }
 
-func runRule(ctx ruleContext, doneChan chan bool) {
+func runRule(ctx ruleContext, doneChan chan struct{}) {
+	defer close(doneChan)
 
 	// Check for missing auto-fix functions when --fix is enabled
 	if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
@@ -971,7 +988,6 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 			lock.Lock()
 			*ctx.errors = append(*ctx.errors, err)
 			lock.Unlock()
-			doneChan <- true
 			return
 		}
 		if len(nodes) <= 0 {
@@ -999,7 +1015,6 @@ func runRule(ctx ruleContext, doneChan chan bool) {
 			}
 		}
 	}
-	doneChan <- true
 }
 
 var lock sync.Mutex
