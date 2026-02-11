@@ -100,12 +100,13 @@ type IgnoredItems map[string][]string
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results      []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"`           // All the results!
-	FixedResults []*RuleFunctionResult                   `json:"fixedResults,omitempty" yaml:"fixedResults,omitempty"` // Results that were automatically fixed
-	WarnCount    int                                     `json:"warningCount" yaml:"warningCount"`                     // Total warnings
-	ErrorCount   int                                     `json:"errorCount" yaml:"errorCount"`                         // Total errors
-	InfoCount    int                                     `json:"infoCount" yaml:"infoCount"`                           // Total info
-	categoryMap  map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
+	Results        []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"`           // All the results!
+	FixedResults   []*RuleFunctionResult                   `json:"fixedResults,omitempty" yaml:"fixedResults,omitempty"` // Results that were automatically fixed
+	WarnCount      int                                     `json:"warningCount" yaml:"warningCount"`                     // Total warnings
+	ErrorCount     int                                     `json:"errorCount" yaml:"errorCount"`                         // Total errors
+	InfoCount      int                                     `json:"infoCount" yaml:"infoCount"`                           // Total info
+	categoryMap    map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
+	countsComputed bool                                    `json:"-" yaml:"-"`
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.

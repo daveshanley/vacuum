@@ -71,6 +71,10 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			breakingConfigPath, _ := cmd.Flags().GetString("breaking-config")
 			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
 			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
+			turboFlag, _ := cmd.Flags().GetBool("turbo")
+			skipResolveFlag, _ := cmd.Flags().GetBool("skip-resolve")
+			skipCircularCheckFlag, _ := cmd.Flags().GetBool("skip-circular-check")
+			skipSchemaErrorsFlag, _ := cmd.Flags().GetBool("skip-schema-errors")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -216,6 +220,10 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				}
 			}
 
+			if turboFlag {
+				rulesets.FilterRulesForTurbo(selectedRS)
+			}
+
 			if !stdIn && !stdOut {
 				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
@@ -309,6 +317,10 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					ExtractReferencesFromExtensions: extensionRefsFlag,
 					HTTPClientConfig:                httpClientConfig,
 					FetchConfig:                     fetchConfig,
+					TurboMode:                       turboFlag,
+					SkipResolve:                     skipResolveFlag,
+					SkipCircularCheck:               skipCircularCheckFlag,
+					SkipSchemaErrors:                skipSchemaErrorsFlag,
 				})
 
 				resultSet := model.NewRuleResultSet(ruleset.Results)

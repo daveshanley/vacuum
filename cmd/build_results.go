@@ -23,8 +23,19 @@ func BuildResults(
 	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	fetchConfig *utils.FetchConfig,
-	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems)
+	ignoredItems model.IgnoredItems,
+	turboFlags *TurboFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, false, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
+}
+
+// TurboFlags holds turbo-related configuration for BuildResults functions.
+type TurboFlags struct {
+	TurboMode         bool
+	SkipResolve       bool
+	SkipCircularCheck bool
+	SkipSchemaErrors  bool
+	MaxResultsPerRule int
+	MaxTotalResults   int
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -40,7 +51,8 @@ func BuildResultsWithDocCheckSkip(
 	lookupTimeout time.Duration,
 	httpClientConfig utils.HTTPClientConfig,
 	fetchConfig *utils.FetchConfig,
-	ignoredItems model.IgnoredItems) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	ignoredItems model.IgnoredItems,
+	turboFlags *TurboFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
@@ -85,9 +97,14 @@ func BuildResultsWithDocCheckSkip(
 		}
 	}
 
+	// Apply turbo mode rule filtering
+	if turboFlags != nil && turboFlags.TurboMode {
+		rulesets.FilterRulesForTurbo(selectedRS)
+	}
+
 	tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 
-	ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+	exec := &motor.RuleSetExecution{
 		RuleSet:           selectedRS,
 		Spec:              specBytes,
 		CustomFunctions:   customFunctions,
@@ -98,7 +115,17 @@ func BuildResultsWithDocCheckSkip(
 		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
 		FetchConfig:       fetchConfig,
-	})
+	}
+	if turboFlags != nil {
+		exec.TurboMode = turboFlags.TurboMode
+		exec.SkipResolve = turboFlags.SkipResolve
+		exec.SkipCircularCheck = turboFlags.SkipCircularCheck
+		exec.SkipSchemaErrors = turboFlags.SkipSchemaErrors
+		exec.MaxResultsPerRule = turboFlags.MaxResultsPerRule
+		exec.MaxTotalResults = turboFlags.MaxTotalResults
+	}
+
+	ruleset := motor.ApplyRulesToRuleSet(exec)
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	resultSet.SortResultsByLineNumber()

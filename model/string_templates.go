@@ -402,7 +402,7 @@ func (st *StringTemplates) BuildSecurityNullElementsMessage(path, method string)
 // This caches common validation patterns to avoid rebuilding the same messages
 func (st *StringTemplates) BuildCachedFieldValidationMessage(ruleMessage, field, condition string) string {
 	// Create cache key for common patterns
-	key := fmt.Sprintf("field_validation:%s:%s", field, condition)
+	key := "field_validation:" + field + ":" + condition
 
 	return st.getCachedMessage(key, func() string {
 		return st.BuildFieldValidationMessage(ruleMessage, field, condition)
@@ -412,7 +412,7 @@ func (st *StringTemplates) BuildCachedFieldValidationMessage(ruleMessage, field,
 // BuildCachedPatternMessage builds a cached pattern validation message
 func (st *StringTemplates) BuildCachedPatternMessage(ruleMessage, value, pattern string) string {
 	// Create cache key for common patterns
-	key := fmt.Sprintf("pattern:%s", pattern)
+	key := "pattern:" + pattern
 
 	return st.getCachedMessage(key, func() string {
 		return st.BuildPatternMessage(ruleMessage, value, pattern)
