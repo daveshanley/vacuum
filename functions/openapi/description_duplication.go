@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
@@ -49,7 +50,8 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 	for _, description := range descriptions {
 
 		data := []byte(description.Node.Value)
-		md5String := fmt.Sprintf("%x", md5.Sum(data))
+		hash := md5.Sum(data)
+		md5String := hex.EncodeToString(hash[:])
 		cp := copyPasta{
 			value: description.Node.Value,
 			node:  description.Node,
@@ -63,7 +65,8 @@ func (dd DescriptionDuplication) RunRule(nodes []*yaml.Node, context model.RuleF
 	for _, summary := range summaries {
 		if summary.Node != nil {
 			data := []byte(summary.Node.Value)
-			md5String := fmt.Sprintf("%x", md5.Sum(data))
+			hash := md5.Sum(data)
+			md5String := hex.EncodeToString(hash[:])
 			cp := copyPasta{
 				value: summary.Node.Value,
 				node:  summary.Node,

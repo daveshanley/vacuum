@@ -260,6 +260,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 			HTTPClientConfig:                httpClientConfig,
 			ApplyAutoFixes:                  flags.FixFlag,
 			FetchConfig:                     fetchConfig,
+			TurboMode:                       flags.TurboMode,
+			SkipResolve:                     flags.SkipResolve,
+			SkipCircularCheck:               flags.SkipCircularCheck,
+			SkipSchemaErrors:                flags.SkipSchemaErrors,
+			MaxResultsPerRule:               flags.MaxResultsPerRule,
+			MaxTotalResults:                 flags.MaxTotalResults,
 		}
 
 		result := motor.ApplyRulesToRuleSet(execution)
@@ -308,12 +314,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if result.Index != nil && result.SpecInfo != nil {
+		if result.Index != nil && result.SpecInfo != nil && !flags.SkipStats {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
 		}
 	}
 
-	specStringData := strings.Split(string(specBytes), "\n")
+	// specStringData is only needed for detail rendering; defer the split
+	var specStringData []string
 
 	// handle category filtering
 	var cats []*model.RuleCategory
@@ -369,6 +376,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
+		specStringData = strings.Split(string(specBytes), "\n")
 		renderFixedDetails(RenderDetailsOptions{
 			Results:    resultSet.Results,
 			SpecData:   specStringData,
@@ -413,18 +421,24 @@ func runLint(cmd *cobra.Command, args []string) error {
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
 
-	// min score threshold
-	if flags.MinScore > 10 && stats != nil {
-		if stats.OverallScore < flags.MinScore {
+	// min score threshold - compute score from counts if stats were skipped
+	overallScore := 0
+	if stats != nil {
+		overallScore = stats.OverallScore
+	} else if flags.MinScore > 10 {
+		overallScore = statistics.CalculateQualityScore(resultSet)
+	}
+	if flags.MinScore > 10 && overallScore > 0 {
+		if overallScore < flags.MinScore {
 			if !flags.PipelineOutput && !flags.SilentFlag {
 				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
 				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
-					color.ASCIIRed, stats.OverallScore, flags.MinScore, color.ASCIIReset)
+					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
 			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
-				stats.OverallScore, flags.MinScore)
+				overallScore, flags.MinScore)
 		}
 	}
 

@@ -56,6 +56,8 @@ type ruleContext struct {
 	nodeLookupTimeout  time.Duration
 	applyAutoFixes     bool
 	fetchConfig        *vacuumUtils.FetchConfig
+	turboMode          bool
+	hasInlineIgnores   bool
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -102,6 +104,14 @@ type RuleSetExecution struct {
 	// Threading chain: CLI flags → GetFetchConfig() → RuleSetExecution.FetchConfig →
 	// ruleContext.fetchConfig → RuleFunctionContext.FetchConfig → NewFetchModuleFromConfig()
 	FetchConfig *vacuumUtils.FetchConfig
+
+	// Turbo mode and experimental optimization flags
+	TurboMode         bool // Skip expensive rules and inline ignore checks
+	SkipResolve       bool // Skip second-pass reference resolution
+	SkipCircularCheck bool // Skip circular reference result injection
+	SkipSchemaErrors  bool // Skip schema build error injection
+	MaxResultsPerRule int  // Maximum results stored per rule (0 = unlimited)
+	MaxTotalResults   int  // Maximum total results stored (0 = unlimited)
 }
 
 // buildLocationString efficiently builds a location string in format "line:column"
@@ -136,6 +146,71 @@ const CircularReferencesFix string = "Circular references are created by schemas
 	"in the chain. The link could be very deep, or it could be super shallow. Sometimes it's hard to know what is looping " +
 	"without resolving the references. This model is looping, Remove the looping link in the chain. This can also appear with missing or " +
 	"references that cannot be located or resolved correctly."
+
+// ruleUsesFunction checks whether a rule's Then field references the given function name.
+// Rule.Then is interface{} and may be a model.RuleAction, map[string]interface{},
+// or a slice of either.
+func ruleUsesFunction(rule *model.Rule, funcName string) bool {
+	if rule == nil || rule.Then == nil {
+		return false
+	}
+	switch t := rule.Then.(type) {
+	case model.RuleAction:
+		return t.Function == funcName
+	case *model.RuleAction:
+		return t != nil && t.Function == funcName
+	case map[string]interface{}:
+		if fn, ok := t["function"]; ok {
+			if s, ok := fn.(string); ok {
+				return s == funcName
+			}
+		}
+	case []interface{}:
+		for _, item := range t {
+			if m, ok := item.(map[string]interface{}); ok {
+				if fn, ok := m["function"]; ok {
+					if s, ok := fn.(string); ok && s == funcName {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+// scanForInlineIgnores performs a one-time depth-limited scan of the spec YAML
+// to check if any x-lint-ignore keys exist. If none exist (the common case),
+// all per-result checkInlineIgnore/checkInlineIgnoreByPath calls can be skipped.
+func scanForInlineIgnores(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
+	switch node.Kind {
+	case yaml.DocumentNode:
+		for _, c := range node.Content {
+			if scanForInlineIgnores(c) {
+				return true
+			}
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if node.Content[i].Value == ignoreKey {
+				return true
+			}
+			if scanForInlineIgnores(node.Content[i+1]) {
+				return true
+			}
+		}
+	case yaml.SequenceNode:
+		for _, c := range node.Content {
+			if scanForInlineIgnores(c) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
@@ -272,6 +347,25 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	if execution.SkipDocumentCheck {
 		docConfig.BypassDocumentCheck = true
+	}
+
+	// Skip JSON conversion in turbo mode unless an active rule needs it.
+	// The only built-in consumer is oasDocumentSchema (used by oas2-schema/oas3-schema rules).
+	// Turbo normally strips those by ID, but a custom ruleset could re-add the function
+	// under a different rule ID.
+	if execution.TurboMode {
+		needsJSON := false
+		if execution.RuleSet != nil {
+			for _, rule := range execution.RuleSet.Rules {
+				if ruleUsesFunction(rule, "oasDocumentSchema") {
+					needsJSON = true
+					break
+				}
+			}
+		}
+		if !needsJSON {
+			docConfig.SkipJSONConversion = true
+		}
 	}
 
 	docResolved := execution.Document
@@ -426,7 +520,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			}
 			if rolodexResolved != nil {
 				indexResolved = rolodexResolved.GetRootIndex()
-				rolodexResolved.Resolve()
+				if !execution.SkipResolve {
+					rolodexResolved.Resolve()
+				}
 				if rolodexResolved.GetRootIndex() != nil {
 					specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 					resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
@@ -492,11 +588,13 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				}
 			})
 			wg.Go(func() {
-				// we only resolve one.
-				resolvedTime := time.Now()
-				rolodexResolved.Resolve()
-				resolvedTaken := time.Since(resolvedTime).Milliseconds()
-				indexConfig.Logger.Debug("resolved model", "ms", resolvedTaken)
+				if !execution.SkipResolve {
+					// we only resolve one.
+					resolvedTime := time.Now()
+					rolodexResolved.Resolve()
+					resolvedTaken := time.Since(resolvedTime).Milliseconds()
+					indexConfig.Logger.Debug("resolved model", "ms", resolvedTaken)
+				}
 			})
 			wg.Wait()
 
@@ -523,7 +621,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
 
 			_ = rolodexResolved.IndexTheRolodex(context.Background())
-			rolodexResolved.Resolve()
+			if !execution.SkipResolve {
+				rolodexResolved.Resolve()
+			}
 		})
 
 		wg.Go(func() {
@@ -659,26 +759,28 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	// add all circular references to the results.
-	for _, cr := range circularReferences {
-		res := model.RuleFunctionResult{
-			RuleId:    "circular-references",
-			Rule:      circularRefRule,
-			StartNode: cr.ParentNode,
-			EndNode:   vacuumUtils.BuildEndNode(cr.ParentNode),
-			Message:   "circular reference detected from " + cr.Start.Definition,
-			Path:      cr.GenerateJourneyPath(),
+	if !execution.SkipCircularCheck {
+		for _, cr := range circularReferences {
+			res := model.RuleFunctionResult{
+				RuleId:    "circular-references",
+				Rule:      circularRefRule,
+				StartNode: cr.ParentNode,
+				EndNode:   vacuumUtils.BuildEndNode(cr.ParentNode),
+				Message:   "circular reference detected from " + cr.Start.Definition,
+				Path:      cr.GenerateJourneyPath(),
+			}
+			if res.StartNode == nil {
+				res.StartNode = utils.CreateStringNode("")
+				res.StartNode.Line = 1
+				res.StartNode.Column = 1
+			}
+			if res.EndNode == nil {
+				res.EndNode = utils.CreateStringNode("")
+				res.EndNode.Line = 1
+				res.EndNode.Column = 1
+			}
+			ruleResults = append(ruleResults, res)
 		}
-		if res.StartNode == nil {
-			res.StartNode = utils.CreateStringNode("")
-			res.StartNode.Line = 1
-			res.StartNode.Column = 1
-		}
-		if res.EndNode == nil {
-			res.EndNode = utils.CreateStringNode("")
-			res.EndNode.Line = 1
-			res.EndNode.Column = 1
-		}
-		ruleResults = append(ruleResults, res)
 	}
 
 	if indexResolved != nil {
@@ -719,7 +821,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	// add dr document build errors to the results.
-	if drDocument != nil {
+	if drDocument != nil && !execution.SkipSchemaErrors {
 		for _, er := range drDocument.BuildErrors {
 			res := model.RuleFunctionResult{
 				RuleId:    "schema-build-failure",
@@ -747,6 +849,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	}
 
 	if execution.RuleSet != nil && indexUnresolved != nil {
+
+		// One-time scan for x-lint-ignore presence. If none exist (the common case, ~99% of specs),
+		// ALL per-result inline ignore checks are skipped, saving significant CPU and memory.
+		// This scan runs in ALL modes including turbo — it's cheap (one-time O(n) walk) and IS
+		// the optimization that gates 34K+ per-result checks. Skipping it in turbo would violate
+		// the "strict subset" invariant (users relying on x-lint-ignore would get results they
+		// explicitly suppressed).
+		specHasInlineIgnores := scanForInlineIgnores(execution.CanonicalDocument)
 
 		totalRules := len(execution.RuleSet.Rules)
 		done := make(chan bool)
@@ -801,6 +911,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
 					fetchConfig:        execution.FetchConfig,
+					turboMode:          execution.TurboMode,
+					hasInlineIgnores:   specHasInlineIgnores,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -1094,8 +1206,8 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 						}
 					}
 
-					// Check inline ignore
-					if checkInlineIgnore(node, ctx.rule.Id) {
+					// Check inline ignore (skip entirely when no x-lint-ignore keys exist in spec)
+					if ctx.hasInlineIgnores && checkInlineIgnore(node, ctx.rule.Id) {
 						ignoredResult := model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1120,7 +1232,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
-						if result.Path != "" && checkInlineIgnoreByPath(ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
+						if ctx.hasInlineIgnores && result.Path != "" && checkInlineIgnoreByPath(ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
 							ignoredResult := model.RuleFunctionResult{
 								Message:      "Rule ignored due to inline ignore directive",
 								RuleId:       ctx.rule.Id,
@@ -1179,7 +1291,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 						}
 					}
 
-					if checkInlineIgnore(node, ctx.rule.Id) {
+					if ctx.hasInlineIgnores && checkInlineIgnore(node, ctx.rule.Id) {
 						ignoredResult := model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1201,7 +1313,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
 						// Check if this result should be ignored based on its path
-						if result.Path != "" && checkInlineIgnoreByPath(ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
+						if ctx.hasInlineIgnores && result.Path != "" && checkInlineIgnoreByPath(ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
 							ignoredResult := model.RuleFunctionResult{
 								Message:      "Rule ignored due to inline ignore directive",
 								RuleId:       ctx.rule.Id,

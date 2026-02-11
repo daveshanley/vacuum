@@ -1,7 +1,8 @@
 package openapi
 
 import (
-	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
@@ -33,17 +34,39 @@ func (m MigrateZallyIgnore) RunRule(
 	}
 
 	var results []model.RuleFunctionResult
+	// pre-allocate path segments slice to avoid per-recursion allocations
+	segs := make([]string, 0, 16)
+	segs = append(segs, "$")
 
 	for _, node := range nodes {
-		m.checkNodeWithPath(node, "$", &results, context)
+		m.checkNodeWithPath(node, segs, &results, context)
 	}
 
 	return results
 }
 
+// buildPath joins path segments into a JSONPath string like "$.foo.bar[0].baz"
+func buildPath(segs []string) string {
+	if len(segs) <= 1 {
+		return "$"
+	}
+	var b strings.Builder
+	b.Grow(len(segs) * 8) // rough estimate
+	b.WriteString(segs[0])
+	for _, s := range segs[1:] {
+		if len(s) > 0 && s[0] == '[' {
+			b.WriteString(s) // array index, no dot
+		} else {
+			b.WriteByte('.')
+			b.WriteString(s)
+		}
+	}
+	return b.String()
+}
+
 func (m MigrateZallyIgnore) checkNodeWithPath(
 	node *yaml.Node,
-	currentPath string,
+	segs []string,
 	results *[]model.RuleFunctionResult,
 	context model.RuleFunctionContext,
 ) {
@@ -54,36 +77,32 @@ func (m MigrateZallyIgnore) checkNodeWithPath(
 	switch node.Kind {
 	case yaml.DocumentNode:
 		for _, content := range node.Content {
-			m.checkNodeWithPath(content, currentPath, results, context)
+			m.checkNodeWithPath(content, segs, results, context)
 		}
 	case yaml.MappingNode:
 		for i := 0; i < len(node.Content); i += 2 {
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
 
-			keyPath := currentPath + "." + keyNode.Value
-			if currentPath == "$" {
-				keyPath = "$." + keyNode.Value
-			}
+			childSegs := append(segs, keyNode.Value)
 
 			if keyNode.Value == "x-zally-ignore" {
 				*results = append(*results, model.RuleFunctionResult{
 					Message:   "Convert ignore rules to use x-lint-ignore",
 					StartNode: keyNode,
 					EndNode:   utils.BuildEndNode(keyNode),
-					Path:      keyPath,
+					Path:      buildPath(childSegs),
 					Rule:      context.Rule,
 				})
 			}
 
-			// Recursively check the value node
-			m.checkNodeWithPath(valueNode, keyPath, results, context)
+			m.checkNodeWithPath(valueNode, childSegs, results, context)
 		}
 
 	case yaml.SequenceNode:
 		for i, item := range node.Content {
-			itemPath := fmt.Sprintf("%s[%d]", currentPath, i)
-			m.checkNodeWithPath(item, itemPath, results, context)
+			childSegs := append(segs, "["+strconv.Itoa(i)+"]")
+			m.checkNodeWithPath(item, childSegs, results, context)
 		}
 	}
 }

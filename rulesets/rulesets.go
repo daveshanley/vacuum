@@ -688,6 +688,35 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	return rs, nil
 }
 
+// TurboExcludedRules is the set of rule IDs that are stripped in turbo mode
+// because they are disproportionately expensive for the value they provide.
+var TurboExcludedRules = map[string]bool{
+	Oas3ValidSchemaExample: true, // #1 CPU hog on large specs (19% CPU on GitHub spec)
+	//Oas3UnusedComponent:    true, // O(n*m) extracts ALL refs + ALL component types
+	//Oas2UnusedDefinition:   true, // Same O(n*m) pattern
+	//DescriptionDuplication: true, // MD5 hashes every description and summary
+	Oas2Schema: true, // Re-decodes full spec from YAML then validates
+	Oas3Schema: true, // Re-decodes full spec from YAML then validates
+}
+
+// FilterRulesForTurbo removes expensive rules from the ruleset for turbo mode.
+// It deletes rules in TurboExcludedRules but keeps OWASP rules (they are
+// lightweight enough to run without significantly impacting turbo performance).
+// Returns the number of rules removed.
+func FilterRulesForTurbo(rs *RuleSet) int {
+	if rs == nil || rs.Rules == nil {
+		return 0
+	}
+	removed := 0
+	for id := range rs.Rules {
+		if TurboExcludedRules[id] {
+			delete(rs.Rules, id)
+			removed++
+		}
+	}
+	return removed
+}
+
 // CreateRuleSetFromData will create a new RuleSet instance from either a JSON or YAML input
 func CreateRuleSetFromData(data []byte) (*RuleSet, error) {
 	d := data

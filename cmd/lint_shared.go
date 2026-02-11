@@ -86,6 +86,13 @@ type LintFlags struct {
 	BreakingConfigPath       string // --breaking-config: path to breaking rules config
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
+	TurboMode                bool   // --turbo: faster linting, trades some checks for speed
+	SkipResolve              bool   // --skip-resolve: skip second-pass reference resolution
+	SkipCircularCheck        bool   // --skip-circular-check: skip circular reference detection
+	SkipSchemaErrors         bool   // --skip-schema-errors: skip schema build error injection
+	SkipStats                bool   // --skip-stats: skip report statistics generation
+	MaxResultsPerRule        int    // --max-results-per-rule: max results per rule (0 = unlimited)
+	MaxTotalResults          int    // --max-total-results: max total results (0 = unlimited)
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -201,6 +208,16 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.BreakingConfigPath, _ = cmd.Flags().GetString("breaking-config")
 	flags.WarnOnChanges, _ = cmd.Flags().GetBool("warn-on-changes")
 	flags.ErrorOnBreaking, _ = cmd.Flags().GetBool("error-on-breaking")
+	flags.TurboMode, _ = cmd.Flags().GetBool("turbo")
+	if !cmd.Flags().Changed("turbo") && viper.IsSet("lint.turbo") {
+		flags.TurboMode = viper.GetBool("lint.turbo")
+	}
+	flags.SkipResolve, _ = cmd.Flags().GetBool("skip-resolve")
+	flags.SkipCircularCheck, _ = cmd.Flags().GetBool("skip-circular-check")
+	flags.SkipSchemaErrors, _ = cmd.Flags().GetBool("skip-schema-errors")
+	flags.SkipStats, _ = cmd.Flags().GetBool("skip-stats")
+	flags.MaxResultsPerRule, _ = cmd.Flags().GetInt("max-results-per-rule")
+	flags.MaxTotalResults, _ = cmd.Flags().GetInt("max-total-results")
 	return flags
 }
 
@@ -349,6 +366,19 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 		}
 	}
 
+	// Apply turbo mode rule filtering
+	if flags.TurboMode {
+		if flags.HardModeFlag && !flags.SilentFlag && !flags.PipelineOutput {
+			fmt.Printf(" %s⚡ turbo mode active — some hard-mode rules will be excluded for speed%s\n",
+				color.ASCIIYellow, color.ASCIIReset)
+		}
+		removed := rulesets.FilterRulesForTurbo(selectedRS)
+		if !flags.SilentFlag && !flags.PipelineOutput {
+			fmt.Printf(" %s⚡ turbo mode: removed %d expensive rules (%d rules remaining)%s\n",
+				color.ASCIIYellow, removed, len(selectedRS.Rules), color.ASCIIReset)
+		}
+	}
+
 	if flags.ShowRules && !flags.PipelineOutput && !flags.SilentFlag {
 		renderRulesList(selectedRS.Rules)
 	}
@@ -491,6 +521,12 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		HTTPClientConfig:                httpClientConfig,
 		ApplyAutoFixes:                  config.Flags.FixFlag,
 		FetchConfig:                     config.FetchConfig,
+		TurboMode:                       config.Flags.TurboMode,
+		SkipResolve:                     config.Flags.SkipResolve,
+		SkipCircularCheck:               config.Flags.SkipCircularCheck,
+		SkipSchemaErrors:                config.Flags.SkipSchemaErrors,
+		MaxResultsPerRule:               config.Flags.MaxResultsPerRule,
+		MaxTotalResults:                 config.Flags.MaxTotalResults,
 	})
 
 	if len(result.Errors) > 0 {
