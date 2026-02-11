@@ -56,9 +56,10 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 		Results:     pointerResults,
 		categoryMap: make(map[*RuleCategory][]*RuleFunctionResult),
 	}
-	rrs.GetErrorCount()
-	rrs.GetInfoCount()
-	rrs.GetWarnCount()
+	rrs.ErrorCount = getCount(rrs, SeverityError)
+	rrs.WarnCount = getCount(rrs, SeverityWarn)
+	rrs.InfoCount = getCount(rrs, SeverityInfo)
+	rrs.countsComputed = true
 	return rrs
 }
 
@@ -163,20 +164,29 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 	return report
 }
 
+// computeCountsIfNeeded computes all three severity counts in a single pass
+// and sets countsComputed to true so subsequent calls return cached values.
+func (rr *RuleResultSet) computeCountsIfNeeded() {
+	if rr.countsComputed {
+		return
+	}
+	rr.ErrorCount = getCount(rr, SeverityError)
+	rr.WarnCount = getCount(rr, SeverityWarn)
+	rr.InfoCount = getCount(rr, SeverityInfo)
+	rr.countsComputed = true
+}
+
 // GetErrorCount will return the number of errors returned by the rule results.
 func (rr *RuleResultSet) GetErrorCount() int {
-	if rr.ErrorCount > 0 {
-		return rr.ErrorCount
-	} else {
-		rr.ErrorCount = getCount(rr, SeverityError)
-		return rr.ErrorCount
-	}
+	rr.computeCountsIfNeeded()
+	return rr.ErrorCount
 }
 
 func (rr *RuleResultSet) ResetCounts() {
 	rr.ErrorCount = 0
 	rr.WarnCount = 0
 	rr.InfoCount = 0
+	rr.countsComputed = false
 }
 
 // ResetCategoryCache clears the cached category results. This must be called after
@@ -187,22 +197,14 @@ func (rr *RuleResultSet) ResetCategoryCache() {
 
 // GetWarnCount will return the number of warnings returned by the rule results.
 func (rr *RuleResultSet) GetWarnCount() int {
-	if rr.WarnCount > 0 {
-		return rr.WarnCount
-	} else {
-		rr.WarnCount = getCount(rr, SeverityWarn)
-		return rr.WarnCount
-	}
+	rr.computeCountsIfNeeded()
+	return rr.WarnCount
 }
 
-// GetInfoCount will return the number of warnings returned by the rule results.
+// GetInfoCount will return the number of info results returned by the rule results.
 func (rr *RuleResultSet) GetInfoCount() int {
-	if rr.InfoCount > 0 {
-		return rr.InfoCount
-	} else {
-		rr.InfoCount = getCount(rr, SeverityInfo)
-		return rr.InfoCount
-	}
+	rr.computeCountsIfNeeded()
+	return rr.InfoCount
 }
 
 // GetResultsByRuleCategory will return results filtered by the supplied category

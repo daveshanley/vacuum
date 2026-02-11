@@ -211,8 +211,10 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 					}
 
+					turboFlag, _ := cmd.Flags().GetBool("turbo")
 					resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems)
+						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
+						&TurboFlags{TurboMode: turboFlag})
 					if err != nil {
 						tui.RenderError(err)
 						if isMultiFile {

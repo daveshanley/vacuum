@@ -407,171 +407,122 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 	return results
 }
 
-// constraintInfo holds information about a constraint that doesn't match the schema type
-type constraintInfo struct {
+// constraintDef is a static constraint definition — no closures, no per-call allocations.
+type constraintDef struct {
 	name     string
-	node     *yaml.Node
+	category string // "string", "number", "array", "object"
 	validFor string
 }
 
-// constraintChecker defines a function that checks if a constraint exists on a schema
-type constraintChecker func(*highBase.Schema) *yaml.Node
-
-// schemaConstraint defines a constraint with its name, checker function, and valid types
-type schemaConstraint struct {
-	name     string
-	checker  constraintChecker
-	validFor string
+// allConstraints is the static table of schema constraints, initialized once at package load.
+var allConstraints = []constraintDef{
+	{"pattern", "string", "string"},
+	{"minLength", "string", "string"},
+	{"maxLength", "string", "string"},
+	{"minimum", "number", "number/integer"},
+	{"maximum", "number", "number/integer"},
+	{"multipleOf", "number", "number/integer"},
+	{"exclusiveMinimum", "number", "number/integer"},
+	{"exclusiveMaximum", "number", "number/integer"},
+	{"minItems", "array", "array"},
+	{"maxItems", "array", "array"},
+	{"uniqueItems", "array", "array"},
+	{"minContains", "array", "array"},
+	{"maxContains", "array", "array"},
+	{"minProperties", "object", "object"},
+	{"maxProperties", "object", "object"},
 }
 
-// buildConstraintCheckers returns all defined schema constraints organized by category
-func buildConstraintCheckers(lowSchema *lowBase.Schema) map[string][]schemaConstraint {
-	return map[string][]schemaConstraint{
-		"string": {
-			{"pattern", func(s *highBase.Schema) *yaml.Node {
-				if s.Pattern != "" {
-					return lowSchema.Pattern.KeyNode
-				}
-				return nil
-			}, "string"},
-			{"minLength", func(s *highBase.Schema) *yaml.Node {
-				if s.MinLength != nil {
-					return lowSchema.MinLength.KeyNode
-				}
-				return nil
-			}, "string"},
-			{"maxLength", func(s *highBase.Schema) *yaml.Node {
-				if s.MaxLength != nil {
-					return lowSchema.MaxLength.KeyNode
-				}
-				return nil
-			}, "string"},
-		},
-		"number": {
-			{"minimum", func(s *highBase.Schema) *yaml.Node {
-				if s.Minimum != nil {
-					return lowSchema.Minimum.KeyNode
-				}
-				return nil
-			}, "number/integer"},
-			{"maximum", func(s *highBase.Schema) *yaml.Node {
-				if s.Maximum != nil {
-					return lowSchema.Maximum.KeyNode
-				}
-				return nil
-			}, "number/integer"},
-			{"multipleOf", func(s *highBase.Schema) *yaml.Node {
-				if s.MultipleOf != nil {
-					return lowSchema.MultipleOf.KeyNode
-				}
-				return nil
-			}, "number/integer"},
-			{"exclusiveMinimum", func(s *highBase.Schema) *yaml.Node {
-				if s.ExclusiveMinimum != nil {
-					return lowSchema.ExclusiveMinimum.KeyNode
-				}
-				return nil
-			}, "number/integer"},
-			{"exclusiveMaximum", func(s *highBase.Schema) *yaml.Node {
-				if s.ExclusiveMaximum != nil {
-					return lowSchema.ExclusiveMaximum.KeyNode
-				}
-				return nil
-			}, "number/integer"},
-		},
-		"array": {
-			{"minItems", func(s *highBase.Schema) *yaml.Node {
-				if s.MinItems != nil {
-					return lowSchema.MinItems.KeyNode
-				}
-				return nil
-			}, "array"},
-			{"maxItems", func(s *highBase.Schema) *yaml.Node {
-				if s.MaxItems != nil {
-					return lowSchema.MaxItems.KeyNode
-				}
-				return nil
-			}, "array"},
-			{"uniqueItems", func(s *highBase.Schema) *yaml.Node {
-				if s.UniqueItems != nil {
-					return lowSchema.UniqueItems.KeyNode
-				}
-				return nil
-			}, "array"},
-			{"minContains", func(s *highBase.Schema) *yaml.Node {
-				if s.MinContains != nil {
-					return lowSchema.MinContains.KeyNode
-				}
-				return nil
-			}, "array"},
-			{"maxContains", func(s *highBase.Schema) *yaml.Node {
-				if s.MaxContains != nil {
-					return lowSchema.MaxContains.KeyNode
-				}
-				return nil
-			}, "array"},
-		},
-		"object": {
-			{"minProperties", func(s *highBase.Schema) *yaml.Node {
-				if s.MinProperties != nil {
-					return lowSchema.MinProperties.KeyNode
-				}
-				return nil
-			}, "object"},
-			{"maxProperties", func(s *highBase.Schema) *yaml.Node {
-				if s.MaxProperties != nil {
-					return lowSchema.MaxProperties.KeyNode
-				}
-				return nil
-			}, "object"},
-		},
+// checkConstraint checks if a constraint is set on the high schema and returns the
+// corresponding low-level KeyNode for error location. Returns nil if not set.
+func checkConstraint(c *constraintDef, high *highBase.Schema, low *lowBase.Schema) *yaml.Node {
+	switch c.name {
+	case "pattern":
+		if high.Pattern != "" {
+			return low.Pattern.KeyNode
+		}
+	case "minLength":
+		if high.MinLength != nil {
+			return low.MinLength.KeyNode
+		}
+	case "maxLength":
+		if high.MaxLength != nil {
+			return low.MaxLength.KeyNode
+		}
+	case "minimum":
+		if high.Minimum != nil {
+			return low.Minimum.KeyNode
+		}
+	case "maximum":
+		if high.Maximum != nil {
+			return low.Maximum.KeyNode
+		}
+	case "multipleOf":
+		if high.MultipleOf != nil {
+			return low.MultipleOf.KeyNode
+		}
+	case "exclusiveMinimum":
+		if high.ExclusiveMinimum != nil {
+			return low.ExclusiveMinimum.KeyNode
+		}
+	case "exclusiveMaximum":
+		if high.ExclusiveMaximum != nil {
+			return low.ExclusiveMaximum.KeyNode
+		}
+	case "minItems":
+		if high.MinItems != nil {
+			return low.MinItems.KeyNode
+		}
+	case "maxItems":
+		if high.MaxItems != nil {
+			return low.MaxItems.KeyNode
+		}
+	case "uniqueItems":
+		if high.UniqueItems != nil {
+			return low.UniqueItems.KeyNode
+		}
+	case "minContains":
+		if high.MinContains != nil {
+			return low.MinContains.KeyNode
+		}
+	case "maxContains":
+		if high.MaxContains != nil {
+			return low.MaxContains.KeyNode
+		}
+	case "minProperties":
+		if high.MinProperties != nil {
+			return low.MinProperties.KeyNode
+		}
+	case "maxProperties":
+		if high.MaxProperties != nil {
+			return low.MaxProperties.KeyNode
+		}
 	}
+	return nil
 }
 
 // checkTypeMismatchedConstraints validates that a schema only uses constraints appropriate for its type.
 // This ensures JSON Schema compliance by preventing semantically incorrect constraint usage.
 func (st SchemaTypeCheck) checkTypeMismatchedConstraints(schema *v3.Schema, schemaType string, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
-	mismatches := make([]constraintInfo, 0, 15)
 
 	lowSchema := schema.Value.GoLow()
-	allConstraints := buildConstraintCheckers(lowSchema)
+	highSchema := schema.Value
 
-	// determine which constraint categories are invalid for this type
-	var invalidConstraintTypes []string
-	switch schemaType {
-	case "string":
-		invalidConstraintTypes = []string{"number", "array", "object"}
-	case "number", "integer":
-		invalidConstraintTypes = []string{"string", "array", "object"}
-	case "array":
-		invalidConstraintTypes = []string{"string", "number", "object"}
-	case "object":
-		invalidConstraintTypes = []string{"string", "number", "array"}
-	case "boolean", "null":
-		invalidConstraintTypes = []string{"string", "number", "array", "object"}
-	}
-
-	// check for any invalid constraints on this schema
-	for _, constraintType := range invalidConstraintTypes {
-		for _, constraint := range allConstraints[constraintType] {
-			if node := constraint.checker(schema.Value); node != nil {
-				mismatches = append(mismatches, constraintInfo{
-					name:     constraint.name,
-					node:     node,
-					validFor: constraint.validFor,
-				})
-			}
+	// check all constraints from the static table against this schema's type
+	for i := range allConstraints {
+		c := &allConstraints[i]
+		// skip constraints that belong to this schema's own type category
+		if c.category == schemaType || (c.category == "number" && schemaType == "integer") {
+			continue
 		}
-	}
-
-	// build results for all mismatched constraints
-	for _, mismatch := range mismatches {
-		message := fmt.Sprintf("`%s` constraint is only applicable to %s types, not `%s`",
-			mismatch.name, mismatch.validFor, schemaType)
-		result := st.buildResult(message, schema.GenerateJSONPath(), mismatch.name, -1,
-			schema, mismatch.node, context)
-		results = append(results, result)
+		if node := checkConstraint(c, highSchema, lowSchema); node != nil {
+			message := fmt.Sprintf("`%s` constraint is only applicable to %s types, not `%s`",
+				c.name, c.validFor, schemaType)
+			result := st.buildResult(message, schema.GenerateJSONPath(), c.name, -1,
+				schema, node, context)
+			results = append(results, result)
+		}
 	}
 
 	return results
