@@ -5,23 +5,33 @@ package owasp
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestArrayLimit_RunRule(t *testing.T) {
 
-	yml := `openapi: "3.1.0"
+	yml := `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
 components:
   schemas:
     thing:
-      type:
-        - array
+      type: array
+      items: 
+        type: string
 `
 
 	// create a new document from specification bytes

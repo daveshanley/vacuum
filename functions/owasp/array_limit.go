@@ -4,11 +4,12 @@
 package owasp
 
 import (
+	"slices"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/v3"
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	"go.yaml.in/yaml/v4"
-	"slices"
 )
 
 type ArrayLimit struct{}
@@ -40,6 +41,12 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 
 				// Find all locations where this schema appears
 				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
+
+				var direction = utils.GetSchemaDirection(context.DrDocument.V3Document.Document, schema.Name)
+
+				if direction != utils.DirectionRequest && direction != utils.DirectionBoth {
+					continue
+				}
 
 				result := model.RuleFunctionResult{
 					Message:   utils.SuppliedOrDefault(context.Rule.Message, "schema of type `array` must specify `maxItems`"),
