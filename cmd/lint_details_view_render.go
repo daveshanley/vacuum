@@ -240,9 +240,11 @@ func formatLocation(r *model.RuleFunctionResult, fileName string, config *TableC
 		startCol = r.Origin.Column
 	}
 
-	if !config.ShowAbsPath {
-		// make path relative
-		if absPath, err := filepath.Abs(f); err == nil {
+	// make path relative
+	if absPath, err := filepath.Abs(f); err == nil {
+		if config.ShowAbsPath {
+			f = absPath
+		} else {
 			if cwd, err := os.Getwd(); err == nil {
 				if relPath, err := filepath.Rel(cwd, absPath); err == nil {
 					f = relPath
