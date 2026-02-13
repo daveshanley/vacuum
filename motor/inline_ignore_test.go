@@ -21,18 +21,15 @@ info:
 
 	infoNode := node.Content[0].Content[1]
 
-	ignored := checkInlineIgnore(infoNode, "rule-id")
-	assert.True(t, ignored)
-
-	ignored = checkInlineIgnore(infoNode, "other-rule")
-	assert.False(t, ignored)
+	assert.True(t, checkInlineIgnore(infoNode, "rule-id"))
+	assert.False(t, checkInlineIgnore(infoNode, "other-rule"))
 }
 
 func TestCheckInlineIgnore_ArrayOfRules(t *testing.T) {
 	spec := `
 info:
   title: Test
-  x-lint-ignore: 
+  x-lint-ignore:
     - rule-one
     - rule-two
   description: missing
@@ -92,6 +89,69 @@ info:
 	descNode := node.Content[0].Content[1].Content[1]
 
 	assert.False(t, checkInlineIgnore(descNode, "any-rule"))
+}
+
+func TestBuildInlineIgnoreIndex_RootLevel(t *testing.T) {
+	spec := `
+x-lint-ignore: root-rule
+info:
+  title: Test
+`
+	var node yaml.Node
+	err := yaml.Unmarshal([]byte(spec), &node)
+	require.NoError(t, err)
+
+	idx := buildInlineIgnoreIndex(&node)
+	require.NotNil(t, idx)
+
+	// Root ignores should be set
+	assert.True(t, idx.rootIgnores["root-rule"])
+	assert.False(t, idx.hasNonRootIgnores)
+}
+
+func TestBuildInlineIgnoreIndex_NonRootIgnores(t *testing.T) {
+	spec := `
+info:
+  title: Test
+  x-lint-ignore: info-rule
+paths:
+  /test:
+    x-lint-ignore: path-rule
+    get:
+      summary: Test
+`
+	var node yaml.Node
+	err := yaml.Unmarshal([]byte(spec), &node)
+	require.NoError(t, err)
+
+	idx := buildInlineIgnoreIndex(&node)
+	require.NotNil(t, idx)
+
+	assert.True(t, idx.hasNonRootIgnores)
+	assert.Nil(t, idx.rootIgnores) // no root-level ignores
+}
+
+func TestCheckInlineIgnoreByPathIndexed_RootOnly(t *testing.T) {
+	spec := `
+x-lint-ignore: global-rule
+info:
+  title: Test
+`
+	var node yaml.Node
+	err := yaml.Unmarshal([]byte(spec), &node)
+	require.NoError(t, err)
+
+	idx := buildInlineIgnoreIndex(&node)
+	require.NotNil(t, idx)
+
+	// Root-level ignore should match any path
+	assert.True(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.info", "global-rule"))
+	assert.False(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.info", "other-rule"))
+}
+
+func TestCheckInlineIgnoreByPathIndexed_NilIndex(t *testing.T) {
+	var node yaml.Node
+	assert.False(t, checkInlineIgnoreByPathIndexed(nil, &node, "$.info", "any-rule"))
 }
 
 func TestInlineIgnore_Integration_InfoDescription(t *testing.T) {
@@ -190,7 +250,7 @@ openapi: 3.0.0
 info:
   title: Test API
   version: 1.0.0
-  x-lint-ignore: 
+  x-lint-ignore:
     - info-description
     - info-contact
 paths: {}
