@@ -254,16 +254,17 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					specBytes, _ := os.ReadFile(fr.fileName)
 					specStringData := strings.Split(string(specBytes), "\n")
 					renderFixedDetails(RenderDetailsOptions{
-						Results:    fr.results,
-						SpecData:   specStringData,
-						Snippets:   flags.SnippetsFlag,
-						Errors:     flags.ErrorsFlag,
-						Silent:     flags.SilentFlag,
-						NoMessage:  flags.NoMessageFlag,
-						AllResults: flags.AllResultsFlag,
-						NoClip:     flags.NoClipFlag,
-						FileName:   fr.fileName,
-						NoStyle:    flags.NoStyleFlag,
+						Results:     fr.results,
+						SpecData:    specStringData,
+						Snippets:    flags.SnippetsFlag,
+						Errors:      flags.ErrorsFlag,
+						Silent:      flags.SilentFlag,
+						NoMessage:   flags.NoMessageFlag,
+						AllResults:  flags.AllResultsFlag,
+						NoClip:      flags.NoClipFlag,
+						FileName:    fr.fileName,
+						NoStyle:     flags.NoStyleFlag,
+						ShowAbsPath: flags.OutputAbsPathsFlag,
 					})
 				}
 

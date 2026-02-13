@@ -65,6 +65,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
+	cmd.Flags().BoolP("abs-paths", "y", false, "Output absolute paths")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
 	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
 	// ext-refs is inherited from root as a persistent flag
@@ -370,16 +371,17 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
 		renderFixedDetails(RenderDetailsOptions{
-			Results:    resultSet.Results,
-			SpecData:   specStringData,
-			Snippets:   flags.SnippetsFlag,
-			Errors:     flags.ErrorsFlag,
-			Silent:     flags.SilentFlag,
-			NoMessage:  flags.NoMessageFlag,
-			AllResults: flags.AllResultsFlag,
-			NoClip:     flags.NoClipFlag,
-			FileName:   displayFileName,
-			NoStyle:    flags.NoStyleFlag,
+			Results:     resultSet.Results,
+			SpecData:    specStringData,
+			Snippets:    flags.SnippetsFlag,
+			Errors:      flags.ErrorsFlag,
+			Silent:      flags.SilentFlag,
+			NoMessage:   flags.NoMessageFlag,
+			AllResults:  flags.AllResultsFlag,
+			NoClip:      flags.NoClipFlag,
+			FileName:    displayFileName,
+			NoStyle:     flags.NoStyleFlag,
+			ShowAbsPath: flags.OutputAbsPathsFlag,
 		})
 	}
 
@@ -595,7 +597,7 @@ func renderFixedDetails(opts RenderDetailsOptions) {
 	printFileHeader(opts.FileName, opts.Silent)
 
 	// calculate table configuration
-	config := calculateTableConfig(opts.Results, opts.FileName, opts.Errors, opts.NoMessage, opts.NoClip, opts.NoStyle)
+	config := calculateTableConfig(opts.Results, opts.FileName, opts.Errors, opts.NoMessage, opts.NoClip, opts.NoStyle, opts.ShowAbsPath)
 
 	if config.UseTreeFormat {
 		renderTreeFormat(opts.Results, config, opts.FileName, opts.Errors, opts.AllResults)
