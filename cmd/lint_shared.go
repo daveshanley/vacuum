@@ -86,6 +86,7 @@ type LintFlags struct {
 	BreakingConfigPath       string // --breaking-config: path to breaking rules config
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
+	OutputAbsPathsFlag       bool
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -201,6 +202,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.BreakingConfigPath, _ = cmd.Flags().GetString("breaking-config")
 	flags.WarnOnChanges, _ = cmd.Flags().GetBool("warn-on-changes")
 	flags.ErrorOnBreaking, _ = cmd.Flags().GetBool("error-on-breaking")
+	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
 	return flags
 }
 

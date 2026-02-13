@@ -11,16 +11,17 @@ import (
 
 // RenderDetailsOptions contains all options for rendering detailed results
 type RenderDetailsOptions struct {
-	Results    []*model.RuleFunctionResult
-	SpecData   []string
-	Snippets   bool
-	Errors     bool
-	Silent     bool
-	NoMessage  bool
-	AllResults bool
-	NoClip     bool
-	FileName   string
-	NoStyle    bool
+	Results     []*model.RuleFunctionResult
+	SpecData    []string
+	Snippets    bool
+	Errors      bool
+	Silent      bool
+	NoMessage   bool
+	AllResults  bool
+	NoClip      bool
+	FileName    string
+	NoStyle     bool
+	ShowAbsPath bool
 }
 
 // RenderSummaryOptions contains all options for rendering summary

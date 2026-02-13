@@ -36,6 +36,7 @@ type TableConfig struct {
 	Width         int
 	ShowCategory  bool
 	ShowPath      bool
+	ShowAbsPath   bool
 	ShowRule      bool
 	UseTreeFormat bool
 	LocationWidth int
@@ -58,14 +59,14 @@ type SeverityInfo struct {
 }
 
 // calculateMaxColumnWidths analyzes all results to determine natural column widths
-func calculateMaxColumnWidths(results []*model.RuleFunctionResult, fileName string, errors bool) (locWidth, ruleWidth, catWidth, msgWidth int) {
+func calculateMaxColumnWidths(results []*model.RuleFunctionResult, fileName string, errors bool, config *TableConfig) (locWidth, ruleWidth, catWidth, msgWidth int) {
 	locWidth = len("Location")
 	ruleWidth = len("Rule")
 	catWidth = len("Category")
 	msgWidth = len("Message")
 
 	for _, r := range results {
-		location := formatLocation(r, fileName)
+		location := formatLocation(r, fileName, config)
 		if len(location) > locWidth {
 			locWidth = len(location)
 		}
@@ -91,7 +92,7 @@ func calculateMaxColumnWidths(results []*model.RuleFunctionResult, fileName stri
 }
 
 // calculateTableConfig determines the table layout based on terminal width
-func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, errors, noMessage, noClip, noStyle bool) *TableConfig {
+func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, errors, noMessage, noClip, noStyle bool, showAbsPaths bool) *TableConfig {
 	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
 	if width == 0 {
 		width = 120
@@ -106,6 +107,7 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 		Width:         width,
 		ShowCategory:  true,
 		ShowPath:      true,
+		ShowAbsPath:   showAbsPaths,
 		ShowRule:      true,
 		UseTreeFormat: false,
 		NoMessage:     noMessage,
@@ -114,7 +116,7 @@ func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, 
 	}
 
 	// get natural column widths
-	locWidth, ruleWidth, catWidth, msgWidth := calculateMaxColumnWidths(results, fileName, errors)
+	locWidth, ruleWidth, catWidth, msgWidth := calculateMaxColumnWidths(results, fileName, errors, config)
 
 	config.LocationWidth = locWidth
 	config.SeverityWidth = 9
@@ -223,7 +225,7 @@ func calculateSeparatorCount(config *TableConfig) int {
 }
 
 // formatLocation creates the location string for a result
-func formatLocation(r *model.RuleFunctionResult, fileName string) string {
+func formatLocation(r *model.RuleFunctionResult, fileName string, config *TableConfig) string {
 	startLine := 0
 	startCol := 0
 	if r.StartNode != nil {
@@ -240,9 +242,13 @@ func formatLocation(r *model.RuleFunctionResult, fileName string) string {
 
 	// make path relative
 	if absPath, err := filepath.Abs(f); err == nil {
-		if cwd, err := os.Getwd(); err == nil {
-			if relPath, err := filepath.Rel(cwd, absPath); err == nil {
-				f = relPath
+		if config.ShowAbsPath {
+			f = absPath
+		} else {
+			if cwd, err := os.Getwd(); err == nil {
+				if relPath, err := filepath.Rel(cwd, absPath); err == nil {
+					f = relPath
+				}
 			}
 		}
 	}
@@ -439,7 +445,7 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 			continue
 		}
 
-		location := formatLocation(r, fileName)
+		location := formatLocation(r, fileName, config)
 		coloredLocation := location
 		if !config.NoStyle {
 			coloredLocation = color.ColorizeLocation(location)
@@ -520,7 +526,7 @@ func renderTreeFormat(results []*model.RuleFunctionResult, config *TableConfig, 
 
 // renderTableRow renders a single table row
 func renderTableRow(r *model.RuleFunctionResult, config *TableConfig, fileName string) {
-	location := formatLocation(r, fileName)
+	location := formatLocation(r, fileName, config)
 	coloredLocation := location
 	if !config.NoStyle {
 		coloredLocation = color.ColorizeLocation(location)
