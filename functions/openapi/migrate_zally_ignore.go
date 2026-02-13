@@ -34,8 +34,8 @@ func (m MigrateZallyIgnore) RunRule(
 	}
 
 	var results []model.RuleFunctionResult
-	// pre-allocate path segments slice to avoid per-recursion allocations
-	segs := make([]string, 0, 16)
+	// pre-allocate path segments slice; push/pop pattern avoids per-recursion allocations
+	segs := make([]string, 0, 32)
 	segs = append(segs, "$")
 
 	for _, node := range nodes {
@@ -84,25 +84,27 @@ func (m MigrateZallyIgnore) checkNodeWithPath(
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
 
-			childSegs := append(segs, keyNode.Value)
+			segs = append(segs, keyNode.Value) // push
 
 			if keyNode.Value == "x-zally-ignore" {
 				*results = append(*results, model.RuleFunctionResult{
 					Message:   "Convert ignore rules to use x-lint-ignore",
 					StartNode: keyNode,
 					EndNode:   utils.BuildEndNode(keyNode),
-					Path:      buildPath(childSegs),
+					Path:      buildPath(segs),
 					Rule:      context.Rule,
 				})
 			}
 
-			m.checkNodeWithPath(valueNode, childSegs, results, context)
+			m.checkNodeWithPath(valueNode, segs, results, context)
+			segs = segs[:len(segs)-1] // pop
 		}
 
 	case yaml.SequenceNode:
 		for i, item := range node.Content {
-			childSegs := append(segs, "["+strconv.Itoa(i)+"]")
-			m.checkNodeWithPath(item, childSegs, results, context)
+			segs = append(segs, "["+strconv.Itoa(i)+"]") // push
+			m.checkNodeWithPath(item, segs, results, context)
+			segs = segs[:len(segs)-1] // pop
 		}
 	}
 }
