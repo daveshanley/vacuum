@@ -110,6 +110,7 @@ type LintFlags struct {
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
 	TurboMode                bool   // --turbo: faster linting, trades some checks for speed
+	OutputAbsPathsFlag       bool
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -229,6 +230,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("turbo") && viper.IsSet("lint.turbo") {
 		flags.TurboMode = viper.GetBool("lint.turbo")
 	}
+	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
 	return flags
 }
 
