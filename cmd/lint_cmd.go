@@ -14,6 +14,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/dustin/go-humanize"
+	"github.com/pb33f/libopenapi/index"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
+	"github.com/spf13/cobra"
+
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
@@ -22,10 +27,6 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/dustin/go-humanize"
-	"github.com/pb33f/libopenapi/index"
-	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/spf13/cobra"
 )
 
 func GetLintCommand() *cobra.Command {
@@ -235,6 +236,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 		if baseErr != nil {
 			return fmt.Errorf("failed to resolve base path: %w", baseErr)
 		}
+		resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(displayFileName)
+		if specPathErr != nil {
+			return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+		}
 
 		fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 		if fetchCfgErr != nil {
@@ -244,7 +249,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		execution := &motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
-			SpecFileName:                    displayFileName,
+			SpecFileName:                    resolvedSpecPath,
 			CustomFunctions:                 customFuncs,
 			AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 			Base:                            resolvedBase,
