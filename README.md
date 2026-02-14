@@ -311,7 +311,7 @@ rules and violations in a console, without having to scroll through thousands of
 <a href="https://quobix.com/vacuum/commands/dashboard/">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dashboard.gif">
-  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg">
+  <img alt="dashboard" src=".github/assets/dashboard.gif">
 </picture>
 </a>
 
