@@ -10,16 +10,16 @@ require (
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3
 	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3
-	github.com/dop251/goja_nodejs v0.0.0-20251015164255-5e94316bedaf
+	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/muesli/termenv v0.16.0
-	github.com/pb33f/doctor v0.0.44
-	github.com/pb33f/jsonpath v0.7.1
-	github.com/pb33f/libopenapi v0.33.5
-	github.com/pb33f/libopenapi-validator v0.11.1
+	github.com/pb33f/doctor v0.0.46
+	github.com/pb33f/jsonpath v0.8.1
+	github.com/pb33f/libopenapi v0.33.10
+	github.com/pb33f/libopenapi-validator v0.11.4
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
@@ -28,9 +28,9 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tliron/glsp v0.2.2
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
-	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
-	golang.org/x/term v0.39.0
-	golang.org/x/text v0.33.0
+	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a
+	golang.org/x/term v0.40.0
+	golang.org/x/text v0.34.0
 )
 
 require gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -54,7 +54,6 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
@@ -91,5 +90,5 @@ require (
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
 )
