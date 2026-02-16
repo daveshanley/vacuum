@@ -241,7 +241,7 @@ vacuum now supports both [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) JSON
 There is a new command `generate-ignorefile` that will generate an ignore file from a linting report.
 
 New rule `no-request-body` checks for incorrect request bodies in operations, and `path-item-refs` checks for
-$refs being used in path items.
+$refs being incorrectly used on operations within path items (only the path item itself may use $ref).
 
 ---
 
