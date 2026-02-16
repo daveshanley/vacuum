@@ -9,10 +9,11 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"go.yaml.in/yaml/v4"
+	"strings"
 )
 
-// PathItemReferences will check that path items are not using references, as they are not allowed
-// although many folks do it. This is a common mistake, this will help catch it.
+// PathItemReferences checks that operations within path items are not using $ref.
+// $ref is only valid directly on the path item object itself, not on individual operations.
 type PathItemReferences struct {
 }
 
@@ -23,12 +24,12 @@ func (id PathItemReferences) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
-// GetCategory returns the category of the InfoContact rule.
+// GetCategory returns the category of the PathItemReferences rule.
 func (id PathItemReferences) GetCategory() string {
 	return model.FunctionCategoryOpenAPI
 }
 
-// RunRule will execute the InfoContact rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule will execute the PathItemReferences rule, based on supplied context and a supplied []*yaml.Node slice.
 func (id PathItemReferences) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
@@ -41,19 +42,23 @@ func (id PathItemReferences) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 
 	if paths != nil {
 
-		for _, path := range paths.PathItems.FromOldest() {
+		for pathKey, pathItem := range paths.PathItems.FromOldest() {
 
-			if path.Value.GoLow().IsReference() {
-				res := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-						fmt.Sprintf("path `%s` item uses a $ref, it's technically allowed, but not a great idea", path.Key)),
-					StartNode: path.Value.GoLow().KeyNode,
-					EndNode:   vacuumUtils.BuildEndNode(path.Value.GoLow().KeyNode),
-					Path:      path.GenerateJSONPath(),
-					Rule:      context.Rule,
+			for method, op := range pathItem.GetOperations().FromOldest() {
+
+				if op.Value.GoLow().IsReference() {
+					res := model.RuleFunctionResult{
+						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+							fmt.Sprintf("`%s` operation at path `%s` uses a $ref, which is not valid; "+
+								"$ref is only allowed on the path item itself", strings.ToUpper(method), pathKey)),
+						StartNode: op.Value.GoLow().KeyNode,
+						EndNode:   vacuumUtils.BuildEndNode(op.Value.GoLow().KeyNode),
+						Path:      fmt.Sprintf("$.paths['%s'].%s", pathKey, method),
+						Rule:      context.Rule,
+					}
+					results = append(results, res)
+					op.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
-				results = append(results, res)
-				path.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 			}
 		}
 	}
