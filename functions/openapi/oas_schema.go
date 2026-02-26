@@ -316,7 +316,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-then failed" {
 				continue
 			}
-			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].Location)
+			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].KeywordLocation)
 			n := &yaml.Node{
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
@@ -341,8 +341,8 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			var reason string
 
 			// Always prefer leaf error extraction from OriginalError when available (issue #766)
-			if schemaErr.OriginalError != nil {
-				leafErrors := extractLeafValidationErrors(schemaErr.OriginalError)
+			if schemaErr.OriginalJsonSchemaError != nil {
+				leafErrors := extractLeafValidationErrors(schemaErr.OriginalJsonSchemaError)
 				if len(leafErrors) > 0 {
 					// Limit to last 3 leaf errors for readability
 					if len(leafErrors) > 3 {
@@ -384,7 +384,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 func hashResult(sve *errors.SchemaValidationFailure) string {
 	return fmt.Sprintf("%x",
-		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.Location, sve.Line, sve.Column, sve.Reason))))
+		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.KeywordLocation, sve.Line, sve.Column, sve.Reason))))
 }
 
 // checkForNullableKeyword searches for nullable keyword usage in OpenAPI 3.1+ documents
