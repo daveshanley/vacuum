@@ -19,7 +19,7 @@ require (
 	github.com/pb33f/doctor v0.0.47
 	github.com/pb33f/jsonpath v0.8.1
 	github.com/pb33f/libopenapi v0.34.0
-	github.com/pb33f/libopenapi-validator v0.12.0
+	github.com/pb33f/libopenapi-validator v0.13.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
@@ -52,6 +52,8 @@ require (
 	github.com/charmbracelet/x/windows v0.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/go-openapi/jsonpointer v0.22.4 // indirect
+	github.com/go-openapi/swag/jsonname v0.25.4 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
