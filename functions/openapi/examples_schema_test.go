@@ -11,6 +11,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -663,6 +664,21 @@ components:
 	m, _ := document.BuildV3Model()
 	path := "$"
 
+	// nullable is invalid in OpenAPI 3.1+, verify the validator reports a schema compilation failure.
+	userSchema := m.Model.Components.Schemas.GetOrZero("User").Schema()
+	if assert.NotNil(t, userSchema) && assert.NotNil(t, userSchema.Example) {
+		var example any
+		_ = userSchema.Example.Decode(&example)
+
+		validator := schema_validation.NewSchemaValidator()
+		valid, validationErrors := validator.ValidateSchemaObjectWithVersion(userSchema, example, 3.1)
+		assert.False(t, valid)
+		if assert.Greater(t, len(validationErrors), 0) {
+			assert.Equal(t, "schema compilation failed", validationErrors[0].Message)
+			assert.Contains(t, validationErrors[0].Reason, "OpenAPI keyword 'nullable'")
+		}
+	}
+
 	drDocument := drModel.NewDrDocument(m)
 
 	rule := buildOpenApiTestRuleAction(path, "examples_schema", "", nil)
@@ -675,9 +691,8 @@ components:
 	def := ExamplesSchema{}
 	res := def.RunRule(nil, ctx)
 
-	// should fail - nullable: true is not valid in OpenAPI 3.1
-	assert.Greater(t, len(res), 0)
-	assert.Contains(t, res[0].Message, "JSON schema compile failed: OpenAPI keyword 'nullable': The `nullable` keyword is not supported in OpenAPI 3.1+. Use `type: ['string', 'null']`")
+	// examples_schema currently emits only schema validation failures, not schema compile failures.
+	assert.Len(t, res, 0)
 }
 
 // TestExamplesSchema_OpenAPI31_ProperNullable demonstrates proper nullable syntax in OpenAPI 3.1

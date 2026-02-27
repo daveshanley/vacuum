@@ -1,0 +1,5 @@
+---
+camel-case-properties:
+  - $.components.schemas['ServiceLevelObjectiveAlertSeverityV1'].properties['labels'].properties['hedwig_scope']
+  - $.components.schemas['ServiceLevelObjectiveAlertV1'].properties['ticket'].allOf[0][0].properties['labels'].properties['hedwig_scope']
+  - $.components.schemas['ServiceLevelObjectiveAlertV1'].properties['ticket'].allOf[0].properties['labels'].properties['hedwig_scope']
