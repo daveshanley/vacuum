@@ -19,7 +19,7 @@ require (
 	github.com/pb33f/doctor v0.0.47
 	github.com/pb33f/jsonpath v0.8.1
 	github.com/pb33f/libopenapi v0.34.0
-	github.com/pb33f/libopenapi-validator v0.13.0
+	github.com/pb33f/libopenapi-validator v0.13.1
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2

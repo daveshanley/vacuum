@@ -391,13 +391,9 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 
 	// Apply turbo mode rule filtering
 	if flags.TurboMode {
-		if flags.HardModeFlag && !flags.SilentFlag && !flags.PipelineOutput {
-			fmt.Printf(" %s⚡ turbo mode active — some hard-mode rules will be excluded for speed%s\n",
-				color.ASCIIYellow, color.ASCIIReset)
-		}
 		removed := rulesets.FilterRulesForTurbo(selectedRS)
 		if !flags.SilentFlag && !flags.PipelineOutput {
-			fmt.Printf(" %s⚡ turbo mode: removed %d expensive rules (%d rules remaining)%s\n",
+			fmt.Printf(" %s⚡ [turbo mode]: removed %d expensive rules (%d rules remaining)%s\n\n",
 				color.ASCIIYellow, removed, len(selectedRS.Rules), color.ASCIIReset)
 		}
 	}

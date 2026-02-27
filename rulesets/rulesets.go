@@ -695,8 +695,8 @@ var TurboExcludedRules = map[string]bool{
 	//Oas3UnusedComponent:    true, // O(n*m) extracts ALL refs + ALL component types
 	//Oas2UnusedDefinition:   true, // Same O(n*m) pattern
 	//DescriptionDuplication: true, // MD5 hashes every description and summary
-	Oas2Schema: true, // Re-decodes full spec from YAML then validates
-	Oas3Schema: true, // Re-decodes full spec from YAML then validates
+	//Oas2Schema: true, // Now optimized: cached schema + direct AST walk + normalizeJSON bypass
+	Oas3Schema: true, // Still expensive on very large specs (stripe: +100ms, +95MB RSS)
 }
 
 // FilterRulesForTurbo removes expensive rules from the ruleset for turbo mode.
