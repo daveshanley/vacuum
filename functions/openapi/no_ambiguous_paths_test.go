@@ -438,3 +438,146 @@ paths:
 	// - /api/{version}/data (POST) vs /api/{ver}/data (PUT) - different methods
 	assert.Len(t, res, 0, "Concrete vs templated paths should not be ambiguous per OpenAPI spec")
 }
+
+func TestAmbiguousPaths_RFC6570_DifferentOperators_DrDocument(t *testing.T) {
+	yml := `openapi: "3.1.0"
+info:
+  title: "Test"
+  version: "1.0"
+paths:
+  /users/{id}:
+    get:
+      summary: Get user by ID
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number
+  /users/{;id}:
+    get:
+      summary: Look up user by legacy ID
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number
+  /users/{+id}:
+    get:
+      summary: Get user by reserved ID
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "ambiguousPaths", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Rule = &rule
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	doc, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+	v3Model, modelErrors := doc.BuildV3Model()
+	assert.NoError(t, modelErrors)
+	drDocument := drModel.NewDrDocument(v3Model)
+	ctx.DrDocument = drDocument
+
+	def := AmbiguousPaths{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0, "Paths with different RFC 6570 operators should not be ambiguous")
+}
+
+func TestAmbiguousPaths_RFC6570_SameOperator_IsAmbiguous_DrDocument(t *testing.T) {
+	yml := `openapi: "3.1.0"
+info:
+  title: "Test"
+  version: "1.0"
+paths:
+  /users/{;id}:
+    get:
+      summary: Get user A
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number
+  /users/{;userId}:
+    get:
+      summary: Get user B
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: number`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "ambiguousPaths", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Rule = &rule
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	doc, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+	v3Model, modelErrors := doc.BuildV3Model()
+	assert.NoError(t, modelErrors)
+	drDocument := drModel.NewDrDocument(v3Model)
+	ctx.DrDocument = drDocument
+
+	def := AmbiguousPaths{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1, "Paths with same RFC 6570 operator and same structure should be ambiguous")
+}
+
+func TestAmbiguousPaths_RFC6570_DifferentOperators_YAMLFallback(t *testing.T) {
+	yml := `openapi: 3.0.0
+paths:
+  '/users/{id}':
+    get:
+      summary: Get user by ID
+  '/users/{;id}':
+    get:
+      summary: Look up user by legacy ID`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	rule := buildOpenApiTestRuleAction(path, "ambiguousPaths", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Rule = &rule
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := AmbiguousPaths{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0, "Paths with different RFC 6570 operators should not be ambiguous (YAML fallback path)")
+}

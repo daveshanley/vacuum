@@ -136,7 +136,7 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 
 // getMethodsFromPathItem extracts all HTTP methods defined in a PathItem
 func getMethodsFromPathItem(pathItem *doctorModel.PathItem) []string {
-	var methods []string
+	methods := make([]string, 0, 8)
 
 	if pathItem.Get != nil {
 		methods = append(methods, http.MethodGet)
@@ -171,6 +171,7 @@ type segment struct {
 	isVar     bool
 	paramName string
 	paramType string
+	operator  string // RFC 6570 operator, empty for simple expansion
 }
 
 func parseSegments(path string, pathItem *doctorModel.PathItem) []segment {
@@ -201,10 +202,11 @@ func parseSegments(path string, pathItem *doctorModel.PathItem) []segment {
 		}
 
 		seg := segment{value: part}
-		// Fast path variable detection: {paramName} without regex
-		if len(part) > 2 && part[0] == '{' && part[len(part)-1] == '}' {
+		tv := ParseTemplateSegment(part)
+		if tv.IsVariable && tv.Name != "" {
 			seg.isVar = true
-			seg.paramName = part[1 : len(part)-1]
+			seg.paramName = tv.Name
+			seg.operator = tv.Operator
 			if pathItem != nil {
 				seg.paramType = getParameterType(pathItem, seg.paramName)
 			}
@@ -264,6 +266,10 @@ func compareSegments(segsA, segsB []segment) bool {
 		a, b := &segsA[i], &segsB[i]
 
 		if a.isVar && b.isVar {
+			// Different RFC 6570 operators mean different expansion semantics — never ambiguous
+			if a.operator != b.operator {
+				return false
+			}
 			if a.paramType != "" && b.paramType != "" && !areTypesCompatible(a.paramType, b.paramType) {
 				return false
 			}

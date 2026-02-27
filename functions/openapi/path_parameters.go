@@ -19,20 +19,14 @@ import (
 // this rule has been refactored to use the doctor model. The logic is now much simpler, but does not work against
 // swagger
 type PathParameters struct {
-	rx *regexp.Regexp
 }
 
-const paramRegex = `(\{;?\??[\.a-zA-Z0-9_-]+\*?\})`
+const paramRegex = `(\{[^}]+\})`
 
-var rxPathParameters *regexp.Regexp
-
-func init() {
-	rxPathParameters = regexp.MustCompile(paramRegex)
-}
+var rxParamRegex = regexp.MustCompile(paramRegex)
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the PathParameters rule.
 func (pp PathParameters) GetSchema() model.RuleFunctionSchema {
-	pp.rx = regexp.MustCompile(paramRegex)
 	return model.RuleFunctionSchema{
 		Name: "oasPathParam",
 	}
@@ -45,10 +39,6 @@ func (pp PathParameters) GetCategory() string {
 
 // RunRule will execute the PathParameters rule, based on supplied context and a supplied []*yaml.Node slice.
 func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
-	if pp.rx == nil {
-		pp.rx = rxPathParameters
-	}
 
 	var results []model.RuleFunctionResult
 
@@ -76,14 +66,13 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 		}
 	}
 
-	// iterate through each path and do the things.
+	// validate parameters for each path: check duplicates, missing definitions, and required fields
 	for pathKey, pathValue := range paths.PathItems.FromOldest() {
 
-		//if utils.IsNodeStringValue(pathNode) {
-		// replace any params with an invalid char (%) so we can perform a path
-		// equality check. /hello/{fresh} and /hello/{fish} are equivalent to OpenAPI.
-		//currentPath = pathKey
-		currentPathNormalized := pp.rx.ReplaceAllString(pathKey, "%")
+		currentPathNormalized := rxParamRegex.ReplaceAllStringFunc(pathKey, func(match string) string {
+			tv := ParseTemplateSegment(match)
+			return normalizeTemplateParam(tv)
+		})
 
 		// Check for duplicates per HTTP method
 		for opVerb := range pathOperations[pathKey] {
@@ -110,11 +99,12 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 
 		var params []string
 
-		// check if the value has been used multiple times, 100 segments seems overly cautious.
-		for _, pathParamStringValue := range pp.rx.FindAllString(pathKey, 100) {
-			// strip off curly brackets
-			strRx, _ := regexp.Compile(`[{}?*;]`)
-			param := strRx.ReplaceAllString(pathParamStringValue, "")
+		for _, pathParamStringValue := range rxParamRegex.FindAllString(pathKey, 100) {
+			tv := ParseTemplateSegment(pathParamStringValue)
+			if tv.Name == "" {
+				continue // skip degenerate templates like {;} or {*}
+			}
+			param := tv.Name
 			params = append(params, param)
 			if pathElements[param] {
 				res := model.BuildFunctionResultString(
