@@ -231,3 +231,109 @@ paths:
 	// These paths are NOT ambiguous - they have different literal segments
 	assert.Len(t, res, 0, "Should not detect any ambiguous paths")
 }
+
+// TestIssue810_RFC6570PathStyleParameterFalsePositives tests the fix for GitHub issue #810.
+// RFC 6570 URI template operators (e.g., {;id}) should not cause false positives in
+// no-ambiguous-paths, path-params, or paths-kebab-case rules.
+func TestIssue810_RFC6570PathStyleParameterFalsePositives(t *testing.T) {
+	yml := `openapi: "3.1.0"
+info:
+  title: "REST API"
+  version: "1.2"
+  description: "Description."
+paths:
+  /users/{id}:
+    get:
+      description: "Return the user for the given ID."
+      operationId: getUser
+      responses:
+        "200":
+          content: {}
+          description: "The user."
+    parameters:
+      - description: "The unique identifier for the user"
+        in: path
+        name: id
+        required: true
+        schema:
+          type: number
+  /users/{;id}:
+    get:
+      description: "Look up user by legacy identifier"
+      operationId: lookupId
+      responses:
+        "308":
+          content: {}
+          description: "The user matching the lookup criteria."
+    parameters:
+      - description: "Identifier from legacy system"
+        in: path
+        name: id
+        required: true
+        schema:
+          type: number`
+
+	path := "$"
+
+	document, dErr := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, dErr)
+
+	m, mErr := document.BuildV3Model()
+	assert.NoError(t, mErr)
+
+	drDocument := drModel.NewDrDocument(m)
+
+	var rootNode yaml.Node
+	yErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, yErr)
+
+	nodes, _ := utils.FindNodes([]byte(yml), path)
+
+	config := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&rootNode, config)
+
+	// Test no-ambiguous-paths
+	t.Run("no-ambiguous-paths", func(t *testing.T) {
+		rule := buildOpenApiTestRuleAction(path, "ambiguousPaths", "", nil)
+		ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Rule = &rule
+		ctx.Index = idx
+		ctx.Document = document
+		ctx.DrDocument = drDocument
+
+		ambiguousPaths := AmbiguousPaths{}
+		res := ambiguousPaths.RunRule(nodes, ctx)
+
+		assert.Len(t, res, 0, "no-ambiguous-paths: /users/{id} and /users/{;id} are not ambiguous (different RFC 6570 operators)")
+	})
+
+	// Test path-params
+	t.Run("path-params", func(t *testing.T) {
+		rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+		ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Rule = &rule
+		ctx.Index = idx
+		ctx.Document = document
+		ctx.DrDocument = drDocument
+
+		pathParams := PathParameters{}
+		res := pathParams.RunRule(nodes, ctx)
+
+		assert.Len(t, res, 0, "path-params: /users/{id} and /users/{;id} are not equivalent (different RFC 6570 operators)")
+	})
+
+	// Test paths-kebab-case
+	t.Run("paths-kebab-case", func(t *testing.T) {
+		rule := buildOpenApiTestRuleAction(path, "pathsKebabCase", "", nil)
+		ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Rule = &rule
+		ctx.Index = idx
+		ctx.Document = document
+		ctx.DrDocument = drDocument
+
+		kebabCase := PathsKebabCase{}
+		res := kebabCase.RunRule(nodes, ctx)
+
+		assert.Len(t, res, 0, "paths-kebab-case: {;id} is a template variable, not a kebab-case violation")
+	})
+}
