@@ -1,0 +1,1091 @@
+---
+openapi: 3.0.3
+info:
+  title: Provisioning API
+  version: 3.3.0
+  description: Manage resources in the Provisioning API.
+servers:
+  - url: https://api.example.com/provisioningapi/controlplane
+  - url: https://api-staging.example.com/provisioningapi/controlplane
+
+security:
+  - jwt: []
+tags:
+  - name: Miscellaneous
+  - name: Resources
+paths:
+  /health/v1:
+    get:
+      tags: [Miscellaneous]
+      summary: Check Health
+      operationId: getHealthV1
+      responses:
+        '200':
+          description: The platform provisioning API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                success:
+                  $ref: '#/components/examples/HealthSuccessResponse'
+        '503':
+          description: The platform provisioning API is unavailable
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                unavailable:
+                  $ref: '#/components/examples/HealthUnavailableResponse'
+  /applications/{applicationCode}/resources/v1:
+    parameters:
+      - $ref: '#/components/parameters/applicationCode'
+    get:
+      tags: [Resources]
+      summary: Get Resources
+      operationId: getResourcesV1
+      parameters:
+        - $ref: '#/components/parameters/resourceType'
+        - $ref: '#/components/parameters/environmentClass'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: List of resources owned by the application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourcePageV1'
+              examples:
+                multipleResources:
+                  $ref: '#/components/examples/ResourcePageMultipleItems'
+                singleResource:
+                  $ref: '#/components/examples/ResourcePageSingleItem'
+                emptyPage:
+                  $ref: '#/components/examples/ResourcePageEmpty'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '404':
+          $ref: '#/components/responses/notFound'
+    post:
+      tags: [Resources]
+      summary: Create Resource
+      operationId: createResourceV1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceV1'
+            examples:
+              fullConfiguration:
+                $ref: '#/components/examples/SLOCreateRequest'
+              minimalConfiguration:
+                $ref: '#/components/examples/SLOCreateRequestMinimal'
+      responses:
+        '202':
+          description: Resource create request is accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineV1'
+              examples:
+                accepted:
+                  $ref: '#/components/examples/PipelineCreateAccepted'
+        '400':
+          $ref: '#/components/responses/badRequest'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '403':
+          $ref: '#/components/responses/forbidden'
+        '404':
+          $ref: '#/components/responses/notFound'
+        '409':
+          $ref: '#/components/responses/conflict'
+        '422':
+          $ref: '#/components/responses/unprocessableEntity'
+  /applications/{applicationCode}/resources/v1/{resourceId}:
+    parameters:
+      - $ref: '#/components/parameters/applicationCode'
+      - $ref: '#/components/parameters/resourceId'
+    get:
+      tags: [Resources]
+      summary: Get Resource
+      operationId: getResourceV1
+      responses:
+        '200':
+          description: The resource owned by the application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceV1'
+              examples:
+                sloResource:
+                  $ref: '#/components/examples/SLOResource'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '404':
+          $ref: '#/components/responses/notFound'
+    put:
+      tags: [Resources]
+      summary: Update Resource
+      operationId: updateResourceV1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceV1'
+            examples:
+              updateObjective:
+                $ref: '#/components/examples/SLOUpdateRequest'
+      responses:
+        '202':
+          description: Resource update request is accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineV1'
+              examples:
+                accepted:
+                  $ref: '#/components/examples/PipelineUpdateAccepted'
+        '400':
+          $ref: '#/components/responses/badRequest'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '403':
+          $ref: '#/components/responses/forbidden'
+        '404':
+          $ref: '#/components/responses/notFound'
+        '409':
+          $ref: '#/components/responses/conflict'
+        '422':
+          $ref: '#/components/responses/unprocessableEntity'
+    delete:
+      tags: [Resources]
+      summary: Delete Resource
+      operationId: deleteResourceV1
+      responses:
+        '202':
+          description: Resource delete request is accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineV1'
+              examples:
+                accepted:
+                  $ref: '#/components/examples/PipelineDeleteAccepted'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '403':
+          $ref: '#/components/responses/forbidden'
+        '404':
+          $ref: '#/components/responses/notFound'
+        '409':
+          $ref: '#/components/responses/conflict'
+  /applications/{applicationCode}/resources/{resourceId}/pipelines/v1:
+    parameters:
+      - $ref: '#/components/parameters/applicationCode'
+      - $ref: '#/components/parameters/resourceId'
+      - $ref: '#/components/parameters/pipelineStatusCode'
+      - $ref: '#/components/parameters/pipelineOperation'
+      - $ref: '#/components/parameters/page'
+      - $ref: '#/components/parameters/size'
+    get:
+      tags: [Resources]
+      summary: Get Pipelines
+      operationId: getPipelinesV1
+      responses:
+        '200':
+          description: The pipelines for the resource owned by the application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelinePageV1'
+              examples:
+                multiplePipelines:
+                  $ref: '#/components/examples/PipelinePageMultipleItems'
+        '400':
+          $ref: '#/components/responses/badRequest'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '404':
+          $ref: '#/components/responses/notFound'
+  /applications/{applicationCode}/resources/{resourceId}/pipelines/v1/{pipelineId}:
+    parameters:
+      - $ref: '#/components/parameters/applicationCode'
+      - $ref: '#/components/parameters/resourceId'
+      - $ref: '#/components/parameters/pipelineId'
+    get:
+      tags: [Resources]
+      summary: Get Pipeline
+      operationId: getPipelineV1
+      responses:
+        '200':
+          description: The pipeline for the resource owned by the application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineV1'
+              examples:
+                pending:
+                  $ref: '#/components/examples/PipelineCreateAccepted'
+                running:
+                  $ref: '#/components/examples/PipelineRunning'
+                completed:
+                  $ref: '#/components/examples/PipelineCompleted'
+                failed:
+                  $ref: '#/components/examples/PipelineFailed'
+        '401':
+          $ref: '#/components/responses/unauthorized'
+        '400':
+          $ref: '#/components/responses/badRequest'
+        '404':
+          $ref: '#/components/responses/notFound'
+components:
+  examples:
+    HealthSuccessResponse:
+      value: {}
+
+    HealthUnavailableResponse:
+      value: {}
+
+    SLOCreateRequest:
+      summary: Create SLO with ticket and page alerts
+      value:
+        spec:
+          environmentClass: GLOBAL
+          resourceType: SERVICE_LEVEL_OBJECTIVE
+          objective: 99.5
+          name: container-booking-availability
+          sli:
+            errorQuery: sum(rate(http_request_duration_seconds_count{job="container-booking",code=~"(5..|429)"}[{{.window}}]))
+            totalQuery: sum(rate(http_request_duration_seconds_count{job="container-booking"}[{{.window}}]))
+          alert:
+            name: BookingAvailabilityLow
+            ticket:
+              labels:
+                hedwig_scope: booking-team
+                severity: warning
+              annotations:
+                runbook: https://runbooks.example.com/booking-availability
+            page:
+              labels:
+                hedwig_scope: booking-team
+                severity: critical
+              annotations:
+                runbook: https://runbooks.example.com/booking-availability
+                summary: Booking service availability is critically low
+
+    SLOCreateRequestMinimal:
+      summary: Create SLO with minimal configuration
+      value:
+        spec:
+          environmentClass: GLOBAL
+          resourceType: SERVICE_LEVEL_OBJECTIVE
+          objective: 99.9
+          name: api-latency
+          sli:
+            errorQuery: sum(rate(http_request_duration_seconds_count{job="api",le="0.5"}[{{.window}}]))
+            totalQuery: sum(rate(http_request_duration_seconds_count{job="api"}[{{.window}}]))
+
+    SLOUpdateRequest:
+      summary: Update SLO objective
+      value:
+        id: container-booking-availability
+        applicationCode: bookingtool
+        revisionId: 40826cef-0265-4ae1-881f-10ba2e32010a
+        spec:
+          environmentClass: GLOBAL
+          resourceType: SERVICE_LEVEL_OBJECTIVE
+          objective: 99.9
+          name: container-booking-availability
+          sli:
+            errorQuery: sum(rate(http_request_duration_seconds_count{job="container-booking",code=~"(5..|429)"}[{{.window}}]))
+            totalQuery: sum(rate(http_request_duration_seconds_count{job="container-booking"}[{{.window}}]))
+          alert:
+            name: BookingAvailabilityLow
+            ticket:
+              labels:
+                hedwig_scope: booking-team
+                severity: warning
+
+    SLOResource:
+      summary: Complete SLO resource
+      value:
+        id: container-booking-availability
+        applicationCode: bookingtool
+        revisionId: ee5406a6-1482-4294-a69d-b2c261313398
+        createdDate: '2024-01-15T09:30:00Z'
+        lastModifiedDate: '2024-03-10T14:20:00Z'
+        labels:
+          costCenter: CC1234
+        spec:
+          environmentClass: GLOBAL
+          resourceType: SERVICE_LEVEL_OBJECTIVE
+          objective: 99.5
+          name: container-booking-availability
+          sli:
+            errorQuery: sum(rate(http_request_duration_seconds_count{job="container-booking",code=~"(5..|429)"}[{{.window}}]))
+            totalQuery: sum(rate(http_request_duration_seconds_count{job="container-booking"}[{{.window}}]))
+          alert:
+            name: BookingAvailabilityLow
+            ticket:
+              labels:
+                hedwig_scope: booking-team
+                severity: warning
+              annotations:
+                runbook: https://runbooks.example.com/booking-availability
+            page:
+              labels:
+                hedwig_scope: booking-team
+                severity: critical
+
+    PipelineCreateAccepted:
+      summary: Pipeline created for resource creation
+      value:
+        id: a5b024f7-4ee0-4e18-8a06-571a710d6150
+        applicationCode: bookingtool
+        resourceId: container-booking-availability
+        revisionId: 85b9563e-3893-497c-a4bf-d06e69619e09
+        operation: CREATE
+        statusCode: PENDING
+        createdDate: '2024-03-15T10:30:00Z'
+
+    PipelineUpdateAccepted:
+      summary: Pipeline created for resource update
+      value:
+        id: ed58ad31-0b64-45f1-809d-adeee78085c0
+        applicationCode: bookingtool
+        resourceId: container-booking-availability
+        revisionId: 43726e8c-6c37-4c33-8eaf-05fc5662110f
+        operation: UPDATE
+        statusCode: PENDING
+        createdDate: '2024-03-15T11:45:00Z'
+
+    PipelineDeleteAccepted:
+      summary: Pipeline created for resource deletion
+      value:
+        id: 65a982b3-3f4b-466c-9f76-8e6d5c95504b
+        applicationCode: bookingtool
+        resourceId: container-booking-availability
+        revisionId: 6de97c55-2e23-4806-8814-ae2fa485342f
+        operation: DELETE
+        statusCode: RUNNING
+        createdDate: '2024-03-15T12:00:00Z'
+
+    PipelineRunning:
+      summary: Pipeline in progress
+      value:
+        id: db169a0f-0eca-4b2b-a7e8-a268f9acede1
+        applicationCode: bookingtool
+        resourceId: container-booking-availability
+        revisionId: a02f0b73-7202-4ef8-981d-1556d1143f00
+        operation: CREATE
+        statusCode: RUNNING
+        createdDate: '2024-03-15T10:30:00Z'
+        detail:
+          code: POST_SERVICE_LEVEL_OBJECTIVE_RULES
+          severity: INFO
+          message: Posting service level objective recording and alerting rules
+
+    PipelineCompleted:
+      summary: Successfully completed pipeline
+      value:
+        id: bcb8270d-dd63-4f62-bd3f-fbbee8e7ac58
+        applicationCode: bookingtool
+        resourceId: container-booking-availability
+        revisionId: a6daa5f4-bb0a-46e6-bb88-950bb992a13e
+        operation: CREATE
+        statusCode: COMPLETED
+        createdDate: '2024-03-15T10:30:00Z'
+        completedDate: '2024-03-15T10:32:15Z'
+        detail:
+          code: CREATED_SERVICE_LEVEL_OBJECTIVE
+          severity: INFO
+          message: Successfully created service level objective
+
+    PipelineFailed:
+      summary: Failed pipeline
+      value:
+        id: 96a7e856-2ed3-4975-932f-5a3f6f82ac40
+        applicationCode: bookingtool
+        resourceId: container-booking-availability
+        revisionId: 1bc2fea1-f53d-4d04-bb55-a8625198f369
+        operation: CREATE
+        statusCode: FAILED
+        createdDate: '2024-03-15T10:30:00Z'
+        completedDate: '2024-03-15T10:31:45Z'
+        detail:
+          code: CREATE_SERVICE_LEVEL_OBJECTIVE_FAILED
+          severity: ERROR
+          message: Failed to create service level objective due to invalid query syntax
+
+    ResourcePageSingleItem:
+      summary: Page with one resource
+      value:
+        number: 0
+        size: 10
+        totalPages: 1
+        totalElements: 1
+        first: true
+        last: true
+        content:
+          - id: container-booking-availability
+            applicationCode: bookingtool
+            revisionId: a282c99f-8340-4900-a239-472644c7c439
+            createdDate: '2024-01-15T09:30:00Z'
+            lastModifiedDate: '2024-03-10T14:20:00Z'
+            spec:
+              environmentClass: GLOBAL
+              resourceType: SERVICE_LEVEL_OBJECTIVE
+              objective: 99.5
+              name: container-booking-availability
+              sli:
+                errorQuery: sum(rate(http_request_duration_seconds_count{job="container-booking",code=~"(5..|429)"}[{{.window}}]))
+                totalQuery: sum(rate(http_request_duration_seconds_count{job="container-booking"}[{{.window}}]))
+              alert:
+                name: BookingAvailabilityLow
+                ticket:
+                  labels:
+                    hedwig_scope: booking-team
+
+    ResourcePageMultipleItems:
+      summary: Page with multiple resources
+      value:
+        number: 0
+        size: 10
+        totalPages: 1
+        totalElements: 3
+        first: true
+        last: true
+        content:
+          - id: api-availability
+            applicationCode: bookingtool
+            revisionId: 810a6651-4931-4b74-9692-5b9b875fa2c1
+            createdDate: '2024-01-10T08:00:00Z'
+            lastModifiedDate: '2024-01-10T08:00:00Z'
+            spec:
+              environmentClass: GLOBAL
+              resourceType: SERVICE_LEVEL_OBJECTIVE
+              objective: 99.9
+              name: api-availability
+              sli:
+                errorQuery: sum(rate(http_request_duration_seconds_count{job="api",code=~"5.."}[{{.window}}]))
+                totalQuery: sum(rate(http_request_duration_seconds_count{job="api"}[{{.window}}]))
+              alert:
+                name: APIAvailabilityLow
+                page:
+                  labels:
+                    hedwig_scope: platform-team
+                    severity: critical
+          - id: database-latency
+            applicationCode: bookingtool
+            revisionId: 3121690f-c001-465c-8e30-b5608cc39f8a
+            createdDate: '2024-02-01T10:15:00Z'
+            lastModifiedDate: '2024-02-01T10:15:00Z'
+            spec:
+              environmentClass: GLOBAL
+              resourceType: SERVICE_LEVEL_OBJECTIVE
+              objective: 99.5
+              name: database-latency
+              sli:
+                errorQuery: sum(rate(database_query_duration_seconds_count{job="postgres",le="0.1"}[{{.window}}]))
+                totalQuery: sum(rate(database_query_duration_seconds_count{job="postgres"}[{{.window}}]))
+              alert:
+                name: DatabaseLatencyHigh
+                ticket:
+                  labels:
+                    hedwig_scope: database-team
+          - id: message-processing
+            applicationCode: bookingtool
+            revisionId: 46c53794-7c65-42f1-be54-598807ba2c06
+            createdDate: '2024-02-15T14:30:00Z'
+            lastModifiedDate: '2024-03-01T09:20:00Z'
+            spec:
+              environmentClass: GLOBAL
+              resourceType: SERVICE_LEVEL_OBJECTIVE
+              objective: 99.0
+              name: message-processing
+              sli:
+                errorQuery: sum(rate(kafka_message_errors_total{topic="bookings"}[{{.window}}]))
+                totalQuery: sum(rate(kafka_messages_total{topic="bookings"}[{{.window}}]))
+              alert:
+                name: MessageProcessingFailing
+                ticket:
+                  labels:
+                    hedwig_scope: integration-team
+
+    ResourcePageEmpty:
+      summary: Empty page
+      value:
+        number: 0
+        size: 10
+        totalPages: 0
+        totalElements: 0
+        first: true
+        last: true
+        content: []
+
+    PipelinePageMultipleItems:
+      summary: Page with multiple pipelines
+      value:
+        number: 0
+        size: 10
+        totalPages: 1
+        totalElements: 3
+        first: true
+        last: true
+        content:
+          - id: 9d8903af-3b47-4b88-aad1-289466e8a061
+            applicationCode: bookingtool
+            resourceId: container-booking-availability
+            revisionId: d0cf0e99-00ec-4d2e-ad0d-daad167d0f02
+            operation: CREATE
+            statusCode: COMPLETED
+            createdDate: '2024-03-15T10:30:00Z'
+            completedDate: '2024-03-15T10:32:15Z'
+          - id: 0b5c2d8d-d29c-47d6-8905-32af0813a454
+            applicationCode: bookingtool
+            resourceId: container-booking-availability
+            revisionId: 025cd35d-e66e-4c7a-b193-09e82139a991
+            operation: UPDATE
+            statusCode: COMPLETED
+            createdDate: '2024-03-16T11:45:00Z'
+            completedDate: '2024-03-16T11:46:30Z'
+          - id: 77531961-e2e0-4109-8a64-fba1761bcbcb
+            applicationCode: bookingtool
+            resourceId: api-availability
+            revisionId: f30b5d8d-27a3-4669-b890-67548ac121a2
+            operation: DELETE
+            statusCode: FAILED
+            createdDate: '2024-03-17T12:00:00Z'
+            completedDate: '2024-03-17T12:01:20Z'
+            detail:
+              code: DELETE_SERVICE_LEVEL_OBJECTIVE_FAILED
+              severity: ERROR
+              message: Failed to delete service level objective rules
+
+    BadRequestInvalidQuery:
+      summary: Invalid PromQL query
+      value:
+        title: Bad Request
+        status: 400
+        detail:
+          code: INVALID_REQUEST
+          severity: ERROR
+          message: 'The totalQuery field contains invalid PromQL syntax: unexpected
+            character in vector selector'
+        instance: /controlplane/applications/bookingtool/resources/v1
+        traceId: b0e7d7054ce9c38330b276114ccec036
+        type: about:blank
+
+    UnauthorizedMissingToken:
+      summary: Missing authentication token
+      value:
+        title: Unauthorized
+        status: 401
+        detail:
+          code: AUTHENTICATION_FAILED
+          severity: ERROR
+          message: Authorization header is missing or invalid
+        instance: /controlplane/applications/bookingtool/resources/v1
+        traceId: c2d9f4e1530a6c8d9e0b3f5a7d9c2e4b
+        type: about:blank
+
+    ForbiddenInsufficientPermissions:
+      summary: User lacks required permissions
+      value:
+        title: Forbidden
+        status: 403
+        detail:
+          code: AUTHORIZATION_FAILED
+          severity: ERROR
+          message: User does not have permission to create resources for application
+            bookingtool
+        instance: /controlplane/applications/bookingtool/resources/v1
+        traceId: e4f1b6a3752c8e0f1d2b5c7a9f1e4a6d
+        type: about:blank
+
+    NotFoundApplication:
+      summary: Application not found
+      value:
+        title: Not Found
+        status: 404
+        detail:
+          code: RESOURCE_NOT_FOUND
+          severity: ERROR
+          message: Application with code 'nonexistent' does not exist
+        instance: /controlplane/applications/nonexistent/resources/v1
+        traceId: f5a2c7b4863d9f1e2c3d6b8a0f2e5b7e
+        type: about:blank
+
+    ConflictOperationInProgress:
+      summary: Operation already in progress
+      value:
+        title: Conflict
+        status: 409
+        detail:
+          code: WORKFLOW_EXECUTION_RUNNING
+          severity: ERROR
+          message: An operation is already in progress for resource 'container-booking-availability'.
+            Wait for the operation to complete before starting a new one
+        instance: /controlplane/applications/bookingtool/resources/v1/container-booking-availability
+        traceId: e0f7b2a9318c4e6d7b8c1a3f5e7d0a2b
+        type: about:blank
+
+    UnprocessableEntityInvalidObjective:
+      summary: Invalid objective value
+      value:
+        title: Unprocessable Entity
+        status: 422
+        detail:
+          code: INVALID_REQUEST
+          severity: ERROR
+          message: 'The objective field must be between 0.1 and 100. Received: 101.5'
+        instance: /controlplane/applications/bookingtool/resources/v1
+        traceId: f1a8c3b0429d5f7e8c9d2b4a6f8e1b3c
+        type: about:blank
+
+    UnprocessableEntityInvalidName:
+      summary: Invalid resource name format
+      value:
+        title: Unprocessable Entity
+        status: 422
+        detail:
+          code: INVALID_REQUEST
+          severity: ERROR
+          message: Resource name must start and end with an alphanumeric character
+            and can only contain alphanumeric, '.', '_' and '-' characters
+        instance: /controlplane/applications/bookingtool/resources/v1
+        traceId: a2b9d4c1530e6a8f9d0e3c5b7a9f2d4e
+        type: about:blank
+
+  responses:
+    badRequest:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailV1'
+          examples:
+            invalidQuery:
+              $ref: '#/components/examples/BadRequestInvalidQuery'
+    notFound:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailV1'
+          examples:
+            applicationNotFound:
+              $ref: '#/components/examples/NotFoundApplication'
+    forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailV1'
+          examples:
+            insufficientPermissions:
+              $ref: '#/components/examples/ForbiddenInsufficientPermissions'
+    unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailV1'
+          examples:
+            missingToken:
+              $ref: '#/components/examples/UnauthorizedMissingToken'
+    conflict:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailV1'
+          examples:
+            operationInProgress:
+              $ref: '#/components/examples/ConflictOperationInProgress'
+    unprocessableEntity:
+      description: Unprocessable Entity
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetailV1'
+          examples:
+            invalidObjective:
+              $ref: '#/components/examples/UnprocessableEntityInvalidObjective'
+            invalidName:
+              $ref: '#/components/examples/UnprocessableEntityInvalidName'
+  schemas:
+    EnvironmentClassV1:
+      type: string
+      enum: [GLOBAL]
+      example: GLOBAL
+    ResourceV1:
+      type: object
+      required: [spec]
+      properties:
+        id:
+          type: string
+          readOnly: true
+          minLength: 1
+          example: pricing-events
+        applicationCode:
+          type: string
+          readOnly: true
+          minLength: 1
+          example: bookingtool
+        revisionId:
+          type: string
+          minLength: 1
+          example: afe8c43f-ed9f-4dce-8b0a-36b9176226cb
+          format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+        createdDate:
+          type: string
+          readOnly: true
+          format: date-time
+          example: 2007-03-01T13:00:00Z
+        lastModifiedDate:
+          type: string
+          readOnly: true
+          format: date-time
+          example: 2007-03-01T13:00:00Z
+        labels:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            costCenter: CC1234
+            compliance: pci-dss
+        spec:
+          $ref: '#/components/schemas/ResourceSpecV1'
+    ResourcePageV1:
+      allOf:
+        - $ref: '#/components/schemas/PageV1'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: array
+              minItems: 0
+              items:
+                $ref: '#/components/schemas/ResourceV1'
+    PipelinePageV1:
+      allOf:
+        - $ref: '#/components/schemas/PageV1'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: array
+              minItems: 0
+              items:
+                $ref: '#/components/schemas/PipelineV1'
+    ResourceTypeV1:
+      type: string
+      enum: [SERVICE_LEVEL_OBJECTIVE]
+      example: SERVICE_LEVEL_OBJECTIVE
+    ResourceSpecV1:
+      type: object
+      required: [environmentClass, resourceType]
+      properties:
+        environmentClass:
+          $ref: '#/components/schemas/EnvironmentClassV1'
+        resourceType:
+          $ref: '#/components/schemas/ResourceTypeV1'
+      oneOf:
+        - $ref: '#/components/schemas/ServiceLevelObjectiveV1'
+      discriminator:
+        propertyName: resourceType
+        mapping:
+          SERVICE_LEVEL_OBJECTIVE: '#/components/schemas/ServiceLevelObjectiveV1'
+    ServiceLevelObjectiveV1:
+      type: object
+      required: [objective, name, sli]
+      properties:
+        objective:
+          type: number
+          format: float
+          example: 99.5
+          maximum: 100
+          minimum: 0.1
+        name:
+          type: string
+          example: container-booking-availability
+          minLength: 3
+          pattern: ^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$
+        sli:
+          $ref: '#/components/schemas/ServiceLevelIndicatorV1'
+        alert:
+          $ref: '#/components/schemas/ServiceLevelObjectiveAlertV1'
+    ServiceLevelIndicatorV1:
+      type: object
+      required: [errorQuery, totalQuery]
+      properties:
+        errorQuery:
+          type: string
+          example: sum(rate(http_request_duration_seconds_count{job="container-booking",code=~"(5..|429)"}[{{.window}}]))
+          minLength: 20
+          pattern: \{\{\.window\}\}
+        totalQuery:
+          type: string
+          example: sum(rate(http_request_duration_seconds_count{job="container-booking"}[{{.window}}]))
+          minLength: 20
+          pattern: \{\{\.window\}\}
+    ServiceLevelObjectiveAlertV1:
+      type: object
+      minProperties: 2
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: BookingsFailing
+          minLength: 3
+        ticket:
+          # https://github.com/OAI/OpenAPI-Specification/issues/1514#issuecomment-1386613645.
+          allOf:
+            - $ref: '#/components/schemas/ServiceLevelObjectiveAlertSeverityV1'
+        page:
+          allOf:
+            - $ref: '#/components/schemas/ServiceLevelObjectiveAlertSeverityV1'
+    ServiceLevelObjectiveAlertSeverityV1:
+      type: object
+      required: [labels]
+      properties:
+        labels:
+          example:
+            hedwig_scope: booking-team
+            severity: warning
+          type: object
+          required: [hedwig_scope]
+          properties:
+            hedwig_scope:
+              type: string
+              minLength: 1
+          additionalProperties:
+            type: string
+        annotations:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            runbook: https://runbooks.example.com/bookings-failing
+    PipelineV1:
+      type: object
+      required:
+        - id
+        - applicationCode
+        - resourceId
+        - revisionId
+        - operation
+        - statusCode
+        - createdDate
+      readOnly: true
+      properties:
+        id:
+          type: string
+          minLength: 1
+          example: afe8c43f-ed9f-4dce-8b0a-36b9176226cb
+        applicationCode:
+          type: string
+          minLength: 1
+          example: bookingtool
+        resourceId:
+          type: string
+          minLength: 1
+          example: api-availability
+        revisionId:
+          type: string
+          minLength: 1
+          example: afe8c43f-ed9f-4dce-8b0a-36b9176226cb
+        operation:
+          $ref: '#/components/schemas/PipelineOperationV1'
+        statusCode:
+          $ref: '#/components/schemas/PipelineStatusCodeV1'
+        detail:
+          $ref: '#/components/schemas/ProviderLogRecordV1'
+        createdDate:
+          type: string
+          format: date-time
+        completedDate:
+          type: string
+          format: date-time
+    ProblemDetailV1:
+      type: object
+      required: [title, status, detail, instance, type, traceId]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          example: Bad Request
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          example: 400
+        detail:
+          $ref: '#/components/schemas/ProviderLogRecordV1'
+        instance:
+          type: string
+          minLength: 1
+          example: /applications/v1/bookingtool
+        traceId:
+          type: string
+          minLength: 1
+          example: b0e7d7054ce9c38330b276114ccec036
+        type:
+          type: string
+          minLength: 1
+          example: https://example.com/docs/validation-error
+    PipelineStatusCodeV1:
+      type: string
+      enum: [PENDING, RUNNING, COMPLETED, FAILED]
+    PipelineOperationV1:
+      type: string
+      enum: [CREATE, UPDATE, DELETE]
+    ProviderLogRecordV1:
+      type: object
+      required: [code, severity, message]
+      properties:
+        code:
+          $ref: '#/components/schemas/ProviderLogRecordCodeV1'
+        severity:
+          $ref: '#/components/schemas/ProviderLogRecordSeverityV1'
+        message:
+          type: string
+          minLength: 1
+    ProviderLogRecordSeverityV1:
+      type: string
+      enum: [INFO, WARNING, ERROR]
+    ProviderLogRecordCodeV1:
+      type: string
+      enum:
+        - AUTHENTICATION_FAILED
+        - AUTHORIZATION_FAILED
+        - REQUEST_TO_EXTERNAL_API_FAILED
+        - UNEXPECTED_ERROR
+        - OPERATION_NOT_FOUND
+        - INVALID_REQUEST
+        - WORKFLOW_EXECUTION_RUNNING
+        - RESOURCE_NOT_FOUND
+        - CREATED_SERVICE_LEVEL_OBJECTIVE
+        - CREATE_SERVICE_LEVEL_OBJECTIVE_FAILED
+        - DATABASE_INSERT_SERVICE_LEVEL_OBJECTIVE
+        - POST_SERVICE_LEVEL_OBJECTIVE_RULES
+        - UPDATED_SERVICE_LEVEL_OBJECTIVE
+        - UPDATE_SERVICE_LEVEL_OBJECTIVE_FAILED
+        - DELETE_SERVICE_LEVEL_OBJECTIVE_ALERT_RULES
+        - DELETED_SERVICE_LEVEL_OBJECTIVE
+        - DELETE_SERVICE_LEVEL_OBJECTIVE_FAILED
+        - DELETE_SERVICE_LEVEL_OBJECTIVE_RULES
+        - DATABASE_DELETE_SERVICE_LEVEL_OBJECTIVE
+    PageV1:
+      required: [number, size, totalPages, totalElements, first, last]
+      type: object
+      properties:
+        number:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        totalElements:
+          type: integer
+          minimum: 0
+        first:
+          type: boolean
+        last:
+          type: boolean
+  securitySchemes:
+    jwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    applicationCode:
+      name: applicationCode
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      description: Application code to use for this request.
+      example: bookingtool
+    resourceId:
+      name: resourceId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      description: Resource ID to use for this request.
+      example: pricing-events
+    pipelineId:
+      name: pipelineId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      description: Pipeline ID to use for this request.
+      example: afe8c43f-ed9f-4dce-8b0a-36b9176226cb
+    resourceType:
+      name: resourceType
+      in: query
+      required: false
+      description: Resource type to filter by.
+      example: SERVICE_LEVEL_OBJECTIVE
+      schema:
+        $ref: '#/components/schemas/ResourceTypeV1'
+    environmentClass:
+      name: environmentClass
+      in: query
+      required: false
+      description: Environment class to filter by.
+      example: GLOBAL
+      schema:
+        $ref: '#/components/schemas/EnvironmentClassV1'
+    pipelineStatusCode:
+      name: statusCode
+      in: query
+      required: false
+      description: Pipeline status code to filter by.
+      example: PENDING
+      schema:
+        $ref: '#/components/schemas/PipelineStatusCodeV1'
+    pipelineOperation:
+      name: operation
+      in: query
+      required: false
+      description: Pipeline operation to filter by.
+      example: CREATE
+      schema:
+        $ref: '#/components/schemas/PipelineOperationV1'
+    page:
+      name: page
+      description: Desired page number (zero-indexed).
+      example: 0
+      in: query
+      required: false
+      schema:
+        default: 0
+        minimum: 0
+        type: integer
+    size:
+      name: size
+      description: Page size.
+      example: 10
+      in: query
+      required: false
+      schema:
+        default: 10
+        minimum: 1
+        maximum: 100
+        type: integer

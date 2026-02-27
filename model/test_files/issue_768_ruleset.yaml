@@ -1,0 +1,8 @@
+---
+extends:
+  - [spectral:oas, recommended]
+rules:
+  oas3-missing-example: false
+  component-description: false
+  operation-description: false
+  no-unnecessary-combinator: false
