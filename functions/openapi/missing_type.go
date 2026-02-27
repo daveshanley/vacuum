@@ -64,6 +64,14 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 		return results
 	}
 
+	// Don't require type for schemas that are members of a polymorphic composition
+	// (allOf/oneOf/anyOf). The type may be provided by a sibling schema within
+	// the composition, e.g. allOf with a $ref that has the type and a second entry
+	// that just adds a default value.
+	if schema.PolyType != "" {
+		return results
+	}
+
 	// Skip if this is a boolean schema or has a const/enum (these don't require explicit type)
 	if schema.Value.Const != nil || schema.Value.Enum != nil {
 		return results

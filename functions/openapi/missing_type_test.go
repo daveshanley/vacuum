@@ -412,6 +412,105 @@ components:
 	}
 }
 
+func TestMissingType_AllOfWithRefAndDefault(t *testing.T) {
+	// Test case from issue #819: allOf with a $ref that has a type and a sibling
+	// that only adds a default should not trigger oas-missing-type.
+	yml := `openapi: "3.0.1"
+info:
+  title: Car API
+  version: 1.0.0
+paths:
+  /cars:
+    get:
+      parameters:
+        - in: query
+          name: brand
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Brand'
+              - default: Toyota
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Brand:
+      type: string
+      enum: [ Toyota, Ford, BMW ]`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "missing-type",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	mt := MissingType{}
+	res := mt.RunRule(nil, ctx)
+
+	// The second allOf entry {default: Toyota} is a member of a polymorphic composition.
+	// Its type is inherited from the $ref sibling, so no violation should be reported.
+	assert.Empty(t, res)
+}
+
+func TestMissingType_AllOfMembersSkipped(t *testing.T) {
+	// Verify that individual allOf/oneOf/anyOf members without explicit type
+	// are not flagged when they are part of a composition.
+	yml := `openapi: "3.0.3"
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    Combined:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - description: adds extra constraints
+          minLength: 3
+    Choice:
+      oneOf:
+        - $ref: '#/components/schemas/Base'
+        - description: alternative with max
+          maxLength: 100
+    Mixed:
+      anyOf:
+        - $ref: '#/components/schemas/Base'
+        - description: another option
+          pattern: "^[a-z]+$"
+    Base:
+      type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "missing-type",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	mt := MissingType{}
+	res := mt.RunRule(nil, ctx)
+
+	// None of the composition members should be flagged - they inherit types from siblings
+	assert.Empty(t, res)
+}
+
 func TestMissingType_AllPropertiesValid(t *testing.T) {
 	yml := `openapi: "3.0.3"
 info:
