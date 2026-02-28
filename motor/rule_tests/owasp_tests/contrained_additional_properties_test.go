@@ -65,7 +65,7 @@ components:
 		}
 		results := motor.ApplyRulesToRuleSet(rse)
 		assert.Len(t, results.Results, 1)
-		assert.Equal(t, "build schema failed: unexpected data type: 'string', line 8, col 29", results.Results[0].Message)
+		assert.Equal(t, "failed to build schema: build schema failed: expected a single schema object for 'string', but found an array or scalar at line 8, col 29", results.Results[0].Message)
 		assert.Equal(t, "$.components.schemas['Foo']", results.Results[0].Path)
 
 	})
