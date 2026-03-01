@@ -114,8 +114,6 @@ type LintFlags struct {
 	SkipCircularCheck        bool   // --skip-circular-check: skip circular reference detection
 	SkipSchemaErrors         bool   // --skip-schema-errors: skip schema build error injection
 	SkipStats                bool   // --skip-stats: skip report statistics generation
-	MaxResultsPerRule        int    // --max-results-per-rule: max results per rule (0 = unlimited)
-	MaxTotalResults          int    // --max-total-results: max total results (0 = unlimited)
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -239,8 +237,6 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.SkipCircularCheck, _ = cmd.Flags().GetBool("skip-circular-check")
 	flags.SkipSchemaErrors, _ = cmd.Flags().GetBool("skip-schema-errors")
 	flags.SkipStats, _ = cmd.Flags().GetBool("skip-stats")
-	flags.MaxResultsPerRule, _ = cmd.Flags().GetInt("max-results-per-rule")
-	flags.MaxTotalResults, _ = cmd.Flags().GetInt("max-total-results")
 	return flags
 }
 
@@ -551,8 +547,6 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		SkipResolve:                     config.Flags.SkipResolve,
 		SkipCircularCheck:               config.Flags.SkipCircularCheck,
 		SkipSchemaErrors:                config.Flags.SkipSchemaErrors,
-		MaxResultsPerRule:               config.Flags.MaxResultsPerRule,
-		MaxTotalResults:                 config.Flags.MaxTotalResults,
 	})
 
 	if len(result.Errors) > 0 {

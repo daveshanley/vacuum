@@ -113,8 +113,6 @@ type RuleSetExecution struct {
 	SkipResolve       bool // Skip second-pass reference resolution
 	SkipCircularCheck bool // Skip circular reference result injection
 	SkipSchemaErrors  bool // Skip schema build error injection
-	MaxResultsPerRule int  // Maximum results stored per rule (0 = unlimited)
-	MaxTotalResults   int  // Maximum total results stored (0 = unlimited)
 }
 
 // buildLocationString efficiently builds a location string in format "line:column"

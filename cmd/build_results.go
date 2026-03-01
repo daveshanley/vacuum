@@ -34,8 +34,6 @@ type TurboFlags struct {
 	SkipResolve       bool
 	SkipCircularCheck bool
 	SkipSchemaErrors  bool
-	MaxResultsPerRule int
-	MaxTotalResults   int
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -121,8 +119,6 @@ func BuildResultsWithDocCheckSkip(
 		exec.SkipResolve = turboFlags.SkipResolve
 		exec.SkipCircularCheck = turboFlags.SkipCircularCheck
 		exec.SkipSchemaErrors = turboFlags.SkipSchemaErrors
-		exec.MaxResultsPerRule = turboFlags.MaxResultsPerRule
-		exec.MaxTotalResults = turboFlags.MaxTotalResults
 	}
 
 	ruleset := motor.ApplyRulesToRuleSet(exec)
