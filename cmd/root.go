@@ -118,8 +118,6 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("skip-circular-check", false, "Skip circular reference detection (experimental)")
 	rootCmd.PersistentFlags().Bool("skip-schema-errors", false, "Skip schema build error injection (experimental)")
 	rootCmd.PersistentFlags().Bool("skip-stats", false, "Skip report statistics generation")
-	rootCmd.PersistentFlags().Int("max-results-per-rule", 0, "Maximum results per rule (0 = unlimited)")
-	rootCmd.PersistentFlags().Int("max-total-results", 0, "Maximum total results (0 = unlimited)")
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
@@ -201,12 +199,6 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("skip-stats", cobra.NoFileCompletions); regErr != nil {
-		panic(regErr)
-	}
-	if regErr := rootCmd.RegisterFlagCompletionFunc("max-results-per-rule", cobra.NoFileCompletions); regErr != nil {
-		panic(regErr)
-	}
-	if regErr := rootCmd.RegisterFlagCompletionFunc("max-total-results", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 

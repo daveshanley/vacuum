@@ -269,8 +269,6 @@ func runLint(cmd *cobra.Command, args []string) error {
 			SkipResolve:                     flags.SkipResolve,
 			SkipCircularCheck:               flags.SkipCircularCheck,
 			SkipSchemaErrors:                flags.SkipSchemaErrors,
-			MaxResultsPerRule:               flags.MaxResultsPerRule,
-			MaxTotalResults:                 flags.MaxTotalResults,
 		}
 
 		result := motor.ApplyRulesToRuleSet(execution)
