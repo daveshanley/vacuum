@@ -114,10 +114,6 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("warn-on-changes", false, "Inject warning violations for each detected API change")
 	rootCmd.PersistentFlags().Bool("error-on-breaking", false, "Inject error violations for each breaking change")
 	rootCmd.PersistentFlags().BoolP("turbo", "T", false, "Turbo mode: faster linting, trades some checks for speed")
-	rootCmd.PersistentFlags().Bool("skip-resolve", false, "Skip second-pass reference resolution (experimental)")
-	rootCmd.PersistentFlags().Bool("skip-circular-check", false, "Skip circular reference detection (experimental)")
-	rootCmd.PersistentFlags().Bool("skip-schema-errors", false, "Skip schema build error injection (experimental)")
-	rootCmd.PersistentFlags().Bool("skip-stats", false, "Skip report statistics generation")
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
@@ -187,18 +183,6 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("turbo", cobra.NoFileCompletions); regErr != nil {
-		panic(regErr)
-	}
-	if regErr := rootCmd.RegisterFlagCompletionFunc("skip-resolve", cobra.NoFileCompletions); regErr != nil {
-		panic(regErr)
-	}
-	if regErr := rootCmd.RegisterFlagCompletionFunc("skip-circular-check", cobra.NoFileCompletions); regErr != nil {
-		panic(regErr)
-	}
-	if regErr := rootCmd.RegisterFlagCompletionFunc("skip-schema-errors", cobra.NoFileCompletions); regErr != nil {
-		panic(regErr)
-	}
-	if regErr := rootCmd.RegisterFlagCompletionFunc("skip-stats", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 

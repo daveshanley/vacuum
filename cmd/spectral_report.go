@@ -69,9 +69,6 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
 			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
 			turboFlag, _ := cmd.Flags().GetBool("turbo")
-			skipResolveFlag, _ := cmd.Flags().GetBool("skip-resolve")
-			skipCircularCheckFlag, _ := cmd.Flags().GetBool("skip-circular-check")
-			skipSchemaErrorsFlag, _ := cmd.Flags().GetBool("skip-schema-errors")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -307,9 +304,6 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					HTTPClientConfig:                httpClientConfig,
 					FetchConfig:                     fetchConfig,
 					TurboMode:                       turboFlag,
-					SkipResolve:                     skipResolveFlag,
-					SkipCircularCheck:               skipCircularCheckFlag,
-					SkipSchemaErrors:                skipSchemaErrorsFlag,
 				})
 
 				resultSet := model.NewRuleResultSet(ruleset.Results)
