@@ -133,7 +133,26 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.23` 🔥: **OpenAPI Overlay Support**
+🔥 **New in** `v0.24` 🔥: **TURBO MODE**
+
+A huge tune up of hundreds of systems across the stack has resulted in significant speed boosts and improved memory performance.
+
+| Spec | Size | v0.23 | Turbo | Speedup |
+|------|------|-------|-------|-----|
+| petstore.yaml | 21KB | 0.03s | 0.02s | 33% |
+| mistral.yaml | 292KB | 0.17s | 0.10s | 41% |
+| neon.yaml | 370KB | 0.21s | 0.08s | 62% |
+| ld.yaml | 1.9MB | 0.93s | 0.31s | 67% |
+| plaid.yml | 2.9MB | 1.39s | 0.53s | 62% |
+| stripe.yaml | 6.1MB | 3.11s | 0.85s | 73% |
+
+The bigger the spec, the faster vacuum runs!
+
+New `-T` flag will enable **turbo mode**. Go ultra-fast!
+
+---
+
+`v0.23`: **OpenAPI Overlay Support**
 
 Ever needed to tweak an OpenAPI spec for different environments without maintaining multiple copies? 
 
