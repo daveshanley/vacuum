@@ -266,9 +266,6 @@ func runLint(cmd *cobra.Command, args []string) error {
 			ApplyAutoFixes:                  flags.FixFlag,
 			FetchConfig:                     fetchConfig,
 			TurboMode:                       flags.TurboMode,
-			SkipResolve:                     flags.SkipResolve,
-			SkipCircularCheck:               flags.SkipCircularCheck,
-			SkipSchemaErrors:                flags.SkipSchemaErrors,
 		}
 
 		result := motor.ApplyRulesToRuleSet(execution)
@@ -317,7 +314,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		if result.Index != nil && result.SpecInfo != nil && !flags.SkipStats {
+		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
 		}
 	}
@@ -424,12 +421,9 @@ func runLint(cmd *cobra.Command, args []string) error {
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
 
-	// min score threshold - compute score from counts if stats were skipped
 	overallScore := 0
 	if stats != nil {
 		overallScore = stats.OverallScore
-	} else if flags.MinScore > 10 {
-		overallScore = statistics.CalculateQualityScore(resultSet)
 	}
 	if flags.MinScore > 10 && overallScore > 0 {
 		if overallScore < flags.MinScore {

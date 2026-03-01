@@ -110,10 +110,6 @@ type LintFlags struct {
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
 	TurboMode                bool   // --turbo: faster linting, trades some checks for speed
-	SkipResolve              bool   // --skip-resolve: skip second-pass reference resolution
-	SkipCircularCheck        bool   // --skip-circular-check: skip circular reference detection
-	SkipSchemaErrors         bool   // --skip-schema-errors: skip schema build error injection
-	SkipStats                bool   // --skip-stats: skip report statistics generation
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -233,10 +229,6 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("turbo") && viper.IsSet("lint.turbo") {
 		flags.TurboMode = viper.GetBool("lint.turbo")
 	}
-	flags.SkipResolve, _ = cmd.Flags().GetBool("skip-resolve")
-	flags.SkipCircularCheck, _ = cmd.Flags().GetBool("skip-circular-check")
-	flags.SkipSchemaErrors, _ = cmd.Flags().GetBool("skip-schema-errors")
-	flags.SkipStats, _ = cmd.Flags().GetBool("skip-stats")
 	return flags
 }
 
@@ -544,9 +536,6 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		ApplyAutoFixes:                  config.Flags.FixFlag,
 		FetchConfig:                     config.FetchConfig,
 		TurboMode:                       config.Flags.TurboMode,
-		SkipResolve:                     config.Flags.SkipResolve,
-		SkipCircularCheck:               config.Flags.SkipCircularCheck,
-		SkipSchemaErrors:                config.Flags.SkipSchemaErrors,
 	})
 
 	if len(result.Errors) > 0 {

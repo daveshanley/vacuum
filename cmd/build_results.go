@@ -31,9 +31,6 @@ func BuildResults(
 // TurboFlags holds turbo-related configuration for BuildResults functions.
 type TurboFlags struct {
 	TurboMode         bool
-	SkipResolve       bool
-	SkipCircularCheck bool
-	SkipSchemaErrors  bool
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -116,9 +113,6 @@ func BuildResultsWithDocCheckSkip(
 	}
 	if turboFlags != nil {
 		exec.TurboMode = turboFlags.TurboMode
-		exec.SkipResolve = turboFlags.SkipResolve
-		exec.SkipCircularCheck = turboFlags.SkipCircularCheck
-		exec.SkipSchemaErrors = turboFlags.SkipSchemaErrors
 	}
 
 	ruleset := motor.ApplyRulesToRuleSet(exec)
