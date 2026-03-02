@@ -1,0 +1,10 @@
+TreeNode:
+  type: object
+  description: A tree node with recursive children.
+  properties:
+    name:
+      type: string
+    children:
+      type: array
+      items:
+        $ref: "#/TreeNode"

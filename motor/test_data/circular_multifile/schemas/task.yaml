@@ -1,0 +1,10 @@
+Task:
+  type: object
+  description: A task with recursive subtasks.
+  properties:
+    title:
+      type: string
+    subtasks:
+      type: array
+      items:
+        $ref: "#/Task"
