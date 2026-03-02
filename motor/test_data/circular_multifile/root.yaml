@@ -1,0 +1,31 @@
+openapi: "3.1.0"
+info:
+  title: Circular Multi-File Test
+  version: "1.0.0"
+paths:
+  /trees:
+    get:
+      operationId: getTrees
+      summary: Get trees
+      responses:
+        "200":
+          description: A list of trees.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/tree.yaml#/TreeNode"
+  /tasks:
+    get:
+      operationId: getTasks
+      summary: Get tasks
+      responses:
+        "200":
+          description: A list of tasks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "schemas/task.yaml#/Task"

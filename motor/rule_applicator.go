@@ -493,8 +493,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				if rolodexResolved.GetRootIndex() != nil {
 					specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 					resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-					circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 				}
+				circularReferences = rolodexResolved.GetSafeCircularReferences()
 			}
 
 		case '3':
@@ -571,7 +571,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 				specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 				//resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+			}
+			if rolodexResolved != nil {
+				circularReferences = rolodexResolved.GetSafeCircularReferences()
 			}
 
 		}
@@ -612,7 +614,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 			specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-			circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+		}
+		if rolodexResolved != nil {
+			circularReferences = rolodexResolved.GetSafeCircularReferences()
 		}
 	}
 
@@ -725,9 +729,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		ruleResults = append(ruleResults, res)
 	}
 
-	// add all circular references to the results.
+	// deduplicate circular references by Start.Definition before building results.
+	// the rolodex already deduplicates by LoopPoint.FullDefinition, but when a custom
+	// RolodexFS (like bunkhouse's RevisionFS) is used, the same circular reference
+	// can be detected by both the root resolver and per-file resolvers, producing
+	// entries with different FullDefinition paths but identical Start.Definition.
 	if !execution.SkipCircularCheck {
+		seen := make(map[string]bool)
 		for _, cr := range circularReferences {
+			if seen[cr.Start.Definition] {
+				continue
+			}
+			seen[cr.Start.Definition] = true
 			res := model.RuleFunctionResult{
 				RuleId:    "circular-references",
 				Rule:      circularRefRule,
