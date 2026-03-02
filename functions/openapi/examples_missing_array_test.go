@@ -109,4 +109,3 @@ components:
 	// This should report missing examples since item properties don't have examples
 	assert.Greater(t, len(res), 0, "Array without item examples should report missing examples")
 }
-

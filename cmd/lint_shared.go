@@ -9,7 +9,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
@@ -17,9 +22,6 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"go.yaml.in/yaml/v4"
 )
 
 // ResolveBasePathForFile determines the base path to use for a given spec file.
@@ -38,6 +40,27 @@ func ResolveBasePathForFile(specFilePath string, baseFlag string) (string, error
 	}
 
 	return filepath.Dir(absPath), nil
+}
+
+// ResolveSpecPathForExecution normalizes the spec path before running rules.
+// Local file paths are converted to absolute paths, URLs and stdin marker are
+// returned unchanged.
+func ResolveSpecPathForExecution(specFilePath string) (string, error) {
+	if specFilePath == "" {
+		return "", nil
+	}
+	if specFilePath == "stdin" {
+		return specFilePath, nil
+	}
+	if strings.Contains(specFilePath, "://") {
+		return specFilePath, nil
+	}
+
+	absPath, err := filepath.Abs(specFilePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path for %s: %w", specFilePath, err)
+	}
+	return absPath, nil
 }
 
 // LintFlags holds all the command line flags for lint operations
@@ -86,6 +109,7 @@ type LintFlags struct {
 	BreakingConfigPath       string // --breaking-config: path to breaking rules config
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
+	TurboMode                bool   // --turbo: faster linting, trades some checks for speed
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -201,6 +225,10 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.BreakingConfigPath, _ = cmd.Flags().GetString("breaking-config")
 	flags.WarnOnChanges, _ = cmd.Flags().GetBool("warn-on-changes")
 	flags.ErrorOnBreaking, _ = cmd.Flags().GetBool("error-on-breaking")
+	flags.TurboMode, _ = cmd.Flags().GetBool("turbo")
+	if !cmd.Flags().Changed("turbo") && viper.IsSet("lint.turbo") {
+		flags.TurboMode = viper.GetBool("lint.turbo")
+	}
 	return flags
 }
 
@@ -349,6 +377,15 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 		}
 	}
 
+	// Apply turbo mode rule filtering
+	if flags.TurboMode {
+		removed := rulesets.FilterRulesForTurbo(selectedRS)
+		if !flags.SilentFlag && !flags.PipelineOutput {
+			fmt.Printf(" %s⚡ [turbo mode]: removed %d expensive rules (%d rules remaining)%s\n\n",
+				color.ASCIIYellow, removed, len(selectedRS.Rules), color.ASCIIReset)
+		}
+	}
+
 	if flags.ShowRules && !flags.PipelineOutput && !flags.SilentFlag {
 		renderRulesList(selectedRS.Rules)
 	}
@@ -462,6 +499,13 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			Error:    fmt.Errorf("failed to resolve base path: %w", baseErr),
 		}
 	}
+	resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(fileName)
+	if specPathErr != nil {
+		return &FileProcessingResult{
+			FileSize: fileSize,
+			Error:    fmt.Errorf("failed to resolve spec path: %w", specPathErr),
+		}
+	}
 
 	httpClientConfig, err := GetHTTPClientConfig(config.Flags)
 	if err != nil {
@@ -474,7 +518,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:                         config.SelectedRuleset,
 		Spec:                            specBytes,
-		SpecFileName:                    fileName,
+		SpecFileName:                    resolvedSpecPath,
 		CustomFunctions:                 config.CustomFunctions,
 		AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 		Base:                            resolvedBase,
@@ -491,6 +535,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		HTTPClientConfig:                httpClientConfig,
 		ApplyAutoFixes:                  config.Flags.FixFlag,
 		FetchConfig:                     config.FetchConfig,
+		TurboMode:                       config.Flags.TurboMode,
 	})
 
 	if len(result.Errors) > 0 {

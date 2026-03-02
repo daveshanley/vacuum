@@ -220,7 +220,8 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		}
 	}()
 
-	if len(results) == 0 {
+	// If no results and not in watch mode, nothing to show
+	if len(results) == 0 && (watchConfig == nil || !watchConfig.Enabled) {
 		return nil
 	}
 

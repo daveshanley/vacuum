@@ -681,9 +681,9 @@ function runRule(inputs) {
 
 	// Create multiple nodes
 	var y1, y2, y3 yaml.Node
-	_ = yaml.Unmarshal([]byte("ab"), &y1)   // too short
+	_ = yaml.Unmarshal([]byte("ab"), &y1)    // too short
 	_ = yaml.Unmarshal([]byte("hello"), &y2) // valid
-	_ = yaml.Unmarshal([]byte("hi"), &y3)   // too short
+	_ = yaml.Unmarshal([]byte("hi"), &y3)    // too short
 
 	results := f.RunRule([]*yaml.Node{y1.Content[0], y2.Content[0], y3.Content[0]}, model.RuleFunctionContext{
 		Given: "test.path",

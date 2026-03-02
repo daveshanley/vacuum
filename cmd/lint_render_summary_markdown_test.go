@@ -73,7 +73,7 @@ func TestRenderMarkdownSummary_Issue700(t *testing.T) {
 		TotalErrors:   4,
 		TotalWarnings: 0,
 		TotalInfo:     0,
-		OverallScore:  75,  // Arbitrary score for testing
+		OverallScore:  75, // Arbitrary score for testing
 	}
 
 	// Create render options
@@ -85,7 +85,7 @@ func TestRenderMarkdownSummary_Issue700(t *testing.T) {
 		Severity:       "error",
 		Filename:       "test.yaml",
 		Silent:         false,
-		PipelineOutput: true,  // Enable pipeline output to see violation details
+		PipelineOutput: true, // Enable pipeline output to see violation details
 		ReportStats:    stats,
 	}
 
@@ -236,7 +236,7 @@ func TestRenderMarkdownSummary_MultipleCategories(t *testing.T) {
 		TotalErrors:   1,
 		TotalWarnings: 1,
 		TotalInfo:     1,
-		OverallScore:  85,  // Arbitrary score for testing
+		OverallScore:  85, // Arbitrary score for testing
 	}
 
 	// Create render options
@@ -248,7 +248,7 @@ func TestRenderMarkdownSummary_MultipleCategories(t *testing.T) {
 		Severity:       "error",
 		Filename:       "test.yaml",
 		Silent:         false,
-		PipelineOutput: true,  // Enable pipeline output to see violation details
+		PipelineOutput: true, // Enable pipeline output to see violation details
 		ReportStats:    stats,
 	}
 

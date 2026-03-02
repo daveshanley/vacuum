@@ -581,7 +581,7 @@ components:
 	ctx.Rule = &rule
 
 	def := ExamplesMissing{}
-	
+
 	assert.NotPanics(t, func() {
 		def.RunRule(nil, ctx)
 	})

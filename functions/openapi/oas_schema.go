@@ -9,11 +9,14 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
+	"sync"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/libopenapi-validator/config"
 	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/helpers"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -25,9 +28,9 @@ import (
 type ErrorClassification int
 
 const (
-	ErrorClassNoise       ErrorClassification = iota // Filter out - noise from oneOf/anyOf branches
-	ErrorClassLowPriority                            // Show if no high priority errors exist
-	ErrorClassHighPriority                           // Always show - represents actual validation issues
+	ErrorClassNoise        ErrorClassification = iota // Filter out - noise from oneOf/anyOf branches
+	ErrorClassLowPriority                             // Show if no high priority errors exist
+	ErrorClassHighPriority                            // Always show - represents actual validation issues
 )
 
 // ErrorContext captures the semantic context needed to interpret validation errors
@@ -216,6 +219,23 @@ func (f OpenAPIErrorFormatter) formatFalseSchema(ctx ErrorContext) string {
 	return f.DefaultErrorFormatter.Format(ctx)
 }
 
+// oasSchemaCache caches compiled OAS JSON Schemas keyed by version number.
+// There are at most 4 entries (2.0, 3.0, 3.1, 3.2) so a sync.Map is ideal.
+var oasSchemaCache sync.Map
+
+func getOrCompileOASSchema(apiSchema string, version float32) (*jsonschema.Schema, error) {
+	if cached, ok := oasSchemaCache.Load(version); ok {
+		return cached.(*jsonschema.Schema), nil
+	}
+	options := config.NewValidationOptions()
+	compiled, err := helpers.NewCompiledSchemaWithVersion("schema", []byte(apiSchema), options, version)
+	if err != nil {
+		return nil, err
+	}
+	oasSchemaCache.Store(version, compiled)
+	return compiled, nil
+}
+
 // OASSchema  will check that the document is a valid OpenAPI schema.
 type OASSchema struct {
 }
@@ -247,24 +267,11 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
-	// Always check if the document can be marshaled to JSON ourselves
-	// Don't depend on info.SpecJSON as it may be nil or in an inconsistent state
-	// This catches issues like maps with non-string keys that would cause validation to fail
+	// Check the YAML AST directly for marshaling issues (e.g. non-string map keys)
+	// without re-parsing the raw bytes or trial-marshaling to JSON.
 	var marshalingIssues []vacuumUtils.MarshalingIssue
-
-	if info.RootNode != nil && info.SpecBytes != nil {
-		// Decode the YAML ourselves to check for marshaling issues
-		var yamlData interface{}
-		decoder := yaml.NewDecoder(strings.NewReader(string(*info.SpecBytes)))
-		if err := decoder.Decode(&yamlData); err == nil {
-			// Check if it can marshal to JSON
-			marshalingIssues = vacuumUtils.CheckJSONMarshaling(yamlData, info.RootNode)
-			// Clear the decoded data to free memory
-			yamlData = nil
-		} else {
-			// If we can't decode the YAML, check the AST directly for issues
-			marshalingIssues = vacuumUtils.FindMarshalingIssuesInYAML(info.RootNode)
-		}
+	if info.RootNode != nil {
+		marshalingIssues = vacuumUtils.FindMarshalingIssuesInYAML(info.RootNode)
 	}
 
 	if len(marshalingIssues) > 0 {
@@ -289,8 +296,15 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
-	// use libopenapi-validator
-	valid, validationErrors := schema_validation.ValidateOpenAPIDocument(context.Document)
+	// Early return when no JSON representation is available (e.g. turbo mode with SkipJSONConversion)
+	if info.SpecJSON == nil && (info.SpecJSONBytes == nil || len(*info.SpecJSONBytes) == 0) {
+		return results
+	}
+
+	// Use a cached compiled schema when possible to avoid recompiling the OAS schema every invocation
+	compiledSchema, _ := getOrCompileOASSchema(info.APISchema, info.VersionNumeric)
+	valid, validationErrors := schema_validation.ValidateOpenAPIDocumentWithPrecompiled(
+		context.Document, compiledSchema)
 
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
 	version := context.Document.GetSpecInfo().VersionNumeric
@@ -316,7 +330,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-then failed" {
 				continue
 			}
-			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].Location)
+			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].KeywordLocation)
 			n := &yaml.Node{
 				Line:   validationErrors[i].SchemaValidationErrors[y].Line,
 				Column: validationErrors[i].SchemaValidationErrors[y].Column,
@@ -341,8 +355,8 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 			var reason string
 
 			// Always prefer leaf error extraction from OriginalError when available (issue #766)
-			if schemaErr.OriginalError != nil {
-				leafErrors := extractLeafValidationErrors(schemaErr.OriginalError)
+			if schemaErr.OriginalJsonSchemaError != nil {
+				leafErrors := extractLeafValidationErrors(schemaErr.OriginalJsonSchemaError)
 				if len(leafErrors) > 0 {
 					// Limit to last 3 leaf errors for readability
 					if len(leafErrors) > 3 {
@@ -384,7 +398,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 func hashResult(sve *errors.SchemaValidationFailure) string {
 	return fmt.Sprintf("%x",
-		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.Location, sve.Line, sve.Column, sve.Reason))))
+		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.KeywordLocation, sve.Line, sve.Column, sve.Reason))))
 }
 
 // checkForNullableKeyword searches for nullable keyword usage in OpenAPI 3.1+ documents

@@ -21,13 +21,13 @@ type ReportLoadResult struct {
 	// If the file was a pre-compiled report
 	IsReport bool
 	Report   *vacuum_report.VacuumReport
-	
+
 	// The raw spec bytes (either from file or extracted from report)
 	SpecBytes []byte
-	
+
 	// The filename/path for display
 	FileName string
-	
+
 	// Pre-processed results if from a report
 	ResultSet *model.RuleResultSet
 }
@@ -142,11 +142,11 @@ func LoadReportOnly(filePath string) (*vacuum_report.VacuumReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if !result.IsReport {
 		return nil, fmt.Errorf("file '%s' is not a vacuum report", filePath)
 	}
-	
+
 	return result.Report, nil
 }
 
@@ -156,16 +156,16 @@ func ExtractSpecFromReport(report *vacuum_report.VacuumReport) ([]byte, string, 
 	if report == nil {
 		return nil, "", fmt.Errorf("report is nil")
 	}
-	
+
 	if report.SpecInfo == nil || report.SpecInfo.SpecBytes == nil {
 		return nil, "", fmt.Errorf("report does not contain specification data")
 	}
-	
+
 	fileName := "specification.yaml"
 	if report.Execution != nil && report.Execution.SpecFileName != "" {
 		fileName = report.Execution.SpecFileName
 	}
-	
+
 	return *report.SpecInfo.SpecBytes, fileName, nil
 }
 
@@ -175,7 +175,7 @@ func IsVacuumReport(filePath string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	report, err := vacuum_report.CheckFileForVacuumReport(bytes)
 	return err == nil && report != nil && report.ResultSet != nil
 }

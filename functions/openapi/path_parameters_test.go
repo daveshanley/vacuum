@@ -750,3 +750,97 @@ paths:
 	assert.Contains(t, res[0].Message, "/api/resources/{id}")
 	assert.Contains(t, res[0].Message, "/api/resources/{resourceId}")
 }
+
+func TestPathParameters_RunRule_RFC6570_NotDuplicate(t *testing.T) {
+	yml := `openapi: "3.1.0"
+info:
+  title: "Test"
+  version: "1.0"
+paths:
+  /users/{id}:
+    get:
+      summary: Get user
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number
+  /users/{;id}:
+    get:
+      summary: Look up user
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0, "/users/{id} and /users/{;id} should not be flagged as duplicates")
+}
+
+func TestPathParameters_RunRule_RFC6570_ParamNameExtraction(t *testing.T) {
+	yml := `openapi: "3.1.0"
+info:
+  title: "Test"
+  version: "1.0"
+paths:
+  /items/{;itemId}:
+    get:
+      summary: Get item
+    parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          type: string
+  /resources/{+path}:
+    get:
+      summary: Get resource
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "path-params", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := PathParameters{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0, "{;itemId} should extract 'itemId' and {+path} should extract 'path'")
+}

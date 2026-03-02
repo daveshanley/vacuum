@@ -3139,7 +3139,7 @@ components:
 			},
 		},
 		{
-			name:           "ValidConstraintsNoErrors",
+			name: "ValidConstraintsNoErrors",
 			yaml: `openapi: 3.1
 components:
   schemas:
@@ -3270,6 +3270,26 @@ components:
         mapping:
           dog: '#/components/schemas/Dog'
           cat: '#/components/schemas/Cat'`,
+			expectedErrors: []struct{ message, path string }{},
+		},
+		{
+			name: "PropertyInAllOfNestedRef",
+			yaml: `openapi: 3.0.3
+components:
+  schemas:
+    Pet:
+      allOf:
+        - $ref: '#/components/schemas/PetBase'
+      discriminator:
+        propertyName: petType
+    PetBase:
+      allOf:
+        - type: object
+          properties:
+            petType:
+              type: string
+            name:
+              type: string`,
 			expectedErrors: []struct{ message, path string }{},
 		},
 		{
@@ -3444,4 +3464,3 @@ components:
 	assert.Contains(t, res[0].Message, "minimum")
 	assert.Contains(t, res[0].Message, "null")
 }
-

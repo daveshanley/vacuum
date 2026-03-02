@@ -198,7 +198,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 
 	handler.TextDocumentCodeAction = func(context *glsp.Context, params *protocol.CodeActionParams) (any, error) {
 		var actions []protocol.CodeAction
-		
+
 		for _, diagnostic := range params.Context.Diagnostics {
 			if diagnostic.CodeDescription != nil && diagnostic.CodeDescription.HRef != "" {
 				quickFixKind := protocol.CodeActionKindQuickFix
@@ -213,7 +213,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 				})
 			}
 		}
-		
+
 		return actions, nil
 	}
 
@@ -254,12 +254,12 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 // NewServerWithRulesetSelector creates a new instance of the language server with
 // a custom RulsetSelector function to allow you to dynamically select the ruleset
 // used based on the content of the spec being processed.
-// 
+//
 // This allows you to determine specifically what rules should be applied per spec, e.g.:
-// 
+//
 // Have different teams which require different rules?
 // Check the value of info.contact.name in the spec and return the relevant rules for that team.
-// 
+//
 // Want to enable OWASP rules for only a specific server?
 // Check the value of servers[0].url and return the rules including the OWASP ruleset
 // for your specific super secure sever url.

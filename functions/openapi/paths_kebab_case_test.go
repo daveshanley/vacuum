@@ -142,3 +142,67 @@ paths:
 	assert.Len(t, res, 0)
 
 }
+
+func TestPathsKebabCase_RFC6570_Operators(t *testing.T) {
+	yml := `openapi: "3.1.0"
+info:
+  title: "Test"
+  version: "1.0"
+paths:
+  /users/{;id}:
+    get:
+      summary: semicolon operator
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number
+  /resources/{+path}:
+    get:
+      summary: plus operator
+    parameters:
+      - name: path
+        in: path
+        required: true
+        schema:
+          type: string
+  /items/{#fragment}:
+    get:
+      summary: hash operator
+    parameters:
+      - name: fragment
+        in: path
+        required: true
+        schema:
+          type: string
+  /data/{;id}.json:
+    get:
+      summary: semicolon with extension
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: number`
+
+	path := "$"
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "pathsKebabCase", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Rule = &rule
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+
+	def := PathsKebabCase{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0, "RFC 6570 operator template variables should not be flagged as kebab-case violations")
+}

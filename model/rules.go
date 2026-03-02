@@ -51,13 +51,13 @@ type RuleCategory struct {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
-	RuleAction *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
-	Rule       *Rule               `json:"rule,omitempty" yaml:"rule,omitempty"`             // A reference to the Rule being used for the function
-	Given      interface{}         `json:"given,omitempty" yaml:"given,omitempty"`           // Path/s being used by rule, multiple paths can be used
-	Options    interface{}         `json:"options,omitempty" yaml:"options,omitempty"`       // Function options
-	SpecInfo   *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
-	Index      *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
-	Document   libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
+	RuleAction  *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
+	Rule        *Rule               `json:"rule,omitempty" yaml:"rule,omitempty"`             // A reference to the Rule being used for the function
+	Given       interface{}         `json:"given,omitempty" yaml:"given,omitempty"`           // Path/s being used by rule, multiple paths can be used
+	Options     interface{}         `json:"options,omitempty" yaml:"options,omitempty"`       // Function options
+	SpecInfo    *datamodel.SpecInfo `json:"specInfo,omitempty" yaml:"specInfo,omitempty"`     // A reference to all specification information for the spec being parsed.
+	Index       *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
+	Document    libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 	DrDocument  *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	Logger      *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 	FetchConfig *config.FetchConfig `json:"-" yaml:"-"`                                       // Configuration for JavaScript fetch() requests
@@ -70,23 +70,28 @@ type RuleFunctionContext struct {
 	// (e.g., oasExampleSchema). Default is 10 seconds if not set or 0.
 	ValidationTimeout time.Duration `json:"-" yaml:"-"`
 
+	// SchemaPathCache is a shared cache for LocateSchemaPropertyPaths results,
+	// keyed by schema pointer. Avoids redundant LocateModelsByKeyAndValue calls
+	// when multiple OWASP rules check the same schema. May be nil.
+	SchemaPathCache *sync.Map `json:"-" yaml:"-"`
+
 	// optionsCache caches the converted options map to avoid repeated interface conversions
 	optionsCache map[string]string `json:"-" yaml:"-"`
 }
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message      string            `json:"message" yaml:"message"`                   // What failed and why?
-	Range        reports.Range     `json:"range" yaml:"range"`                       // Where did it happen?
-	Path         string            `json:"path" yaml:"path"`                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
-	Paths        []string          `json:"paths,omitempty" yaml:"paths,omitempty"`   // the JSONPath(s) to where it can be found, if there are multiple.
-	RuleId       string            `json:"ruleId" yaml:"ruleId"`                     // The ID of the rule
-	RuleSeverity string            `json:"ruleSeverity" yaml:"ruleSeverity"`         // the severity of the rule used
-	Origin       *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"` // Where did the result come from (source)?
-	Rule         *Rule             `json:"-" yaml:"-"`                               // The rule used
-	StartNode    *yaml.Node        `json:"-" yaml:"-"`                               // Start of the violation
-	EndNode      *yaml.Node        `json:"-" yaml:"-"`                               // end of the violation
-	Timestamp    *time.Time        `json:"-" yaml:"-"`                               // When the result was created.
+	Message      string            `json:"message" yaml:"message"`                         // What failed and why?
+	Range        reports.Range     `json:"range" yaml:"range"`                             // Where did it happen?
+	Path         string            `json:"path" yaml:"path"`                               // the JSONPath to where it can be found, the first is extracted if there are multiple.
+	Paths        []string          `json:"paths,omitempty" yaml:"paths,omitempty"`         // the JSONPath(s) to where it can be found, if there are multiple.
+	RuleId       string            `json:"ruleId" yaml:"ruleId"`                           // The ID of the rule
+	RuleSeverity string            `json:"ruleSeverity" yaml:"ruleSeverity"`               // the severity of the rule used
+	Origin       *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"`       // Where did the result come from (source)?
+	Rule         *Rule             `json:"-" yaml:"-"`                                     // The rule used
+	StartNode    *yaml.Node        `json:"-" yaml:"-"`                                     // Start of the violation
+	EndNode      *yaml.Node        `json:"-" yaml:"-"`                                     // end of the violation
+	Timestamp    *time.Time        `json:"-" yaml:"-"`                                     // When the result was created.
 	AutoFixed    bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"` // Whether this violation was auto-fixed
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
@@ -100,12 +105,13 @@ type IgnoredItems map[string][]string
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
-	Results      []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"`           // All the results!
-	FixedResults []*RuleFunctionResult                   `json:"fixedResults,omitempty" yaml:"fixedResults,omitempty"` // Results that were automatically fixed
-	WarnCount    int                                     `json:"warningCount" yaml:"warningCount"`                     // Total warnings
-	ErrorCount   int                                     `json:"errorCount" yaml:"errorCount"`                         // Total errors
-	InfoCount    int                                     `json:"infoCount" yaml:"infoCount"`                           // Total info
-	categoryMap  map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
+	Results        []*RuleFunctionResult                   `json:"results,omitempty" yaml:"results,omitempty"`           // All the results!
+	FixedResults   []*RuleFunctionResult                   `json:"fixedResults,omitempty" yaml:"fixedResults,omitempty"` // Results that were automatically fixed
+	WarnCount      int                                     `json:"warningCount" yaml:"warningCount"`                     // Total warnings
+	ErrorCount     int                                     `json:"errorCount" yaml:"errorCount"`                         // Total errors
+	InfoCount      int                                     `json:"infoCount" yaml:"infoCount"`                           // Total info
+	categoryMap    map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
+	countsComputed bool                                    `json:"-" yaml:"-"`
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.
@@ -124,22 +130,22 @@ type RuleAction struct {
 
 // Rule is a structure that represents a rule as part of a ruleset.
 type Rule struct {
-	Id                 string           `json:"id,omitempty" yaml:"id,omitempty"`
-	Description        string           `json:"description,omitempty" yaml:"description,omitempty"`
-	DocumentationURL   string           `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
-	Message            string           `json:"message,omitempty" yaml:"message,omitempty"`
-	Given              interface{}      `json:"given,omitempty" yaml:"given,omitempty"`
-	Formats            []string         `json:"formats,omitempty" yaml:"formats,omitempty"`
-	Resolved           bool             `json:"resolved,omitempty" yaml:"resolved,omitempty"`
-	Recommended        bool             `json:"recommended,omitempty" yaml:"recommended,omitempty"`
-	Type               string           `json:"type,omitempty" yaml:"type,omitempty"`
-	Severity           string           `json:"severity,omitempty" yaml:"severity,omitempty"`
-	Then               interface{}      `json:"then,omitempty" yaml:"then,omitempty"`
-	PrecompiledPattern *regexp.Regexp   `json:"-" yaml:"-"` // regex is slow.
-	RuleCategory       *RuleCategory    `json:"category,omitempty" yaml:"category,omitempty"`
-	Name               string           `json:"-" yaml:"-"`
-	HowToFix           string           `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
-	AutoFixFunction    string           `json:"autoFixFunction,omitempty" yaml:"autoFixFunction,omitempty"`
+	Id                 string         `json:"id,omitempty" yaml:"id,omitempty"`
+	Description        string         `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURL   string         `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Message            string         `json:"message,omitempty" yaml:"message,omitempty"`
+	Given              interface{}    `json:"given,omitempty" yaml:"given,omitempty"`
+	Formats            []string       `json:"formats,omitempty" yaml:"formats,omitempty"`
+	Resolved           bool           `json:"resolved,omitempty" yaml:"resolved,omitempty"`
+	Recommended        bool           `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+	Type               string         `json:"type,omitempty" yaml:"type,omitempty"`
+	Severity           string         `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Then               interface{}    `json:"then,omitempty" yaml:"then,omitempty"`
+	PrecompiledPattern *regexp.Regexp `json:"-" yaml:"-"` // regex is slow.
+	RuleCategory       *RuleCategory  `json:"category,omitempty" yaml:"category,omitempty"`
+	Name               string         `json:"-" yaml:"-"`
+	HowToFix           string         `json:"howToFix,omitempty" yaml:"howToFix,omitempty"`
+	AutoFixFunction    string         `json:"autoFixFunction,omitempty" yaml:"autoFixFunction,omitempty"`
 }
 
 // RuleFunctionProperty is used by RuleFunctionSchema to describe the functionOptions a Rule accepts

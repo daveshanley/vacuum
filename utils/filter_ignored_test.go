@@ -30,7 +30,7 @@ func TestFilterIgnoredResults(t *testing.T) {
 	filtered := FilterIgnoredResults(results, igItems)
 
 	assert.Len(t, filtered, 7)
-	
+
 	// Check that the ignored items are not in the result
 	for _, r := range filtered {
 		if r.Rule.Id == "XXX" {
@@ -63,7 +63,7 @@ func TestFilterIgnoredResultsPtr(t *testing.T) {
 	filtered := FilterIgnoredResultsPtr(results, igItems)
 
 	assert.Len(t, filtered, 7)
-	
+
 	// Check that the ignored items are not in the result
 	for _, r := range filtered {
 		if r.Rule.Id == "XXX" {

@@ -53,7 +53,7 @@ components:
 	// We expect 2 results: one for the property check and one for the schema check
 	// since DrDocument.Schemas contains ALL schemas including property schemas
 	assert.Len(t, res, 2)
-	
+
 	// Find the property-specific message
 	foundPropertyMessage := false
 	foundSchemaMessage := false
@@ -148,13 +148,13 @@ components:
 	// Should detect 6 results total: 3 property checks + 3 schema checks
 	// (since each property schema also appears in DrDocument.Schemas)
 	assert.Len(t, res, 6)
-	
+
 	// Check that the correct properties were flagged
 	messages := []string{}
 	for _, r := range res {
 		messages = append(messages, r.Message)
 	}
-	
+
 	assert.Contains(t, messages[0]+messages[1]+messages[2], "name")
 	assert.Contains(t, messages[0]+messages[1]+messages[2], "age")
 	assert.Contains(t, messages[0]+messages[1]+messages[2], "weight")
@@ -203,7 +203,7 @@ components:
 
 	// Should detect 4 results: 2 property checks + 2 schema checks for city and zipCode
 	assert.Len(t, res, 4)
-	
+
 	foundCity := false
 	foundZip := false
 	for _, r := range res {
@@ -214,7 +214,7 @@ components:
 			foundZip = true
 		}
 	}
-	
+
 	assert.True(t, foundCity, "Should detect city property missing type")
 	assert.True(t, foundZip, "Should detect zipCode property missing type")
 }
@@ -390,16 +390,16 @@ components:
 	mt := MissingType{}
 	res := mt.RunRule(nil, ctx)
 
-	// Should have 3 results: one for MissingTypeSchema, one property check for field1, 
+	// Should have 3 results: one for MissingTypeSchema, one property check for field1,
 	// and one schema check for field1 (since it's also in DrDocument.Schemas)
 	assert.Len(t, res, 3)
-	
+
 	// Check that all results have the Paths property set
 	for _, r := range res {
 		assert.NotNil(t, r.Paths, "Paths property should be set")
 		assert.NotEmpty(t, r.Paths, "Paths array should not be empty")
 		assert.Greater(t, len(r.Paths), 0, "Paths array should have at least one element")
-		
+
 		// The main Path should be included in Paths
 		found := false
 		for _, p := range r.Paths {
@@ -410,6 +410,105 @@ components:
 		}
 		assert.True(t, found, "Main Path should be included in Paths array")
 	}
+}
+
+func TestMissingType_AllOfWithRefAndDefault(t *testing.T) {
+	// Test case from issue #819: allOf with a $ref that has a type and a sibling
+	// that only adds a default should not trigger oas-missing-type.
+	yml := `openapi: "3.0.1"
+info:
+  title: Car API
+  version: 1.0.0
+paths:
+  /cars:
+    get:
+      parameters:
+        - in: query
+          name: brand
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Brand'
+              - default: Toyota
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Brand:
+      type: string
+      enum: [ Toyota, Ford, BMW ]`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "missing-type",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	mt := MissingType{}
+	res := mt.RunRule(nil, ctx)
+
+	// The second allOf entry {default: Toyota} is a member of a polymorphic composition.
+	// Its type is inherited from the $ref sibling, so no violation should be reported.
+	assert.Empty(t, res)
+}
+
+func TestMissingType_AllOfMembersSkipped(t *testing.T) {
+	// Verify that individual allOf/oneOf/anyOf members without explicit type
+	// are not flagged when they are part of a composition.
+	yml := `openapi: "3.0.3"
+info:
+  title: Test API
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    Combined:
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - description: adds extra constraints
+          minLength: 3
+    Choice:
+      oneOf:
+        - $ref: '#/components/schemas/Base'
+        - description: alternative with max
+          maxLength: 100
+    Mixed:
+      anyOf:
+        - $ref: '#/components/schemas/Base'
+        - description: another option
+          pattern: "^[a-z]+$"
+    Base:
+      type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := model.Rule{
+		Name: "missing-type",
+	}
+	ctx := model.RuleFunctionContext{
+		Rule:       &rule,
+		DrDocument: drDocument,
+		Document:   document,
+	}
+
+	mt := MissingType{}
+	res := mt.RunRule(nil, ctx)
+
+	// None of the composition members should be flagged - they inherit types from siblings
+	assert.Empty(t, res)
 }
 
 func TestMissingType_AllPropertiesValid(t *testing.T) {
@@ -465,10 +564,10 @@ components:
 
 // Helper function for string contains check
 func contains(s, substr string) bool {
-	return len(s) > 0 && len(substr) > 0 && 
-		   (s == substr || len(s) > len(substr) && 
-		   (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
-		   containsMiddle(s, substr)))
+	return len(s) > 0 && len(substr) > 0 &&
+		(s == substr || len(s) > len(substr) &&
+			(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr ||
+				containsMiddle(s, substr)))
 }
 
 func containsMiddle(s, substr string) bool {

@@ -65,7 +65,7 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 	}
 
 	checkSchema := func(schema *v3.Schema) {
-		if schema == nil || schema.Value == nil || schema.Value.Properties == nil {
+		if schema == nil || schema.Value == nil {
 			return
 		}
 

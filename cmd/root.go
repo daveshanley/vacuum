@@ -113,6 +113,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().String("breaking-config", "", "Path to breaking rules config file (default: ./changes-rules.yaml or ~/.config/changes-rules.yaml)")
 	rootCmd.PersistentFlags().Bool("warn-on-changes", false, "Inject warning violations for each detected API change")
 	rootCmd.PersistentFlags().Bool("error-on-breaking", false, "Inject error violations for each breaking change")
+	rootCmd.PersistentFlags().BoolP("turbo", "T", false, "Turbo mode: faster linting, trades some checks for speed")
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
@@ -179,6 +180,9 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("changes-summary", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("turbo", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 

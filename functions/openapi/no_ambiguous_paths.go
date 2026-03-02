@@ -6,7 +6,6 @@ package openapi
 import (
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
@@ -88,22 +87,25 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 		path   string
 		method string
 		item   *doctorModel.PathItem
+		segs   []segment
 	}
 
 	var pathMethodEntries []pathMethodEntry
 	for path, pathItem := range paths.PathItems.FromOldest() {
-
+		// Pre-parse segments once per path
+		segs := parseSegments(path, pathItem)
 		methods := getMethodsFromPathItem(pathItem)
 		for _, method := range methods {
 			pathMethodEntries = append(pathMethodEntries, pathMethodEntry{
 				path:   path,
 				method: method,
 				item:   pathItem,
+				segs:   segs,
 			})
 		}
 	}
 
-	// compare each pair of path+method combinations
+	// compare each pair of path+method combinations using pre-parsed segments
 	for i := 0; i < len(pathMethodEntries); i++ {
 		for j := i + 1; j < len(pathMethodEntries); j++ {
 			entryA := pathMethodEntries[i]
@@ -115,7 +117,7 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 			}
 
 			// check if paths are potentially ambiguous for the same HTTP method
-			if checkPaths(entryA.path, entryB.path, entryA.item, entryB.item) {
+			if compareSegments(entryA.segs, entryB.segs) {
 				// paths are ambiguous based on structure and parameter types for the same method
 				results = append(results, model.RuleFunctionResult{
 					Message: fmt.Sprintf("paths are ambiguous with one another: `%s` (%s) and `%s` (%s)",
@@ -134,7 +136,7 @@ func (ap AmbiguousPaths) checkWithDoctorModel(context model.RuleFunctionContext)
 
 // getMethodsFromPathItem extracts all HTTP methods defined in a PathItem
 func getMethodsFromPathItem(pathItem *doctorModel.PathItem) []string {
-	var methods []string
+	methods := make([]string, 0, 8)
 
 	if pathItem.Get != nil {
 		methods = append(methods, http.MethodGet)
@@ -164,29 +166,52 @@ func getMethodsFromPathItem(pathItem *doctorModel.PathItem) []string {
 	return methods
 }
 
-var reggie, _ = regexp.Compile(`^{(.+?)}$`)
-
 type segment struct {
 	value     string
 	isVar     bool
 	paramName string
 	paramType string
+	operator  string // RFC 6570 operator, empty for simple expansion
 }
 
 func parseSegments(path string, pathItem *doctorModel.PathItem) []segment {
-	parts := strings.Split(path, "/")[1:]
-	segments := make([]segment, len(parts))
+	// Count segments first to pre-allocate exactly
+	n := 0
+	for i := 1; i < len(path); i++ {
+		if path[i] == '/' {
+			n++
+		}
+	}
+	n++ // last segment
+	segments := make([]segment, 0, n)
 
-	for i, part := range parts {
+	// Parse without strings.Split — iterate in-place
+	rest := path
+	if len(rest) > 0 && rest[0] == '/' {
+		rest = rest[1:]
+	}
+	for len(rest) > 0 {
+		idx := strings.IndexByte(rest, '/')
+		var part string
+		if idx < 0 {
+			part = rest
+			rest = ""
+		} else {
+			part = rest[:idx]
+			rest = rest[idx+1:]
+		}
+
 		seg := segment{value: part}
-		if matches := reggie.FindStringSubmatch(part); len(matches) > 1 {
+		tv := ParseTemplateSegment(part)
+		if tv.IsVariable && tv.Name != "" {
 			seg.isVar = true
-			seg.paramName = matches[1]
+			seg.paramName = tv.Name
+			seg.operator = tv.Operator
 			if pathItem != nil {
 				seg.paramType = getParameterType(pathItem, seg.paramName)
 			}
 		}
-		segments[i] = seg
+		segments = append(segments, seg)
 	}
 	return segments
 }
@@ -227,18 +252,24 @@ func getParameterType(pathItem *doctorModel.PathItem, paramName string) string {
 func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool {
 	segsA := parseSegments(pA, pathItemA)
 	segsB := parseSegments(pB, pathItemB)
+	return compareSegments(segsA, segsB)
+}
 
+func compareSegments(segsA, segsB []segment) bool {
 	if len(segsA) != len(segsB) {
 		return false
 	}
 
-	// Track variable vs literal mismatches
-	varLiteralPositions := make([]int, 0, len(segsA))
+	hasVarLiteralMismatch := false
 
 	for i := range segsA {
 		a, b := &segsA[i], &segsB[i]
 
 		if a.isVar && b.isVar {
+			// Different RFC 6570 operators mean different expansion semantics — never ambiguous
+			if a.operator != b.operator {
+				return false
+			}
 			if a.paramType != "" && b.paramType != "" && !areTypesCompatible(a.paramType, b.paramType) {
 				return false
 			}
@@ -248,7 +279,7 @@ func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool 
 			}
 		} else {
 			// Variable vs literal
-			varLiteralPositions = append(varLiteralPositions, i)
+			hasVarLiteralMismatch = true
 
 			var varType, literal string
 			if a.isVar {
@@ -279,11 +310,7 @@ func checkPaths(pA, pB string, pathItemA, pathItemB *doctorModel.PathItem) bool 
 	// The key insight: Any var/literal mismatch means the paths have different matching
 	// behavior and are NOT ambiguous - either one is more concrete (case 1) or they
 	// have conflicting patterns (case 2).
-	if len(varLiteralPositions) > 0 {
-		return false
-	}
-
-	return true
+	return !hasVarLiteralMismatch
 }
 
 func areTypesCompatible(typeA, typeB string) bool {

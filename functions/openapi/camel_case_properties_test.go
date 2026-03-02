@@ -353,16 +353,16 @@ func TestCamelCaseProperties_isCamelCase(t *testing.T) {
 
 	// invalid cases
 	assert.False(t, def.isCamelCase(""))
-	assert.False(t, def.isCamelCase("FirstName"))        // PascalCase
-	assert.False(t, def.isCamelCase("first_name"))       // snake_case
-	assert.False(t, def.isCamelCase("first-name"))       // kebab-case
-	assert.False(t, def.isCamelCase("FIRST_NAME"))       // SCREAMING_SNAKE_CASE
-	assert.False(t, def.isCamelCase("FIRST-NAME"))       // SCREAMING-KEBAB-CASE
-	assert.False(t, def.isCamelCase("UPPERCASE"))        // UPPERCASE
-	assert.True(t, def.isCamelCase("lowercase"))         // lowercase single word is valid camelCase
-	assert.False(t, def.isCamelCase("first name"))       // with space
-	assert.False(t, def.isCamelCase("first.name"))       // with dot
-	assert.False(t, def.isCamelCase("first@name"))       // with special char
+	assert.False(t, def.isCamelCase("FirstName"))  // PascalCase
+	assert.False(t, def.isCamelCase("first_name")) // snake_case
+	assert.False(t, def.isCamelCase("first-name")) // kebab-case
+	assert.False(t, def.isCamelCase("FIRST_NAME")) // SCREAMING_SNAKE_CASE
+	assert.False(t, def.isCamelCase("FIRST-NAME")) // SCREAMING-KEBAB-CASE
+	assert.False(t, def.isCamelCase("UPPERCASE"))  // UPPERCASE
+	assert.True(t, def.isCamelCase("lowercase"))   // lowercase single word is valid camelCase
+	assert.False(t, def.isCamelCase("first name")) // with space
+	assert.False(t, def.isCamelCase("first.name")) // with dot
+	assert.False(t, def.isCamelCase("first@name")) // with special char
 }
 
 func TestCamelCaseProperties_identifyCaseType(t *testing.T) {
@@ -381,5 +381,3 @@ func TestCamelCaseProperties_identifyCaseType(t *testing.T) {
 	assert.Equal(t, "unknown", def.identifyCaseType(""))
 	assert.Equal(t, "unknown", def.identifyCaseType("first name"))
 }
-
-

@@ -40,7 +40,7 @@ const (
 
 	oas3HostNotExampleFix string = "Remove 'example.com from the 'servers' URL, it's not going to work."
 
-	PathItemReferencesFix string = "Path items should not use references for defining operations. It's technically allowed, but not great style"
+	PathItemReferencesFix string = "Operations within path items should not use $ref. If you need to reference a reusable definition, use $ref at the path item level instead"
 
 	oas2HostTrailingSlashFix string = "Remove the trailing slash from the host URL. This may cause some tools to incorrectly " +
 		"add a double slash to paths."

@@ -71,6 +71,7 @@ func GetDashboardCommand() *cobra.Command {
 			breakingConfigPath, _ := cmd.Flags().GetString("breaking-config")
 			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
 			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
+			turboFlag, _ := cmd.Flags().GetBool("turbo")
 
 			// Load and apply breaking rules config early, before any change comparison
 			breakingConfig, breakingConfigErr := utils.LoadBreakingRulesConfig(breakingConfigPath)
@@ -217,6 +218,10 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				}
 
+				if turboFlag {
+					rulesets.FilterRulesForTurbo(selectedRS)
+				}
+
 				if !silent {
 					fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 						color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
@@ -241,6 +246,7 @@ func GetDashboardCommand() *cobra.Command {
 					NodeLookupTimeout: time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					HTTPClientConfig:  httpConfig,
 					FetchConfig:       fetchConfig,
+					TurboMode:         turboFlag,
 				})
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
@@ -316,7 +322,13 @@ func GetDashboardCommand() *cobra.Command {
 				if !silent {
 					renderResultBox(0, 0, 0, 0) // Perfect score
 				}
-				return nil
+				// If not in watch mode, exit early since there's nothing to show
+				if !watchFlag {
+					return nil
+				}
+				// In watch mode, continue to dashboard with empty results so user can
+				// see violations appear as they edit the file (issue #797)
+				resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
 			}
 
 			if !silent {

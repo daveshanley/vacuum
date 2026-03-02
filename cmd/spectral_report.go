@@ -68,6 +68,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 			breakingConfigPath, _ := cmd.Flags().GetString("breaking-config")
 			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
 			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
+			turboFlag, _ := cmd.Flags().GetBool("turbo")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -213,6 +214,10 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				}
 			}
 
+			if turboFlag {
+				rulesets.FilterRulesForTurbo(selectedRS)
+			}
+
 			if !stdIn && !stdOut {
 				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
@@ -298,6 +303,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					ExtractReferencesFromExtensions: extensionRefsFlag,
 					HTTPClientConfig:                httpClientConfig,
 					FetchConfig:                     fetchConfig,
+					TurboMode:                       turboFlag,
 				})
 
 				resultSet := model.NewRuleResultSet(ruleset.Results)

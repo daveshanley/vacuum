@@ -14,6 +14,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/dustin/go-humanize"
+	"github.com/pb33f/libopenapi/index"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
+	"github.com/spf13/cobra"
+
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
@@ -22,10 +27,6 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/dustin/go-humanize"
-	"github.com/pb33f/libopenapi/index"
-	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"github.com/spf13/cobra"
 )
 
 func GetLintCommand() *cobra.Command {
@@ -54,7 +55,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner output")
 	cmd.Flags().BoolP("no-message", "m", false, "Hide message output when using -d")
 	cmd.Flags().BoolP("all-results", "a", false, "Render all results when using -d")
-	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
+	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (error, warn, info, hint, none)")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
@@ -235,6 +236,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 		if baseErr != nil {
 			return fmt.Errorf("failed to resolve base path: %w", baseErr)
 		}
+		resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(displayFileName)
+		if specPathErr != nil {
+			return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+		}
 
 		fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 		if fetchCfgErr != nil {
@@ -244,7 +249,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		execution := &motor.RuleSetExecution{
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
-			SpecFileName:                    displayFileName,
+			SpecFileName:                    resolvedSpecPath,
 			CustomFunctions:                 customFuncs,
 			AutoFixFunctions:                make(map[string]model.AutoFixFunction),
 			Base:                            resolvedBase,
@@ -260,6 +265,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			HTTPClientConfig:                httpClientConfig,
 			ApplyAutoFixes:                  flags.FixFlag,
 			FetchConfig:                     fetchConfig,
+			TurboMode:                       flags.TurboMode,
 		}
 
 		result := motor.ApplyRulesToRuleSet(execution)
@@ -313,7 +319,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	specStringData := strings.Split(string(specBytes), "\n")
+	// specStringData is only needed for detail rendering; defer the split
+	var specStringData []string
 
 	// handle category filtering
 	var cats []*model.RuleCategory
@@ -369,6 +376,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
+		specStringData = strings.Split(string(specBytes), "\n")
 		renderFixedDetails(RenderDetailsOptions{
 			Results:    resultSet.Results,
 			SpecData:   specStringData,
@@ -413,18 +421,21 @@ func runLint(cmd *cobra.Command, args []string) error {
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
 
-	// min score threshold
-	if flags.MinScore > 10 && stats != nil {
-		if stats.OverallScore < flags.MinScore {
+	overallScore := 0
+	if stats != nil {
+		overallScore = stats.OverallScore
+	}
+	if flags.MinScore > 10 && overallScore > 0 {
+		if overallScore < flags.MinScore {
 			if !flags.PipelineOutput && !flags.SilentFlag {
 				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
 				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
-					color.ASCIIRed, stats.OverallScore, flags.MinScore, color.ASCIIReset)
+					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
 			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
-				stats.OverallScore, flags.MinScore)
+				overallScore, flags.MinScore)
 		}
 	}
 
@@ -805,7 +816,7 @@ func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFi
 		if err != nil {
 			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
 		}
-		
+
 		err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
 		if err != nil {
 			return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)

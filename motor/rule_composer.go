@@ -52,7 +52,7 @@ func (rc *RuleComposer) ComposeRuleSet(ruleset []byte) (*rulesets.RuleSet, error
 
 					f := builtinFunctions.FindFunction(ruleAction.Function)
 					if f == nil {
-						return nil, fmt.Errorf("unable to locate function '%s' for rule '%s'", 
+						return nil, fmt.Errorf("unable to locate function '%s' for rule '%s'",
 							ruleAction.Function, k)
 					}
 				}
