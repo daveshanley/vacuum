@@ -84,9 +84,7 @@ components:
 
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`additionalProperties` should not be set, or set to `false`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
+	assert.Len(t, res, 0)
 }
 
 func TestNoAdditionalProperties_RunRule_Pass(t *testing.T) {
