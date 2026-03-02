@@ -338,6 +338,83 @@ func TestUnusedComponent_RunRule_PanicWithSpaceInSchemaKey(t *testing.T) {
 	assert.Len(t, res, 1)
 }
 
+func TestUnusedComponent_RunRule_MultiFileSecurityScheme(t *testing.T) {
+
+	// root spec defines a security scheme but has no security requirements itself
+	rootYML := `openapi: 3.1.0
+info:
+  title: Multi-file security test
+  version: 1.0.0
+paths:
+  /items:
+    $ref: 'paths.yaml#/paths/~1items'
+components:
+  securitySchemes:
+    MyAuth:
+      type: http
+      scheme: bearer`
+
+	// child paths file uses the security scheme in an operation
+	childYML := `paths:
+  /items:
+    get:
+      summary: List items
+      security:
+        - MyAuth: []
+      responses:
+        '200':
+          description: ok`
+
+	var rootNode, childNode yaml.Node
+	_ = yaml.Unmarshal([]byte(rootYML), &rootNode)
+	_ = yaml.Unmarshal([]byte(childYML), &childNode)
+
+	// build child index with security requirements
+	childCfg := index.CreateOpenAPIIndexConfig()
+	childCfg.AllowFileLookup = false
+	childCfg.AllowRemoteLookup = false
+	childIdx := index.NewSpecIndexWithConfig(&childNode, childCfg)
+
+	// build rolodex with child index
+	rolodexCfg := index.CreateOpenAPIIndexConfig()
+	rolodexCfg.AllowFileLookup = false
+	rolodexCfg.AllowRemoteLookup = false
+	rolodex := index.NewRolodex(rolodexCfg)
+	rolodex.AddIndex(childIdx)
+
+	// build root index with the rolodex attached
+	rootCfg := index.CreateOpenAPIIndexConfig()
+	rootCfg.Rolodex = rolodex
+	rootCfg.AllowFileLookup = false
+	rootCfg.AllowRemoteLookup = false
+	rootIdx := index.NewSpecIndexWithConfig(&rootNode, rootCfg)
+
+	// build document for allRefs lookup
+	document, err := libopenapi.NewDocument([]byte(rootYML))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+	_, _ = document.BuildV3Model()
+
+	nodes, _ := utils.FindNodes([]byte(rootYML), "$")
+
+	rule := buildOpenApiTestRuleAction("$", "unused_component", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Index = rootIdx
+	info, _ := datamodel.ExtractSpecInfo([]byte(rootYML))
+	ctx.SpecInfo = info
+	ctx.Document = document
+
+	def := UnusedComponent{}
+	res := def.RunRule(nodes, ctx)
+
+	// MyAuth should NOT be reported as unused — it's referenced in the child index
+	for _, r := range res {
+		assert.NotContains(t, r.Message, "securitySchemes/MyAuth",
+			"MyAuth should be found via child index security requirements")
+	}
+}
+
 func setupUnusedComponentsTestContext(t *testing.T, yml string) []model.RuleFunctionResult {
 	path := "$"
 
