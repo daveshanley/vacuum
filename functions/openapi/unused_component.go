@@ -56,11 +56,24 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 	pathItems := context.Index.GetAllComponentPathItems()
 	mappedRefs := context.Document.GetRolodex().GetAllMappedReferences()
 
-	// extract securityRequirements from swagger. These are not mapped as they are not $refs
-	// so, we need to map them as if they were.
-	secReq := context.Index.GetSecurityRequirementReferences()
+	// aggregate security requirements across root and all child indexes
+	allSecReq := make(map[string]map[string][]*index.Reference)
+	for name, refs := range context.Index.GetSecurityRequirementReferences() {
+		allSecReq[name] = refs
+	}
+	if rolodex := context.Index.GetRolodex(); rolodex != nil {
+		for _, idx := range rolodex.GetIndexes() {
+			for name, refs := range idx.GetSecurityRequirementReferences() {
+				// first occurrence wins; we only need to know the name exists
+				if allSecReq[name] == nil {
+					allSecReq[name] = refs
+				}
+			}
+		}
+	}
+
 	if context.SpecInfo != nil && context.SpecInfo.SpecType == utils.OpenApi2 {
-		for r := range secReq {
+		for r := range allSecReq {
 			allRefs[fmt.Sprintf("#/securityDefinitions/%s", r)] = &index.Reference{}
 		}
 	}
@@ -73,10 +86,8 @@ func (uc UnusedComponent) RunRule(nodes []*yaml.Node, context model.RuleFunction
 				return false
 			}
 			def := segs[len(segs)-1]
-			for r := range context.Index.GetSecurityRequirementReferences() {
-				if r == def {
-					return true
-				}
+			if _, exists := allSecReq[def]; exists {
+				return true
 			}
 		}
 		return false
