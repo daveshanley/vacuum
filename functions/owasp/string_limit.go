@@ -8,7 +8,6 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
-	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	v3 "github.com/pb33f/doctor/model/high/v3"
 	"go.yaml.in/yaml/v4"
 )
@@ -50,10 +49,10 @@ func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 				}
 
 				result := model.RuleFunctionResult{
-					Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+					Message: utils.SuppliedOrDefault(context.Rule.Message,
 						"schema of type `string` must specify `maxLength`, `const` or `enum`"),
 					StartNode: node,
-					EndNode:   vacuumUtils.BuildEndNode(node),
+					EndNode:   utils.BuildEndNode(node),
 					Path:      locatedPath,
 					Rule:      context.Rule,
 				}
