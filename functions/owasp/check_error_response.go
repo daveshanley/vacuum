@@ -67,6 +67,25 @@ func (er CheckErrorResponse) RunRule(_ []*yaml.Node, context model.RuleFunctionC
 				opValue := opPairs.Value()
 				opType := opPairs.Key()
 
+				// For 401 checks, skip operations that explicitly opt out of all authentication.
+				// Per OpenAPI spec, security: [{}] means no auth required, so 401 is impossible.
+				if code == "401" && opValue.Security != nil {
+					if len(opValue.Security) == 0 {
+						// security: [] — explicitly no auth
+						continue
+					}
+					allAnonymous := true
+					for _, sec := range opValue.Security {
+						if sec.Value.Requirements != nil && sec.Value.Requirements.Len() > 0 {
+							allAnonymous = false
+							break
+						}
+					}
+					if allAnonymous {
+						continue
+					}
+				}
+
 				if opValue.Responses != nil && opValue.Responses.Codes != nil {
 					responses := opValue.Responses.Codes
 					found := false
