@@ -135,6 +135,9 @@ func BuildJUnitReportWithConfig(resultSet *model.RuleResultSet, t time.Time, arg
 			if r.StartNode != nil {
 				line = r.StartNode.Line
 			}
+			if r.Origin != nil {
+				line = r.Origin.Line
+			}
 
 			tCase := &TestCase{
 				Line:      line,
