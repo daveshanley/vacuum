@@ -981,6 +981,19 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		filesProcessed = rolodexResolved.RolodexTotalFiles()
 		fileSize = rolodexResolved.RolodexFileSize()
 		//ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
+
+		// Populate Origin for multi-file specs
+		for i := range ruleResults {
+			if ruleResults[i].Origin == nil && ruleResults[i].StartNode != nil {
+				origin := rolodexResolved.FindNodeOrigin(ruleResults[i].StartNode)
+				if origin != nil {
+					if filepath.Base(origin.AbsoluteLocation) == "root.yaml" {
+						origin.AbsoluteLocation = execution.SpecFileName
+					}
+					ruleResults[i].Origin = origin
+				}
+			}
+		}
 	}
 
 	then = time.Since(now).Milliseconds()

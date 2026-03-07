@@ -116,6 +116,12 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 			eLine = result.EndNode.Line
 			eChar = result.EndNode.Column
 		}
+		if result.Origin != nil {
+			sLine = result.Origin.Line
+			sChar = result.Origin.Column
+			eLine = result.Origin.Line
+			eChar = result.Origin.Column
+		}
 
 		resultRange := reports.Range{
 			Start: reports.RangeItem{
@@ -152,13 +158,18 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 			}
 		}
 
+		resultSource := source
+		if result.Origin != nil && result.Origin.AbsoluteLocation != "" {
+			resultSource = result.Origin.AbsoluteLocation
+		}
+
 		report = append(report, reports.SpectralReport{
 			Code:     result.Rule.Id,
 			Path:     path,
 			Message:  result.Message,
 			Severity: sev,
 			Range:    resultRange,
-			Source:   source,
+			Source:   resultSource,
 		})
 	}
 	return report
