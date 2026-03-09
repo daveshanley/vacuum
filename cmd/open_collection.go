@@ -11,9 +11,12 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/v2/table"
+	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/tui"
@@ -22,6 +25,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 func GetOpenCollectionCommand() *cobra.Command {
@@ -48,6 +52,7 @@ The output can be either:
 		RunE: runOpenCollection,
 	}
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().BoolP("silent", "x", false, "Show nothing except the result")
 	cmd.Flags().BoolP("no-environments", "E", false, "Skip environment generation")
 	cmd.Flags().BoolP("no-descriptions", "D", false, "Skip including descriptions as docs")
 	cmd.Flags().StringP("name", "n", "", "Override collection name")
@@ -58,6 +63,7 @@ func runOpenCollection(cmd *cobra.Command, args []string) error {
 	startTime := time.Now()
 
 	noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+	silentFlag, _ := cmd.Flags().GetBool("silent")
 	noEnvironments, _ := cmd.Flags().GetBool("no-environments")
 	noDescriptions, _ := cmd.Flags().GetBool("no-descriptions")
 	collectionName, _ := cmd.Flags().GetString("name")
@@ -68,7 +74,8 @@ func runOpenCollection(cmd *cobra.Command, args []string) error {
 
 	if noStyleFlag {
 		color.DisableColors()
-	} else {
+	}
+	if !noStyleFlag && !silentFlag {
 		PrintBanner()
 	}
 
@@ -166,6 +173,10 @@ func runOpenCollection(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	if !silentFlag {
+		renderCollectionTable(result, noStyleFlag)
+	}
+
 	// detect output mode: .yaml/.yml → bundled, otherwise → exploded directory
 	lower := strings.ToLower(output)
 	bundled := strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml")
@@ -216,3 +227,100 @@ func runOpenCollection(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
+
+// renderCollectionTable renders a table showing all generated requests
+func renderCollectionTable(result *frank.FrankResult, noStyle bool) {
+	// Get terminal width
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || width == 0 {
+		width = 120
+	}
+
+	// Build table data
+	columns, rows := tui.BuildCollectionTable(result, width)
+
+	if len(rows) == 0 {
+		return
+	}
+
+	// Create table
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithHeight(len(rows)+1),
+		table.WithWidth(width-2),
+	)
+
+	// Apply styling
+	if !noStyle {
+		color.ApplyOverlayTableStyles(&t)
+	} else {
+		color.ApplyPlainTableStyles(&t)
+	}
+
+	// Get table output and colorize
+	tableOutput := t.View()
+	if !noStyle {
+		// Method color styles
+		styleGet := lipgloss.NewStyle().Foreground(color.RGBGreen).Bold(true)
+		stylePost := lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true)
+		stylePut := lipgloss.NewStyle().Foreground(color.RGBYellow).Bold(true)
+		styleDelete := lipgloss.NewStyle().Foreground(color.RGBRed).Bold(true)
+		stylePatch := lipgloss.NewStyle().Foreground(color.RGBCyan).Bold(true)
+		styleOther := lipgloss.NewStyle().Foreground(color.RGBGrey).Bold(true)
+
+		// Build a unique set of URL prefixes to colorize, including truncated forms.
+		// The table may truncate long URLs with "…", so we also need to match
+		// the raw text that appears in the rendered table line.
+		templatePattern := regexp.MustCompile(`\{\{[^}]+\}\}`)
+
+		lines := strings.Split(tableOutput, "\n")
+		for i := range lines {
+			// Colorize any {{...}} template variables in the line
+			if strings.Contains(lines[i], "{{") {
+				lines[i] = templatePattern.ReplaceAllStringFunc(lines[i], func(m string) string {
+					return lipgloss.NewStyle().Foreground(color.RGBPink).Bold(true).Render(m)
+				})
+			}
+
+			// Colorize HTTP methods
+			for _, method := range []string{"DELETE", "PATCH", "POST", "GET", "PUT"} {
+				if strings.Contains(lines[i], method) {
+					var style lipgloss.Style
+					switch method {
+					case "GET":
+						style = styleGet
+					case "POST":
+						style = stylePost
+					case "PUT":
+						style = stylePut
+					case "DELETE":
+						style = styleDelete
+					case "PATCH":
+						style = stylePatch
+					default:
+						style = styleOther
+					}
+					lines[i] = strings.Replace(lines[i], method, style.Render(method), 1)
+					break
+				}
+			}
+		}
+		tableOutput = strings.Join(lines, "\n")
+	}
+
+	// Print table
+	fmt.Println()
+	fmt.Println(tableOutput)
+	fmt.Println()
+
+	// Print summary
+	summary := tui.FormatCollectionSummary(result)
+	if noStyle {
+		fmt.Println(summary)
+	} else {
+		tui.RenderInfo("%s", summary)
+	}
+	fmt.Println()
+}
+
