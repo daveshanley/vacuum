@@ -59,6 +59,7 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 	rrs.ErrorCount = getCount(rrs, SeverityError)
 	rrs.WarnCount = getCount(rrs, SeverityWarn)
 	rrs.InfoCount = getCount(rrs, SeverityInfo)
+	rrs.HintCount = getCount(rrs, SeverityHint)
 	rrs.countsComputed = true
 	return rrs
 }
@@ -184,6 +185,7 @@ func (rr *RuleResultSet) computeCountsIfNeeded() {
 	rr.ErrorCount = getCount(rr, SeverityError)
 	rr.WarnCount = getCount(rr, SeverityWarn)
 	rr.InfoCount = getCount(rr, SeverityInfo)
+	rr.HintCount = getCount(rr, SeverityHint)
 	rr.countsComputed = true
 }
 
@@ -193,10 +195,17 @@ func (rr *RuleResultSet) GetErrorCount() int {
 	return rr.ErrorCount
 }
 
+// GetHintCount will return the number of hints returned by the rule results.
+func (rr *RuleResultSet) GetHintCount() int {
+	rr.computeCountsIfNeeded()
+	return rr.HintCount
+}
+
 func (rr *RuleResultSet) ResetCounts() {
 	rr.ErrorCount = 0
 	rr.WarnCount = 0
 	rr.InfoCount = 0
+	rr.HintCount = 0
 	rr.countsComputed = false
 }
 

@@ -157,9 +157,13 @@ func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.R
 	return nil, nil
 }
 
-func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int) error {
+func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int, hints ...int) error {
 	if failSeverityFlag == model.SeverityNone {
 		return nil
+	}
+	hintCount := 0
+	if len(hints) > 0 {
+		hintCount = hints[0]
 	}
 	if failSeverityFlag != model.SeverityError {
 		switch failSeverityFlag {
@@ -172,7 +176,11 @@ func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, inf
 				return fmt.Errorf("failed with %d errors, %d warnings and %d informs",
 					errors, warnings, informs)
 			}
-			return nil
+		case model.SeverityHint:
+			if hintCount > 0 || informs > 0 || warnings > 0 || errors > 0 {
+				return fmt.Errorf("failed with %d errors, %d warnings, %d informs and %d hints",
+					errors, warnings, informs, hintCount)
+			}
 		}
 	} else {
 		if errors > 0 {
