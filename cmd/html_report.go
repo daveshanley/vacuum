@@ -230,7 +230,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						if isMultiFile {
 							continue
 						}
-						return errors.New("failed to parse specification")
+						return NewInputError("failed to parse specification '%s'", specFile)
 					}
 					specInfo.Generated = time.Now()
 					stats = statistics.CreateReportStatistics(specIndex, specInfo, resultSet)

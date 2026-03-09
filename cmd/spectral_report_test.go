@@ -129,8 +129,10 @@ func TestGetSpectralReportCommand_WrongFile(t *testing.T) {
 		"../rulesets/examples/all-ruleset.yaml",
 	})
 	cmdErr := cmd.Execute()
-	assert.NoError(t, cmdErr)
-	defer os.Remove("vacuum-spectral-report.json")
+	assert.Error(t, cmdErr)
+	var exitErr *ExitError
+	assert.ErrorAs(t, cmdErr, &exitErr)
+	assert.Equal(t, ExitCodeInputError, exitErr.Code)
 }
 
 func TestGetSpectralReportCommand_BadRuleset_WrongFile(t *testing.T) {

@@ -306,6 +306,15 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					TurboMode:                       turboFlag,
 				})
 
+				// Check for spec parsing errors before generating report
+				if ruleset.SpecInfo == nil {
+					tui.RenderErrorString("Failed to parse specification '%s'", specFile)
+					if isMultiFile {
+						continue
+					}
+					return NewInputError("failed to parse specification '%s'", specFile)
+				}
+
 				resultSet := model.NewRuleResultSet(ruleset.Results)
 				resultSet.SortResultsByLineNumber()
 

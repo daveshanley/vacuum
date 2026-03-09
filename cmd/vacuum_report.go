@@ -317,6 +317,15 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					TurboMode:                       turboFlag,
 				})
 
+				// Check for spec parsing errors before generating report
+				if ruleset.SpecInfo == nil {
+					tui.RenderErrorString("Failed to parse specification '%s'", specFile)
+					if isMultiFile {
+						continue
+					}
+					return NewInputError("failed to parse specification '%s'", specFile)
+				}
+
 				resultSet := model.NewRuleResultSet(ruleset.Results)
 				resultSet.SortResultsByLineNumber()
 
@@ -449,7 +458,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				if stdOut {
 					fmt.Print(string(reportData))
 					if minScore > 10 && stats != nil && stats.OverallScore < minScore {
-						return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
+						return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
 							stats.OverallScore, minScore)
 					}
 					return nil
@@ -505,7 +514,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 
 			// Check threshold against lowest score across all files
 			if minScore > 10 && lowestScore < minScore {
-				return fmt.Errorf("score threshold failed, lowest overall score is %d, and the threshold is %d",
+				return NewViolationError("score threshold failed, lowest overall score is %d, and the threshold is %d",
 					lowestScore, minScore)
 			}
 
