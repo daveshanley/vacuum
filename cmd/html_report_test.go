@@ -85,3 +85,21 @@ func TestGetHTMLReportCommand_BadWrite(t *testing.T) {
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
 }
+
+func TestGetHTMLReportCommand_UnparseableSpec(t *testing.T) {
+	cmd := GetHTMLReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"../rulesets/examples/all-ruleset.yaml",
+		"test-report-bad.html",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+	var exitErr *ExitError
+	assert.ErrorAs(t, cmdErr, &exitErr)
+	assert.Equal(t, ExitCodeInputError, exitErr.Code)
+	// Ensure no report file was written
+	_, statErr := os.Stat("test-report-bad.html")
+	assert.True(t, os.IsNotExist(statErr))
+}

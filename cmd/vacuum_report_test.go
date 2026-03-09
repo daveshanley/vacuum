@@ -189,7 +189,20 @@ func TestGetVacuumReportCommand_BadFile(t *testing.T) {
 	})
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
+}
 
+func TestGetVacuumReportCommand_UnparseableSpec(t *testing.T) {
+	cmd := GetVacuumReportCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetArgs([]string{
+		"../rulesets/examples/all-ruleset.yaml",
+	})
+	cmdErr := cmd.Execute()
+	assert.Error(t, cmdErr)
+	var exitErr *ExitError
+	assert.ErrorAs(t, cmdErr, &exitErr)
+	assert.Equal(t, ExitCodeInputError, exitErr.Code)
 }
 
 func TestGetVacuumReport_WithIgnoreFile(t *testing.T) {

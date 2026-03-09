@@ -310,7 +310,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			for _, err := range result.Errors {
 				fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
 			}
-			return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+			return NewInputError("linting failed due to %d issues", len(result.Errors))
 		}
 
 		resultSet = model.NewRuleResultSet(result.Results)
@@ -446,7 +446,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
-			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
+			return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
 				overallScore, flags.MinScore)
 		}
 	}
@@ -454,7 +454,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
 	if failErr != nil {
 		if flags.SilentFlag {
-			os.Exit(1)
+			os.Exit(ExitCodeViolations)
 		}
 		return failErr
 	}

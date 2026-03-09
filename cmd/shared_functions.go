@@ -169,22 +169,22 @@ func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, inf
 		switch failSeverityFlag {
 		case model.SeverityWarn:
 			if warnings > 0 || errors > 0 {
-				return fmt.Errorf("failed with %d errors and %d warnings", errors, warnings)
+				return NewViolationError("failed with %d errors and %d warnings", errors, warnings)
 			}
 		case model.SeverityInfo:
 			if informs > 0 || warnings > 0 || errors > 0 {
-				return fmt.Errorf("failed with %d errors, %d warnings and %d informs",
+				return NewViolationError("failed with %d errors, %d warnings and %d informs",
 					errors, warnings, informs)
 			}
 		case model.SeverityHint:
 			if hintCount > 0 || informs > 0 || warnings > 0 || errors > 0 {
-				return fmt.Errorf("failed with %d errors, %d warnings, %d informs and %d hints",
+				return NewViolationError("failed with %d errors, %d warnings, %d informs and %d hints",
 					errors, warnings, informs, hintCount)
 			}
 		}
 	} else {
 		if errors > 0 {
-			return fmt.Errorf("failed with %d errors", errors)
+			return NewViolationError("failed with %d errors", errors)
 		}
 	}
 	return nil
