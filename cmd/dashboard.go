@@ -128,7 +128,8 @@ func GetDashboardCommand() *cobra.Command {
 
 			var resultSet *model.RuleResultSet
 			var specBytes []byte
-			var drDocument *drModel.DrDocument // To hold DrDocument for change filtering
+			var drDocument *drModel.DrDocument         // To hold DrDocument for change filtering
+			var execution *motor.RuleSetExecution       // To hold execution template for violation diffing
 			displayFileName := reportOrSpec.FileName
 
 			if reportOrSpec.IsReport {
@@ -251,9 +252,10 @@ func GetDashboardCommand() *cobra.Command {
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-				// Store DrDocument for change filtering
+				// Store DrDocument and execution template for change filtering
 				if result.RuleSetExecution != nil {
 					drDocument = result.RuleSetExecution.DrDocument
+					execution = result.RuleSetExecution
 				}
 
 				RenderBufferedLogs(bufferedLogger, false)
@@ -282,37 +284,76 @@ func GetDashboardCommand() *cobra.Command {
 				var documentChanges *wcModel.DocumentChanges
 				var changesErr error
 
-				if originalFlag != "" {
+				if originalFlag != "" && execution != nil {
+					// Live-spec mode: use violation-set diffing for accurate filtering
+					originalResults, lintErr := LintOriginalSpec(originalFlag, execution)
+					if lintErr != nil {
+						if !silent {
+							message := fmt.Sprintf("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
+					} else {
+						resultSet.Results, filterStats = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+					}
+
+					// Still load document changes for change stats and violation injection
 					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+					if changesErr != nil {
+						if !silent {
+							message := fmt.Sprintf("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changesErr)
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
+					} else if documentChanges != nil {
+						changeStats = utils.ExtractChangeStats(documentChanges)
+					}
+				} else if originalFlag != "" {
+					// Precompiled report mode: fall back to area-based filter
+					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+					if changesErr != nil {
+						if !silent {
+							message := fmt.Sprintf("Warning: Failed to load changes: %v. Proceeding without change filtering.", changesErr)
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
+					} else if documentChanges != nil {
+						changeStats = utils.ExtractChangeStats(documentChanges)
+						changeFilter := utils.NewChangeFilter(documentChanges, drDocument)
+						if changeFilter != nil {
+							resultSet.Results, filterStats = changeFilter.FilterResultsWithStats(resultSet.Results)
+						}
+					}
 				} else {
 					documentChanges, changesErr = utils.LoadChangeReportFromFile(changesFlag)
+					if changesErr != nil {
+						if !silent {
+							message := fmt.Sprintf("Warning: Failed to load changes: %v. Proceeding without change filtering.", changesErr)
+							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
+							messageStyle := lipgloss.NewStyle().Padding(1, 1)
+							fmt.Println(style.Render(messageStyle.Render(message)))
+						}
+					} else if documentChanges != nil {
+						changeStats = utils.ExtractChangeStats(documentChanges)
+						changeFilter := utils.NewChangeFilter(documentChanges, drDocument)
+						if changeFilter != nil {
+							resultSet.Results, filterStats = changeFilter.FilterResultsWithStats(resultSet.Results)
+						}
+					}
 				}
 
-				if changesErr != nil {
-					if !silent {
-						message := fmt.Sprintf("Warning: Failed to load changes: %v. Proceeding without change filtering.", changesErr)
-						style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
-						messageStyle := lipgloss.NewStyle().Padding(1, 1)
-						fmt.Println(style.Render(messageStyle.Render(message)))
-					}
-				} else if documentChanges != nil {
-					changeStats = utils.ExtractChangeStats(documentChanges)
-
-					changeFilter := utils.NewChangeFilter(documentChanges, drDocument)
-					if changeFilter != nil {
-						resultSet.Results, filterStats = changeFilter.FilterResultsWithStats(resultSet.Results)
-					}
-
-					// Inject change violations if requested
-					if warnOnChanges || errorOnBreaking {
-						changeViolations := utils.GenerateChangeViolations(documentChanges, utils.ChangeViolationOptions{
-							WarnOnChanges:   warnOnChanges,
-							ErrorOnBreaking: errorOnBreaking,
-						})
-						for _, v := range changeViolations {
-							if v != nil {
-								resultSet.Results = append(resultSet.Results, v)
-							}
+				// Inject change violations if requested
+				if documentChanges != nil && (warnOnChanges || errorOnBreaking) {
+					changeViolations := utils.GenerateChangeViolations(documentChanges, utils.ChangeViolationOptions{
+						WarnOnChanges:   warnOnChanges,
+						ErrorOnBreaking: errorOnBreaking,
+					})
+					for _, v := range changeViolations {
+						if v != nil {
+							resultSet.Results = append(resultSet.Results, v)
 						}
 					}
 				}
