@@ -272,8 +272,19 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-		// Apply change-based filtering using pre-loaded documentChanges
-		if documentChanges != nil {
+		// Apply change-based filtering using violation-set diffing when --original is used
+		if flags.OriginalFlag != "" {
+			originalResults, lintErr := LintOriginalSpec(flags.OriginalFlag, execution)
+			if lintErr != nil {
+				if !flags.SilentFlag {
+					fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", lintErr)
+					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
+				}
+			} else {
+				result.Results, changeFilterStats = utils.DiffViolationsValues(originalResults, result.Results)
+			}
+		} else if documentChanges != nil {
+			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
 			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
 			result.Results, changeFilterStats = changeFilter.FilterResultsValues(result.Results)
 		}
@@ -420,6 +431,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	errs := resultSet.GetErrorCount()
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
+	hints := resultSet.GetHintCount()
 
 	overallScore := 0
 	if stats != nil {
@@ -439,7 +451,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs)
+	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
 	if failErr != nil {
 		if flags.SilentFlag {
 			os.Exit(1)
@@ -457,6 +469,7 @@ type fileResult struct {
 	errors       int
 	warnings     int
 	informs      int
+	hints        int
 	size         int64
 	logs         []string
 	err          error
