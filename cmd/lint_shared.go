@@ -557,7 +557,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	var results []*model.RuleFunctionResult
-	var errors, warnings, informs int
+	var errors, warnings, informs, hints int
 
 	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
 	for i := range result.Results {
@@ -574,6 +574,8 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			warnings++
 		case "info":
 			informs++
+		case "hint":
+			hints++
 		}
 	}
 
@@ -593,6 +595,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Errors:   errors,
 		Warnings: warnings,
 		Informs:  informs,
+		Hints:    hints,
 		FileSize: fileSize,
 		Logs:     logs,
 		Error:    nil,

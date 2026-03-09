@@ -133,7 +133,18 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.24` 🔥: **TURBO MODE**
+🔥 **New in** `v0.25` 🔥: **Generate Open Collections from OpenAPI files**
+
+A new `open-collection` command will generate an [Open Collection](https://www.opencollection.com/) Workflow folder
+(or bundled file)
+
+Open Collection is a new standard for defining and sharing API collections. vacuum supports it natively.
+
+[Read More](https://quobix.com/vacuum/commands/open-collection/)
+
+---
+
+`v0.24`: **TURBO MODE**
 
 A huge tune up of hundreds of systems across the stack has resulted in significant speed boosts and improved memory performance.
 
@@ -283,6 +294,7 @@ See all the documentation at https://quobix.com/vacuum
   - [language-server](https://quobix.com/vacuum/commands/language-server/)
   - [apply-overlay](https://quobix.com/vacuum/commands/apply-overlay/)
   - [Change Detection](https://quobix.com/vacuum/commands/change-detection/)
+  - [Open Collection](https://quobix.com/vacuum/commands/open-collection/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)

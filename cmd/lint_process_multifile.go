@@ -23,6 +23,7 @@ type FileProcessingResult struct {
 	Errors   int
 	Warnings int
 	Informs  int
+	Hints    int
 	FileSize int64
 	Logs     []string
 	Error    error
@@ -55,7 +56,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 	}
 
-	var totalErrors, totalWarnings, totalInforms int
+	var totalErrors, totalWarnings, totalInforms, totalHints int
 	var totalSize int64
 	start := time.Now()
 
@@ -153,6 +154,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			errors:   result.Errors,
 			warnings: result.Warnings,
 			informs:  result.Informs,
+			hints:    result.Hints,
 			size:     result.FileSize,
 			logs:     result.Logs,
 			err:      result.Error,
@@ -162,6 +164,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		totalErrors += result.Errors
 		totalWarnings += result.Warnings
 		totalInforms += result.Informs
+		totalHints += result.Hints
 		totalSize += result.FileSize
 	}
 
@@ -304,5 +307,5 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		RenderTimeAndFiles(flags.TimeFlag, duration, totalSize, len(filesToLint))
 	}
 
-	return CheckFailureSeverity(flags.FailSeverityFlag, totalErrors, totalWarnings, totalInforms)
+	return CheckFailureSeverity(flags.FailSeverityFlag, totalErrors, totalWarnings, totalInforms, totalHints)
 }

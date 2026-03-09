@@ -110,6 +110,7 @@ type RuleResultSet struct {
 	WarnCount      int                                     `json:"warningCount" yaml:"warningCount"`                     // Total warnings
 	ErrorCount     int                                     `json:"errorCount" yaml:"errorCount"`                         // Total errors
 	InfoCount      int                                     `json:"infoCount" yaml:"infoCount"`                           // Total info
+	HintCount      int                                     `json:"hintCount" yaml:"hintCount"`                           // Total hints
 	categoryMap    map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 	countsComputed bool                                    `json:"-" yaml:"-"`
 }
