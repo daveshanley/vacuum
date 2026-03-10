@@ -263,7 +263,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
-	if ruleset.DocumentationURI == "" {
+	// if the custom ruleset defines its own documentationUrl, preserve it over the base ruleset's URI.
+	if ruleset.DocumentationURI != "" {
+		rs.DocumentationURI = ruleset.DocumentationURI
+	} else {
 		ruleset.DocumentationURI = "https://quobix.com/vacuum/rulesets/understanding"
 	}
 
