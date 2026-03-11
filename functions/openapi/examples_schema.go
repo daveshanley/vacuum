@@ -98,6 +98,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 			EndNode:   vacuumUtils.BuildEndNode(key),
 			Path:      path,
 			Rule:      ruleContext.Rule,
+			Origin:    ruleContext.Index.GetRolodex().FindNodeOrigin(node),
 		}
 
 		// set the Paths array if we found multiple locations

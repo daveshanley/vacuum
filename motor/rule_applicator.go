@@ -180,8 +180,6 @@ func ruleUsesFunction(rule *model.Rule, funcName string) bool {
 	return false
 }
 
-
-
 // ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
 // uses a message structure, to allow the signature to grow, without breaking anything.
@@ -715,6 +713,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			EndNode:   vacuumUtils.BuildEndNode(er.Node),
 			Message:   er.Error(),
 			Path:      er.Path,
+			Origin:    rolodexUnresolved.FindNodeOrigin(er.Node),
 		}
 		if res.StartNode == nil {
 			res.StartNode = utils.CreateStringNode("")
@@ -774,6 +773,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				EndNode:   vacuumUtils.BuildEndNode(idxError.KeyNode),
 				Message:   idxError.Error(),
 				Path:      idxError.Path,
+				Origin:    rolodexUnresolved.FindNodeOrigin(idxError.Node),
 			}
 			if res.StartNode == nil {
 				res.StartNode = utils.CreateStringNode("")
