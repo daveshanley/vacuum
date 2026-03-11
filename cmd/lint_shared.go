@@ -25,12 +25,12 @@ import (
 )
 
 // ResolveBasePathForFile determines the base path to use for a given spec file.
-// If baseFlag is explicitly set (not empty), it returns that value unchanged.
+// If baseFlag is explicitly set (not empty), it returns that value converted to abs path.
 // If baseFlag is empty, it returns the absolute directory of the spec file.
 func ResolveBasePathForFile(specFilePath string, baseFlag string) (string, error) {
 	// If base is explicitly set, use it as-is
 	if baseFlag != "" {
-		return baseFlag, nil
+		return filepath.Abs(baseFlag)
 	}
 
 	// Auto-detect base from spec file location

@@ -66,7 +66,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
-	cmd.Flags().BoolP("abs-paths", "y", false, "Output absolute paths")
+	cmd.Flags().BoolP("abs-paths", "", false, "If --details(-d) flag is active then output absolute paths")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
 	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
 	// ext-refs is inherited from root as a persistent flag
