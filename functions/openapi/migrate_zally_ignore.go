@@ -37,9 +37,10 @@ func (m MigrateZallyIgnore) RunRule(
 	// pre-allocate path segments slice; push/pop pattern avoids per-recursion allocations
 	segs := make([]string, 0, 32)
 	segs = append(segs, "$")
+	visited := make(map[*yaml.Node]bool)
 
 	for _, node := range nodes {
-		m.checkNodeWithPath(node, segs, &results, context)
+		m.checkNodeWithPath(node, segs, &results, context, visited)
 	}
 
 	return results
@@ -69,15 +70,20 @@ func (m MigrateZallyIgnore) checkNodeWithPath(
 	segs []string,
 	results *[]model.RuleFunctionResult,
 	context model.RuleFunctionContext,
+	visited map[*yaml.Node]bool,
 ) {
 	if node == nil {
 		return
 	}
+	if visited[node] {
+		return
+	}
+	visited[node] = true
 
 	switch node.Kind {
 	case yaml.DocumentNode:
 		for _, content := range node.Content {
-			m.checkNodeWithPath(content, segs, results, context)
+			m.checkNodeWithPath(content, segs, results, context, visited)
 		}
 	case yaml.MappingNode:
 		for i := 0; i < len(node.Content); i += 2 {
@@ -96,14 +102,14 @@ func (m MigrateZallyIgnore) checkNodeWithPath(
 				})
 			}
 
-			m.checkNodeWithPath(valueNode, segs, results, context)
+			m.checkNodeWithPath(valueNode, segs, results, context, visited)
 			segs = segs[:len(segs)-1] // pop
 		}
 
 	case yaml.SequenceNode:
 		for i, item := range node.Content {
 			segs = append(segs, "["+strconv.Itoa(i)+"]") // push
-			m.checkNodeWithPath(item, segs, results, context)
+			m.checkNodeWithPath(item, segs, results, context, visited)
 			segs = segs[:len(segs)-1] // pop
 		}
 	}

@@ -1460,7 +1460,7 @@ func GetMigrateZallyIgnoreRule() *model.Rule {
 		Formats:      model.AllFormats,
 		Description:  "x-zally-ignore keys should be migrated to x-lint-ignore for compatibility with vacuum",
 		Given:        "$",
-		Resolved:     true,
+		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryValidation],
 		Recommended:  true,
 		Type:         Validation,
