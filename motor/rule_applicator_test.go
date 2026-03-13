@@ -2831,6 +2831,63 @@ components:
 		"resolved: true with given '$' should find 'openapi' on the root node")
 }
 
+// TestIssue829_MigrateZallyIgnoreCircularReferences verifies that the
+// migrate-zally-ignore rule runs against unresolved YAML and does not recurse
+// indefinitely when the document contains indirect circular references.
+func TestIssue829_MigrateZallyIgnoreCircularReferences(t *testing.T) {
+	spec := []byte(`openapi: 3.1.0
+info:
+  title: some title
+  description: my description
+  version: 2.5.0
+paths:
+  /endpoint:
+    get:
+      summary: summary
+      operationId: endpoint
+      responses:
+        '200':
+          description: get all
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Object'
+components:
+  schemas:
+    BaseObject:
+      type: object
+      x-zally-ignore: schema-rule
+      properties:
+        attr1:
+          $ref: '#/components/schemas/IndirectReference'
+    Object:
+      type: object
+      properties:
+        attr1:
+          $ref: '#/components/schemas/BaseObject'
+    IndirectReference:
+      $ref: '#/components/schemas/BaseObject'
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			rulesets.MigrateZallyIgnoreRule: rulesets.GetMigrateZallyIgnoreRule(),
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	assert.Len(t, results.Errors, 0)
+
+	ruleResults := filterResultsByRuleId(results.Results, rulesets.MigrateZallyIgnoreRule)
+	assert.Len(t, ruleResults, 1)
+	assert.Equal(t, "$.components.schemas.BaseObject.x-zally-ignore", ruleResults[0].Path)
+}
+
 // filterResultsByRuleId returns only results matching the given rule ID.
 func filterResultsByRuleId(results []model.RuleFunctionResult, ruleId string) []model.RuleFunctionResult {
 	var filtered []model.RuleFunctionResult
