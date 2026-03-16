@@ -61,6 +61,7 @@ type ruleContext struct {
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
 	schemaPathCache    *sync.Map
+	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -860,6 +861,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			applicableRules = append(applicableRules, rule)
 		}
 
+		// Resolve Spectral-compatible aliases once for this spec's format.
+		var resolvedAliases map[string][]string
+		if execution.RuleSet.ParsedAliases != nil {
+			resolved := rulesets.ResolveAliasesForFormat(execution.RuleSet.ParsedAliases, specFormat)
+			expanded, aliasErr := rulesets.ExpandAliasReferences(resolved)
+			if aliasErr != nil {
+				indexConfig.Logger.Error("alias expansion error", "error", aliasErr)
+			} else {
+				resolvedAliases = expanded
+			}
+		}
+
 		totalRules := len(applicableRules)
 		done := make(chan bool, totalRules)
 		indexConfig.Logger.Debug("running rules", "total", totalRules, "filtered_from", len(execution.RuleSet.Rules))
@@ -927,6 +940,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					hasInlineIgnores:   specHasInlineIgnores,
 					ignoreIndex:        ignoreIdx,
 					schemaPathCache:    &schemaPathCache,
+					expandedAliases:    resolvedAliases,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -1092,6 +1106,16 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 			if gp, ko := gpI.(string); ko {
 				givenPaths = append(givenPaths, gp)
 			}
+		}
+	}
+
+	// Expand Spectral alias references (#AliasName) without mutating rule.Given
+	if ctx.expandedAliases != nil {
+		expanded, expandErr := rulesets.ExpandRuleGivenPaths(givenPaths, ctx.expandedAliases)
+		if expandErr != nil {
+			ctx.logger.Warn("alias expansion error in rule", "rule", ctx.rule.Id, "error", expandErr)
+		} else {
+			givenPaths = expanded
 		}
 	}
 

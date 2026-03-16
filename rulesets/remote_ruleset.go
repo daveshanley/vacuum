@@ -144,6 +144,20 @@ func SniffOutAllExternalRules(
 		rs.mutex.Unlock()
 	}
 
+	// Merge aliases from external ruleset (parent takes precedence).
+	if drs.Aliases != nil {
+		rs.mutex.Lock()
+		if rs.Aliases == nil {
+			rs.Aliases = make(map[string]interface{})
+		}
+		for name, value := range drs.Aliases {
+			if _, exists := rs.Aliases[name]; !exists {
+				rs.Aliases[name] = value
+			}
+		}
+		rs.mutex.Unlock()
+	}
+
 	visited = append(visited, location)
 
 	// iterate over the extends and extract everything
