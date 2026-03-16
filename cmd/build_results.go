@@ -30,7 +30,13 @@ func BuildResults(
 
 // TurboFlags holds turbo-related configuration for BuildResults functions.
 type TurboFlags struct {
-	TurboMode         bool
+	TurboMode bool
+}
+
+// ExecutionFlags holds execution configuration for BuildResults functions.
+type ExecutionFlags struct {
+	ResolveAllRefs       bool
+	NestedRefsDocContext bool
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -48,7 +54,49 @@ func BuildResultsWithDocCheckSkip(
 	fetchConfig *utils.FetchConfig,
 	ignoredItems model.IgnoredItems,
 	turboFlags *TurboFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	selectedRS, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, remote, httpClientConfig, turboFlags)
+	if err != nil {
+		return nil, nil, err
+	}
 
+	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, nil)
+}
+
+func BuildResultsWithDocCheckSkipAndExecutionFlags(
+	silent bool,
+	hardMode bool,
+	rulesetFlag string,
+	specBytes []byte,
+	customFunctions map[string]model.RuleFunction,
+	base string,
+	remote bool,
+	skipCheck bool,
+	timeout time.Duration,
+	lookupTimeout time.Duration,
+	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
+	ignoredItems model.IgnoredItems,
+	turboFlags *TurboFlags,
+	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	if executionFlags == nil || (!executionFlags.ResolveAllRefs && !executionFlags.NestedRefsDocContext) {
+		return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
+	}
+
+	selectedRS, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, remote, httpClientConfig, turboFlags)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
+}
+
+func selectRuleSetForBuildResults(
+	silent bool,
+	hardMode bool,
+	rulesetFlag string,
+	remote bool,
+	httpClientConfig utils.HTTPClientConfig,
+	turboFlags *TurboFlags) (*rulesets.RuleSet, error) {
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
@@ -75,13 +123,13 @@ func BuildResultsWithDocCheckSkip(
 	if rulesetFlag != "" {
 		httpClient, clientErr := utils.CreateHTTPClientIfNeeded(httpClientConfig)
 		if clientErr != nil {
-			return nil, nil, fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
+			return nil, fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
 		}
 
 		var rsErr error
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient)
 		if rsErr != nil {
-			return nil, nil, rsErr
+			return nil, rsErr
 		}
 
 		// Merge OWASP rules if hard mode is enabled
@@ -98,7 +146,23 @@ func BuildResultsWithDocCheckSkip(
 	}
 
 	tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
+	return selectedRS, nil
+}
 
+func executeBuildResults(
+	selectedRS *rulesets.RuleSet,
+	specBytes []byte,
+	customFunctions map[string]model.RuleFunction,
+	base string,
+	remote bool,
+	skipCheck bool,
+	timeout time.Duration,
+	lookupTimeout time.Duration,
+	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
+	ignoredItems model.IgnoredItems,
+	turboFlags *TurboFlags,
+	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 	exec := &motor.RuleSetExecution{
 		RuleSet:           selectedRS,
 		Spec:              specBytes,
@@ -115,7 +179,7 @@ func BuildResultsWithDocCheckSkip(
 		exec.TurboMode = turboFlags.TurboMode
 	}
 
-	ruleset := motor.ApplyRulesToRuleSet(exec)
+	ruleset := motor.ApplyRulesToRuleSetWithOptions(exec, newMotorExecutionOptionsFromExecutionFlags(executionFlags))
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	resultSet.SortResultsByLineNumber()

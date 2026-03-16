@@ -69,6 +69,8 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
 			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
 			turboFlag, _ := cmd.Flags().GetBool("turbo")
+			resolveAllRefsFlag, _ := cmd.Flags().GetBool("resolve-all-refs")
+			nestedRefsDocContextFlag, _ := cmd.Flags().GetBool("nested-refs-doc-context")
 
 			// disable color and styling, for CI/CD use.
 			// https://github.com/daveshanley/vacuum/issues/234
@@ -290,7 +292,8 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					}
 				}
 
-				ruleset := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
+				ruleset := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 					RuleSet:                         selectedRS,
 					Spec:                            specBytes,
 					CustomFunctions:                 customFunctions,
@@ -304,7 +307,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					HTTPClientConfig:                httpClientConfig,
 					FetchConfig:                     fetchConfig,
 					TurboMode:                       turboFlag,
-				})
+				}, executionOptions)
 
 				// Check for spec parsing errors before generating report
 				if ruleset.SpecInfo == nil {
@@ -326,7 +329,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
-						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution)
+						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution, executionOptions)
 						if lintErr != nil {
 							if !stdIn && !stdOut {
 								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)

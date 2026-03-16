@@ -14,10 +14,22 @@ import (
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 	"strings"
 )
+
+const (
+	schemaErrorPlaceholder           = "{{error}}"
+	interpolateErrorMessageOptionKey = "interpolateErrorMessage"
+)
+
+var buildSchemaLowModel = low.BuildModel
+
+var buildSchemaLowDocument = func(node *yaml.Node, schema *lowBase.Schema, schemaIndex *index.SpecIndex) error {
+	return schema.Build(ctx.Background(), node, schemaIndex)
+}
 
 // Schema is a rule that creates a schema check against a field value
 type Schema struct {
@@ -45,6 +57,10 @@ func (sch Schema) GetSchema() model.RuleFunctionSchema {
 				Name:        "forceValidationOnCurrentNode",
 				Description: "Ignore the field value of the action, and validate the current node from JSON Path (default is false)",
 			},
+			{
+				Name:        interpolateErrorMessageOptionKey,
+				Description: "Replace `{{error}}` in the rule message with schema error text (default is false)",
+			},
 		},
 		ErrorMessage: "`schema` function needs a `schema` property to be supplied at a minimum",
 	}
@@ -70,9 +86,11 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	var results []model.RuleFunctionResult
 
 	message := context.Rule.Message
+	interpolateErrorMessage := shouldInterpolateSchemaErrorMessage(context.Options)
 
 	var schema *highBase.Schema
 	var ok bool
+	schemaIndex := context.Index
 
 	ruleMessage := context.Rule.Description
 	if context.Rule.Message != "" {
@@ -85,35 +103,36 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		// build schema from scratch
 		var lowSchema lowBase.Schema
 
-		// unmarshal the schema
+		// Prepare the schema from raw function options as a YAML node.
+		// Using Node.Encode preserves the schema root node instead of wrapping it in a document node.
 		var on yaml.Node
-		err := on.Encode(&s)
-
+		err := encodeSchemaOptions(&on, s)
 		if err != nil {
+			defaultMessage := fmt.Sprintf("unable to parse function options: %s", err.Error())
 			r := model.BuildFunctionResultString(
-				vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("unable to parse function options: %s", err.Error())))
+				buildSchemaResultMessage(message, defaultMessage, err.Error(), interpolateErrorMessage))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
 		}
 
 		// first, run the model builder on the schema
-		err = low.BuildModel(&on, &lowSchema)
+		err = buildSchemaLowModel(&on, &lowSchema)
 		if err != nil {
+			defaultMessage := fmt.Sprintf("unable to build low schema from function options: %s", err.Error())
 			r := model.BuildFunctionResultString(
-				vacuumUtils.SuppliedOrDefault(message,
-					fmt.Sprintf("unable to build low schema from function options: %s", err.Error())))
+				buildSchemaResultMessage(message, defaultMessage, err.Error(), interpolateErrorMessage))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
 		}
 
 		// now build out the low level schema.
-		err = lowSchema.Build(ctx.Background(), &on, context.Index)
+		err = buildSchemaLowDocument(&on, &lowSchema, schemaIndex)
 		if err != nil {
+			defaultMessage := fmt.Sprintf("unable to build high schema from function options: %s", err.Error())
 			r := model.BuildFunctionResultString(
-				vacuumUtils.SuppliedOrDefault(message,
-					fmt.Sprintf("unable to build high schema from function options: %s", err.Error())))
+				buildSchemaResultMessage(message, defaultMessage, err.Error(), interpolateErrorMessage))
 			r.Rule = context.Rule
 			results = append(results, r)
 			return results
@@ -142,7 +161,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	if forceBool, ok := forceValidationOnCurrentNode.(bool); (ok && forceBool) || autoForce {
 		if len(nodes) > 0 {
-			schema.GoLow().Index = context.Index
+			schema.GoLow().Index = schemaIndex
 			results = append(results, validateNodeAgainstSchema(&context, schema, nil, nodes[0], context, 0)...)
 			return results
 		}
@@ -154,17 +173,15 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		}
 
 		// if the node is a document node, skip down one level
-		var no []*yaml.Node
-		if node.Kind == yaml.DocumentNode {
-			no = node.Content[0].Content
-		} else {
-			no = node.Content
+		searchNode := node
+		if searchNode.Kind == yaml.DocumentNode && len(searchNode.Content) > 0 {
+			searchNode = searchNode.Content[0]
 		}
 
-		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, no, vacuumUtils.FieldPathOptions{})
+		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, searchNode.Content, vacuumUtils.FieldPathOptions{})
 		fieldNode, fieldNodeValue := result.KeyNode, result.ValueNode
 		if fieldNodeValue != nil {
-			schema.GoLow().Index = context.Index
+			schema.GoLow().Index = schemaIndex
 			results = append(results, validateNodeAgainstSchema(&context, schema, fieldNode, fieldNodeValue, context, x)...)
 
 		} else {
@@ -189,9 +206,10 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 					}
 				}
 
+				errorText := fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field)
+				defaultMessage := fmt.Sprintf("%s: %s", ruleMessage, errorText)
 				r := model.BuildFunctionResultString(
-					vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
-						fmt.Sprintf("`%s`, is missing and is required", context.RuleAction.Field))))
+					buildSchemaResultMessage(message, defaultMessage, errorText, interpolateErrorMessage))
 				r.StartNode = node
 				r.EndNode = vacuumUtils.BuildEndNode(node)
 				r.Rule = context.Rule
@@ -225,6 +243,8 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	}
 
 	var results []model.RuleFunctionResult
+	message := context.Rule.Message
+	interpolateErrorMessage := shouldInterpolateSchemaErrorMessage(context.Options)
 
 	// validate using schema provided.
 	res, resErrors := parser.ValidateNodeAgainstSchema(ctx, schema, fieldNodeValue, false)
@@ -237,8 +257,6 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	for k := range resErrors {
 		schemaErrors = append(schemaErrors, resErrors[k].SchemaValidationErrors...)
 	}
-
-	message := context.Rule.Message
 
 	for c := range schemaErrors {
 
@@ -270,8 +288,8 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 			}
 		}
 
-		r := model.BuildFunctionResultString(vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: %s", ruleMessage,
-			schemaErrors[c].Reason)))
+		defaultMessage := fmt.Sprintf("%s: %s", ruleMessage, schemaErrors[c].Reason)
+		r := model.BuildFunctionResultString(buildSchemaResultMessage(message, defaultMessage, schemaErrors[c].Reason, interpolateErrorMessage))
 		r.StartNode = fieldNodeValue
 		r.EndNode = vacuumUtils.BuildEndNode(fieldNodeValue)
 		r.Rule = context.Rule
@@ -305,4 +323,29 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 	}
 	return results
+}
+
+func encodeSchemaOptions(node *yaml.Node, schema interface{}) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("%v", recovered)
+		}
+	}()
+	return node.Encode(schema)
+}
+
+func shouldInterpolateSchemaErrorMessage(options interface{}) bool {
+	interpolate := utils.ExtractValueFromInterfaceMap(interpolateErrorMessageOptionKey, options)
+	enabled, _ := interpolate.(bool)
+	return enabled
+}
+
+func buildSchemaResultMessage(messageTemplate, defaultMessage, errorText string, interpolate bool) string {
+	if messageTemplate == "" {
+		return defaultMessage
+	}
+	if !interpolate || !strings.Contains(messageTemplate, schemaErrorPlaceholder) {
+		return messageTemplate
+	}
+	return strings.ReplaceAll(messageTemplate, schemaErrorPlaceholder, errorText)
 }

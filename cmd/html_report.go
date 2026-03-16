@@ -164,6 +164,8 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 				var specIndex *index.SpecIndex
 				var specInfo *datamodel.SpecInfo
 				var stats *reports.ReportStatistics
+				resolveAllRefsFlag, _ := cmd.Flags().GetBool("resolve-all-refs")
+				nestedRefsDocContextFlag, _ := cmd.Flags().GetBool("nested-refs-doc-context")
 
 				// if we have a pre-compiled report, jump straight to the end and collect $500
 				if vacuumReport == nil {
@@ -212,9 +214,18 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					}
 
 					turboFlag, _ := cmd.Flags().GetBool("turbo")
-					resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
-						&TurboFlags{TurboMode: turboFlag})
+					turboFlags := &TurboFlags{TurboMode: turboFlag}
+					if resolveAllRefsFlag || nestedRefsDocContextFlag {
+						resultSet, ruleset, err = BuildResultsWithDocCheckSkipAndExecutionFlags(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
+							resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
+							turboFlags, &ExecutionFlags{
+								ResolveAllRefs:       resolveAllRefsFlag,
+								NestedRefsDocContext: nestedRefsDocContextFlag,
+							})
+					} else {
+						resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
+							resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
+					}
 					if err != nil {
 						tui.RenderError(err)
 						if isMultiFile {
@@ -299,7 +310,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 
 					// Use violation-set diffing when --original is specified and we have an execution template
 					if originalFlag != "" && ruleset != nil && ruleset.RuleSetExecution != nil {
-						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution)
+						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
 						if lintErr != nil {
 							if !silent {
 								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
