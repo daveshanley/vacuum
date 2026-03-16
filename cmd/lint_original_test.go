@@ -46,6 +46,8 @@ func registerPersistentFlags(cmd *cobra.Command) {
 	pf.BoolP("time", "t", false, "Time")
 	pf.Bool("changes-summary", false, "Changes summary")
 	pf.BoolP("turbo", "T", false, "Turbo")
+	pf.Bool("resolve-all-refs", false, "Resolve all refs")
+	pf.Bool("nested-refs-doc-context", false, "Nested refs doc context")
 }
 
 // --- Lint command tests ---
@@ -213,6 +215,76 @@ func TestLintCommand_OriginalWithErrorOnBreaking(t *testing.T) {
 
 	// Same spec: no breaking changes, no new violations → no error
 	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestLintCommand_ResolveAllRefsFlag(t *testing.T) {
+	spec := `openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            type: object
+`
+	ruleset := `extends: [[vacuum:oas, off]]
+rules:
+  response-has-content:
+    description: Ensure referenced responses expose content
+    severity: error
+    recommended: true
+    formats: [oas3]
+    resolved: false
+    given: "$.paths[*][*].responses['404']"
+    then:
+      field: content
+      function: defined
+`
+
+	tempDir := t.TempDir()
+	specPath := filepath.Join(tempDir, "spec.yaml")
+	rulesetPath := filepath.Join(tempDir, "ruleset.yaml")
+	require.NoError(t, os.WriteFile(specPath, []byte(spec), 0o600))
+	require.NoError(t, os.WriteFile(rulesetPath, []byte(ruleset), 0o600))
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBufferString(""))
+	cmd.SetErr(bytes.NewBufferString(""))
+	cmd.SetArgs([]string{
+		"-r", rulesetPath,
+		"-b",
+		"-q",
+		specPath,
+	})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+
+	cmd = GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBufferString(""))
+	cmd.SetErr(bytes.NewBufferString(""))
+	cmd.SetArgs([]string{
+		"-r", rulesetPath,
+		"--resolve-all-refs",
+		"-b",
+		"-q",
+		specPath,
+	})
+
+	err = cmd.Execute()
 	assert.NoError(t, err)
 }
 

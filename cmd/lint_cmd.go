@@ -274,7 +274,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 			TurboMode:                       flags.TurboMode,
 		}
 
-		result := motor.ApplyRulesToRuleSet(execution)
+		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)
+		result := motor.ApplyRulesToRuleSetWithOptions(execution, executionOptions)
 
 		result.Results = utils.FilterIgnoredResultsWithOptions(
 			result.Results,
@@ -284,7 +285,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
-			originalResults, lintErr := LintOriginalSpec(flags.OriginalFlag, execution)
+			originalResults, lintErr := LintOriginalSpec(flags.OriginalFlag, execution, executionOptions)
 			if lintErr != nil {
 				if !flags.SilentFlag {
 					fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", lintErr)

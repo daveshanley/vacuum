@@ -110,6 +110,8 @@ type LintFlags struct {
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
 	TurboMode                bool   // --turbo: faster linting, trades some checks for speed
+	ResolveAllRefs           bool   // --resolve-all-refs: force resolved execution for all rules
+	NestedRefsDocContext     bool   // --nested-refs-doc-context: resolve nested relative refs from the referenced document during resolved execution
 	OutputAbsPathsFlag       bool
 }
 
@@ -229,6 +231,14 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	flags.TurboMode, _ = cmd.Flags().GetBool("turbo")
 	if !cmd.Flags().Changed("turbo") && viper.IsSet("lint.turbo") {
 		flags.TurboMode = viper.GetBool("lint.turbo")
+	}
+	flags.ResolveAllRefs, _ = cmd.Flags().GetBool("resolve-all-refs")
+	if !cmd.Flags().Changed("resolve-all-refs") && viper.IsSet("lint.resolve-all-refs") {
+		flags.ResolveAllRefs = viper.GetBool("lint.resolve-all-refs")
+	}
+	flags.NestedRefsDocContext, _ = cmd.Flags().GetBool("nested-refs-doc-context")
+	if !cmd.Flags().Changed("nested-refs-doc-context") && viper.IsSet("lint.nested-refs-doc-context") {
+		flags.NestedRefsDocContext = viper.GetBool("lint.nested-refs-doc-context")
 	}
 	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
 	return flags
@@ -517,7 +527,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
-	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+	result := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 		RuleSet:                         config.SelectedRuleset,
 		Spec:                            specBytes,
 		SpecFileName:                    resolvedSpecPath,
@@ -538,7 +548,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		ApplyAutoFixes:                  config.Flags.FixFlag,
 		FetchConfig:                     config.FetchConfig,
 		TurboMode:                       config.Flags.TurboMode,
-	})
+	}, newMotorExecutionOptionsFromLintFlags(config.Flags))
 
 	if len(result.Errors) > 0 {
 		var logs []string
