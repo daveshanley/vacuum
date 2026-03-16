@@ -2,10 +2,13 @@ package core
 
 import (
 	"context"
+	"errors"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/datamodel"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
@@ -14,7 +17,11 @@ import (
 
 func TestOpenAPISchema_GetSchema(t *testing.T) {
 	def := Schema{}
-	assert.Equal(t, "schema", def.GetSchema().Name)
+	schema := def.GetSchema()
+	assert.Equal(t, "schema", schema.Name)
+	for _, property := range schema.Properties {
+		assert.NotEqual(t, "resolveRefs", property.Name)
+	}
 }
 
 func TestOpenAPISchema_RunRule(t *testing.T) {
@@ -119,12 +126,427 @@ func TestOpenAPISchema_InvalidSchemaInteger(t *testing.T) {
 
 }
 
+func TestSchema_MessagePlaceholderOnly(t *testing.T) {
+	yml := `smell: not a number`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": testGenerateJSONSchema(n.Content[0]),
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "{{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "{{error}}", res[0].Message)
+}
+
+func TestSchema_MessagePlaceholderReplacement(t *testing.T) {
+	yml := `smell: not a number`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": testGenerateJSONSchema(n.Content[0]),
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "validation failed: {{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "validation failed: {{error}}", res[0].Message)
+}
+
+func TestSchema_MessageWhitespacePreservedByDefault(t *testing.T) {
+	yml := `smell: not a number`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": testGenerateJSONSchema(n.Content[0]),
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "  validation failed: {{error}}  ",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "  validation failed: {{error}}  ", res[0].Message)
+}
+
+func TestSchema_MessagePlaceholderOnly_InterpolateErrorMessage(t *testing.T) {
+	yml := `smell: not a number`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"type": "integer",
+		},
+		"interpolateErrorMessage": true,
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "{{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "got string, want integer", res[0].Message)
+}
+
+func TestSchema_MessagePlaceholderReplacement_InterpolateErrorMessage(t *testing.T) {
+	yml := `smell: not a number`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"type": "integer",
+		},
+		"interpolateErrorMessage": true,
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "validation failed: {{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "validation failed: got string, want integer", res[0].Message)
+}
+
+func TestSchema_RawSchemaMarshalFailure(t *testing.T) {
+	yml := `smell: 1`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"broken": make(chan int),
+		},
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "unable to parse function options")
+}
+
+func TestSchema_RawSchemaMarshalFailure_InterpolateErrorMessage(t *testing.T) {
+	yml := `smell: 1`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"broken": make(chan int),
+		},
+		"interpolateErrorMessage": true,
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "validation failed: {{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "validation failed:")
+	assert.NotContains(t, res[0].Message, "{{error}}")
+}
+
+func TestSchema_LowSchemaBuildFailure_InterpolateErrorMessage(t *testing.T) {
+	yml := `smell: 1`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"type": "integer",
+		},
+		"interpolateErrorMessage": true,
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "validation failed: {{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	originalBuildSchemaLowModel := buildSchemaLowModel
+	defer func() {
+		buildSchemaLowModel = originalBuildSchemaLowModel
+	}()
+	buildSchemaLowModel = func(_ *yaml.Node, _ interface{}) error {
+		return errors.New("low schema build failed")
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "validation failed: low schema build failed", res[0].Message)
+}
+
+func TestSchema_HighSchemaBuildFailure_InterpolateErrorMessage(t *testing.T) {
+	yml := `smell: 1`
+	nodes, _ := utils.FindNodes([]byte(yml), "$")
+
+	validate := `type: integer`
+	var n yaml.Node
+	_ = yaml.Unmarshal([]byte(validate), &n)
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"type": "integer",
+		},
+		"interpolateErrorMessage": true,
+	}
+
+	rule := model.Rule{
+		Given: "$",
+		Then: &model.RuleAction{
+			Field:           "smell",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "validation failed: {{error}}",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	originalBuildSchemaLowDocument := buildSchemaLowDocument
+	defer func() {
+		buildSchemaLowDocument = originalBuildSchemaLowDocument
+	}()
+	buildSchemaLowDocument = func(_ *yaml.Node, _ *lowBase.Schema, _ *index.SpecIndex) error {
+		return errors.New("high schema build failed")
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "validation failed: high schema build failed", res[0].Message)
+}
+
+func TestSchema_RawMapBooleanValidation_OnNestedGivenNode(t *testing.T) {
+	spec := `openapi: 3.0.0
+info:
+  title: Example
+  version: 1.0.0
+  x-contains-sensitive-data: wrong
+paths: {}
+`
+
+	nodes, _ := utils.FindNodes([]byte(spec), "$.info")
+
+	opts := map[string]interface{}{
+		"schema": map[string]interface{}{
+			"type": "boolean",
+		},
+	}
+
+	rule := model.Rule{
+		Given: "$.info",
+		Then: &model.RuleAction{
+			Field:           "x-contains-sensitive-data",
+			Function:        "schema",
+			FunctionOptions: opts,
+		},
+		Description: "schema must be valid",
+		Message:     "bad boolean",
+	}
+
+	ctx := model.RuleFunctionContext{
+		RuleAction: model.CastToRuleAction(rule.Then),
+		Rule:       &rule,
+		Options:    opts,
+		Given:      rule.Given,
+	}
+
+	res := Schema{}.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "bad boolean", res[0].Message)
+}
+
 func testGenerateJSONSchema(node *yaml.Node) *highBase.Schema {
 	sch := lowBase.Schema{}
 	_ = low.BuildModel(node, &sch)
 	_ = sch.Build(context.Background(), node, nil)
 	highSch := highBase.NewSchema(&sch)
 	return highSch
+}
+
+func testBuildSpecIndex(spec string) (*yaml.Node, *index.SpecIndex) {
+	var root yaml.Node
+	_ = yaml.Unmarshal([]byte(spec), &root)
+	cfg := index.CreateOpenAPIIndexConfig()
+	return &root, index.NewSpecIndexWithConfig(&root, cfg)
+}
+
+func testBuildSpecInfo(t *testing.T, spec string) *datamodel.SpecInfo {
+	info, err := datamodel.ExtractSpecInfo([]byte(spec))
+	assert.NoError(t, err)
+	return info
+}
+
+func testFindMappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i] != nil && node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
 }
 
 func TestOpenAPISchema_InvalidSchemaBoolean(t *testing.T) {

@@ -10,10 +10,23 @@ import (
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
+	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
 )
+
+type languageServerRunner interface {
+	Run() error
+}
+
+var newLanguageServerRunner = func(version string, lintRequest *utils.LintFileRequest, executionOptions *motor.ExecutionOptions) languageServerRunner {
+	return languageserver.NewServerWithExecutionOptions(version, lintRequest, executionOptions)
+}
+
+var runLanguageServer = func(version string, lintRequest *utils.LintFileRequest, executionOptions *motor.ExecutionOptions) error {
+	return newLanguageServerRunner(version, lintRequest, executionOptions).Run()
+}
 
 func GetLanguageServerCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -39,6 +52,8 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
+			resolveAllRefsFlag, _ := cmd.Flags().GetBool("resolve-all-refs")
+			nestedRefsDocContextFlag, _ := cmd.Flags().GetBool("nested-refs-doc-context")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
@@ -115,7 +130,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				HTTPClientConfig:         httpClientConfig,
 			}
 
-			return languageserver.NewServer(GetVersion(), &lfr).Run()
+			return runLanguageServer(GetVersion(), &lfr, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
 		},
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
