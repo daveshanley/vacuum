@@ -97,15 +97,6 @@ If your company is using `vacuum`, please considering [supporting this project](
 like our _very kind_ sponsors, past and present:
 
 
-<a href="https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/speakeasy-github-sponsor-dark.svg">
-  <img alt="speakeasy'" src=".github/sponsors/speakeasy-github-sponsor-light.svg">
-</picture>
-</a>
-
-[Speakeasy](https://speakeasyapi.dev/?utm_source=vacuum+repo&utm_medium=github+sponsorship)
-
 <a href="https://scalar.com">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/scalar-dark.png">
