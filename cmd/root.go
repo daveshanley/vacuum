@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,7 +49,15 @@ func Execute(version, commit, date string) {
 			strings.Contains(errStr, "unknown shorthand flag") {
 			tui.RenderErrorString("%s", errStr)
 		}
-		os.Exit(1)
+		// Use the exit code from ExitError if available.
+		// Otherwise default to exit 2 (input/tool error). Exit 1 is reserved
+		// exclusively for "spec processed, violations found" and is only
+		// produced by NewViolationError / CheckFailureSeverity.
+		var exitErr *ExitError
+		if errors.As(err, &exitErr) {
+			os.Exit(exitErr.Code)
+		}
+		os.Exit(ExitCodeInputError)
 	}
 }
 
@@ -125,6 +134,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.AddCommand(GetLanguageServerCommand())
 	rootCmd.AddCommand(GetBundleCommand())
 	rootCmd.AddCommand(GetApplyOverlayCommand())
+	rootCmd.AddCommand(GetOpenCollectionCommand())
 
 	if regErr := rootCmd.RegisterFlagCompletionFunc("functions", cobra.FixedCompletions(
 		[]string{"so"}, cobra.ShellCompDirectiveFilterFileExt,

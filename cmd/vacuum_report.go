@@ -317,6 +317,15 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					TurboMode:                       turboFlag,
 				})
 
+				// Check for spec parsing errors before generating report
+				if ruleset.SpecInfo == nil {
+					tui.RenderErrorString("Failed to parse specification '%s'", specFile)
+					if isMultiFile {
+						continue
+					}
+					return NewInputError("failed to parse specification '%s'", specFile)
+				}
+
 				resultSet := model.NewRuleResultSet(ruleset.Results)
 				resultSet.SortResultsByLineNumber()
 
@@ -326,12 +335,22 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				// Note: change filtering only makes sense for single-file mode
 				var documentChanges *wcModel.DocumentChanges
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
-					// Load changes first so we can use them for both filtering and violations
+					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
+						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution)
+						if lintErr != nil {
+							if !stdIn && !stdOut {
+								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
+							}
+						} else {
+							resultSet.Results, _ = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+						}
+
+						// Still load document changes for change violation injection
 						changeResult, changeErr := utils.GenerateChangeReportWithTree(originalFlag, specBytes, specFile)
 						if changeErr != nil {
 							if !stdIn && !stdOut {
-								tui.RenderErrorString("Warning: Failed to generate change report: %v. Proceeding without change filtering.", changeErr)
+								tui.RenderErrorString("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changeErr)
 							}
 						} else if changeResult != nil {
 							documentChanges = changeResult.DocumentChanges
@@ -344,12 +363,12 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 								tui.RenderErrorString("Warning: Failed to load change report: %v. Proceeding without change filtering.", loadErr)
 							}
 						}
-					}
 
-					// Apply change filtering
-					if documentChanges != nil {
-						changeFilter := utils.NewChangeFilter(documentChanges, ruleset.RuleSetExecution.DrDocument)
-						resultSet.Results = changeFilter.FilterResults(resultSet.Results)
+						// --changes mode: fall back to area-based ChangeFilter
+						if documentChanges != nil {
+							changeFilter := utils.NewChangeFilter(documentChanges, ruleset.RuleSetExecution.DrDocument)
+							resultSet.Results = changeFilter.FilterResults(resultSet.Results)
+						}
 					}
 
 					// Inject change violations if requested
@@ -439,7 +458,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				if stdOut {
 					fmt.Print(string(reportData))
 					if minScore > 10 && stats != nil && stats.OverallScore < minScore {
-						return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
+						return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
 							stats.OverallScore, minScore)
 					}
 					return nil
@@ -495,7 +514,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 
 			// Check threshold against lowest score across all files
 			if minScore > 10 && lowestScore < minScore {
-				return fmt.Errorf("score threshold failed, lowest overall score is %d, and the threshold is %d",
+				return NewViolationError("score threshold failed, lowest overall score is %d, and the threshold is %d",
 					lowestScore, minScore)
 			}
 

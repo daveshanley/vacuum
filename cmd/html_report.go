@@ -230,7 +230,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						if isMultiFile {
 							continue
 						}
-						return errors.New("failed to parse specification")
+						return NewInputError("failed to parse specification '%s'", specFile)
 					}
 					specInfo.Generated = time.Now()
 					stats = statistics.CreateReportStatistics(specIndex, specInfo, resultSet)
@@ -294,9 +294,32 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						drDoc = ruleset.RuleSetExecution.DrDocument
 					}
 
-					// Load changes first so we can use them for both filtering and violations
 					var documentChanges *wcModel.DocumentChanges
-					if originalFlag != "" {
+					var filtered bool
+
+					// Use violation-set diffing when --original is specified and we have an execution template
+					if originalFlag != "" && ruleset != nil && ruleset.RuleSetExecution != nil {
+						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution)
+						if lintErr != nil {
+							if !silent {
+								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
+							}
+						} else {
+							resultSet.Results, _ = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+							filtered = true
+						}
+
+						// Still load document changes for change violation injection
+						changeResult, changeErr := utils.GenerateChangeReportWithTree(originalFlag, specBytes, specFile)
+						if changeErr != nil {
+							if !silent {
+								tui.RenderErrorString("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changeErr)
+							}
+						} else if changeResult != nil {
+							documentChanges = changeResult.DocumentChanges
+						}
+					} else if originalFlag != "" {
+						// Precompiled report without execution template: fall back to area-based filter
 						changeResult, changeErr := utils.GenerateChangeReportWithTree(originalFlag, specBytes, specFile)
 						if changeErr != nil {
 							if !silent {
@@ -304,6 +327,9 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 							}
 						} else if changeResult != nil {
 							documentChanges = changeResult.DocumentChanges
+							changeFilter := utils.NewChangeFilter(documentChanges, drDoc)
+							resultSet.Results = changeFilter.FilterResults(resultSet.Results)
+							filtered = true
 						}
 					} else if changesFlag != "" {
 						var loadErr error
@@ -313,12 +339,13 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 								tui.RenderErrorString("Warning: Failed to load change report: %v. Proceeding without change filtering.", loadErr)
 							}
 						}
-					}
 
-					// Apply change filtering
-					if documentChanges != nil {
-						changeFilter := utils.NewChangeFilter(documentChanges, drDoc)
-						resultSet.Results = changeFilter.FilterResults(resultSet.Results)
+						// --changes mode: area-based ChangeFilter
+						if documentChanges != nil {
+							changeFilter := utils.NewChangeFilter(documentChanges, drDoc)
+							resultSet.Results = changeFilter.FilterResults(resultSet.Results)
+							filtered = true
+						}
 					}
 
 					// Inject change violations if requested
@@ -332,17 +359,18 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 								resultSet.Results = append(resultSet.Results, v)
 							}
 						}
+						filtered = true
 					}
 
 					// Reset cached counts and category results after filtering/violations
 					// so that stats recalculation and HTML template use fresh data
-					if documentChanges != nil {
+					if filtered {
 						resultSet.ResetCounts()
 						resultSet.ResetCategoryCache()
 					}
 
 					// Recompute stats after change filtering/violations
-					if stats != nil && documentChanges != nil {
+					if stats != nil && filtered {
 						stats.TotalErrors = resultSet.GetErrorCount()
 						stats.TotalWarnings = resultSet.GetWarnCount()
 						stats.TotalInfo = resultSet.GetInfoCount()

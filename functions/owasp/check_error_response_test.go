@@ -153,3 +153,251 @@ paths:
 	assert.Equal(t, "missing schema for `401` response on `GET`", res[0].Message)
 	assert.Equal(t, "$.paths['/'].get.responses['401']", res[0].Path)
 }
+
+func TestCheckErrorResponse_SecurityEmptyObject_401_Skip(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      security:
+      - {}
+      responses:
+        "200":
+          description: "ok"
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	opts := make(map[string]interface{})
+	opts["code"] = "401"
+
+	rule := buildOpenApiTestRuleAction(path, "check_error_response", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := CheckErrorResponse{}
+	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCheckErrorResponse_SecurityEmptyArray_401_Skip(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      security: []
+      responses:
+        "200":
+          description: "ok"
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	opts := make(map[string]interface{})
+	opts["code"] = "401"
+
+	rule := buildOpenApiTestRuleAction(path, "check_error_response", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := CheckErrorResponse{}
+	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCheckErrorResponse_SecurityMixed_401_Required(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+paths:
+  /:
+    get:
+      security:
+      - bearer: []
+      - {}
+      responses:
+        "200":
+          description: "ok"
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	opts := make(map[string]interface{})
+	opts["code"] = "401"
+
+	rule := buildOpenApiTestRuleAction(path, "check_error_response", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := CheckErrorResponse{}
+	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestCheckErrorResponse_SecurityAuthRequired_401_Required(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+paths:
+  /:
+    get:
+      security:
+      - bearer: []
+      responses:
+        "200":
+          description: "ok"
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	opts := make(map[string]interface{})
+	opts["code"] = "401"
+
+	rule := buildOpenApiTestRuleAction(path, "check_error_response", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := CheckErrorResponse{}
+	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestCheckErrorResponse_NoSecurityField_401_Required(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      responses:
+        "200":
+          description: "ok"
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	opts := make(map[string]interface{})
+	opts["code"] = "401"
+
+	rule := buildOpenApiTestRuleAction(path, "check_error_response", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := CheckErrorResponse{}
+	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+}
+
+func TestCheckErrorResponse_SecurityEmptyObject_500_StillRequired(t *testing.T) {
+
+	yml := `openapi: "3.1.0"
+info:
+  version: "1.0"
+paths:
+  /:
+    get:
+      security:
+      - {}
+      responses:
+        "200":
+          description: "ok"
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	opts := make(map[string]interface{})
+	opts["code"] = "500"
+
+	rule := buildOpenApiTestRuleAction(path, "check_error_response", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+
+	def := CheckErrorResponse{}
+	ctx.Document = document
+	drDocument := drModel.NewDrDocument(m)
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+}

@@ -61,6 +61,7 @@ type ruleContext struct {
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
 	schemaPathCache    *sync.Map
+	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -493,8 +494,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				if rolodexResolved.GetRootIndex() != nil {
 					specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 					resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-					circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
 				}
+				circularReferences = rolodexResolved.GetSafeCircularReferences()
 			}
 
 		case '3':
@@ -571,7 +572,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 				specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 				//resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-				circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+			}
+			if rolodexResolved != nil {
+				circularReferences = rolodexResolved.GetSafeCircularReferences()
 			}
 
 		}
@@ -612,7 +615,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		if rolodexResolved != nil && rolodexResolved.GetRootIndex() != nil {
 			specNodeResolved = rolodexResolved.GetRootIndex().GetRootNode()
 			resolvingErrors = rolodexResolved.GetRootIndex().GetResolver().GetResolvingErrors()
-			circularReferences = rolodexResolved.GetRootIndex().GetResolver().GetCircularReferences()
+		}
+		if rolodexResolved != nil {
+			circularReferences = rolodexResolved.GetSafeCircularReferences()
 		}
 	}
 
@@ -725,9 +730,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		ruleResults = append(ruleResults, res)
 	}
 
-	// add all circular references to the results.
+	// deduplicate circular references by Start.Definition before building results.
+	// the rolodex already deduplicates by LoopPoint.FullDefinition, but when a custom
+	// RolodexFS (like bunkhouse's RevisionFS) is used, the same circular reference
+	// can be detected by both the root resolver and per-file resolvers, producing
+	// entries with different FullDefinition paths but identical Start.Definition.
 	if !execution.SkipCircularCheck {
+		seen := make(map[string]bool)
 		for _, cr := range circularReferences {
+			if seen[cr.Start.Definition] {
+				continue
+			}
+			seen[cr.Start.Definition] = true
 			res := model.RuleFunctionResult{
 				RuleId:    "circular-references",
 				Rule:      circularRefRule,
@@ -847,6 +861,18 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			applicableRules = append(applicableRules, rule)
 		}
 
+		// Resolve Spectral-compatible aliases once for this spec's format.
+		var resolvedAliases map[string][]string
+		if execution.RuleSet.ParsedAliases != nil {
+			resolved := rulesets.ResolveAliasesForFormat(execution.RuleSet.ParsedAliases, specFormat)
+			expanded, aliasErr := rulesets.ExpandAliasReferences(resolved)
+			if aliasErr != nil {
+				indexConfig.Logger.Error("alias expansion error", "error", aliasErr)
+			} else {
+				resolvedAliases = expanded
+			}
+		}
+
 		totalRules := len(applicableRules)
 		done := make(chan bool, totalRules)
 		indexConfig.Logger.Debug("running rules", "total", totalRules, "filtered_from", len(execution.RuleSet.Rules))
@@ -914,6 +940,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					hasInlineIgnores:   specHasInlineIgnores,
 					ignoreIndex:        ignoreIdx,
 					schemaPathCache:    &schemaPathCache,
+					expandedAliases:    resolvedAliases,
 				}
 				if execution.PanicFunction != nil {
 					ctx.panicFunc = execution.PanicFunction
@@ -968,6 +995,48 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		filesProcessed = rolodexResolved.RolodexTotalFiles()
 		fileSize = rolodexResolved.RolodexFileSize()
 		//ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
+
+		// Populate Origin for multi-file specs using pointer-based disambiguation
+		if len(rolodexResolved.GetIndexes()) > 0 {
+			// Build cache from unresolved rolodex if available — its nodeMaps were built before
+			// resolution and contain only each file's own nodes (no shared Content pointers).
+			cacheRolodex := rolodexResolved
+			if rolodexUnresolved != nil && len(rolodexUnresolved.GetIndexes()) > 0 {
+				cacheRolodex = rolodexUnresolved
+			}
+			nodeOwnerCache := buildNodeOwnerCache(cacheRolodex)
+			rootPath := ""
+			if rootIdx := rolodexResolved.GetRootIndex(); rootIdx != nil {
+				rootPath = rootIdx.GetSpecAbsolutePath()
+			}
+			for i := range ruleResults {
+				if ruleResults[i].Origin == nil && ruleResults[i].StartNode != nil {
+					var origin *index.NodeOrigin
+					if ownerIdx, ok := nodeOwnerCache[ruleResults[i].StartNode]; ok {
+						absLoc := ownerIdx.GetSpecAbsolutePath()
+						if rootPath != "" && absLoc == rootPath {
+							absLoc = execution.SpecFileName
+						}
+						origin = &index.NodeOrigin{
+							Node:             ruleResults[i].StartNode,
+							Line:             ruleResults[i].StartNode.Line,
+							Column:           ruleResults[i].StartNode.Column,
+							AbsoluteLocation: absLoc,
+							Index:            ownerIdx,
+						}
+					} else {
+						origin = rolodexResolved.FindNodeOrigin(ruleResults[i].StartNode)
+						if origin != nil && rootPath != "" && origin.AbsoluteLocation == rootPath {
+							origin.AbsoluteLocation = execution.SpecFileName
+						}
+					}
+					if origin != nil {
+						ruleResults[i].Origin = origin
+					}
+				}
+			}
+			nodeOwnerCache = nil
+		}
 	}
 
 	then = time.Since(now).Milliseconds()
@@ -1037,6 +1106,16 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 			if gp, ko := gpI.(string); ko {
 				givenPaths = append(givenPaths, gp)
 			}
+		}
+	}
+
+	// Expand Spectral alias references (#AliasName) without mutating rule.Given
+	if ctx.expandedAliases != nil {
+		expanded, expandErr := rulesets.ExpandRuleGivenPaths(givenPaths, ctx.expandedAliases)
+		if expandErr != nil {
+			ctx.logger.Warn("alias expansion error in rule", "rule", ctx.rule.Id, "error", expandErr)
+		} else {
+			givenPaths = expanded
 		}
 	}
 
@@ -1362,6 +1441,50 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 			}
 		}
 	}
+}
+
+// buildNodeOwnerCache creates a reverse lookup from yaml.Node pointers to the
+// SpecIndex that owns them, eliminating ambiguous hash-based matching when
+// multiple files have nodes at the same line/column with the same content.
+// It recursively walks all Content children so that any node reachable from
+// an index's nodeMap is mapped, not just the top-level entries.
+// Child indexes are processed FIRST because the resolved root index's nodeMap
+// contains pointers spliced in from child files by the resolver; processing
+// children first ensures each node is attributed to its actual source file.
+func buildNodeOwnerCache(rolodex *index.Rolodex) map[*yaml.Node]*index.SpecIndex {
+	cache := make(map[*yaml.Node]*index.SpecIndex)
+
+	var walkNode func(n *yaml.Node, idx *index.SpecIndex)
+	walkNode = func(n *yaml.Node, idx *index.SpecIndex) {
+		if n == nil {
+			return
+		}
+		if _, exists := cache[n]; exists {
+			return
+		}
+		cache[n] = idx
+		for _, child := range n.Content {
+			walkNode(child, idx)
+		}
+	}
+
+	// Process child indexes first — they own their nodes.
+	for _, idx := range rolodex.GetIndexes() {
+		for _, colMap := range idx.GetNodeMap() {
+			for _, node := range colMap {
+				walkNode(node, idx)
+			}
+		}
+	}
+	// Process root index last — it gets whatever remains (its own nodes).
+	if rootIdx := rolodex.GetRootIndex(); rootIdx != nil {
+		for _, colMap := range rootIdx.GetNodeMap() {
+			for _, node := range colMap {
+				walkNode(node, rootIdx)
+			}
+		}
+	}
+	return cache
 }
 
 type seenResult struct {

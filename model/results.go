@@ -59,6 +59,7 @@ func NewRuleResultSet(results []RuleFunctionResult) *RuleResultSet {
 	rrs.ErrorCount = getCount(rrs, SeverityError)
 	rrs.WarnCount = getCount(rrs, SeverityWarn)
 	rrs.InfoCount = getCount(rrs, SeverityInfo)
+	rrs.HintCount = getCount(rrs, SeverityHint)
 	rrs.countsComputed = true
 	return rrs
 }
@@ -91,7 +92,7 @@ var indexRegex = regexp.MustCompile(`(\w+)\[(\d+)]`)
 // GenerateSpectralReport will return a Spectral compatible report structure, easily serializable
 func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.SpectralReport {
 
-	var report []reports.SpectralReport
+	report := make([]reports.SpectralReport, 0)
 	for _, result := range rr.Results {
 
 		sev := 1
@@ -115,6 +116,12 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 		if result.EndNode != nil {
 			eLine = result.EndNode.Line
 			eChar = result.EndNode.Column
+		}
+		if result.Origin != nil {
+			sLine = result.Origin.Line
+			sChar = result.Origin.Column
+			eLine = result.Origin.Line
+			eChar = result.Origin.Column
 		}
 
 		resultRange := reports.Range{
@@ -152,13 +159,18 @@ func (rr *RuleResultSet) GenerateSpectralReport(source string) []reports.Spectra
 			}
 		}
 
+		resultSource := source
+		if result.Origin != nil && result.Origin.AbsoluteLocation != "" {
+			resultSource = result.Origin.AbsoluteLocation
+		}
+
 		report = append(report, reports.SpectralReport{
 			Code:     result.Rule.Id,
 			Path:     path,
 			Message:  result.Message,
 			Severity: sev,
 			Range:    resultRange,
-			Source:   source,
+			Source:   resultSource,
 		})
 	}
 	return report
@@ -173,6 +185,7 @@ func (rr *RuleResultSet) computeCountsIfNeeded() {
 	rr.ErrorCount = getCount(rr, SeverityError)
 	rr.WarnCount = getCount(rr, SeverityWarn)
 	rr.InfoCount = getCount(rr, SeverityInfo)
+	rr.HintCount = getCount(rr, SeverityHint)
 	rr.countsComputed = true
 }
 
@@ -182,10 +195,17 @@ func (rr *RuleResultSet) GetErrorCount() int {
 	return rr.ErrorCount
 }
 
+// GetHintCount will return the number of hints returned by the rule results.
+func (rr *RuleResultSet) GetHintCount() int {
+	rr.computeCountsIfNeeded()
+	return rr.HintCount
+}
+
 func (rr *RuleResultSet) ResetCounts() {
 	rr.ErrorCount = 0
 	rr.WarnCount = 0
 	rr.InfoCount = 0
+	rr.HintCount = 0
 	rr.countsComputed = false
 }
 

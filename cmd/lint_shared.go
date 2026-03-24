@@ -25,12 +25,12 @@ import (
 )
 
 // ResolveBasePathForFile determines the base path to use for a given spec file.
-// If baseFlag is explicitly set (not empty), it returns that value unchanged.
+// If baseFlag is explicitly set (not empty), it returns that value converted to abs path.
 // If baseFlag is empty, it returns the absolute directory of the spec file.
 func ResolveBasePathForFile(specFilePath string, baseFlag string) (string, error) {
 	// If base is explicitly set, use it as-is
 	if baseFlag != "" {
-		return baseFlag, nil
+		return filepath.Abs(baseFlag)
 	}
 
 	// Auto-detect base from spec file location
@@ -110,6 +110,7 @@ type LintFlags struct {
 	WarnOnChanges            bool   // --warn-on-changes: inject warnings for API changes
 	ErrorOnBreaking          bool   // --error-on-breaking: inject errors for breaking changes
 	TurboMode                bool   // --turbo: faster linting, trades some checks for speed
+	OutputAbsPathsFlag       bool
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -229,6 +230,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("turbo") && viper.IsSet("lint.turbo") {
 		flags.TurboMode = viper.GetBool("lint.turbo")
 	}
+	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
 	return flags
 }
 
@@ -557,7 +559,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	var results []*model.RuleFunctionResult
-	var errors, warnings, informs int
+	var errors, warnings, informs, hints int
 
 	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
 	for i := range result.Results {
@@ -574,6 +576,8 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			warnings++
 		case "info":
 			informs++
+		case "hint":
+			hints++
 		}
 	}
 
@@ -593,6 +597,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Errors:   errors,
 		Warnings: warnings,
 		Informs:  informs,
+		Hints:    hints,
 		FileSize: fileSize,
 		Logs:     logs,
 		Error:    nil,

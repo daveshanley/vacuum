@@ -263,7 +263,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
-	if ruleset.DocumentationURI == "" {
+	// if the custom ruleset defines its own documentationUrl, preserve it over the base ruleset's URI.
+	if ruleset.DocumentationURI != "" {
+		rs.DocumentationURI = ruleset.DocumentationURI
+	} else {
 		ruleset.DocumentationURI = "https://quobix.com/vacuum/rulesets/understanding"
 	}
 
@@ -291,6 +294,12 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	if rs.RuleDefinitions == nil {
 		rs.RuleDefinitions = make(map[string]any)
+	}
+
+	// Reattach aliases from the supplied ruleset (extends may have replaced rs entirely).
+	// This is a full replacement, not a merge — safe because built-in rulesets never define aliases.
+	if ruleset.Aliases != nil {
+		rs.Aliases = ruleset.Aliases
 	}
 
 	// download remote rulesets
@@ -428,6 +437,17 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		}
 	}
 	rs.mutex.Unlock()
+
+	// Parse Spectral-compatible aliases (if any).
+	if len(rs.Aliases) > 0 {
+		parsed, err := ParseAliases(rs.Aliases)
+		if err != nil {
+			rsm.logger.Error("invalid aliases", "error", err.Error())
+		} else {
+			rs.ParsedAliases = parsed
+		}
+	}
+
 	return rs
 }
 
@@ -582,9 +602,11 @@ type RuleSet struct {
 	Description      string                 `json:"description,omitempty" yaml:"description,omitempty"`
 	DocumentationURI string                 `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
 	Formats          []string               `json:"formats,omitempty" yaml:"formats,omitempty"`
-	RuleDefinitions  map[string]interface{} `json:"rules" yaml:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
+	RuleDefinitions  map[string]interface{} `json:"rules" yaml:"rules"`                         // this can be either a string, or an entire rule (super annoying, stoplight).
 	Rules            map[string]*model.Rule `json:"-" yaml:"-"`
-	Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
+	Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"`   // can be string or tuple (again... why stoplight?)
+	Aliases          map[string]interface{} `json:"aliases,omitempty" yaml:"aliases,omitempty"`   // Spectral-compatible alias definitions
+	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                  // concrete parsed aliases, no interface boxing
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
 }
@@ -685,6 +707,16 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 			b.Resolved = true // default resolved
 		}
 	}
+
+	// Parse Spectral-compatible aliases (if any).
+	if len(rs.Aliases) > 0 {
+		parsed, err := ParseAliases(rs.Aliases)
+		if err != nil {
+			return nil, fmt.Errorf("invalid aliases: %w", err)
+		}
+		rs.ParsedAliases = parsed
+	}
+
 	return rs, nil
 }
 

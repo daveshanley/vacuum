@@ -35,7 +35,9 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "object") {
 			if schema.Value.AdditionalProperties != nil {
-				if schema.Value.AdditionalProperties.IsA() || schema.Value.AdditionalProperties.B {
+				// Flag if additionalProperties is true (IsB && B) or is a schema object (IsA)
+				if (schema.Value.AdditionalProperties.IsB() && schema.Value.AdditionalProperties.B) ||
+					schema.Value.AdditionalProperties.IsA() {
 					node := schema.Value.GoLow().Type.KeyNode
 					valueNode := schema.Value.GoLow().Type.ValueNode
 

@@ -66,6 +66,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
+	cmd.Flags().BoolP("abs-paths", "", false, "If --details(-d) flag is active then output absolute paths")
 	// base, remote, skip-check, timeout, ruleset, functions, time, hard-mode are inherited from root as persistent flags
 	// cert-file, key-file, ca-file, insecure, debug are inherited from root as persistent flags
 	// ext-refs is inherited from root as a persistent flag
@@ -272,8 +273,19 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
-		// Apply change-based filtering using pre-loaded documentChanges
-		if documentChanges != nil {
+		// Apply change-based filtering using violation-set diffing when --original is used
+		if flags.OriginalFlag != "" {
+			originalResults, lintErr := LintOriginalSpec(flags.OriginalFlag, execution)
+			if lintErr != nil {
+				if !flags.SilentFlag {
+					fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", lintErr)
+					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
+				}
+			} else {
+				result.Results, changeFilterStats = utils.DiffViolationsValues(originalResults, result.Results)
+			}
+		} else if documentChanges != nil {
+			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
 			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
 			result.Results, changeFilterStats = changeFilter.FilterResultsValues(result.Results)
 		}
@@ -299,7 +311,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			for _, err := range result.Errors {
 				fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
 			}
-			return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+			return NewInputError("linting failed due to %d issues", len(result.Errors))
 		}
 
 		resultSet = model.NewRuleResultSet(result.Results)
@@ -378,16 +390,17 @@ func runLint(cmd *cobra.Command, args []string) error {
 	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
 		specStringData = strings.Split(string(specBytes), "\n")
 		renderFixedDetails(RenderDetailsOptions{
-			Results:    resultSet.Results,
-			SpecData:   specStringData,
-			Snippets:   flags.SnippetsFlag,
-			Errors:     flags.ErrorsFlag,
-			Silent:     flags.SilentFlag,
-			NoMessage:  flags.NoMessageFlag,
-			AllResults: flags.AllResultsFlag,
-			NoClip:     flags.NoClipFlag,
-			FileName:   displayFileName,
-			NoStyle:    flags.NoStyleFlag,
+			Results:     resultSet.Results,
+			SpecData:    specStringData,
+			Snippets:    flags.SnippetsFlag,
+			Errors:      flags.ErrorsFlag,
+			Silent:      flags.SilentFlag,
+			NoMessage:   flags.NoMessageFlag,
+			AllResults:  flags.AllResultsFlag,
+			NoClip:      flags.NoClipFlag,
+			FileName:    displayFileName,
+			NoStyle:     flags.NoStyleFlag,
+			ShowAbsPath: flags.OutputAbsPathsFlag,
 		})
 	}
 
@@ -420,6 +433,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	errs := resultSet.GetErrorCount()
 	warnings := resultSet.GetWarnCount()
 	informs := resultSet.GetInfoCount()
+	hints := resultSet.GetHintCount()
 
 	overallScore := 0
 	if stats != nil {
@@ -434,15 +448,15 @@ func runLint(cmd *cobra.Command, args []string) error {
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
 			}
-			return fmt.Errorf("score threshold failed, overall score is %d, and the threshold is %d",
+			return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
 				overallScore, flags.MinScore)
 		}
 	}
 
-	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs)
+	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
 	if failErr != nil {
 		if flags.SilentFlag {
-			os.Exit(1)
+			os.Exit(ExitCodeViolations)
 		}
 		return failErr
 	}
@@ -457,6 +471,7 @@ type fileResult struct {
 	errors       int
 	warnings     int
 	informs      int
+	hints        int
 	size         int64
 	logs         []string
 	err          error
@@ -606,7 +621,7 @@ func renderFixedDetails(opts RenderDetailsOptions) {
 	printFileHeader(opts.FileName, opts.Silent)
 
 	// calculate table configuration
-	config := calculateTableConfig(opts.Results, opts.FileName, opts.Errors, opts.NoMessage, opts.NoClip, opts.NoStyle)
+	config := calculateTableConfig(opts.Results, opts.FileName, opts.Errors, opts.NoMessage, opts.NoClip, opts.NoStyle, opts.ShowAbsPath)
 
 	if config.UseTreeFormat {
 		renderTreeFormat(opts.Results, config, opts.FileName, opts.Errors, opts.AllResults)
