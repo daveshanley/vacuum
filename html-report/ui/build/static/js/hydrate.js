@@ -1,1 +1,1 @@
-(()=>{"use strict";setTimeout((function(){const t=document.querySelector("category-piechart");t&&t.setChartData(window.statistics)}),200)})();
+(()=>{"use strict";setTimeout(function(){const t=document.querySelector("category-piechart");t&&t.setChartData(window.statistics)},200)})();

@@ -25,7 +25,7 @@
   "dependencies": {
     "https-proxy-agent": "^7.0.6",
     "node-fetch": "^3.3.2",
-    "tar": "^7.5.2"
+    "tar": "^7.5.13"
   },
   "devDependencies": {
     "@sourcemeta/jsonschema": "^11.5.1"
