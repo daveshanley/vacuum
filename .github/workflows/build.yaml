@@ -37,8 +37,18 @@ jobs:
           fetch-tags: true
           show-progress: true
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: html-report/ui/yarn.lock
+
       - name: Check go mod tidy is up to date
         run: go mod tidy && git diff --exit-code
+
+      - name: Build HTML report UI assets
+        run: ./scripts/build-ui-assets.sh
 
       - name: Get dependencies
         run: |
@@ -69,26 +79,25 @@ jobs:
           docker-images: true
           swap-storage: false
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         name: Checkout repository
 
       - name: setup node ${{matrix.node-version}}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{matrix.node-version}}
+          cache: yarn
+          cache-dependency-path: html-report/ui/yarn.lock
 
-      - name: Install yarn
-        run: yarn install
-        working-directory: html-report/ui
-
-      - name: Build
-        run: yarn build
-        working-directory: html-report/ui
+      - name: Build HTML report UI assets
+        run: ./scripts/build-ui-assets.sh
+        env:
+          KEEP_NODE_MODULES: "1"
 
       - name: Test
-        run: yarn test
+        run: corepack yarn test
         working-directory: html-report/ui
 
       - name: Lint
-        run: yarn lint
+        run: corepack yarn lint
         working-directory: html-report/ui
