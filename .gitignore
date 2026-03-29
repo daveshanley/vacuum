@@ -26,6 +26,9 @@ go.work.sum
 
 /bin
 /dist
+/.cache/
+html-report/ui/build/
+html-report/ui/node_modules/
 
 # Goreleaser artifacts
 dist/

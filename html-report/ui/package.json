@@ -2,6 +2,7 @@
   "name": "html-report",
   "version": "0.1.0",
   "description": "Generated HTML reporting for vacuum",
+  "packageManager": "yarn@1.22.22",
   "main": "index.js",
   "repository": "https://github.com/daveshanley/vacuum",
   "author": "Dave Shanley",
