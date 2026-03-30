@@ -14,14 +14,22 @@ Package maintainers can override version information using ldflags during build 
 
 ## Building with Custom Version Information
 
+Building from a source checkout now requires Node.js because the HTML report UI bundles are generated as part of the build. Run the UI asset build first, or use `make build` which does it for you:
+
+```bash
+./scripts/build-ui-assets.sh
+```
+
 Use the `-ldflags` option with `go build` to set custom version information:
 
 ```bash
 # From within the vacuum source directory:
+./scripts/build-ui-assets.sh
 go build -ldflags "-X main.version=<version> -X main.commit=<commit> -X 'main.date=<date>'" \
     -o vacuum
 
 # Or specify the current directory explicitly:
+./scripts/build-ui-assets.sh
 go build -ldflags "-X main.version=<version> -X main.commit=<commit> -X 'main.date=<date>'" \
     -o vacuum \
     .
