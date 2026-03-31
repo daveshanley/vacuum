@@ -4,6 +4,8 @@
 package utils
 
 import (
+	"os"
+	"runtime"
 	"sync"
 	"testing"
 
@@ -94,4 +96,56 @@ components:
 	cachedResult, ok := cached.(*schemaPathResult)
 	require.True(t, ok)
 	assert.Greater(t, len(cachedResult.allPaths), 1)
+}
+
+func TestLocateSchemaPropertyPaths_Issue768_CanonicalPrimaryPath(t *testing.T) {
+	specBytes, err := os.ReadFile("../model/test_files/issue_768_test.yaml")
+	require.NoError(t, err, "issue_768_test.yaml must exist in model/test_files")
+
+	origProcs := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(origProcs)
+
+	const expectedPath = "$.components.schemas['ServiceLevelObjectiveAlertSeverityV1'].properties['labels'].properties['hedwig_scope']"
+	const iterations = 50
+
+	for i := 0; i < iterations; i++ {
+		document, err := libopenapi.NewDocument(specBytes)
+		require.NoError(t, err)
+
+		v3Model, err := document.BuildV3Model()
+		require.NoError(t, err)
+
+		drDocument := drModel.NewDrDocumentWithConfig(v3Model, &drModel.DrConfig{
+			UseSchemaCache:     true,
+			DeterministicPaths: true,
+		})
+
+		resource := drDocument.V3Document.Components.Schemas.GetOrZero("ServiceLevelObjectiveAlertSeverityV1")
+		require.NotNil(t, resource)
+		require.NotNil(t, resource.Schema)
+
+		labels := resource.Schema.Properties.GetOrZero("labels")
+		require.NotNil(t, labels)
+		require.NotNil(t, labels.Schema)
+
+		hedwig := labels.Schema.Properties.GetOrZero("hedwig_scope")
+		require.NotNil(t, hedwig)
+		require.NotNil(t, hedwig.Schema)
+
+		keyNode := hedwig.Schema.Value.GoLow().Type.KeyNode
+		valueNode := hedwig.Schema.Value.GoLow().Type.ValueNode
+		require.NotNil(t, keyNode)
+		require.NotNil(t, valueNode)
+
+		ctx := model.RuleFunctionContext{
+			DrDocument:      drDocument,
+			SchemaPathCache: &sync.Map{},
+		}
+
+		primaryPath, allPaths := LocateSchemaPropertyPaths(ctx, hedwig.Schema, keyNode, valueNode)
+		assert.Equalf(t, expectedPath, primaryPath, "iteration %d should keep the canonical path", i)
+		require.NotEmpty(t, allPaths)
+		assert.Equalf(t, expectedPath, allPaths[0], "iteration %d should keep canonical path first", i)
+		assert.Contains(t, allPaths, expectedPath)
+	}
 }

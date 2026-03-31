@@ -27,19 +27,16 @@ func LocateComponentPaths(
 	if context.DrDocument != nil && keyNode != nil && valueNode != nil {
 		locatedObjects, err := context.DrDocument.LocateModelsByKeyAndValue(keyNode, valueNode)
 		if err == nil && locatedObjects != nil && len(locatedObjects) > 0 {
-			// Use the first located object's path as the primary path
-			primaryPath = locatedObjects[0].GenerateJSONPath()
-
-			// Collect all paths
+			locatedPaths := make([]string, 0, len(locatedObjects))
 			for _, obj := range locatedObjects {
-				allPaths = append(allPaths, obj.GenerateJSONPath())
+				locatedPaths = append(locatedPaths, obj.GenerateJSONPath())
 			}
+			primaryPath, allPaths = buildStablePrimaryAndPaths(primaryPath, locatedPaths)
 			return primaryPath, allPaths
 		}
 	}
 
 	// If we couldn't locate via LocateModelsByKeyAndValue,
 	// fall back to the component's own path
-	allPaths = []string{primaryPath}
-	return primaryPath, allPaths
+	return buildStablePrimaryAndPaths(primaryPath, nil)
 }
