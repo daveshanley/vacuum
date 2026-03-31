@@ -1,3 +1,5 @@
+//go:build html_report_ui
+
 package cmd
 
 import (

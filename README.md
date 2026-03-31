@@ -376,6 +376,8 @@ To lint multiple files, specify the hook multiple times with the appropriate ove
 
 ## Build an interactive HTML report 
 
+`vacuum html-report` is included in official release binaries. If you install via `go install github.com/daveshanley/vacuum@<version>`, the command is compiled without the HTML report UI bundles. To enable it from source, run `./scripts/build-ui-assets.sh` and build with `-tags html_report_ui`.
+
 ```
 ./vacuum html-report <your-openapi-spec.yaml | vacuum-report.json.gz> <report-name.html>
 ```

@@ -47,9 +47,6 @@ jobs:
       - name: Check go mod tidy is up to date
         run: go mod tidy && git diff --exit-code
 
-      - name: Build HTML report UI assets
-        run: ./scripts/build-ui-assets.sh
-
       - name: Get dependencies
         run: |
           go get -v -t -d ./...
@@ -57,8 +54,16 @@ jobs:
               curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
               dep ensure
           fi
-      - name: Test
+
+      - name: Test default source build
         run: go test ./...
+
+      - name: Build HTML report UI assets
+        run: ./scripts/build-ui-assets.sh
+
+      - name: Test official build with HTML report UI
+        run: go test -tags html_report_ui ./...
+
       - name: Build
         run: make build
 

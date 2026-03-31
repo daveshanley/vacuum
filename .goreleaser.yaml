@@ -5,6 +5,8 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
+    tags:
+      - html_report_ui
     goos:
       - linux
       - windows
