@@ -45,27 +45,52 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	for _, schema := range schemas {
 
 		schemaType := schema.Value.Type
+		results = append(results, st.checkTypeMismatchedConstraints(schema, &context)...)
 
+		var validatedString bool
+		var validatedNumber bool
+		var validatedBoolean bool
+		var validatedArray bool
+		var validatedObject bool
+		var validatedNull bool
 		for _, t := range schemaType {
 			switch t {
 			case "string":
-				errs := st.validateString(schema, &context)
-				results = append(results, errs...)
+				if !validatedString {
+					errs := st.validateString(schema, &context)
+					results = append(results, errs...)
+					validatedString = true
+				}
 			case "integer", "number":
-				errs := st.validateNumber(schema, &context)
-				results = append(results, errs...)
+				if !validatedNumber {
+					errs := st.validateNumber(schema, &context)
+					results = append(results, errs...)
+					validatedNumber = true
+				}
 			case "boolean":
-				errs := st.validateBoolean(schema, &context)
-				results = append(results, errs...)
+				if !validatedBoolean {
+					errs := st.validateBoolean(schema, &context)
+					results = append(results, errs...)
+					validatedBoolean = true
+				}
 			case "array":
-				errs := st.validateArray(schema, &context)
-				results = append(results, errs...)
+				if !validatedArray {
+					errs := st.validateArray(schema, &context)
+					results = append(results, errs...)
+					validatedArray = true
+				}
 			case "object":
-				errs := st.validateObject(schema, &context)
-				results = append(results, errs...)
+				if !validatedObject {
+					errs := st.validateObject(schema, &context)
+					results = append(results, errs...)
+					validatedObject = true
+				}
 			case "null":
-				errs := st.validateNull(schema, &context)
-				results = append(results, errs...)
+				if !validatedNull {
+					errs := st.validateNull(schema, &context)
+					results = append(results, errs...)
+					validatedNull = true
+				}
 			default:
 				// find all locations where this schema appears
 				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, schema,
@@ -115,9 +140,6 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 func (st SchemaTypeCheck) validateNumber(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
-	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "number", context)
-	results = append(results, typeMismatchResults...)
-
 	if schema.Value.MultipleOf != nil {
 		if *schema.Value.MultipleOf <= 0 {
 			result := st.buildResult("`multipleOf` should be a number greater than `0`",
@@ -154,9 +176,6 @@ func (st SchemaTypeCheck) validateNumber(schema *v3.Schema, context *model.RuleF
 
 func (st SchemaTypeCheck) validateString(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
-
-	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "string", context)
-	results = append(results, typeMismatchResults...)
 
 	if schema.Value.MinLength != nil {
 		if *schema.Value.MinLength < 0 {
@@ -200,9 +219,6 @@ func (st SchemaTypeCheck) validateString(schema *v3.Schema, context *model.RuleF
 
 func (st SchemaTypeCheck) validateArray(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
-
-	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "array", context)
-	results = append(results, typeMismatchResults...)
 
 	if schema.Value.MinItems != nil {
 		if *schema.Value.MinItems < 0 {
@@ -302,9 +318,6 @@ func (st SchemaTypeCheck) buildResult(message, path, violationProperty string, s
 
 func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
-
-	typeMismatchResults := st.checkTypeMismatchedConstraints(schema, "object", context)
-	results = append(results, typeMismatchResults...)
 
 	if schema.Value.MinProperties != nil {
 		if *schema.Value.MinProperties < 0 {
@@ -503,22 +516,39 @@ func checkConstraint(c *constraintDef, high *highBase.Schema, low *lowBase.Schem
 
 // checkTypeMismatchedConstraints validates that a schema only uses constraints appropriate for its type.
 // This ensures JSON Schema compliance by preventing semantically incorrect constraint usage.
-func (st SchemaTypeCheck) checkTypeMismatchedConstraints(schema *v3.Schema, schemaType string, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func formatSchemaTypesForMessage(schemaTypes []string) string {
+	if len(schemaTypes) == 1 {
+		return schemaTypes[0]
+	}
+	return "[" + strings.Join(schemaTypes, ", ") + "]"
+}
+
+func constraintAppliesToSchemaTypes(c *constraintDef, schemaTypes []string) bool {
+	for _, schemaType := range schemaTypes {
+		if c.category == schemaType || (c.category == "number" && schemaType == "integer") {
+			return true
+		}
+	}
+	return false
+}
+
+func (st SchemaTypeCheck) checkTypeMismatchedConstraints(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	lowSchema := schema.Value.GoLow()
 	highSchema := schema.Value
+	schemaTypes := schema.Value.Type
 
-	// check all constraints from the static table against this schema's type
+	// Check each constraint once against the full declared type set.
+	// If any declared type can legally use the constraint, it is valid for the schema.
 	for i := range allConstraints {
 		c := &allConstraints[i]
-		// skip constraints that belong to this schema's own type category
-		if c.category == schemaType || (c.category == "number" && schemaType == "integer") {
+		if constraintAppliesToSchemaTypes(c, schemaTypes) {
 			continue
 		}
 		if node := checkConstraint(c, highSchema, lowSchema); node != nil {
 			message := fmt.Sprintf("`%s` constraint is only applicable to %s types, not `%s`",
-				c.name, c.validFor, schemaType)
+				c.name, c.validFor, formatSchemaTypesForMessage(schemaTypes))
 			result := st.buildResult(message, schema.GenerateJSONPath(), c.name, -1,
 				schema, node, context)
 			results = append(results, result)
@@ -529,16 +559,11 @@ func (st SchemaTypeCheck) checkTypeMismatchedConstraints(schema *v3.Schema, sche
 }
 
 func (st SchemaTypeCheck) validateBoolean(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
-	return st.checkTypeMismatchedConstraints(schema, "boolean", context)
+	return nil
 }
 
 func (st SchemaTypeCheck) validateNull(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
-	// in OAS 3.1, nullable is expressed as type: [actualType, "null"]
-	// don't check constraints when null is part of a multi-type array
-	if len(schema.Value.Type) > 1 {
-		return nil
-	}
-	return st.checkTypeMismatchedConstraints(schema, "null", context)
+	return nil
 }
 
 func (st SchemaTypeCheck) validateDependentRequired(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {

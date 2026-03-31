@@ -2970,15 +2970,15 @@ components:
       maxLength: 10`,
 			expectedErrors: []struct{ message, path string }{
 				{
-					message: "`pattern` constraint is only applicable to string types, not `number`",
+					message: "`pattern` constraint is only applicable to string types, not `integer`",
 					path:    "$.components.schemas['TestSchema'].pattern",
 				},
 				{
-					message: "`minLength` constraint is only applicable to string types, not `number`",
+					message: "`minLength` constraint is only applicable to string types, not `integer`",
 					path:    "$.components.schemas['TestSchema'].minLength",
 				},
 				{
-					message: "`maxLength` constraint is only applicable to string types, not `number`",
+					message: "`maxLength` constraint is only applicable to string types, not `integer`",
 					path:    "$.components.schemas['TestSchema'].maxLength",
 				},
 			},
@@ -3463,4 +3463,75 @@ components:
 	assert.Len(t, res, 1, "only PureNull should have constraint error")
 	assert.Contains(t, res[0].Message, "minimum")
 	assert.Contains(t, res[0].Message, "null")
+}
+
+func TestSchemaType_MultiTypeAllowsApplicableConstraint(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Issue 843
+  version: 1.0.0
+components:
+  schemas:
+    Answer:
+      type:
+        - array
+        - integer
+        - number
+        - string
+      minItems: 1
+`
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		t.Fatalf("cannot create document: %v", err)
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestSchemaType_MultiTypeConstraintMismatchReportedOnce(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    Answer:
+      type:
+        - integer
+        - number
+        - string
+      minItems: 1
+`
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		t.Fatalf("cannot create document: %v", err)
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "`minItems` constraint is only applicable to array types, not `[integer, number, string]`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['Answer'].minItems", res[0].Path)
 }
