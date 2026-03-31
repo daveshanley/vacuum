@@ -147,8 +147,8 @@ type RuleSetExecutionResult struct {
 }
 
 // Release frees memory-heavy resources retained by the result once the caller is
-// finished inspecting it. This releases vacuum-owned documents and indexes and
-// also resets libopenapi's process-wide caches.
+// finished inspecting it. This releases vacuum-owned documents, the doctor
+// document, indexes and also resets libopenapi's process-wide caches.
 //
 // The cache reset is global, not scoped to this result. Calling Release can
 // affect other concurrent linting or document-processing routines running in the
@@ -160,6 +160,8 @@ func (r *RuleSetExecutionResult) Release() {
 		return
 	}
 
+	execution := r.RuleSetExecution
+
 	if r.ownsIndex && r.Index != nil {
 		r.Index.Release()
 	}
@@ -168,6 +170,10 @@ func (r *RuleSetExecutionResult) Release() {
 	}
 	if r.unresolvedDoc != nil {
 		r.unresolvedDoc.Release()
+	}
+	if execution != nil && execution.DrDocument != nil {
+		execution.DrDocument.Release()
+		execution.DrDocument = nil
 	}
 
 	libopenapi.ClearAllCaches()

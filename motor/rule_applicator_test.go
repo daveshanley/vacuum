@@ -2342,6 +2342,9 @@ func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
 	assert.NotNil(t, results.ownedDocument)
 	assert.NotNil(t, results.unresolvedDoc)
 	assert.True(t, results.ownsIndex)
+	execution := results.RuleSetExecution
+	assert.NotNil(t, execution)
+	assert.NotNil(t, execution.DrDocument)
 
 	results.Release()
 
@@ -2357,6 +2360,7 @@ func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
 	assert.Nil(t, results.ownedDocument)
 	assert.Nil(t, results.unresolvedDoc)
 	assert.False(t, results.ownsIndex)
+	assert.Nil(t, execution.DrDocument)
 }
 
 func TestRuleSetExecutionResultRelease_PreservesCallerOwnedDocument(t *testing.T) {
