@@ -21,7 +21,8 @@ COPY --from=ui-builder /opt/vacuum ./
 
 RUN go mod download && go mod verify
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -ldflags="-w -s -X 'main.version=$(git describe --tags --abbrev=0)' -X 'main.date=$(date +%Y-%m-%dT%TZ)'" \
+    go build -tags html_report_ui \
+    -ldflags="-w -s -X 'main.version=$(git describe --tags --abbrev=0)' -X 'main.date=$(date +%Y-%m-%dT%TZ)'" \
     -v -o vacuum vacuum.go
 
 FROM debian:bookworm-slim
