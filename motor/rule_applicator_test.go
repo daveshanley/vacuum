@@ -2325,6 +2325,86 @@ pizza:
 	assert.Len(t, results.Results, 0)
 }
 
+func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
+	burgershop, err := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	assert.NoError(t, err)
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+		Spec:    burgershop,
+	})
+
+	assert.NotNil(t, results)
+	assert.NotNil(t, results.RuleSetExecution)
+	assert.NotNil(t, results.Index)
+	assert.NotNil(t, results.SpecInfo)
+	assert.NotNil(t, results.DocumentConfig)
+	assert.NotNil(t, results.ownedDocument)
+	assert.NotNil(t, results.unresolvedDoc)
+	assert.True(t, results.ownsIndex)
+
+	results.Release()
+
+	assert.Nil(t, results.RuleSetExecution)
+	assert.Nil(t, results.Results)
+	assert.Nil(t, results.IgnoredResults)
+	assert.Nil(t, results.FixedResults)
+	assert.Nil(t, results.Index)
+	assert.Nil(t, results.SpecInfo)
+	assert.Nil(t, results.Errors)
+	assert.Nil(t, results.DocumentConfig)
+	assert.Nil(t, results.ModifiedSpec)
+	assert.Nil(t, results.ownedDocument)
+	assert.Nil(t, results.unresolvedDoc)
+	assert.False(t, results.ownsIndex)
+}
+
+func TestRuleSetExecutionResultRelease_PreservesCallerOwnedDocument(t *testing.T) {
+	burgershop, err := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	assert.NoError(t, err)
+
+	doc, err := libopenapi.NewDocumentWithConfiguration(burgershop, datamodel.NewDocumentConfiguration())
+	assert.NoError(t, err)
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:  rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+		Document: doc,
+	})
+
+	assert.NotNil(t, results)
+	assert.NotNil(t, results.Index)
+	assert.NotNil(t, results.SpecInfo)
+	assert.Nil(t, results.ownedDocument)
+	assert.NotNil(t, results.unresolvedDoc)
+	assert.False(t, results.ownsIndex)
+
+	results.Release()
+
+	assert.NotNil(t, doc.GetSpecInfo())
+	model, buildErr := doc.BuildV3Model()
+	assert.NoError(t, buildErr)
+	assert.NotNil(t, model)
+	assert.NotNil(t, model.Index)
+}
+
+func TestRuleSetExecutionResultRelease_IsIdempotent(t *testing.T) {
+	burgershop, err := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	assert.NoError(t, err)
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+		Spec:    burgershop,
+	})
+
+	assert.NotPanics(t, func() {
+		results.Release()
+		results.Release()
+	})
+	assert.Nil(t, results.Index)
+	assert.Nil(t, results.ownedDocument)
+	assert.Nil(t, results.unresolvedDoc)
+}
+
 func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
 	m, _ := os.ReadFile("../model/test_files/k8s.json")
 	rs := rulesets.BuildDefaultRuleSets()
