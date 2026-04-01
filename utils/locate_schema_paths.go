@@ -47,14 +47,11 @@ func LocateSchemaPropertyPaths(
 			lookupCompleted = true
 		}
 		if err == nil && locatedObjects != nil && len(locatedObjects) > 0 {
-			// Use the first located object's path as the primary path
-			primaryPath = locatedObjects[0].GenerateJSONPath()
-
-			// Collect all paths
-			allPaths = make([]string, 0, len(locatedObjects))
+			locatedPaths := make([]string, 0, len(locatedObjects))
 			for _, obj := range locatedObjects {
-				allPaths = append(allPaths, obj.GenerateJSONPath())
+				locatedPaths = append(locatedPaths, obj.GenerateJSONPath())
 			}
+			primaryPath, allPaths = buildStablePrimaryAndPaths(primaryPath, locatedPaths)
 
 			// Store in cache
 			if context.SchemaPathCache != nil {
@@ -69,7 +66,7 @@ func LocateSchemaPropertyPaths(
 
 	// If we couldn't locate via LocateModelsByKeyAndValue,
 	// fall back to the schema's own path
-	allPaths = []string{primaryPath}
+	primaryPath, allPaths = buildStablePrimaryAndPaths(primaryPath, nil)
 
 	// Only cache fallback results when a full lookup actually ran.
 	// This prevents nil-node calls from poisoning the cache with incomplete paths.

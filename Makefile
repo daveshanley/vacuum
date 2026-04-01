@@ -10,10 +10,11 @@ build-ui: ## Build HTML report UI assets
 	@./scripts/build-ui-assets.sh
 
 build: build-ui ## Build the vacuum binary to bin/vacuum
-	@go build -o bin/vacuum
+	@go build -tags html_report_ui -o bin/vacuum
 
 test: build-ui ## Run the Go test suite
 	@go test ./...
+	@go test -tags html_report_ui ./...
 
 run: ## Run vacuum directly with go run
 	@go run vacuum.go

@@ -52,6 +52,9 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 			}
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if !html_report.AssetsAvailable() {
+				return errors.New("html-report support is not included in this build; use an official release binary or build with ./scripts/build-ui-assets.sh and -tags html_report_ui")
+			}
 
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			noBannerFlag, _ := cmd.Flags().GetBool("no-banner")

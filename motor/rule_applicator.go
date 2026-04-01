@@ -149,6 +149,55 @@ type RuleSetExecutionResult struct {
 	FileSize         int64                            // total filesize loaded by the rolodex
 	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
+	ownedDocument    libopenapi.Document
+	unresolvedDoc    libopenapi.Document
+	ownsIndex        bool
+}
+
+// Release frees memory-heavy resources retained by the result once the caller is
+// finished inspecting it. This releases vacuum-owned documents, the doctor
+// document, indexes and also resets libopenapi's process-wide caches.
+//
+// The cache reset is global, not scoped to this result. Calling Release can
+// affect other concurrent linting or document-processing routines running in the
+// same process. Callers that need finer-grained lifecycle control should release
+// owned documents, indexes, and caches manually instead of using this
+// convenience method. Caller-supplied documents are never released by vacuum.
+func (r *RuleSetExecutionResult) Release() {
+	if r == nil {
+		return
+	}
+
+	execution := r.RuleSetExecution
+
+	if r.ownsIndex && r.Index != nil {
+		r.Index.Release()
+	}
+	if r.ownedDocument != nil {
+		r.ownedDocument.Release()
+	}
+	if r.unresolvedDoc != nil {
+		r.unresolvedDoc.Release()
+	}
+	if execution != nil && execution.DrDocument != nil {
+		execution.DrDocument.Release()
+		execution.DrDocument = nil
+	}
+
+	libopenapi.ClearAllCaches()
+
+	r.RuleSetExecution = nil
+	r.Results = nil
+	r.IgnoredResults = nil
+	r.FixedResults = nil
+	r.Index = nil
+	r.SpecInfo = nil
+	r.Errors = nil
+	r.DocumentConfig = nil
+	r.ModifiedSpec = nil
+	r.ownedDocument = nil
+	r.unresolvedDoc = nil
+	r.ownsIndex = false
 }
 
 // todo: move copy into virtual file system or some kind of map.
@@ -359,6 +408,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	docResolved := execution.Document
 	var docUnresolved libopenapi.Document
+	ownsResolvedDoc := execution.Document == nil
 
 	// If no docResolved is supplied (default) then create a new one.
 	// otherwise update the configuration with the supplied document.
@@ -1136,7 +1186,17 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		FileSize:         fileSize,
 		DocumentConfig:   docConfigResolved,
 		ModifiedSpec:     modifiedSpec,
+		ownedDocument:    ownedDocument(ownsResolvedDoc, docResolved),
+		unresolvedDoc:    docUnresolved,
+		ownsIndex:        ownsResolvedDoc,
 	}
+}
+
+func ownedDocument(owned bool, doc libopenapi.Document) libopenapi.Document {
+	if !owned {
+		return nil
+	}
+	return doc
 }
 
 func runRule(ctx ruleContext, doneChan chan struct{}) {

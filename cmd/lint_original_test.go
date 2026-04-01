@@ -5,8 +5,11 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -71,6 +74,32 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testing.T) {
+	origProcs := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(origProcs)
+
+	spec, ruleset := writeIssue839RegressionFixture(t)
+
+	const iterations = 10
+	for i := 0; i < iterations; i++ {
+		cmd := GetLintCommand()
+		registerPersistentFlags(cmd)
+		b := bytes.NewBufferString("")
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{
+			"--original", spec,
+			"-r", ruleset,
+			"-n", "error",
+			"-x",
+			spec,
+		})
+
+		err := cmd.Execute()
+		assert.NoErrorf(t, err, "iteration %d should suppress all same-spec violations", i)
+	}
+}
+
 func TestLintCommand_OriginalDifferentSpec(t *testing.T) {
 	// Using two completely different specs: no overlap, so all new-spec violations reported.
 	original := "../model/test_files/petstorev3.json"
@@ -90,6 +119,62 @@ func TestLintCommand_OriginalDifferentSpec(t *testing.T) {
 	// Should run without error (violations are expected but not failure-severity level)
 	err := cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func writeIssue839RegressionFixture(t *testing.T) (specPath string, rulesetPath string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath = filepath.Join(dir, "issue_839.yaml")
+	rulesetPath = filepath.Join(dir, "issue_839_ruleset.yaml")
+
+	err := os.WriteFile(rulesetPath, []byte("extends:\n  - [vacuum:oas, all]\n  - [vacuum:owasp, all]\n"), 0o600)
+	require.NoError(t, err)
+
+	var builder strings.Builder
+	builder.WriteString("openapi: 3.0.3\n")
+	builder.WriteString("info:\n")
+	builder.WriteString("  title: issue 839 regression fixture\n")
+	builder.WriteString("  version: 1.0.0\n")
+	builder.WriteString("paths:\n")
+
+	for i := 1; i <= 40; i++ {
+		builder.WriteString(fmt.Sprintf("  /p%d:\n", i))
+		builder.WriteString("    get:\n")
+		builder.WriteString(fmt.Sprintf("      operationId: op%d\n", i))
+		builder.WriteString("      parameters:\n")
+		builder.WriteString(fmt.Sprintf("        - name: queryA%d\n", i))
+		builder.WriteString("          in: query\n")
+		builder.WriteString("          schema:\n")
+		builder.WriteString("            type: string\n")
+		builder.WriteString(fmt.Sprintf("        - name: queryB%d\n", i))
+		builder.WriteString("          in: query\n")
+		builder.WriteString("          schema:\n")
+		builder.WriteString("            type: string\n")
+		builder.WriteString(fmt.Sprintf("        - name: ids%d\n", i))
+		builder.WriteString("          in: query\n")
+		builder.WriteString("          schema:\n")
+		builder.WriteString("            type: array\n")
+		builder.WriteString("            items:\n")
+		builder.WriteString("              type: string\n")
+		builder.WriteString("      responses:\n")
+		builder.WriteString("        '200':\n")
+		builder.WriteString("          description: ok\n")
+	}
+
+	builder.WriteString("components:\n")
+	builder.WriteString("  schemas:\n")
+	builder.WriteString("    StableThing:\n")
+	builder.WriteString("      type: object\n")
+	builder.WriteString("      properties:\n")
+	builder.WriteString("        id:\n")
+	builder.WriteString("          type: string\n")
+	builder.WriteString("          maxLength: 32\n")
+
+	err = os.WriteFile(specPath, []byte(builder.String()), 0o600)
+	require.NoError(t, err)
+
+	return specPath, rulesetPath
 }
 
 func TestLintCommand_OriginalMissingFile_WarnsAndProceeds(t *testing.T) {
@@ -245,55 +330,6 @@ func TestSpectralReport_OriginalWithChangeViolations(t *testing.T) {
 		reportFile,
 	})
 
-	err := cmd.Execute()
-	assert.NoError(t, err)
-}
-
-// --- HTML report tests ---
-
-func TestHTMLReport_OriginalSameSpec(t *testing.T) {
-	spec := "../model/test_files/burgershop.openapi.yaml"
-	reportFile := filepath.Join(t.TempDir(), "html-original-test.html")
-
-	cmd := GetHTMLReportCommand()
-	registerPersistentFlags(cmd)
-	b := bytes.NewBufferString("")
-	cmd.SetOut(b)
-	cmd.SetErr(b)
-	cmd.SetArgs([]string{
-		"--original", spec,
-		"-b", // no-banner
-		spec,
-		reportFile,
-	})
-
-	err := cmd.Execute()
-	assert.NoError(t, err)
-
-	data, readErr := os.ReadFile(reportFile)
-	require.NoError(t, readErr)
-	assert.True(t, len(data) > 0)
-}
-
-func TestHTMLReport_PrecompiledReport_OriginalFallback(t *testing.T) {
-	// Precompiled report with --original should fall back to ChangeFilter without panic
-	report := "../model/test_files/burgershop-report.json.gz"
-	spec := "../model/test_files/burgershop.openapi.yaml"
-	reportFile := filepath.Join(t.TempDir(), "html-precompiled-test.html")
-
-	cmd := GetHTMLReportCommand()
-	registerPersistentFlags(cmd)
-	b := bytes.NewBufferString("")
-	cmd.SetOut(b)
-	cmd.SetErr(b)
-	cmd.SetArgs([]string{
-		"--original", spec,
-		"-b", // no-banner
-		report,
-		reportFile,
-	})
-
-	// Should not panic; falls back to ChangeFilter for precompiled report
 	err := cmd.Execute()
 	assert.NoError(t, err)
 }

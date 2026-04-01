@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.3.2 // indirect
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3
-	github.com/dop251/goja v0.0.0-20260305124333-6a7976c22267
+	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsnotify/fsnotify v1.9.0
@@ -18,7 +18,7 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/pb33f/doctor v0.0.49
 	github.com/pb33f/jsonpath v0.8.2
-	github.com/pb33f/libopenapi v0.34.3
+	github.com/pb33f/libopenapi v0.34.4
 	github.com/pb33f/libopenapi-validator v0.13.3
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
@@ -28,7 +28,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tliron/glsp v0.2.2
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
-	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a
+	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
 	golang.org/x/term v0.40.0
 	golang.org/x/text v0.35.0
 )
@@ -40,7 +40,7 @@ require (
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/basgys/goxml2json v1.1.1-0.20231018121955-e66ee54ceaad // indirect
-	github.com/buger/jsonparser v1.1.1 // indirect
+	github.com/buger/jsonparser v1.1.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
-	github.com/pb33f/ordered-map/v2 v2.3.0 // indirect
+	github.com/pb33f/ordered-map/v2 v2.3.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/petermattis/goid v0.0.0-20250508124226-395b08cebbdb // indirect
 	github.com/pkg/errors v0.9.1 // indirect

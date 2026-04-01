@@ -14,10 +14,13 @@ Package maintainers can override version information using ldflags during build 
 
 ## Building with Custom Version Information
 
-Building from a source checkout now requires Node.js because the HTML report UI bundles are generated as part of the build. Run the UI asset build first, or use `make build` which does it for you:
+Building from a source checkout only requires Node.js if you want HTML report support compiled into the binary. The default Go source build works without the HTML report UI bundles. Official release builds enable HTML report support using the `html_report_ui` build tag.
+
+To build a binary with HTML report support from source, generate the UI assets first and then build with the tag:
 
 ```bash
 ./scripts/build-ui-assets.sh
+go build -tags html_report_ui
 ```
 
 Use the `-ldflags` option with `go build` to set custom version information:
@@ -25,12 +28,12 @@ Use the `-ldflags` option with `go build` to set custom version information:
 ```bash
 # From within the vacuum source directory:
 ./scripts/build-ui-assets.sh
-go build -ldflags "-X main.version=<version> -X main.commit=<commit> -X 'main.date=<date>'" \
+go build -tags html_report_ui -ldflags "-X main.version=<version> -X main.commit=<commit> -X 'main.date=<date>'" \
     -o vacuum
 
 # Or specify the current directory explicitly:
 ./scripts/build-ui-assets.sh
-go build -ldflags "-X main.version=<version> -X main.commit=<commit> -X 'main.date=<date>'" \
+go build -tags html_report_ui -ldflags "-X main.version=<version> -X main.commit=<commit> -X 'main.date=<date>'" \
     -o vacuum \
     .
 ```
@@ -128,6 +131,8 @@ Note: Unspecified `version` and `commit` values will show as "unknown", while an
 
 - If ldflags are not provided, vacuum falls back to automatic detection via `debug.ReadBuildInfo()`
 - This dual approach ensures compatibility with both `go install` users and package managers
+- `go install github.com/daveshanley/vacuum@<version>` does not include HTML report support, because Go module builds cannot generate the webpack UI bundles during install
+- To use `vacuum html-report`, use an official release binary or build from source with `./scripts/build-ui-assets.sh` and `-tags html_report_ui`
 - The ldflags approach takes precedence when provided
 - Date strings can be in any format, but RFC3339 format will be automatically reformatted for display
 
