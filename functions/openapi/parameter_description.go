@@ -57,6 +57,7 @@ func (pd ParameterDescription) runRuleWithDrDocument(context model.RuleFunctionC
 			EndNode:   vutils.BuildEndNode(node),
 			Path:      path,
 			Rule:      context.Rule,
+			Origin:    context.Index.GetRolodex().FindNodeOrigin(node),
 		}
 		if len(paths) > 1 {
 			result.Paths = paths
@@ -164,6 +165,7 @@ func (pd ParameterDescription) runRuleWithIndex(nodes []*yaml.Node,
 				EndNode:   vutils.BuildEndNode(param.Node),
 				Path:      fmt.Sprintf("$.components.parameters['%s']", id),
 				Rule:      context.Rule,
+				Origin:    context.Index.GetRolodex().FindNodeOrigin(param.Node),
 			})
 		}
 	}
@@ -185,6 +187,7 @@ func (pd ParameterDescription) runRuleWithIndex(nodes []*yaml.Node,
 								EndNode:   vutils.BuildEndNode(param.Node),
 								Path:      pathString,
 								Rule:      context.Rule,
+								Origin:    context.Index.GetRolodex().FindNodeOrigin(param.Node),
 							})
 						}
 					}

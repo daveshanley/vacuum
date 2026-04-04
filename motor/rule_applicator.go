@@ -764,6 +764,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			EndNode:   vacuumUtils.BuildEndNode(er.Node),
 			Message:   er.Error(),
 			Path:      er.Path,
+			Origin:    rolodexUnresolved.FindNodeOrigin(er.Node),
 		}
 		if res.StartNode == nil {
 			res.StartNode = utils.CreateStringNode("")
@@ -823,6 +824,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				EndNode:   vacuumUtils.BuildEndNode(idxError.KeyNode),
 				Message:   idxError.Error(),
 				Path:      idxError.Path,
+				Origin:    rolodexUnresolved.FindNodeOrigin(idxError.Node),
 			}
 			if res.StartNode == nil {
 				res.StartNode = utils.CreateStringNode("")
