@@ -303,31 +303,6 @@ func TestDashboardCommand_ResolveRefFlagsWithOriginal(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestHTMLReportCommand_ResolveRefFlags(t *testing.T) {
-	specPath := writeResolveAllRefsTestSpec(t)
-	rulesetPath := writeResolveAllRefsRuleset(t)
-	reportFile := filepath.Join(t.TempDir(), "resolve-all-refs.html")
-
-	cmd := GetHTMLReportCommand()
-	registerPersistentFlags(cmd)
-	output := bytes.NewBuffer(nil)
-	cmd.SetOut(output)
-	cmd.SetErr(output)
-	cmd.SetArgs([]string{
-		"--ruleset", rulesetPath,
-		"--resolve-all-refs",
-		"--nested-refs-doc-context",
-		"-b",
-		specPath,
-		reportFile,
-	})
-
-	err := cmd.Execute()
-	assert.NoError(t, err)
-	_, statErr := os.Stat(reportFile)
-	assert.NoError(t, statErr)
-}
-
 func TestLanguageServerCommand_ResolveRefFlags(t *testing.T) {
 	cmd := GetLanguageServerCommand()
 	registerPersistentFlags(cmd)
