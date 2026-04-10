@@ -4,32 +4,25 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UI_DIR="${ROOT_DIR}/html-report/ui"
-COREPACK_HOME="${COREPACK_HOME:-${ROOT_DIR}/.cache/corepack}"
-YARN_CACHE_FOLDER="${YARN_CACHE_FOLDER:-${ROOT_DIR}/.cache/yarn}"
-YARN_CMD=()
+NPM_CACHE_DIR="${NPM_CACHE_DIR:-${ROOT_DIR}/.cache/npm}"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "node is required to build vacuum from source." >&2
   exit 1
 fi
 
-if command -v yarn >/dev/null 2>&1; then
-  YARN_CMD=(yarn)
-elif command -v corepack >/dev/null 2>&1; then
-  YARN_CMD=(corepack yarn)
-else
-  echo "yarn or corepack is required to build the HTML report UI assets." >&2
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required to build the HTML report UI assets." >&2
   exit 1
 fi
 
-mkdir -p "${COREPACK_HOME}" "${YARN_CACHE_FOLDER}"
+mkdir -p "${NPM_CACHE_DIR}"
 
-export COREPACK_HOME
-export YARN_CACHE_FOLDER
+export npm_config_cache="${NPM_CACHE_DIR}"
 
 cd "${UI_DIR}"
-"${YARN_CMD[@]}" install --frozen-lockfile --prefer-offline
-"${YARN_CMD[@]}" build
+npm ci --prefer-offline
+npm run build
 
 if [ "${KEEP_NODE_MODULES:-0}" != "1" ]; then
   rm -rf node_modules

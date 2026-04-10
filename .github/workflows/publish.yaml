@@ -36,8 +36,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: html-report/ui/yarn.lock
+          cache: npm
+          cache-dependency-path: html-report/ui/package-lock.json
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v5
