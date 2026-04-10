@@ -347,44 +347,8 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 
 	if len(schema.Value.Required) > 0 {
 		for i, required := range schema.Value.Required {
-
-			// check for polymorphic schema props
-			// https://github.com/daveshanley/vacuum/issues/510
-			polyFound := false
-			polyDefined := false
-			if schema.Value.AnyOf != nil || schema.Value.OneOf != nil || schema.Value.AllOf != nil {
-				if schema.Value.AnyOf != nil {
-					for _, anyOf := range schema.Value.AnyOf {
-						if anyOf.Schema() != nil && anyOf.Schema().Properties != nil && anyOf.Schema().Properties.Len() >= 0 {
-							polyFound = true
-						}
-						if anyOf.Schema() != nil && anyOf.Schema().Properties != nil && anyOf.Schema().Properties.GetOrZero(required) != nil {
-							polyDefined = true
-						}
-					}
-				}
-				if schema.Value.OneOf != nil {
-					for _, oneOf := range schema.Value.OneOf {
-						if oneOf.Schema() != nil && oneOf.Schema().Properties != nil && oneOf.Schema().Properties.Len() >= 0 {
-							polyFound = true
-						}
-						if oneOf.Schema() != nil && oneOf.Schema().Properties != nil && oneOf.Schema().Properties.GetOrZero(required) != nil {
-							polyDefined = true
-						}
-					}
-				}
-				if schema.Value.AllOf != nil {
-					for _, allOf := range schema.Value.AllOf {
-						if allOf.Schema() != nil && allOf.Schema().Properties != nil && allOf.Schema().Properties.Len() >= 0 {
-							polyFound = true
-						}
-						if allOf.Schema() != nil && allOf.Schema().Properties != nil && allOf.Schema().Properties.GetOrZero(required) != nil {
-							polyDefined = true
-						}
-					}
-				}
-			}
-			if schema.Value.Properties == nil && !polyFound {
+			propertyLookup := st.lookupRequiredProperty(schema, required)
+			if !propertyLookup.propertiesFound {
 				result := st.buildResult("object contains `required` fields but no `properties`",
 					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
@@ -392,19 +356,8 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 				break
 			}
 
-			// check if the required field is defined in properties (direct or polymorphic)
-			propertyExists := false
-			if schema.Value.Properties != nil && schema.Value.Properties.GetOrZero(required) != nil {
-				propertyExists = true
-			}
-
-			// if not in direct properties, check if it was found in polymorphic schemas
-			if !propertyExists && polyDefined {
-				propertyExists = true
-			}
-
 			// report error if property is not defined anywhere
-			if !propertyExists {
+			if !propertyLookup.propertyDefined {
 				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
 					schema.GenerateJSONPath(), "required", i,
 					schema, schema.Value.GoLow().Required.KeyNode, context)
@@ -418,6 +371,86 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 	results = append(results, dependentRequiredResults...)
 
 	return results
+}
+
+type requiredPropertyLookup struct {
+	propertiesFound bool
+	propertyDefined bool
+}
+
+func (l requiredPropertyLookup) merge(other requiredPropertyLookup) requiredPropertyLookup {
+	return requiredPropertyLookup{
+		propertiesFound: l.propertiesFound || other.propertiesFound,
+		propertyDefined: l.propertyDefined || other.propertyDefined,
+	}
+}
+
+func (st SchemaTypeCheck) lookupRequiredProperty(schema *v3.Schema, required string) requiredPropertyLookup {
+	visited := make(map[*yaml.Node]struct{})
+	lookup := st.lookupRequiredPropertyInSchema(schema, required, visited)
+	current := schema
+
+	// If the current schema is an allOf arm, the effective object shape is defined by the
+	// enclosing allOf composition. Search the composed parent scope as well.
+	for current != nil {
+		parentProxy, ok := current.GetParent().(*v3.SchemaProxy)
+		if !ok || parentProxy.GetPathSegment() != "allOf" {
+			break
+		}
+		parentSchema, ok := parentProxy.GetParent().(*v3.Schema)
+		if !ok || parentSchema == nil {
+			break
+		}
+		lookup = lookup.merge(st.lookupRequiredPropertyInSchema(parentSchema, required, visited))
+		current = parentSchema
+	}
+
+	return lookup
+}
+
+func (st SchemaTypeCheck) lookupRequiredPropertyInSchema(schema *v3.Schema, required string,
+	visited map[*yaml.Node]struct{},
+) requiredPropertyLookup {
+	if schema == nil || schema.Value == nil {
+		return requiredPropertyLookup{}
+	}
+
+	if lowSchema := schema.Value.GoLow(); lowSchema != nil && lowSchema.RootNode != nil {
+		if _, seen := visited[lowSchema.RootNode]; seen {
+			return requiredPropertyLookup{}
+		}
+		visited[lowSchema.RootNode] = struct{}{}
+	}
+
+	lookup := requiredPropertyLookup{}
+	if schema.Value.Properties != nil {
+		lookup.propertiesFound = true
+		if schema.Value.Properties.GetOrZero(required) != nil {
+			lookup.propertyDefined = true
+		}
+	}
+
+	lookup = lookup.merge(st.lookupRequiredPropertyInProxies(schema.AnyOf, required, visited))
+	lookup = lookup.merge(st.lookupRequiredPropertyInProxies(schema.OneOf, required, visited))
+	lookup = lookup.merge(st.lookupRequiredPropertyInProxies(schema.AllOf, required, visited))
+
+	return lookup
+}
+
+func (st SchemaTypeCheck) lookupRequiredPropertyInProxies(proxies []*v3.SchemaProxy, required string,
+	visited map[*yaml.Node]struct{},
+) requiredPropertyLookup {
+	lookup := requiredPropertyLookup{}
+	for _, proxy := range proxies {
+		if proxy == nil || proxy.Schema == nil {
+			continue
+		}
+		lookup = lookup.merge(st.lookupRequiredPropertyInSchema(proxy.Schema, required, visited))
+		if lookup.propertyDefined {
+			return lookup
+		}
+	}
+	return lookup
 }
 
 // constraintDef is a static constraint definition — no closures, no per-call allocations.
