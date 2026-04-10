@@ -41,8 +41,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: html-report/ui/yarn.lock
+          cache: npm
+          cache-dependency-path: html-report/ui/package-lock.json
 
       - name: Check go mod tidy is up to date
         run: go mod tidy && git diff --exit-code
@@ -91,8 +91,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{matrix.node-version}}
-          cache: yarn
-          cache-dependency-path: html-report/ui/yarn.lock
+          cache: npm
+          cache-dependency-path: html-report/ui/package-lock.json
 
       - name: Build HTML report UI assets
         run: ./scripts/build-ui-assets.sh
@@ -100,9 +100,9 @@ jobs:
           KEEP_NODE_MODULES: "1"
 
       - name: Test
-        run: corepack yarn test
+        run: npm test
         working-directory: html-report/ui
 
       - name: Lint
-        run: corepack yarn lint
+        run: npm run lint
         working-directory: html-report/ui

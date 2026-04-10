@@ -2,7 +2,6 @@
   "name": "html-report",
   "version": "0.1.0",
   "description": "Generated HTML reporting for vacuum",
-  "packageManager": "yarn@1.22.22",
   "main": "index.js",
   "repository": "https://github.com/daveshanley/vacuum",
   "author": "Dave Shanley",
@@ -48,30 +47,56 @@
     "ts-loader": "^9.4.1",
     "typescript": "^5.0.2"
   },
-  "resolutions": {
-    "**/@web/dev-server-core/picomatch": "2.3.2",
-    "**/@web/dev-server-core/koa": "2.16.4",
-    "**/@web/test-runner-core/picomatch": "2.3.2",
-    "**/@web/test-runner-coverage-v8/picomatch": "2.3.2",
-    "**/eslint/ajv": "6.14.0",
-    "**/@eslint/eslintrc/ajv": "6.14.0",
-    "**/schema-utils/ajv": "8.18.0",
-    "**/schema-utils/ajv-formats/ajv": "8.18.0",
-    "**/basic-ftp": "5.2.0",
-    "**/brace-expansion": "1.1.13",
-    "**/diff": "5.2.2",
-    "**/flatted": "3.4.2",
-    "**/minimatch": "3.1.4",
-    "**/micromatch/picomatch": "2.3.2",
-    "**/anymatch/picomatch": "2.3.2",
-    "**/path-to-regexp": "0.1.13",
-    "**/qs": "6.14.2",
-    "**/readdirp/picomatch": "2.3.2",
-    "**/rollup": "4.60.0",
-    "**/webpack-dev-server/picomatch": "2.3.2",
-    "**/tinyglobby/picomatch": "4.0.4",
-    "**/@rollup/pluginutils/picomatch": "4.0.4",
-    "**/yaml": "2.8.3"
+  "overrides": {
+    "@web/dev-server-core": {
+      "picomatch": "2.3.2",
+      "koa": "2.16.4"
+    },
+    "@web/test-runner-core": {
+      "picomatch": "2.3.2"
+    },
+    "@web/test-runner-coverage-v8": {
+      "picomatch": "2.3.2"
+    },
+    "eslint": {
+      "ajv": "6.14.0"
+    },
+    "@eslint/eslintrc": {
+      "ajv": "6.14.0"
+    },
+    "schema-utils": {
+      "ajv": "8.18.0",
+      "ajv-formats": {
+        "ajv": "8.18.0"
+      }
+    },
+    "basic-ftp": "5.2.1",
+    "brace-expansion": "1.1.13",
+    "diff": "5.2.2",
+    "flatted": "3.4.2",
+    "minimatch": "3.1.4",
+    "micromatch": {
+      "picomatch": "2.3.2"
+    },
+    "anymatch": {
+      "picomatch": "2.3.2"
+    },
+    "path-to-regexp": "0.1.13",
+    "qs": "6.14.2",
+    "readdirp": {
+      "picomatch": "2.3.2"
+    },
+    "rollup": "4.60.0",
+    "webpack-dev-server": {
+      "picomatch": "2.3.2"
+    },
+    "tinyglobby": {
+      "picomatch": "4.0.4"
+    },
+    "@rollup/pluginutils": {
+      "picomatch": "4.0.4"
+    },
+    "yaml": "2.8.3"
   },
   "eslintConfig": {
     "parser": "@typescript-eslint/parser",
