@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/viewport"
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/bubbles/v2/viewport"
+	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 )

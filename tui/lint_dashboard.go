@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/v2/spinner"
-	"github.com/charmbracelet/bubbles/v2/table"
-	"github.com/charmbracelet/bubbles/v2/viewport"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
@@ -299,9 +299,7 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		changeFilterStats: filterStats,
 	}
 
-	p := tea.NewProgram(m,
-		tea.WithAltScreen(),
-	)
+	p := tea.NewProgram(m)
 
 	finalModel, err := p.Run()
 	if err != nil {
@@ -449,7 +447,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// up - same as pressing up arrow
 			if m.uiState.ActiveModal == ModalCode {
 				// code view is open, scroll in code view
-				m.codeViewport.LineUp(3)
+				m.codeViewport.ScrollUp(3)
 			} else {
 				// scroll table up
 				m.table.MoveUp(3)
@@ -458,7 +456,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// down - same as pressing down arrow
 			if m.uiState.ActiveModal == ModalCode {
 				// code view is open, scroll in code view
-				m.codeViewport.LineDown(3)
+				m.codeViewport.ScrollDown(3)
 			} else {
 				// Scroll table down
 				m.table.MoveDown(3)
@@ -811,9 +809,9 @@ func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	return x, y
 }
 
-func (m *ViolationResultTableModel) View() string {
+func (m *ViolationResultTableModel) View() tea.View {
 	if m.quitting {
-		return ""
+		return tea.View{}
 	}
 
 	tableView := m.buildTableView()
@@ -828,22 +826,23 @@ func (m *ViolationResultTableModel) View() string {
 		baseView = lipgloss.JoinVertical(lipgloss.Left, tableView, navBar)
 	}
 
-	// create layers
-	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(baseView),
-	}
+	compositor := lipgloss.NewCompositor(lipgloss.NewLayer(baseView))
 
-	// add modal layer if active
+	// In lipgloss v2, child layers are flattened and drawn by Compositor, not
+	// by Layer.Draw itself. Compose the compositor so modal overlays render.
 	if m.uiState.ActiveModal != ModalNone {
 		modal := m.renderActiveModal()
 		if modal != "" {
 			x, y := m.calculateModalPosition()
-			layers = append(layers, lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
+			compositor.AddLayers(lipgloss.NewLayer(modal).X(x).Y(y).Z(1))
 		}
 	}
 
-	canvas := lipgloss.NewCanvas(layers...)
-	return canvas.Render()
+	canvas := lipgloss.NewCanvas(m.width, m.height)
+	canvas.Compose(compositor)
+	view := tea.NewView(canvas.Render())
+	view.AltScreen = true
+	return view
 }
 
 // renderActiveModal renders the currently active modal

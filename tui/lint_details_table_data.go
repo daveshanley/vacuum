@@ -4,7 +4,7 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/v2/table"
+	"charm.land/bubbles/v2/table"
 	"github.com/daveshanley/vacuum/model"
 )
 

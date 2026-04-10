@@ -1,8 +1,10 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/table"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
@@ -72,6 +74,52 @@ func TestViolationResultTableModel_CloseActiveModal(t *testing.T) {
 
 	model.CloseActiveModal()
 	assert.Equal(t, ModalNone, model.uiState.ActiveModal)
+}
+
+func TestViolationResultTableModel_ViewRendersActiveCodeModal(t *testing.T) {
+	results := []*model.RuleFunctionResult{
+		{
+			Message: "missing description",
+			Rule: &model.Rule{
+				Id:       "operation-description",
+				Severity: "warn",
+			},
+			StartNode: &yaml.Node{Line: 2},
+		},
+	}
+
+	columns, rows := BuildResultTableData(results, "spec.yaml", 100, true)
+	tbl := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(20),
+		table.WithWidth(98),
+	)
+
+	m := &ViolationResultTableModel{
+		table:           tbl,
+		allResults:      results,
+		filteredResults: results,
+		rows:            rows,
+		fileName:        "spec.yaml",
+		specContent:     []byte("openapi: 3.0.0\ninfo:\n  title: Example\n"),
+		width:           100,
+		height:          30,
+		uiState: UIState{
+			ViewMode:    ViewModeTable,
+			ActiveModal: ModalCode,
+			ShowPath:    true,
+			FilterState: FilterAll,
+		},
+		modalContent: results[0],
+	}
+
+	m.PrepareCodeViewport()
+	view := m.View()
+
+	assert.True(t, view.AltScreen)
+	assert.True(t, strings.Contains(view.Content, "esc/x: close"), view.Content)
 }
 
 func TestViolationResultTableModel_TogglePathColumn(t *testing.T) {

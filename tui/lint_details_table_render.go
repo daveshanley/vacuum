@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/glamour"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/utils"
@@ -90,16 +90,16 @@ func (m *ViolationResultTableModel) HandleCodeViewKeys(key string) (bool, tea.Cm
 
 	switch key {
 	case "up", "k":
-		m.codeViewport.LineUp(1)
+		m.codeViewport.ScrollUp(1)
 		return true, nil
 	case "down", "j":
-		m.codeViewport.LineDown(1)
+		m.codeViewport.ScrollDown(1)
 		return true, nil
 	case "pgup", "pageup", "page up":
-		m.codeViewport.ViewUp()
+		m.codeViewport.PageUp()
 		return true, nil
 	case "pgdn", "pagedown", "page down", "pgdown":
-		m.codeViewport.ViewDown()
+		m.codeViewport.PageDown()
 		return true, nil
 	case "home", "g":
 		m.codeViewport.GotoTop()
@@ -128,16 +128,16 @@ func (m *ViolationResultTableModel) HandleDocsModalKeys(key string) (bool, tea.C
 	if m.docsState == DocsStateLoaded {
 		switch key {
 		case "up", "k":
-			m.docsViewport.LineUp(1)
+			m.docsViewport.ScrollUp(1)
 			return true, nil
 		case "down", "j":
-			m.docsViewport.LineDown(1)
+			m.docsViewport.ScrollDown(1)
 			return true, nil
 		case "pgup":
-			m.docsViewport.ViewUp()
+			m.docsViewport.PageUp()
 			return true, nil
 		case "pgdn":
-			m.docsViewport.ViewDown()
+			m.docsViewport.PageDown()
 			return true, nil
 		case "home", "g":
 			m.docsViewport.GotoTop()
