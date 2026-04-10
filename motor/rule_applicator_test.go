@@ -2915,6 +2915,95 @@ components:
 		"resolved: true with given '$' should find 'openapi' on the root node")
 }
 
+func TestIssue849_ExtendsSeverityShorthandPreservesInheritedPathAndRuleID(t *testing.T) {
+	dir := t.TempDir()
+
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: Extends path reporting repro
+  version: 1.0.0
+paths:
+  /items/{itemId}:
+    delete:
+      responses:
+        "204":
+          description: Item deleted
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                $ref: '#/components/schemas/DeleteResult'
+components:
+  schemas:
+    DeleteResult:
+      type: object
+      properties:
+        id:
+          type: string
+`)
+
+	baseRulesetYAML := `rules:
+  no-content-for-204:
+    description: "A 204 response must not have a content body."
+    severity: error
+    resolved: false
+    given: "$.paths[*][*].responses.['204']"
+    then:
+      - field: content
+        function: falsy
+`
+
+	basePath := filepath.Join(dir, "ruleset-base.yaml")
+	err := os.WriteFile(basePath, []byte(baseRulesetYAML), 0o600)
+	assert.NoError(t, err)
+
+	parentRulesetYAML := fmt.Sprintf(`extends:
+  - "%s"
+
+rules:
+  no-content-for-204: error
+`, filepath.ToSlash(basePath))
+
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+
+	baseInput, err := rulesets.CreateRuleSetFromData([]byte(baseRulesetYAML))
+	assert.NoError(t, err)
+	parentInput, err := rulesets.CreateRuleSetFromData([]byte(parentRulesetYAML))
+	assert.NoError(t, err)
+
+	baseRS := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(baseInput)
+	parentRS := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(parentInput)
+
+	if assert.NotNil(t, baseRS.Rules["no-content-for-204"]) {
+		assert.False(t, baseRS.Rules["no-content-for-204"].Resolved)
+	}
+	if assert.NotNil(t, parentRS.Rules["no-content-for-204"]) {
+		assert.False(t, parentRS.Rules["no-content-for-204"].Resolved)
+	}
+
+	baseResults := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     baseRS,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+	parentResults := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     parentRS,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	baseRuleResults := filterResultsByRuleId(baseResults.Results, "no-content-for-204")
+	parentRuleResults := filterResultsByRuleId(parentResults.Results, "no-content-for-204")
+
+	if assert.Len(t, baseRuleResults, 1) && assert.Len(t, parentRuleResults, 1) {
+		assert.Equal(t, "$.paths['/items/{itemId}'].delete.responses['204']", baseRuleResults[0].Path)
+		assert.Equal(t, baseRuleResults[0].Path, parentRuleResults[0].Path)
+		assert.Equal(t, "no-content-for-204", parentRuleResults[0].RuleId)
+		if assert.NotNil(t, parentRuleResults[0].Rule) {
+			assert.Equal(t, "no-content-for-204", parentRuleResults[0].Rule.Id)
+		}
+	}
+}
+
 // TestIssue829_MigrateZallyIgnoreCircularReferences verifies that the
 // migrate-zally-ignore rule runs against unresolved YAML and does not recurse
 // indefinitely when the document contains indirect circular references.
