@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/charmbracelet/lipgloss/v2/tree"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/tree"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/utils"
 )

@@ -6,7 +6,7 @@ package tui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/v2/table"
+	"charm.land/bubbles/v2/table"
 	highoverlay "github.com/pb33f/libopenapi/datamodel/high/overlay"
 	"github.com/pb33f/libopenapi/overlay"
 )

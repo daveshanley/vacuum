@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/progress"
-	"github.com/charmbracelet/lipgloss/v2"
-	"github.com/charmbracelet/lipgloss/v2/list"
+	"charm.land/bubbles/v2/progress"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/list"
 	color2 "github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/tui"
@@ -320,14 +320,16 @@ func renderRuleViolationsTable(violations []ruleViolation, widths columnWidths) 
 	if color2.AreColorsDisabled() {
 		// Use grey to white gradient in no-style mode
 		prog = progress.New(
-			progress.WithScaledGradient("#606060", "#ffffff"),
+			progress.WithColors(lipgloss.Color("#606060"), lipgloss.Color("#ffffff")),
+			progress.WithScaled(true),
 			progress.WithWidth(widths.impact),
 			progress.WithoutPercentage(),
 			progress.WithFillCharacters('█', ' '),
 		)
 	} else {
 		prog = progress.New(
-			progress.WithScaledGradient("#62c4ff", "#f83aff"),
+			progress.WithColors(lipgloss.Color("#62c4ff"), lipgloss.Color("#f83aff")),
+			progress.WithScaled(true),
 			progress.WithWidth(widths.impact),
 			progress.WithoutPercentage(),
 			progress.WithFillCharacters('█', ' '),

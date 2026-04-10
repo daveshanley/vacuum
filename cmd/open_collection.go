@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/v2/table"
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/tui"
@@ -323,4 +323,3 @@ func renderCollectionTable(result *frank.FrankResult, noStyle bool) {
 	}
 	fmt.Println()
 }
-

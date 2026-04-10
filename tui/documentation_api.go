@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
+	tea "charm.land/bubbletea/v2"
 )
 
 // fetchDocsFromDoctorAPI creates a command to fetch documentation for a rule from the doctor API.

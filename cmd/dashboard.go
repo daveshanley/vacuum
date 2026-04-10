@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"

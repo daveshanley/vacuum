@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/dustin/go-humanize"
 	"github.com/pb33f/libopenapi/index"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"

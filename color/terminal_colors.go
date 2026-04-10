@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/v2/table"
+	"charm.land/bubbles/v2/table"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/glamour/ansi"
-	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/daveshanley/vacuum/utils"
 )
 
