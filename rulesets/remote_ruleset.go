@@ -129,18 +129,9 @@ func SniffOutAllExternalRules(
 		return
 	}
 
-	// iterate over the remote ruleset and add the rules in
-	for ruleName, ruleValue := range drs.Rules {
-		rs.mutex.Lock()
-		rs.Rules[ruleName] = ruleValue
-		rs.mutex.Unlock()
-	}
 	for ruleName, ruleValue := range drs.RuleDefinitions {
 		rs.mutex.Lock()
-		// Don't overwrite parent's rule definitions - they take precedence for overrides
-		if _, exists := rs.RuleDefinitions[ruleName]; !exists {
-			rs.RuleDefinitions[ruleName] = ruleValue
-		}
+		rs.RuleDefinitions[ruleName] = mergeRuleDefinition(rs.RuleDefinitions[ruleName], ruleValue)
 		rs.mutex.Unlock()
 	}
 

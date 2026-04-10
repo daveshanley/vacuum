@@ -369,6 +369,9 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		// otherwise it means delete it
 		if eval, ok := v.(bool); ok {
 			if eval {
+				if rs.Rules[k] != nil {
+					continue
+				}
 				// First check if it's in the OpenAPI ruleset
 				if rsm.openAPIRuleSet.Rules[k] != nil {
 					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
@@ -414,7 +417,6 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 			// add to validation category if it's not supplied
 			if rc.Id == "" {
 				nr.RuleCategory = model.RuleCategories[model.CategoryValidation]
-				nr.Id = k
 			} else {
 				if model.RuleCategories[rc.Id] != nil {
 					nr.RuleCategory = model.RuleCategories[rc.Id]
@@ -424,7 +426,11 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				}
 			}
 
-			if nr.RuleCategory == nil && rs.Rules[k].RuleCategory != nil {
+			if nr.Id == "" {
+				nr.Id = k
+			}
+
+			if nr.RuleCategory == nil && rs.Rules[k] != nil && rs.Rules[k].RuleCategory != nil {
 				nr.RuleCategory = rs.Rules[k].RuleCategory
 			}
 
@@ -599,16 +605,102 @@ func GenerateOWASPOpenAPIRuleSet() *RuleSet {
 
 // RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
-	Description      string                 `json:"description,omitempty" yaml:"description,omitempty"`
-	DocumentationURI string                 `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
-	Formats          []string               `json:"formats,omitempty" yaml:"formats,omitempty"`
-	RuleDefinitions  map[string]interface{} `json:"rules" yaml:"rules"`                         // this can be either a string, or an entire rule (super annoying, stoplight).
-	Rules            map[string]*model.Rule `json:"-" yaml:"-"`
-	Extends          interface{}            `json:"extends,omitempty" yaml:"extends,omitempty"`   // can be string or tuple (again... why stoplight?)
-	Aliases          map[string]interface{} `json:"aliases,omitempty" yaml:"aliases,omitempty"`   // Spectral-compatible alias definitions
-	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                  // concrete parsed aliases, no interface boxing
+	Description      string                  `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURI string                  `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Formats          []string                `json:"formats,omitempty" yaml:"formats,omitempty"`
+	RuleDefinitions  map[string]interface{}  `json:"rules" yaml:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
+	Rules            map[string]*model.Rule  `json:"-" yaml:"-"`
+	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
+	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
+	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
+}
+
+func isSeverityRuleDefinition(value string) bool {
+	switch value {
+	case model.SeverityError, model.SeverityWarn, model.SeverityInfo, model.SeverityHint:
+		return true
+	default:
+		return false
+	}
+}
+
+func isConcreteRuleDefinition(value interface{}) bool {
+	switch value.(type) {
+	case map[string]interface{}, model.Rule, *model.Rule:
+		return true
+	default:
+		return false
+	}
+}
+
+func cloneRuleDefinition(value interface{}) interface{} {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		cloned := make(map[string]interface{}, len(typed))
+		for k, v := range typed {
+			cloned[k] = v
+		}
+		return cloned
+	case model.Rule:
+		return typed
+	case *model.Rule:
+		if typed == nil {
+			return nil
+		}
+		cloned := *typed
+		return cloned
+	default:
+		return value
+	}
+}
+
+func applySeverityOverrideToRuleDefinition(value interface{}, severity string) interface{} {
+	definition := cloneRuleDefinition(value)
+	switch typed := definition.(type) {
+	case map[string]interface{}:
+		typed["severity"] = severity
+		return typed
+	case model.Rule:
+		typed.Severity = severity
+		return typed
+	case *model.Rule:
+		if typed == nil {
+			return nil
+		}
+		typed.Severity = severity
+		return typed
+	default:
+		return severity
+	}
+}
+
+func mergeRuleDefinition(parentValue, inheritedValue interface{}) interface{} {
+	if parentValue == nil {
+		return cloneRuleDefinition(inheritedValue)
+	}
+
+	switch typed := parentValue.(type) {
+	case bool:
+		if !typed {
+			return parentValue
+		}
+		if isConcreteRuleDefinition(inheritedValue) {
+			return cloneRuleDefinition(inheritedValue)
+		}
+		return parentValue
+	case string:
+		if typed == VacuumOff {
+			return parentValue
+		}
+		if isSeverityRuleDefinition(typed) && isConcreteRuleDefinition(inheritedValue) {
+			return applySeverityOverrideToRuleDefinition(inheritedValue, typed)
+		}
+		return parentValue
+	default:
+		return parentValue
+	}
 }
 
 // GetExtendsValue returns an array of maps defining which ruleset this one extends. The value can be
@@ -698,13 +790,21 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 					rule.RuleCategory = &cat
 				}
 			}
+			if _, hasResolved := b["resolved"]; !hasResolved {
+				rule.Resolved = true
+			}
+			if rule.Id == "" {
+				rule.Id = k
+			}
 			rs.Rules[k] = &rule
-			rule.Resolved = true // default resolved.
 		}
 
 		if b, ok := v.(model.Rule); ok {
-			rs.Rules[k] = &b
 			b.Resolved = true // default resolved
+			if b.Id == "" {
+				b.Id = k
+			}
+			rs.Rules[k] = &b
 		}
 	}
 

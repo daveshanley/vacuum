@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -849,4 +850,79 @@ rules:
 	assert.NotNil(t, repl.Rules["owasp-integer-format"], "owasp-integer-format rule should be available")
 	assert.Nil(t, repl.Rules["owasp-no-numeric-ids"], "other OWASP rules should be disabled")
 	assert.Greater(t, len(repl.Rules), 1, "should have OpenAPI rules plus the one OWASP rule")
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_ExtendsSeverityShorthandPreservesInheritedCustomRule(t *testing.T) {
+	dir := t.TempDir()
+
+	basePath := filepath.ToSlash(filepath.Join(dir, "base.yaml"))
+
+	baseRulesetYAML := `rules:
+  no-content-for-204:
+    description: "A 204 response must not have a content body."
+    severity: warn
+    resolved: false
+    given: "$.paths[*][*].responses.['204']"
+    then:
+      - field: content
+        function: falsy
+`
+
+	parentRulesetYAML := fmt.Sprintf(`extends:
+  - "%s"
+rules:
+  no-content-for-204: error
+`, basePath)
+
+	err := os.WriteFile(filepath.Join(dir, "base.yaml"), []byte(baseRulesetYAML), 0o600)
+	assert.NoError(t, err)
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(parentRulesetYAML))
+	assert.NoError(t, err)
+
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	rule := override.Rules["no-content-for-204"]
+	if assert.NotNil(t, rule) {
+		assert.Equal(t, "no-content-for-204", rule.Id)
+		assert.Equal(t, model.SeverityError, rule.Severity)
+		assert.False(t, rule.Resolved)
+		assert.Equal(t, "$.paths[*][*].responses.['204']", rule.Given)
+	}
+}
+
+func TestRuleSetsModel_GenerateRuleSetFromConfig_ExtendsTruePreservesInheritedCustomRule(t *testing.T) {
+	dir := t.TempDir()
+
+	basePath := filepath.ToSlash(filepath.Join(dir, "base.yaml"))
+
+	baseRulesetYAML := `rules:
+  inherited-custom-rule:
+    description: "Inherited custom rule"
+    severity: info
+    given: "$.info"
+    then:
+      function: truthy
+`
+
+	parentRulesetYAML := fmt.Sprintf(`extends:
+  - "%s"
+rules:
+  inherited-custom-rule: true
+`, basePath)
+
+	err := os.WriteFile(filepath.Join(dir, "base.yaml"), []byte(baseRulesetYAML), 0o600)
+	assert.NoError(t, err)
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(parentRulesetYAML))
+	assert.NoError(t, err)
+
+	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+	rule := override.Rules["inherited-custom-rule"]
+	if assert.NotNil(t, rule) {
+		assert.Equal(t, "inherited-custom-rule", rule.Id)
+		assert.Equal(t, model.SeverityInfo, rule.Severity)
+		assert.Equal(t, "$.info", rule.Given)
+	}
 }
