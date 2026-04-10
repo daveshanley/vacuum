@@ -113,6 +113,52 @@ components:
 		"Should NOT report 'no properties' error when properties exist via allOf")
 }
 
+// TestSchemaType_Issue546_AllOfSiblingRequiredProperties ensures required fields declared
+// inside a single allOf arm can be satisfied by sibling allOf arms in the composed schema.
+func TestSchemaType_Issue546_AllOfSiblingRequiredProperties(t *testing.T) {
+	yml := `openapi: 3.0.0
+components:
+  schemas:
+    CloudAppDatasetCreate:
+      type: object
+      properties:
+        status:
+          type: string
+    CloudAppDataset:
+      allOf:
+        - $ref: '#/components/schemas/CloudAppDatasetCreate'
+        - type: object
+          required:
+            - datasetId
+            - status
+          properties:
+            datasetId:
+              type: string`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+
+	m, _ := document.BuildV3Model()
+	path := "$"
+
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	res := def.RunRule(nil, ctx)
+
+	for _, r := range res {
+		if r.Message == "`required` field `status` is not defined in `properties`" {
+			t.Fatalf("unexpected issue 546 false positive at %s", r.Path)
+		}
+	}
+}
+
 // TestAmbiguousPaths_Issue644 tests the case from issue #644
 // where /foo/{x} and /foo/bar should be flagged as ambiguous
 func TestAmbiguousPaths_Issue644(t *testing.T) {
