@@ -56,12 +56,20 @@ type ruleContext struct {
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
 	applyAutoFixes     bool
+	resolvedExecution  bool
 	fetchConfig        *vacuumUtils.FetchConfig
 	turboMode          bool
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
 	schemaPathCache    *sync.Map
 	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
+}
+
+// ExecutionOptions configures optional execution behavior without extending
+// RuleSetExecution's public struct surface.
+type ExecutionOptions struct {
+	ResolveAllRefs       bool // Force resolved document/index selection for all rules
+	NestedRefsDocContext bool // Resolve nested relative refs from the referenced document's path/index in resolved execution
 }
 
 // RuleSetExecution is an instruction set for executing a ruleset. It's a convenience structure to allow the signature
@@ -234,6 +242,15 @@ func ruleUsesFunction(rule *model.Rule, funcName string) bool {
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
 // uses a message structure, to allow the signature to grow, without breaking anything.
 func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
+	return ApplyRulesToRuleSetWithOptions(execution, nil)
+}
+
+// ApplyRulesToRuleSetWithOptions applies a ruleset with explicit execution options.
+func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOptions *ExecutionOptions) *RuleSetExecutionResult {
+	opts := ExecutionOptions{}
+	if executionOptions != nil {
+		opts = *executionOptions
+	}
 
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
@@ -252,21 +269,21 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 	// avoid building the index, we don't need it to run yet.
 	indexConfig.AvoidBuildIndex = true
 
-	docConfig := datamodel.NewDocumentConfiguration()
-	docConfig.SpecFilePath = execution.SpecFileName
-	docConfig.LocalFS = execution.RolodexFS
-	docConfig.RemoteFS = execution.RolodexFS
+	docConfigResolved := datamodel.NewDocumentConfiguration()
+	docConfigResolved.SpecFilePath = execution.SpecFileName
+	docConfigResolved.LocalFS = execution.RolodexFS
+	docConfigResolved.RemoteFS = execution.RolodexFS
 
 	if execution.IgnoreCircularArrayRef {
-		docConfig.IgnoreArrayCircularReferences = true
+		docConfigResolved.IgnoreArrayCircularReferences = true
 	}
 
 	if execution.IgnoreCircularPolymorphicRef {
-		docConfig.IgnorePolymorphicCircularReferences = true
+		docConfigResolved.IgnorePolymorphicCircularReferences = true
 	}
 	if !execution.ExtractReferencesFromExtensions {
 		indexConfig.ExcludeExtensionRefs = true
-		docConfig.ExcludeExtensionRefs = true
+		docConfigResolved.ExcludeExtensionRefs = true
 	}
 
 	// add new pretty logger.
@@ -281,11 +298,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			// use simple logger that discards output for internal motor operations
 			logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 		}
-		docConfig.Logger = logger
+		docConfigResolved.Logger = logger
 		indexConfig.Logger = logger
 
 	} else {
-		docConfig.Logger = execution.Logger
+		docConfigResolved.Logger = execution.Logger
 		indexConfig.Logger = execution.Logger
 	}
 
@@ -299,7 +316,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 
 		// Set the custom RemoteURLHandler for libopenapi
-		docConfig.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+		docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 	}
 
 	if execution.Base != "" {
@@ -315,8 +332,8 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexConfig.BasePath = ""
 			indexConfigUnresolved.BaseURL = u
 			indexConfigUnresolved.BasePath = ""
-			docConfig.BaseURL = u
-			docConfig.BasePath = ""
+			docConfigResolved.BaseURL = u
+			docConfigResolved.BasePath = ""
 			indexConfig.AllowRemoteLookup = true
 			indexConfigUnresolved.AllowRemoteLookup = true
 
@@ -325,7 +342,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			indexConfig.BasePath = execution.Base
 			indexConfigUnresolved.AllowFileLookup = true
 			indexConfigUnresolved.BasePath = execution.Base
-			docConfig.BasePath = execution.Base
+			docConfigResolved.BasePath = execution.Base
 		}
 	}
 
@@ -337,31 +354,31 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 				specDir := filepath.Dir(execution.SpecFileName)
 				if specDir != "" && specDir != "." {
 					indexConfig.BasePath = specDir
-					docConfig.BasePath = specDir
+					docConfigResolved.BasePath = specDir
 					indexConfigUnresolved.BasePath = specDir
 				} else {
 					indexConfig.BasePath = "."
-					docConfig.BasePath = "."
+					docConfigResolved.BasePath = "."
 				}
 			} else {
 				indexConfig.BasePath = "."
-				docConfig.BasePath = "."
+				docConfigResolved.BasePath = "."
 			}
 		}
 		indexConfig.AllowFileLookup = true
 		indexConfigUnresolved.AllowFileLookup = true
 		indexConfig.AllowRemoteLookup = true
 		indexConfigUnresolved.AllowRemoteLookup = true
-		docConfig.AllowRemoteReferences = true
-		docConfig.AllowFileReferences = true
+		docConfigResolved.AllowRemoteReferences = true
+		docConfigResolved.AllowFileReferences = true
 	}
 
 	if execution.ExtractReferencesSequentially {
-		docConfig.ExtractRefsSequentially = true
+		docConfigResolved.ExtractRefsSequentially = true
 	}
 
 	if execution.SkipDocumentCheck {
-		docConfig.BypassDocumentCheck = true
+		docConfigResolved.BypassDocumentCheck = true
 	}
 
 	// Skip JSON conversion in turbo mode unless an active rule needs it.
@@ -379,9 +396,15 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			}
 		}
 		if !needsJSON {
-			docConfig.SkipJSONConversion = true
+			docConfigResolved.SkipJSONConversion = true
 		}
 	}
+
+	docConfigResolved.ResolveNestedRefsWithDocumentContext = opts.NestedRefsDocContext
+	docConfigUnresolved := *docConfigResolved
+	docConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
+	indexConfig.ResolveNestedRefsWithDocumentContext = docConfigResolved.ResolveNestedRefsWithDocumentContext
+	indexConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
 
 	docResolved := execution.Document
 	var docUnresolved libopenapi.Document
@@ -403,11 +426,11 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		wg := conc.WaitGroup{}
 
 		wg.Go(func() {
-			docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfig)
+			docResolved, err = libopenapi.NewDocumentWithConfiguration(execution.Spec, docConfigResolved)
 		})
 
 		wg.Go(func() {
-			dc := *docConfig
+			dc := docConfigUnresolved
 			dc.SkipCircularReferenceCheck = false
 			docUnresolved, _ = libopenapi.NewDocumentWithConfiguration(execution.Spec, &dc)
 		})
@@ -424,8 +447,32 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 	} else {
 
+		suppliedDocConfig := docResolved.GetConfiguration()
+		docConfigResolved.BaseURL = suppliedDocConfig.BaseURL
+		docConfigResolved.BasePath = suppliedDocConfig.BasePath
+		docConfigResolved.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
+		docConfigResolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
+		docConfigResolved.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
+		if suppliedDocConfig.ResolveNestedRefsWithDocumentContext {
+			docConfigResolved.ResolveNestedRefsWithDocumentContext = true
+		}
+		docConfigUnresolved.BaseURL = suppliedDocConfig.BaseURL
+		docConfigUnresolved.BasePath = suppliedDocConfig.BasePath
+		docConfigUnresolved.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
+		docConfigUnresolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
+		docConfigUnresolved.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
+
+		specBytes := *docResolved.GetSpecInfo().SpecBytes
+		if opts.NestedRefsDocContext && !suppliedDocConfig.ResolveNestedRefsWithDocumentContext {
+			var rErr error
+			docResolved, rErr = libopenapi.NewDocumentWithConfiguration(specBytes, docConfigResolved)
+			if rErr != nil {
+				return &RuleSetExecutionResult{Errors: []error{rErr}}
+			}
+		}
+
 		var uErr error
-		docUnresolved, uErr = libopenapi.NewDocumentWithConfiguration(*docResolved.GetSpecInfo().SpecBytes, docConfig)
+		docUnresolved, uErr = libopenapi.NewDocumentWithConfiguration(specBytes, &docConfigUnresolved)
 		if uErr != nil {
 			// Done here, we can't do anything else.
 			return &RuleSetExecutionResult{Errors: []error{uErr}}
@@ -434,20 +481,15 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		specInfo = docResolved.GetSpecInfo()
 		specInfoUnresolved = docUnresolved.GetSpecInfo()
 
-		suppliedDocConfig := docResolved.GetConfiguration()
-		docConfig.BaseURL = suppliedDocConfig.BaseURL
-		docConfig.BasePath = suppliedDocConfig.BasePath
-		docConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
-		docConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
-		docConfig.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
 		indexConfig.SpecInfo = specInfo
-		indexConfig.AvoidBuildIndex = suppliedDocConfig.AvoidIndexBuild
-		indexConfig.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
-		indexConfig.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
+		indexConfig.AvoidBuildIndex = docConfigResolved.AvoidIndexBuild
+		indexConfig.IgnorePolymorphicCircularReferences = docConfigResolved.IgnorePolymorphicCircularReferences
+		indexConfig.IgnoreArrayCircularReferences = docConfigResolved.IgnoreArrayCircularReferences
+		indexConfig.ResolveNestedRefsWithDocumentContext = docConfigResolved.ResolveNestedRefsWithDocumentContext
 		indexConfigUnresolved.SpecInfo = specInfoUnresolved
-		indexConfigUnresolved.AvoidBuildIndex = suppliedDocConfig.AvoidIndexBuild
-		indexConfigUnresolved.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
-		indexConfigUnresolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
+		indexConfigUnresolved.AvoidBuildIndex = docConfigUnresolved.AvoidIndexBuild
+		indexConfigUnresolved.IgnorePolymorphicCircularReferences = docConfigUnresolved.IgnorePolymorphicCircularReferences
+		indexConfigUnresolved.IgnoreArrayCircularReferences = docConfigUnresolved.IgnoreArrayCircularReferences
 	}
 
 	timeTaken := time.Since(nowDocs).Milliseconds()
@@ -630,6 +672,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 		unresRoloConfig := *indexConfig
 		resRoloConfig := *indexConfig
+		unresRoloConfig.ResolveNestedRefsWithDocumentContext = false
 
 		wg := conc.WaitGroup{}
 
@@ -949,17 +992,44 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 			go func(rule *model.Rule, done chan bool) {
 				defer func() { <-ruleSem }() // release semaphore slot
 
+				ruleResolved := opts.ResolveAllRefs || rule.Resolved
+				suppliedResolvedDocumentContext := docResolved != nil &&
+					docResolved.GetConfiguration() != nil &&
+					docResolved.GetConfiguration().ResolveNestedRefsWithDocumentContext
+				// Select resolved or unresolved execution inputs per resource type.
+				// JSONPath/index/spec info can follow resolved execution without
+				// automatically switching the document context unless explicitly enabled.
+				// Preserve legacy `resolved: true` behavior by default: resolved rules
+				// still evaluate JSONPath, index, and spec info against the resolved tree,
+				// but they only receive the resolved Document when execution explicitly
+				// opts into that newer context via global resolve-all, nested-doc-context,
+				// or a caller-supplied Document that already enabled the nested-doc mode.
+				useResolvedDocumentContext := ruleResolved &&
+					(opts.ResolveAllRefs || opts.NestedRefsDocContext || suppliedResolvedDocumentContext)
 				ruleIndex := indexResolved
 				info := specInfo
-				if !rule.Resolved {
+				ruleDocument := docUnresolved
+				ruleSpecNode := specNodeResolved
+				if useResolvedDocumentContext {
+					ruleDocument = docResolved
+				}
+				if !ruleResolved {
 					info = specInfoUnresolved
 					ruleIndex = indexUnresolved
+					ruleDocument = docUnresolved
+					ruleSpecNode = execution.CanonicalDocument
 				}
-
-				// Select the resolved or unresolved spec node based on rule configuration.
-				ruleSpecNode := execution.CanonicalDocument
-				if rule.Resolved && specNodeResolved != nil {
-					ruleSpecNode = specNodeResolved
+				if ruleIndex == nil {
+					ruleIndex = indexUnresolved
+				}
+				if info == nil {
+					info = specInfoUnresolved
+				}
+				if ruleDocument == nil {
+					ruleDocument = docUnresolved
+				}
+				if ruleSpecNode == nil {
+					ruleSpecNode = execution.CanonicalDocument
 				}
 
 				ctx := ruleContext{
@@ -974,15 +1044,16 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 					specInfo:           info,
 					index:              ruleIndex,
 					indexUnresolved:    indexUnresolved,
-					document:           docUnresolved,
+					document:           ruleDocument,
 					drDocument:         drDocument,
 					customFunctions:    execution.CustomFunctions,
 					autoFixFunctions:   execution.AutoFixFunctions,
 					silenceLogs:        execution.SilenceLogs,
 					skipDocumentCheck:  execution.SkipDocumentCheck,
-					logger:             docConfig.Logger,
+					logger:             docConfigResolved.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
+					resolvedExecution:  ruleResolved,
 					fetchConfig:        execution.FetchConfig,
 					turboMode:          execution.TurboMode,
 					hasInlineIgnores:   specHasInlineIgnores,
@@ -1113,7 +1184,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		Errors:           errs,
 		FilesProcessed:   filesProcessed,
 		FileSize:         fileSize,
-		DocumentConfig:   docConfig,
+		DocumentConfig:   docConfigResolved,
 		ModifiedSpec:     modifiedSpec,
 		ownedDocument:    ownedDocument(ownsResolvedDoc, docResolved),
 		unresolvedDoc:    docUnresolved,
@@ -1184,9 +1255,9 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 
 		if givenPath != "$" {
 
-			// Call FindNodesWithoutDeserializingWithTimeout directly — it already
-			// spawns a goroutine+timer internally. The previous code wrapped it in
-			// a second goroutine+channel+select, doubling overhead per lookup.
+			// Call the timeout helper directly. It already owns the goroutine/timer
+			// needed for bounded lookup, so wrapping it again here would only add
+			// extra per-lookup overhead.
 			nodes, err = utils.FindNodesWithoutDeserializingWithTimeout(
 				ctx.specNode, givenPath, ctx.nodeLookupTimeout)
 			if err != nil {
@@ -1450,6 +1521,10 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 }
 
 func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
+	// Preserve legacy behavior for direct/internal callers that construct ruleContext
+	// manually and only set rule.Resolved.
+	resolvedExecution := ctx.resolvedExecution || (ctx.rule != nil && ctx.rule.Resolved)
+
 	for i := range results {
 		if results[i].StartNode == nil {
 			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
@@ -1463,7 +1538,7 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 		}
 
 		nodeToFix := results[i].StartNode
-		if ctx.rule.Resolved {
+		if resolvedExecution {
 			if ctx.indexUnresolved != nil {
 				origin := ctx.indexUnresolved.FindNodeOrigin(results[i].StartNode)
 				if origin == nil || origin.Node == nil {

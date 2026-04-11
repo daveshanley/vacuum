@@ -542,6 +542,33 @@ The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--r
 
 ---
 
+## Reference resolution in rules
+
+vacuum has two resolved-execution controls:
+
+- Per rule: `resolved`
+- Per run: `--resolve-all-refs` or `motor.ExecutionOptions{ResolveAllRefs: true}`
+
+In YAML/JSON rulesets, `resolved` defaults to `true`. In that mode, `given`, matched nodes, `Index`, and `SpecInfo` come from the dereferenced document, but `context.Document` stays unresolved for compatibility.
+
+Set `resolved: false` when a rule needs the raw document, for example to inspect `$ref` directly. If you build `model.Rule` values in Go, set `Resolved` explicitly.
+
+```yaml
+rules:
+  response-has-content:
+    given: "$.paths[*][*].responses['404']"
+    resolved: false
+    then:
+      field: content
+      function: defined
+```
+
+`--resolve-all-refs` forces every rule into resolved execution, overrides `resolved: false`, and also supplies resolved `context.Document` to rule functions.
+
+Use `--nested-refs-doc-context` or `motor.ExecutionOptions{NestedRefsDocContext: true}` for split specs where an external file contains another relative `$ref`. That makes nested relative refs resolve from the referenced document instead of the root document. It only affects resolved execution, including runs forced by `--resolve-all-refs`.
+
+---
+
 ## Configuration
 
 ### File

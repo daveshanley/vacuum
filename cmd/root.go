@@ -123,6 +123,8 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("warn-on-changes", false, "Inject warning violations for each detected API change")
 	rootCmd.PersistentFlags().Bool("error-on-breaking", false, "Inject error violations for each breaking change")
 	rootCmd.PersistentFlags().BoolP("turbo", "T", false, "Turbo mode: faster linting, trades some checks for speed")
+	rootCmd.PersistentFlags().Bool("resolve-all-refs", false, "Force all rules to execute against the resolved document")
+	rootCmd.PersistentFlags().Bool("nested-refs-doc-context", false, "Resolve nested relative refs from the referenced document during resolved execution")
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())

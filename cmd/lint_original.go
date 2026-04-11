@@ -17,7 +17,7 @@ import (
 // All config fields (RuleSet, CustomFunctions, Timeout, etc.) are copied from the template
 // to guarantee exact config parity. Only Spec, SpecFileName, and Base are replaced.
 // Returns nil results (not an error) if the original spec has parse errors.
-func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution) ([]model.RuleFunctionResult, error) {
+func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, executionOptions *motor.ExecutionOptions) ([]model.RuleFunctionResult, error) {
 	originalBytes, err := os.ReadFile(originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read original spec file '%s': %w", originalPath, err)
@@ -61,7 +61,7 @@ func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution) ([]
 		exec.Timeout = 5 * time.Minute
 	}
 
-	result := motor.ApplyRulesToRuleSet(exec)
+	result := motor.ApplyRulesToRuleSetWithOptions(exec, executionOptions)
 
 	// If original spec has parse errors, return nil — safe default means all new violations get reported
 	if len(result.Errors) > 0 {

@@ -172,6 +172,11 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 		return j.runBatch(nodes, ruleContext)
 	}
 
+	var firstNode *yaml.Node
+	if len(nodes) > 0 {
+		firstNode = nodes[0]
+	}
+
 	// per-node invocation (default behavior)
 	// each rule needs its own runtime because these functions may run concurrently.
 	// the same runtime would become polluted with a shared state.
@@ -182,10 +187,6 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 	// register fetch() function with configuration from rule context (or secure defaults)
 	fetchModule, fetchErr := fetch.NewFetchModuleFromConfig(loop, ruleContext.FetchConfig)
 	if fetchErr != nil {
-		var firstNode *yaml.Node
-		if len(nodes) > 0 {
-			firstNode = nodes[0]
-		}
 		return j.createErrorResult(
 			fmt.Sprintf("Failed to configure fetch() for JavaScript function '%s': %s", j.ruleName, fetchErr.Error()),
 			firstNode, ruleContext)
@@ -199,8 +200,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 		// create a fresh timeout for each node - prevents cumulative timeout across all nodes
 		ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
 
-		var enc interface{}
-		_ = node.Decode(&enc)
+		enc := decodeNodeForJS(node)
 
 		runtimeErr = rt.Set("context", ruleContext)
 		if runtimeErr != nil {
@@ -325,8 +325,7 @@ func (j *JSRuleFunction) runBatch(nodes []*yaml.Node, ruleContext model.RuleFunc
 	batchInputs := make([]map[string]interface{}, 0, len(nodes))
 
 	for i, node := range nodes {
-		var decoded interface{}
-		_ = node.Decode(&decoded)
+		decoded := decodeNodeForJS(node)
 
 		// get origin from index (handles multi-file specs via rolodex)
 		var origin *index.NodeOrigin
@@ -486,6 +485,13 @@ func (j *JSRuleFunction) extractBatchResults(
 	}
 
 	return functionResults
+}
+
+// decodeNodeForJS converts a YAML node into a JS-friendly value.
+func decodeNodeForJS(node *yaml.Node) interface{} {
+	var decoded interface{}
+	_ = node.Decode(&decoded)
+	return decoded
 }
 
 // BuildVM returns a new goja runtime, a VM if you will.

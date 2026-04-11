@@ -52,10 +52,11 @@ type DocumentContext struct {
 type RulesetSelector func(ctx *DocumentContext) *rulesets.RuleSet
 
 type ServerState struct {
-	server          *glspserv.Server
-	documentStore   *DocumentStore
-	lintRequest     *utils.LintFileRequest
-	rulesetSelector RulesetSelector
+	server           *glspserv.Server
+	documentStore    *DocumentStore
+	lintRequest      *utils.LintFileRequest
+	executionOptions *motor.ExecutionOptions
+	rulesetSelector  RulesetSelector
 
 	// Configuration layers (in order of increasing priority)
 	baseConfig    *LSPConfig // From command-line flags (immutable after init)
@@ -83,6 +84,10 @@ type ServerState struct {
 }
 
 func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
+	return NewServerWithExecutionOptions(version, lintRequest, nil)
+}
+
+func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRequest, executionOptions *motor.ExecutionOptions) *ServerState {
 	handler := protocol.Handler{}
 	server := glspserv.NewServer(&handler, serverName, true)
 
@@ -110,11 +115,12 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	}
 
 	state := &ServerState{
-		server:        server,
-		lintRequest:   lintRequest,
-		documentStore: newDocumentStore(),
-		logger:        logger,
-		baseConfig:    baseConfig,
+		server:           server,
+		lintRequest:      lintRequest,
+		executionOptions: executionOptions,
+		documentStore:    newDocumentStore(),
+		logger:           logger,
+		baseConfig:       baseConfig,
 	}
 	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
 		if params.Trace != nil {
@@ -327,7 +333,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	}
 
 	go func() {
-		result := motor.ApplyRulesToRuleSet(ruleExec)
+		result := motor.ApplyRulesToRuleSetWithOptions(ruleExec, s.executionOptions)
 
 		filteredResults := utils.FilterIgnoredResults(result.Results, ignoredResults)
 		result.Results = filteredResults

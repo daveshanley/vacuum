@@ -72,6 +72,9 @@ func GetDashboardCommand() *cobra.Command {
 			warnOnChanges, _ := cmd.Flags().GetBool("warn-on-changes")
 			errorOnBreaking, _ := cmd.Flags().GetBool("error-on-breaking")
 			turboFlag, _ := cmd.Flags().GetBool("turbo")
+			resolveAllRefsFlag, _ := cmd.Flags().GetBool("resolve-all-refs")
+			nestedRefsDocContextFlag, _ := cmd.Flags().GetBool("nested-refs-doc-context")
+			executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 
 			// Load and apply breaking rules config early, before any change comparison
 			breakingConfig, breakingConfigErr := utils.LoadBreakingRulesConfig(breakingConfigPath)
@@ -234,7 +237,7 @@ func GetDashboardCommand() *cobra.Command {
 					return fmt.Errorf("failed to resolve base path: %w", baseErr)
 				}
 
-				result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+				result := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 					RuleSet:           selectedRS,
 					Spec:              specBytes,
 					SpecFileName:      displayFileName,
@@ -248,7 +251,7 @@ func GetDashboardCommand() *cobra.Command {
 					HTTPClientConfig:  httpConfig,
 					FetchConfig:       fetchConfig,
 					TurboMode:         turboFlag,
-				})
+				}, executionOptions)
 
 				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
 
@@ -286,7 +289,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				if originalFlag != "" && execution != nil {
 					// Live-spec mode: use violation-set diffing for accurate filtering
-					originalResults, lintErr := LintOriginalSpec(originalFlag, execution)
+					originalResults, lintErr := LintOriginalSpec(originalFlag, execution, executionOptions)
 					if lintErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)

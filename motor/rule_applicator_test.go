@@ -2,7 +2,9 @@ package motor
 
 import (
 	"fmt"
+	"io"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +14,9 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
+	jsplugin "github.com/daveshanley/vacuum/plugin/javascript"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
@@ -2562,7 +2566,6 @@ security:
 		if err != nil {
 			log.Fatalf("error: %v", err)
 		}
-		d.BuildV3Model()
 
 		ex := &RuleSetExecution{
 			RuleSet:           rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
@@ -2695,6 +2698,211 @@ func (r *testResolvedSchemaCounter) GetSchema() model.RuleFunctionSchema {
 	}
 }
 
+type testResolvedExecutionRecorder struct {
+	resolvedExecution bool
+	documentSet       bool
+	documentResolved  bool
+	indexSet          bool
+}
+
+func (r *testResolvedExecutionRecorder) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func responseHasResolvedContent(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
+
+	var decoded map[string]interface{}
+	if err := node.Decode(&decoded); err != nil {
+		return false
+	}
+
+	paths, ok := decoded["paths"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	testPath, ok := paths["/test"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	getOp, ok := testPath["get"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	responses, ok := getOp["responses"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	notFound, ok := responses["404"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	if _, hasRef := notFound["$ref"]; hasRef {
+		return false
+	}
+	if _, hasContent := notFound["content"]; hasContent {
+		return true
+	}
+	_, hasDescription := notFound["description"]
+	return hasDescription
+}
+
+func (r *testResolvedExecutionRecorder) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	if len(nodes) > 0 {
+		r.resolvedExecution = responseHasResolvedContent(nodes[0])
+	}
+	r.documentSet = context.Document != nil
+	r.documentResolved = documentHasResolvedContent(context.Document)
+	r.indexSet = context.Index != nil
+	return nil
+}
+
+func (r *testResolvedExecutionRecorder) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "resolvedExecutionRecorder",
+	}
+}
+
+func documentHasResolvedContent(document libopenapi.Document) bool {
+	if document == nil || document.GetRolodex() == nil {
+		return false
+	}
+	return responseHasResolvedContent(document.GetRolodex().GetRootNode())
+}
+
+type testNestedDocumentContextRecorder struct {
+	documentContextEnabled bool
+	indexContextEnabled    bool
+}
+
+func (r *testNestedDocumentContextRecorder) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func (r *testNestedDocumentContextRecorder) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	r.documentContextEnabled = context.Document != nil &&
+		context.Document.GetConfiguration() != nil &&
+		context.Document.GetConfiguration().ResolveNestedRefsWithDocumentContext
+	r.indexContextEnabled = context.Index != nil &&
+		context.Index.GetConfig() != nil &&
+		context.Index.GetConfig().ResolveNestedRefsWithDocumentContext
+
+	if r.documentContextEnabled && r.indexContextEnabled {
+		return nil
+	}
+
+	result := model.BuildFunctionResultString("nested document context not enabled")
+	result.Rule = context.Rule
+	return []model.RuleFunctionResult{result}
+}
+
+func (r *testNestedDocumentContextRecorder) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "nestedDocumentContextRecorder",
+	}
+}
+
+type testExecutionConfigRecorder struct {
+	expectedLogger *slog.Logger
+
+	documentLoggerMatches        bool
+	indexLoggerMatches           bool
+	documentBaseURL              string
+	indexBaseURL                 string
+	documentBasePath             string
+	indexBasePath                string
+	documentRemoteURLHandlerSet  bool
+	documentExtractSequentially  bool
+	documentSkipJSONConversion   bool
+	documentAllowFileReferences  bool
+	documentAllowRemoteReference bool
+	indexAllowFileLookup         bool
+	indexAllowRemoteLookup       bool
+}
+
+func (r *testExecutionConfigRecorder) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func (r *testExecutionConfigRecorder) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	if context.Document != nil && context.Document.GetConfiguration() != nil {
+		cfg := context.Document.GetConfiguration()
+		r.documentLoggerMatches = cfg.Logger == r.expectedLogger
+		r.documentBasePath = cfg.BasePath
+		r.documentRemoteURLHandlerSet = cfg.RemoteURLHandler != nil
+		r.documentExtractSequentially = cfg.ExtractRefsSequentially
+		r.documentSkipJSONConversion = cfg.SkipJSONConversion
+		r.documentAllowFileReferences = cfg.AllowFileReferences
+		r.documentAllowRemoteReference = cfg.AllowRemoteReferences
+		if cfg.BaseURL != nil {
+			r.documentBaseURL = cfg.BaseURL.String()
+		}
+	}
+	if context.Index != nil && context.Index.GetConfig() != nil {
+		cfg := context.Index.GetConfig()
+		r.indexLoggerMatches = cfg.Logger == r.expectedLogger
+		r.indexBasePath = cfg.BasePath
+		r.indexAllowFileLookup = cfg.AllowFileLookup
+		r.indexAllowRemoteLookup = cfg.AllowRemoteLookup
+		if cfg.BaseURL != nil {
+			r.indexBaseURL = cfg.BaseURL.String()
+		}
+	}
+	return nil
+}
+
+func (r *testExecutionConfigRecorder) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "executionConfigRecorder",
+	}
+}
+
+func buildExecutionConfigRuleSet(functionName string) *rulesets.RuleSet {
+	return &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"execution-config": {
+				Id:           "execution-config",
+				Resolved:     true,
+				Given:        "$",
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Severity:     model.SeverityError,
+				Then: model.RuleAction{
+					Function: functionName,
+				},
+			},
+		},
+	}
+}
+
+func buildResolvedInputJSFunction(t *testing.T) model.RuleFunction {
+	t.Helper()
+
+	script := `
+function runRule(input) {
+  if (!input.properties || !input.properties.shared) {
+    return [{ message: "shared property missing" }];
+  }
+  if (input.properties.shared.$ref) {
+    return [{ message: "shared ref not resolved" }];
+  }
+  if (input.properties.shared.type !== "object") {
+    return [{ message: "shared schema type missing" }];
+  }
+  if (!input.properties.shared.properties || !input.properties.shared.properties.id || input.properties.shared.properties.id.type !== "string") {
+    return [{ message: "shared schema properties missing" }];
+  }
+  return [];
+}
+`
+
+	ruleFunc := jsplugin.NewJSRuleFunction("jsResolvedInputCheck", script)
+	assert.NoError(t, ruleFunc.CheckScript())
+	return ruleFunc
+}
+
 // TestIssue441_DeterministicResolvedRules verifies that resolved rules produce
 // consistent results across multiple runs. This tests the fix for issue #441
 // where custom rules with Resolved: true were getting non-deterministic results.
@@ -2753,6 +2961,508 @@ func TestIssue441_DeterministicResolvedRules(t *testing.T) {
 	}
 
 	t.Logf("All %d runs produced identical results: %d schemas", runs, baselineSchemaCount)
+}
+
+func TestRuleSet_ResolvedRuleSetsResolvedExecution(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+`)
+
+	recorder := &testResolvedExecutionRecorder{}
+	results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"resolved-recorder": {
+					Id:           "resolved-recorder",
+					Resolved:     true,
+					Given:        "$",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityInfo,
+					Then: model.RuleAction{
+						Function: "resolvedExecutionRecorder",
+					},
+				},
+			},
+		},
+		Spec:        spec,
+		SilenceLogs: true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"resolvedExecutionRecorder": recorder,
+		},
+	}, nil)
+
+	assert.Empty(t, results.Errors)
+	assert.True(t, recorder.resolvedExecution)
+	assert.True(t, recorder.documentSet)
+	assert.False(t, recorder.documentResolved)
+	assert.True(t, recorder.indexSet)
+}
+
+func TestRuleSet_ResolveAllRefsSetsResolvedExecution(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+`)
+
+	recorder := &testResolvedExecutionRecorder{}
+	results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"resolved-recorder": {
+					Id:           "resolved-recorder",
+					Resolved:     false,
+					Given:        "$",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityInfo,
+					Then: model.RuleAction{
+						Function: "resolvedExecutionRecorder",
+					},
+				},
+			},
+		},
+		Spec:        spec,
+		SilenceLogs: true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"resolvedExecutionRecorder": recorder,
+		},
+	}, &ExecutionOptions{ResolveAllRefs: true})
+
+	assert.Empty(t, results.Errors)
+	assert.True(t, recorder.resolvedExecution)
+	assert.True(t, recorder.documentSet)
+	assert.True(t, recorder.documentResolved)
+	assert.True(t, recorder.indexSet)
+}
+
+func TestRuleSet_JSResolvedExecution_UsesResolvedInput(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    Shared:
+      type: object
+      properties:
+        id:
+          type: string
+    Wrapper:
+      type: object
+      properties:
+        shared:
+          $ref: '#/components/schemas/Shared'
+`)
+
+	ruleFunc := buildResolvedInputJSFunction(t)
+
+	tests := []struct {
+		name           string
+		ruleResolved   bool
+		resolveAllRefs bool
+		wantViolations int
+	}{
+		{
+			name:           "unresolved_rule",
+			ruleResolved:   false,
+			resolveAllRefs: false,
+			wantViolations: 1,
+		},
+		{
+			name:           "resolved_rule",
+			ruleResolved:   true,
+			resolveAllRefs: false,
+			wantViolations: 0,
+		},
+		{
+			name:           "global_resolve_all_refs",
+			ruleResolved:   false,
+			resolveAllRefs: true,
+			wantViolations: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet: &rulesets.RuleSet{
+					Rules: map[string]*model.Rule{
+						"js-resolve-refs": {
+							Id:           "js-resolved-input",
+							Resolved:     tt.ruleResolved,
+							Given:        "$.components.schemas.Wrapper",
+							RuleCategory: model.RuleCategories[model.CategoryValidation],
+							Type:         rulesets.Validation,
+							Severity:     model.SeverityError,
+							Then: model.RuleAction{
+								Function: "jsResolvedInputCheck",
+							},
+						},
+					},
+				},
+				Spec:        spec,
+				SilenceLogs: true,
+				CustomFunctions: map[string]model.RuleFunction{
+					"jsResolvedInputCheck": ruleFunc,
+				},
+			}, &ExecutionOptions{ResolveAllRefs: tt.resolveAllRefs})
+
+			assert.Empty(t, results.Errors)
+			ruleResults := filterResultsByRuleId(results.Results, "js-resolved-input")
+			assert.Len(t, ruleResults, tt.wantViolations)
+		})
+	}
+}
+
+func TestRuleSet_SchemaFunction_UsesResolvedInput(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    Shared:
+      type: object
+      properties:
+        id:
+          type: string
+    Wrapper:
+      type: object
+      properties:
+        shared:
+          $ref: '#/components/schemas/Shared'
+`)
+
+	tests := []struct {
+		name           string
+		ruleResolved   bool
+		resolveAllRefs bool
+		wantViolations int
+	}{
+		{
+			name:           "unresolved_rule",
+			ruleResolved:   false,
+			resolveAllRefs: false,
+			wantViolations: 1,
+		},
+		{
+			name:           "resolved_rule",
+			ruleResolved:   true,
+			resolveAllRefs: false,
+			wantViolations: 0,
+		},
+		{
+			name:           "global_resolve_all_refs",
+			ruleResolved:   false,
+			resolveAllRefs: true,
+			wantViolations: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet: &rulesets.RuleSet{
+					Rules: map[string]*model.Rule{
+						"schema-resolved-input": {
+							Id:           "schema-resolved-input",
+							Resolved:     tt.ruleResolved,
+							Given:        "$.components.schemas.Wrapper",
+							RuleCategory: model.RuleCategories[model.CategoryValidation],
+							Type:         rulesets.Validation,
+							Severity:     model.SeverityError,
+							Then: model.RuleAction{
+								Field:    "properties.shared",
+								Function: "schema",
+								FunctionOptions: map[string]interface{}{
+									"schema": map[string]interface{}{
+										"type": "object",
+										"required": []string{
+											"type",
+										},
+										"properties": map[string]interface{}{
+											"type": map[string]interface{}{
+												"const": "object",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Spec:        spec,
+				SilenceLogs: true,
+			}, &ExecutionOptions{ResolveAllRefs: tt.resolveAllRefs})
+
+			assert.Empty(t, results.Errors)
+			ruleResults := filterResultsByRuleId(results.Results, "schema-resolved-input")
+			assert.Len(t, ruleResults, tt.wantViolations)
+		})
+	}
+}
+
+func TestRuleSet_NestedRefsDocContextSetsResolvedExecutionConfig(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+`)
+
+	tests := []struct {
+		name                                 string
+		ruleResolved                         bool
+		resolveAllRefs                       bool
+		resolveNestedRefsWithDocumentContext bool
+		wantViolations                       int
+	}{
+		{
+			name:                                 "resolved_rule_without_nested_document_context",
+			ruleResolved:                         true,
+			resolveNestedRefsWithDocumentContext: false,
+			wantViolations:                       1,
+		},
+		{
+			name:                                 "resolved_rule_with_nested_document_context",
+			ruleResolved:                         true,
+			resolveNestedRefsWithDocumentContext: true,
+			wantViolations:                       0,
+		},
+		{
+			name:                                 "resolve_all_refs_without_nested_document_context",
+			resolveAllRefs:                       true,
+			resolveNestedRefsWithDocumentContext: false,
+			wantViolations:                       1,
+		},
+		{
+			name:                                 "resolve_all_refs_with_nested_document_context",
+			resolveAllRefs:                       true,
+			resolveNestedRefsWithDocumentContext: true,
+			wantViolations:                       0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			recorder := &testNestedDocumentContextRecorder{}
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet: &rulesets.RuleSet{
+					Rules: map[string]*model.Rule{
+						"nested-document-context": {
+							Id:           "nested-document-context",
+							Resolved:     tt.ruleResolved,
+							Given:        "$",
+							RuleCategory: model.RuleCategories[model.CategoryValidation],
+							Type:         rulesets.Validation,
+							Severity:     model.SeverityError,
+							Then: model.RuleAction{
+								Function: "nestedDocumentContextRecorder",
+							},
+						},
+					},
+				},
+				Spec:        spec,
+				SilenceLogs: true,
+				CustomFunctions: map[string]model.RuleFunction{
+					"nestedDocumentContextRecorder": recorder,
+				},
+			}, &ExecutionOptions{
+				ResolveAllRefs:       tt.resolveAllRefs,
+				NestedRefsDocContext: tt.resolveNestedRefsWithDocumentContext,
+			})
+
+			assert.Empty(t, results.Errors)
+			ruleResults := filterResultsByRuleId(results.Results, "nested-document-context")
+			assert.Len(t, ruleResults, tt.wantViolations)
+			if tt.wantViolations == 0 {
+				assert.True(t, recorder.documentContextEnabled)
+				assert.True(t, recorder.indexContextEnabled)
+			}
+		})
+	}
+}
+
+func TestRuleSet_ExecutionConfigPropagatesLoggerBaseURLAndTurboSettings(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+`)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	recorder := &testExecutionConfigRecorder{expectedLogger: logger}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:                       buildExecutionConfigRuleSet("executionConfigRecorder"),
+		Spec:                          spec,
+		Logger:                        logger,
+		Base:                          "https://example.com/apis",
+		ExtractReferencesSequentially: true,
+		TurboMode:                     true,
+		HTTPClientConfig: utils.HTTPClientConfig{
+			Insecure: true,
+		},
+		CustomFunctions: map[string]model.RuleFunction{
+			"executionConfigRecorder": recorder,
+		},
+	})
+
+	assert.Empty(t, results.Errors)
+	assert.True(t, recorder.documentLoggerMatches)
+	assert.True(t, recorder.indexLoggerMatches)
+	assert.Equal(t, "https://example.com/apis", recorder.documentBaseURL)
+	assert.Equal(t, "https://example.com/apis", recorder.indexBaseURL)
+	assert.Empty(t, recorder.documentBasePath)
+	assert.Empty(t, recorder.indexBasePath)
+	assert.True(t, recorder.documentRemoteURLHandlerSet)
+	assert.True(t, recorder.documentExtractSequentially)
+	assert.True(t, recorder.documentSkipJSONConversion)
+	assert.True(t, recorder.indexAllowRemoteLookup)
+	assert.False(t, recorder.indexAllowFileLookup)
+}
+
+func TestRuleSet_AllowLookupUsesCurrentDirectoryWhenSpecPathHasNoParent(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+`)
+
+	currentDir, err := os.Getwd()
+	assert.NoError(t, err)
+	tempDir := t.TempDir()
+	assert.NoError(t, os.Chdir(tempDir))
+	defer func() {
+		_ = os.Chdir(currentDir)
+	}()
+
+	recorder := &testExecutionConfigRecorder{}
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:      buildExecutionConfigRuleSet("executionConfigRecorder"),
+		Spec:         spec,
+		SpecFileName: "spec.yaml",
+		AllowLookup:  true,
+		SilenceLogs:  true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"executionConfigRecorder": recorder,
+		},
+	})
+
+	assert.Empty(t, results.Errors)
+	assert.Equal(t, ".", recorder.documentBasePath)
+	assert.Equal(t, ".", recorder.indexBasePath)
+	assert.True(t, recorder.documentAllowFileReferences)
+	assert.True(t, recorder.documentAllowRemoteReference)
+	assert.True(t, recorder.indexAllowFileLookup)
+	assert.True(t, recorder.indexAllowRemoteLookup)
+}
+
+func TestRuleSet_SuppliedDocumentNestedContextIsPreservedOrRebuilt(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+`)
+
+	tests := []struct {
+		name                    string
+		suppliedDocumentContext bool
+		executionContext        bool
+	}{
+		{
+			name:                    "preserve_supplied_document_context",
+			suppliedDocumentContext: true,
+			executionContext:        false,
+		},
+		{
+			name:                    "rebuild_supplied_document_with_requested_context",
+			suppliedDocumentContext: false,
+			executionContext:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			docConfig := datamodel.NewDocumentConfiguration()
+			docConfig.ResolveNestedRefsWithDocumentContext = tt.suppliedDocumentContext
+			doc, err := libopenapi.NewDocumentWithConfiguration(spec, docConfig)
+			assert.NoError(t, err)
+
+			recorder := &testNestedDocumentContextRecorder{}
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet:     buildExecutionConfigRuleSet("nestedDocumentContextRecorder"),
+				Document:    doc,
+				SilenceLogs: true,
+				CustomFunctions: map[string]model.RuleFunction{
+					"nestedDocumentContextRecorder": recorder,
+				},
+			}, &ExecutionOptions{NestedRefsDocContext: tt.executionContext})
+
+			assert.Empty(t, results.Errors)
+			ruleResults := filterResultsByRuleId(results.Results, "execution-config")
+			assert.Len(t, ruleResults, 0)
+			assert.True(t, recorder.documentContextEnabled)
+			assert.True(t, recorder.indexContextEnabled)
+		})
+	}
+}
+
+func TestRuleSet_SuppliedDocumentRebuildErrorIsReturned(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+`)
+
+	docConfig := datamodel.NewDocumentConfiguration()
+	doc, err := libopenapi.NewDocumentWithConfiguration(spec, docConfig)
+	assert.NoError(t, err)
+
+	badSpec := []byte("openapi: [")
+	doc.GetSpecInfo().SpecBytes = &badSpec
+
+	results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		RuleSet:     buildExecutionConfigRuleSet("executionConfigRecorder"),
+		Document:    doc,
+		SilenceLogs: true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"executionConfigRecorder": &testExecutionConfigRecorder{},
+		},
+	}, &ExecutionOptions{NestedRefsDocContext: true})
+
+	assert.Len(t, results.Errors, 1)
+	assert.ErrorContains(t, results.Errors[0], "unable to parse specification")
 }
 
 // TestIssue804_ResolvedTrueDeepJSONPath verifies that rules with resolved: true
