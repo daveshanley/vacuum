@@ -1,16 +1,31 @@
+version: 2
 project_name: vacuum
 before:
   hooks:
     - ./scripts/build-ui-assets.sh
 builds:
-  - env:
+  - id: default
+    env:
       - CGO_ENABLED=0
     tags:
       - html_report_ui
     goos:
       - linux
       - windows
+    goarch:
+      - amd64
+      - arm64
+      - "386"
+  - id: darwin
+    env:
+      - CGO_ENABLED=0
+    tags:
+      - html_report_ui
+    goos:
       - darwin
+    goarch:
+      - amd64
+      - arm64
 archives:
   - name_template: >-
       {{ .ProjectName }}_
@@ -28,7 +43,22 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
-brews:
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids:
+        - darwin
+      sign:
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
+      notarize:
+        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+        key: "{{.Env.MACOS_NOTARY_KEY}}"
+        wait: true
+        timeout: 20m
+
+homebrew_casks:
   - repository:
       owner: daveshanley
       name: homebrew-vacuum
@@ -40,8 +70,5 @@ brews:
     homepage: "https://quobix.com/vacuum"
     description: "The worlds fastest and most scalable OpenAPI linter"
 
-    install: |
-      bin.install "vacuum"
-
 snapshot:
-  name_template: "{{ .Tag }}"
+  version_template: "{{ .Tag }}"
