@@ -1087,8 +1087,10 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	}
 
-	if execution.CanonicalDocument != nil && (needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1) {
-		resultPathCache := newResultPathCache(execution.CanonicalDocument)
+	var resultPathCache *resultPathCache
+	if execution.CanonicalDocument != nil &&
+		(needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1 || needsTerminalKeySelectorPathUpgrade(ruleResults)) {
+		resultPathCache = newResultPathCache(execution.CanonicalDocument)
 		if needsResultPathReconciliation(ruleResults) {
 			for i := range ruleResults {
 				resultPathCache.reconcile(&ruleResults[i])
@@ -1096,6 +1098,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 		ruleResults = collapseAliasedResults(ruleResults, resultPathCache)
 	}
+	upgradeTerminalKeySelectorPaths(ruleResults, resultPathCache)
 
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)

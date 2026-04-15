@@ -3345,6 +3345,66 @@ components:
 	}
 }
 
+func TestIssue848_TerminalKeySelectorReportsExactKeyPath(t *testing.T) {
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: Tilde key selector path reporting repro
+  version: 1.0.0
+  contact:
+    name: Test Team
+    email: test@example.com
+paths: {}
+components:
+  schemas:
+    BadBooleanExample:
+      type: object
+      description: Schema with a boolean property whose name is non-compliant
+      properties:
+        available:
+          type: boolean
+          description: True if the timeslot is available
+    GoodBooleanExample:
+      type: object
+      description: Schema with a compliant boolean property name
+      properties:
+        isAvailable:
+          type: boolean
+          description: True if the timeslot is available
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"check-boolean-property-name": {
+				Id:           "check-boolean-property-name",
+				Description:  "Boolean property names must start with is, has, or with",
+				Message:      "Boolean property name '{{value}}' must start with is, has, or with",
+				Severity:     model.SeverityError,
+				Resolved:     true,
+				Given:        []string{"$..properties[?(@ && @.type == 'boolean')]~"},
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Function: "pattern",
+					FunctionOptions: map[string]any{
+						"match": "^(is|has|with)",
+					},
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "check-boolean-property-name")
+	if assert.Len(t, ruleResults, 1) {
+		assert.Equal(t, "$.components.schemas.BadBooleanExample.properties.available", ruleResults[0].Path)
+	}
+}
+
 func TestIssue849_ExtendsSeverityShorthandPreservesInheritedPathAndRuleID(t *testing.T) {
 	dir := t.TempDir()
 
