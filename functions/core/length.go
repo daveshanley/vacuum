@@ -82,7 +82,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 		// check field type, is it a map? is it an array?
 		if context.RuleAction.Field != "" {
 			// supports nested paths like "properties.data"
-			result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{RecursiveFirstSegment: true})
+			result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, true))
 			q, p = result.KeyNode, result.ValueNode
 		} else {
 			p = node

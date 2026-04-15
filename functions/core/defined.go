@@ -50,7 +50,7 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	for _, node := range nodes {
-		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{RecursiveFirstSegment: true})
+		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, true))
 		fieldNode := result.KeyNode
 		var locatedObjects []v3.Foundational
 		var allPaths []string
