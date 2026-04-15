@@ -1,6 +1,7 @@
 package motor
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 
@@ -48,32 +49,202 @@ func (c *resultPathCache) reconcile(result *model.RuleFunctionResult) {
 		return
 	}
 
+	if path, found := c.canonicalPathForResult(result); found {
+		result.Path = path
+	}
+}
+
+func (c *resultPathCache) canonicalPathForResult(result *model.RuleFunctionResult) (string, bool) {
+	if c == nil || result == nil {
+		return "", false
+	}
+
 	if result.Origin != nil {
 		if path, found := c.lookupNodePath(result.Origin.Node); found {
-			result.Path = path
-			return
+			return path, true
 		}
 		if path, found := c.lookupNodePath(result.Origin.ValueNode); found {
-			result.Path = path
-			return
+			return path, true
 		}
 		if path, found := c.lookupPositionPath(result.Origin.Line, result.Origin.Column); found {
-			result.Path = path
-			return
+			return path, true
 		}
 		if path, found := c.lookupPositionPath(result.Origin.LineValue, result.Origin.ColumnValue); found {
-			result.Path = path
-			return
+			return path, true
 		}
 	}
 
 	if path, found := c.lookupNodePath(result.StartNode); found {
-		result.Path = path
-		return
+		return path, true
 	}
 	if path, found := c.lookupPositionPathForNode(result.StartNode); found {
-		result.Path = path
+		return path, true
 	}
+	return "", false
+}
+
+func collapseAliasedResults(results []model.RuleFunctionResult, cache *resultPathCache) []model.RuleFunctionResult {
+	if len(results) <= 1 {
+		return results
+	}
+
+	groupedIndexes := make(map[string]int, len(results))
+	collapsed := make([]model.RuleFunctionResult, 0, len(results))
+
+	for i := range results {
+		result := results[i]
+		key, ok := aliasedResultKey(&result)
+		if !ok {
+			collapsed = append(collapsed, result)
+			continue
+		}
+
+		if existingIndex, seen := groupedIndexes[key]; seen {
+			mergeAliasedResult(&collapsed[existingIndex], &result, cache)
+			continue
+		}
+
+		groupedIndexes[key] = len(collapsed)
+		collapsed = append(collapsed, result)
+	}
+
+	return collapsed
+}
+
+func aliasedResultKey(result *model.RuleFunctionResult) (string, bool) {
+	if result == nil {
+		return "", false
+	}
+
+	ruleID := result.RuleId
+	if ruleID == "" && result.Rule != nil {
+		ruleID = result.Rule.Id
+	}
+
+	if result.Origin != nil && result.Origin.AbsoluteLocation != "" && result.Origin.Line > 0 && result.Origin.Column > 0 {
+		return ruleID + "\x00" + result.Message + "\x00" + result.Origin.AbsoluteLocation + "\x00" +
+			strconv.Itoa(result.Origin.Line) + "\x00" + strconv.Itoa(result.Origin.Column), true
+	}
+
+	if result.StartNode != nil && result.StartNode.Line > 0 && result.StartNode.Column > 0 {
+		return ruleID + "\x00" + result.Message + "\x00" +
+			strconv.Itoa(result.StartNode.Line) + "\x00" + strconv.Itoa(result.StartNode.Column), true
+	}
+
+	return "", false
+}
+
+func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *resultPathCache) {
+	if primary == nil || duplicate == nil {
+		return
+	}
+
+	canonicalPath := primary.Path
+	if cache != nil {
+		if path, found := cache.canonicalPathForResult(primary); found {
+			canonicalPath = path
+		} else if path, found := cache.canonicalPathForResult(duplicate); found {
+			canonicalPath = path
+		}
+	}
+
+	paths := buildMergedResultPaths(canonicalPath, primary, duplicate)
+	if len(paths) > 0 {
+		primary.Path = paths[0]
+	}
+
+	if len(paths) > 1 {
+		primary.Paths = paths
+	} else {
+		primary.Paths = nil
+	}
+
+	if primary.Origin == nil && duplicate.Origin != nil {
+		primary.Origin = duplicate.Origin
+	}
+}
+
+func buildMergedResultPaths(canonicalPath string, results ...*model.RuleFunctionResult) []string {
+	seen := make(map[string]struct{}, len(results)*2+1)
+	candidates := make([]string, 0, len(results)*2+1)
+
+	addCandidate := func(path string) {
+		if path == "" {
+			return
+		}
+		if _, ok := seen[path]; ok {
+			return
+		}
+		seen[path] = struct{}{}
+		candidates = append(candidates, path)
+	}
+
+	if canonicalPath != "" {
+		addCandidate(canonicalPath)
+	}
+
+	for _, result := range results {
+		if result == nil {
+			continue
+		}
+		addCandidate(result.Path)
+		for _, path := range result.Paths {
+			addCandidate(path)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	sort.Strings(candidates)
+	primaryPath := selectPrimaryResultPath(canonicalPath, candidates)
+	merged := make([]string, 0, len(candidates))
+	merged = append(merged, primaryPath)
+	for _, path := range candidates {
+		if path == primaryPath {
+			continue
+		}
+		if strings.HasPrefix(primaryPath, "$.components.") && strings.HasPrefix(path, "$.components.") {
+			continue
+		}
+		if isAncestorJSONPath(path, primaryPath) {
+			continue
+		}
+		merged = append(merged, path)
+	}
+	return merged
+}
+
+func selectPrimaryResultPath(canonicalPath string, candidates []string) string {
+	primaryPath := canonicalPath
+	longestComponentPath := ""
+	for _, path := range candidates {
+		if !strings.HasPrefix(path, "$.components.") {
+			continue
+		}
+		if len(path) > len(longestComponentPath) {
+			longestComponentPath = path
+		}
+	}
+	if longestComponentPath != "" {
+		return longestComponentPath
+	}
+	if primaryPath != "" {
+		return primaryPath
+	}
+	return candidates[0]
+}
+
+func isAncestorJSONPath(candidate, descendant string) bool {
+	if candidate == "" || descendant == "" || candidate == descendant || len(candidate) >= len(descendant) {
+		return false
+	}
+	if !strings.HasPrefix(descendant, candidate) {
+		return false
+	}
+	next := descendant[len(candidate)]
+	return next == '.' || next == '['
 }
 
 func (c *resultPathCache) lookupNodePath(node *yaml.Node) (string, bool) {

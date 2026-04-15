@@ -1087,11 +1087,14 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	}
 
-	if execution.CanonicalDocument != nil && needsResultPathReconciliation(ruleResults) {
+	if execution.CanonicalDocument != nil && (needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1) {
 		resultPathCache := newResultPathCache(execution.CanonicalDocument)
-		for i := range ruleResults {
-			resultPathCache.reconcile(&ruleResults[i])
+		if needsResultPathReconciliation(ruleResults) {
+			for i := range ruleResults {
+				resultPathCache.reconcile(&ruleResults[i])
+			}
 		}
+		ruleResults = collapseAliasedResults(ruleResults, resultPathCache)
 	}
 
 	then = time.Since(now).Milliseconds()

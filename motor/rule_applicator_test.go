@@ -3236,6 +3236,115 @@ components:
 	assert.NotContains(t, paths, "unknown")
 }
 
+func TestIssue847_ResolvedTrueSharedComponentViolationIsReportedOnce(t *testing.T) {
+	spec := []byte(`openapi: 3.0.1
+info:
+  title: Duplicate errors bug reproduction
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      summary: Get items
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+              examples:
+                ok:
+                  summary: OK example
+                  value: "hello"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      summary: Create item
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: string
+              examples:
+                ok:
+                  summary: Created example
+                  value: "created"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /items/{id}:
+    get:
+      summary: Get item by id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+              examples:
+                ok:
+                  summary: OK example
+                  value: "hello"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    delete:
+      summary: Delete item
+      responses:
+        '204':
+          description: No content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+components:
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"examples-must-exist": {
+				Id:           "examples-must-exist",
+				Resolved:     true,
+				Given:        []string{"$.paths[*][*].responses[*].content[*]"},
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "examples",
+					Function: "defined",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "examples-must-exist")
+	if assert.Len(t, ruleResults, 1) {
+		assert.Equal(t, "$.components.responses['BadRequest'].content['application/json']", ruleResults[0].Path)
+		assert.ElementsMatch(t, []string{
+			"$.components.responses['BadRequest'].content['application/json']",
+			"$.paths['/items'].get.responses['400'].content['application/json']",
+			"$.paths['/items'].post.responses['400'].content['application/json']",
+			"$.paths['/items/{id}'].delete.responses['400'].content['application/json']",
+			"$.paths['/items/{id}'].get.responses['400'].content['application/json']",
+		}, ruleResults[0].Paths)
+	}
+}
+
 func TestIssue849_ExtendsSeverityShorthandPreservesInheritedPathAndRuleID(t *testing.T) {
 	dir := t.TempDir()
 
