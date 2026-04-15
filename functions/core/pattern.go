@@ -96,7 +96,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	if fieldHasNestedPath {
 		for _, node := range nodes {
 			if utils.IsNodeMap(node) {
-				result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{})
+				result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
 				if result.Found && result.ValueNode != nil {
 					results = append(results, p.validatePatternOnNode(
 						result.ValueNode, pathValue, message, ruleMessage,

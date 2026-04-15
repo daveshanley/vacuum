@@ -47,7 +47,7 @@ func (u Undefined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext
 
 	for _, node := range nodes {
 
-		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{RecursiveFirstSegment: true})
+		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, true))
 		fieldNode, fieldNodeValue := result.KeyNode, result.ValueNode
 		if fieldNode != nil {
 			var val = ""

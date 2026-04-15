@@ -2915,6 +2915,128 @@ components:
 		"resolved: true with given '$' should find 'openapi' on the root node")
 }
 
+func TestIssue845_ResolvedTrueFieldLookupFollowsInheritedAllOfFormat(t *testing.T) {
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: AllOf custom rule repro
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    DateTimeField:
+      type: string
+      format: date-time
+      description: ISO 8601 datetime
+
+    DirectFormatExample:
+      type: object
+      properties:
+        createdDateTime:
+          type: string
+          format: date-time
+
+    AllOfRefExample:
+      type: object
+      properties:
+        createdDateTime:
+          allOf:
+            - $ref: '#/components/schemas/DateTimeField'
+          description: Creation datetime in ISO 8601 format
+
+    MissingFormatExample:
+      type: object
+      properties:
+        createdDateTime:
+          type: string
+          description: Creation datetime - format missing on purpose
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"check-datetime-format": {
+				Id:           "check-datetime-format",
+				Resolved:     true,
+				Given:        "$..properties[?match(@property, '.*DateTime$')]",
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: []model.RuleAction{
+					{
+						Field:    "format",
+						Function: "truthy",
+					},
+					{
+						Field:    "format",
+						Function: "pattern",
+						FunctionOptions: map[string]any{
+							"match": "^date-time$",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "check-datetime-format")
+	assert.Len(t, ruleResults, 1, "resolved: true should only report the property that genuinely lacks format")
+	assert.Equal(t, "$.components.schemas['MissingFormatExample'].properties['createdDateTime'].format", ruleResults[0].Path)
+}
+
+func TestIssue845_ResolvedFalseDoesNotFollowInheritedAllOfFormat(t *testing.T) {
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: AllOf custom rule repro
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    DateTimeField:
+      type: string
+      format: date-time
+      description: ISO 8601 datetime
+
+    AllOfRefExample:
+      type: object
+      properties:
+        createdDateTime:
+          allOf:
+            - $ref: '#/components/schemas/DateTimeField'
+          description: Creation datetime in ISO 8601 format
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"check-datetime-format": {
+				Id:           "check-datetime-format",
+				Resolved:     false,
+				Given:        "$..properties[?match(@property, '.*DateTime$')]",
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "format",
+					Function: "truthy",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "check-datetime-format")
+	assert.Len(t, ruleResults, 1, "resolved: false should continue to inspect the unresolved outer node only")
+}
+
 func TestIssue849_ExtendsSeverityShorthandPreservesInheritedPathAndRuleID(t *testing.T) {
 	dir := t.TempDir()
 

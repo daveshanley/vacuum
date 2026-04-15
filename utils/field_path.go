@@ -56,7 +56,15 @@ type FieldPathOptions struct {
 	// used FindKeyNode. New code should generally use false (non-recursive)
 	// for more predictable behavior.
 	RecursiveFirstSegment bool
+
+	// ResolveSingleItemCombinators follows schema combinator wrappers (allOf,
+	// anyOf, oneOf) when they contain exactly one item and the direct field
+	// lookup misses. This is used for resolved rules where libopenapi may keep
+	// inherited schema content nested under a single combinator item.
+	ResolveSingleItemCombinators bool
 }
+
+var singleItemCombinatorKeys = [...]string{"allOf", "anyOf", "oneOf"}
 
 // ParseFieldPath parses a field path string into segments.
 // Returns an error for invalid syntax (fail fast, better UX).
@@ -257,12 +265,7 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 
 	// Performance fast path: if no special characters, use original lookup directly
 	if strings.IndexAny(fieldPath, ".[]\\") == -1 {
-		var keyNode, valueNode *yaml.Node
-		if opts.RecursiveFirstSegment {
-			keyNode, valueNode = utils.FindKeyNode(fieldPath, nodes)
-		} else {
-			keyNode, valueNode = utils.FindKeyNodeTop(fieldPath, nodes)
-		}
+		keyNode, valueNode := findKeyNodeWithOptions(fieldPath, nodes, opts.RecursiveFirstSegment, opts.ResolveSingleItemCombinators)
 		return FieldPathResult{KeyNode: keyNode, ValueNode: valueNode, Found: keyNode != nil}
 	}
 
@@ -279,11 +282,12 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 		switch segment.Type {
 		case SegmentKey, SegmentMapKey:
 			// Look up key in current nodes
-			if i == 0 && opts.RecursiveFirstSegment {
-				keyNode, valueNode = utils.FindKeyNode(segment.Key, currentNodes)
-			} else {
-				keyNode, valueNode = utils.FindKeyNodeTop(segment.Key, currentNodes)
-			}
+			keyNode, valueNode = findKeyNodeWithOptions(
+				segment.Key,
+				currentNodes,
+				i == 0 && opts.RecursiveFirstSegment,
+				opts.ResolveSingleItemCombinators,
+			)
 
 			if keyNode == nil {
 				return FieldPathResult{Found: false}
@@ -338,4 +342,42 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 	}
 
 	return FieldPathResult{KeyNode: keyNode, ValueNode: valueNode, Found: true}
+}
+
+func findKeyNodeWithOptions(key string, nodes []*yaml.Node, recursiveFirstSegment bool, resolveSingleItemCombinators bool) (*yaml.Node, *yaml.Node) {
+	var keyNode, valueNode *yaml.Node
+	if recursiveFirstSegment {
+		keyNode, valueNode = utils.FindKeyNode(key, nodes)
+	} else {
+		keyNode, valueNode = utils.FindKeyNodeTop(key, nodes)
+	}
+	if keyNode != nil || !resolveSingleItemCombinators {
+		return keyNode, valueNode
+	}
+	return findKeyNodeInSingleItemCombinators(key, nodes)
+}
+
+func findKeyNodeInSingleItemCombinators(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {
+	for _, combinatorKey := range singleItemCombinatorKeys {
+		_, combinatorNode := utils.FindKeyNodeTop(combinatorKey, nodes)
+		if combinatorNode == nil || !utils.IsNodeArray(combinatorNode) || len(combinatorNode.Content) != 1 {
+			continue
+		}
+
+		candidateNode := combinatorNode.Content[0]
+		if candidateNode == nil || !utils.IsNodeMap(candidateNode) {
+			continue
+		}
+
+		keyNode, valueNode := utils.FindKeyNodeTop(key, candidateNode.Content)
+		if keyNode != nil {
+			return keyNode, valueNode
+		}
+
+		keyNode, valueNode = findKeyNodeInSingleItemCombinators(key, candidateNode.Content)
+		if keyNode != nil {
+			return keyNode, valueNode
+		}
+	}
+	return nil, nil
 }

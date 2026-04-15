@@ -68,7 +68,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			fieldName = "value"
 		} else {
 			// field specified - find it within the node (supports nested paths like "properties.data")
-			result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, vacuumUtils.FieldPathOptions{})
+			result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
 			fieldNode, targetNode = result.KeyNode, result.ValueNode
 			fieldName = context.RuleAction.Field
 		}

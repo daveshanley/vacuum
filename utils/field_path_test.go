@@ -481,3 +481,32 @@ description: a description
 	assert.True(t, result.Found)
 	assert.Equal(t, "a description", result.ValueNode.Value)
 }
+
+func TestFindFieldPath_ResolveSingleItemAllOfFallback(t *testing.T) {
+	yamlStr := `
+description: inherited datetime
+allOf:
+  - type: string
+    format: date-time
+`
+	nodes := parseYAML(t, yamlStr)
+
+	result := FindFieldPath("format", nodes, FieldPathOptions{})
+	assert.False(t, result.Found)
+
+	result = FindFieldPath("format", nodes, FieldPathOptions{ResolveSingleItemCombinators: true})
+	assert.True(t, result.Found)
+	assert.Equal(t, "date-time", result.ValueNode.Value)
+}
+
+func TestFindFieldPath_ResolveSingleItemCombinatorFallback_DoesNotFlattenMultiItemAllOf(t *testing.T) {
+	yamlStr := `
+allOf:
+  - type: string
+  - format: date-time
+`
+	nodes := parseYAML(t, yamlStr)
+
+	result := FindFieldPath("format", nodes, FieldPathOptions{ResolveSingleItemCombinators: true})
+	assert.False(t, result.Found)
+}
