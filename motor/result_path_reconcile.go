@@ -15,8 +15,9 @@ type resultPathPosition struct {
 }
 
 type resultPathCache struct {
-	nodePaths     map[*yaml.Node]string
-	positionPaths map[resultPathPosition]string
+	nodePaths          map[*yaml.Node]string
+	positionPaths      map[resultPathPosition]string
+	precisePositionMap map[resultPathPosition]string
 }
 
 func needsResultPathReconciliation(results []model.RuleFunctionResult) bool {
@@ -37,8 +38,9 @@ func resultPathNeedsReconciliation(result *model.RuleFunctionResult) bool {
 
 func newResultPathCache(root *yaml.Node) *resultPathCache {
 	cache := &resultPathCache{
-		nodePaths:     make(map[*yaml.Node]string),
-		positionPaths: make(map[resultPathPosition]string),
+		nodePaths:          make(map[*yaml.Node]string),
+		positionPaths:      make(map[resultPathPosition]string),
+		precisePositionMap: make(map[resultPathPosition]string),
 	}
 	cache.indexNode(root, "$")
 	return cache
@@ -52,6 +54,43 @@ func (c *resultPathCache) reconcile(result *model.RuleFunctionResult) {
 	if path, found := c.canonicalPathForResult(result); found {
 		result.Path = path
 	}
+}
+
+func ruleUsesTerminalKeySelector(rule *model.Rule) bool {
+	if rule == nil {
+		return false
+	}
+
+	check := func(path string) bool {
+		return strings.HasSuffix(strings.TrimSpace(path), "~")
+	}
+
+	switch given := rule.Given.(type) {
+	case string:
+		return check(given)
+	case []string:
+		for _, path := range given {
+			if check(path) {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, raw := range given {
+			if path, ok := raw.(string); ok && check(path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func needsTerminalKeySelectorPathUpgrade(results []model.RuleFunctionResult) bool {
+	for i := range results {
+		if ruleUsesTerminalKeySelector(results[i].Rule) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *resultPathCache) canonicalPathForResult(result *model.RuleFunctionResult) (string, bool) {
@@ -164,6 +203,32 @@ func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *res
 	}
 }
 
+func upgradeTerminalKeySelectorPaths(results []model.RuleFunctionResult, cache *resultPathCache) {
+	for i := range results {
+		result := &results[i]
+		if result == nil || !ruleUsesTerminalKeySelector(result.Rule) || result.StartNode == nil || result.StartNode.Value == "" {
+			continue
+		}
+		if cache != nil {
+			if precisePath, found := cache.lookupPrecisePositionPathForNode(result.StartNode); found {
+				result.Path = precisePath
+				continue
+			}
+		}
+		if !hasTerminalKeyPathSegment(result.Path, result.StartNode.Value) &&
+			result.Path != "" && result.Path != "unknown" && !strings.Contains(result.Path, "*") {
+			result.Path = appendResultPathSegment(result.Path, result.StartNode.Value)
+		}
+	}
+}
+
+func hasTerminalKeyPathSegment(path, key string) bool {
+	if path == "" || key == "" {
+		return false
+	}
+	return strings.HasSuffix(path, "."+key) || strings.HasSuffix(path, "['"+key+"']")
+}
+
 func buildMergedResultPaths(canonicalPath string, results ...*model.RuleFunctionResult) []string {
 	seen := make(map[string]struct{}, len(results)*2+1)
 	candidates := make([]string, 0, len(results)*2+1)
@@ -270,6 +335,21 @@ func (c *resultPathCache) lookupPositionPath(line, column int) (string, bool) {
 	return path, found
 }
 
+func (c *resultPathCache) lookupPrecisePositionPathForNode(node *yaml.Node) (string, bool) {
+	if node == nil {
+		return "", false
+	}
+	return c.lookupPrecisePositionPath(node.Line, node.Column)
+}
+
+func (c *resultPathCache) lookupPrecisePositionPath(line, column int) (string, bool) {
+	if c == nil || line <= 0 || column <= 0 {
+		return "", false
+	}
+	path, found := c.precisePositionMap[resultPathPosition{line: line, column: column}]
+	return path, found
+}
+
 func (c *resultPathCache) indexNode(node *yaml.Node, path string) {
 	if node == nil {
 		return
@@ -286,14 +366,18 @@ func (c *resultPathCache) indexNode(node *yaml.Node, path string) {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
+			childPath := appendResultPathSegment(path, keyNode.Value)
 			c.storeNodePath(keyNode, path)
 			c.storeNodePath(valueNode, path)
-			c.indexNode(valueNode, appendResultPathSegment(path, keyNode.Value))
+			c.storePrecisePositionPath(keyNode, childPath)
+			c.storePrecisePositionPath(valueNode, childPath)
+			c.indexNode(valueNode, childPath)
 		}
 	case yaml.SequenceNode:
 		for i, child := range node.Content {
 			childPath := appendResultPathIndex(path, i)
 			c.storeNodePath(child, childPath)
+			c.storePrecisePositionPath(child, childPath)
 			c.indexNode(child, childPath)
 		}
 	}
@@ -311,6 +395,16 @@ func (c *resultPathCache) storeNodePath(node *yaml.Node, path string) {
 		if _, exists := c.positionPaths[position]; !exists {
 			c.positionPaths[position] = path
 		}
+	}
+}
+
+func (c *resultPathCache) storePrecisePositionPath(node *yaml.Node, path string) {
+	if c == nil || node == nil || node.Line <= 0 || node.Column <= 0 {
+		return
+	}
+	position := resultPathPosition{line: node.Line, column: node.Column}
+	if existing, exists := c.precisePositionMap[position]; !exists || len(path) > len(existing) {
+		c.precisePositionMap[position] = path
 	}
 }
 
