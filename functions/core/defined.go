@@ -39,11 +39,6 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 	message := context.Rule.Message
 
-	pathValue := "unknown"
-	if path, ok := context.Given.(string); ok {
-		pathValue = path
-	}
-
 	ruleMessage := context.Rule.Description
 	if context.Rule.Message != "" {
 		ruleMessage = context.Rule.Message
@@ -52,25 +47,10 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	for _, node := range nodes {
 		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, true))
 		fieldNode := result.KeyNode
-		var locatedObjects []v3.Foundational
-		var allPaths []string
-		var err error
 
 		if fieldNode == nil {
 
-			locatedPath := pathValue
-			if context.DrDocument != nil {
-				// Since the field is undefined, locate the parent node to be the locatedPath of infraction
-				locatedObjects, err = context.DrDocument.LocateModel(node)
-				if err == nil && locatedObjects != nil {
-					for x, obj := range locatedObjects {
-						if x == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-			}
+			locatedPath, allPaths, locatedObjects := locateNodePaths(context, node)
 
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,

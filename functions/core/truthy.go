@@ -61,6 +61,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		var targetNode *yaml.Node
 		var fieldNode *yaml.Node
 		var fieldName string
+		var fieldResult vacuumUtils.FieldPathResult
 
 		if context.RuleAction.Field == "" {
 			// no field specified - check the matched node itself
@@ -68,8 +69,8 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			fieldName = "value"
 		} else {
 			// field specified - find it within the node (supports nested paths like "properties.data")
-			result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
-			fieldNode, targetNode = result.KeyNode, result.ValueNode
+			fieldResult = vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
+			fieldNode, targetNode = fieldResult.KeyNode, fieldResult.ValueNode
 			fieldName = context.RuleAction.Field
 		}
 
@@ -108,22 +109,17 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 			var locatedObjects []v3.Foundational
 			var allPaths []string
-			var err error
 			locatedPath := pathValue
 			if context.DrDocument != nil {
-				if fieldNode == nil {
-					locatedObjects, err = context.DrDocument.LocateModel(node)
+				if context.RuleAction.Field == "" {
+					locatedPath, allPaths, locatedObjects = locateNodePaths(context, node)
+				} else if fieldNode == nil {
+					basePath, basePaths, baseObjects := locateNodePaths(context, node)
+					locatedPath, allPaths, locatedObjects = appendFieldPathToLocatedPaths(
+						basePath, basePaths, baseObjects, context.RuleAction.Field,
+					)
 				} else {
-					locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, targetNode)
-				}
-				if err == nil && locatedObjects != nil {
-					for i, obj := range locatedObjects {
-						p := model.GetStringTemplates().BuildJSONPath(obj.GenerateJSONPath(), context.RuleAction.Field)
-						if i == 0 {
-							locatedPath = p
-						}
-						allPaths = append(allPaths, p)
-					}
+					locatedPath, allPaths, locatedObjects = locateExistingFieldPaths(context, node, context.RuleAction.Field, fieldResult)
 				}
 			}
 			result := model.RuleFunctionResult{
