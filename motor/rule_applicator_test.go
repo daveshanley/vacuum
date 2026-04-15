@@ -3037,6 +3037,205 @@ components:
 	assert.Len(t, ruleResults, 1, "resolved: false should continue to inspect the unresolved outer node only")
 }
 
+func TestIssue845_ResolvedTruePatternChecksInheritedSimpleField(t *testing.T) {
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: AllOf pattern field repro
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    DateField:
+      type: string
+      format: date
+
+    DirectFormatExample:
+      type: object
+      properties:
+        createdDateTime:
+          type: string
+          format: date-time
+
+    AllOfRefExample:
+      type: object
+      properties:
+        createdDateTime:
+          allOf:
+            - $ref: '#/components/schemas/DateField'
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"check-datetime-pattern": {
+				Id:           "check-datetime-pattern",
+				Resolved:     true,
+				Given:        "$..properties[?match(@property, '.*DateTime$')]",
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "format",
+					Function: "pattern",
+					FunctionOptions: map[string]any{
+						"match": "^date-time$",
+					},
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "check-datetime-pattern")
+	assert.Len(t, ruleResults, 1, "resolved: true should validate inherited simple fields for pattern checks")
+	assert.Equal(t, "$.components.schemas['AllOfRefExample'].properties['createdDateTime'].format", ruleResults[0].Path)
+}
+
+func TestIssue845_ResolvedTrueTruthyUsesInheritedFieldUsagePath(t *testing.T) {
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: AllOf truthy path repro
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    DeprecatedField:
+      type: string
+      deprecated: false
+
+    AllOfRefExample:
+      type: object
+      properties:
+        createdDateTime:
+          allOf:
+            - $ref: '#/components/schemas/DeprecatedField'
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"check-deprecated-truthy": {
+				Id:           "check-deprecated-truthy",
+				Resolved:     true,
+				Given:        "$..properties[?match(@property, '.*DateTime$')]",
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "deprecated",
+					Function: "truthy",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "check-deprecated-truthy")
+	assert.Len(t, ruleResults, 1)
+	assert.Equal(t, "$.components.schemas['AllOfRefExample'].properties['createdDateTime'].deprecated", ruleResults[0].Path)
+	assert.NotEqual(t, "$.components.schemas['DeprecatedField'].deprecated", ruleResults[0].Path)
+}
+
+func TestIssue846_ResolvedTrueReferencedParameterUsesOperationParameterPath(t *testing.T) {
+	spec := []byte(`openapi: 3.0.2
+info:
+  title: Ref parameter unknown path repro
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      summary: List items
+      operationId: listItems
+      parameters:
+        - $ref: "#/components/parameters/PageQuery"
+        - $ref: "#/components/parameters/SizeQuery"
+      responses:
+        "200":
+          description: Successful response
+
+  /items/{itemId}:
+    get:
+      summary: Get item by id
+      operationId: getItem
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: Unique identifier of the item
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+
+components:
+  parameters:
+    PageQuery:
+      name: page
+      in: query
+      description: Page number (1..N)
+      required: false
+      schema:
+        type: integer
+        format: int32
+
+    SizeQuery:
+      name: size
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        format: int32
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"check-parameter-examples": {
+				Id:           "check-parameter-examples",
+				Resolved:     true,
+				Given:        []string{"$.paths[*][*].parameters[*]"},
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Field:    "examples",
+					Function: "defined",
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	ruleResults := filterResultsByRuleId(results.Results, "check-parameter-examples")
+	assert.Len(t, ruleResults, 3)
+
+	paths := make([]string, 0, len(ruleResults))
+	for _, result := range ruleResults {
+		paths = append(paths, result.Path)
+	}
+
+	assert.ElementsMatch(t, []string{
+		"$.paths['/items'].get.parameters[0]",
+		"$.paths['/items'].get.parameters[1]",
+		"$.paths['/items/{itemId}'].get.parameters[0]",
+	}, paths)
+	assert.NotContains(t, paths, "unknown")
+}
+
 func TestIssue849_ExtendsSeverityShorthandPreservesInheritedPathAndRuleID(t *testing.T) {
 	dir := t.TempDir()
 

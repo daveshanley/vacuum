@@ -497,6 +497,7 @@ allOf:
 	result = FindFieldPath("format", nodes, FieldPathOptions{ResolveSingleItemCombinators: true})
 	assert.True(t, result.Found)
 	assert.Equal(t, "date-time", result.ValueNode.Value)
+	assert.True(t, result.UsedSingleItemCombinator)
 }
 
 func TestFindFieldPath_ResolveSingleItemCombinatorFallback_DoesNotFlattenMultiItemAllOf(t *testing.T) {
@@ -509,4 +510,5 @@ allOf:
 
 	result := FindFieldPath("format", nodes, FieldPathOptions{ResolveSingleItemCombinators: true})
 	assert.False(t, result.Found)
+	assert.False(t, result.UsedSingleItemCombinator)
 }

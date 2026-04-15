@@ -10,7 +10,6 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 	"regexp"
-	"strings"
 )
 
 // Pattern is a rule that will match or not match (or both) a regular expression.
@@ -84,27 +83,29 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		ruleMessage = context.Rule.Message
 	}
 
-	// check if field contains nested path syntax
-	fieldHasNestedPath := context.RuleAction.Field != "" && strings.IndexAny(context.RuleAction.Field, ".[]\\") != -1
+	if context.RuleAction.Field != "" {
+		for _, node := range nodes {
+			if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+				node = node.Content[0]
+			}
+			if !utils.IsNodeMap(node) {
+				continue
+			}
+
+			fieldResult := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
+			if fieldResult.Found && fieldResult.ValueNode != nil {
+				locatedPath, allPaths, locatedObjects := locateExistingFieldPaths(context, node, context.RuleAction.Field, fieldResult)
+				results = append(results, p.validatePatternOnNode(
+					fieldResult.ValueNode, locatedPath, allPaths, locatedObjects, message, ruleMessage,
+					match, notMatch, matchRx, notMatchRx, matchErr, notMatchErr, context)...)
+			}
+		}
+		return results
+	}
 
 	// if multiple patterns are being pulled in, unpack them
 	if len(nodes) == 1 && len(nodes[0].Content) > 0 {
 		nodes = nodes[0].Content
-	}
-
-	// handle nested field paths using FindFieldPath
-	if fieldHasNestedPath {
-		for _, node := range nodes {
-			if utils.IsNodeMap(node) {
-				result := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
-				if result.Found && result.ValueNode != nil {
-					results = append(results, p.validatePatternOnNode(
-						result.ValueNode, pathValue, message, ruleMessage,
-						match, notMatch, matchRx, notMatchRx, matchErr, notMatchErr, context)...)
-				}
-			}
-		}
-		return results
 	}
 
 	// iterate through key-value pairs
@@ -124,7 +125,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 		}
 
 		results = append(results, p.validatePatternOnNode(
-			node, pathValue, message, ruleMessage,
+			node, pathValue, nil, nil, message, ruleMessage,
 			match, notMatch, matchRx, notMatchRx, matchErr, notMatchErr, context)...)
 	}
 
@@ -135,7 +136,10 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 // All parameters are passed explicitly - no struct state is used.
 func (p Pattern) validatePatternOnNode(
 	node *yaml.Node,
-	pathValue, message, ruleMessage string,
+	locatedPath string,
+	allPaths []string,
+	locatedObjects []v3.Foundational,
+	message, ruleMessage string,
 	match, notMatch string,
 	matchRx, notMatchRx *regexp.Regexp,
 	matchErr, notMatchErr error,
@@ -143,21 +147,25 @@ func (p Pattern) validatePatternOnNode(
 ) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
+	if locatedPath == "" {
+		locatedPath, allPaths, locatedObjects = p.locateNode(node, context)
+	}
+
 	// check match pattern
 	if match != "" {
 		if matchErr != nil {
-			results = append(results, p.buildRegexErrorResult(node, pathValue, message, ruleMessage, match, matchErr, context))
+			results = append(results, p.buildRegexErrorResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, match, matchErr, context))
 		} else if !matchRx.MatchString(node.Value) {
-			results = append(results, p.buildPatternMismatchResult(node, pathValue, message, ruleMessage, match, node.Value, context))
+			results = append(results, p.buildPatternMismatchResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, match, node.Value, context))
 		}
 	}
 
 	// check notMatch pattern
 	if notMatch != "" {
 		if notMatchErr != nil {
-			results = append(results, p.buildRegexErrorResult(node, pathValue, message, ruleMessage, notMatch, notMatchErr, context))
+			results = append(results, p.buildRegexErrorResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, notMatch, notMatchErr, context))
 		} else if notMatchRx.MatchString(node.Value) {
-			results = append(results, p.buildPatternMatchedResult(node, pathValue, message, ruleMessage, notMatch, context))
+			results = append(results, p.buildPatternMatchedResult(node, locatedPath, allPaths, locatedObjects, message, ruleMessage, notMatch, context))
 		}
 	}
 
@@ -167,12 +175,13 @@ func (p Pattern) validatePatternOnNode(
 // buildRegexErrorResult creates a result for regex compilation errors.
 func (p Pattern) buildRegexErrorResult(
 	node *yaml.Node,
-	pathValue, message, ruleMessage, pattern string,
+	locatedPath string,
+	allPaths []string,
+	locatedObjects []v3.Foundational,
+	message, ruleMessage, pattern string,
 	err error,
 	context model.RuleFunctionContext,
 ) model.RuleFunctionResult {
-	locatedPath, allPaths, locatedObjects := p.locateNode(node, pathValue, context)
-
 	result := model.RuleFunctionResult{
 		Message: vacuumUtils.SuppliedOrDefault(message,
 			model.GetStringTemplates().BuildRegexCompileErrorMessage(ruleMessage, pattern, err.Error())),
@@ -191,11 +200,12 @@ func (p Pattern) buildRegexErrorResult(
 // buildPatternMismatchResult creates a result when a value doesn't match the expected pattern.
 func (p Pattern) buildPatternMismatchResult(
 	node *yaml.Node,
-	pathValue, message, ruleMessage, pattern, value string,
+	locatedPath string,
+	allPaths []string,
+	locatedObjects []v3.Foundational,
+	message, ruleMessage, pattern, value string,
 	context model.RuleFunctionContext,
 ) model.RuleFunctionResult {
-	locatedPath, allPaths, locatedObjects := p.locateNode(node, pathValue, context)
-
 	result := model.RuleFunctionResult{
 		Message: vacuumUtils.SuppliedOrDefault(message,
 			model.GetStringTemplates().BuildPatternMessage(ruleMessage, value, pattern)),
@@ -214,11 +224,12 @@ func (p Pattern) buildPatternMismatchResult(
 // buildPatternMatchedResult creates a result when a value matches a notMatch pattern.
 func (p Pattern) buildPatternMatchedResult(
 	node *yaml.Node,
-	pathValue, message, ruleMessage, pattern string,
+	locatedPath string,
+	allPaths []string,
+	locatedObjects []v3.Foundational,
+	message, ruleMessage, pattern string,
 	context model.RuleFunctionContext,
 ) model.RuleFunctionResult {
-	locatedPath, allPaths, locatedObjects := p.locateNode(node, pathValue, context)
-
 	result := model.RuleFunctionResult{
 		Message: vacuumUtils.SuppliedOrDefault(message,
 			model.GetStringTemplates().BuildPatternMatchMessage(ruleMessage, pattern)),
@@ -235,8 +246,8 @@ func (p Pattern) buildPatternMatchedResult(
 }
 
 // locateNode finds the location information for a node using DrDocument.
-func (p Pattern) locateNode(node *yaml.Node, pathValue string, context model.RuleFunctionContext) (string, []string, []v3.Foundational) {
-	locatedPath := pathValue
+func (p Pattern) locateNode(node *yaml.Node, context model.RuleFunctionContext) (string, []string, []v3.Foundational) {
+	locatedPath := givenPathValue(context.Given)
 	var allPaths []string
 	var locatedObjects []v3.Foundational
 

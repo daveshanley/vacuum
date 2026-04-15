@@ -30,9 +30,10 @@ type PathSegment struct {
 
 // FieldPathResult contains the results of a field path lookup
 type FieldPathResult struct {
-	KeyNode   *yaml.Node // For error reporting (line/column)
-	ValueNode *yaml.Node // For validation
-	Found     bool
+	KeyNode                  *yaml.Node // For error reporting (line/column)
+	ValueNode                *yaml.Node // For validation
+	Found                    bool
+	UsedSingleItemCombinator bool
 }
 
 // FieldPathOptions controls the behavior of FindFieldPath
@@ -265,8 +266,15 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 
 	// Performance fast path: if no special characters, use original lookup directly
 	if strings.IndexAny(fieldPath, ".[]\\") == -1 {
-		keyNode, valueNode := findKeyNodeWithOptions(fieldPath, nodes, opts.RecursiveFirstSegment, opts.ResolveSingleItemCombinators)
-		return FieldPathResult{KeyNode: keyNode, ValueNode: valueNode, Found: keyNode != nil}
+		keyNode, valueNode, usedSingleItemCombinator := findKeyNodeWithOptions(
+			fieldPath, nodes, opts.RecursiveFirstSegment, opts.ResolveSingleItemCombinators,
+		)
+		return FieldPathResult{
+			KeyNode:                  keyNode,
+			ValueNode:                valueNode,
+			Found:                    keyNode != nil,
+			UsedSingleItemCombinator: usedSingleItemCombinator,
+		}
 	}
 
 	// Parse the field path
@@ -277,17 +285,20 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 
 	currentNodes := nodes
 	var keyNode, valueNode *yaml.Node
+	usedSingleItemCombinator := false
 
 	for i, segment := range segments {
 		switch segment.Type {
 		case SegmentKey, SegmentMapKey:
 			// Look up key in current nodes
-			keyNode, valueNode = findKeyNodeWithOptions(
+			var resolvedViaCombinator bool
+			keyNode, valueNode, resolvedViaCombinator = findKeyNodeWithOptions(
 				segment.Key,
 				currentNodes,
 				i == 0 && opts.RecursiveFirstSegment,
 				opts.ResolveSingleItemCombinators,
 			)
+			usedSingleItemCombinator = usedSingleItemCombinator || resolvedViaCombinator
 
 			if keyNode == nil {
 				return FieldPathResult{Found: false}
@@ -341,10 +352,20 @@ func FindFieldPath(fieldPath string, nodes []*yaml.Node, opts FieldPathOptions) 
 		}
 	}
 
-	return FieldPathResult{KeyNode: keyNode, ValueNode: valueNode, Found: true}
+	return FieldPathResult{
+		KeyNode:                  keyNode,
+		ValueNode:                valueNode,
+		Found:                    true,
+		UsedSingleItemCombinator: usedSingleItemCombinator,
+	}
 }
 
-func findKeyNodeWithOptions(key string, nodes []*yaml.Node, recursiveFirstSegment bool, resolveSingleItemCombinators bool) (*yaml.Node, *yaml.Node) {
+func findKeyNodeWithOptions(
+	key string,
+	nodes []*yaml.Node,
+	recursiveFirstSegment bool,
+	resolveSingleItemCombinators bool,
+) (*yaml.Node, *yaml.Node, bool) {
 	var keyNode, valueNode *yaml.Node
 	if recursiveFirstSegment {
 		keyNode, valueNode = utils.FindKeyNode(key, nodes)
@@ -352,9 +373,10 @@ func findKeyNodeWithOptions(key string, nodes []*yaml.Node, recursiveFirstSegmen
 		keyNode, valueNode = utils.FindKeyNodeTop(key, nodes)
 	}
 	if keyNode != nil || !resolveSingleItemCombinators {
-		return keyNode, valueNode
+		return keyNode, valueNode, false
 	}
-	return findKeyNodeInSingleItemCombinators(key, nodes)
+	keyNode, valueNode = findKeyNodeInSingleItemCombinators(key, nodes)
+	return keyNode, valueNode, keyNode != nil
 }
 
 func findKeyNodeInSingleItemCombinators(key string, nodes []*yaml.Node) (*yaml.Node, *yaml.Node) {

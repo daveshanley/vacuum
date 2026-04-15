@@ -1087,6 +1087,13 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 		}
 	}
 
+	if execution.CanonicalDocument != nil && needsResultPathReconciliation(ruleResults) {
+		resultPathCache := newResultPathCache(execution.CanonicalDocument)
+		for i := range ruleResults {
+			resultPathCache.reconcile(&ruleResults[i])
+		}
+	}
+
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
 
