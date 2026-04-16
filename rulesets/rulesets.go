@@ -37,6 +37,7 @@ const (
 	Validation                           = "validation"
 	NoVerbsInPath                        = "no-http-verbs-in-path"
 	PathsKebabCase                       = "paths-kebab-case"
+	PathsSpecificityOrder                = "paths-specificity-order"
 	NoAmbiguousPathsRule                 = "no-ambiguous-paths"
 	OperationErrorResponse               = "operation-4xx-response"
 	OperationSuccessResponse             = "operation-success-response"
@@ -524,6 +525,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas2AnyOf] = GetOAS2PolymorphicAnyOfRule()
 	rules[Oas2OneOf] = GetOAS2PolymorphicOneOfRule()
 	rules[NoAmbiguousPathsRule] = NoAmbiguousPaths()
+	rules[PathsSpecificityOrder] = GetPathsSpecificityOrderRule()
 	rules[NoVerbsInPath] = GetNoVerbsInPathRule()
 	rules[PathsKebabCase] = GetPathsKebabCaseRule()
 	rules[OperationErrorResponse] = GetOperationErrorResponseRule()

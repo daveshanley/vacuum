@@ -79,6 +79,9 @@ const (
 	pathNotIncludeQueryFix string = "Query strings are defined as parameters for an operation, they should not be included in the path " +
 		"Please remove it and correctly define as a parameter."
 
+	pathsSpecificityOrderFix string = "Move more specific paths before templated paths when they overlap for the same HTTP method. " +
+		"Declare static segments before path parameters to avoid routing conflicts in consumers, mocks, and generated handlers."
+
 	tagDescriptionRequiredFix string = "Tags are used to group operations into meaningful domains. Without a description, how is anyone " +
 		"supposed to understand what the grouping means? Add a description to your global tag."
 
