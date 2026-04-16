@@ -3500,6 +3500,205 @@ components:
 	assert.Len(t, res, 0)
 }
 
+func runSchemaTypeCheck(t *testing.T, yml string) []model.RuleFunctionResult {
+	t.Helper()
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		t.Fatalf("cannot create new document: %v", err)
+	}
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocument(m)
+
+	rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := SchemaTypeCheck{}
+	return def.RunRule(nil, ctx)
+}
+
+// Issue #289: confirm that the OP's exact example (string type with numeric constraints)
+// is caught by checkTypeMismatchedConstraints.
+func TestSchemaType_Issue289_StringWithNumericConstraints(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    FooInfo:
+      type: object
+      properties:
+        size:
+          type: string
+          maximum: 100
+          minimum: 25`
+	res := runSchemaTypeCheck(t, yml)
+
+	var messages []string
+	for _, r := range res {
+		messages = append(messages, r.Message)
+	}
+	assert.Contains(t, messages, "`maximum` constraint is only applicable to number/integer types, not `string`")
+	assert.Contains(t, messages, "`minimum` constraint is only applicable to number/integer types, not `string`")
+}
+
+func TestSchemaType_NewConstraints_StringContentKeywordsOnObject(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    Thing:
+      type: object
+      contentEncoding: base64
+      contentMediaType: application/octet-stream`
+	res := runSchemaTypeCheck(t, yml)
+
+	var messages []string
+	for _, r := range res {
+		messages = append(messages, r.Message)
+	}
+	assert.Contains(t, messages, "`contentEncoding` constraint is only applicable to string types, not `object`")
+	assert.Contains(t, messages, "`contentMediaType` constraint is only applicable to string types, not `object`")
+}
+
+func TestSchemaType_NewConstraints_ArrayKeywordsOnString(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    Thing:
+      type: string
+      prefixItems:
+        - type: integer
+      contains:
+        type: string
+      unevaluatedItems:
+        type: integer`
+	res := runSchemaTypeCheck(t, yml)
+
+	var messages []string
+	for _, r := range res {
+		messages = append(messages, r.Message)
+	}
+	assert.Contains(t, messages, "`prefixItems` constraint is only applicable to array types, not `string`")
+	assert.Contains(t, messages, "`contains` constraint is only applicable to array types, not `string`")
+	assert.Contains(t, messages, "`unevaluatedItems` constraint is only applicable to array types, not `string`")
+}
+
+func TestSchemaType_NewConstraints_ObjectKeywordsOnArray(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    Thing:
+      type: array
+      patternProperties:
+        "^x-":
+          type: string
+      propertyNames:
+        type: string
+      dependentSchemas:
+        foo:
+          type: object
+      unevaluatedProperties:
+        type: string`
+	res := runSchemaTypeCheck(t, yml)
+
+	var messages []string
+	for _, r := range res {
+		messages = append(messages, r.Message)
+	}
+	assert.Contains(t, messages, "`patternProperties` constraint is only applicable to object types, not `array`")
+	assert.Contains(t, messages, "`propertyNames` constraint is only applicable to object types, not `array`")
+	assert.Contains(t, messages, "`dependentSchemas` constraint is only applicable to object types, not `array`")
+	assert.Contains(t, messages, "`unevaluatedProperties` constraint is only applicable to object types, not `array`")
+}
+
+func TestSchemaType_EnumValueTypes_StringEnumWithWrongTypes(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    Thing:
+      type: string
+      enum: [big, 1, 0.2, true]`
+	res := runSchemaTypeCheck(t, yml)
+
+	var enumMsgs []string
+	for _, r := range res {
+		if r.Path != "" && r.Message != "" && fmtHasPrefix(r.Message, "`enum`") {
+			enumMsgs = append(enumMsgs, r.Message)
+		}
+	}
+	assert.Len(t, enumMsgs, 3)
+}
+
+func TestSchemaType_EnumValueTypes_IntegerEnumRejectsFloat(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    Thing:
+      type: integer
+      enum: [1, 2, 3.14]`
+	res := runSchemaTypeCheck(t, yml)
+
+	var enumMsgs []string
+	for _, r := range res {
+		if fmtHasPrefix(r.Message, "`enum`") {
+			enumMsgs = append(enumMsgs, r.Message)
+		}
+	}
+	assert.Len(t, enumMsgs, 1)
+	assert.Contains(t, enumMsgs[0], "3.14")
+}
+
+func TestSchemaType_EnumValueTypes_MultiTypeArrayAllValid(t *testing.T) {
+	yml := `openapi: 3.1.0
+components:
+  schemas:
+    Thing:
+      type: [string, integer, "null"]
+      enum: [hi, 1, null]`
+	res := runSchemaTypeCheck(t, yml)
+
+	for _, r := range res {
+		assert.NotContains(t, r.Message, "`enum` value")
+	}
+}
+
+func TestSchemaType_EnumValueTypes_OAS30NullableAllowsNull(t *testing.T) {
+	yml := `openapi: 3.0.4
+components:
+  schemas:
+    Thing:
+      type: string
+      nullable: true
+      enum: [a, b, null]`
+	res := runSchemaTypeCheck(t, yml)
+
+	for _, r := range res {
+		assert.NotContains(t, r.Message, "`enum` value")
+	}
+}
+
+func TestSchemaType_EnumValueTypes_OAS30NullOnNonNullableIsInvalid(t *testing.T) {
+	yml := `openapi: 3.0.4
+components:
+  schemas:
+    Thing:
+      type: string
+      enum: [a, b, null]`
+	res := runSchemaTypeCheck(t, yml)
+
+	var enumMsgs []string
+	for _, r := range res {
+		if fmtHasPrefix(r.Message, "`enum`") {
+			enumMsgs = append(enumMsgs, r.Message)
+		}
+	}
+	assert.Len(t, enumMsgs, 1)
+}
+
+func fmtHasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
 func TestSchemaType_MultiTypeConstraintMismatchReportedOnce(t *testing.T) {
 	yml := `openapi: 3.1.0
 info:

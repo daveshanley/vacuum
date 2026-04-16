@@ -125,6 +125,12 @@ func (st SchemaTypeCheck) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			results = append(results, constErrs...)
 		}
 
+		// validate each enum item's value type matches one of the declared types
+		if len(schemaType) > 0 {
+			enumTypeErrs := st.validateEnumTypes(schema, &context)
+			results = append(results, enumTypeErrs...)
+		}
+
 		// validate enum and const are not conflicting
 		enumConstErrs := st.validateEnumConst(schema, &context)
 		results = append(results, enumConstErrs...)
@@ -465,6 +471,9 @@ var allConstraints = []constraintDef{
 	{"pattern", "string", "string"},
 	{"minLength", "string", "string"},
 	{"maxLength", "string", "string"},
+	{"contentEncoding", "string", "string"},
+	{"contentMediaType", "string", "string"},
+	{"contentSchema", "string", "string"},
 	{"minimum", "number", "number/integer"},
 	{"maximum", "number", "number/integer"},
 	{"multipleOf", "number", "number/integer"},
@@ -475,8 +484,15 @@ var allConstraints = []constraintDef{
 	{"uniqueItems", "array", "array"},
 	{"minContains", "array", "array"},
 	{"maxContains", "array", "array"},
+	{"contains", "array", "array"},
+	{"prefixItems", "array", "array"},
+	{"unevaluatedItems", "array", "array"},
 	{"minProperties", "object", "object"},
 	{"maxProperties", "object", "object"},
+	{"patternProperties", "object", "object"},
+	{"propertyNames", "object", "object"},
+	{"dependentSchemas", "object", "object"},
+	{"unevaluatedProperties", "object", "object"},
 }
 
 // checkConstraint checks if a constraint is set on the high schema and returns the
@@ -542,6 +558,46 @@ func checkConstraint(c *constraintDef, high *highBase.Schema, low *lowBase.Schem
 	case "maxProperties":
 		if high.MaxProperties != nil {
 			return low.MaxProperties.KeyNode
+		}
+	case "contentEncoding":
+		if high.ContentEncoding != "" {
+			return low.ContentEncoding.KeyNode
+		}
+	case "contentMediaType":
+		if high.ContentMediaType != "" {
+			return low.ContentMediaType.KeyNode
+		}
+	case "contentSchema":
+		if high.ContentSchema != nil {
+			return low.ContentSchema.KeyNode
+		}
+	case "contains":
+		if high.Contains != nil {
+			return low.Contains.KeyNode
+		}
+	case "prefixItems":
+		if len(high.PrefixItems) > 0 {
+			return low.PrefixItems.KeyNode
+		}
+	case "unevaluatedItems":
+		if high.UnevaluatedItems != nil {
+			return low.UnevaluatedItems.KeyNode
+		}
+	case "patternProperties":
+		if high.PatternProperties != nil && high.PatternProperties.Len() > 0 {
+			return low.PatternProperties.KeyNode
+		}
+	case "propertyNames":
+		if high.PropertyNames != nil {
+			return low.PropertyNames.KeyNode
+		}
+	case "dependentSchemas":
+		if high.DependentSchemas != nil && high.DependentSchemas.Len() > 0 {
+			return low.DependentSchemas.KeyNode
+		}
+	case "unevaluatedProperties":
+		if high.UnevaluatedProperties != nil {
+			return low.UnevaluatedProperties.KeyNode
 		}
 	}
 	return nil
@@ -752,6 +808,59 @@ func (st SchemaTypeCheck) validateConst(schema *v3.Schema, context *model.RuleFu
 		result := st.buildResult(message,
 			schema.GenerateJSONPath(), "const", -1,
 			schema, schema.Value.GoLow().Const.KeyNode, context)
+		results = append(results, result)
+	}
+
+	return results
+}
+
+// validateEnumTypes checks that every enum value's YAML tag matches at least one declared
+// type. For OAS 3.0 nullable schemas and OAS 3.1 schemas with null in the type array, null
+// enum values are allowed.
+func (st SchemaTypeCheck) validateEnumTypes(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+
+	if len(schema.Value.Enum) == 0 {
+		return results
+	}
+
+	schemaTypes := schema.Value.Type
+	nullAllowed := false
+	for _, t := range schemaTypes {
+		if t == "null" {
+			nullAllowed = true
+			break
+		}
+	}
+	if !nullAllowed && schema.Value.Nullable != nil && *schema.Value.Nullable {
+		nullAllowed = true
+	}
+
+	for i, node := range schema.Value.Enum {
+		if node == nil {
+			continue
+		}
+		if node.Tag == "!!null" && nullAllowed {
+			continue
+		}
+
+		matched := false
+		for _, schemaType := range schemaTypes {
+			if st.isConstNodeValidForType(node, schemaType) {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			continue
+		}
+
+		typeList := formatSchemaTypesForMessage(schemaTypes)
+		message := fmt.Sprintf("`enum` value `%s` does not match schema type `%s`",
+			node.Value, typeList)
+		result := st.buildResult(message,
+			schema.GenerateJSONPath(), "enum", i,
+			schema, schema.Value.GoLow().Enum.KeyNode, context)
 		results = append(results, result)
 	}
 
