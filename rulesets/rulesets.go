@@ -93,6 +93,7 @@ const (
 	Oas2Schema                           = "oas2-schema"
 	Oas3Schema                           = "oas3-schema"
 	OasSchemaCheck                       = "oas-schema-check"
+	AllOfConflictsRule                   = "allof-conflicts"
 	OasMissingType                       = "oas-missing-type"
 	PathItemReferences                   = "path-item-refs"
 	DuplicatePathsRule                   = "duplicate-paths"
@@ -531,6 +532,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas3ValidSchemaExample] = GetOAS3ExamplesRule()
 	rules[Oas3ExampleMissingCheck] = GetOAS3ExamplesMissingRule()
 	rules[Oas3ExampleExternalCheck] = GetOAS3ExamplesExternalCheck()
+	rules[AllOfConflictsRule] = GetAllOfConflictsRule()
 	rules[OasSchemaCheck] = GetSchemaTypeCheckRule()
 	rules[OasMissingType] = GetMissingTypeRule()
 	rules[PostResponseSuccess] = GetPostSuccessResponseRule()

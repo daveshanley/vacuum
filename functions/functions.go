@@ -97,6 +97,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["noVerbsInPath"] = openapi_functions.VerbsInPaths{}
 		funcs["pathsKebabCase"] = openapi_functions.PathsKebabCase{}
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
+		funcs["allOfConflicts"] = openapi_functions.AllOfConflicts{}
 		funcs["schemaTypeCheck"] = openapi_functions.SchemaTypeCheck{}
 		funcs["missingType"] = openapi_functions.MissingType{}
 		funcs["tagDescription"] = openapi_functions.TagDescription{}
