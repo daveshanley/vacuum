@@ -40,10 +40,7 @@ func (uc UnnecessaryCombinator) RunRule(_ []*yaml.Node, context model.RuleFuncti
 	}
 
 	// in OAS 3.0.x, $ref siblings are ignored, so allOf is the only way to add properties
-	isOAS30 := false
-	if context.SpecInfo != nil {
-		isOAS30 = context.SpecInfo.VersionNumeric >= 3.0 && context.SpecInfo.VersionNumeric < 3.1
-	}
+	isOAS30 := vacuumUtils.IsOAS30(context.SpecInfo)
 
 	seen := make(map[string]bool)
 

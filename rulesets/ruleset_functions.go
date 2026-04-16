@@ -1288,6 +1288,26 @@ func GetOperationErrorResponseRule() *model.Rule {
 	}
 }
 
+// GetAllOfConflictsRule will check that allOf compositions do not define conflicting property types.
+func GetAllOfConflictsRule() *model.Rule {
+	return &model.Rule{
+		Name:         "allOf compositions must not define conflicting property types",
+		Id:           AllOfConflictsRule,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Properties defined across an allOf composition must have a non-empty common valid type",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  true,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "allOfConflicts",
+		},
+		HowToFix: allOfConflictsFix,
+	}
+}
+
 // GetSchemaTypeCheckRule will check that all schemas have a valid type defined
 func GetSchemaTypeCheckRule() *model.Rule {
 	return &model.Rule{
