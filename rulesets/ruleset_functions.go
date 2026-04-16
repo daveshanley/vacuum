@@ -44,7 +44,7 @@ func GetInfoContactRule() *model.Rule {
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryInfo],
 		Type:         Validation,
-		Severity:     model.SeverityWarn,
+		Severity:     model.SeverityInfo,
 		Then: model.RuleAction{
 			Function: "infoContact",
 		},
@@ -1225,6 +1225,26 @@ func NoAmbiguousPaths() *model.Rule {
 			Function: "noAmbiguousPaths",
 		},
 		HowToFix: ambiguousPathsFix,
+	}
+}
+
+// GetPathsSpecificityOrderRule checks that overlapping paths are ordered from most specific to least specific.
+func GetPathsSpecificityOrderRule() *model.Rule {
+	return &model.Rule{
+		Name:         "More specific paths should be declared before templated paths",
+		Id:           PathsSpecificityOrder,
+		Formats:      model.AllFormats,
+		Description:  "Paths should be ordered from most specific to least specific when they overlap",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  false,
+		RuleCategory: model.RuleCategories[model.CategoryOperations],
+		Type:         Style,
+		Severity:     model.SeverityInfo,
+		Then: model.RuleAction{
+			Function: "pathsSpecificityOrder",
+		},
+		HowToFix: pathsSpecificityOrderFix,
 	}
 }
 

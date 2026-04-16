@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-var totalRules = 67
+var totalRules = 68
 var totalRecommendedRules = 55
 var totalOwaspRules = 23
 
@@ -238,7 +238,7 @@ rules:
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
 	assert.Len(t, override.Rules, 2)
 	assert.Equal(t, model.SeverityWarn, override.Rules["operation-success-response"].Severity)
-	assert.Equal(t, model.SeverityWarn, override.Rules["info-contact"].Severity)
+	assert.Equal(t, model.SeverityInfo, override.Rules["info-contact"].Severity)
 }
 
 func TestRuleSetsModel_GenerateRuleSetFromConfig_Off_EnableRulesNotFound(t *testing.T) {
@@ -741,7 +741,7 @@ func TestRuleSet_GetExtendsLocalSpec_Multi_Chain(t *testing.T) {
 	rs, err := CreateRuleSetFromData([]byte(yaml))
 	assert.NoError(t, err)
 	override := def.GenerateRuleSetFromSuppliedRuleSet(rs)
-	assert.Len(t, override.Rules, 68)
+	assert.Len(t, override.Rules, totalRules+1)
 	assert.Len(t, override.RuleDefinitions, 1)
 
 }

@@ -8,5 +8,6 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 82)
+	assert.Len(t, funcs.GetAllFunctions(), 83)
+	assert.Contains(t, funcs.GetAllFunctions(), "pathsSpecificityOrder")
 }
