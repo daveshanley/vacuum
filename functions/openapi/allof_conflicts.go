@@ -129,7 +129,7 @@ func (a AllOfConflicts) buildResult(schema *drV3.Schema, propertyName string, de
 	lowSchema := schema.Value.GoLow()
 
 	result := model.RuleFunctionResult{
-		Message: fmt.Sprintf("`allOf` property `%s` is defined with incompatible types %s; there is no common valid type",
+		Message: fmt.Sprintf("`allOf` property `%s` declared as %s: properties defined across an `allOf` composition must have a non-empty common valid type",
 			propertyName, declared.String()),
 		StartNode: lowSchema.AllOf.KeyNode,
 		EndNode:   vacuumUtils.BuildEndNode(lowSchema.AllOf.KeyNode),
