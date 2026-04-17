@@ -171,6 +171,8 @@ const (
 
 	schemaTypeFix string = "Make sure each schema has a value type defined. Without a type, the schema is useless"
 
+	requiredFieldsDefinedFix string = "If a field is listed in `required`, declare it explicitly in `properties` or restructure the schema so the required field is defined through composition."
+
 	allOfConflictsFix string = "When the same property is defined across an `allOf` composition with incompatible types, the composed schema cannot be satisfied. Align the property types across all `allOf` branches, or redesign the model to avoid conflicting definitions."
 
 	postSuccessResponseFix string = "Make sure your POST operations return a 'success' response via 2xx or 3xx response code. "

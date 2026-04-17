@@ -351,27 +351,6 @@ func (st SchemaTypeCheck) validateObject(schema *v3.Schema, context *model.RuleF
 		}
 	}
 
-	if len(schema.Value.Required) > 0 {
-		for i, required := range schema.Value.Required {
-			propertyLookup := st.lookupRequiredProperty(schema, required)
-			if !propertyLookup.propertiesFound {
-				result := st.buildResult("object contains `required` fields but no `properties`",
-					schema.GenerateJSONPath(), "required", i,
-					schema, schema.Value.GoLow().Required.KeyNode, context)
-				results = append(results, result)
-				break
-			}
-
-			// report error if property is not defined anywhere
-			if !propertyLookup.propertyDefined {
-				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
-					schema.GenerateJSONPath(), "required", i,
-					schema, schema.Value.GoLow().Required.KeyNode, context)
-				results = append(results, result)
-			}
-		}
-	}
-
 	// validate DependentRequired
 	dependentRequiredResults := st.validateDependentRequired(schema, context)
 	results = append(results, dependentRequiredResults...)

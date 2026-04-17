@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-var totalRules = 68
+var totalRules = 69
 var totalRecommendedRules = 55
 var totalOwaspRules = 23
 

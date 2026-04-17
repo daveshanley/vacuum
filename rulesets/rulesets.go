@@ -94,6 +94,7 @@ const (
 	Oas2Schema                           = "oas2-schema"
 	Oas3Schema                           = "oas3-schema"
 	OasSchemaCheck                       = "oas-schema-check"
+	RequiredFieldsDefinedRule            = "required-fields-defined"
 	AllOfConflictsRule                   = "allof-conflicts"
 	OasMissingType                       = "oas-missing-type"
 	PathItemReferences                   = "path-item-refs"
@@ -536,6 +537,7 @@ func GetAllBuiltInRules() map[string]*model.Rule {
 	rules[Oas3ExampleExternalCheck] = GetOAS3ExamplesExternalCheck()
 	rules[AllOfConflictsRule] = GetAllOfConflictsRule()
 	rules[OasSchemaCheck] = GetSchemaTypeCheckRule()
+	rules[RequiredFieldsDefinedRule] = GetRequiredFieldsDefinedRule()
 	rules[OasMissingType] = GetMissingTypeRule()
 	rules[PostResponseSuccess] = GetPostSuccessResponseRule()
 	rules[NoRequestBody] = GetNoRequestBodyRule()
