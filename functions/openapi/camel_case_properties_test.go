@@ -14,6 +14,8 @@ import (
 func TestCamelCaseProperties_GetSchema(t *testing.T) {
 	def := CamelCaseProperties{}
 	assert.Equal(t, "oasCamelCaseProperties", def.GetSchema().Name)
+	assert.Equal(t, 1, def.GetSchema().MaxProperties)
+	assert.Equal(t, "type", def.GetSchema().Properties[0].Name)
 }
 
 func TestCamelCaseProperties_GetCategory(t *testing.T) {
@@ -146,6 +148,80 @@ components:
 	assert.Contains(t, res[0].Message, "not `camelCase`")
 	assert.Contains(t, res[1].Message, "last-name")
 	assert.Contains(t, res[1].Message, "kebab-case")
+}
+
+func TestCamelCaseProperties_RunRule_SnakeCaseConfigured(t *testing.T) {
+	def := CamelCaseProperties{}
+	ctx := buildTestContext(`
+openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        camelCase:
+          type: string
+`, t)
+	ctx.Options = map[string]string{"type": "snake"}
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "property `camelCase` is `camelCase` not `snake_case`", res[0].Message)
+}
+
+func TestCamelCaseProperties_RunRule_KebabCaseAliasConfigured(t *testing.T) {
+	def := CamelCaseProperties{}
+	ctx := buildTestContext(`
+openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        first-name:
+          type: string
+        last-name:
+          type: string
+        first_name:
+          type: string
+`, t)
+	ctx.Options = map[string]string{"type": "kebab-case"}
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "property `first_name` is `snake_case` not `kebab-case`", res[0].Message)
+}
+
+func TestCamelCaseProperties_RunRule_InvalidTypeFallsBackToCamel(t *testing.T) {
+	def := CamelCaseProperties{}
+	ctx := buildTestContext(`
+openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        first_name:
+          type: string
+`, t)
+	ctx.Options = map[string]string{"type": "wobble"}
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "property `first_name` is `snake_case` not `camelCase`", res[0].Message)
 }
 
 func TestCamelCaseProperties_RunRule_ScreamingSnakeCase(t *testing.T) {
@@ -368,16 +444,16 @@ func TestCamelCaseProperties_isCamelCase(t *testing.T) {
 func TestCamelCaseProperties_identifyCaseType(t *testing.T) {
 	def := CamelCaseProperties{}
 
+	assert.Equal(t, "camelCase", def.identifyCaseType("firstName"))
 	assert.Equal(t, "PascalCase", def.identifyCaseType("FirstName"))
+	assert.Equal(t, "Pascal-Kebab-Case", def.identifyCaseType("First-Name"))
 	assert.Equal(t, "snake_case", def.identifyCaseType("first_name"))
 	assert.Equal(t, "kebab-case", def.identifyCaseType("first-name"))
 	assert.Equal(t, "SCREAMING_SNAKE_CASE", def.identifyCaseType("FIRST_NAME"))
 	assert.Equal(t, "SCREAMING-KEBAB-CASE", def.identifyCaseType("FIRST-NAME"))
 	assert.Equal(t, "UPPERCASE", def.identifyCaseType("UPPERCASE"))
 	assert.Equal(t, "lowercase", def.identifyCaseType("lowercase"))
-	assert.Equal(t, "Snake_Case", def.identifyCaseType("First_Name"))
-	assert.Equal(t, "Kebab-Case", def.identifyCaseType("First-Name"))
-	assert.Equal(t, "mixedCase", def.identifyCaseType("firstName")) // would be camelCase but called when it fails isCamelCase
+	assert.Equal(t, "unknown", def.identifyCaseType("First_Name"))
 	assert.Equal(t, "unknown", def.identifyCaseType(""))
 	assert.Equal(t, "unknown", def.identifyCaseType("first name"))
 }

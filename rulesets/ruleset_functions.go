@@ -1506,7 +1506,8 @@ func GetCamelCasePropertiesRule() *model.Rule {
 		Type:         Style,
 		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
-			Function: "oasCamelCaseProperties",
+			Function:        "oasCamelCaseProperties",
+			FunctionOptions: map[string]any{"type": "camel"},
 		},
 		HowToFix: camelCasePropertiesFix,
 	}
