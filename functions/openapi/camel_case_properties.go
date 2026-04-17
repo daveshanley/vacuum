@@ -5,8 +5,8 @@ package openapi
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
@@ -14,14 +14,75 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-// CamelCaseProperties checks that all schema property names are in camelCase format.
-type CamelCaseProperties struct {
+const (
+	propertyCaseCamel       = "camel"
+	propertyCasePascal      = "pascal"
+	propertyCasePascalKebab = "pascal-kebab"
+	propertyCaseKebab       = "kebab"
+	propertyCaseCobol       = "cobol"
+	propertyCaseSnake       = "snake"
+	propertyCaseMacro       = "macro"
+	propertyCaseFlat        = "flat"
+)
+
+var propertyCasePatterns = map[string]*regexp.Regexp{
+	propertyCaseCamel:       regexp.MustCompile(`^[a-z][a-z0-9]*(?:[A-Z0-9](?:[a-z0-9]+|$))*$`),
+	propertyCasePascal:      regexp.MustCompile(`^[A-Z][a-z0-9]*(?:[A-Z0-9](?:[a-z0-9]+|$))*$`),
+	propertyCasePascalKebab: regexp.MustCompile(`^[A-Z][a-z0-9]*(-[A-Z][a-z0-9]*)*$`),
+	propertyCaseKebab:       regexp.MustCompile(`^[a-z0-9-]+$`),
+	propertyCaseCobol:       regexp.MustCompile(`^[A-Z0-9-]+$`),
+	propertyCaseSnake:       regexp.MustCompile(`^[a-z0-9_]+$`),
+	propertyCaseMacro:       regexp.MustCompile(`^[A-Z0-9_]+$`),
+	propertyCaseFlat:        regexp.MustCompile(`^[a-z][a-z0-9]*$`),
 }
+
+var propertyCaseAliases = map[string]string{
+	"camel":                propertyCaseCamel,
+	"camelcase":            propertyCaseCamel,
+	"pascal":               propertyCasePascal,
+	"pascalcase":           propertyCasePascal,
+	"pascal-kebab":         propertyCasePascalKebab,
+	"pascalkebab":          propertyCasePascalKebab,
+	"kebab":                propertyCaseKebab,
+	"kebab-case":           propertyCaseKebab,
+	"cobol":                propertyCaseCobol,
+	"cobol-case":           propertyCaseCobol,
+	"snake":                propertyCaseSnake,
+	"snake_case":           propertyCaseSnake,
+	"macro":                propertyCaseMacro,
+	"macro-case":           propertyCaseMacro,
+	"screaming_snake_case": propertyCaseMacro,
+	"flat":                 propertyCaseFlat,
+	"flatcase":             propertyCaseFlat,
+	"lowercase":            propertyCaseFlat,
+}
+
+var propertyCaseDisplayNames = map[string]string{
+	propertyCaseCamel:       "camelCase",
+	propertyCasePascal:      "PascalCase",
+	propertyCasePascalKebab: "Pascal-Kebab-Case",
+	propertyCaseKebab:       "kebab-case",
+	propertyCaseCobol:       "SCREAMING-KEBAB-CASE",
+	propertyCaseSnake:       "snake_case",
+	propertyCaseMacro:       "SCREAMING_SNAKE_CASE",
+	propertyCaseFlat:        "lowercase",
+}
+
+// CamelCaseProperties checks that all schema property names are in a configured case format.
+type CamelCaseProperties struct{}
 
 // GetSchema returns a model.RuleFunctionSchema defining the schema of the CamelCaseProperties rule.
 func (ccp CamelCaseProperties) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{
-		Name: "oasCamelCaseProperties",
+		Name:          "oasCamelCaseProperties",
+		MaxProperties: 1,
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "type",
+				Description: "optional property casing style. Supported values: camel, snake, pascal, kebab, macro, cobol, flat, pascal-kebab. Defaults to camel",
+			},
+		},
+		ErrorMessage: "'oasCamelCaseProperties' function accepts an optional 'type' value such as 'camel' or 'snake'",
 	}
 }
 
@@ -38,10 +99,11 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 		return results
 	}
 
+	expectedCase := ccp.resolveExpectedCase(context)
+	expectedCaseDisplay := ccp.displayCaseType(expectedCase)
 	seen := make(map[string]bool)
 
 	buildResult := func(message, path string, node *yaml.Node, component v3.AcceptsRuleResults) model.RuleFunctionResult {
-		// try to find all paths for this node if it's a schema
 		var allPaths []string
 		if schema, ok := component.(*v3.Schema); ok {
 			_, allPaths = vacuumUtils.LocateSchemaPropertyPaths(context, schema, node, node)
@@ -55,7 +117,6 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 			Rule:      context.Rule,
 		}
 
-		// set the Paths array if we found multiple locations
 		if len(allPaths) > 1 {
 			result.Paths = allPaths
 		}
@@ -69,28 +130,22 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 			return
 		}
 
-		// create cache key to prevent duplicate processing
-		var cacheKey strings.Builder
-		cacheKey.WriteString(schema.GenerateJSONPath())
-		key := cacheKey.String()
-
+		key := schema.GenerateJSONPath()
 		if seen[key] {
 			return
 		}
 		seen[key] = true
 
-		// check all property names
 		for propertyName, prop := range schema.Value.Properties.FromOldest() {
-			if !ccp.isCamelCase(propertyName) {
+			if !ccp.matchesConfiguredCase(propertyName, expectedCase) {
 				caseType := ccp.identifyCaseType(propertyName)
 				path := fmt.Sprintf("%s.properties['%s']", schema.GenerateJSONPath(), propertyName)
-				message := fmt.Sprintf("property `%s` is `%s` not `camelCase`", propertyName, caseType)
+				message := fmt.Sprintf("property `%s` is `%s` not `%s`", propertyName, caseType, expectedCaseDisplay)
 				results = append(results, buildResult(message, path, prop.GoLow().GetKeyNode(), schema))
 			}
 		}
 	}
 
-	// check all schemas in the document
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			checkSchema(context.DrDocument.Schemas[i])
@@ -102,23 +157,25 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 
 // isCamelCase checks if a string is in camelCase format.
 func (ccp CamelCaseProperties) isCamelCase(s string) bool {
-	if s == "" {
+	return ccp.matchesConfiguredCase(s, propertyCaseCamel)
+}
+
+func (ccp CamelCaseProperties) resolveExpectedCase(context model.RuleFunctionContext) string {
+	if context.Options == nil {
+		return propertyCaseCamel
+	}
+	if normalized, ok := normalizePropertyCaseType(context.GetOptionsStringMap()["type"]); ok {
+		return normalized
+	}
+	return propertyCaseCamel
+}
+
+func (ccp CamelCaseProperties) matchesConfiguredCase(s, expectedCase string) bool {
+	pattern, ok := propertyCasePatterns[expectedCase]
+	if !ok || s == "" {
 		return false
 	}
-
-	// must start with lowercase letter
-	if !unicode.IsLower(rune(s[0])) {
-		return false
-	}
-
-	// must contain only letters and numbers, no underscores, hyphens, or other special chars
-	for _, r := range s {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			return false
-		}
-	}
-
-	return true
+	return pattern.MatchString(s)
 }
 
 // identifyCaseType determines what case type a string is using.
@@ -127,26 +184,22 @@ func (ccp CamelCaseProperties) identifyCaseType(s string) string {
 		return "unknown"
 	}
 
-	// check for special characters first
 	hasUnderscore := strings.Contains(s, "_")
 	hasHyphen := strings.Contains(s, "-")
 	hasSpecialChars := false
 	for _, r := range s {
-		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '-' {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-') {
 			hasSpecialChars = true
 			break
 		}
 	}
-
 	if hasSpecialChars {
 		return "unknown"
 	}
 
-	// check for all uppercase/lowercase
-	isAllUpper := strings.ToUpper(s) == s && strings.ToLower(s) != s // has letters and is all upper
-	isAllLower := strings.ToLower(s) == s && strings.ToUpper(s) != s // has letters and is all lower
+	isAllUpper := strings.ToUpper(s) == s && strings.ToLower(s) != s
+	isAllLower := strings.ToLower(s) == s && strings.ToUpper(s) != s
 
-	// classify based on patterns
 	switch {
 	case hasUnderscore && isAllUpper:
 		return "SCREAMING_SNAKE_CASE"
@@ -154,22 +207,39 @@ func (ccp CamelCaseProperties) identifyCaseType(s string) string {
 		return "SCREAMING-KEBAB-CASE"
 	case hasUnderscore && isAllLower:
 		return "snake_case"
-	case hasUnderscore:
-		return "Snake_Case"
 	case hasHyphen && isAllLower:
 		return "kebab-case"
+	case hasHyphen && ccp.matchesConfiguredCase(s, propertyCasePascalKebab):
+		return ccp.displayCaseType(propertyCasePascalKebab)
+	case hasUnderscore:
+		return "unknown"
 	case hasHyphen:
-		return "Kebab-Case"
-	case isAllUpper && !hasUnderscore && !hasHyphen:
+		return "unknown"
+	case isAllUpper:
 		return "UPPERCASE"
-	case isAllLower && !hasUnderscore && !hasHyphen:
+	case isAllLower:
 		return "lowercase"
-	case unicode.IsUpper(rune(s[0])) && !hasUnderscore && !hasHyphen:
-		return "PascalCase"
-	case unicode.IsLower(rune(s[0])) && !hasUnderscore && !hasHyphen:
-		// this is called when isCamelCase failed, so it must have some issue
-		return "mixedCase"
+	case ccp.matchesConfiguredCase(s, propertyCaseCamel):
+		return ccp.displayCaseType(propertyCaseCamel)
+	case ccp.matchesConfiguredCase(s, propertyCasePascal):
+		return ccp.displayCaseType(propertyCasePascal)
 	default:
 		return "unknown"
 	}
+}
+
+func (ccp CamelCaseProperties) displayCaseType(caseType string) string {
+	if display, ok := propertyCaseDisplayNames[caseType]; ok {
+		return display
+	}
+	return caseType
+}
+
+func normalizePropertyCaseType(caseType string) (string, bool) {
+	key := strings.ToLower(strings.TrimSpace(caseType))
+	if key == "" {
+		return propertyCaseCamel, true
+	}
+	normalized, ok := propertyCaseAliases[key]
+	return normalized, ok
 }

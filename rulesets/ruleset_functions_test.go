@@ -22,6 +22,15 @@ func TestNoRefSiblingsRules_FormatSelection(t *testing.T) {
 	assert.False(t, ruleFormatsMatch(oas3NoRefSiblings.Formats, model.OAS32))
 }
 
+func TestGetCamelCasePropertiesRule_DefaultsToCamel(t *testing.T) {
+	rule := GetCamelCasePropertiesRule()
+	action, ok := rule.Then.(model.RuleAction)
+	assert.True(t, ok)
+	opts, ok := action.FunctionOptions.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "camel", opts["type"])
+}
+
 func ruleFormatsMatch(ruleFormats []string, specFormat string) bool {
 	for _, ruleFormat := range ruleFormats {
 		if model.FormatMatches(ruleFormat, specFormat) {
