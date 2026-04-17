@@ -3512,6 +3512,7 @@ func runSchemaTypeCheck(t *testing.T, yml string) []model.RuleFunctionResult {
 	ctx.Document = document
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
+	ctx.SpecInfo = document.GetSpecInfo()
 
 	def := SchemaTypeCheck{}
 	return def.RunRule(nil, ctx)
@@ -3691,6 +3692,48 @@ components:
 		}
 	}
 	assert.Len(t, enumMsgs, 1)
+}
+
+func TestSchemaType_EnumValueTypes_OAS31NullableAnnotationDoesNotAllowNull(t *testing.T) {
+	yml := `openapi: 3.1.1
+components:
+  schemas:
+    Thing:
+      type: string
+      nullable: true
+      enum: [a, b, null]`
+	res := runSchemaTypeCheck(t, yml)
+
+	var enumMsgs []string
+	for _, r := range res {
+		if fmtHasPrefix(r.Message, "`enum`") {
+			enumMsgs = append(enumMsgs, r.Message)
+		}
+	}
+	assert.Len(t, enumMsgs, 1)
+	assert.Contains(t, enumMsgs[0], "`enum` value")
+	assert.Contains(t, enumMsgs[0], "does not match schema type")
+}
+
+func TestSchemaType_EnumValueTypes_OAS32NullableAnnotationDoesNotAllowNull(t *testing.T) {
+	yml := `openapi: 3.2.0
+components:
+  schemas:
+    Thing:
+      type: string
+      nullable: true
+      enum: [a, b, null]`
+	res := runSchemaTypeCheck(t, yml)
+
+	var enumMsgs []string
+	for _, r := range res {
+		if fmtHasPrefix(r.Message, "`enum`") {
+			enumMsgs = append(enumMsgs, r.Message)
+		}
+	}
+	assert.Len(t, enumMsgs, 1)
+	assert.Contains(t, enumMsgs[0], "`enum` value")
+	assert.Contains(t, enumMsgs[0], "does not match schema type")
 }
 
 func fmtHasPrefix(s, prefix string) bool {

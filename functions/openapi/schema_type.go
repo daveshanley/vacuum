@@ -794,8 +794,8 @@ func (st SchemaTypeCheck) validateConst(schema *v3.Schema, context *model.RuleFu
 }
 
 // validateEnumTypes checks that every enum value's YAML tag matches at least one declared
-// type. For OAS 3.0 nullable schemas and OAS 3.1 schemas with null in the type array, null
-// enum values are allowed.
+// type. For OAS 3.0 nullable schemas and OAS 3.1+ schemas with null in the type array,
+// null enum values are allowed.
 func (st SchemaTypeCheck) validateEnumTypes(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
@@ -804,16 +804,7 @@ func (st SchemaTypeCheck) validateEnumTypes(schema *v3.Schema, context *model.Ru
 	}
 
 	schemaTypes := schema.Value.Type
-	nullAllowed := false
-	for _, t := range schemaTypes {
-		if t == "null" {
-			nullAllowed = true
-			break
-		}
-	}
-	if !nullAllowed && schema.Value.Nullable != nil && *schema.Value.Nullable {
-		nullAllowed = true
-	}
+	nullAllowed := st.isNullAllowedForSchema(schema, context)
 
 	for i, node := range schema.Value.Enum {
 		if node == nil {
@@ -844,6 +835,25 @@ func (st SchemaTypeCheck) validateEnumTypes(schema *v3.Schema, context *model.Ru
 	}
 
 	return results
+}
+
+func (st SchemaTypeCheck) isNullAllowedForSchema(schema *v3.Schema, context *model.RuleFunctionContext) bool {
+	for _, t := range schema.Value.Type {
+		if t == "null" {
+			return true
+		}
+	}
+
+	if schema.Value.Nullable == nil || !*schema.Value.Nullable {
+		return false
+	}
+
+	var specInfo = context.SpecInfo
+	if specInfo == nil && context.Document != nil {
+		specInfo = context.Document.GetSpecInfo()
+	}
+
+	return vacuumUtils.IsOAS30(specInfo)
 }
 
 func (st SchemaTypeCheck) validateEnumConst(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
