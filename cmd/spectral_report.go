@@ -318,7 +318,11 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				resultSet := model.NewRuleResultSet(ruleset.Results)
 				resultSet.SortResultsByLineNumber()
 
-				resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
+				resultSet.Results = utils.FilterIgnoredResultsPtrWithOptions(
+					resultSet.Results,
+					ignoredItems,
+					buildIgnoreFilterOptions(specBytes, ruleset, lookupTimeoutFlag),
+				)
 
 				// Apply change-based filtering if --changes or --original is specified
 				// Note: change filtering only makes sense for single-file mode

@@ -560,10 +560,14 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 
 	var results []*model.RuleFunctionResult
 	var errors, warnings, informs, hints int
+	ignoreMatcher := utils.NewIgnoreMatcher(
+		config.IgnoredItems,
+		buildIgnoreFilterOptions(specBytes, result, config.Flags.LookupTimeoutFlag),
+	)
 
 	// Use index-based iteration to avoid copying the struct and take direct pointer to slice element
 	for i := range result.Results {
-		if shouldIgnoreResult(result.Results[i], config.IgnoredItems) {
+		if ignoreMatcher.Matches(&result.Results[i]) {
 			continue
 		}
 
@@ -602,22 +606,4 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Logs:     logs,
 		Error:    nil,
 	}
-}
-
-// shouldIgnoreResult checks if a result should be ignored based on ignore rules
-func shouldIgnoreResult(result model.RuleFunctionResult, ignoredItems model.IgnoredItems) bool {
-	if len(ignoredItems) == 0 {
-		return false
-	}
-
-	// Check if this rule/path combination should be ignored
-	if paths, exists := ignoredItems[result.Rule.Id]; exists {
-		for _, ignorePath := range paths {
-			if result.Path == ignorePath {
-				return true
-			}
-		}
-	}
-
-	return false
 }

@@ -30,7 +30,7 @@ func BuildResults(
 
 // TurboFlags holds turbo-related configuration for BuildResults functions.
 type TurboFlags struct {
-	TurboMode         bool
+	TurboMode bool
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -119,6 +119,10 @@ func BuildResultsWithDocCheckSkip(
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	resultSet.SortResultsByLineNumber()
-	resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
+	resultSet.Results = utils.FilterIgnoredResultsPtrWithOptions(
+		resultSet.Results,
+		ignoredItems,
+		buildIgnoreFilterOptions(specBytes, ruleset, int(lookupTimeout/time.Millisecond)),
+	)
 	return resultSet, ruleset, nil
 }

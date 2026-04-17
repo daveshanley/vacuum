@@ -250,7 +250,10 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 		return relintErrorMsg{err: fmt.Errorf("linting failed: %v", result.Errors[0])}
 	}
 
-	filteredResults := utils.FilterIgnoredResults(result.Results, ignoredItems)
+	filteredResults := utils.FilterIgnoredResultsWithOptions(result.Results, ignoredItems, utils.IgnoreMatcherOptions{
+		RootNode:  result.RuleSetExecution.CanonicalDocument,
+		SpecBytes: specBytes,
+	})
 
 	// Convert to pointers for further processing
 	resultPointers := make([]*model.RuleFunctionResult, len(filteredResults))

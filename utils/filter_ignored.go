@@ -8,44 +8,43 @@ import "github.com/daveshanley/vacuum/model"
 // FilterIgnoredResultsPtr filters the given results slice, taking out any (RuleID, Path) combos that were listed in the
 // ignore file
 func FilterIgnoredResultsPtr(results []*model.RuleFunctionResult, ignored model.IgnoredItems) []*model.RuleFunctionResult {
-	if len(ignored) == 0 {
+	return FilterIgnoredResultsPtrWithOptions(results, ignored, IgnoreMatcherOptions{})
+}
+
+// FilterIgnoredResultsPtrWithOptions filters result pointers using exact path ignores
+// and, when a document root is available, JSONPath ignore expressions.
+func FilterIgnoredResultsPtrWithOptions(
+	results []*model.RuleFunctionResult,
+	ignored model.IgnoredItems,
+	options IgnoreMatcherOptions,
+) []*model.RuleFunctionResult {
+	matcher := NewIgnoreMatcher(ignored, options)
+	if len(matcher.literalByRule) == 0 && len(matcher.resolvedByRule) == 0 {
 		return results
 	}
 
-	var filteredResults []*model.RuleFunctionResult
-
-	for _, r := range results {
-
-		var found bool
-		for _, i := range ignored[r.Rule.Id] {
-			// Check if the single Path matches
-			if r.Path == i {
-				found = true
-				break
-			}
-			// Check if any of the Paths array matches
-			if !found && len(r.Paths) > 0 {
-				for _, p := range r.Paths {
-					if p == i {
-						found = true
-						break
-					}
-				}
-			}
-			if found {
-				break
-			}
+	filteredResults := make([]*model.RuleFunctionResult, 0, len(results))
+	for _, result := range results {
+		if matcher.Matches(result) {
+			continue
 		}
-		if !found {
-			filteredResults = append(filteredResults, r)
-		}
+		filteredResults = append(filteredResults, result)
 	}
-
 	return filteredResults
 }
 
 // FilterIgnoredResults does the filtering of ignored results on non-pointer result elements
 func FilterIgnoredResults(results []model.RuleFunctionResult, ignored model.IgnoredItems) []model.RuleFunctionResult {
+	return FilterIgnoredResultsWithOptions(results, ignored, IgnoreMatcherOptions{})
+}
+
+// FilterIgnoredResultsWithOptions filters non-pointer results using exact path ignores
+// and, when a document root is available, JSONPath ignore expressions.
+func FilterIgnoredResultsWithOptions(
+	results []model.RuleFunctionResult,
+	ignored model.IgnoredItems,
+	options IgnoreMatcherOptions,
+) []model.RuleFunctionResult {
 	if len(ignored) == 0 {
 		return results
 	}
@@ -55,7 +54,7 @@ func FilterIgnoredResults(results []model.RuleFunctionResult, ignored model.Igno
 		resultsPtrs = append(resultsPtrs, &r)
 	}
 	resultsFiltered := make([]model.RuleFunctionResult, 0, len(results))
-	for _, r := range FilterIgnoredResultsPtr(resultsPtrs, ignored) {
+	for _, r := range FilterIgnoredResultsPtrWithOptions(resultsPtrs, ignored, options) {
 		resultsFiltered = append(resultsFiltered, *r)
 	}
 	return resultsFiltered
