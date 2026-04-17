@@ -1075,9 +1075,7 @@ components:
 	def := SchemaTypeCheck{}
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`required` field `hello` is not defined in `properties`", res[0].Message)
-	assert.Equal(t, "$.components.schemas['Gum'].required[0]", res[0].Path)
+	assert.Len(t, res, 0)
 }
 
 func TestSchemaType_RequiredPropertiesPolyAllOf(t *testing.T) {

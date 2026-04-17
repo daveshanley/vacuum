@@ -100,6 +100,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["oasOpErrorResponse"] = openapi_functions.Operation4xResponse{}
 		funcs["allOfConflicts"] = openapi_functions.AllOfConflicts{}
 		funcs["schemaTypeCheck"] = openapi_functions.SchemaTypeCheck{}
+		funcs["requiredFieldsDefined"] = openapi_functions.RequiredFieldsDefined{}
 		funcs["missingType"] = openapi_functions.MissingType{}
 		funcs["tagDescription"] = openapi_functions.TagDescription{}
 		funcs["infoDescription"] = openapi_functions.InfoDescription{}

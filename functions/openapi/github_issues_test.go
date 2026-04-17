@@ -15,11 +15,11 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-// TestSchemaType_Issue691_ComprehensiveFix tests the complete fix for issue #691
+// TestRequiredFieldsDefined_Issue691_ComprehensiveFix tests the complete fix for issue #691
 // This ensures that:
 // 1. allOf with $ref doesn't falsely report "no properties" when properties exist
 // 2. Invalid required fields ARE caught even when using allOf with $ref
-func TestSchemaType_Issue691_ComprehensiveFix(t *testing.T) {
+func TestRequiredFieldsDefined_Issue691_ComprehensiveFix(t *testing.T) {
 	yml := `openapi: 3.0.0
 components:
   schemas:
@@ -65,14 +65,14 @@ components:
 
 	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "requiredFieldsDefined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 
 	ctx.Document = document
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
 
-	def := SchemaTypeCheck{}
+	def := RequiredFieldsDefined{}
 	res := def.RunRule(nil, ctx)
 
 	// Check results
@@ -113,9 +113,9 @@ components:
 		"Should NOT report 'no properties' error when properties exist via allOf")
 }
 
-// TestSchemaType_Issue546_AllOfSiblingRequiredProperties ensures required fields declared
+// TestRequiredFieldsDefined_Issue546_AllOfSiblingRequiredProperties ensures required fields declared
 // inside a single allOf arm can be satisfied by sibling allOf arms in the composed schema.
-func TestSchemaType_Issue546_AllOfSiblingRequiredProperties(t *testing.T) {
+func TestRequiredFieldsDefined_Issue546_AllOfSiblingRequiredProperties(t *testing.T) {
 	yml := `openapi: 3.0.0
 components:
   schemas:
@@ -143,13 +143,13 @@ components:
 
 	drDocument := drModel.NewDrDocument(m)
 
-	rule := buildOpenApiTestRuleAction(path, "schema-type-check", "", nil)
+	rule := buildOpenApiTestRuleAction(path, "requiredFieldsDefined", "", nil)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 	ctx.Document = document
 	ctx.DrDocument = drDocument
 	ctx.Rule = &rule
 
-	def := SchemaTypeCheck{}
+	def := RequiredFieldsDefined{}
 	res := def.RunRule(nil, ctx)
 
 	for _, r := range res {

@@ -1348,6 +1348,26 @@ func GetSchemaTypeCheckRule() *model.Rule {
 	}
 }
 
+// GetRequiredFieldsDefinedRule checks that required schema fields are explicitly declared in properties.
+func GetRequiredFieldsDefinedRule() *model.Rule {
+	return &model.Rule{
+		Name:         "required schema fields should be declared in properties",
+		Id:           RequiredFieldsDefinedRule,
+		Formats:      model.OAS3AllFormat,
+		Description:  "Required schema fields should be declared in properties or composed schemas",
+		Given:        "$",
+		Resolved:     false,
+		Recommended:  false,
+		RuleCategory: model.RuleCategories[model.CategorySchemas],
+		Type:         Validation,
+		Severity:     model.SeverityWarn,
+		Then: model.RuleAction{
+			Function: "requiredFieldsDefined",
+		},
+		HowToFix: requiredFieldsDefinedFix,
+	}
+}
+
 // GetMissingTypeRule will check that all schemas and their properties have a type defined
 func GetMissingTypeRule() *model.Rule {
 	return &model.Rule{
