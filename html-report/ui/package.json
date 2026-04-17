@@ -7,7 +7,6 @@
   "author": "Dave Shanley",
   "license": "MIT",
   "scripts": {
-    "start-dev-server": "webpack serve --open",
     "start": "webpack --mode=development --watch",
     "build": "webpack --mode=production",
     "lint": "eslint src/ && prettier \"src/**/*.ts\" --check",
@@ -24,8 +23,7 @@
     "prettier": "^2.7.1",
     "typescript-eslint": "^8.58.1",
     "webpack": "^5.105.4",
-    "webpack-cli": "^5.0.1",
-    "webpack-dev-server": "^5.2.3"
+    "webpack-cli": "^5.0.1"
   },
   "dependencies": {
     "chart.js": "^4.2.1",
@@ -52,9 +50,6 @@
     "path-to-regexp": "0.1.13",
     "qs": "6.14.2",
     "readdirp": {
-      "picomatch": "2.3.2"
-    },
-    "webpack-dev-server": {
       "picomatch": "2.3.2"
     },
     "tinyglobby": {

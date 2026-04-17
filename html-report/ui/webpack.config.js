@@ -1,6 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 
@@ -8,9 +7,6 @@ module.exports = {
   entry: {
     vacuumReport: './src/ts/vacuum-report.ts',
     hydrate: './src/ts/hydrate.ts',
-  },
-  devServer: {
-    static: './build/static'
   },
   module: {
     rules: [
