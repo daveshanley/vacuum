@@ -12,14 +12,23 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
+	libopenapijson "github.com/pb33f/libopenapi/json"
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
+)
+
+const (
+	bundleOutputFormatYAML = "yaml"
+	bundleOutputFormatJSON = "json"
 )
 
 func GetBundleCommand() *cobra.Command {
@@ -41,6 +50,7 @@ func GetBundleCommand() *cobra.Command {
 
 			stdIn, _ := cmd.Flags().GetBool("stdin")
 			stdOut, _ := cmd.Flags().GetBool("stdout")
+			formatFlag, _ := cmd.Flags().GetString("format")
 			noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 			baseFlag, _ := cmd.Flags().GetString("base")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
@@ -73,6 +83,12 @@ func GetBundleCommand() *cobra.Command {
 				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
 				fmt.Println()
 				return errors.New(errText)
+			}
+
+			outputFormat, err := resolveBundleOutputFormat(formatFlag, stdOut, args)
+			if err != nil {
+				tui.RenderErrorString("%s", err.Error())
+				return err
 			}
 
 			var specBytes []byte
@@ -111,7 +127,6 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			var bundled []byte
-			var err error
 			if !composed {
 				bundled, err = bundler.BundleBytes(specBytes, docConfig)
 			} else {
@@ -130,6 +145,12 @@ func GetBundleCommand() *cobra.Command {
 				if bundled == nil {
 					return err
 				}
+			}
+
+			bundled, err = renderBundledOutput(bundled, outputFormat)
+			if err != nil {
+				tui.RenderErrorString("Unable to render bundled output as %s: %s", outputFormat, err.Error())
+				return err
 			}
 
 			if stdOut {
@@ -151,8 +172,53 @@ func GetBundleCommand() *cobra.Command {
 	}
 	cmd.Flags().BoolP("composed", "c", false, "Use composed mode, which will bundle all components into the root document, re-writing references to point to the components section.")
 	cmd.Flags().StringP("delimiter", "d", "__", "Delimiter used to separate clashing names in composed mode")
+	cmd.Flags().String("format", "", "Output format for the bundled document. Supported values: yaml, json. Defaults to the output file extension or yaml for stdout.")
 	cmd.Flags().BoolP("stdin", "i", false, "Use stdin as input, instead of a file")
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	_ = cmd.RegisterFlagCompletionFunc("format", func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		return []string{bundleOutputFormatYAML, bundleOutputFormatJSON}, cobra.ShellCompDirectiveNoFileComp
+	})
 	return cmd
+}
+
+func resolveBundleOutputFormat(formatFlag string, stdOut bool, args []string) (string, error) {
+	if formatFlag != "" {
+		switch strings.ToLower(formatFlag) {
+		case bundleOutputFormatYAML, "yml":
+			return bundleOutputFormatYAML, nil
+		case bundleOutputFormatJSON:
+			return bundleOutputFormatJSON, nil
+		default:
+			return "", fmt.Errorf("invalid bundle output format %q, expected yaml or json", formatFlag)
+		}
+	}
+
+	if stdOut || len(args) < 2 {
+		return bundleOutputFormatYAML, nil
+	}
+
+	switch strings.ToLower(filepath.Ext(args[1])) {
+	case ".json":
+		return bundleOutputFormatJSON, nil
+	case ".yaml", ".yml":
+		return bundleOutputFormatYAML, nil
+	default:
+		return bundleOutputFormatYAML, nil
+	}
+}
+
+func renderBundledOutput(bundled []byte, format string) ([]byte, error) {
+	switch format {
+	case bundleOutputFormatYAML:
+		return bundled, nil
+	case bundleOutputFormatJSON:
+		var node yaml.Node
+		if err := yaml.Unmarshal(bundled, &node); err != nil {
+			return nil, err
+		}
+		return libopenapijson.YAMLNodeToJSON(&node, "  ")
+	default:
+		return nil, fmt.Errorf("unsupported bundle output format %q", format)
+	}
 }
