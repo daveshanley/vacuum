@@ -128,8 +128,8 @@ func GetDashboardCommand() *cobra.Command {
 
 			var resultSet *model.RuleResultSet
 			var specBytes []byte
-			var drDocument *drModel.DrDocument         // To hold DrDocument for change filtering
-			var execution *motor.RuleSetExecution       // To hold execution template for violation diffing
+			var drDocument *drModel.DrDocument    // To hold DrDocument for change filtering
+			var execution *motor.RuleSetExecution // To hold execution template for violation diffing
 			displayFileName := reportOrSpec.FileName
 
 			if reportOrSpec.IsReport {
@@ -141,14 +141,18 @@ func GetDashboardCommand() *cobra.Command {
 					fmt.Println()
 				}
 
+				specBytes = reportOrSpec.SpecBytes
+
 				if reportOrSpec.ResultSet != nil && reportOrSpec.ResultSet.Results != nil {
-					filteredResults := utils.FilterIgnoredResultsPtr(reportOrSpec.ResultSet.Results, ignoredItems)
+					filteredResults := utils.FilterIgnoredResultsPtrWithOptions(
+						reportOrSpec.ResultSet.Results,
+						ignoredItems,
+						buildIgnoreFilterOptions(specBytes, nil, lookupTimeoutFlag),
+					)
 					resultSet = model.NewRuleResultSetPointer(filteredResults)
 				} else {
 					resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
 				}
-
-				specBytes = reportOrSpec.SpecBytes
 			} else {
 				// regular spec file - run linting (same as lint)
 				specBytes = reportOrSpec.SpecBytes
@@ -250,7 +254,11 @@ func GetDashboardCommand() *cobra.Command {
 					TurboMode:         turboFlag,
 				})
 
-				result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
+				result.Results = utils.FilterIgnoredResultsWithOptions(
+					result.Results,
+					ignoredItems,
+					buildIgnoreFilterOptions(specBytes, result, lookupTimeoutFlag),
+				)
 
 				// Store DrDocument and execution template for change filtering
 				if result.RuleSetExecution != nil {

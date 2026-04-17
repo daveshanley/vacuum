@@ -329,7 +329,13 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	go func() {
 		result := motor.ApplyRulesToRuleSet(ruleExec)
 
-		filteredResults := utils.FilterIgnoredResults(result.Results, ignoredResults)
+		ignoreOptions := utils.IgnoreMatcherOptions{
+			SpecBytes: []byte(content),
+		}
+		if result != nil && result.RuleSetExecution != nil {
+			ignoreOptions.RootNode = result.RuleSetExecution.CanonicalDocument
+		}
+		filteredResults := utils.FilterIgnoredResultsWithOptions(result.Results, ignoredResults, ignoreOptions)
 		result.Results = filteredResults
 		diagnostics := ConvertResultsIntoDiagnostics(result)
 

@@ -242,7 +242,11 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 
 					resultSet = model.NewRuleResultSetPointer(vacuumReport.ResultSet.Results)
 					// Apply ignore filter to pre-compiled report results
-					resultSet.Results = utils.FilterIgnoredResultsPtr(resultSet.Results, ignoredItems)
+					resultSet.Results = utils.FilterIgnoredResultsPtrWithOptions(
+						resultSet.Results,
+						ignoredItems,
+						buildIgnoreFilterOptions(specBytes, nil, 0),
+					)
 					specInfo = vacuumReport.SpecInfo
 					stats = vacuumReport.Statistics
 

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -366,7 +367,7 @@ func (c *resultPathCache) indexNode(node *yaml.Node, path string) {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
-			childPath := appendResultPathSegment(path, keyNode.Value)
+			childPath := vacuumUtils.AppendResultPathSegment(path, keyNode.Value)
 			c.storeNodePath(keyNode, path)
 			c.storeNodePath(valueNode, path)
 			c.storePrecisePositionPath(keyNode, childPath)
@@ -375,7 +376,7 @@ func (c *resultPathCache) indexNode(node *yaml.Node, path string) {
 		}
 	case yaml.SequenceNode:
 		for i, child := range node.Content {
-			childPath := appendResultPathIndex(path, i)
+			childPath := vacuumUtils.AppendResultPathIndex(path, i)
 			c.storeNodePath(child, childPath)
 			c.storePrecisePositionPath(child, childPath)
 			c.indexNode(child, childPath)
@@ -409,32 +410,13 @@ func (c *resultPathCache) storePrecisePositionPath(node *yaml.Node, path string)
 }
 
 func appendResultPathSegment(basePath, key string) string {
-	if isSimpleResultPathKey(key) {
-		return basePath + "." + key
-	}
-	return basePath + "['" + key + "']"
+	return vacuumUtils.AppendResultPathSegment(basePath, key)
 }
 
 func appendResultPathIndex(basePath string, index int) string {
-	return basePath + "[" + strconv.Itoa(index) + "]"
+	return vacuumUtils.AppendResultPathIndex(basePath, index)
 }
 
 func isSimpleResultPathKey(key string) bool {
-	if key == "" {
-		return false
-	}
-
-	first := key[0]
-	if !((first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z') || first == '_') {
-		return false
-	}
-
-	for i := 1; i < len(key); i++ {
-		ch := key[i]
-		if (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_' {
-			continue
-		}
-		return false
-	}
-	return true
+	return vacuumUtils.IsSimpleResultPathKey(key)
 }

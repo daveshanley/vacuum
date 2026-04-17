@@ -169,17 +169,22 @@ func runLint(cmd *cobra.Command, args []string) error {
 			fmt.Printf("\033[36mLoading pre-compiled vacuum report from '%s'\033[0m\n\n", fileName)
 		}
 
+		specBytes = reportOrSpec.SpecBytes
+
 		// create a new RuleResultSet from the results to ensure proper initialization
 		if reportOrSpec.ResultSet != nil && reportOrSpec.ResultSet.Results != nil {
 			// filter ignored results first
-			filteredResults := utils.FilterIgnoredResultsPtr(reportOrSpec.ResultSet.Results, ignoredItems)
+			filteredResults := utils.FilterIgnoredResultsPtrWithOptions(
+				reportOrSpec.ResultSet.Results,
+				ignoredItems,
+				buildIgnoreFilterOptions(specBytes, nil, flags.LookupTimeoutFlag),
+			)
 			// create properly initialized RuleResultSet
 			resultSet = model.NewRuleResultSetPointer(filteredResults)
 		} else {
 			resultSet = model.NewRuleResultSetPointer([]*model.RuleFunctionResult{})
 		}
 
-		specBytes = reportOrSpec.SpecBytes
 		displayFileName = reportOrSpec.FileName
 	} else {
 		// regular spec file - run linting
@@ -271,7 +276,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		result := motor.ApplyRulesToRuleSet(execution)
 
-		result.Results = utils.FilterIgnoredResults(result.Results, ignoredItems)
+		result.Results = utils.FilterIgnoredResultsWithOptions(
+			result.Results,
+			ignoredItems,
+			buildIgnoreFilterOptions(specBytes, result, flags.LookupTimeoutFlag),
+		)
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
