@@ -1,0 +1,403 @@
+openapi: "3.0.2"
+info:
+  title: Hootsuite Style Guide Example API
+  description: "An example of an openapi specification that passes all Hootsuite linting rules"
+  version: "2.1.0"
+tags:
+  - name: beta
+    description: "beta endpoints that are subject to breaking changes"
+paths:
+  /v1/example/{example_id}:
+    patch:
+      operationId: updateExample
+      summary: "Example API "
+      description: "Example API"
+      parameters:
+        - in: path
+          name: 'example_id' # should be camelCased
+          required: true
+          schema:
+            type: string
+            description: "The ID"
+      responses:
+        '200':
+          description: Successful operation.
+    get:
+      operationId: retrieveExample # should be getPost
+      summary: "Example API "
+      description: "Example API"
+      parameters:
+        - in: path
+          name: 'example_id' # should be camelCased
+          required: true
+          schema:
+            type: string
+            description: "The ID"
+        - in: query
+          name: channel
+          required: false
+          schema:
+            type: string
+            enum:
+              - lowercased # not UPPERCASE_SNAKE
+              - camelCased # not UPPERCASE_SNAKE
+              - MACRO_CASE
+        - in: query
+          name: limit
+          description: "The number of results to return per page"
+          schema:
+            type: integer
+            default: 7 # should be 10
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            first_response_header: # should be camelCased
+              schema:
+                type: string
+              description: example response headers
+            second_response_header: # should be camelCased
+              schema:
+                type: string
+              description: another example response headers
+          content:
+            application/xml: # Should be application/json
+              schema:
+                # missing 'type' field and it's value should be 'object'
+                properties:
+                  name:
+                    type: string
+  /v1/exampleNotKebab:
+    get:
+      operationId: listExamples # should be getPost
+      summary: "Example API "
+      description: "Example API"
+      parameters:
+        - in: query
+          name: offset
+          description: "The number of results to skip"
+          schema:
+            type: integer
+        # missing limit defined on list operation
+      responses:
+        '200':
+          description: Successful operation.
+          headers:
+            third_response_header: # should be camelCased
+              schema:
+                type: string
+              description: another example response headers
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - hsPostId
+                properties:
+                  data: # field should be named 'data'
+                    type: array
+                    maxItems: 10
+                    items:
+                      $ref: '#/components/schemas/Post'
+                  hsPostId:
+                    type: string
+                    description: "post ID"
+                  metadata:
+                    properties:
+                      collectionInfo:
+                        type: object
+                        properties:
+                          totalCount:
+                            type: integer
+                            description: "The total number of results throughout all pages"
+                          prev:
+                            type: number
+                            description: "Link to the next page of results, if it exists."
+                          # next is missing
+
+  /alpha/posts/{channel}/{postId}:
+    get:
+      operationId: retrievePost # should be getPost
+      summary: "Retrieve a Post"
+      description: "Gets a Post from Hootsuite databases using the channel and the native ID of the post on the channel"
+      parameters:
+        - $ref: "#/components/parameters/postID"
+        - $ref: "#/components/parameters/channel"
+      requestBody:
+        description: "the body of the request"
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Post'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+    put:
+      operationId: newPost # should be createPost
+      summary: "Create a Post"
+      description: "Saves a post in our database, making it accessible via Hootsuite APIs without calling the Channel. After a post has been saved, it can be accessed via the getPost endpoint"
+      parameters:
+        - $ref: "#/components/parameters/postID"
+        - $ref: "#/components/parameters/channel"
+        - in: query
+          name: oneOf
+          schema:
+            oneOf:
+              - type: string
+                description: "The ID of the post on the native channel's platform. eg. The ID facebook uses for their posts"
+              - type: string
+                description: "The channel name"
+                example:
+                  - "FACEBOOK_PAGES"
+                  - "LINKEDIN_GROUP"
+        - in: query
+          name: anyOf
+          schema:
+            anyOf:
+              - type: string
+                description: "The ID of the post on the native channel's platform. eg. The ID facebook uses for their posts"
+              - type: string
+                description: "The channel name"
+                example:
+                  - "FACEBOOK_PAGES"
+                  - "LINKEDIN_GROUP"
+        - in: query
+          name: allOf
+          schema:
+            allOf:
+              - type: string
+                description: "The ID of the post on the native channel's platform. eg. The ID facebook uses for their posts"
+              - type: string
+                description: "The channel name"
+                example:
+                  - "FACEBOOK_PAGES"
+                  - "LINKEDIN_GROUP"
+      responses:
+        '201':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePostResponse'
+    delete:
+      operationId: removePost # should be deletePost
+      summary: "Delete a post by it's native post ID and channel"
+      description: "Deletes a Post from Hootsuite databases"
+      parameters:
+        - $ref: "#/components/parameters/postID"
+        - $ref: "#/components/parameters/channel"
+      requestBody:
+        description: "the body of the request"
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Post'
+      responses:
+        '200':
+          description: Post was deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+        '204':
+          description: Post was deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+  /beta/posts:
+    get:
+      description: "Returns a list of Posts stored in the Hootsuite databases, using optional filters"
+      summary: "Returns a list of Posts"
+      operationId: listPosts
+      tags:
+        - beta
+      parameters:
+        - in: query
+          name: authorId
+          schema:
+            type: string
+          description: "Filters posts by author ID"
+        - in: query
+          name: publishedAfter
+          description: "Return posts published after this date, inclusively."
+          schema:
+            type: string
+            format: datetime
+        - in: query
+          name: publishedBefore
+          description: "Return posts published before this date, inclusively."
+          schema:
+            type: string
+            format: datetime
+        - in: query
+          name: sortBy # should be orderBy
+          description: "Describes the primary way in how the results should be ordered. Values with '-' prefixed indicate descending order while values with '+' indicate ascending order."
+          schema:
+            type: string
+            enum:
+              - 'AUTHOR_ID_ASC'
+              - 'AUTHOR_ID_DESC'
+              - 'PUBLISHED_DATE_ASC'
+              - 'PUBLISHED_DATE_DESC'
+        - in: query
+          name: sort # should be orderBy
+          description: "Describes the secondary way in how the results should be ordered. Values with '-' prefixed indicate descending order while values with '+' indicate ascending order."
+          schema:
+            type: string
+            enum:
+              - 'AUTHOR_ID' # should be AUTHOR_ID_ASC
+              - 'AUTHOR_ID_DESCEND' # should be AUTHOR_ID_DESC
+              - 'PUBLISHED_DATE_ASC'
+              - 'PUBLISHED_DATE_DESC'
+        - in: query
+          name: sortdirection # should not exist, should be encoded into orderBy, eg AUTHOR_ID_ASC
+          description: "Describes the secondary way in how the results should be ordered. Values with '-' prefixed indicate descending order while values with '+' indicate ascending order."
+          schema:
+            type: number
+        - in: query
+          name: orderBy
+          description: "should be of type string enum"
+          schema:
+            type: number # should be string
+        - in: query
+          name: orderBy2
+          description: "should be of type string enum"
+          schema:
+            type: string
+            enum:
+              - AUTHOR_ID_ASC
+              - AUTHOR_ID_DESC
+              - AUTHOR_ID
+        - in: query
+          name: limit
+          description: "The number of results to return per page"
+          schema:
+            type: integer
+            default: 7 # should be 10
+            # needs to define maximum
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/withTotalCount'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPostsResponse'
+components:
+  parameters:
+    postID:
+      in: path
+      name: 'postId'
+      required: true
+      schema:
+        type: string
+        description: "The ID of the post on the native channel's platform. eg. The ID facebook uses for their posts"
+    channel:
+      in: path
+      name: 'channel'
+      required: true
+      schema:
+        type: string
+        description: "The channel name"
+        example:
+          - "FACEBOOK_PAGES"
+          - "LINKEDIN_GROUP"
+    cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: "An opaque cursor indicating the start of the page of results"
+    withTotalCount:
+      in: query
+      schema:
+        type: boolean
+      required: false
+      name: withTotalCount
+      description: 'Indicates to the server that the total count of a request collection should be included in the response'
+  schemas:
+    Post:
+      type: object
+      required:
+        - id
+        - hsId
+        - channel
+        - body
+        - publishedDate
+        - type
+        - author
+      properties:
+        id:
+          type: integer # should be string
+        hsId:
+          type: integer # should be string
+        channel:
+          type: string
+        body:
+          type: string
+        publishedDate:
+          type: string
+          format: datetime
+        type:
+          type: string
+          enum:
+            - TEXT
+            - VIDEO
+            - VIDEO_SHORT
+            - SHARE
+        author:
+          type: object
+          required:
+            - id
+            - username
+          properties:
+            id:
+              type: integer # should be string
+              description: "The ID of the author of the post on the native channel's platform"
+            userName:
+              type: string
+    CreatePostResponse:
+      type: object
+      required:
+        - hsPostId
+      properties:
+        hsPostId:
+          type: number # should be string
+          description: "The HS generated ID for the post that can be used to identify a post within Hootsuite APIs across any channel."
+    ListPostsResponse:
+      type: object
+      required:
+        - hsPostId
+      properties:
+        not_data: # field should be named 'data'
+          type: array
+          # maxItems is missing here
+          items:
+            $ref: '#/components/schemas/Post'
+        hsPostId:
+          type: integer # should be string
+          description: "The HS generated ID for the post that is unique across all channels. It is an alternative to uniquely identifying a post by it's channel and native post ID on the channel."
+        metadata:
+          properties:
+            collectionInfo:
+              type: string # should be object
+              properties:
+                totalCount:
+                  type: integer
+                  description: "The total number of results throughout all pages"
+                next:
+                  type: number
+                  description: "Link to the next page of results, if it exists."
+                # prev is missing

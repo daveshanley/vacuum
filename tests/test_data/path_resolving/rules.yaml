@@ -1,0 +1,212 @@
+extends: [[spectral:oas, recommended]]
+rules:
+
+  # Custom rule written in Go
+  arrays-define-max-items:
+    id: arrays-define-max-items
+    description: All arrays must define a maximum array length with 'maxItems'
+    severity: warn
+    recommended: true
+    formats: [ oas2, oas3 ]
+    given: $
+    then:
+      function: arraysDefineMaxItems
+    howToFix: Define 'maxItems' with a value greater than zero
+
+
+  paths-starts-with-major-version:
+    id: paths-starts-with-major-version
+    description: Major version must be the first URL component
+    message: All paths must start with a version number, eg /v1, /v2
+    given: $.paths[*]~
+    severity: error
+    type: style
+    then:
+      function: pattern
+      functionOptions:
+        match: "^/v[0-9]+/"
+
+  paths-without-maturity-info:
+    id: paths-without-maturity-info
+    description: Paths must not contain maturity information such as "alpha" or "beta"
+    message: Paths cannot contain "alpha" or "beta"
+    given: $.paths[*]~
+    severity: error
+    type: style
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "(beta|alpha)"
+
+  response-bodies-are-objects:
+    id: response-bodies-are-objects
+    description: Response bodies must be objects for flexibility in schema evolution
+    message: Response bodies must be of type 'object'
+    type: style
+    given: "$.paths.*.*.responses[*].content['application/json'].schema.type"
+    then:
+      function: "pattern"
+      functionOptions:
+        match: "object"
+
+  response-bodies-are-typed:
+    id: response-bodies-are-typed
+    description: "Response bodies must be have 'type' field defined and it's value must be 'object'"
+    type: style
+    given: "$.paths.*.*.responses[*].content[*].schema"
+    then:
+      function: "truthy"
+      field: "type"
+
+  response-bodies-are-json:
+    id: response-bodies-are-json
+    description: Response bodies must be JSON formatted and have 'application/json' as the Content Type
+    message: The Content Type of your response must be 'application/json'
+    type: style
+    given: "$.paths.*.*.responses[*].content"
+    then:
+      - field: application/json
+        function: defined
+
+  path-query-parameters-camel-cased:
+    id: path-query-parameters-camel-cased
+    description: parameters must be camelCased
+    message: Parameters in the path or query must be camelCased
+    given: $.paths.*.*.parameters[*].name
+    type: style
+    severity: error
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  response-parameters-camel-cased:
+    id: response-parameters-camel-cased
+    description: Response fields must be camelCased
+    given: $..properties[*]~
+    type: style
+    severity: error
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+
+  response-headers-kebab-cased:
+    id: response-headers-kebab-cased
+    description: Response headers must be lower case and kebab
+    given: $.paths.*.*.responses[*].headers[*]~
+    type: style
+    severity: error
+    then:
+      function: casing
+      functionOptions:
+        type: kebab
+
+  response-headers-hs-prefix:
+    id: response-headers-hs-prefix
+    description: Custom response headers must be prefixed with 'hs-'. If the header is not Hootsuite specific, then you can add an ignore exception for this warning.
+    given: $.paths.*.*.responses[*].headers[*]~
+    type: style
+    severity: warn
+    then:
+      function: pattern
+      functionOptions:
+        match: "hs-"
+
+  enums-upper-case:
+    id: enums-upper-case
+    description: Enumerated values must be UPPERCASE_SNAKE style
+    given: $.paths.*.*.parameters[*].schema.enum[*]
+    type: style
+    severity: warn
+    then:
+      function: casing
+      functionOptions:
+        type: macro
+
+  no-http-patch:
+    id: no-http-patch
+    description: Use POST instead of PATCH for updates
+    type: style
+    severity: error
+    given: "$.paths"
+    then:
+      - field: patch
+        function: undefined
+      - field: PATCH
+        function: undefined
+      - field: Patch
+        function: undefined
+
+  delete-returns-http-204:
+    id: delete-returns-http-204
+    description: DELETE methods should return HTTP 204 and not HTTP 200
+    type: style
+    severity: error
+    given: "$.paths[*].delete.responses"
+    then:
+      - field: '200'
+        function: undefined
+      - field: '204'
+        function: defined
+
+  http-delete-no-request-body:
+    id: http-delete-no-request-body
+    description: HTTP DELETE operations should not accept a request body
+    type: style
+    severity: error
+    given: "$.paths[*].delete"
+    then:
+      - field: 'requestBody'
+        function: undefined
+
+  http-get-no-request-body:
+    id: http-get-no-request-body
+    description: HTTP GET operations should not accept a request body
+    type: style
+    severity: error
+    given: "$.paths[*].get"
+    then:
+      - field: 'requestBody'
+        function: undefined
+
+  http-204-has-no-content:
+    id: http-204-has-no-content
+    description: HTTP 204 (No Content) responses should not define content
+    type: style
+    severity: error
+    given: "$.paths[*].*.responses['204']"
+    then:
+      - field: 'content'
+        function: undefined
+
+
+  no-structural-polymorphism-oneOf:
+    id: no-structural-polymorphism
+    description: Do not use 'oneOf'.
+    type: style
+    severity: error
+    given: "$..schema.oneOf"
+    then:
+      - field: ''
+        function: undefined
+
+  no-structural-polymorphism-anyOf:
+    id: no-structural-polymorphism
+    description: Do not use 'anyOf'.
+    type: style
+    severity: error
+    given: "$..schema.anyOf"
+    then:
+      - field: ''
+        function: undefined
+
+  no-structural-polymorphism-allOf:
+    id: no-structural-polymorphism
+    description: Do not use 'allOf'.
+    type: style
+    severity: error
+    given: "$..schema.allOf"
+    then:
+      - field: ''
+        function: undefined
