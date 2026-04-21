@@ -136,6 +136,50 @@ func buildLocationString(line, column int) string {
 	return builder.String()
 }
 
+func cloneDocumentConfiguration(config *datamodel.DocumentConfiguration) *datamodel.DocumentConfiguration {
+	if config == nil {
+		return datamodel.NewDocumentConfiguration()
+	}
+
+	clone := *config
+	if config.BaseURL != nil {
+		baseURL := *config.BaseURL
+		clone.BaseURL = &baseURL
+	}
+	if config.FileFilter != nil {
+		clone.FileFilter = append([]string(nil), config.FileFilter...)
+	}
+	return &clone
+}
+
+func syncIndexConfigFromDocumentConfig(indexConfig *index.SpecIndexConfig, docConfig *datamodel.DocumentConfiguration) {
+	if indexConfig == nil || docConfig == nil {
+		return
+	}
+
+	indexConfig.BaseURL = docConfig.BaseURL
+	indexConfig.BasePath = docConfig.BasePath
+	indexConfig.SpecFilePath = docConfig.SpecFilePath
+	indexConfig.AllowFileLookup = docConfig.AllowFileReferences
+	indexConfig.AllowRemoteLookup = docConfig.AllowRemoteReferences
+	indexConfig.AvoidBuildIndex = docConfig.AvoidIndexBuild
+	indexConfig.SkipDocumentCheck = docConfig.BypassDocumentCheck
+	indexConfig.IgnorePolymorphicCircularReferences = docConfig.IgnorePolymorphicCircularReferences
+	indexConfig.IgnoreArrayCircularReferences = docConfig.IgnoreArrayCircularReferences
+	if docConfig.Logger != nil {
+		indexConfig.Logger = docConfig.Logger
+	}
+	indexConfig.ExtractRefsSequentially = docConfig.ExtractRefsSequentially
+	indexConfig.ExcludeExtensionRefs = docConfig.ExcludeExtensionRefs
+	indexConfig.UseSchemaQuickHash = docConfig.UseSchemaQuickHash
+	indexConfig.AllowUnknownExtensionContentDetection = docConfig.AllowUnknownExtensionContentDetection
+	indexConfig.TransformSiblingRefs = docConfig.TransformSiblingRefs
+	indexConfig.MergeReferencedProperties = docConfig.MergeReferencedProperties
+	indexConfig.ResolveNestedRefsWithDocumentContext = docConfig.ResolveNestedRefsWithDocumentContext
+	indexConfig.PropertyMergeStrategy = docConfig.PropertyMergeStrategy
+	indexConfig.SkipExternalRefResolution = docConfig.SkipExternalRefResolution
+}
+
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
 type RuleSetExecutionResult struct {
 	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
@@ -447,20 +491,17 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	} else {
 
-		suppliedDocConfig := docResolved.GetConfiguration()
-		docConfigResolved.BaseURL = suppliedDocConfig.BaseURL
-		docConfigResolved.BasePath = suppliedDocConfig.BasePath
-		docConfigResolved.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
-		docConfigResolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
-		docConfigResolved.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
-		if suppliedDocConfig.ResolveNestedRefsWithDocumentContext {
-			docConfigResolved.ResolveNestedRefsWithDocumentContext = true
+		suppliedDocConfig := cloneDocumentConfiguration(docResolved.GetConfiguration())
+		docConfigResolved = cloneDocumentConfiguration(suppliedDocConfig)
+		docConfigResolved.ResolveNestedRefsWithDocumentContext = suppliedDocConfig.ResolveNestedRefsWithDocumentContext || opts.NestedRefsDocContext
+		docConfigUnresolved = *cloneDocumentConfiguration(suppliedDocConfig)
+		docConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
+		if docConfigResolved.Logger == nil {
+			docConfigResolved.Logger = indexConfig.Logger
 		}
-		docConfigUnresolved.BaseURL = suppliedDocConfig.BaseURL
-		docConfigUnresolved.BasePath = suppliedDocConfig.BasePath
-		docConfigUnresolved.IgnorePolymorphicCircularReferences = suppliedDocConfig.IgnorePolymorphicCircularReferences
-		docConfigUnresolved.IgnoreArrayCircularReferences = suppliedDocConfig.IgnoreArrayCircularReferences
-		docConfigUnresolved.AvoidIndexBuild = suppliedDocConfig.AvoidIndexBuild
+		if docConfigUnresolved.Logger == nil {
+			docConfigUnresolved.Logger = docConfigResolved.Logger
+		}
 
 		specBytes := *docResolved.GetSpecInfo().SpecBytes
 		if opts.NestedRefsDocContext && !suppliedDocConfig.ResolveNestedRefsWithDocumentContext {
@@ -481,15 +522,10 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		specInfo = docResolved.GetSpecInfo()
 		specInfoUnresolved = docUnresolved.GetSpecInfo()
 
+		syncIndexConfigFromDocumentConfig(indexConfig, docConfigResolved)
 		indexConfig.SpecInfo = specInfo
-		indexConfig.AvoidBuildIndex = docConfigResolved.AvoidIndexBuild
-		indexConfig.IgnorePolymorphicCircularReferences = docConfigResolved.IgnorePolymorphicCircularReferences
-		indexConfig.IgnoreArrayCircularReferences = docConfigResolved.IgnoreArrayCircularReferences
-		indexConfig.ResolveNestedRefsWithDocumentContext = docConfigResolved.ResolveNestedRefsWithDocumentContext
+		syncIndexConfigFromDocumentConfig(indexConfigUnresolved, &docConfigUnresolved)
 		indexConfigUnresolved.SpecInfo = specInfoUnresolved
-		indexConfigUnresolved.AvoidBuildIndex = docConfigUnresolved.AvoidIndexBuild
-		indexConfigUnresolved.IgnorePolymorphicCircularReferences = docConfigUnresolved.IgnorePolymorphicCircularReferences
-		indexConfigUnresolved.IgnoreArrayCircularReferences = docConfigUnresolved.IgnoreArrayCircularReferences
 	}
 
 	timeTaken := time.Since(nowDocs).Milliseconds()
@@ -993,19 +1029,15 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				defer func() { <-ruleSem }() // release semaphore slot
 
 				ruleResolved := opts.ResolveAllRefs || rule.Resolved
-				suppliedResolvedDocumentContext := docResolved != nil &&
-					docResolved.GetConfiguration() != nil &&
-					docResolved.GetConfiguration().ResolveNestedRefsWithDocumentContext
 				// Select resolved or unresolved execution inputs per resource type.
 				// JSONPath/index/spec info can follow resolved execution without
 				// automatically switching the document context unless explicitly enabled.
 				// Preserve legacy `resolved: true` behavior by default: resolved rules
 				// still evaluate JSONPath, index, and spec info against the resolved tree,
 				// but they only receive the resolved Document when execution explicitly
-				// opts into that newer context via global resolve-all, nested-doc-context,
-				// or a caller-supplied Document that already enabled the nested-doc mode.
+				// opts into that newer context via global resolve-all or nested-doc-context.
 				useResolvedDocumentContext := ruleResolved &&
-					(opts.ResolveAllRefs || opts.NestedRefsDocContext || suppliedResolvedDocumentContext)
+					(opts.ResolveAllRefs || opts.NestedRefsDocContext)
 				ruleIndex := indexResolved
 				info := specInfo
 				ruleDocument := docUnresolved
