@@ -5,11 +5,13 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
@@ -2804,6 +2806,48 @@ func (r *testNestedDocumentContextRecorder) GetSchema() model.RuleFunctionSchema
 	}
 }
 
+type testSuppliedDocumentConfigRecorder struct {
+	transformSiblingRefs                 bool
+	mergeReferencedProperties            bool
+	propertyMergeStrategy                datamodel.PropertyMergeStrategy
+	extractRefsSequentially              bool
+	resolveNestedRefsWithDocumentContext bool
+	localFSSet                           bool
+	remoteFSSet                          bool
+	remoteURLHandlerSet                  bool
+	fileFilter                           []string
+}
+
+func (r *testSuppliedDocumentConfigRecorder) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func (r *testSuppliedDocumentConfigRecorder) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
+	if context.Document == nil || context.Document.GetConfiguration() == nil {
+		result := model.BuildFunctionResultString("document config missing")
+		result.Rule = context.Rule
+		return []model.RuleFunctionResult{result}
+	}
+
+	cfg := context.Document.GetConfiguration()
+	r.transformSiblingRefs = cfg.TransformSiblingRefs
+	r.mergeReferencedProperties = cfg.MergeReferencedProperties
+	r.propertyMergeStrategy = cfg.PropertyMergeStrategy
+	r.extractRefsSequentially = cfg.ExtractRefsSequentially
+	r.resolveNestedRefsWithDocumentContext = cfg.ResolveNestedRefsWithDocumentContext
+	r.localFSSet = cfg.LocalFS != nil
+	r.remoteFSSet = cfg.RemoteFS != nil
+	r.remoteURLHandlerSet = cfg.RemoteURLHandler != nil
+	r.fileFilter = append([]string(nil), cfg.FileFilter...)
+	return nil
+}
+
+func (r *testSuppliedDocumentConfigRecorder) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{
+		Name: "suppliedDocumentConfigRecorder",
+	}
+}
+
 type testExecutionConfigRecorder struct {
 	expectedLogger *slog.Logger
 
@@ -3386,7 +3430,7 @@ paths: {}
 	assert.True(t, recorder.indexAllowRemoteLookup)
 }
 
-func TestRuleSet_SuppliedDocumentNestedContextIsPreservedOrRebuilt(t *testing.T) {
+func TestRuleSet_SuppliedDocumentNestedContextIsUsedWhenRequested(t *testing.T) {
 	spec := []byte(`openapi: "3.0.2"
 info:
   title: Test
@@ -3397,17 +3441,14 @@ paths: {}
 	tests := []struct {
 		name                    string
 		suppliedDocumentContext bool
-		executionContext        bool
 	}{
 		{
 			name:                    "preserve_supplied_document_context",
 			suppliedDocumentContext: true,
-			executionContext:        false,
 		},
 		{
 			name:                    "rebuild_supplied_document_with_requested_context",
 			suppliedDocumentContext: false,
-			executionContext:        true,
 		},
 	}
 
@@ -3426,13 +3467,144 @@ paths: {}
 				CustomFunctions: map[string]model.RuleFunction{
 					"nestedDocumentContextRecorder": recorder,
 				},
-			}, &ExecutionOptions{NestedRefsDocContext: tt.executionContext})
+			}, &ExecutionOptions{NestedRefsDocContext: true})
 
 			assert.Empty(t, results.Errors)
 			ruleResults := filterResultsByRuleId(results.Results, "execution-config")
 			assert.Len(t, ruleResults, 0)
 			assert.True(t, recorder.documentContextEnabled)
 			assert.True(t, recorder.indexContextEnabled)
+		})
+	}
+}
+
+func TestRuleSet_SuppliedDocumentNestedContextDoesNotChangeLegacyResolvedDocumentContext(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths:
+  /test:
+    get:
+      responses:
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  responses:
+    NotFound:
+      description: Not Found
+`)
+
+	docConfig := datamodel.NewDocumentConfiguration()
+	docConfig.ResolveNestedRefsWithDocumentContext = true
+	doc, err := libopenapi.NewDocumentWithConfiguration(spec, docConfig)
+	assert.NoError(t, err)
+
+	recorder := &testResolvedExecutionRecorder{}
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"resolved-recorder": {
+					Id:           "resolved-recorder",
+					Resolved:     true,
+					Given:        "$",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityInfo,
+					Then: model.RuleAction{
+						Function: "resolvedExecutionRecorder",
+					},
+				},
+			},
+		},
+		Document:    doc,
+		SilenceLogs: true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"resolvedExecutionRecorder": recorder,
+		},
+	})
+
+	assert.Empty(t, results.Errors)
+	assert.True(t, recorder.resolvedExecution)
+	assert.True(t, recorder.documentSet)
+	assert.False(t, recorder.documentResolved)
+	assert.True(t, recorder.indexSet)
+}
+
+func TestRuleSet_SuppliedDocumentRebuildPreservesCustomConfiguration(t *testing.T) {
+	spec := []byte(`openapi: "3.0.2"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+`)
+
+	tests := []struct {
+		name                string
+		ruleResolved        bool
+		wantDocumentContext bool
+	}{
+		{
+			name:                "resolved_document_rebuild",
+			ruleResolved:        true,
+			wantDocumentContext: true,
+		},
+		{
+			name:                "unresolved_document_rebuild",
+			ruleResolved:        false,
+			wantDocumentContext: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			docConfig := datamodel.NewDocumentConfiguration()
+			docConfig.TransformSiblingRefs = false
+			docConfig.MergeReferencedProperties = false
+			docConfig.PropertyMergeStrategy = datamodel.OverwriteWithRemote
+			docConfig.ExtractRefsSequentially = true
+			docConfig.FileFilter = []string{"root.yaml"}
+			docConfig.LocalFS = fstest.MapFS{}
+			docConfig.RemoteFS = fstest.MapFS{}
+			docConfig.RemoteURLHandler = func(string) (*http.Response, error) { return nil, nil }
+			doc, err := libopenapi.NewDocumentWithConfiguration(spec, docConfig)
+			assert.NoError(t, err)
+
+			recorder := &testSuppliedDocumentConfigRecorder{}
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet: &rulesets.RuleSet{
+					Rules: map[string]*model.Rule{
+						"supplied-document-config": {
+							Id:           "supplied-document-config",
+							Resolved:     tt.ruleResolved,
+							Given:        "$",
+							RuleCategory: model.RuleCategories[model.CategoryValidation],
+							Type:         rulesets.Validation,
+							Severity:     model.SeverityInfo,
+							Then: model.RuleAction{
+								Function: "suppliedDocumentConfigRecorder",
+							},
+						},
+					},
+				},
+				Document:    doc,
+				SilenceLogs: true,
+				CustomFunctions: map[string]model.RuleFunction{
+					"suppliedDocumentConfigRecorder": recorder,
+				},
+			}, &ExecutionOptions{NestedRefsDocContext: true})
+
+			assert.Empty(t, results.Errors)
+			assert.Empty(t, filterResultsByRuleId(results.Results, "supplied-document-config"))
+			assert.False(t, recorder.transformSiblingRefs)
+			assert.False(t, recorder.mergeReferencedProperties)
+			assert.Equal(t, datamodel.OverwriteWithRemote, recorder.propertyMergeStrategy)
+			assert.True(t, recorder.extractRefsSequentially)
+			assert.Equal(t, []string{"root.yaml"}, recorder.fileFilter)
+			assert.True(t, recorder.localFSSet)
+			assert.True(t, recorder.remoteFSSet)
+			assert.True(t, recorder.remoteURLHandlerSet)
+			assert.Equal(t, tt.wantDocumentContext, recorder.resolveNestedRefsWithDocumentContext)
 		})
 	}
 }
