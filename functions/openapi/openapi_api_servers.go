@@ -94,6 +94,11 @@ func (as APIServers) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 			continue
 		}
 
+		// allow relative root URLs that resolve against the document location.
+		if urlNode.Value == "" || urlNode.Value == "/" {
+			continue
+		}
+
 		// check the host and the path are not empty.
 		if parsed.Host == "" && parsed.Path == "" {
 			msg := "Server URL is not valid: no hostname or path provided"

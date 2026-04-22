@@ -222,3 +222,49 @@ paths:
 
 	assert.Len(t, res, 1)
 }
+
+func TestAPIServers_RunRule_Success_RelativeRootSlash(t *testing.T) {
+
+	yml := `servers:
+  - url: /
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestAPIServers_RunRule_Success_RelativeRootEmpty(t *testing.T) {
+
+	yml := `servers:
+  - url: ""
+paths:
+  /nice/cake:`
+
+	path := "$"
+
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "api_servers", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+	ctx.SpecInfo = specInfo
+
+	def := APIServers{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 0)
+}
