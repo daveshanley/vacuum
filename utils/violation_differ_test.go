@@ -153,6 +153,37 @@ func TestDiffViolationsValues_EmptyPathFallsBackToPaths(t *testing.T) {
 	assert.Empty(t, result) // should be matched and suppressed
 }
 
+func TestDiffViolationsValues_PrimaryPathCanDifferWhenPathsMatch(t *testing.T) {
+	original := []model.RuleFunctionResult{
+		{
+			RuleId: "owasp-string-restricted",
+			Path:   "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Paths: []string{
+				"$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+				"$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			},
+			Message: "schema of type `string` must specify `format`, `const`, `enum` or `pattern`",
+			Rule:    &model.Rule{Id: "owasp-string-restricted"},
+		},
+	}
+	newResults := []model.RuleFunctionResult{
+		{
+			RuleId: "owasp-string-restricted",
+			Path:   "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Paths: []string{
+				"$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+				"$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			},
+			Message: "schema of type `string` must specify `format`, `const`, `enum` or `pattern`",
+			Rule:    &model.Rule{Id: "owasp-string-restricted"},
+		},
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
 func TestDiffViolationsValues_StatsCorrect(t *testing.T) {
 	original := []model.RuleFunctionResult{
 		makeResult("rule-1", "$.a", "msg-a"),
@@ -160,11 +191,11 @@ func TestDiffViolationsValues_StatsCorrect(t *testing.T) {
 		makeResult("rule-2", "$.c", "msg-c"),
 	}
 	newResults := []model.RuleFunctionResult{
-		makeResult("rule-1", "$.a", "msg-a"),     // suppressed
-		makeResult("rule-2", "$.b", "msg-b"),     // suppressed
-		makeResult("rule-2", "$.c", "msg-c"),     // suppressed
-		makeResult("rule-2", "$.d", "msg-d"),     // new
-		makeResult("rule-3", "$.e", "msg-e"),     // new
+		makeResult("rule-1", "$.a", "msg-a"), // suppressed
+		makeResult("rule-2", "$.b", "msg-b"), // suppressed
+		makeResult("rule-2", "$.c", "msg-c"), // suppressed
+		makeResult("rule-2", "$.d", "msg-d"), // new
+		makeResult("rule-3", "$.e", "msg-e"), // new
 	}
 	result, stats := DiffViolationsValues(original, newResults)
 	assert.Len(t, result, 2)
@@ -207,8 +238,9 @@ func TestDiffViolationsMixed_NilInNew(t *testing.T) {
 
 func TestExtractPath(t *testing.T) {
 	assert.Equal(t, "$.a", extractPath("$.a", nil))
-	assert.Equal(t, "$.a", extractPath("$.a", []string{"$.b"}))
+	assert.Equal(t, "$.a\x00$.b", extractPath("$.a", []string{"$.b"}))
 	assert.Equal(t, "$.b", extractPath("", []string{"$.b"}))
 	assert.Equal(t, "", extractPath("", nil))
 	assert.Equal(t, "", extractPath("", []string{}))
+	assert.Equal(t, "$.a\x00$.b", extractPath("$.b", []string{"$.a", "$.b"}))
 }

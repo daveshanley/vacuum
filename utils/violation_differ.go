@@ -4,6 +4,9 @@
 package utils
 
 import (
+	"sort"
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 )
 
@@ -17,13 +20,33 @@ type violationKey struct {
 	Message string
 }
 
-// extractPath returns the JSONPath from a result, falling back to Paths[0] then "".
+// extractPath returns a stable JSONPath identity from a result.
+// Some rules report a primary Path plus alternate Paths for the same resolved
+// model. The primary can vary when external refs are resolved concurrently, so
+// use the sorted unique set of known paths as the diff identity.
 func extractPath(path string, paths []string) string {
+	if len(paths) > 0 {
+		candidates := make([]string, 0, len(paths)+1)
+		seen := make(map[string]struct{}, len(paths)+1)
+		if path != "" {
+			seen[path] = struct{}{}
+			candidates = append(candidates, path)
+		}
+		for _, candidate := range paths {
+			if candidate == "" {
+				continue
+			}
+			if _, ok := seen[candidate]; ok {
+				continue
+			}
+			seen[candidate] = struct{}{}
+			candidates = append(candidates, candidate)
+		}
+		sort.Strings(candidates)
+		return strings.Join(candidates, "\x00")
+	}
 	if path != "" {
 		return path
-	}
-	if len(paths) > 0 {
-		return paths[0]
 	}
 	return ""
 }
