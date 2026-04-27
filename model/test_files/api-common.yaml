@@ -1,0 +1,341 @@
+ components:
+  parameters:
+    optionalOrgId:
+      name: orgId
+      in: query
+      description: Optional organization identifier used for data scoping
+      required: false
+      schema:
+        type: string
+    mandatoryOrgId:
+      name: orgId
+      in: query
+      description: Mandatory organization identifier used for data scoping
+      required: true
+      example: 'ORG-001'
+      schema:
+        type: string
+    resourceId:
+      name: resourceId
+      in: path
+      description: Unique identifier of the resource
+      required: true
+      example: 'RES-001'
+      schema:
+        type: string
+    subResourceId:
+      name: subResourceId
+      in: path
+      description: Unique identifier of the sub-resource
+      required: true
+      example: 'SUB-001'
+      schema:
+        type: string
+    nestedResourceId:
+      name: nestedResourceId
+      in: path
+      description: Unique identifier of the nested resource
+      required: true
+      example: 'NEST-001'
+      schema:
+        type: string
+    pageSize:
+      name: pageSize
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 20
+    pageNumber:
+      name: pageNumber
+      in: query
+      description: Page number (zero-based)
+      required: false
+      schema:
+        type: number
+        minimum: 0
+  responses:
+    badRequest:
+      description: Bad Request - The request contains invalid parameters
+      content:
+        "*/*":
+          schema:
+            $ref: "#/components/schemas/apiError"
+    notFound:
+      description: Not Found - The requested resource was not found
+      content:
+        "*/*":
+          schema:
+            $ref: "#/components/schemas/apiError"
+    internalServerError:
+      description: Internal Server Error
+      content:
+        "*/*":
+          schema:
+            $ref: "#/components/schemas/apiError"
+    unauthorized:
+      description: Unauthorized - Valid authentication is required
+      content:
+        "*/*":
+          schema:
+            $ref: "#/components/schemas/apiError"
+    conflict:
+      description: Conflict - The resource already exists
+      content:
+        "*/*":
+          schema:
+            $ref: "#/components/schemas/apiError"
+  schemas:
+    # ── Shared value-object schemas ───────────────────────────────────────────
+    baseCoverage:
+      type: object
+      properties:
+        coveragePercent:
+          type: integer
+          format: int32
+          description: Coverage percentage applied to the resource
+    baseCoverage_r:
+      allOf:
+        - $ref: "#/components/schemas/baseCoverage"
+        - type: object
+          properties:
+            coverageCategory:
+              $ref: "#/components/schemas/enumCoverageCategory"
+    baseCoverage_c:
+      allOf:
+        - $ref: "#/components/schemas/baseCoverage"
+        - type: object
+          properties:
+            coverageCategory:
+              type: string
+              description: Coverage category code
+    baseFinancialItem:
+      type: object
+      properties:
+        itemId:
+          type: string
+          description: Internal identifier of the financial item
+        externalReference:
+          type: string
+          description: External reference code
+        amount:
+          type: number
+          description: Item amount
+        coveragePercent:
+          type: number
+          description: Coverage percentage
+        duration:
+          type: number
+          description: Duration of the financial item
+    baseFinancialItem_c:
+      allOf:
+        - $ref: "#/components/schemas/baseFinancialItem"
+        - type: object
+          properties:
+            nature:
+              type: string
+            durationUnit:
+              type: string
+              description: See allowed ids in enumDurationUnit
+    baseFinancialItem_r:
+      allOf:
+        - $ref: "#/components/schemas/baseFinancialItem"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Unique identifier
+    financialItemResult_c:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier of the newly created financial item
+    commonFinancialItemSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+        amount:
+          type: number
+          description: Item amount
+        coveragePercent:
+          type: number
+          description: Coverage percentage
+    baseLocation:
+      type: object
+      properties:
+        addressLine1:
+          type: string
+          description: First line of the address
+        addressLine2:
+          type: string
+          description: Second line of the address
+        city:
+          type: string
+          description: City name
+        postalCode:
+          type: string
+          description: Postal or ZIP code
+        country:
+          type: string
+          description: Country code (ISO 3166-1 alpha-2)
+    baseLocation_c:
+      allOf:
+        - $ref: "#/components/schemas/baseLocation"
+        - type: object
+          properties:
+            region:
+              type: string
+              description: Administrative region
+    baseLocation_r:
+      allOf:
+        - $ref: "#/components/schemas/baseLocation"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Location unique identifier
+    locationSummary_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Location identifier
+        city:
+          type: string
+          description: City name
+        country:
+          type: string
+          description: Country code
+    locationSummaryResult_c:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier of the newly created location
+    baseEmployment_r:
+      type: object
+      properties:
+        employerName:
+          type: string
+          description: Name of the employer
+        contractType:
+          type: string
+          description: Employment contract type
+        startDate:
+          type: string
+          format: date
+          description: Employment start date
+    baseEmployment_c:
+      allOf:
+        - $ref: "#/components/schemas/baseEmployment_r"
+        - type: object
+          properties:
+            endDate:
+              type: string
+              format: date
+              description: Employment end date (if applicable)
+    patchRequest:
+      type: array
+      description: JSON Patch document (RFC 6902)
+      items:
+        $ref: "#/components/schemas/patchOperation"
+    patchOperation:
+      type: object
+      required:
+        - op
+        - path
+      properties:
+        op:
+          type: string
+          enum: [add, remove, replace, move, copy, test]
+          description: Patch operation type
+        path:
+          type: string
+          description: JSON Pointer to the target location
+        value:
+          type: object
+          description: Value to use for the patch operation (add, replace, test)
+        from:
+          type: string
+          description: Source path for move and copy operations
+    # ── Enumeration schemas ───────────────────────────────────────────────────
+    enumCountryCode:
+      type: string
+      description: ISO 3166-1 alpha-2 country code
+    enumCurrencyCode:
+      type: string
+      description: ISO 4217 currency code
+    enumItemType:
+      type: string
+      description: Type of item
+    enumItemPurpose:
+      type: string
+      description: Purpose of the item
+    enumOccupationCategory:
+      type: string
+      description: Occupation category code
+    enumCustomizationCategory:
+      type: string
+      description: Customization category code
+    enumEmploymentStatus:
+      type: string
+      description: Employment status code
+    enumActivityDomain:
+      type: string
+      description: Activity domain code
+    enumDurationUnit:
+      type: string
+      description: Duration unit code (e.g. MONTH, YEAR, DAY)
+    enumItemNature:
+      type: string
+      description: Nature of the item
+    enumParticipantType:
+      type: string
+      description: Participant role type code
+    enumOriginChannel:
+      type: string
+      description: Origin channel code
+    enumParticipantProfile:
+      type: string
+      description: Participant profile code
+    enumCoverageCategory:
+      type: string
+      description: Coverage category code
+    enumNomenclatureCode:
+      type: string
+      description: Nomenclature code used for classifications
+    # ── Error schema — intentionally last to mirror the production pattern ─────
+    # Because this schema is the deepest node processed when vacuum resolves
+    # all external $ref paths concurrently, a race condition in the --original
+    # change-filtering logic sometimes fails to register this violation in the
+    # "original" snapshot, causing it to appear as a new violation.
+    apiError:
+      type: object
+      description: Standard error response body
+      properties:
+        error-code:
+          type: string
+          description: |
+            Technical error code:
+            * `100` - Unknown technical error
+            * `101` - Unknown technical error related to interception
+            * `170` - Unknown functionality
+            * `171` - Entity not found
+            * `172` - Technical error
+            * `174` - Invalid called functionality
+            * `175` - Disabled called functionality
+            * `197` - Entity already exists
+            * `198` - Entity already cancelled
+            * `199` - Entity already terminated
+            * ...
+        error-message:
+          type: string
+          description: Descriptive error label
+        error-detail:
+          type: string
+          description: Optional technical description of the error

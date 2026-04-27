@@ -98,6 +98,30 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testin
 	}
 }
 
+func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
+	spec := "../model/test_files/api-main.yaml"
+	ruleset := "../model/test_files/issue_839_ruleset.yaml"
+
+	const iterations = 20
+	for i := 0; i < iterations; i++ {
+		cmd := GetLintCommand()
+		registerPersistentFlags(cmd)
+		b := bytes.NewBufferString("")
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{
+			"--original", spec,
+			"-r", ruleset,
+			"-n", "error",
+			"-x",
+			spec,
+		})
+
+		err := cmd.Execute()
+		assert.NoErrorf(t, err, "iteration %d should suppress all same-spec violations for issue 839 customer fixtures", i)
+	}
+}
+
 func TestLintCommand_OriginalDifferentSpec(t *testing.T) {
 	// Using two completely different specs: no overlap, so all new-spec violations reported.
 	original := "../model/test_files/petstorev3.json"
