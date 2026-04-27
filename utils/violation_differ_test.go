@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v4"
 )
 
 func makeResult(ruleId, path, message string) model.RuleFunctionResult {
@@ -184,6 +186,72 @@ func TestDiffViolationsValues_PrimaryPathCanDifferWhenPathsMatch(t *testing.T) {
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
+func TestDiffViolationsValues_OriginSuppressesExternalRefPathDrift(t *testing.T) {
+	message := "schema of type `string` must specify `format`, `const`, `enum` or `pattern`"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId:  "owasp-string-restricted",
+			Path:    "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Message: message,
+			Rule:    &model.Rule{Id: "owasp-string-restricted"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "api-common.yaml",
+				Line:             258,
+				Column:           11,
+			},
+		},
+	}
+	newResults := []model.RuleFunctionResult{
+		{
+			RuleId:  "owasp-string-restricted",
+			Path:    "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Message: message,
+			Rule:    &model.Rule{Id: "owasp-string-restricted"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "api-common.yaml",
+				Line:             258,
+				Column:           11,
+			},
+		},
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValues_OriginFallsBackToStartNodePosition(t *testing.T) {
+	message := "schema property `error-code` is missing `examples` or `example`"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId:    "oas3-missing-example",
+			Path:      "$.paths['/old'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+			Message:   message,
+			Rule:      &model.Rule{Id: "oas3-missing-example"},
+			StartNode: &yaml.Node{Line: 321, Column: 9},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "api-common.yaml",
+			},
+		},
+	}
+	newResults := []model.RuleFunctionResult{
+		{
+			RuleId:    "oas3-missing-example",
+			Path:      "$.paths['/new'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+			Message:   message,
+			Rule:      &model.Rule{Id: "oas3-missing-example"},
+			StartNode: &yaml.Node{Line: 321, Column: 9},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "api-common.yaml",
+			},
+		},
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
 func TestDiffViolationsValues_StatsCorrect(t *testing.T) {
 	original := []model.RuleFunctionResult{
 		makeResult("rule-1", "$.a", "msg-a"),
@@ -221,6 +289,40 @@ func TestDiffViolationsMixed_Basic(t *testing.T) {
 	result, stats := DiffViolationsMixed(original, newResults)
 	require.Len(t, result, 1)
 	assert.Equal(t, "rule-2", result[0].RuleId)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsMixed_OriginSuppressesExternalRefPathDrift(t *testing.T) {
+	message := "schema of type `string` must specify `format`, `const`, `enum` or `pattern`"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId:  "owasp-string-restricted",
+			Path:    "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Message: message,
+			Rule:    &model.Rule{Id: "owasp-string-restricted"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "api-common.yaml",
+				Line:             258,
+				Column:           11,
+			},
+		},
+	}
+	newResults := []*model.RuleFunctionResult{
+		{
+			RuleId:  "owasp-string-restricted",
+			Path:    "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Message: message,
+			Rule:    &model.Rule{Id: "owasp-string-restricted"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "api-common.yaml",
+				Line:             258,
+				Column:           11,
+			},
+		},
+	}
+
+	result, stats := DiffViolationsMixed(original, newResults)
+	assert.Empty(t, result)
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 

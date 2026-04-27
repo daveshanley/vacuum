@@ -1,0 +1,2432 @@
+openapi: 3.0.0
+info:
+  title: "Items Management API"
+  description: API for managing items, sub-items and their nested resources
+  version: "1.0"
+  contact:
+    name: API Team
+    email: api-team@example.com
+security:
+  - BearerAuth: []
+tags:
+  - name: Items
+    description: Operations on items
+  - name: SubItems
+    description: Operations on sub-items belonging to items
+  - name: NestedResources
+    description: Operations on nested resources
+  - name: Attachments
+    description: Operations on attachments
+  - name: Projects
+    description: Operations on project items
+paths:
+  "/v1/items":
+    get:
+      tags:
+        - Items
+      summary: Search items
+      description: Returns a paginated list of items matching the given filters
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/pageSize
+        - $ref: api-common.yaml#/components/parameters/pageNumber
+        - name: status
+          in: query
+          description: Filter by status
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/itemSummary"
+                  page:
+                    $ref: "#/components/schemas/pageSummary"
+              example:
+                content: []
+                page:
+                  totalElements: 0
+                  totalPages: 0
+                  currentPage: 0
+                  pageSize: 20
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    post:
+      tags:
+        - Items
+      summary: Create an item
+      description: Creates a new item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/item_c"
+            example:
+              name: "New Item"
+              type: "TYPE_A"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/itemResult_c"
+              example:
+                id: "ITEM-001"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}":
+    get:
+      tags:
+        - Items
+      summary: Get an item by id
+      description: Returns a single item by its unique identifier
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/item_r"
+              example:
+                id: "ITEM-001"
+                name: "Example Item"
+                status: "ACTIVE"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    patch:
+      tags:
+        - Items
+      summary: Update an item
+      description: Partially updates an existing item using JSON Patch
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: api-common.yaml#/components/schemas/patchRequest
+            example:
+              - op: replace
+                path: /status
+                value: "INACTIVE"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/item_r"
+              example:
+                id: "ITEM-001"
+                name: "Example Item"
+                status: "INACTIVE"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    delete:
+      tags:
+        - Items
+      summary: Delete an item
+      description: Deletes an existing item by its identifier
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/validate":
+    post:
+      tags:
+        - Items
+      summary: Validate an item
+      description: Triggers validation of the item and returns any validation errors
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/validationResult"
+              example:
+                valid: true
+                errors: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "422":
+          description: Unprocessable Entity
+          content:
+            application/json:
+              schema:
+                $ref: api-common.yaml#/components/schemas/apiError
+              example:
+                code: "422"
+                message: "Validation failed"
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems":
+    get:
+      tags:
+        - SubItems
+      summary: List sub-items of an item
+      description: Returns sub-items associated with the specified item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/pageSize
+        - $ref: api-common.yaml#/components/parameters/pageNumber
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/subItem_r"
+              example:
+                content: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    post:
+      tags:
+        - SubItems
+      summary: Create a sub-item
+      description: Creates a new sub-item under the specified item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/subItem_c"
+            example:
+              type: "SUB_TYPE_A"
+              value: "some value"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subItemResult_c"
+              example:
+                id: "SUB-001"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems/{subResourceId}":
+    get:
+      tags:
+        - SubItems
+      summary: Get a sub-item
+      description: Returns a single sub-item by its identifier
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subItem_r"
+              example:
+                id: "SUB-001"
+                resourceId: "ITEM-001"
+                type: "SUB_TYPE_A"
+                value: "some value"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    patch:
+      tags:
+        - SubItems
+      summary: Update a sub-item
+      description: Partially updates a sub-item using JSON Patch
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: api-common.yaml#/components/schemas/patchRequest
+            example:
+              - op: replace
+                path: /value
+                value: "updated value"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subItem_r"
+              example:
+                id: "SUB-001"
+                resourceId: "ITEM-001"
+                type: "SUB_TYPE_A"
+                value: "updated value"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    delete:
+      tags:
+        - SubItems
+      summary: Delete a sub-item
+      description: Removes a sub-item from the parent item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems/{subResourceId}/nestedResources":
+    get:
+      tags:
+        - NestedResources
+      summary: List nested resources
+      description: Returns nested resources under the specified sub-item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+        - $ref: api-common.yaml#/components/parameters/pageSize
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/nestedResource_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    post:
+      tags:
+        - NestedResources
+      summary: Create a nested resource
+      description: Creates a new nested resource under the specified sub-item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/nestedResource_c"
+            example:
+              data:
+                key: "value"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/nestedResource_r"
+              example:
+                id: "NEST-001"
+                subResourceId: "SUB-001"
+                data:
+                  key: "value"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems/{subResourceId}/nestedResources/{nestedResourceId}":
+    get:
+      tags:
+        - NestedResources
+      summary: Get a nested resource
+      description: Returns a nested resource by its identifier
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+        - $ref: api-common.yaml#/components/parameters/nestedResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/nestedResource_r"
+              example:
+                id: "NEST-001"
+                subResourceId: "SUB-001"
+                data:
+                  key: "value"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    delete:
+      tags:
+        - NestedResources
+      summary: Delete a nested resource
+      description: Removes a nested resource
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+        - $ref: api-common.yaml#/components/parameters/nestedResourceId
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/attachments":
+    get:
+      tags:
+        - Attachments
+      summary: List attachments of an item
+      description: Returns all attachments associated with an item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/attachmentSummary_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    post:
+      tags:
+        - Attachments
+      summary: Upload an attachment
+      description: Uploads a new attachment to an item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      requestBody:
+        $ref: "#/components/requestBodies/attachment_c"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/attachmentSummary_r"
+              example:
+                id: "ATT-001"
+                fileName: "document.pdf"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/attachmentRequests":
+    get:
+      tags:
+        - Attachments
+      summary: List attachment requests of an item
+      description: Returns all pending attachment requests for an item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/attachmentRequest_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/attachmentRequests/{subResourceId}/reception":
+    post:
+      tags:
+        - Attachments
+      summary: Acknowledge attachment reception
+      description: Marks the reception of a requested attachment
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/item_r"
+              example:
+                id: "ITEM-001"
+                name: "Example Item"
+                status: "ACTIVE"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/decisions":
+    get:
+      tags:
+        - Items
+      summary: Get decisions for an item
+      description: Returns all decisions associated with the item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/decision_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems/{subResourceId}/decisions":
+    get:
+      tags:
+        - SubItems
+      summary: Get decisions for a sub-item
+      description: Returns all decisions associated with the sub-item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/decision_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems/{subResourceId}/decisions/decisionStatus":
+    patch:
+      tags:
+        - SubItems
+      summary: Update a sub-item decision status
+      description: Updates the decision status of a sub-item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/decisionStatusUpdate"
+            example:
+              status: "APPROVED"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/decision_r"
+              example:
+                id: "DEC-001"
+                status: "APPROVED"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/subItems/{subResourceId}/decisions/signatureNotification":
+    post:
+      tags:
+        - SubItems
+      summary: Notify signature for a sub-item decision
+      description: Sends a signature notification related to a sub-item decision
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/signatureNotification"
+            example:
+              signatureDate: "2024-01-15"
+              signedBy: "USER-001"
+      responses:
+        "200":
+          description: OK
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/items/{resourceId}/itemStatus":
+    patch:
+      tags:
+        - Items
+      summary: Update item status
+      description: Updates the current status of an item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/statusUpdate"
+            example:
+              status: "CLOSED"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/item_r"
+              example:
+                id: "ITEM-001"
+                name: "Example Item"
+                status: "CLOSED"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems":
+    post:
+      tags:
+        - Projects
+      summary: Create a project item
+      description: Creates a new project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/projectItem_c"
+            example:
+              name: "New Project"
+              type: "PROJECT_TYPE_A"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectItemResult_c"
+              example:
+                id: "PROJ-001"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    get:
+      tags:
+        - Projects
+      summary: Search project items
+      description: Returns a paginated list of project items
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/pageSize
+        - $ref: api-common.yaml#/components/parameters/pageNumber
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/projectItem_r"
+                  page:
+                    $ref: "#/components/schemas/pageSummary"
+              example:
+                content: []
+                page:
+                  totalElements: 0
+                  totalPages: 0
+                  currentPage: 0
+                  pageSize: 20
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/search":
+    post:
+      tags:
+        - Projects
+      summary: Advanced search for project items
+      description: Returns project items matching complex filter criteria
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/pageSize
+        - $ref: api-common.yaml#/components/parameters/pageNumber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/projectSearchCriteria"
+            example:
+              statuses: ["ACTIVE", "PENDING"]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/projectItem_r"
+                  page:
+                    $ref: "#/components/schemas/pageSummary"
+              example:
+                content: []
+                page:
+                  totalElements: 0
+                  totalPages: 0
+                  currentPage: 0
+                  pageSize: 20
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}":
+    get:
+      tags:
+        - Projects
+      summary: Get a project item
+      description: Returns a project item by its identifier
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectItem_r"
+              example:
+                id: "PROJ-001"
+                name: "Example Project"
+                status: "ACTIVE"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    patch:
+      tags:
+        - Projects
+      summary: Update a project item
+      description: Partially updates a project item using JSON Patch
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: api-common.yaml#/components/schemas/patchRequest
+            example:
+              - op: replace
+                path: /name
+                value: "Updated Project"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectItem_r"
+              example:
+                id: "PROJ-001"
+                name: "Updated Project"
+                status: "ACTIVE"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    delete:
+      tags:
+        - Projects
+      summary: Delete a project item
+      description: Removes a project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "204":
+          description: No Content
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/persons":
+    get:
+      tags:
+        - Projects
+      summary: Get persons linked to a project item
+      description: Returns persons associated with the specified project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/person_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/attachments":
+    get:
+      tags:
+        - Projects
+      summary: Get attachments for a project item
+      description: Returns all attachments associated with a project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/attachmentSummary_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/subItems":
+    get:
+      tags:
+        - Projects
+      summary: Get sub-items for a project item
+      description: Returns all sub-items of a project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/subItem_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/subItems/{subResourceId}":
+    get:
+      tags:
+        - Projects
+      summary: Get a project sub-item
+      description: Returns a specific sub-item of a project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subItem_r"
+              example:
+                id: "SUB-001"
+                resourceId: "PROJ-001"
+                type: "SUB_TYPE_A"
+                value: "some value"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+    patch:
+      tags:
+        - Projects
+      summary: Update a project sub-item
+      description: Partially updates a sub-item within a project
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: api-common.yaml#/components/schemas/patchRequest
+            example:
+              - op: replace
+                path: /value
+                value: "updated"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/subItem_r"
+              example:
+                id: "SUB-001"
+                resourceId: "PROJ-001"
+                type: "SUB_TYPE_A"
+                value: "updated"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/subItems/{subResourceId}/nestedResources":
+    get:
+      tags:
+        - Projects
+      summary: Get nested resources for a project sub-item
+      description: Returns nested resources for a sub-item in a project
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/optionalOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/nestedResource_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/projectStatus":
+    patch:
+      tags:
+        - Projects
+      summary: Update project item status
+      description: Updates the status of a project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/statusUpdate"
+            example:
+              status: "COMPLETED"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/projectItem_r"
+              example:
+                id: "PROJ-001"
+                name: "Example Project"
+                status: "COMPLETED"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/decisions":
+    get:
+      tags:
+        - Projects
+      summary: Get decisions for a project item
+      description: Returns decisions associated with the project item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/decision_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/subItems/{subResourceId}/decisions":
+    get:
+      tags:
+        - Projects
+      summary: Get decisions for a project sub-item
+      description: Returns decisions for a sub-item within a project
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/decision_r"
+              example: []
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/subItems/{subResourceId}/decisions/decisionStatus":
+    patch:
+      tags:
+        - Projects
+      summary: Update a project sub-item decision status
+      description: Updates the decision status for a project sub-item
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/decisionStatusUpdate"
+            example:
+              status: "REJECTED"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/decision_r"
+              example:
+                id: "DEC-001"
+                status: "REJECTED"
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+  "/v1/projectItems/{resourceId}/subItems/{subResourceId}/decisions/signatureNotification":
+    post:
+      tags:
+        - Projects
+      summary: Notify signature for a project sub-item decision
+      description: Sends a signature notification for a project sub-item decision
+      parameters:
+        - $ref: api-common.yaml#/components/parameters/mandatoryOrgId
+        - $ref: api-common.yaml#/components/parameters/resourceId
+        - $ref: api-common.yaml#/components/parameters/subResourceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/signatureNotification"
+            example:
+              signatureDate: "2024-01-15"
+              signedBy: "USER-001"
+      responses:
+        "200":
+          description: OK
+        "400":
+          $ref: api-common.yaml#/components/responses/badRequest
+        "401":
+          $ref: api-common.yaml#/components/responses/unauthorized
+        "404":
+          $ref: api-common.yaml#/components/responses/notFound
+        "500":
+          $ref: api-common.yaml#/components/responses/internalServerError
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+  requestBodies:
+    attachment_c:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            $ref: "#/components/schemas/attachment_c"
+          example:
+            fileName: "document.pdf"
+            mimeType: "application/pdf"
+
+  schemas:
+    # ── Summary / result schemas ────────────────────────────────────────────
+    itemSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Item unique identifier
+        name:
+          type: string
+          description: Item name
+        status:
+          type: string
+          description: Item status
+
+    pageSummary:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          description: Total number of elements
+        totalPages:
+          type: integer
+          description: Total number of pages
+        currentPage:
+          type: integer
+          description: Current page index
+        pageSize:
+          type: integer
+          description: Number of elements per page
+
+    # ── Item schemas ─────────────────────────────────────────────────────────
+    item_c:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Item name
+        type:
+          type: string
+          description: Item type code
+        orgId:
+          type: string
+          description: Organization identifier
+
+    item_r:
+      allOf:
+        - $ref: "#/components/schemas/item_c"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Unique identifier assigned at creation
+            createdAt:
+              type: string
+              format: date-time
+              description: Creation timestamp
+            updatedAt:
+              type: string
+              format: date-time
+              description: Last update timestamp
+
+    itemResult_c:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier of the newly created item
+
+    # ── Sub-item schemas ──────────────────────────────────────────────────────
+    subItem_c:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          description: Sub-item type code
+        value:
+          type: string
+          description: Sub-item value
+
+    subItem_r:
+      allOf:
+        - $ref: "#/components/schemas/subItem_c"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Unique identifier
+            resourceId:
+              type: string
+              description: Parent resource identifier
+
+    subItemResult_c:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier of the newly created sub-item
+
+    # ── Nested resource schemas ───────────────────────────────────────────────
+    nestedResource_c:
+      type: object
+      properties:
+        data:
+          type: object
+          description: Nested resource data payload
+
+    nestedResource_r:
+      allOf:
+        - $ref: "#/components/schemas/nestedResource_c"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Unique identifier
+            subResourceId:
+              type: string
+              description: Parent sub-resource identifier
+
+    # ── Attachment schemas ────────────────────────────────────────────────────
+    attachment_c:
+      type: object
+      properties:
+        fileName:
+          type: string
+          description: File name
+        mimeType:
+          type: string
+          description: MIME type of the attachment
+
+    attachmentSummary_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Attachment identifier
+        fileName:
+          type: string
+          description: File name
+
+    attachmentRequest_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Request identifier
+        requestedType:
+          type: string
+          description: Type of attachment requested
+        dueDate:
+          type: string
+          format: date
+          description: Due date for the attachment
+
+    # ── Project schemas ───────────────────────────────────────────────────────
+    projectItem_c:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Project name
+        type:
+          type: string
+          description: Project type code
+
+    projectItem_r:
+      allOf:
+        - $ref: "#/components/schemas/projectItem_c"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Project unique identifier
+            status:
+              type: string
+              description: Current project status
+
+    projectItemResult_c:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier of the newly created project item
+
+    projectSearchCriteria:
+      type: object
+      properties:
+        statuses:
+          type: array
+          items:
+            type: string
+          description: List of statuses to filter by
+        orgId:
+          type: string
+          description: Organization identifier filter
+
+    # ── Decision / status schemas ─────────────────────────────────────────────
+    decision_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Decision unique identifier
+        status:
+          type: string
+          description: Decision status
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
+    decisionStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: New decision status value
+
+    signatureNotification:
+      type: object
+      properties:
+        signatureDate:
+          type: string
+          format: date
+          description: Date when the document was signed
+        signedBy:
+          type: string
+          description: Identifier of the person who signed
+
+    # ── Misc schemas ──────────────────────────────────────────────────────────
+    validationResult:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Whether the item passed validation
+        errors:
+          type: array
+          items:
+            type: string
+          description: List of validation error messages
+
+    statusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: New status value
+
+    person_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Person identifier
+        firstName:
+          type: string
+          description: First name
+        lastName:
+          type: string
+          description: Last name
+        role:
+          type: string
+          description: Role of the person in the item context
+
+    # ── Extended domain schemas (add bulk to increase ExamplesSchema validation
+    # count, which raises the probability of triggering the concurrent race in
+    # vacuum's --original change-filter logic) ─────────────────────────────────
+
+    itemDetail_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+        name:
+          type: string
+          description: Item name
+        description:
+          type: string
+          description: Full description
+        status:
+          type: string
+          description: Current status
+        type:
+          type: string
+          description: Item type code
+        category:
+          type: string
+          description: Item category
+        orgId:
+          type: string
+          description: Organization identifier
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        closedAt:
+          type: string
+          format: date-time
+          description: Closure timestamp
+        externalRef:
+          type: string
+          description: External reference identifier
+        tags:
+          type: array
+          items:
+            type: string
+          description: List of tags
+
+    itemFinancial_r:
+      type: object
+      properties:
+        itemId:
+          type: string
+          description: Parent item identifier
+        totalAmount:
+          type: number
+          description: Total financial amount
+        currency:
+          type: string
+          description: Currency code
+        taxAmount:
+          type: number
+          description: Tax amount
+        netAmount:
+          type: number
+          description: Net amount after tax
+        paidAmount:
+          type: number
+          description: Amount already paid
+        remainingAmount:
+          type: number
+          description: Remaining amount to pay
+        dueDate:
+          type: string
+          format: date
+          description: Payment due date
+        paymentMethod:
+          type: string
+          description: Payment method code
+        billingPeriod:
+          type: string
+          description: Billing period identifier
+
+    itemParticipant_r:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Participant unique identifier
+        itemId:
+          type: string
+          description: Parent item identifier
+        personId:
+          type: string
+          description: Person identifier
+        role:
+          type: string
+          description: Role of the participant
+        joinedAt:
+          type: string
+          format: date-time
+          description: Date the participant joined
+        leftAt:
+          type: string
+          format: date-time
+          description: Date the participant left
+        coveragePercent:
+          type: number
+          description: Coverage percentage for this participant
+        isPrimary:
+          type: boolean
+          description: Whether this is the primary participant
+
+    itemParticipant_c:
+      type: object
+      required:
+        - personId
+        - role
+      properties:
+        personId:
+          type: string
+          description: Person identifier
+        role:
+          type: string
+          description: Role of the participant
+        coveragePercent:
+          type: number
+          description: Coverage percentage
+
+    contractInfo_r:
+      type: object
+      properties:
+        contractId:
+          type: string
+          description: Contract unique identifier
+        contractNumber:
+          type: string
+          description: Human-readable contract number
+        productCode:
+          type: string
+          description: Product code
+        productLabel:
+          type: string
+          description: Product label
+        partnerCode:
+          type: string
+          description: Partner code
+        effectiveDate:
+          type: string
+          format: date
+          description: Contract effective date
+        expiryDate:
+          type: string
+          format: date
+          description: Contract expiry date
+        status:
+          type: string
+          description: Contract status
+        signatureDate:
+          type: string
+          format: date
+          description: Signature date
+
+    coverageDetail_r:
+      type: object
+      properties:
+        coverageId:
+          type: string
+          description: Coverage unique identifier
+        contractId:
+          type: string
+          description: Associated contract identifier
+        coverageType:
+          type: string
+          description: Type of coverage
+        coveragePercent:
+          type: number
+          description: Coverage percentage
+        startDate:
+          type: string
+          format: date
+          description: Coverage start date
+        endDate:
+          type: string
+          format: date
+          description: Coverage end date
+        insuredAmount:
+          type: number
+          description: Insured amount
+        premium:
+          type: number
+          description: Premium amount
+        deductible:
+          type: number
+          description: Deductible amount
+        beneficiaryId:
+          type: string
+          description: Beneficiary identifier
+
+    coverageDetail_c:
+      type: object
+      required:
+        - coverageType
+        - coveragePercent
+      properties:
+        coverageType:
+          type: string
+          description: Type of coverage
+        coveragePercent:
+          type: number
+          description: Coverage percentage
+        insuredAmount:
+          type: number
+          description: Insured amount
+        premium:
+          type: number
+          description: Premium amount
+
+    riskAssessment_r:
+      type: object
+      properties:
+        assessmentId:
+          type: string
+          description: Assessment unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        assessmentDate:
+          type: string
+          format: date
+          description: Date of assessment
+        riskLevel:
+          type: string
+          description: Risk level code
+        riskScore:
+          type: number
+          description: Numeric risk score
+        assessor:
+          type: string
+          description: Assessor identifier
+        notes:
+          type: string
+          description: Assessment notes
+        validUntil:
+          type: string
+          format: date
+          description: Assessment validity date
+        factors:
+          type: array
+          items:
+            $ref: "#/components/schemas/riskFactor_r"
+          description: Risk factors considered
+
+    riskFactor_r:
+      type: object
+      properties:
+        factorCode:
+          type: string
+          description: Risk factor code
+        factorLabel:
+          type: string
+          description: Risk factor label
+        weight:
+          type: number
+          description: Weight of this factor in the assessment
+        value:
+          type: string
+          description: Factor value or score
+        isExcluded:
+          type: boolean
+          description: Whether this factor was excluded from the assessment
+
+    underwritingDecision_r:
+      type: object
+      properties:
+        decisionId:
+          type: string
+          description: Decision unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        decisionDate:
+          type: string
+          format: date-time
+          description: Date and time of the decision
+        outcome:
+          type: string
+          description: Decision outcome code
+        reason:
+          type: string
+          description: Reason for the decision
+        underwriterId:
+          type: string
+          description: Underwriter identifier
+        validUntil:
+          type: string
+          format: date
+          description: Decision validity date
+        conditions:
+          type: array
+          items:
+            type: string
+          description: List of conditions attached to the decision
+        exclusions:
+          type: array
+          items:
+            type: string
+          description: List of exclusions applied
+
+    communicationEvent_r:
+      type: object
+      properties:
+        eventId:
+          type: string
+          description: Event unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        eventType:
+          type: string
+          description: Communication event type code
+        channel:
+          type: string
+          description: Communication channel
+        direction:
+          type: string
+          description: Inbound or outbound
+        sentAt:
+          type: string
+          format: date-time
+          description: Timestamp the communication was sent
+        receivedAt:
+          type: string
+          format: date-time
+          description: Timestamp the communication was received
+        subject:
+          type: string
+          description: Subject or title of the communication
+        templateCode:
+          type: string
+          description: Template code used for generation
+        recipientId:
+          type: string
+          description: Recipient identifier
+
+    auditEntry_r:
+      type: object
+      properties:
+        entryId:
+          type: string
+          description: Audit entry unique identifier
+        entityType:
+          type: string
+          description: Entity type
+        entityId:
+          type: string
+          description: Entity identifier
+        action:
+          type: string
+          description: Action performed
+        performedBy:
+          type: string
+          description: User who performed the action
+        performedAt:
+          type: string
+          format: date-time
+          description: Timestamp of the action
+        sourceSystem:
+          type: string
+          description: Source system code
+        changeDetails:
+          type: object
+          description: Details of the change (old/new values)
+
+    workflowState_r:
+      type: object
+      properties:
+        stateId:
+          type: string
+          description: State unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        currentState:
+          type: string
+          description: Current workflow state code
+        previousState:
+          type: string
+          description: Previous workflow state code
+        transitionedAt:
+          type: string
+          format: date-time
+          description: Timestamp of state transition
+        transitionReason:
+          type: string
+          description: Reason for the transition
+        triggeredBy:
+          type: string
+          description: User or system that triggered the transition
+        expectedNextState:
+          type: string
+          description: Expected next state
+
+    medicalData_r:
+      type: object
+      properties:
+        recordId:
+          type: string
+          description: Medical record identifier
+        participantId:
+          type: string
+          description: Associated participant identifier
+        dataType:
+          type: string
+          description: Type of medical data
+        recordDate:
+          type: string
+          format: date
+          description: Date of the medical record
+        expiryDate:
+          type: string
+          format: date
+          description: Expiry date of the medical data
+        status:
+          type: string
+          description: Record status
+        source:
+          type: string
+          description: Source of the medical data
+        isConfidential:
+          type: boolean
+          description: Whether this record is confidential
+
+    beneficiary_r:
+      type: object
+      properties:
+        beneficiaryId:
+          type: string
+          description: Beneficiary unique identifier
+        personId:
+          type: string
+          description: Person identifier
+        contractId:
+          type: string
+          description: Associated contract identifier
+        type:
+          type: string
+          description: Beneficiary type
+        share:
+          type: number
+          description: Share percentage
+        rank:
+          type: integer
+          description: Beneficiary rank
+        designation:
+          type: string
+          description: Designation clause
+        isRevocable:
+          type: boolean
+          description: Whether the designation is revocable
+
+    paymentSchedule_r:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+          description: Schedule unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        periodicity:
+          type: string
+          description: Payment periodicity
+        startDate:
+          type: string
+          format: date
+          description: Schedule start date
+        endDate:
+          type: string
+          format: date
+          description: Schedule end date
+        installmentAmount:
+          type: number
+          description: Amount per installment
+        numberOfInstallments:
+          type: integer
+          description: Total number of installments
+        currency:
+          type: string
+          description: Currency code
+        dayOfMonth:
+          type: integer
+          description: Day of the month for payment
+
+    paymentTransaction_r:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          description: Transaction unique identifier
+        scheduleId:
+          type: string
+          description: Associated schedule identifier
+        transactionDate:
+          type: string
+          format: date
+          description: Date of the transaction
+        amount:
+          type: number
+          description: Transaction amount
+        currency:
+          type: string
+          description: Currency code
+        status:
+          type: string
+          description: Transaction status
+        reference:
+          type: string
+          description: Payment reference
+        method:
+          type: string
+          description: Payment method used
+        bankAccountId:
+          type: string
+          description: Bank account identifier
+
+    claimEvent_r:
+      type: object
+      properties:
+        claimId:
+          type: string
+          description: Claim unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        claimDate:
+          type: string
+          format: date
+          description: Date the claim was filed
+        eventType:
+          type: string
+          description: Type of claim event
+        eventDate:
+          type: string
+          format: date
+          description: Date of the insured event
+        reportedBy:
+          type: string
+          description: Person who reported the claim
+        status:
+          type: string
+          description: Claim status
+        claimedAmount:
+          type: number
+          description: Claimed amount
+        approvedAmount:
+          type: number
+          description: Approved amount
+        rejectionReason:
+          type: string
+          description: Reason for rejection if applicable
+
+    regulatoryCompliance_r:
+      type: object
+      properties:
+        complianceId:
+          type: string
+          description: Compliance record unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        regulation:
+          type: string
+          description: Regulation code
+        complianceStatus:
+          type: string
+          description: Compliance status
+        checkDate:
+          type: string
+          format: date
+          description: Date of the compliance check
+        nextCheckDate:
+          type: string
+          format: date
+          description: Next scheduled check date
+        reviewer:
+          type: string
+          description: Reviewer identifier
+        notes:
+          type: string
+          description: Compliance notes
+
+    distributionChannel_r:
+      type: object
+      properties:
+        channelId:
+          type: string
+          description: Channel unique identifier
+        channelCode:
+          type: string
+          description: Channel code
+        channelLabel:
+          type: string
+          description: Channel label
+        partnerCode:
+          type: string
+          description: Partner code
+        networkId:
+          type: string
+          description: Network identifier
+        isActive:
+          type: boolean
+          description: Whether the channel is active
+        activeSince:
+          type: string
+          format: date
+          description: Date the channel became active
+
+    productConfiguration_r:
+      type: object
+      properties:
+        configId:
+          type: string
+          description: Configuration unique identifier
+        productCode:
+          type: string
+          description: Product code
+        version:
+          type: string
+          description: Configuration version
+        effectiveDate:
+          type: string
+          format: date
+          description: Configuration effective date
+        expiryDate:
+          type: string
+          format: date
+          description: Configuration expiry date
+        parameters:
+          type: object
+          description: Product configuration parameters map
+        constraints:
+          type: array
+          items:
+            type: string
+          description: List of constraint codes
+
+    taxInfo_r:
+      type: object
+      properties:
+        taxId:
+          type: string
+          description: Tax record unique identifier
+        itemId:
+          type: string
+          description: Associated item identifier
+        taxType:
+          type: string
+          description: Tax type code
+        taxableBase:
+          type: number
+          description: Taxable base amount
+        taxRate:
+          type: number
+          description: Tax rate percentage
+        taxAmount:
+          type: number
+          description: Calculated tax amount
+        currency:
+          type: string
+          description: Currency code
+        period:
+          type: string
+          description: Tax period identifier
+        jurisdiction:
+          type: string
+          description: Tax jurisdiction code
+
+    externalIntegration_r:
+      type: object
+      properties:
+        integrationId:
+          type: string
+          description: Integration record unique identifier
+        targetSystem:
+          type: string
+          description: Target external system code
+        direction:
+          type: string
+          description: Direction of the integration (inbound/outbound)
+        messageType:
+          type: string
+          description: Message type code
+        sentAt:
+          type: string
+          format: date-time
+          description: Timestamp the message was sent
+        acknowledgedAt:
+          type: string
+          format: date-time
+          description: Timestamp the message was acknowledged
+        status:
+          type: string
+          description: Integration status
+        correlationId:
+          type: string
+          description: Correlation identifier for tracing
+        retryCount:
+          type: integer
+          description: Number of retry attempts
+        errorCode:
+          type: string
+          description: Error code if the integration failed
+
+    notificationPreference_r:
+      type: object
+      properties:
+        preferenceId:
+          type: string
+          description: Preference unique identifier
+        recipientId:
+          type: string
+          description: Recipient identifier
+        channel:
+          type: string
+          description: Notification channel
+        eventType:
+          type: string
+          description: Event type this preference applies to
+        isEnabled:
+          type: boolean
+          description: Whether notifications are enabled
+        frequency:
+          type: string
+          description: Notification frequency
+        format:
+          type: string
+          description: Preferred notification format
+
+    serviceLevel_r:
+      type: object
+      properties:
+        slaId:
+          type: string
+          description: SLA unique identifier
+        name:
+          type: string
+          description: SLA name
+        targetResponseTime:
+          type: integer
+          description: Target response time in minutes
+        targetResolutionTime:
+          type: integer
+          description: Target resolution time in minutes
+        priority:
+          type: string
+          description: Priority level
+        escalationPath:
+          type: array
+          items:
+            type: string
+          description: List of escalation contacts
+
+    resourceQuota_r:
+      type: object
+      properties:
+        quotaId:
+          type: string
+          description: Quota unique identifier
+        orgId:
+          type: string
+          description: Organization identifier
+        resourceType:
+          type: string
+          description: Resource type code
+        limit:
+          type: integer
+          description: Maximum allowed quantity
+        used:
+          type: integer
+          description: Currently used quantity
+        reserved:
+          type: integer
+          description: Reserved quantity
+        resetDate:
+          type: string
+          format: date
+          description: Date the quota resets
+
+    accessControl_r:
+      type: object
+      properties:
+        aclId:
+          type: string
+          description: ACL record unique identifier
+        subjectType:
+          type: string
+          description: Subject type (user, group, service)
+        subjectId:
+          type: string
+          description: Subject identifier
+        resourceType:
+          type: string
+          description: Resource type
+        resourceId:
+          type: string
+          description: Resource identifier
+        permissions:
+          type: array
+          items:
+            type: string
+          description: List of granted permissions
+        grantedAt:
+          type: string
+          format: date-time
+          description: Timestamp the access was granted
+        expiresAt:
+          type: string
+          format: date-time
+          description: Expiry timestamp for the access grant
