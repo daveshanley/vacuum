@@ -243,6 +243,7 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 			Insecure: m.watchConfig.Insecure,
 		},
 	})
+	defer result.ReleaseOwnedResources()
 
 	m.updateWatchedFilesFromRolodex(result.Index)
 

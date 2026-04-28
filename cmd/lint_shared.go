@@ -549,6 +549,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		FetchConfig:                     config.FetchConfig,
 		TurboMode:                       config.Flags.TurboMode,
 	}, newMotorExecutionOptionsFromLintFlags(config.Flags))
+	defer result.ReleaseOwnedResources()
 
 	if len(result.Errors) > 0 {
 		var logs []string

@@ -21,9 +21,59 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
+	v2high "github.com/pb33f/libopenapi/datamodel/high/v2"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
 )
+
+type stubDocument struct {
+	config   *datamodel.DocumentConfiguration
+	specInfo *datamodel.SpecInfo
+}
+
+func (d *stubDocument) GetVersion() string {
+	return ""
+}
+
+func (d *stubDocument) GetRolodex() *index.Rolodex {
+	return nil
+}
+
+func (d *stubDocument) GetSpecInfo() *datamodel.SpecInfo {
+	return d.specInfo
+}
+
+func (d *stubDocument) SetConfiguration(configuration *datamodel.DocumentConfiguration) {
+	d.config = configuration
+}
+
+func (d *stubDocument) GetConfiguration() *datamodel.DocumentConfiguration {
+	return d.config
+}
+
+func (d *stubDocument) BuildV2Model() (*libopenapi.DocumentModel[v2high.Swagger], error) {
+	return nil, nil
+}
+
+func (d *stubDocument) BuildV3Model() (*libopenapi.DocumentModel[v3high.Document], error) {
+	return nil, nil
+}
+
+func (d *stubDocument) RenderAndReload() ([]byte, libopenapi.Document, *libopenapi.DocumentModel[v3high.Document], error) {
+	return nil, nil, nil, nil
+}
+
+func (d *stubDocument) Render() ([]byte, error) {
+	return nil, nil
+}
+
+func (d *stubDocument) Serialize() ([]byte, error) {
+	return nil, nil
+}
+
+func (d *stubDocument) Release() {}
 
 func TestApplyRules_PostResponseSuccess(t *testing.T) {
 
@@ -2347,7 +2397,7 @@ func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
 	assert.NotNil(t, results.DocumentConfig)
 	assert.NotNil(t, results.ownedDocument)
 	assert.NotNil(t, results.unresolvedDoc)
-	assert.True(t, results.ownsIndex)
+	assert.NotNil(t, results.ownedIndex)
 	execution := results.RuleSetExecution
 	assert.NotNil(t, execution)
 	assert.NotNil(t, execution.DrDocument)
@@ -2365,8 +2415,25 @@ func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
 	assert.Nil(t, results.ModifiedSpec)
 	assert.Nil(t, results.ownedDocument)
 	assert.Nil(t, results.unresolvedDoc)
-	assert.False(t, results.ownsIndex)
+	assert.Nil(t, results.ownedIndex)
 	assert.Nil(t, execution.DrDocument)
+	assert.Nil(t, execution.IndexResolved)
+	assert.Nil(t, execution.IndexUnresolved)
+	assert.Nil(t, execution.CanonicalDocument)
+}
+
+func TestRuleSetExecutionResultRelease_Nil(t *testing.T) {
+	var results *RuleSetExecutionResult
+	assert.NotPanics(t, func() {
+		results.Release()
+	})
+}
+
+func TestRuleSetExecutionResultReleaseOwnedResources_Nil(t *testing.T) {
+	var results *RuleSetExecutionResult
+	assert.NotPanics(t, func() {
+		results.ReleaseOwnedResources()
+	})
 }
 
 func TestRuleSetExecutionResultRelease_PreservesCallerOwnedDocument(t *testing.T) {
@@ -2386,7 +2453,7 @@ func TestRuleSetExecutionResultRelease_PreservesCallerOwnedDocument(t *testing.T
 	assert.NotNil(t, results.SpecInfo)
 	assert.Nil(t, results.ownedDocument)
 	assert.NotNil(t, results.unresolvedDoc)
-	assert.False(t, results.ownsIndex)
+	assert.Nil(t, results.ownedIndex)
 
 	results.Release()
 
@@ -2395,6 +2462,112 @@ func TestRuleSetExecutionResultRelease_PreservesCallerOwnedDocument(t *testing.T
 	assert.NoError(t, buildErr)
 	assert.NotNil(t, model)
 	assert.NotNil(t, model.Index)
+}
+
+func TestRuleSetExecutionResultRelease_SuppliedDocumentRebuildOwnership(t *testing.T) {
+	burgershop, err := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	assert.NoError(t, err)
+
+	tests := []struct {
+		name                    string
+		suppliedDocumentContext bool
+		wantOwnedDocument       bool
+		wantOwnedIndex          bool
+	}{
+		{
+			name:              "rebuilds_supplied_document_when_nested_context_is_requested",
+			wantOwnedDocument: true,
+			wantOwnedIndex:    true,
+		},
+		{
+			name:                    "preserves_supplied_document_when_nested_context_is_already_enabled",
+			suppliedDocumentContext: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			docConfig := datamodel.NewDocumentConfiguration()
+			docConfig.ResolveNestedRefsWithDocumentContext = tt.suppliedDocumentContext
+			doc, err := libopenapi.NewDocumentWithConfiguration(burgershop, docConfig)
+			assert.NoError(t, err)
+
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet:  rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+				Document: doc,
+			}, &ExecutionOptions{NestedRefsDocContext: true})
+
+			assert.NotNil(t, results)
+			assert.NotNil(t, results.Index)
+			if tt.wantOwnedDocument {
+				assert.NotNil(t, results.ownedDocument)
+			} else {
+				assert.Nil(t, results.ownedDocument)
+			}
+			if tt.wantOwnedIndex {
+				assert.NotNil(t, results.ownedIndex)
+			} else {
+				assert.Nil(t, results.ownedIndex)
+			}
+
+			results.Release()
+
+			assert.NotNil(t, doc.GetSpecInfo())
+			model, buildErr := doc.BuildV3Model()
+			assert.NoError(t, buildErr)
+			assert.NotNil(t, model)
+			assert.NotNil(t, model.Index)
+		})
+	}
+}
+
+func TestApplyRulesToRuleSetWithOptions_InvalidSpecDocumentCreationError(t *testing.T) {
+	results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+		RuleSet: rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+		Spec:    []byte("openapi: ["),
+	}, nil)
+
+	assert.NotNil(t, results)
+	assert.Len(t, results.Errors, 1)
+	assert.Error(t, results.Errors[0])
+}
+
+func TestApplyRulesToRuleSetWithOptions_SuppliedDocumentRebuildErrors(t *testing.T) {
+	tests := []struct {
+		name                    string
+		suppliedDocumentContext bool
+	}{
+		{
+			name: "resolved_rebuild_error",
+		},
+		{
+			name:                    "unresolved_rebuild_error",
+			suppliedDocumentContext: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			specBytes := []byte("openapi: [")
+			doc := &stubDocument{
+				config: &datamodel.DocumentConfiguration{
+					ResolveNestedRefsWithDocumentContext: tt.suppliedDocumentContext,
+				},
+				specInfo: &datamodel.SpecInfo{
+					SpecBytes: &specBytes,
+				},
+			}
+
+			results := ApplyRulesToRuleSetWithOptions(&RuleSetExecution{
+				RuleSet:  rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+				Document: doc,
+			}, &ExecutionOptions{NestedRefsDocContext: true})
+
+			assert.NotNil(t, results)
+			assert.Len(t, results.Errors, 1)
+			assert.Error(t, results.Errors[0])
+		})
+	}
 }
 
 func TestRuleSetExecutionResultRelease_IsIdempotent(t *testing.T) {
@@ -2413,6 +2586,26 @@ func TestRuleSetExecutionResultRelease_IsIdempotent(t *testing.T) {
 	assert.Nil(t, results.Index)
 	assert.Nil(t, results.ownedDocument)
 	assert.Nil(t, results.unresolvedDoc)
+	assert.Nil(t, results.ownedIndex)
+}
+
+func TestRuleSetExecutionResultReleaseOwnedResources_IsIdempotent(t *testing.T) {
+	burgershop, err := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+	assert.NoError(t, err)
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+		Spec:    burgershop,
+	})
+
+	assert.NotPanics(t, func() {
+		results.ReleaseOwnedResources()
+		results.ReleaseOwnedResources()
+	})
+	assert.Nil(t, results.Index)
+	assert.Nil(t, results.ownedDocument)
+	assert.Nil(t, results.unresolvedDoc)
+	assert.Nil(t, results.ownedIndex)
 }
 
 func Benchmark_K8sSpecAgainstDefaultRuleSet(b *testing.B) {
