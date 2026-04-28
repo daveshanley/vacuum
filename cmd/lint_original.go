@@ -62,6 +62,7 @@ func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, exe
 	}
 
 	result := motor.ApplyRulesToRuleSetWithOptions(exec, executionOptions)
+	defer result.ReleaseOwnedResources()
 
 	// If original spec has parse errors, return nil — safe default means all new violations get reported
 	if len(result.Errors) > 0 {

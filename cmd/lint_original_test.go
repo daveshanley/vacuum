@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,6 +53,15 @@ func registerPersistentFlags(cmd *cobra.Command) {
 }
 
 // --- Lint command tests ---
+
+func TestLintOriginalSpec_ReturnsResults(t *testing.T) {
+	results, err := LintOriginalSpec("../model/test_files/burgershop.openapi.yaml", &motor.RuleSetExecution{
+		RuleSet: rulesets.BuildDefaultRuleSets().GenerateOpenAPIRecommendedRuleSet(),
+	}, nil)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, results)
+}
 
 func TestLintCommand_OriginalSameSpec_SuppressesAll(t *testing.T) {
 	// Using the same file as both original and new should suppress all lint violations

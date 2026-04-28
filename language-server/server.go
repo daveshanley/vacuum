@@ -334,6 +334,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 
 	go func() {
 		result := motor.ApplyRulesToRuleSetWithOptions(ruleExec, s.executionOptions)
+		defer result.ReleaseOwnedResources()
 
 		ignoreOptions := utils.IgnoreMatcherOptions{
 			SpecBytes: []byte(content),
