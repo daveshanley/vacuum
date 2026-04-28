@@ -4,6 +4,8 @@
 package utils
 
 import (
+	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -49,6 +51,38 @@ func extractPath(path string, paths []string) string {
 		return path
 	}
 	return ""
+}
+
+// extractIdentity returns the most stable identity available for a violation.
+// Result paths can vary for resolved external references because the same source
+// schema may be reachable through multiple root-document reference paths. Source
+// origin is stable for that case, so prefer file/line/column when it is known.
+func extractIdentity(result model.RuleFunctionResult) string {
+	if result.Origin != nil {
+		location := normalizeOriginLocation(result.Origin.AbsoluteLocation)
+		line := result.Origin.Line
+		column := result.Origin.Column
+		if line == 0 && result.StartNode != nil {
+			line = result.StartNode.Line
+		}
+		if column == 0 && result.StartNode != nil {
+			column = result.StartNode.Column
+		}
+		if location != "" && line > 0 {
+			return fmt.Sprintf("origin:%s:%d:%d", location, line, column)
+		}
+	}
+	return "path:" + extractPath(result.Path, result.Paths)
+}
+
+func normalizeOriginLocation(location string) string {
+	if location == "" || strings.Contains(location, "://") {
+		return location
+	}
+	if abs, err := filepath.Abs(location); err == nil {
+		return filepath.Clean(abs)
+	}
+	return filepath.Clean(location)
 }
 
 // diffCore builds a count map from original keys and returns which new indices survive filtering.
@@ -107,7 +141,7 @@ func DiffViolationsValues(original, new []model.RuleFunctionResult) ([]model.Rul
 	for i := range original {
 		originalKeys[i] = violationKey{
 			RuleId:  original[i].RuleId,
-			Path:    extractPath(original[i].Path, original[i].Paths),
+			Path:    extractIdentity(original[i]),
 			Message: original[i].Message,
 		}
 	}
@@ -116,7 +150,7 @@ func DiffViolationsValues(original, new []model.RuleFunctionResult) ([]model.Rul
 	for i := range new {
 		newKeys[i] = violationKey{
 			RuleId:  new[i].RuleId,
-			Path:    extractPath(new[i].Path, new[i].Paths),
+			Path:    extractIdentity(new[i]),
 			Message: new[i].Message,
 		}
 	}
@@ -138,7 +172,7 @@ func DiffViolationsMixed(original []model.RuleFunctionResult, new []*model.RuleF
 	for i := range original {
 		originalKeys[i] = violationKey{
 			RuleId:  original[i].RuleId,
-			Path:    extractPath(original[i].Path, original[i].Paths),
+			Path:    extractIdentity(original[i]),
 			Message: original[i].Message,
 		}
 	}
@@ -150,7 +184,7 @@ func DiffViolationsMixed(original []model.RuleFunctionResult, new []*model.RuleF
 		}
 		newKeys[i] = violationKey{
 			RuleId:  new[i].RuleId,
-			Path:    extractPath(new[i].Path, new[i].Paths),
+			Path:    extractIdentity(*new[i]),
 			Message: new[i].Message,
 		}
 	}

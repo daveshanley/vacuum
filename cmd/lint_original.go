@@ -26,8 +26,10 @@ func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, exe
 	// Resolve base path for original spec
 	absPath, pathErr := filepath.Abs(originalPath)
 	var resolvedBase string
+	resolvedSpecPath := originalPath
 	if pathErr == nil {
 		resolvedBase = filepath.Dir(absPath)
+		resolvedSpecPath = absPath
 	}
 
 	// Clone the template execution with swapped spec-specific fields.
@@ -35,7 +37,7 @@ func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, exe
 	exec := &motor.RuleSetExecution{
 		RuleSet:                         template.RuleSet,
 		Spec:                            originalBytes,
-		SpecFileName:                    originalPath,
+		SpecFileName:                    resolvedSpecPath,
 		CustomFunctions:                 template.CustomFunctions,
 		AutoFixFunctions:                nil, // don't fix the original
 		SilenceLogs:                     true,
