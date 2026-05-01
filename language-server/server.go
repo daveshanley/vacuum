@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/loader"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,6 +58,7 @@ type ServerState struct {
 	documentStore   *DocumentStore
 	lintRequest     *utils.LintFileRequest
 	rulesetSelector RulesetSelector
+	httpClient      *http.Client
 
 	// Configuration layers (in order of increasing priority)
 	baseConfig    *LSPConfig // From command-line flags (immutable after init)
@@ -83,7 +85,7 @@ type ServerState struct {
 	notifyMu   sync.RWMutex
 }
 
-func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
+func NewServer(version string, lintRequest *utils.LintFileRequest) (*ServerState, error) {
 	handler := protocol.Handler{}
 	server := glspserv.NewServer(&handler, serverName, true)
 
@@ -109,11 +111,20 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	if lintRequest.ExtensionRefs {
 		baseConfig.ExtensionRefs = boolPtr(true)
 	}
+	var httpClient *http.Client
+	var err error
+	if utils.ShouldUseCustomHTTPClient(lintRequest.HTTPClientConfig) {
+		httpClient, err = utils.CreateCustomHTTPClient(lintRequest.HTTPClientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+	}
 
 	state := &ServerState{
 		server:        server,
 		lintRequest:   lintRequest,
 		documentStore: newDocumentStore(),
+		httpClient:    httpClient,
 		logger:        logger,
 		baseConfig:    baseConfig,
 	}
@@ -249,7 +260,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 		return nil
 	}
 
-	return state
+	return state, nil
 }
 
 // NewServerWithRulesetSelector creates a new instance of the language server with
@@ -264,10 +275,13 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 // Want to enable OWASP rules for only a specific server?
 // Check the value of servers[0].url and return the rules including the OWASP ruleset
 // for your specific super secure sever url.
-func NewServerWithRulesetSelector(version string, lintRequest *utils.LintFileRequest, selector RulesetSelector) *ServerState {
-	state := NewServer(version, lintRequest)
+func NewServerWithRulesetSelector(version string, lintRequest *utils.LintFileRequest, selector RulesetSelector) (*ServerState, error) {
+	state, err := NewServer(version, lintRequest)
+	if err != nil {
+		return nil, err
+	}
 	state.rulesetSelector = selector
-	return state
+	return state, nil
 }
 
 func (s *ServerState) Run() error {
@@ -288,7 +302,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	var content []byte
 	if s.lintRequest.MainSpecPath != "" {
 		specFileName = s.lintRequest.MainSpecPath
-		reportLoadResult, _ := loader.LoadFileAsReportOrSpecWithClient(specFileName, nil)
+		reportLoadResult, _ := loader.LoadFileAsReportOrSpecWithClient(specFileName, s.httpClient)
 		content = reportLoadResult.SpecBytes
 	} else {
 		specFileName = currentPath

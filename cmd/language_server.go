@@ -127,7 +127,11 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				HTTPClientConfig:         httpClientConfig,
 			}
 
-			return languageserver.NewServer(GetVersion(), &lfr).Run()
+			server, err := languageserver.NewServer(GetVersion(), &lfr)
+			if err != nil {
+				return err
+			}
+			return server.Run()
 		},
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
