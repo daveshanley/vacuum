@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
@@ -31,6 +32,16 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			handler := logging.NewBufferedLogHandler(bufferedLogger)
 			logger := slog.New(handler)
 
+			var mainSpecPath string
+			if len(args) == 0 {
+				mainSpecPath = ""
+			} else {
+				var err error
+				mainSpecPath, err = filepath.Abs(args[0])
+				if err != nil {
+					return fmt.Errorf("failed to resolve path: %w", err)
+				}
+			}
 			// extract flags
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 			functionsFlag, _ := cmd.Flags().GetString("functions")
@@ -99,6 +110,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			}
 
 			lfr := utils.LintFileRequest{
+				MainSpecPath:             mainSpecPath,
 				BaseFlag:                 baseFlag,
 				Remote:                   remoteFlag,
 				SkipCheckFlag:            skipCheckFlag,
@@ -115,7 +127,11 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				HTTPClientConfig:         httpClientConfig,
 			}
 
-			return languageserver.NewServer(GetVersion(), &lfr).Run()
+			server, err := languageserver.NewServer(GetVersion(), &lfr)
+			if err != nil {
+				return err
+			}
+			return server.Run()
 		},
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")

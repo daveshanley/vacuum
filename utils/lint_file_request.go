@@ -11,6 +11,7 @@ import (
 )
 
 type LintFileRequest struct {
+	MainSpecPath             string
 	FileName                 string
 	BaseFlag                 string
 	MultiFile                bool

@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/loader"
 	"log/slog"
 	"net/http"
 	"time"
@@ -116,7 +117,7 @@ func GetDashboardCommand() *cobra.Command {
 				}
 			}
 
-			reportOrSpec, err := LoadFileAsReportOrSpecWithClient(args[0], httpClient)
+			reportOrSpec, err := loader.LoadFileAsReportOrSpecWithClient(args[0], httpClient)
 			if err != nil {
 				message := fmt.Sprintf("Failed to load file: %v", err)
 				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)

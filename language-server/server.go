@@ -17,7 +17,9 @@ package languageserver
 
 import (
 	"fmt"
+	"github.com/daveshanley/vacuum/loader"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +58,7 @@ type ServerState struct {
 	documentStore   *DocumentStore
 	lintRequest     *utils.LintFileRequest
 	rulesetSelector RulesetSelector
+	httpClient      *http.Client
 
 	// Configuration layers (in order of increasing priority)
 	baseConfig    *LSPConfig // From command-line flags (immutable after init)
@@ -82,7 +85,7 @@ type ServerState struct {
 	notifyMu   sync.RWMutex
 }
 
-func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
+func NewServer(version string, lintRequest *utils.LintFileRequest) (*ServerState, error) {
 	handler := protocol.Handler{}
 	server := glspserv.NewServer(&handler, serverName, true)
 
@@ -108,11 +111,20 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 	if lintRequest.ExtensionRefs {
 		baseConfig.ExtensionRefs = boolPtr(true)
 	}
+	var httpClient *http.Client
+	var err error
+	if utils.ShouldUseCustomHTTPClient(lintRequest.HTTPClientConfig) {
+		httpClient, err = utils.CreateCustomHTTPClient(lintRequest.HTTPClientConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create HTTP client: %w", err)
+		}
+	}
 
 	state := &ServerState{
 		server:        server,
 		lintRequest:   lintRequest,
 		documentStore: newDocumentStore(),
+		httpClient:    httpClient,
 		logger:        logger,
 		baseConfig:    baseConfig,
 	}
@@ -248,7 +260,7 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 		return nil
 	}
 
-	return state
+	return state, nil
 }
 
 // NewServerWithRulesetSelector creates a new instance of the language server with
@@ -263,10 +275,13 @@ func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState 
 // Want to enable OWASP rules for only a specific server?
 // Check the value of servers[0].url and return the rules including the OWASP ruleset
 // for your specific super secure sever url.
-func NewServerWithRulesetSelector(version string, lintRequest *utils.LintFileRequest, selector RulesetSelector) *ServerState {
-	state := NewServer(version, lintRequest)
+func NewServerWithRulesetSelector(version string, lintRequest *utils.LintFileRequest, selector RulesetSelector) (*ServerState, error) {
+	state, err := NewServer(version, lintRequest)
+	if err != nil {
+		return nil, err
+	}
 	state.rulesetSelector = selector
-	return state
+	return state, nil
 }
 
 func (s *ServerState) Run() error {
@@ -280,11 +295,21 @@ func (s *ServerState) Run() error {
 func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	// Copy document data while holding read lock to avoid data race
 	doc.mu.RLock()
-	content := doc.Content
 	uri := doc.URI
-	doc.mu.RUnlock()
+	currentPath := strings.TrimPrefix(uri, "file://")
 
-	specFileName := strings.TrimPrefix(uri, "file://")
+	var specFileName string
+	var content []byte
+	if s.lintRequest.MainSpecPath != "" {
+		specFileName = s.lintRequest.MainSpecPath
+		reportLoadResult, _ := loader.LoadFileAsReportOrSpecWithClient(specFileName, s.httpClient)
+		content = reportLoadResult.SpecBytes
+	} else {
+		specFileName = currentPath
+		content = []byte(doc.Content)
+	}
+
+	doc.mu.RUnlock()
 
 	// Copy config data while holding config lock to avoid data race
 	s.configMu.RLock()
@@ -299,7 +324,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	// Build the rule execution config with copied values
 	ruleExec := &motor.RuleSetExecution{
 		RuleSet:                         s.lintRequest.SelectedRS,
-		Spec:                            []byte(content),
+		Spec:                            content,
 		SpecFileName:                    specFileName,
 		Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
 		NodeLookupTimeout:               time.Duration(s.lintRequest.LookupTimeoutFlag) * time.Millisecond,
@@ -337,7 +362,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 		}
 		filteredResults := utils.FilterIgnoredResultsWithOptions(result.Results, ignoredResults, ignoreOptions)
 		result.Results = filteredResults
-		diagnostics := ConvertResultsIntoDiagnostics(result)
+		diagnostics := ConvertResultsIntoDiagnostics(result, s.lintRequest.MainSpecPath, currentPath)
 
 		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
 			URI:         uri,
@@ -346,12 +371,19 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	}()
 }
 
-func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
+func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult, mainSpecPath string, currentPath string) []protocol.Diagnostic {
 	diagnostics := []protocol.Diagnostic{}
 
 	for _, vacuumResult := range result.Results {
-		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
-
+		var source string
+		if vacuumResult.Origin == nil {
+			source = mainSpecPath
+		} else {
+			source = vacuumResult.Origin.AbsoluteLocation
+		}
+		if mainSpecPath == "" || filepath.Clean(source) == filepath.Clean(currentPath) {
+			diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
+		}
 	}
 	return diagnostics
 }
