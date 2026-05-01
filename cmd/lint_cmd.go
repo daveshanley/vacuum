@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/loader"
 	"log/slog"
 	"net/http"
 	"os"
@@ -138,7 +139,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	// try to load the file as either a report or spec (supports URLs)
-	reportOrSpec, err := LoadFileAsReportOrSpecWithClient(fileName, httpClient)
+	reportOrSpec, err := loader.LoadFileAsReportOrSpecWithClient(fileName, httpClient)
 	if err != nil {
 		if !flags.SilentFlag {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
