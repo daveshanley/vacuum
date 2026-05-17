@@ -3582,7 +3582,8 @@ paths: {}
 	assert.True(t, recorder.documentRemoteURLHandlerSet)
 	assert.True(t, recorder.documentExtractSequentially)
 	assert.True(t, recorder.documentSkipJSONConversion)
-	assert.True(t, recorder.indexAllowRemoteLookup)
+	assert.False(t, recorder.documentAllowRemoteReference)
+	assert.False(t, recorder.indexAllowRemoteLookup)
 	assert.False(t, recorder.indexAllowFileLookup)
 }
 
