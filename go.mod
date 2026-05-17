@@ -97,4 +97,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/tliron/kutil => github.com/tliron/go-kutil v0.3.26
+replace github.com/tliron/kutil => github.com/tliron/go-kutil v0.3.27
