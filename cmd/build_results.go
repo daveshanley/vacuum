@@ -37,6 +37,7 @@ type TurboFlags struct {
 type ExecutionFlags struct {
 	ResolveAllRefs       bool
 	NestedRefsDocContext bool
+	SpecFilePath         string
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -78,7 +79,7 @@ func BuildResultsWithDocCheckSkipAndExecutionFlags(
 	ignoredItems model.IgnoredItems,
 	turboFlags *TurboFlags,
 	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	if executionFlags == nil || (!executionFlags.ResolveAllRefs && !executionFlags.NestedRefsDocContext) {
+	if executionFlags == nil || (!executionFlags.ResolveAllRefs && !executionFlags.NestedRefsDocContext && executionFlags.SpecFilePath == "") {
 		return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
 	}
 
@@ -163,9 +164,18 @@ func executeBuildResults(
 	ignoredItems model.IgnoredItems,
 	turboFlags *TurboFlags,
 	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
+	var resolvedSpecPath string
+	if executionFlags != nil && executionFlags.SpecFilePath != "" {
+		var err error
+		resolvedSpecPath, err = ResolveSpecPathForExecution(executionFlags.SpecFilePath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to resolve spec path: %w", err)
+		}
+	}
 	exec := &motor.RuleSetExecution{
 		RuleSet:           selectedRS,
 		Spec:              specBytes,
+		SpecFileName:      resolvedSpecPath,
 		CustomFunctions:   customFunctions,
 		Base:              base,
 		SkipDocumentCheck: skipCheck,

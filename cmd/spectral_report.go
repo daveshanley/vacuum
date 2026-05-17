@@ -291,11 +291,20 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 						return fmt.Errorf("failed to resolve base path: %w", baseErr)
 					}
 				}
+				resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(specFile)
+				if specPathErr != nil {
+					tui.RenderErrorString("Failed to resolve spec path for '%s': %s", specFile, specPathErr.Error())
+					if isMultiFile {
+						continue
+					}
+					return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+				}
 
 				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 				ruleset := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 					RuleSet:                         selectedRS,
 					Spec:                            specBytes,
+					SpecFileName:                    resolvedSpecPath,
 					CustomFunctions:                 customFunctions,
 					SilenceLogs:                     true,
 					Base:                            resolvedBase,
