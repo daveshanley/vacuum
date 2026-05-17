@@ -301,11 +301,20 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 						return fmt.Errorf("failed to resolve base path: %w", baseErr)
 					}
 				}
+				resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(specFile)
+				if specPathErr != nil {
+					tui.RenderErrorString("Failed to resolve spec path for '%s': %s", specFile, specPathErr.Error())
+					if isMultiFile {
+						continue
+					}
+					return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+				}
 
 				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 				ruleset := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
 					RuleSet:                         selectedRS,
 					Spec:                            specBytes,
+					SpecFileName:                    resolvedSpecPath,
 					CustomFunctions:                 customFunctions,
 					SilenceLogs:                     true,
 					Base:                            resolvedBase,
@@ -341,6 +350,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				// Apply change-based filtering if --changes or --original is specified
 				// Note: change filtering only makes sense for single-file mode
 				var documentChanges *wcModel.DocumentChanges
+				var filtered bool
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
@@ -351,6 +361,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 							}
 						} else {
 							resultSet.Results, _ = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+							filtered = true
 						}
 
 						// Still load document changes for change violation injection
@@ -375,6 +386,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 						if documentChanges != nil {
 							changeFilter := utils.NewChangeFilter(documentChanges, ruleset.RuleSetExecution.DrDocument)
 							resultSet.Results = changeFilter.FilterResults(resultSet.Results)
+							filtered = true
 						}
 					}
 
@@ -389,7 +401,12 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 								resultSet.Results = append(resultSet.Results, v)
 							}
 						}
+						filtered = true
 					}
+				}
+				if filtered {
+					resultSet.ResetCounts()
+					resultSet.ResetCategoryCache()
 				}
 
 				duration := time.Since(start)

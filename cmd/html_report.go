@@ -218,17 +218,13 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 
 					turboFlag, _ := cmd.Flags().GetBool("turbo")
 					turboFlags := &TurboFlags{TurboMode: turboFlag}
-					if resolveAllRefsFlag || nestedRefsDocContextFlag {
-						resultSet, ruleset, err = BuildResultsWithDocCheckSkipAndExecutionFlags(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-							resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
-							turboFlags, &ExecutionFlags{
-								ResolveAllRefs:       resolveAllRefsFlag,
-								NestedRefsDocContext: nestedRefsDocContextFlag,
-							})
-					} else {
-						resultSet, ruleset, err = BuildResultsWithDocCheckSkip(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
-							resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
-					}
+					resultSet, ruleset, err = BuildResultsWithDocCheckSkipAndExecutionFlags(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
+						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
+						turboFlags, &ExecutionFlags{
+							ResolveAllRefs:       resolveAllRefsFlag,
+							NestedRefsDocContext: nestedRefsDocContextFlag,
+							SpecFilePath:         specFile,
+						})
 					if err != nil {
 						tui.RenderError(err)
 						if isMultiFile {

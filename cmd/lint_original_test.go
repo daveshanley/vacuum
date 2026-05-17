@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -349,6 +351,36 @@ func TestSpectralReport_OriginalSameSpec(t *testing.T) {
 	assert.True(t, len(data) > 0)
 }
 
+func TestSpectralReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
+	spec := "../model/test_files/api-main.yaml"
+	ruleset := "../model/test_files/issue_839_ruleset.yaml"
+	reportFile := filepath.Join(t.TempDir(), "spectral-issue-839.json")
+
+	cmd := GetSpectralReportCommand()
+	registerPersistentFlags(cmd)
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"--original", spec,
+		"-r", ruleset,
+		"--no-style",
+		"--no-pretty",
+		spec,
+		reportFile,
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	data, readErr := os.ReadFile(reportFile)
+	require.NoError(t, readErr)
+
+	var spectralResults []map[string]any
+	require.NoError(t, json.Unmarshal(data, &spectralResults))
+	assert.Empty(t, spectralResults)
+}
+
 func TestSpectralReport_OriginalWithChangeViolations(t *testing.T) {
 	spec := "../model/test_files/petstorev3.json"
 	reportFile := filepath.Join(t.TempDir(), "spectral-changes-test.json")
@@ -388,6 +420,51 @@ func TestVacuumReport_OriginalSameSpec(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func TestVacuumReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
+	spec := "../model/test_files/api-main.yaml"
+	ruleset := "../model/test_files/issue_839_ruleset.yaml"
+	reportPrefix := filepath.Join(t.TempDir(), "vacuum-issue-839")
+
+	cmd := GetVacuumReportCommand()
+	registerPersistentFlags(cmd)
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"--original", spec,
+		"-r", ruleset,
+		"--no-style",
+		"--no-pretty",
+		spec,
+		reportPrefix,
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	reportFiles, globErr := filepath.Glob(reportPrefix + "-*.json")
+	require.NoError(t, globErr)
+	require.Len(t, reportFiles, 1)
+
+	data, readErr := os.ReadFile(reportFiles[0])
+	require.NoError(t, readErr)
+
+	var report vacuum_report.VacuumReport
+	require.NoError(t, json.Unmarshal(data, &report))
+	require.NotNil(t, report.ResultSet)
+	require.NotNil(t, report.Statistics)
+
+	assert.Empty(t, report.ResultSet.Results)
+	assert.Equal(t, 0, report.ResultSet.ErrorCount)
+	assert.Equal(t, 0, report.ResultSet.WarnCount)
+	assert.Equal(t, 0, report.ResultSet.InfoCount)
+	assert.Equal(t, 0, report.ResultSet.HintCount)
+	assert.Equal(t, 0, report.Statistics.TotalErrors)
+	assert.Equal(t, 0, report.Statistics.TotalWarnings)
+	assert.Equal(t, 0, report.Statistics.TotalInfo)
+	assert.Equal(t, 0, report.Statistics.TotalHints)
 }
 
 func TestVacuumReport_OriginalWithErrorOnBreaking(t *testing.T) {
