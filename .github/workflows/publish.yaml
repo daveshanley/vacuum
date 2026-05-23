@@ -55,45 +55,31 @@ jobs:
   publish_npm:
     name: Publish to NPM
     needs: release_and_brew
+    # npm trusted publishing currently requires a GitHub-hosted runner.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 50
-          fetch-tags: true
-          show-progress: true
-
-      - name: Set version
-        id: vars
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+        uses: actions/checkout@v6.0.2
 
       - name: Check version
         run: echo "Version ${{ github.event.client_payload.new-tag }}"
 
-      - name: Use Node.js 16
-        uses: actions/setup-node@v1
+      - name: Use Node.js 24
+        uses: actions/setup-node@v6.4.0
         with:
-          node-version: 16
+          node-version: 24
           registry-url: https://registry.npmjs.org/
-
-      - name: Setup Git user
-        run: |
-          git config --global user.name "Github Bot"
-          git config --global user.email "github-bot@quobix.com"
-      - name: Create .npmrc file
-        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          package-manager-cache: false
 
       - name: Bump NPM version
         run: npm --no-git-tag-version --allow-same-version version ${{ github.event.client_payload.new-tag }}
 
       - name: NPM publish
         run: npm publish --access public
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
 
   push_to_registries:
