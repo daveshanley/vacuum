@@ -348,7 +348,12 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
 							}
 						} else {
-							resultSet.Results, _ = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+							resultSet.Results, _ = utils.DiffViolationsMixedWithOriginBases(
+								originalResults,
+								resultSet.Results,
+								originalFlag,
+								specFile,
+							)
 						}
 
 						// Still load document changes for change violation injection

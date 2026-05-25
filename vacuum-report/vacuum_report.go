@@ -23,6 +23,7 @@ type VacuumReport struct {
 	SpecInfo       *datamodel.SpecInfo              `json:"specInfo" yaml:"specInfo"`
 	Statistics     *reports.ReportStatistics        `json:"statistics" yaml:"statistics"`
 	ResultSet      *model.RuleResultSet             `json:"resultSet" yaml:"resultSet"`
+	Errors         *ReportErrors                    `json:"errors,omitempty" yaml:"errors,omitempty"`
 	Rules          map[string]*model.Rule           `json:"rules,omitempty" yaml:"rules,omitempty"` // Store rule definitions for custom rules
 	DocumentConfig *datamodel.DocumentConfiguration `json:"-" yaml:"-"`
 	Execution      *motor.RuleSetExecution          `json:"-" yaml:"-"`

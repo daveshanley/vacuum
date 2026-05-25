@@ -1,12 +1,14 @@
 package motor
 
 import (
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -149,6 +151,599 @@ func collapseAliasedResults(results []model.RuleFunctionResult, cache *resultPat
 	}
 
 	return collapsed
+}
+
+func completeAliasedResultPathsFromGiven(results []model.RuleFunctionResult, root *yaml.Node, rolodex *index.Rolodex, expandedAliases map[string][]string) {
+	if len(results) == 0 || root == nil || !needsAliasedResultPathCompletion(results) {
+		return
+	}
+
+	candidateCache := make(map[string]*resultPathCandidateIndex)
+	givenPathCache := make(map[*model.Rule][]string)
+	originCache := make(map[*yaml.Node]*index.NodeOrigin)
+
+	for i := range results {
+		result := &results[i]
+		if !shouldCompleteAliasedResultPaths(result) {
+			continue
+		}
+
+		var aliasPaths []string
+		givenPaths, ok := givenPathCache[result.Rule]
+		if !ok {
+			givenPaths, _ = resolveRuleGivenPaths(result.Rule, expandedAliases)
+			givenPathCache[result.Rule] = givenPaths
+		}
+		for _, givenPath := range givenPaths {
+			candidateIndex, ok := candidateCache[givenPath]
+			if !ok {
+				candidates, truncated := collectResultPathCandidates(root, givenPath)
+				if truncated {
+					candidateCache[givenPath] = nil
+					continue
+				}
+				candidateIndex = newResultPathCandidateIndex(candidates)
+				candidateCache[givenPath] = candidateIndex
+			}
+			if candidateIndex == nil {
+				continue
+			}
+			aliasPaths = append(aliasPaths, candidateIndex.matchingPaths(result, rolodex, originCache)...)
+		}
+
+		mergeResultPathCandidates(result, aliasPaths)
+	}
+}
+
+func needsAliasedResultPathCompletion(results []model.RuleFunctionResult) bool {
+	for i := range results {
+		if shouldCompleteAliasedResultPaths(&results[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldCompleteAliasedResultPaths(result *model.RuleFunctionResult) bool {
+	if result == nil || result.Rule == nil || result.StartNode == nil {
+		return false
+	}
+	if len(result.Paths) <= 1 && !resultPathNeedsReconciliation(result) {
+		return false
+	}
+	_, ok := aliasedResultKey(result)
+	return ok
+}
+
+func resultGivenPaths(rule *model.Rule) []string {
+	if rule == nil {
+		return nil
+	}
+
+	switch given := rule.Given.(type) {
+	case string:
+		return []string{given}
+	case []string:
+		return given
+	case []interface{}:
+		paths := make([]string, 0, len(given))
+		for _, item := range given {
+			if path, ok := item.(string); ok {
+				paths = append(paths, path)
+			}
+		}
+		return paths
+	default:
+		return nil
+	}
+}
+
+type resultPathCandidate struct {
+	path string
+	node *yaml.Node
+}
+
+type resultPathCandidateIndex struct {
+	byNode     map[*yaml.Node][]resultPathCandidate
+	byPosition map[resultPathPosition][]resultPathCandidate
+}
+
+func newResultPathCandidateIndex(candidates []resultPathCandidate) *resultPathCandidateIndex {
+	candidateIndex := &resultPathCandidateIndex{
+		byNode:     make(map[*yaml.Node][]resultPathCandidate, len(candidates)),
+		byPosition: make(map[resultPathPosition][]resultPathCandidate, len(candidates)),
+	}
+	for _, candidate := range candidates {
+		node := resultPathNodeAlias(candidate.node)
+		if node == nil {
+			continue
+		}
+		candidate.node = node
+		candidateIndex.byNode[node] = append(candidateIndex.byNode[node], candidate)
+		if node.Line > 0 && node.Column > 0 {
+			position := resultPathPosition{line: node.Line, column: node.Column}
+			candidateIndex.byPosition[position] = append(candidateIndex.byPosition[position], candidate)
+		}
+	}
+	return candidateIndex
+}
+
+func (c *resultPathCandidateIndex) matchingPaths(result *model.RuleFunctionResult, rolodex *index.Rolodex, originCache map[*yaml.Node]*index.NodeOrigin) []string {
+	if c == nil || result == nil {
+		return nil
+	}
+
+	var paths []string
+	seen := make(map[string]struct{})
+	addCandidate := func(candidate resultPathCandidate) {
+		if candidate.path == "" {
+			return
+		}
+		if _, ok := seen[candidate.path]; ok {
+			return
+		}
+		if !resultPathCandidateMatchesResult(candidate.node, result, rolodex, originCache) {
+			return
+		}
+		seen[candidate.path] = struct{}{}
+		paths = append(paths, candidate.path)
+	}
+
+	if startNode := resultPathNodeAlias(result.StartNode); startNode != nil {
+		for _, candidate := range c.byNode[startNode] {
+			addCandidate(candidate)
+		}
+	}
+	line, column := resultPathResultLineColumn(result)
+	if line > 0 && column > 0 {
+		for _, candidate := range c.byPosition[resultPathPosition{line: line, column: column}] {
+			addCandidate(candidate)
+		}
+	}
+	return paths
+}
+
+type resultPathStepKind int
+
+const (
+	resultPathStepName resultPathStepKind = iota
+	resultPathStepWildcard
+	resultPathStepIndex
+	resultPathStepUnion
+)
+
+type resultPathStep struct {
+	kind  resultPathStepKind
+	name  string
+	names []string
+	index int
+}
+
+// maxResultPathCandidates bounds optional alias-completion walks so broad
+// wildcard selectors cannot dominate rule execution.
+const maxResultPathCandidates = 65536
+
+func collectResultPathCandidates(root *yaml.Node, givenPath string) ([]resultPathCandidate, bool) {
+	steps, ok := parseResultPathSteps(givenPath)
+	if !ok {
+		return nil, false
+	}
+
+	root = resultPathNodeAlias(root)
+	if root != nil && root.Kind == yaml.DocumentNode && len(root.Content) == 1 {
+		root = resultPathNodeAlias(root.Content[0])
+	}
+	if root == nil {
+		return nil, false
+	}
+
+	candidates := make([]resultPathCandidate, 0, resultPathCandidateCapacityHint(steps))
+	if !walkResultPathCandidates(root, "$", steps, &candidates) {
+		return nil, true
+	}
+	return candidates, false
+}
+
+func resultPathCandidateCapacityHint(steps []resultPathStep) int {
+	hint := 8
+	for _, step := range steps {
+		multiplier := 1
+		switch step.kind {
+		case resultPathStepWildcard:
+			multiplier = 8
+		case resultPathStepUnion:
+			if len(step.names) > 0 {
+				multiplier = len(step.names)
+			}
+		}
+		if hint > maxResultPathCandidates/multiplier {
+			return maxResultPathCandidates
+		}
+		hint *= multiplier
+	}
+	return hint
+}
+
+// parseResultPathSteps intentionally supports only deterministic child selectors
+// needed for result-path completion: names, quoted names, indexes, wildcards,
+// and simple key unions. Recursive descent, filters, and expressions are left
+// to the rule engine and skip this optional completion path.
+func parseResultPathSteps(path string) ([]resultPathStep, bool) {
+	if path == "" || path[0] != '$' {
+		return nil, false
+	}
+
+	steps := make([]resultPathStep, 0, 8)
+	for i := 1; i < len(path); {
+		switch path[i] {
+		case '.':
+			i++
+			if i >= len(path) || path[i] == '.' {
+				return nil, false
+			}
+			if path[i] == '*' {
+				steps = append(steps, resultPathStep{kind: resultPathStepWildcard})
+				i++
+				continue
+			}
+			start := i
+			for i < len(path) && path[i] != '.' && path[i] != '[' {
+				switch path[i] {
+				case '?', '(', ')', ',', ' ':
+					return nil, false
+				}
+				i++
+			}
+			if start == i {
+				return nil, false
+			}
+			steps = append(steps, resultPathStep{kind: resultPathStepName, name: path[start:i]})
+		case '[':
+			step, next, ok := parseResultPathBracketStep(path, i)
+			if !ok {
+				return nil, false
+			}
+			steps = append(steps, step)
+			i = next
+		default:
+			return nil, false
+		}
+	}
+	return steps, true
+}
+
+func parseResultPathBracketStep(path string, start int) (resultPathStep, int, bool) {
+	if start+2 >= len(path) {
+		return resultPathStep{}, 0, false
+	}
+	if path[start+1] == '*' && path[start+2] == ']' {
+		return resultPathStep{kind: resultPathStepWildcard}, start + 3, true
+	}
+	if path[start+1] == '\'' || path[start+1] == '"' {
+		return parseResultPathQuotedBracketStep(path, start)
+	}
+
+	i := start + 1
+	for i < len(path) && path[i] != ']' {
+		i++
+	}
+	if i >= len(path) || i == start+1 {
+		return resultPathStep{}, 0, false
+	}
+	token := path[start+1 : i]
+	if idx, err := strconv.Atoi(token); err == nil {
+		return resultPathStep{kind: resultPathStepIndex, index: idx}, i + 1, true
+	}
+	names := parseResultPathKeyUnion(token)
+	if len(names) == 0 {
+		return resultPathStep{}, 0, false
+	}
+	if len(names) == 1 {
+		return resultPathStep{kind: resultPathStepName, name: names[0]}, i + 1, true
+	}
+	return resultPathStep{kind: resultPathStepUnion, names: names}, i + 1, true
+}
+
+func parseResultPathQuotedBracketStep(path string, start int) (resultPathStep, int, bool) {
+	names := make([]string, 0, 2)
+	i := start + 1
+	for {
+		for i < len(path) && path[i] == ' ' {
+			i++
+		}
+		if i >= len(path) || (path[i] != '\'' && path[i] != '"') {
+			return resultPathStep{}, 0, false
+		}
+
+		quote := path[i]
+		i++
+		nameStart := i
+		for i < len(path) && path[i] != quote {
+			i++
+		}
+		if i >= len(path) || i == nameStart {
+			return resultPathStep{}, 0, false
+		}
+		names = append(names, path[nameStart:i])
+		i++
+
+		for i < len(path) && path[i] == ' ' {
+			i++
+		}
+		if i >= len(path) {
+			return resultPathStep{}, 0, false
+		}
+		if path[i] == ']' {
+			if len(names) == 1 {
+				return resultPathStep{kind: resultPathStepName, name: names[0]}, i + 1, true
+			}
+			return resultPathStep{kind: resultPathStepUnion, names: names}, i + 1, true
+		}
+		if path[i] != ',' {
+			return resultPathStep{}, 0, false
+		}
+		i++
+	}
+}
+
+func parseResultPathKeyUnion(token string) []string {
+	parts := strings.Split(token, ",")
+	names := make([]string, 0, len(parts))
+	for _, part := range parts {
+		name := strings.TrimSpace(part)
+		if name == "" || strings.ContainsAny(name, "[]'\"()") {
+			return nil
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func walkResultPathCandidates(node *yaml.Node, path string, steps []resultPathStep, candidates *[]resultPathCandidate) bool {
+	node = resultPathNodeAlias(node)
+	if node == nil {
+		return true
+	}
+	if len(*candidates) >= maxResultPathCandidates {
+		return false
+	}
+	if len(steps) == 0 {
+		*candidates = append(*candidates, resultPathCandidate{path: path, node: node})
+		return len(*candidates) < maxResultPathCandidates
+	}
+
+	step := steps[0]
+	remaining := steps[1:]
+	switch step.kind {
+	case resultPathStepName:
+		if node.Kind != yaml.MappingNode {
+			return true
+		}
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valueNode := node.Content[i+1]
+			if keyNode != nil && keyNode.Value == step.name {
+				childPath := appendCollectedResultPathSegment(path, step.name)
+				return walkResultPathCandidates(valueNode, childPath, remaining, candidates)
+			}
+		}
+	case resultPathStepWildcard:
+		switch node.Kind {
+		case yaml.MappingNode:
+			for i := 0; i+1 < len(node.Content); i += 2 {
+				keyNode := node.Content[i]
+				valueNode := node.Content[i+1]
+				if keyNode == nil {
+					continue
+				}
+				childPath := appendCollectedResultPathSegment(path, keyNode.Value)
+				if !walkResultPathCandidates(valueNode, childPath, remaining, candidates) {
+					return false
+				}
+			}
+		case yaml.SequenceNode:
+			for i, child := range node.Content {
+				childPath := appendResultPathIndex(path, i)
+				if !walkResultPathCandidates(child, childPath, remaining, candidates) {
+					return false
+				}
+			}
+		}
+	case resultPathStepIndex:
+		if node.Kind != yaml.SequenceNode || step.index < 0 || step.index >= len(node.Content) {
+			return true
+		}
+		childPath := appendResultPathIndex(path, step.index)
+		return walkResultPathCandidates(node.Content[step.index], childPath, remaining, candidates)
+	case resultPathStepUnion:
+		if node.Kind != yaml.MappingNode {
+			return true
+		}
+		for _, name := range step.names {
+			for i := 0; i+1 < len(node.Content); i += 2 {
+				keyNode := node.Content[i]
+				valueNode := node.Content[i+1]
+				if keyNode != nil && keyNode.Value == name {
+					childPath := appendCollectedResultPathSegment(path, name)
+					if !walkResultPathCandidates(valueNode, childPath, remaining, candidates) {
+						return false
+					}
+					break
+				}
+			}
+		}
+	}
+	return true
+}
+
+func resultPathNodeAlias(node *yaml.Node) *yaml.Node {
+	if node == nil {
+		return nil
+	}
+	if node.Kind == yaml.AliasNode {
+		return node.Alias
+	}
+	return node
+}
+
+func appendCollectedResultPathSegment(basePath, key string) string {
+	if resultPathShouldBracketCollectedSegment(basePath) {
+		return basePath + "['" + key + "']"
+	}
+	return appendResultPathSegment(basePath, key)
+}
+
+func resultPathShouldBracketCollectedSegment(basePath string) bool {
+	switch {
+	case strings.HasSuffix(basePath, ".properties"),
+		strings.HasSuffix(basePath, ".patternProperties"),
+		strings.HasSuffix(basePath, ".schemas"),
+		strings.HasSuffix(basePath, ".responses"),
+		strings.HasSuffix(basePath, ".parameters"),
+		strings.HasSuffix(basePath, ".requestBodies"),
+		strings.HasSuffix(basePath, ".headers"),
+		strings.HasSuffix(basePath, ".securitySchemes"),
+		strings.HasSuffix(basePath, ".examples"),
+		strings.HasSuffix(basePath, ".links"),
+		strings.HasSuffix(basePath, ".callbacks"),
+		strings.HasSuffix(basePath, ".pathItems"):
+		return true
+	default:
+		return false
+	}
+}
+
+func resultPathCandidateMatchesResult(candidate *yaml.Node, result *model.RuleFunctionResult, rolodex *index.Rolodex, originCache map[*yaml.Node]*index.NodeOrigin) bool {
+	if result == nil {
+		return false
+	}
+	candidate = resultPathNodeAlias(candidate)
+	startNode := resultPathNodeAlias(result.StartNode)
+	if candidate == nil {
+		return false
+	}
+	if candidate == startNode {
+		return true
+	}
+
+	line, column := resultPathResultLineColumn(result)
+	if line <= 0 || column <= 0 || candidate.Line != line || candidate.Column != column {
+		return false
+	}
+
+	if result.Origin == nil || result.Origin.AbsoluteLocation == "" || rolodex == nil {
+		return true
+	}
+
+	origin, ok := originCache[candidate]
+	if !ok {
+		origin = rolodex.FindNodeOrigin(candidate)
+		originCache[candidate] = origin
+	}
+	if origin == nil {
+		return true
+	}
+
+	return sameResultPathLocation(result.Origin.AbsoluteLocation, origin.AbsoluteLocation) ||
+		sameResultPathLocation(result.Origin.AbsoluteLocation, origin.AbsoluteLocationValue)
+}
+
+func resultPathResultLineColumn(result *model.RuleFunctionResult) (int, int) {
+	if result == nil {
+		return 0, 0
+	}
+	if result.Origin != nil {
+		if result.Origin.Line > 0 && result.Origin.Column > 0 {
+			return result.Origin.Line, result.Origin.Column
+		}
+		if result.Origin.LineValue > 0 && result.Origin.ColumnValue > 0 {
+			return result.Origin.LineValue, result.Origin.ColumnValue
+		}
+	}
+	if result.StartNode != nil {
+		return result.StartNode.Line, result.StartNode.Column
+	}
+	return 0, 0
+}
+
+func sameResultPathLocation(a, b string) bool {
+	if a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	if strings.Contains(a, "://") || strings.Contains(b, "://") {
+		return strings.TrimRight(a, "/") == strings.TrimRight(b, "/")
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+func mergeResultPathCandidates(result *model.RuleFunctionResult, candidatePaths []string) {
+	if result == nil || len(candidatePaths) == 0 {
+		return
+	}
+	needsReconciliation := resultPathNeedsReconciliation(result)
+	if !needsReconciliation && !resultPathCandidatesOverlap(result, candidatePaths) {
+		return
+	}
+
+	mergedResult := model.RuleFunctionResult{Path: result.Path}
+	if needsReconciliation {
+		mergedResult.Path = ""
+	}
+	mergedResult.Paths = make([]string, 0, len(result.Paths)+len(candidatePaths))
+	mergedResult.Paths = append(mergedResult.Paths, result.Paths...)
+	mergedResult.Paths = append(mergedResult.Paths, candidatePaths...)
+	canonicalPath := result.Path
+	if uniqueResultPathCount(canonicalPath, mergedResult.Paths) > 1 && !strings.HasPrefix(canonicalPath, "$.components.") {
+		canonicalPath = ""
+	}
+
+	paths := buildMergedResultPaths(canonicalPath, &mergedResult)
+	if len(paths) > 0 {
+		result.Path = paths[0]
+	}
+	if len(paths) > 1 {
+		result.Paths = paths
+	} else {
+		result.Paths = nil
+	}
+}
+
+func resultPathCandidatesOverlap(result *model.RuleFunctionResult, candidatePaths []string) bool {
+	if result == nil {
+		return false
+	}
+
+	if result.Path != "" {
+		for _, candidate := range candidatePaths {
+			if result.Path == candidate {
+				return true
+			}
+		}
+	}
+	for _, existing := range result.Paths {
+		for _, candidate := range candidatePaths {
+			if existing == candidate {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func uniqueResultPathCount(path string, paths []string) int {
+	seen := make(map[string]struct{}, len(paths)+1)
+	if path != "" {
+		seen[path] = struct{}{}
+	}
+	for _, candidate := range paths {
+		if candidate != "" {
+			seen[candidate] = struct{}{}
+		}
+	}
+	return len(seen)
 }
 
 func aliasedResultKey(result *model.RuleFunctionResult) (string, bool) {

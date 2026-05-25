@@ -27,6 +27,21 @@ func makeResultPtr(ruleId, path, message string) *model.RuleFunctionResult {
 	return &r
 }
 
+func makeOriginResult(ruleId, path, message, location string, line, column int) model.RuleFunctionResult {
+	result := makeResult(ruleId, path, message)
+	result.Origin = &index.NodeOrigin{
+		AbsoluteLocation: location,
+		Line:             line,
+		Column:           column,
+	}
+	return result
+}
+
+func makeOriginResultPtr(ruleId, path, message, location string, line, column int) *model.RuleFunctionResult {
+	result := makeOriginResult(ruleId, path, message, location, line, column)
+	return &result
+}
+
 func TestDiffViolationsValues_BothEmpty(t *testing.T) {
 	result, stats := DiffViolationsValues(nil, nil)
 	assert.Empty(t, result)
@@ -220,6 +235,275 @@ func TestDiffViolationsValues_OriginSuppressesExternalRefPathDrift(t *testing.T)
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
+func TestDiffViolationsValues_CanonicalOriginSuppressesMirroredDirectoryDrift(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder1/openapi-3.0/test/common/test-common.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+	}
+	newResults := []model.RuleFunctionResult{
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder2/openapi-3.0/test/common/test-common.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+	assert.Equal(t, "/workspace/folder1/openapi-3.0/test/common/test-common.yaml", original[0].Origin.AbsoluteLocation)
+	assert.Equal(t, "/workspace/folder2/openapi-3.0/test/common/test-common.yaml", newResults[0].Origin.AbsoluteLocation)
+}
+
+func TestDiffViolationsValues_CanonicalOriginKeepsDifferentMirroredFilesDistinct(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.components.schemas.Customer.properties.name",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder1/openapi-3.0/test/common/customer.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.components.schemas.Order.properties.name",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder1/openapi-3.0/test/common/order.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+	}
+	newResults := []model.RuleFunctionResult{
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.components.schemas.Order.properties.name",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder2/openapi-3.0/test/common/order.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.components.schemas.Invoice.properties.name",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder2/openapi-3.0/test/common/invoice.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	require.Len(t, result, 1)
+	assert.Equal(t, "/workspace/folder2/openapi-3.0/test/common/invoice.yaml", result[0].Origin.AbsoluteLocation)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValues_FallbackOriginPreservesDirectoryContext(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Customer.properties.name",
+			message,
+			"/old/common/schema.yaml",
+			64,
+			11,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Customer.properties.name",
+			message,
+			"/new/other/schema.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+
+	require.Len(t, result, 1)
+	assert.Equal(t, "/new/other/schema.yaml", result[0].Origin.AbsoluteLocation)
+	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValuesWithOriginBases_SuppressesMirroredFileWhenFileSetsDiffer(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder1/common/a.yaml",
+			64,
+			11,
+		),
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder1/other/b.yaml",
+			72,
+			11,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder2/common/a.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(
+		original,
+		newResults,
+		"/workspace/folder1/openapi.yaml",
+		"/workspace/folder2/openapi.yaml",
+	)
+
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValuesWithOriginBases_KeepsSameBasenameInDifferentMirroredDirectory(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Customer.properties.name",
+			message,
+			"/workspace/folder1/common/a.yaml",
+			64,
+			11,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Order.properties.name",
+			message,
+			"/workspace/folder2/other/a.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(
+		original,
+		newResults,
+		"/workspace/folder1/openapi.yaml",
+		"/workspace/folder2/openapi.yaml",
+	)
+
+	require.Len(t, result, 1)
+	assert.Equal(t, "/workspace/folder2/other/a.yaml", result[0].Origin.AbsoluteLocation)
+	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValuesWithOriginBases_SuppressesSiblingExternalRefOutsideSpecDirectory(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder1/common/schema.yaml",
+			64,
+			11,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder2/common/schema.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(
+		original,
+		newResults,
+		"/workspace/folder1/apis/openapi.yaml",
+		"/workspace/folder2/apis/openapi.yaml",
+	)
+
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValuesWithOriginBases_KeepsSiblingExternalRefsInDifferentDirectoriesDistinct(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Customer.properties.name",
+			message,
+			"/workspace/folder1/common/a.yaml",
+			64,
+			11,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Order.properties.name",
+			message,
+			"/workspace/folder2/other/a.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(
+		original,
+		newResults,
+		"/workspace/folder1/apis/openapi.yaml",
+		"/workspace/folder2/apis/openapi.yaml",
+	)
+
+	require.Len(t, result, 1)
+	assert.Equal(t, "/workspace/folder2/other/a.yaml", result[0].Origin.AbsoluteLocation)
+	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
 func TestDiffViolationsValues_OriginFallsBackToStartNodePosition(t *testing.T) {
 	message := "schema property `error-code` is missing `examples` or `example`"
 	original := []model.RuleFunctionResult{
@@ -322,6 +606,148 @@ func TestDiffViolationsMixed_OriginSuppressesExternalRefPathDrift(t *testing.T) 
 	}
 
 	result, stats := DiffViolationsMixed(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsMixed_CanonicalOriginSuppressesMirroredDirectoryDrift(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder1/openapi-3.0/test/common/test-common.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+	}
+	newResults := []*model.RuleFunctionResult{
+		{
+			RuleId:  "check-string-attribute-minlength",
+			Path:    "$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Message: message,
+			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
+			Origin: &index.NodeOrigin{
+				AbsoluteLocation: "/workspace/folder2/openapi-3.0/test/common/test-common.yaml",
+				Line:             64,
+				Column:           11,
+			},
+		},
+	}
+
+	result, stats := DiffViolationsMixed(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+	assert.Equal(t, "/workspace/folder1/openapi-3.0/test/common/test-common.yaml", original[0].Origin.AbsoluteLocation)
+	assert.Equal(t, "/workspace/folder2/openapi-3.0/test/common/test-common.yaml", newResults[0].Origin.AbsoluteLocation)
+}
+
+func TestDiffViolationsMixed_FallbackOriginPreservesDirectoryContext(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Customer.properties.name",
+			message,
+			"/old/common/schema.yaml",
+			64,
+			11,
+		),
+	}
+	newResults := []*model.RuleFunctionResult{
+		makeOriginResultPtr(
+			"check-string-attribute-minlength",
+			"$.components.schemas.Customer.properties.name",
+			message,
+			"/new/other/schema.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsMixed(original, newResults)
+
+	require.Len(t, result, 1)
+	assert.Equal(t, "/new/other/schema.yaml", result[0].Origin.AbsoluteLocation)
+	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
+func TestDiffViolationsMixedWithOriginBases_SuppressesMirroredFileWhenFileSetsDiffer(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder1/common/a.yaml",
+			64,
+			11,
+		),
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder1/other/b.yaml",
+			72,
+			11,
+		),
+	}
+	newResults := []*model.RuleFunctionResult{
+		makeOriginResultPtr(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder2/common/a.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsMixedWithOriginBases(
+		original,
+		newResults,
+		"/workspace/folder1/openapi.yaml",
+		"/workspace/folder2/openapi.yaml",
+	)
+
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsMixedWithOriginBases_SuppressesSiblingExternalRefOutsideSpecDirectory(t *testing.T) {
+	message := "minLength must be defined"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder1/common/schema.yaml",
+			64,
+			11,
+		),
+	}
+	newResults := []*model.RuleFunctionResult{
+		makeOriginResultPtr(
+			"check-string-attribute-minlength",
+			"$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			message,
+			"/workspace/folder2/common/schema.yaml",
+			64,
+			11,
+		),
+	}
+
+	result, stats := DiffViolationsMixedWithOriginBases(
+		original,
+		newResults,
+		"/workspace/folder1/apis/openapi.yaml",
+		"/workspace/folder2/apis/openapi.yaml",
+	)
+
 	assert.Empty(t, result)
 	assert.Equal(t, 1, stats.ResultsDropped)
 }

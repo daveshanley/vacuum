@@ -292,7 +292,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
 				}
 			} else {
-				result.Results, changeFilterStats = utils.DiffViolationsValues(originalResults, result.Results)
+				result.Results, changeFilterStats = utils.DiffViolationsValuesWithOriginBases(
+					originalResults,
+					result.Results,
+					flags.OriginalFlag,
+					fileName,
+				)
 			}
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
