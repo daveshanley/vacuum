@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,6 +73,31 @@ func (j *JSRuleFunction) createErrorResult(message string, node *yaml.Node, rule
 			Rule:      ruleContext.Rule,
 		},
 	}
+}
+
+func populateJSResultDefaults(result *model.RuleFunctionResult, node *yaml.Node, origin *index.NodeOrigin, ruleContext model.RuleFunctionContext) {
+	result.StartNode = node
+	result.EndNode = node
+	result.Origin = origin
+	result.Range = reports.Range{
+		Start: reports.RangeItem{
+			Line: node.Line,
+			Char: node.Column,
+		},
+		End: reports.RangeItem{
+			Line: node.Line,
+			Char: node.Column,
+		},
+	}
+	result.Path = jsResultPathOrDefault(result.Path, ruleContext.Given)
+	result.Rule = ruleContext.Rule
+}
+
+func jsResultPathOrDefault(path string, given interface{}) string {
+	if strings.TrimSpace(path) != "" {
+		return path
+	}
+	return fmt.Sprint(given)
 }
 
 // batchNodeInfo stores node info for batch result mapping (rolodex-aware)
@@ -280,20 +306,7 @@ func (j *JSRuleFunction) extractResults(value goja.Value, node *yaml.Node, ruleC
 
 	// populate node information for each result
 	for i := range functionResults {
-		functionResults[i].StartNode = node
-		functionResults[i].EndNode = node
-		functionResults[i].Range = reports.Range{
-			Start: reports.RangeItem{
-				Line: node.Line,
-				Char: node.Column,
-			},
-			End: reports.RangeItem{
-				Line: node.Line,
-				Char: node.Column,
-			},
-		}
-		functionResults[i].Path = fmt.Sprint(ruleContext.Given)
-		functionResults[i].Rule = ruleContext.Rule
+		populateJSResultDefaults(&functionResults[i], node, nil, ruleContext)
 	}
 
 	return functionResults, nil
@@ -471,15 +484,7 @@ func (j *JSRuleFunction) extractBatchResults(
 
 		// populate node info from matched nodeInfo (includes origin from rolodex)
 		info := nodeInfos[nodeIdx]
-		result.StartNode = info.node
-		result.EndNode = info.node
-		result.Origin = info.origin
-		result.Range = reports.Range{
-			Start: reports.RangeItem{Line: info.node.Line, Char: info.node.Column},
-			End:   reports.RangeItem{Line: info.node.Line, Char: info.node.Column},
-		}
-		result.Path = fmt.Sprint(ruleContext.Given)
-		result.Rule = ruleContext.Rule
+		populateJSResultDefaults(&result, info.node, info.origin, ruleContext)
 
 		functionResults = append(functionResults, result)
 	}
