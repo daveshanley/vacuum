@@ -360,7 +360,12 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
 							}
 						} else {
-							resultSet.Results, _ = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+							resultSet.Results, _ = utils.DiffViolationsMixedWithOriginBases(
+								originalResults,
+								resultSet.Results,
+								originalFlag,
+								specFile,
+							)
 							filtered = true
 						}
 
@@ -468,6 +473,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					SpecInfo:   ruleset.SpecInfo,
 					ResultSet:  resultSet,
 					Statistics: stats,
+					Errors:     buildReportErrors(ruleset.Errors),
 					Rules:      usedRules,
 				}
 

@@ -306,7 +306,12 @@ func GetDashboardCommand() *cobra.Command {
 							fmt.Println(style.Render(messageStyle.Render(message)))
 						}
 					} else {
-						resultSet.Results, filterStats = utils.DiffViolationsMixed(originalResults, resultSet.Results)
+						resultSet.Results, filterStats = utils.DiffViolationsMixedWithOriginBases(
+							originalResults,
+							resultSet.Results,
+							originalFlag,
+							displayFileName,
+						)
 					}
 
 					// Still load document changes for change stats and violation injection

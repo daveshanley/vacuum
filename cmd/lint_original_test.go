@@ -403,6 +403,26 @@ func TestSpectralReport_OriginalWithChangeViolations(t *testing.T) {
 
 // --- Vacuum report tests ---
 
+func copyIssue839FixturesToMirroredDirs(t *testing.T) (string, string) {
+	t.Helper()
+
+	root := t.TempDir()
+	folder1 := filepath.Join(root, "folder1")
+	folder2 := filepath.Join(root, "folder2")
+	require.NoError(t, os.MkdirAll(folder1, 0o755))
+	require.NoError(t, os.MkdirAll(folder2, 0o755))
+
+	for _, fileName := range []string{"api-main.yaml", "api-common.yaml"} {
+		sourcePath := filepath.Join("..", "model", "test_files", fileName)
+		data, err := os.ReadFile(sourcePath)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(folder1, fileName), data, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(folder2, fileName), data, 0o644))
+	}
+
+	return filepath.Join(folder1, "api-main.yaml"), filepath.Join(folder2, "api-main.yaml")
+}
+
 func TestVacuumReport_OriginalSameSpec(t *testing.T) {
 	spec := "../model/test_files/petstorev3.json"
 	reportPrefix := filepath.Join(t.TempDir(), "vacuum-original-test")
@@ -465,6 +485,46 @@ func TestVacuumReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *t
 	assert.Equal(t, 0, report.Statistics.TotalWarnings)
 	assert.Equal(t, 0, report.Statistics.TotalInfo)
 	assert.Equal(t, 0, report.Statistics.TotalHints)
+}
+
+func TestVacuumReport_OriginalMirroredExternalRefsSuppressesAll(t *testing.T) {
+	originalSpec, currentSpec := copyIssue839FixturesToMirroredDirs(t)
+	ruleset := "../model/test_files/issue_839_ruleset.yaml"
+	reportPrefix := filepath.Join(t.TempDir(), "vacuum-issue-880")
+
+	cmd := GetVacuumReportCommand()
+	registerPersistentFlags(cmd)
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"--original", originalSpec,
+		"-r", ruleset,
+		"--no-style",
+		"--no-pretty",
+		currentSpec,
+		reportPrefix,
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	reportFiles, globErr := filepath.Glob(reportPrefix + "-*.json")
+	require.NoError(t, globErr)
+	require.Len(t, reportFiles, 1)
+
+	data, readErr := os.ReadFile(reportFiles[0])
+	require.NoError(t, readErr)
+
+	var report vacuum_report.VacuumReport
+	require.NoError(t, json.Unmarshal(data, &report))
+	require.NotNil(t, report.ResultSet)
+
+	assert.Empty(t, report.ResultSet.Results)
+	assert.Equal(t, 0, report.ResultSet.ErrorCount)
+	assert.Equal(t, 0, report.ResultSet.WarnCount)
+	assert.Equal(t, 0, report.ResultSet.InfoCount)
+	assert.Equal(t, 0, report.ResultSet.HintCount)
 }
 
 func TestVacuumReport_OriginalWithErrorOnBreaking(t *testing.T) {

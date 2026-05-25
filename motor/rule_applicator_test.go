@@ -1967,7 +1967,8 @@ components:
 	results := ApplyRulesToRuleSet(ex)
 	assert.Len(t, results.Errors, 1)
 	assert.Nil(t, results.Results)
-	assert.Equal(t, "node lookup timeout exceeded (1ns)", results.Errors[0].Error())
+	assert.Equal(t, "rule test lookup failed for given $..paths: node lookup timeout exceeded (1ns)", results.Errors[0].Error())
+	assert.Equal(t, "rule lookup failed", (&RuleLookupError{}).Error())
 }
 
 func TestRuleSet_InfiniteCircularLoop(t *testing.T) {

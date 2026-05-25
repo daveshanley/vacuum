@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetVacuumReportCommand(t *testing.T) {
@@ -238,4 +242,63 @@ rules:
 	})
 	cmdErr := cmd.Execute()
 	assert.NoError(t, cmdErr)
+}
+
+func TestGetVacuumReportCommand_IncludesExecutionErrors(t *testing.T) {
+	rulesetYAML := `
+extends: [[vacuum:oas, recommended]]
+rules:
+  invalid-jsonpath-selector:
+    description: Invalid selector
+    message: Invalid selector
+    given: "$..["
+    severity: error
+    then:
+      function: truthy
+`
+	specYAML := `
+openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+paths: {}
+`
+
+	tmpDir := t.TempDir()
+	rulesetPath := filepath.Join(tmpDir, "ruleset.yaml")
+	specPath := filepath.Join(tmpDir, "openapi.yaml")
+	require.NoError(t, os.WriteFile(rulesetPath, []byte(rulesetYAML), 0o644))
+	require.NoError(t, os.WriteFile(specPath, []byte(specYAML), 0o644))
+
+	reportPrefix := filepath.Join(tmpDir, "vacuum-report-errors")
+
+	cmd := GetVacuumReportCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+	cmd.SetArgs([]string{
+		"-r",
+		rulesetPath,
+		"--no-style",
+		"--no-pretty",
+		specPath,
+		reportPrefix,
+	})
+
+	cmdErr := cmd.Execute()
+	require.NoError(t, cmdErr)
+
+	reportFiles, globErr := filepath.Glob(reportPrefix + "-*.json")
+	require.NoError(t, globErr)
+	require.Len(t, reportFiles, 1)
+
+	data, readErr := os.ReadFile(reportFiles[0])
+	require.NoError(t, readErr)
+
+	var report vacuum_report.VacuumReport
+	require.NoError(t, json.Unmarshal(data, &report))
+	require.NotNil(t, report.Errors)
+	require.NotEmpty(t, report.Errors.Items)
+	assert.NotEmpty(t, report.Errors.Items[0].Message)
+	assert.Equal(t, vacuum_report.ReportErrorTypeRuleLookup, report.Errors.Items[0].Type)
+	assert.Equal(t, "invalid-jsonpath-selector", report.Errors.Items[0].RuleId)
+	assert.Equal(t, "$..[", report.Errors.Items[0].Given)
 }

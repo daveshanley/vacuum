@@ -3,14 +3,15 @@ package vacuum_report
 import (
 	"bytes"
 	"compress/gzip"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/daveshanley/vacuum/model"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
-	"os"
-	"testing"
-	"time"
 )
 
 var jsonParse = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -121,6 +122,40 @@ func TestCheckFileForVacuumReport_BadJSON_Compressed(t *testing.T) {
 	vr, err := CheckFileForVacuumReport(testhelp_compress(j))
 	assert.Error(t, err)
 	assert.Nil(t, vr)
+}
+
+func TestVacuumReport_ErrorsOmittedWhenEmpty(t *testing.T) {
+	vr := testhelp_generateReport()
+	data, err := jsonParse.Marshal(vr)
+
+	assert.NoError(t, err)
+	assert.NotContains(t, string(data), `"errors"`)
+}
+
+func TestVacuumReport_ErrorsSerialized(t *testing.T) {
+	vr := testhelp_generateReport()
+	vr.Errors = &ReportErrors{Items: []ReportError{
+		{
+			Message: "rule lookup failed",
+			Type:    ReportErrorTypeRuleLookup,
+			RuleId:  "check-min-length",
+			Given:   "$['a']",
+		},
+	}}
+
+	data, err := jsonParse.Marshal(vr)
+	assert.NoError(t, err)
+	assert.Contains(t, string(data), `"errors"`)
+
+	var parsed VacuumReport
+	err = jsonParse.Unmarshal(data, &parsed)
+	assert.NoError(t, err)
+	assert.NotNil(t, parsed.Errors)
+	assert.Len(t, parsed.Errors.Items, 1)
+	assert.Equal(t, ReportErrorTypeRuleLookup, parsed.Errors.Items[0].Type)
+	assert.Equal(t, "rule lookup failed", parsed.Errors.Items[0].Message)
+	assert.Equal(t, "check-min-length", parsed.Errors.Items[0].RuleId)
+	assert.Equal(t, "$['a']", parsed.Errors.Items[0].Given)
 }
 
 func testhelp_generateReport() *VacuumReport {

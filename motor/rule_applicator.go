@@ -65,6 +65,41 @@ type ruleContext struct {
 	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
 }
 
+type RuleLookupError struct {
+	RuleId string
+	Given  string
+	Err    error
+}
+
+func (e *RuleLookupError) Error() string {
+	if e == nil {
+		return "rule lookup failed"
+	}
+
+	var message string
+	switch {
+	case e.RuleId != "" && e.Given != "":
+		message = fmt.Sprintf("rule %s lookup failed for given %s", e.RuleId, e.Given)
+	case e.RuleId != "":
+		message = fmt.Sprintf("rule %s lookup failed", e.RuleId)
+	case e.Given != "":
+		message = fmt.Sprintf("rule lookup failed for given %s", e.Given)
+	default:
+		message = "rule lookup failed"
+	}
+	if e.Err != nil {
+		return message + ": " + e.Err.Error()
+	}
+	return message
+}
+
+func (e *RuleLookupError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 // ExecutionOptions configures optional execution behavior without extending
 // RuleSetExecution's public struct surface.
 type ExecutionOptions struct {
@@ -982,6 +1017,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	// run all rules.
 	var errs []error
+	var resolvedAliases map[string][]string
 
 	// Ensure CanonicalDocument is set as a fallback
 	if execution.CanonicalDocument == nil {
@@ -1051,7 +1087,6 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		}
 
 		// Resolve Spectral-compatible aliases once for this spec's format.
-		var resolvedAliases map[string][]string
 		if execution.RuleSet.ParsedAliases != nil {
 			resolved := rulesets.ResolveAliasesForFormat(execution.RuleSet.ParsedAliases, specFormat)
 			expanded, aliasErr := rulesets.ExpandAliasReferences(resolved)
@@ -1253,6 +1288,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	}
 
 	var resultPathCache *resultPathCache
+	if specNodeResolved != nil && needsAliasedResultPathCompletion(ruleResults) {
+		completeAliasedResultPathsFromGiven(ruleResults, specNodeResolved, rolodexResolved, resolvedAliases)
+	}
 	if execution.CanonicalDocument != nil &&
 		(needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1 || needsTerminalKeySelectorPathUpgrade(ruleResults)) {
 		resultPathCache = newResultPathCache(execution.CanonicalDocument)
@@ -1320,31 +1358,9 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 		}()
 	}
 
-	var givenPaths []string
-	if x, ok := ctx.rule.Given.(string); ok {
-		givenPaths = append(givenPaths, x)
-	}
-
-	if x, ok := ctx.rule.Given.([]string); ok {
-		givenPaths = x
-	}
-
-	if x, ok := ctx.rule.Given.([]interface{}); ok {
-		for _, gpI := range x {
-			if gp, ko := gpI.(string); ko {
-				givenPaths = append(givenPaths, gp)
-			}
-		}
-	}
-
-	// Expand Spectral alias references (#AliasName) without mutating rule.Given
-	if ctx.expandedAliases != nil {
-		expanded, expandErr := rulesets.ExpandRuleGivenPaths(givenPaths, ctx.expandedAliases)
-		if expandErr != nil {
-			ctx.logger.Warn("alias expansion error in rule", "rule", ctx.rule.Id, "error", expandErr)
-		} else {
-			givenPaths = expanded
-		}
+	givenPaths, expandErr := resolveRuleGivenPaths(ctx.rule, ctx.expandedAliases)
+	if expandErr != nil {
+		ctx.logger.Warn("alias expansion error in rule", "rule", ctx.rule.Id, "error", expandErr)
 	}
 
 	var nodes []*yaml.Node
@@ -1377,7 +1393,11 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 		}
 
 		if err != nil {
-			*ctx.errors = append(*ctx.errors, err)
+			*ctx.errors = append(*ctx.errors, &RuleLookupError{
+				RuleId: ctx.rule.Id,
+				Given:  givenPath,
+				Err:    err,
+			})
 			return
 		}
 		if len(nodes) <= 0 {
@@ -1408,6 +1428,18 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 }
 
 var lock sync.Mutex
+
+func resolveRuleGivenPaths(rule *model.Rule, expandedAliases map[string][]string) ([]string, error) {
+	givenPaths := resultGivenPaths(rule)
+	if len(givenPaths) == 0 || expandedAliases == nil {
+		return givenPaths, nil
+	}
+	expanded, err := rulesets.ExpandRuleGivenPaths(givenPaths, expandedAliases)
+	if err != nil {
+		return givenPaths, err
+	}
+	return expanded, nil
+}
 
 func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.Node) *[]model.RuleFunctionResult {
 
