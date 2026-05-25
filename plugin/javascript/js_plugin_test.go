@@ -41,6 +41,36 @@ function runRule(input) {
 	assert.Equal(t, "Value must equal \"hello\" and not: hello sally and context is: name", results[0].Message)
 }
 
+func Test_JSPlugin_ResultPath_PreservesExplicitPathAndFallsBackToGiven(t *testing.T) {
+	script := `
+function runRule(input) {
+	return [
+		{
+			message: "first issue",
+			path: "$.paths['/pets'].get"
+		},
+		{
+			message: "second issue"
+		}
+	];
+}
+`
+	f := NewJSRuleFunction("pathTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("openapi: 3.1.0\npaths: {}"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given: "$",
+	})
+
+	assert.Len(t, results, 2)
+	assert.Equal(t, "$.paths['/pets'].get", results[0].Path)
+	assert.Equal(t, "$", results[1].Path)
+}
+
 func Test_JSPlugin_Schema_Success(t *testing.T) {
 
 	script := `function getSchema() {
@@ -699,6 +729,43 @@ function runRule(inputs) {
 	// Verify correct node mapping
 	assert.Equal(t, 1, results[0].StartNode.Line) // First node
 	assert.Equal(t, 1, results[1].StartNode.Line) // Third node (all at line 1 in this test)
+}
+
+func Test_JSPlugin_BatchMode_ResultPath_PreservesExplicitPathAndFallsBackToGiven(t *testing.T) {
+	script := `
+function runRule(inputs) {
+	return [
+		{
+			message: "first batch issue",
+			path: "$.components.schemas.Pet",
+			input: inputs[0]
+		},
+		{
+			message: "second batch issue",
+			path: " ",
+			input: inputs[1]
+		}
+	];
+}
+`
+	f := NewJSRuleFunction("batchPathTest", script)
+	err := f.CheckScript()
+	assert.NoError(t, err)
+
+	var y1, y2 yaml.Node
+	_ = yaml.Unmarshal([]byte("first"), &y1)
+	_ = yaml.Unmarshal([]byte("second"), &y2)
+
+	results := f.RunRule([]*yaml.Node{y1.Content[0], y2.Content[0]}, model.RuleFunctionContext{
+		Given: "$",
+		Options: map[string]interface{}{
+			"batch": true,
+		},
+	})
+
+	assert.Len(t, results, 2)
+	assert.Equal(t, "$.components.schemas.Pet", results[0].Path)
+	assert.Equal(t, "$", results[1].Path)
 }
 
 func Test_JSPlugin_BatchMode_MissingInput(t *testing.T) {
