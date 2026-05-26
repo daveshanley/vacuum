@@ -5,6 +5,7 @@ package languageserver
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
@@ -28,8 +29,7 @@ func (s *ServerState) initializeConfig() {
 	_ = viper.ReadInConfig()
 
 	// Parse file config and apply it
-	s.fileConfig = s.parseViperConfig()
-	if err := s.applyEffectiveConfig(); err != nil {
+	if err := s.setFileConfig(s.parseViperConfig(), configDirectoryFromViper()); err != nil {
 		s.logger.Warn("failed to apply initial config", "error", err)
 	}
 }
@@ -108,16 +108,25 @@ func (s *ServerState) onConfigChange(e fsnotify.Event) {
 	s.logger.Info("config file changed, reloading", "file", e.Name)
 
 	// Re-parse the config from viper
-	s.fileConfig = s.parseViperConfig()
-
-	// Apply the updated configuration
-	if err := s.applyEffectiveConfig(); err != nil {
+	if err := s.setFileConfig(s.parseViperConfig(), configDirectoryFromViper()); err != nil {
 		s.logger.Warn("failed to apply config change", "error", err)
 		return
 	}
 
 	// Re-lint all open documents if we have a notify function
+	s.clearDocumentRuntimeConfigCache()
 	if notify := s.getNotifyFunc(); notify != nil {
 		s.relintAllDocuments(notify)
 	}
+}
+
+func configDirectoryFromViper() string {
+	if used := viper.ConfigFileUsed(); used != "" {
+		if absPath, err := filepath.Abs(used); err == nil {
+			return filepath.Dir(absPath)
+		} else {
+			return filepath.Dir(used)
+		}
+	}
+	return ""
 }

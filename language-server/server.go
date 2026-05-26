@@ -68,19 +68,31 @@ type ServerState struct {
 	effectiveConfig *LSPConfig
 
 	// Synchronization for config updates
-	configMu sync.RWMutex
+	configMu         sync.RWMutex
+	configGeneration uint64
 
 	// Logger for config-related messages
 	logger *slog.Logger
 
 	// Cached resource paths to detect changes and avoid reloading
-	loadedRulesetPath   string
-	loadedFunctionsPath string
-	loadedHardMode      bool
+	loadedRulesetPath    string
+	loadedFunctionsPath  string
+	loadedIgnoreFilePath string
+	loadedHardMode       bool
+
+	workspaceConfigurationSupported                    bool
+	didChangeConfigurationDynamicRegistrationSupported bool
+	workspaceFolders                                   []protocol.WorkspaceFolder
+	workspaceMu                                        sync.RWMutex
+	configDirectory                                    string
+	documentRuntimeConfigs                             map[protocol.DocumentUri]*documentRuntimeConfig
+	documentRuntimeConfigMu                            sync.RWMutex
 
 	// Notify function for triggering re-lints (used by file watcher)
 	notifyFunc glsp.NotifyFunc
 	notifyMu   sync.RWMutex
+	callFunc   glsp.CallFunc
+	callMu     sync.RWMutex
 }
 
 func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
@@ -99,10 +111,11 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 
 	// Create base config from initial lintRequest values (command-line flags)
 	baseConfig := &LSPConfig{
-		Base:      lintRequest.BaseFlag,
-		Remote:    boolPtr(lintRequest.Remote),
-		SkipCheck: boolPtr(lintRequest.SkipCheckFlag),
-		Timeout:   intPtr(lintRequest.TimeoutFlag),
+		Base:          lintRequest.BaseFlag,
+		Remote:        boolPtr(lintRequest.Remote),
+		SkipCheck:     boolPtr(lintRequest.SkipCheckFlag),
+		Timeout:       intPtr(lintRequest.TimeoutFlag),
+		LookupTimeout: intPtr(lintRequest.LookupTimeoutFlag),
 	}
 	if lintRequest.IgnoreArrayCircleRef {
 		baseConfig.IgnoreArrayCircleRef = boolPtr(true)
@@ -115,17 +128,20 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 
 	state := &ServerState{
-		server:           server,
-		lintRequest:      lintRequest,
-		executionOptions: executionOptions,
-		documentStore:    newDocumentStore(),
-		logger:           logger,
-		baseConfig:       baseConfig,
+		server:                 server,
+		lintRequest:            lintRequest,
+		executionOptions:       executionOptions,
+		documentStore:          newDocumentStore(),
+		logger:                 logger,
+		baseConfig:             baseConfig,
+		documentRuntimeConfigs: map[protocol.DocumentUri]*documentRuntimeConfig{},
 	}
 	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
 		if params.Trace != nil {
 			protocol.SetTraceValue(*params.Trace)
 		}
+		state.setClientCapabilities(params.Capabilities)
+		state.setWorkspaceFolders(params.RootURI, params.WorkspaceFolders)
 
 		// Extract and apply InitializationOptions if provided
 		if params.InitializationOptions != nil {
@@ -133,8 +149,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			if err != nil {
 				state.logger.Warn("failed to parse InitializationOptions", "error", err)
 			} else if initConfig != nil {
-				state.initConfig = initConfig
-				if err := state.applyEffectiveConfig(); err != nil {
+				if err := state.setInitConfig(initConfig); err != nil {
 					state.logger.Warn("failed to apply InitializationOptions", "error", err)
 				}
 			}
@@ -149,6 +164,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		serverCapabilities.ExecuteCommandProvider = &protocol.ExecuteCommandOptions{
 			Commands: []string{"vacuum.openUrl"},
 		}
+		applyWorkspaceFolderCapabilities(&serverCapabilities)
 
 		return protocol.InitializeResult{
 			Capabilities: serverCapabilities,
@@ -158,6 +174,11 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			},
 		}, nil
 	}
+	handler.Initialized = func(context *glsp.Context, params *protocol.InitializedParams) error {
+		state.setCallFunc(context.Call)
+		state.registerConfigurationChangeNotifications(context.Call)
+		return nil
+	}
 	handler.SetTrace = func(context *glsp.Context, params *protocol.SetTraceParams) error {
 		protocol.SetTraceValue(params.Value)
 		return nil
@@ -165,12 +186,14 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 		// Store notify function for file watcher re-linting
 		state.setNotifyFunc(context.Notify)
+		state.setCallFunc(context.Call)
 
 		doc := state.documentStore.Add(params.TextDocument.URI, params.TextDocument.Text)
 		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
 	handler.TextDocumentDidChange = func(context *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
+		state.setCallFunc(context.Call)
 		doc, ok := state.documentStore.Get(params.TextDocument.URI)
 		if !ok {
 			return nil
@@ -195,6 +218,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 
 	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 		state.documentStore.Remove(params.TextDocument.URI)
+		state.clearDocumentRuntimeConfig(params.TextDocument.URI)
 		return nil
 	}
 
@@ -233,24 +257,33 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 
 	handler.WorkspaceDidChangeConfiguration = func(context *glsp.Context, params *protocol.DidChangeConfigurationParams) error {
-		config, err := ParseLSPConfig(params.Settings)
-		if err != nil {
-			state.logger.Warn("failed to parse configuration settings", "error", err)
-			return nil // Don't fail - log and continue with existing config
-		}
-
-		if config != nil {
-			state.runtimeConfig = config
-
-			if err := state.applyEffectiveConfig(); err != nil {
-				state.logger.Warn("failed to apply configuration", "error", err)
-				return nil
+		state.setCallFunc(context.Call)
+		if !state.workspaceConfigurationSupported {
+			config, err := ParseLSPConfig(params.Settings)
+			if err != nil {
+				state.logger.Warn("failed to parse configuration settings", "error", err)
+				return nil // Don't fail - log and continue with existing config
 			}
 
-			// Trigger re-linting of all open documents
-			state.relintAllDocuments(context.Notify)
+			if config != nil {
+				if err := state.setRuntimeConfig(config); err != nil {
+					state.logger.Warn("failed to apply configuration", "error", err)
+					return nil
+				}
+			}
+		} else {
+			state.bumpConfigGeneration()
 		}
 
+		// Trigger re-linting of all open documents
+		state.clearDocumentRuntimeConfigCache()
+		state.relintAllDocuments(context.Notify)
+		return nil
+	}
+	handler.WorkspaceDidChangeWorkspaceFolders = func(context *glsp.Context, params *protocol.DidChangeWorkspaceFoldersParams) error {
+		state.updateWorkspaceFolders(params.Event.Added, params.Event.Removed)
+		state.clearDocumentRuntimeConfigCache()
+		state.relintAllDocuments(context.Notify)
 		return nil
 	}
 
@@ -292,35 +325,38 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 
 	specFileName := strings.TrimPrefix(uri, "file://")
 
-	// Copy config data while holding config lock to avoid data race
-	s.configMu.RLock()
-	baseForDoc := s.lintRequest.BaseFlag
+	runtimeConfig, err := s.runtimeConfigForDocument(uri)
+	if err != nil {
+		s.logger.Warn("failed to build document configuration", "uri", uri, "error", err)
+		runtimeConfig = s.defaultRuntimeConfig(uri)
+	}
+
+	baseForDoc := runtimeConfig.config.Base
 	if baseForDoc == "" {
 		baseForDoc = filepath.Dir(specFileName)
 	}
 
-	deepGraph := len(s.lintRequest.IgnoredResults) > 0
-	ignoredResults := s.lintRequest.IgnoredResults
+	deepGraph := len(runtimeConfig.ignoredResults) > 0
+	ignoredResults := runtimeConfig.ignoredResults
 
 	// Build the rule execution config with copied values
 	ruleExec := &motor.RuleSetExecution{
-		RuleSet:                         s.lintRequest.SelectedRS,
+		RuleSet:                         runtimeConfig.selectedRS,
 		Spec:                            []byte(content),
 		SpecFileName:                    specFileName,
-		Timeout:                         time.Duration(s.lintRequest.TimeoutFlag) * time.Second,
-		NodeLookupTimeout:               time.Duration(s.lintRequest.LookupTimeoutFlag) * time.Millisecond,
-		CustomFunctions:                 s.lintRequest.Functions,
-		IgnoreCircularArrayRef:          s.lintRequest.IgnoreArrayCircleRef,
-		IgnoreCircularPolymorphicRef:    s.lintRequest.IgnorePolymorphCircleRef,
-		AllowLookup:                     s.lintRequest.Remote,
+		Timeout:                         time.Duration(runtimeConfig.timeoutSeconds()) * time.Second,
+		NodeLookupTimeout:               time.Duration(runtimeConfig.lookupTimeoutMilliseconds()) * time.Millisecond,
+		CustomFunctions:                 runtimeConfig.functions,
+		IgnoreCircularArrayRef:          runtimeConfig.ignoreArrayCircleRef,
+		IgnoreCircularPolymorphicRef:    runtimeConfig.ignorePolymorphCircleRef,
+		AllowLookup:                     runtimeConfig.remote,
 		Base:                            baseForDoc,
-		SkipDocumentCheck:               s.lintRequest.SkipCheckFlag,
-		Logger:                          s.lintRequest.Logger,
+		SkipDocumentCheck:               runtimeConfig.skipCheck,
+		Logger:                          runtimeConfig.logger,
 		BuildDeepGraph:                  deepGraph,
-		ExtractReferencesFromExtensions: s.lintRequest.ExtensionRefs,
-		HTTPClientConfig:                s.lintRequest.HTTPClientConfig,
+		ExtractReferencesFromExtensions: runtimeConfig.extensionRefs,
+		HTTPClientConfig:                runtimeConfig.httpClientConfig,
 	}
-	s.configMu.RUnlock()
 
 	// Apply ruleset selector if configured (uses copied content)
 	if s.rulesetSelector != nil {
@@ -412,6 +448,16 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 	}
 }
 
+func applyWorkspaceFolderCapabilities(capabilities *protocol.ServerCapabilities) {
+	if capabilities.Workspace == nil {
+		capabilities.Workspace = &protocol.ServerCapabilitiesWorkspace{}
+	}
+	capabilities.Workspace.WorkspaceFolders = &protocol.WorkspaceFoldersServerCapabilities{
+		Supported:           boolPtr(true),
+		ChangeNotifications: &protocol.BoolOrString{Value: true},
+	}
+}
+
 func GetDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity {
 	switch rule.Severity {
 	case model.SeverityError:
@@ -429,7 +475,51 @@ func GetDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity
 func (s *ServerState) applyEffectiveConfig() error {
 	s.configMu.Lock()
 	defer s.configMu.Unlock()
+	s.configGeneration++
 
+	return s.applyEffectiveConfigLocked()
+}
+
+func (s *ServerState) setInitConfig(config *LSPConfig) error {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
+	s.initConfig = config
+	s.configGeneration++
+	return s.applyEffectiveConfigLocked()
+}
+
+func (s *ServerState) setRuntimeConfig(config *LSPConfig) error {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
+	s.runtimeConfig = config
+	s.configGeneration++
+	return s.applyEffectiveConfigLocked()
+}
+
+func (s *ServerState) setFileConfig(config *LSPConfig, configDirectory string) error {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
+	s.fileConfig = config
+	if configDirectory != "" {
+		s.configDirectory = configDirectory
+	}
+	s.configGeneration++
+	return s.applyEffectiveConfigLocked()
+}
+
+func (s *ServerState) bumpConfigGeneration() {
+	s.configMu.Lock()
+	s.configGeneration++
+	s.configMu.Unlock()
+}
+
+// applyEffectiveConfigLocked computes the effective configuration from all
+// layers and updates the lintRequest accordingly. Must be called with configMu
+// held.
+func (s *ServerState) applyEffectiveConfigLocked() error {
 	// Start with defaults
 	effective := &LSPConfig{
 		Remote:  boolPtr(true), // Default: remote lookups enabled
@@ -496,6 +586,9 @@ func (s *ServerState) updateLintRequestFromEffectiveConfig() error {
 	if err := s.loadFunctionsIfChanged(cfg); err != nil {
 		s.logger.Warn("failed to load functions", "error", err)
 	}
+	if err := s.loadIgnoreFileIfChanged(cfg); err != nil {
+		s.logger.Warn("failed to load ignore file", "error", err)
+	}
 
 	return nil
 }
@@ -515,21 +608,13 @@ func (s *ServerState) loadRulesetIfChanged(cfg *LSPConfig) error {
 	var selectedRS *rulesets.RuleSet
 
 	if hardMode {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-		owaspRules := rulesets.GetAllOWASPRules()
-		for k, v := range owaspRules {
-			selectedRS.Rules[k] = v
-		}
+		selectedRS = generateHardModeRuleSet(defaultRuleSets)
 	} else if effectiveRuleset != "" {
-		rsBytes, err := os.ReadFile(effectiveRuleset)
+		ruleset, err := s.loadRulesetForDocument(effectiveRuleset, cfg, defaultRuleSets, s.lintRequest.HTTPClientConfig, "")
 		if err != nil {
-			return fmt.Errorf("failed to read ruleset %s: %w", effectiveRuleset, err)
+			return err
 		}
-		userRS, err := rulesets.CreateRuleSetFromData(rsBytes)
-		if err != nil {
-			return fmt.Errorf("failed to parse ruleset: %w", err)
-		}
-		selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
+		selectedRS = ruleset
 	} else {
 		selectedRS = defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
 	}
@@ -551,9 +636,13 @@ func (s *ServerState) loadFunctionsIfChanged(cfg *LSPConfig) error {
 	}
 
 	if effectiveFunctions != "" {
-		pm, err := plugin.LoadFunctions(effectiveFunctions, true)
+		resolvedFunctions, err := s.resolveDocumentConfigPath(effectiveFunctions, "")
 		if err != nil {
-			return fmt.Errorf("failed to load functions from %s: %w", effectiveFunctions, err)
+			return err
+		}
+		pm, err := plugin.LoadFunctions(resolvedFunctions, true)
+		if err != nil {
+			return fmt.Errorf("failed to load functions from %s: %w", resolvedFunctions, err)
 		}
 		s.lintRequest.Functions = pm.GetCustomFunctions()
 	} else {
@@ -561,6 +650,31 @@ func (s *ServerState) loadFunctionsIfChanged(cfg *LSPConfig) error {
 	}
 
 	s.loadedFunctionsPath = effectiveFunctions
+	return nil
+}
+
+func (s *ServerState) loadIgnoreFileIfChanged(cfg *LSPConfig) error {
+	effectiveIgnoreFile := cfg.IgnoreFile
+
+	if effectiveIgnoreFile == s.loadedIgnoreFilePath {
+		return nil
+	}
+
+	if effectiveIgnoreFile != "" {
+		resolvedIgnoreFile, err := s.resolveDocumentConfigPath(effectiveIgnoreFile, "")
+		if err != nil {
+			return err
+		}
+		ignoredResults, err := loadIgnoreFileForLSP(resolvedIgnoreFile)
+		if err != nil {
+			return err
+		}
+		s.lintRequest.IgnoredResults = ignoredResults
+	} else {
+		s.lintRequest.IgnoredResults = model.IgnoredItems{}
+	}
+
+	s.loadedIgnoreFilePath = effectiveIgnoreFile
 	return nil
 }
 

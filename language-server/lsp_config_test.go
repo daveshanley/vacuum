@@ -111,6 +111,31 @@ func TestParseLSPConfig_NilData(t *testing.T) {
 	assert.Nil(t, config)
 }
 
+func TestParseLSPConfig_NullDefaultsStayUnset(t *testing.T) {
+	data := map[string]interface{}{
+		"ruleset":       nil,
+		"ignoreFile":    nil,
+		"functions":     nil,
+		"base":          nil,
+		"remote":        nil,
+		"skipCheck":     nil,
+		"timeout":       nil,
+		"lookupTimeout": nil,
+		"hardMode":      nil,
+		"extensionRefs": nil,
+		"languageServer": map[string]interface{}{
+			"enabled": true,
+		},
+		"executablePath": "",
+	}
+
+	config, err := ParseLSPConfig(data)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, config)
+	assert.True(t, config.isEmpty())
+}
+
 func TestLSPConfig_IsEmpty(t *testing.T) {
 	empty := &LSPConfig{}
 	assert.True(t, empty.isEmpty())
