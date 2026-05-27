@@ -70,8 +70,11 @@ components:
 
 	ctx := model.RuleFunctionContext{
 		DrDocument:      drDocument,
+		Index:           v3Model.Index,
 		SchemaPathCache: &sync.Map{},
 	}
+	assert.Empty(t, locateSchemaReferenceAliasPaths(ctx, petSchema),
+		"same-document aliases should be handled by DrDocument lookup")
 
 	// First call is intentionally incomplete: no key/value nodes.
 	primaryPath, allPaths := LocateSchemaPropertyPaths(ctx, petSchema, nil, nil)
