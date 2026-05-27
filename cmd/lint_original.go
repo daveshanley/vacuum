@@ -13,11 +13,35 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 )
 
+type lintOriginalResult struct {
+	results []model.RuleFunctionResult
+	release func()
+}
+
+func (r *lintOriginalResult) releaseOwnedResources() {
+	if r == nil || r.release == nil {
+		return
+	}
+	r.release()
+	r.release = nil
+}
+
 // LintOriginalSpec lints the original spec using the provided execution config as a template.
 // All config fields (RuleSet, CustomFunctions, Timeout, etc.) are copied from the template
 // to guarantee exact config parity. Only Spec, SpecFileName, and Base are replaced.
 // Returns nil results (not an error) if the original spec has parse errors.
 func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, executionOptions *motor.ExecutionOptions) ([]model.RuleFunctionResult, error) {
+	result, err := lintOriginalSpecForDiff(originalPath, template, executionOptions)
+	if result != nil {
+		defer result.releaseOwnedResources()
+	}
+	if err != nil || result == nil {
+		return nil, err
+	}
+	return result.results, nil
+}
+
+func lintOriginalSpecForDiff(originalPath string, template *motor.RuleSetExecution, executionOptions *motor.ExecutionOptions) (*lintOriginalResult, error) {
 	originalBytes, err := os.ReadFile(originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read original spec file '%s': %w", originalPath, err)
@@ -64,12 +88,15 @@ func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, exe
 	}
 
 	result := motor.ApplyRulesToRuleSetWithOptions(exec, executionOptions)
-	defer result.ReleaseOwnedResources()
 
 	// If original spec has parse errors, return nil — safe default means all new violations get reported
 	if len(result.Errors) > 0 {
+		result.ReleaseOwnedResources()
 		return nil, nil
 	}
 
-	return result.Results, nil
+	return &lintOriginalResult{
+		results: result.Results,
+		release: result.ReleaseOwnedResources,
+	}, nil
 }

@@ -313,18 +313,25 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 
 					// Use violation-set diffing when --original is specified and we have an execution template
 					if originalFlag != "" && ruleset != nil && ruleset.RuleSetExecution != nil {
-						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
+						originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, ruleset.RuleSetExecution, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
 						if lintErr != nil {
 							if !silent {
 								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
 							}
 						} else {
+							var originalResults []model.RuleFunctionResult
+							if originalLint != nil {
+								originalResults = originalLint.results
+							}
 							resultSet.Results, _ = utils.DiffViolationsMixedWithOriginBases(
 								originalResults,
 								resultSet.Results,
 								originalFlag,
 								specFile,
 							)
+							if originalLint != nil {
+								originalLint.releaseOwnedResources()
+							}
 							filtered = true
 						}
 
