@@ -124,7 +124,20 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.25` 🔥: **Generate Open Collections from OpenAPI files**
+🔥 **New in** `v0.27` 🔥: **Generate OpenAPI Documentation in vacuum**
+
+A new `docs` command will generate the **best OpenAPI Documentation you ever saw**! Now vacuum has 
+integrated with [the printing press](https://github.com/pb33f/printing-press), it means
+generating documentation with built-in linting results is available _right inside vacuum_.
+
+Try it out! instead of the `lint` command try the `docs` command instead.
+
+- [Read more about API Docs in vacuum](https://quobix.com/vacuum/api-docs/)
+- [Read more about the printing press](https://pb33f.io/printing-press/)
+
+---
+
+`v0.25`: **Generate Open Collections from OpenAPI files**
 
 A new `open-collection` command will generate an [Open Collection](https://www.opencollection.com/) Workflow folder
 (or bundled file)
@@ -134,6 +147,7 @@ Open Collection is a new standard for defining and sharing API collections. vacu
 [Read More](https://quobix.com/vacuum/commands/open-collection/)
 
 ---
+
 
 `v0.24`: **TURBO MODE**
 
