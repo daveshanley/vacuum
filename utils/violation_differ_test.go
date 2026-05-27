@@ -42,6 +42,50 @@ func makeOriginResultPtr(ruleId, path, message, location string, line, column in
 	return &result
 }
 
+func makeIndexedSourceResult(t *testing.T, ruleId, path, message string) model.RuleFunctionResult {
+	t.Helper()
+
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error-code:
+          type: string
+`), &root))
+
+	doc := root.Content[0]
+	idx := index.NewSpecIndexWithConfig(doc, index.CreateOpenAPIIndexConfig())
+	node := findScalarNodeForTest(doc, "error-code")
+	require.NotNil(t, node)
+
+	result := makeResult(ruleId, path, message)
+	result.Paths = []string{path}
+	result.Origin = &index.NodeOrigin{
+		AbsoluteLocation: "common.yaml",
+		Index:            idx,
+		Node:             node,
+	}
+	return result
+}
+
+func findScalarNodeForTest(node *yaml.Node, value string) *yaml.Node {
+	if node == nil {
+		return nil
+	}
+	if node.Kind == yaml.ScalarNode && node.Value == value {
+		return node
+	}
+	for _, child := range node.Content {
+		if found := findScalarNodeForTest(child, value); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
 func TestDiffViolationsValues_BothEmpty(t *testing.T) {
 	result, stats := DiffViolationsValues(nil, nil)
 	assert.Empty(t, result)
@@ -201,12 +245,15 @@ func TestDiffViolationsValues_PrimaryPathCanDifferWhenPathsMatch(t *testing.T) {
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
-func TestDiffViolationsValues_OriginSuppressesExternalRefPathDrift(t *testing.T) {
+func TestDiffViolationsValues_PathsSuppressExternalRefPrimaryDrift(t *testing.T) {
 	message := "schema of type `string` must specify `format`, `const`, `enum` or `pattern`"
+	pathA := "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']"
+	pathB := "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']"
 	original := []model.RuleFunctionResult{
 		{
 			RuleId:  "owasp-string-restricted",
-			Path:    "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Path:    pathA,
+			Paths:   []string{pathA, pathB},
 			Message: message,
 			Rule:    &model.Rule{Id: "owasp-string-restricted"},
 			Origin: &index.NodeOrigin{
@@ -219,7 +266,8 @@ func TestDiffViolationsValues_OriginSuppressesExternalRefPathDrift(t *testing.T)
 	newResults := []model.RuleFunctionResult{
 		{
 			RuleId:  "owasp-string-restricted",
-			Path:    "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Path:    pathB,
+			Paths:   []string{pathB, pathA},
 			Message: message,
 			Rule:    &model.Rule{Id: "owasp-string-restricted"},
 			Origin: &index.NodeOrigin{
@@ -235,12 +283,61 @@ func TestDiffViolationsValues_OriginSuppressesExternalRefPathDrift(t *testing.T)
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
-func TestDiffViolationsValues_CanonicalOriginSuppressesMirroredDirectoryDrift(t *testing.T) {
+func TestDiffViolationsValues_PathIdentitySuppressesOriginLineShift(t *testing.T) {
+	message := "operation method `GET` at path `/pets` is missing a description or summary"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"operation-description",
+			"$.paths['/pets'].get",
+			message,
+			"/workspace/api.yaml",
+			14,
+			7,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeOriginResult(
+			"operation-description",
+			"$.paths['/pets'].get",
+			message,
+			"/workspace/api.yaml",
+			22,
+			7,
+		),
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValues_PathIdentityKeepsNewAliasPathDistinctWhenSourceMatches(t *testing.T) {
+	message := "media type schema property `error-code` is missing `examples` or `example`"
+	pathA := "$.paths['/a'].get.responses['400'].content['*/*'].schema.properties['error-code']"
+	pathB := "$.paths['/b'].get.responses['400'].content['*/*'].schema.properties['error-code']"
+
+	original := []model.RuleFunctionResult{
+		makeIndexedSourceResult(t, "oas3-missing-example", pathA, message),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeIndexedSourceResult(t, "oas3-missing-example", pathB, message),
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	require.Len(t, result, 1)
+	assert.Equal(t, pathB, result[0].Path)
+	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValues_PathsSuppressMirroredDirectoryPrimaryDrift(t *testing.T) {
 	message := "minLength must be defined"
+	pathA := "$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']"
+	pathB := "$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']"
 	original := []model.RuleFunctionResult{
 		{
 			RuleId:  "check-string-attribute-minlength",
-			Path:    "$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Path:    pathA,
+			Paths:   []string{pathA, pathB},
 			Message: message,
 			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
 			Origin: &index.NodeOrigin{
@@ -253,7 +350,8 @@ func TestDiffViolationsValues_CanonicalOriginSuppressesMirroredDirectoryDrift(t 
 	newResults := []model.RuleFunctionResult{
 		{
 			RuleId:  "check-string-attribute-minlength",
-			Path:    "$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Path:    pathB,
+			Paths:   []string{pathB, pathA},
 			Message: message,
 			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
 			Origin: &index.NodeOrigin{
@@ -333,7 +431,7 @@ func TestDiffViolationsValues_FallbackOriginPreservesDirectoryContext(t *testing
 	original := []model.RuleFunctionResult{
 		makeOriginResult(
 			"check-string-attribute-minlength",
-			"$.components.schemas.Customer.properties.name",
+			"",
 			message,
 			"/old/common/schema.yaml",
 			64,
@@ -343,7 +441,7 @@ func TestDiffViolationsValues_FallbackOriginPreservesDirectoryContext(t *testing
 	newResults := []model.RuleFunctionResult{
 		makeOriginResult(
 			"check-string-attribute-minlength",
-			"$.components.schemas.Customer.properties.name",
+			"",
 			message,
 			"/new/other/schema.yaml",
 			64,
@@ -509,7 +607,7 @@ func TestDiffViolationsValues_OriginFallsBackToStartNodePosition(t *testing.T) {
 	original := []model.RuleFunctionResult{
 		{
 			RuleId:    "oas3-missing-example",
-			Path:      "$.paths['/old'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+			Path:      "",
 			Message:   message,
 			Rule:      &model.Rule{Id: "oas3-missing-example"},
 			StartNode: &yaml.Node{Line: 321, Column: 9},
@@ -521,7 +619,7 @@ func TestDiffViolationsValues_OriginFallsBackToStartNodePosition(t *testing.T) {
 	newResults := []model.RuleFunctionResult{
 		{
 			RuleId:    "oas3-missing-example",
-			Path:      "$.paths['/new'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+			Path:      "",
 			Message:   message,
 			Rule:      &model.Rule{Id: "oas3-missing-example"},
 			StartNode: &yaml.Node{Line: 321, Column: 9},
@@ -576,12 +674,15 @@ func TestDiffViolationsMixed_Basic(t *testing.T) {
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
-func TestDiffViolationsMixed_OriginSuppressesExternalRefPathDrift(t *testing.T) {
+func TestDiffViolationsMixed_PathsSuppressExternalRefPrimaryDrift(t *testing.T) {
 	message := "schema of type `string` must specify `format`, `const`, `enum` or `pattern`"
+	pathA := "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']"
+	pathB := "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']"
 	original := []model.RuleFunctionResult{
 		{
 			RuleId:  "owasp-string-restricted",
-			Path:    "$.paths['/a'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Path:    pathA,
+			Paths:   []string{pathA, pathB},
 			Message: message,
 			Rule:    &model.Rule{Id: "owasp-string-restricted"},
 			Origin: &index.NodeOrigin{
@@ -594,7 +695,8 @@ func TestDiffViolationsMixed_OriginSuppressesExternalRefPathDrift(t *testing.T) 
 	newResults := []*model.RuleFunctionResult{
 		{
 			RuleId:  "owasp-string-restricted",
-			Path:    "$.paths['/b'].patch.requestBody.content['application/json'].schema.items.properties['path']",
+			Path:    pathB,
+			Paths:   []string{pathB, pathA},
 			Message: message,
 			Rule:    &model.Rule{Id: "owasp-string-restricted"},
 			Origin: &index.NodeOrigin{
@@ -610,12 +712,43 @@ func TestDiffViolationsMixed_OriginSuppressesExternalRefPathDrift(t *testing.T) 
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
-func TestDiffViolationsMixed_CanonicalOriginSuppressesMirroredDirectoryDrift(t *testing.T) {
+func TestDiffViolationsMixed_PathIdentitySuppressesOriginLineShift(t *testing.T) {
+	message := "operation method `GET` at path `/pets` is missing a description or summary"
+	original := []model.RuleFunctionResult{
+		makeOriginResult(
+			"operation-description",
+			"$.paths['/pets'].get",
+			message,
+			"/workspace/api.yaml",
+			14,
+			7,
+		),
+	}
+	newResults := []*model.RuleFunctionResult{
+		makeOriginResultPtr(
+			"operation-description",
+			"$.paths['/pets'].get",
+			message,
+			"/workspace/api.yaml",
+			22,
+			7,
+		),
+	}
+
+	result, stats := DiffViolationsMixed(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsMixed_PathsSuppressMirroredDirectoryPrimaryDrift(t *testing.T) {
 	message := "minLength must be defined"
+	pathA := "$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']"
+	pathB := "$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']"
 	original := []model.RuleFunctionResult{
 		{
 			RuleId:  "check-string-attribute-minlength",
-			Path:    "$.paths['/a'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Path:    pathA,
+			Paths:   []string{pathA, pathB},
 			Message: message,
 			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
 			Origin: &index.NodeOrigin{
@@ -628,7 +761,8 @@ func TestDiffViolationsMixed_CanonicalOriginSuppressesMirroredDirectoryDrift(t *
 	newResults := []*model.RuleFunctionResult{
 		{
 			RuleId:  "check-string-attribute-minlength",
-			Path:    "$.paths['/b'].get.responses['200'].content['application/json'].schema.properties['name']",
+			Path:    pathB,
+			Paths:   []string{pathB, pathA},
 			Message: message,
 			Rule:    &model.Rule{Id: "check-string-attribute-minlength"},
 			Origin: &index.NodeOrigin{
@@ -651,7 +785,7 @@ func TestDiffViolationsMixed_FallbackOriginPreservesDirectoryContext(t *testing.
 	original := []model.RuleFunctionResult{
 		makeOriginResult(
 			"check-string-attribute-minlength",
-			"$.components.schemas.Customer.properties.name",
+			"",
 			message,
 			"/old/common/schema.yaml",
 			64,
@@ -661,7 +795,7 @@ func TestDiffViolationsMixed_FallbackOriginPreservesDirectoryContext(t *testing.
 	newResults := []*model.RuleFunctionResult{
 		makeOriginResultPtr(
 			"check-string-attribute-minlength",
-			"$.components.schemas.Customer.properties.name",
+			"",
 			message,
 			"/new/other/schema.yaml",
 			64,

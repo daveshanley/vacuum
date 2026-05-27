@@ -3,18 +3,22 @@
 
 package utils
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
-// buildStablePrimaryAndPaths keeps the canonical path as the primary identity for a result
-// and returns a stable list of alternate locations for rendering/debugging.
+// buildStablePrimaryAndPaths keeps a real component definition as the primary
+// identity, but treats concrete aliases as sortable candidates.
 func buildStablePrimaryAndPaths(canonicalPath string, locatedPaths []string) (primaryPath string, allPaths []string) {
 	seen := make(map[string]struct{}, len(locatedPaths)+1)
 
+	candidates := make([]string, 0, len(locatedPaths)+1)
 	if canonicalPath != "" {
 		seen[canonicalPath] = struct{}{}
+		candidates = append(candidates, canonicalPath)
 	}
 
-	extraPaths := make([]string, 0, len(locatedPaths))
 	for _, path := range locatedPaths {
 		if path == "" {
 			continue
@@ -23,20 +27,32 @@ func buildStablePrimaryAndPaths(canonicalPath string, locatedPaths []string) (pr
 			continue
 		}
 		seen[path] = struct{}{}
-		extraPaths = append(extraPaths, path)
+		candidates = append(candidates, path)
 	}
 
-	sort.Strings(extraPaths)
+	if len(candidates) == 0 {
+		return "", nil
+	}
 
-	if canonicalPath == "" {
-		if len(extraPaths) == 0 {
-			return "", nil
+	sort.Strings(candidates)
+	if isComponentDefinitionPath(canonicalPath) {
+		allPaths = make([]string, 0, len(candidates))
+		allPaths = append(allPaths, canonicalPath)
+		for _, path := range candidates {
+			if path != canonicalPath {
+				allPaths = append(allPaths, path)
+			}
 		}
-		return extraPaths[0], extraPaths
+		return canonicalPath, allPaths
 	}
 
-	allPaths = make([]string, 0, 1+len(extraPaths))
-	allPaths = append(allPaths, canonicalPath)
-	allPaths = append(allPaths, extraPaths...)
-	return canonicalPath, allPaths
+	return candidates[0], candidates
+}
+
+func isComponentDefinitionPath(path string) bool {
+	return strings.HasPrefix(path, "$.components.") ||
+		strings.HasPrefix(path, "$.definitions.") ||
+		strings.HasPrefix(path, "$.parameters.") ||
+		strings.HasPrefix(path, "$.responses.") ||
+		strings.HasPrefix(path, "$.securityDefinitions.")
 }

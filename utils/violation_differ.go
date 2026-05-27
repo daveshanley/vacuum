@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
+	"go.yaml.in/yaml/v4"
 )
 
 // violationKey identifies a violation across spec versions.
@@ -56,6 +57,15 @@ func extractPath(path string, paths []string) string {
 type canonicalOriginMapper struct {
 	localRoot       string
 	canonicalByPath map[string]string
+	nodePathIndexes map[*yaml.Node]*NodePathIndex
+}
+
+func newCanonicalOriginMapper(localRoot string, canonicalByPath map[string]string) canonicalOriginMapper {
+	return canonicalOriginMapper{
+		localRoot:       localRoot,
+		canonicalByPath: canonicalByPath,
+		nodePathIndexes: make(map[*yaml.Node]*NodePathIndex),
+	}
 }
 
 func newCanonicalOriginMapperFromSpecPath(specPath string, canonicalByPath map[string]string, sharedParentDepth int) (canonicalOriginMapper, bool) {
@@ -63,10 +73,7 @@ func newCanonicalOriginMapperFromSpecPath(specPath string, canonicalByPath map[s
 	if !ok {
 		return canonicalOriginMapper{}, false
 	}
-	return canonicalOriginMapper{
-		localRoot:       ascendPath(root, sharedParentDepth),
-		canonicalByPath: canonicalByPath,
-	}, true
+	return newCanonicalOriginMapper(ascendPath(root, sharedParentDepth), canonicalByPath), true
 }
 
 func newCanonicalOriginMappers(originalLocations, newLocations []string, originalSpecPath, newSpecPath string) (canonicalOriginMapper, canonicalOriginMapper) {
@@ -89,8 +96,8 @@ func newCanonicalOriginMappers(originalLocations, newLocations []string, origina
 		return originalMapper, newMapper
 	}
 
-	return canonicalOriginMapper{canonicalByPath: originalInferred},
-		canonicalOriginMapper{canonicalByPath: newInferred}
+	return newCanonicalOriginMapper("", originalInferred),
+		newCanonicalOriginMapper("", newInferred)
 }
 
 func (m canonicalOriginMapper) canonicalLocation(location string) string {
@@ -111,6 +118,51 @@ func (m canonicalOriginMapper) canonicalLocation(location string) string {
 		return canonical
 	}
 	return path
+}
+
+func (m *canonicalOriginMapper) sourcePathIdentity(result model.RuleFunctionResult) string {
+	if m == nil || result.Origin == nil || result.Origin.Index == nil {
+		return ""
+	}
+
+	location := m.canonicalLocation(result.Origin.AbsoluteLocation)
+	if location == "" {
+		return ""
+	}
+
+	for _, node := range []*yaml.Node{
+		result.Origin.Node,
+		result.Origin.ValueNode,
+		result.StartNode,
+	} {
+		if sourcePath := m.lookupOriginNodePath(result.Origin.Index.GetRootNode(), node); sourcePath != "" {
+			return location + "#" + sourcePath
+		}
+	}
+	return ""
+}
+
+func (m *canonicalOriginMapper) lookupOriginNodePath(root, node *yaml.Node) string {
+	if root == nil || node == nil {
+		return ""
+	}
+	pathIndex := m.nodePathIndex(root)
+	if path, ok := pathIndex.Lookup(node); ok {
+		return path
+	}
+	return ""
+}
+
+func (m *canonicalOriginMapper) nodePathIndex(root *yaml.Node) *NodePathIndex {
+	if m.nodePathIndexes == nil {
+		m.nodePathIndexes = make(map[*yaml.Node]*NodePathIndex)
+	}
+	if pathIndex, ok := m.nodePathIndexes[root]; ok {
+		return pathIndex
+	}
+	pathIndex := BuildNodePathIndex(root)
+	m.nodePathIndexes[root] = pathIndex
+	return pathIndex
 }
 
 func collectOriginLocationsValues(results []model.RuleFunctionResult) []string {
@@ -267,11 +319,16 @@ func originPathSuffixes(path string) []string {
 }
 
 // extractIdentity returns the most stable identity available for a violation.
-// Result paths can vary for resolved external references because the same source
-// schema may be reachable through multiple root-document reference paths. Source
-// origin is stable for that case, so prefer a private canonical file/line/column
-// identity when it is known.
-func extractIdentity(result model.RuleFunctionResult, originMapper canonicalOriginMapper) string {
+// JSONPath identity is the user-visible contract for --original filtering; line
+// and column numbers are display metadata and can move when unrelated text is
+// inserted earlier in the document. Origin is still useful for pathless results.
+func extractIdentity(result model.RuleFunctionResult, originMapper *canonicalOriginMapper) string {
+	if pathIdentity := extractPath(result.Path, result.Paths); pathIdentity != "" {
+		return "path:" + pathIdentity
+	}
+	if sourcePath := originMapper.sourcePathIdentity(result); sourcePath != "" {
+		return "source:" + sourcePath
+	}
 	if result.Origin != nil {
 		location := originMapper.canonicalLocation(result.Origin.AbsoluteLocation)
 		line := result.Origin.Line
@@ -286,7 +343,7 @@ func extractIdentity(result model.RuleFunctionResult, originMapper canonicalOrig
 			return fmt.Sprintf("origin:%s:%d:%d", location, line, column)
 		}
 	}
-	return "path:" + extractPath(result.Path, result.Paths)
+	return "path:"
 }
 
 // diffCore builds a count map from original keys and returns which new indices survive filtering.
@@ -367,7 +424,7 @@ func diffViolationsValuesWithMappers(original, new []model.RuleFunctionResult, o
 	for i := range original {
 		originalKeys[i] = violationKey{
 			RuleId:  original[i].RuleId,
-			Path:    extractIdentity(original[i], originalOrigins),
+			Path:    extractIdentity(original[i], &originalOrigins),
 			Message: original[i].Message,
 		}
 	}
@@ -376,7 +433,7 @@ func diffViolationsValuesWithMappers(original, new []model.RuleFunctionResult, o
 	for i := range new {
 		newKeys[i] = violationKey{
 			RuleId:  new[i].RuleId,
-			Path:    extractIdentity(new[i], newOrigins),
+			Path:    extractIdentity(new[i], &newOrigins),
 			Message: new[i].Message,
 		}
 	}
@@ -420,7 +477,7 @@ func diffViolationsMixedWithMappers(original []model.RuleFunctionResult, new []*
 	for i := range original {
 		originalKeys[i] = violationKey{
 			RuleId:  original[i].RuleId,
-			Path:    extractIdentity(original[i], originalOrigins),
+			Path:    extractIdentity(original[i], &originalOrigins),
 			Message: original[i].Message,
 		}
 	}
@@ -432,7 +489,7 @@ func diffViolationsMixedWithMappers(original []model.RuleFunctionResult, new []*
 		}
 		newKeys[i] = violationKey{
 			RuleId:  new[i].RuleId,
-			Path:    extractIdentity(*new[i], newOrigins),
+			Path:    extractIdentity(*new[i], &newOrigins),
 			Message: new[i].Message,
 		}
 	}

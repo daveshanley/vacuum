@@ -33,3 +33,18 @@ func TestBuildStablePrimaryAndPaths_FallsBackToCanonical(t *testing.T) {
 	assert.Equal(t, canonical, primaryPath)
 	assert.Equal(t, []string{canonical}, allPaths)
 }
+
+func TestBuildStablePrimaryAndPaths_NonComponentCanonicalIsSortedCandidate(t *testing.T) {
+	canonical := "$.paths['/v1/resource'].get.responses['500'].content['*/*'].schema.properties['error-code']"
+	primaryPath, allPaths := buildStablePrimaryAndPaths(canonical, []string{
+		"$.paths['/v1/resource'].get.responses['404'].content['*/*'].schema.properties['error-code']",
+		"$.paths['/v1/resource'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+	})
+
+	assert.Equal(t, "$.paths['/v1/resource'].get.responses['400'].content['*/*'].schema.properties['error-code']", primaryPath)
+	assert.Equal(t, []string{
+		"$.paths['/v1/resource'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+		"$.paths['/v1/resource'].get.responses['404'].content['*/*'].schema.properties['error-code']",
+		"$.paths['/v1/resource'].get.responses['500'].content['*/*'].schema.properties['error-code']",
+	}, allPaths)
+}
