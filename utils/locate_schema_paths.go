@@ -102,18 +102,27 @@ func locateSchemaReferenceAliasPaths(context model.RuleFunctionContext, schema *
 		return nil
 	}
 
+	sourceRoot := context.Index.GetRootNode()
+	if sourceRoot == nil {
+		return nil
+	}
+	if targetIndex.GetRootNode() == sourceRoot {
+		return nil
+	}
+
+	sourceDocumentPath := context.Index.GetSpecAbsolutePath()
+	targetDocumentPath := targetIndex.GetSpecAbsolutePath()
+	if sourceDocumentPath != "" && targetDocumentPath != "" && sourceDocumentPath == targetDocumentPath {
+		return nil
+	}
+
 	targetPathIndex := nodePathIndexForSchemaContext(context, targetIndex.GetRootNode())
 	targetSchemaPath, ok := targetPathIndex.Lookup(schema.Value.GoLow().RootNode)
 	if !ok || targetSchemaPath == "" {
 		return nil
 	}
 
-	sourceRoot := context.Index.GetRootNode()
-	if sourceRoot == nil {
-		return nil
-	}
 	sourcePathIndex := nodePathIndexForSchemaContext(context, sourceRoot)
-	targetDocumentPath := targetIndex.GetSpecAbsolutePath()
 
 	var paths []string
 	for _, ref := range context.Index.GetAllSequencedReferences() {
@@ -215,7 +224,11 @@ func referenceTargetsDocument(ref *index.Reference, targetDocumentPath string) b
 	if targetDocumentPath == "" || ref.FullDefinition == "" {
 		return true
 	}
-	return strings.HasPrefix(ref.FullDefinition, targetDocumentPath+"#")
+	if !strings.HasPrefix(ref.FullDefinition, targetDocumentPath) {
+		return false
+	}
+	return len(ref.FullDefinition) > len(targetDocumentPath) &&
+		ref.FullDefinition[len(targetDocumentPath)] == '#'
 }
 
 func trimResultPathPrefix(path, prefix string) (string, bool) {
