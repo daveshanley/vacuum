@@ -130,6 +130,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
+	rootCmd.AddCommand(GetDocsCommand())
 	rootCmd.AddCommand(GetGenerateRulesetCommand())
 	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
 	rootCmd.AddCommand(GetGenerateVersionCommand())
