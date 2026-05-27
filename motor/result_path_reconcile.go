@@ -878,7 +878,6 @@ func buildMergedResultPaths(canonicalPath string, results ...*model.RuleFunction
 }
 
 func selectPrimaryResultPath(canonicalPath string, candidates []string) string {
-	primaryPath := canonicalPath
 	longestComponentPath := ""
 	for _, path := range candidates {
 		if !strings.HasPrefix(path, "$.components.") {
@@ -890,9 +889,6 @@ func selectPrimaryResultPath(canonicalPath string, candidates []string) string {
 	}
 	if longestComponentPath != "" {
 		return longestComponentPath
-	}
-	if primaryPath != "" {
-		return primaryPath
 	}
 	return candidates[0]
 }

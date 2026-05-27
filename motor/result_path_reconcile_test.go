@@ -6,6 +6,7 @@ package motor
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,6 +61,46 @@ func TestIssue879AliasedResultPathsAreCompleteAndStable(t *testing.T) {
 		if assert.Len(t, results.Results, 1, "iteration %d", i) {
 			assert.Equal(t, expectedPaths[0], results.Results[0].Path, "iteration %d", i)
 			assert.Equal(t, expectedPaths, results.Results[0].Paths, "iteration %d", i)
+		}
+	}
+}
+
+func TestIssue879MissingExampleSharedResponsePathsAreCompleteAndStable(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879MissingExampleResponseFixture(t)
+
+	rule := rulesets.GetOAS3ExamplesMissingRule()
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}
+
+	expectedPaths := []string{
+		"$.paths['/v1/resource'].get.responses['400'].content['*/*'].schema.properties['error-code']",
+		"$.paths['/v1/resource'].get.responses['404'].content['*/*'].schema.properties['error-code']",
+		"$.paths['/v1/resource'].get.responses['500'].content['*/*'].schema.properties['error-code']",
+	}
+
+	for i := 0; i < 100; i++ {
+		results := ApplyRulesToRuleSet(&RuleSetExecution{
+			RuleSet:           ruleSet,
+			Spec:              specBytes,
+			SpecFileName:      specPath,
+			Base:              dir,
+			AllowLookup:       true,
+			NodeLookupTimeout: 5 * time.Second,
+			SilenceLogs:       true,
+		})
+
+		require.Empty(t, results.Errors, "iteration %d", i)
+
+		var exampleResults []model.RuleFunctionResult
+		for _, result := range results.Results {
+			if result.RuleId == rulesets.Oas3ExampleMissingCheck &&
+				strings.Contains(result.Message, "`error-code`") {
+				exampleResults = append(exampleResults, result)
+			}
+		}
+
+		if assert.Len(t, exampleResults, 1, "iteration %d", i) {
+			assert.Equal(t, expectedPaths[0], exampleResults[0].Path, "iteration %d", i)
+			assert.Equal(t, expectedPaths, exampleResults[0].Paths, "iteration %d", i)
 		}
 	}
 }
@@ -372,6 +413,45 @@ paths:
       responses:
         '400':
           $ref: './common-responses.yaml#/BadRequest'
+components:
+  schemas: {}
+`)
+	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
+	return dir, specPath, specBytes
+}
+
+func writeIssue879MissingExampleResponseFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi-test.yaml")
+	commonPath := filepath.Join(dir, "common-responses.yaml")
+
+	require.NoError(t, os.WriteFile(commonPath, []byte(`ErrorResponse:
+  description: error response
+  content:
+    '*/*':
+      schema:
+        type: object
+        properties:
+          error-code:
+            type: string
+`), 0644))
+
+	specBytes := []byte(`openapi: 3.0.3
+info:
+  title: Vacuum issue 879 missing example repro
+  version: 1.0.0
+paths:
+  /v1/resource:
+    get:
+      responses:
+        '400':
+          $ref: './common-responses.yaml#/ErrorResponse'
+        '404':
+          $ref: './common-responses.yaml#/ErrorResponse'
+        '500':
+          $ref: './common-responses.yaml#/ErrorResponse'
 components:
   schemas: {}
 `)
