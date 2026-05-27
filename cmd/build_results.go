@@ -35,9 +35,12 @@ type TurboFlags struct {
 
 // ExecutionFlags holds execution configuration for BuildResults functions.
 type ExecutionFlags struct {
-	ResolveAllRefs       bool
-	NestedRefsDocContext bool
-	SpecFilePath         string
+	ResolveAllRefs                  bool
+	NestedRefsDocContext            bool
+	SpecFilePath                    string
+	ExtractReferencesFromExtensions bool
+	IgnoreCircularArrayRef          bool
+	IgnoreCircularPolymorphicRef    bool
 }
 
 func BuildResultsWithDocCheckSkip(
@@ -79,7 +82,7 @@ func BuildResultsWithDocCheckSkipAndExecutionFlags(
 	ignoredItems model.IgnoredItems,
 	turboFlags *TurboFlags,
 	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	if executionFlags == nil || (!executionFlags.ResolveAllRefs && !executionFlags.NestedRefsDocContext && executionFlags.SpecFilePath == "") {
+	if executionFlags == nil || executionFlags.isEmpty() {
 		return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
 	}
 
@@ -88,6 +91,34 @@ func BuildResultsWithDocCheckSkipAndExecutionFlags(
 		return nil, nil, err
 	}
 
+	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
+}
+
+func (f *ExecutionFlags) isEmpty() bool {
+	return f == nil ||
+		(!f.ResolveAllRefs &&
+			!f.NestedRefsDocContext &&
+			f.SpecFilePath == "" &&
+			!f.ExtractReferencesFromExtensions &&
+			!f.IgnoreCircularArrayRef &&
+			!f.IgnoreCircularPolymorphicRef)
+}
+
+// LintLoadedSpec runs a pre-resolved ruleset against already-loaded spec bytes.
+func LintLoadedSpec(
+	selectedRS *rulesets.RuleSet,
+	specBytes []byte,
+	customFunctions map[string]model.RuleFunction,
+	base string,
+	remote bool,
+	skipCheck bool,
+	timeout time.Duration,
+	lookupTimeout time.Duration,
+	httpClientConfig utils.HTTPClientConfig,
+	fetchConfig *utils.FetchConfig,
+	ignoredItems model.IgnoredItems,
+	turboFlags *TurboFlags,
+	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
 	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
 }
 
@@ -184,6 +215,11 @@ func executeBuildResults(
 		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
 		FetchConfig:       fetchConfig,
+	}
+	if executionFlags != nil {
+		exec.ExtractReferencesFromExtensions = executionFlags.ExtractReferencesFromExtensions
+		exec.IgnoreCircularArrayRef = executionFlags.IgnoreCircularArrayRef
+		exec.IgnoreCircularPolymorphicRef = executionFlags.IgnoreCircularPolymorphicRef
 	}
 	if turboFlags != nil {
 		exec.TurboMode = turboFlags.TurboMode

@@ -297,7 +297,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				if originalFlag != "" && execution != nil {
 					// Live-spec mode: use violation-set diffing for accurate filtering
-					originalResults, lintErr := LintOriginalSpec(originalFlag, execution, executionOptions)
+					originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, execution, executionOptions)
 					if lintErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
@@ -306,12 +306,19 @@ func GetDashboardCommand() *cobra.Command {
 							fmt.Println(style.Render(messageStyle.Render(message)))
 						}
 					} else {
+						var originalResults []model.RuleFunctionResult
+						if originalLint != nil {
+							originalResults = originalLint.results
+						}
 						resultSet.Results, filterStats = utils.DiffViolationsMixedWithOriginBases(
 							originalResults,
 							resultSet.Results,
 							originalFlag,
 							displayFileName,
 						)
+						if originalLint != nil {
+							originalLint.releaseOwnedResources()
+						}
 					}
 
 					// Still load document changes for change stats and violation injection

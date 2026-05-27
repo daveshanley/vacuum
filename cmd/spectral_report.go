@@ -342,18 +342,25 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
-						originalResults, lintErr := LintOriginalSpec(originalFlag, ruleset.RuleSetExecution, executionOptions)
+						originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, ruleset.RuleSetExecution, executionOptions)
 						if lintErr != nil {
 							if !stdIn && !stdOut {
 								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
 							}
 						} else {
+							var originalResults []model.RuleFunctionResult
+							if originalLint != nil {
+								originalResults = originalLint.results
+							}
 							resultSet.Results, _ = utils.DiffViolationsMixedWithOriginBases(
 								originalResults,
 								resultSet.Results,
 								originalFlag,
 								specFile,
 							)
+							if originalLint != nil {
+								originalLint.releaseOwnedResources()
+							}
 						}
 
 						// Still load document changes for change violation injection

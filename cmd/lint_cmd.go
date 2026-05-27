@@ -285,19 +285,26 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
-			originalResults, lintErr := LintOriginalSpec(flags.OriginalFlag, execution, executionOptions)
+			originalLint, lintErr := lintOriginalSpecForDiff(flags.OriginalFlag, execution, executionOptions)
 			if lintErr != nil {
 				if !flags.SilentFlag {
 					fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", lintErr)
 					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
 				}
 			} else {
+				var originalResults []model.RuleFunctionResult
+				if originalLint != nil {
+					originalResults = originalLint.results
+				}
 				result.Results, changeFilterStats = utils.DiffViolationsValuesWithOriginBases(
 					originalResults,
 					result.Results,
 					flags.OriginalFlag,
 					fileName,
 				)
+				if originalLint != nil {
+					originalLint.releaseOwnedResources()
+				}
 			}
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)

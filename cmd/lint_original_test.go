@@ -87,6 +87,26 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestLintCommand_OriginalSuppressesLineShiftedViolations(t *testing.T) {
+	original, newSpec, ruleset := writeOriginalLineShiftFixture(t)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"--original", original,
+		"-r", ruleset,
+		"-n", "warn",
+		"-x",
+		newSpec,
+	})
+
+	err := cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testing.T) {
 	origProcs := runtime.GOMAXPROCS(1)
 	defer runtime.GOMAXPROCS(origProcs)
@@ -212,6 +232,49 @@ func writeIssue839RegressionFixture(t *testing.T) (specPath string, rulesetPath 
 	require.NoError(t, err)
 
 	return specPath, rulesetPath
+}
+
+func writeOriginalLineShiftFixture(t *testing.T) (originalPath string, newPath string, rulesetPath string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	originalPath = filepath.Join(dir, "openapi-original.yaml")
+	newPath = filepath.Join(dir, "openapi-new.yaml")
+	rulesetPath = filepath.Join(dir, "ruleset.yaml")
+
+	ruleset := "extends: [[vacuum:oas, off]]\nrules:\n  operation-description: true\n"
+	require.NoError(t, os.WriteFile(rulesetPath, []byte(ruleset), 0o600))
+
+	operation := `paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+`
+
+	original := `openapi: 3.0.3
+info:
+  title: Line Shift Fixture
+  version: 1.0.0
+` + operation
+
+	newSpec := `openapi: 3.0.3
+info:
+  title: Line Shift Fixture
+  version: 1.0.0
+  description: |
+    Added documentation that should not make existing lint findings new.
+    This only moves the line numbers below.
+x-generated-docs:
+  enabled: true
+` + operation
+
+	require.NoError(t, os.WriteFile(originalPath, []byte(original), 0o600))
+	require.NoError(t, os.WriteFile(newPath, []byte(newSpec), 0o600))
+
+	return originalPath, newPath, rulesetPath
 }
 
 func TestLintCommand_OriginalMissingFile_WarnsAndProceeds(t *testing.T) {
