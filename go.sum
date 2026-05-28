@@ -140,8 +140,8 @@ github.com/muesli/termenv v0.16.0 h1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc
 github.com/muesli/termenv v0.16.0/go.mod h1:ZRfOIKPFDYQoDFF4Olj7/QJbW60Ol/kL1pU3VfY/Cnk=
 github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdhx/f4=
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
-github.com/pb33f/doctor v0.0.69 h1:foh6ckxskKrnqdI5shM3iJZDBgwiRG+mlB3AqyNV2aM=
-github.com/pb33f/doctor v0.0.69/go.mod h1:byqDnUZ1tmsrevFn4l/0inwbMXTilRufts0B6+L4oKY=
+github.com/pb33f/doctor v0.0.70 h1:P1hmPj6CQEetqRmGekh8Kqq7tWKKFBJdDYJUYgnNE+8=
+github.com/pb33f/doctor v0.0.70/go.mod h1:byqDnUZ1tmsrevFn4l/0inwbMXTilRufts0B6+L4oKY=
 github.com/pb33f/jsonpath v0.8.2 h1:Ou4C7zjYClBm97dfZjDCjdZGusJoynv/vrtiEKNfj2Y=
 github.com/pb33f/jsonpath v0.8.2/go.mod h1:zBV5LJW4OQOPatmQE2QdKpGQJvhDTlE5IEj6ASaRNTo=
 github.com/pb33f/libopenapi v0.37.2 h1:4Kb4w/h2BVKb099oYIZqeDxEBhUioWA+z6WJhBOk2r8=
