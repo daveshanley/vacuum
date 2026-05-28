@@ -12,9 +12,9 @@ build-ui: ## Build HTML report UI assets
 build: build-ui ## Build the vacuum binary to bin/vacuum
 	@go build -tags html_report_ui -o bin/vacuum
 
-test: build-ui ## Run the Go test suite
-	@go test ./...
-	@go test -tags html_report_ui ./...
+test: build-ui ## Run the Go test suite with coverage
+	@go test -tags html_report_ui -coverprofile=coverage.out ./...
+	@go tool cover -func=coverage.out
 
 run: ## Run vacuum directly with go run
 	@go run vacuum.go
