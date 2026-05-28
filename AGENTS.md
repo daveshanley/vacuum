@@ -71,6 +71,7 @@ tui/                         terminal UI, dashboard, tables, styles, markdown re
 utils/                       change detection, ignore matching, path location, HTTP helpers
 parser/                      JSON/YAML schema validation helpers
 vacuum-report/               persisted report format and JUnit support
+upgrade/                     release lookup, update notices, install-method detection, self-upgrade actions
 npm-install/                 npm postinstall binary downloader for @quobix/vacuum
 scripts/build-ui-assets.sh   builds HTML report UI assets for official builds
 BUILD_PACKAGING.md           package-manager build and ldflags guidance
@@ -90,6 +91,7 @@ Root command registration lives in `cmd/root.go`. Current subcommands include:
 - `generate-ignorefile`
 - `version`
 - `language-server`
+- `upgrade`
 - `bundle`
 - `apply-overlay`
 - `open-collection`
@@ -134,6 +136,14 @@ When adding or changing flags, check every command surface that shares the behav
 - `cmd/docs_press.go` calls the printing press engine from `github.com/pb33f/doctor`.
 - Single-spec and aggregate/catalog paths are both first-class; preserve both when changing docs behavior.
 - Defaults matter: output is `./api-docs`, port is `9090`, and diagnostics are enabled unless `--no-diagnostics`.
+
+## Upgrade And Update Checks
+
+- `cmd/upgrade.go` is the CLI entry point for `vacuum upgrade`.
+- `upgrade/` owns GitHub release lookup, update-check cache state, install context detection, notice rendering, and the npm/Homebrew/shell upgrade actions.
+- `cmd/update_check.go` starts the non-blocking update check and flushes notices around command execution.
+- Preserve machine-output behavior: update notices must not interfere with `--stdout`, `--silent`, `--pipeline-output`, CI, or non-terminal output.
+- `--no-update-check` disables the update check for a single run and should remain available as a persistent root flag.
 
 ## Config And Paths
 
