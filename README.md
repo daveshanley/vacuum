@@ -90,6 +90,17 @@ If you have Go 1.25 or newer installed, you can use `go run` to build and run it
 go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
 ```
 
+## Upgrade vacuum
+
+If vacuum was installed with Homebrew, npm, or the shell installer, run:
+
+```bash
+vacuum upgrade
+```
+
+vacuum will detect the install path and use the matching upgrade mechanism when it can. Normal commands may also show an
+update notice when a newer stable release is available. Use `--no-update-check` to skip that check for a single run.
+
 ---
 
 ## Sponsors
@@ -306,6 +317,7 @@ See all the documentation at https://quobix.com/vacuum
   - [bundle](https://quobix.com/vacuum/commands/bundle/)
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
   - [language-server](https://quobix.com/vacuum/commands/language-server/)
+  - [upgrade](https://quobix.com/vacuum/commands/upgrade/)
   - [apply-overlay](https://quobix.com/vacuum/commands/apply-overlay/)
   - [Change Detection](https://quobix.com/vacuum/commands/change-detection/)
   - [Open Collection](https://quobix.com/vacuum/commands/open-collection/)
