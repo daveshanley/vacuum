@@ -1,11 +1,11 @@
 ![logo](logo.png)
 
-# vacuum - The world's fastest OpenAPI & Swagger linter.
+# vacuum - The world's fastest OpenAPI and JSON Schema linter.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
-[![Docs](https://img.shields.io/badge/godoc-reference-5fafd7)](https:/-/pkg.go.dev/github.com/daveshanley/vacuum)
+[![Docs](https://img.shields.io/badge/godoc-reference-5fafd7)](https://pkg.go.dev/github.com/daveshanley/vacuum)
 [![npm](https://img.shields.io/npm/dm/@quobix/vacuum?style=flat-square&label=npm%20downloads)](https://www.npmjs.com/package/@quobix/vacuum)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
@@ -79,12 +79,12 @@ To run, mount the current working dir to the container and use a relative path t
 docker run --rm -v $PWD:/work:ro dshanley/vacuum lint <your-openapi-spec.yaml>
 ```
 Alternatively, you can pull it from
-[Github packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
+[GitHub packages](https://github.com/daveshanley/vacuum/pkgs/container/vacuum).
 To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the above commands.
 
 ## Run with Go
 
-If you have go >= 1.16 installed, you can use `go run` to build and run it:
+If you have Go 1.25 or newer installed, you can use `go run` to build and run it:
 
 ```
 go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
@@ -93,7 +93,7 @@ go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
 ---
 
 ## Sponsors
-If your company is using `vacuum`, please considering [supporting this project](https://github.com/sponsors/daveshanley),
+If your company is using `vacuum`, please consider [supporting this project](https://github.com/sponsors/daveshanley),
 like our _very kind_ sponsors, past and present:
 
 
@@ -133,7 +133,13 @@ generating documentation with built-in linting results is available _right insid
 Try it out! instead of the `lint` command try the `docs` command instead.
 
 - [Read more about API Docs in vacuum](https://quobix.com/vacuum/api-docs/)
+- [Read the `docs` command reference](https://quobix.com/vacuum/commands/docs/)
 - [Read more about the printing press](https://pb33f.io/printing-press/)
+- [Learn about rendering modes](https://pb33f.io/printing-press/rendering-modes/)
+- [Learn about diagnostics mode](https://pb33f.io/printing-press/diagnostics-mode/)
+- [Learn about API catalogs](https://pb33f.io/printing-press/api-catalog/)
+- [Learn about agentic AI output](https://pb33f.io/printing-press/agentic-ai/)
+- [Learn about generated outputs](https://pb33f.io/printing-press/outputs/)
 
 ---
 
@@ -175,7 +181,7 @@ Ever needed to tweak an OpenAPI spec for different environments without maintain
 Maybe swap out server URLs between dev, staging, and production? Or perhaps strip out internal endpoints before publishing the API docs?
 
 OpenAPI Overlays are the answer. They let us make non-destructive modifications to specs using JSONPath expressions to 
-target exactly what we want to change. vaccum now supports a new `apply-overlay` command.
+target exactly what we want to change. vacuum now supports a new `apply-overlay` command.
 
 - [Learn more about the apply-overlay command](https://quobix.com/vacuum/commands/apply-overlay)
 
@@ -249,9 +255,9 @@ New rules:
 
 ---
 
-`v0.17`: **Github Action**.
+`v0.17`: **GitHub Action**.
 
-vacuum now has an official Github Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
+vacuum now has an official GitHub Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
 in the [GitHub Marketplace](https://github.com/marketplace/actions/vacuum-openapi-linter-and-quality-analysis-tool).
 
 ---
@@ -289,9 +295,12 @@ See all the documentation at https://quobix.com/vacuum
 - [Why should you care?](https://quobix.com/vacuum/why/)
 - [Concepts](https://quobix.com/vacuum/concepts/)
 - [FAQ](https://quobix.com/vacuum/faq/)
+- [Ignoring lint results](https://quobix.com/vacuum/ignoring/)
+- [Generate API Docs](https://quobix.com/vacuum/api-docs/)
 - [CLI Commands](https://quobix.com/vacuum/commands/)
   - [lint](https://quobix.com/vacuum/commands/lint/)
   - [vacuum report](https://quobix.com/vacuum/commands/report/)
+  - [docs](https://quobix.com/vacuum/commands/docs/)
   - [dashboard](https://quobix.com/vacuum/commands/dashboard/)
   - [html-report](https://quobix.com/vacuum/commands/html-report/)
   - [bundle](https://quobix.com/vacuum/commands/bundle/)
@@ -300,6 +309,10 @@ See all the documentation at https://quobix.com/vacuum
   - [apply-overlay](https://quobix.com/vacuum/commands/apply-overlay/)
   - [Change Detection](https://quobix.com/vacuum/commands/change-detection/)
   - [Open Collection](https://quobix.com/vacuum/commands/open-collection/)
+  - [Generate RuleSet](https://quobix.com/vacuum/commands/generate-ruleset/)
+  - [Version](https://quobix.com/vacuum/commands/version/)
+  - [External References](https://quobix.com/vacuum/commands/external-references/)
+  - [Exit Codes](https://quobix.com/vacuum/commands/exit-codes/)
 - [Developer API](https://quobix.com/vacuum/api/getting-started/)
   - [Using The Index](https://quobix.com/vacuum/api/spec-index/)
   - [RuleResultSet](https://quobix.com/vacuum/api/rule-resultset/)
@@ -364,7 +377,7 @@ No external dependencies, the HTML report will run completely offline.
 
 ---
 
-> **_Supports OpenAPI Version 2 (Swagger) and Version 3+_**
+> **_Supports OpenAPI Version 2, OpenAPI Version 3+, and JSON Schema documents_**
 
 You can use either **YAML** or **JSON**, vacuum supports both formats.
 
@@ -481,7 +494,7 @@ recognizes a compressed report file and will deal with it automatically when rea
 
 ## Ignoring specific linting errors
 
-You can ignore specific linting errors by providing an `--ignore-file` argument to the `lint` and `report` commands.
+You can ignore specific linting errors by providing an `--ignore-file` argument to commands that run or replay lint results, including `lint`, `report`, `spectral-report`, `html-report`, `dashboard`, and `docs`.
 
 ```
 ./vacuum lint --ignore-file <path-to-ignore-file.yaml> -d <your-openapi-spec.yaml>
@@ -491,8 +504,7 @@ You can ignore specific linting errors by providing an `--ignore-file` argument 
 ./vacuum report --ignore-file <path-to-ignore-file.yaml> -c <your-openapi-spec.yaml> <report-prefix>
 ```
 
-The ignore-file should point to a .yaml file that contains a list of errors to be ignored by vacuum. The structure of the
-yaml file is as follows:
+The ignore-file should point to a `.yaml` file that contains exact result paths or JSONPath expressions to be ignored by vacuum. The structure of the YAML file is as follows:
 
 ```
 <rule-id-1>:
@@ -525,7 +537,7 @@ if you're interested in seeing how things are progressing, it's available.
 If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
 then you can use it with vacuum! 
 
-The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
+The `lint`, `dashboard`, `docs`, `html-report`, `report`, and `spectral-report` commands all accept a `-r` or `--ruleset` flag, defining the path to your ruleset file.
 
 ### Here are some examples you can try
 
@@ -549,7 +561,7 @@ The `lint`, `dashboard` and `spectral-report` commands all accept a `-r` or `--r
 ./vacuum lint -r rulesets/examples/custom-ruleset.yaml <your-openapi-spec.yaml>
 ```
 
-**_All rules, all of them!**
+**_All rules, all of them!_**
 ```
 ./vacuum lint -r rulesets/examples/all-ruleset.yaml <your-openapi-spec.yaml>
 ```
@@ -588,10 +600,10 @@ Use `--nested-refs-doc-context` or `motor.ExecutionOptions{NestedRefsDocContext:
 ### File
 You can configure vacuum using a configuration file named `vacuum.conf.yaml`
 
-By default, vacuum searches for this file in the following directories
+By default, vacuum searches for this file in the following locations:
 1. Working directory
-2. `$XDG_CONFIG_HOME`
-3. `${HOME}/.config`
+2. `$XDG_CONFIG_HOME`, when set
+3. `${HOME}/.config`, when `$XDG_CONFIG_HOME` is not set
 
 You can also specify a path to a file using the `--config` flag
 
@@ -609,9 +621,9 @@ lint:
   ...
 ```
 
-### Environmental variables
+### Environment variables
 
-You can configure global vacuum flags using environmental variables in the form of: `VACUUM_<flag>`
+You can configure global vacuum flags using environment variables in the form of: `VACUUM_<flag>`
 
 If a flag, has a `-` in it, replace with `_`
 

@@ -4,11 +4,14 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/spf13/cobra"
@@ -41,7 +44,12 @@ func Execute(version, commit, date string) {
 	// Now initialize version info with ldflags available
 	versionInfo = GetVersionInfo()
 
-	if err := GetRootCommand().Execute(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	rootCmd := GetRootCommand()
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		FlushUpdateNotice()
 		// Print unknown flag errors explicitly since commands have SilenceErrors: true
 		// This ensures users get feedback when they mistype a flag name
 		errStr := err.Error()
@@ -59,6 +67,7 @@ func Execute(version, commit, date string) {
 		}
 		os.Exit(ExitCodeInputError)
 	}
+	FlushUpdateNotice()
 }
 
 // GetVersion returns the current version string for compatibility
@@ -85,8 +94,10 @@ func GetRootCommand() *cobra.Command {
 			err := useConfigFile(cmd)
 			if err != nil {
 				tui.RenderError(err)
+				return err
 			}
-			return err
+			StartUpdateCheck(cmd)
+			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			PrintBanner()
@@ -94,6 +105,7 @@ func GetRootCommand() *cobra.Command {
 			fmt.Println()
 			fmt.Println("To see all the options, try 'vacuum --help'")
 			fmt.Println()
+			WaitForUpdateNotice()
 			return nil
 		},
 	}
@@ -125,12 +137,14 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("turbo", "T", false, "Turbo mode: faster linting, trades some checks for speed")
 	rootCmd.PersistentFlags().Bool("resolve-all-refs", false, "Force all rules to execute against the resolved document")
 	rootCmd.PersistentFlags().Bool("nested-refs-doc-context", false, "Resolve nested relative refs from the referenced document during resolved execution")
+	rootCmd.PersistentFlags().Bool("no-update-check", false, "Disable checking for newer vacuum releases")
 	rootCmd.AddCommand(GetLintCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
 	rootCmd.AddCommand(GetDashboardCommand())
 	rootCmd.AddCommand(GetDocsCommand())
+	rootCmd.AddCommand(GetUpgradeCommand())
 	rootCmd.AddCommand(GetGenerateRulesetCommand())
 	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
 	rootCmd.AddCommand(GetGenerateVersionCommand())
@@ -196,6 +210,9 @@ func GetRootCommand() *cobra.Command {
 		panic(regErr)
 	}
 	if regErr := rootCmd.RegisterFlagCompletionFunc("turbo", cobra.NoFileCompletions); regErr != nil {
+		panic(regErr)
+	}
+	if regErr := rootCmd.RegisterFlagCompletionFunc("no-update-check", cobra.NoFileCompletions); regErr != nil {
 		panic(regErr)
 	}
 

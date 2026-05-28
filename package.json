@@ -11,7 +11,7 @@
     "url": "git+https://github.com/daveshanley/vacuum.git"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=24.16.0"
   },
   "scripts": {
     "postinstall": "node ./npm-install/postinstall.js"
@@ -23,12 +23,11 @@
     "npm-install"
   ],
   "dependencies": {
-    "https-proxy-agent": "^7.0.6",
-    "node-fetch": "^3.3.2",
-    "tar": "^7.5.13"
+    "https-proxy-agent": "^9.0.0",
+    "tar": "^7.5.15"
   },
   "devDependencies": {
-    "@sourcemeta/jsonschema": "^11.5.1"
+    "@sourcemeta/jsonschema": "^15.6.3"
   },
   "bugs": {
     "url": "https://github.com/daveshanley/vacuum/issues"
