@@ -1291,6 +1291,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if specNodeResolved != nil && needsAliasedResultPathCompletion(ruleResults) {
 		completeAliasedResultPathsFromGiven(ruleResults, specNodeResolved, rolodexResolved, resolvedAliases)
 	}
+	completeAliasedResultPathsFromReferences(ruleResults, rolodexResolved)
 	if execution.CanonicalDocument != nil &&
 		(needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1 || needsTerminalKeySelectorPathUpgrade(ruleResults)) {
 		resultPathCache = newResultPathCache(execution.CanonicalDocument)

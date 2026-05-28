@@ -248,6 +248,13 @@ type resultPathCandidateIndex struct {
 	byPosition map[resultPathPosition][]resultPathCandidate
 }
 
+type resultReferenceAliasKey struct {
+	index *index.SpecIndex
+	path  string
+}
+
+const maxResultReferenceAliasDepth = 16
+
 func newResultPathCandidateIndex(candidates []resultPathCandidate) *resultPathCandidateIndex {
 	candidateIndex := &resultPathCandidateIndex{
 		byNode:     make(map[*yaml.Node][]resultPathCandidate, len(candidates)),
@@ -301,6 +308,382 @@ func (c *resultPathCandidateIndex) matchingPaths(result *model.RuleFunctionResul
 		}
 	}
 	return paths
+}
+
+func completeAliasedResultPathsFromReferences(results []model.RuleFunctionResult, rolodex *index.Rolodex) {
+	if len(results) == 0 || rolodex == nil || rolodex.GetRootIndex() == nil || rolodex.GetRootIndex().GetRootNode() == nil {
+		return
+	}
+
+	pathIndexes := make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
+	aliasCache := make(map[resultReferenceAliasKey][]string)
+
+	for i := range results {
+		result := &results[i]
+		if !shouldCompleteAliasedResultPathsFromReferences(result) {
+			continue
+		}
+
+		targetIndex, targetPath := targetPathForResult(result, rolodex, pathIndexes)
+		if targetIndex == nil || targetPath == "" {
+			continue
+		}
+		if targetIndex == rolodex.GetRootIndex() {
+			continue
+		}
+
+		cacheKey := resultReferenceAliasKey{index: targetIndex, path: targetPath}
+		aliasPaths, ok := aliasCache[cacheKey]
+		if !ok {
+			aliasPaths = expandResultReferenceAliasPaths(rolodex.GetRootIndex(), targetIndex, targetPath, pathIndexes)
+			aliasCache[cacheKey] = aliasPaths
+		}
+		if len(aliasPaths) <= 1 {
+			continue
+		}
+
+		mergeResultPathCandidates(result, applyResultPathSuffix(result, aliasPaths))
+	}
+}
+
+func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionResult) bool {
+	if result == nil || result.Rule == nil || result.StartNode == nil {
+		return false
+	}
+	if len(result.Paths) <= 1 && !resultPathNeedsReconciliation(result) {
+		return false
+	}
+	if !ruleUsesRecursiveDescent(result.Rule) {
+		return false
+	}
+	_, ok := aliasedResultKey(result)
+	return ok
+}
+
+func ruleUsesRecursiveDescent(rule *model.Rule) bool {
+	for _, givenPath := range resultGivenPaths(rule) {
+		if strings.Contains(givenPath, "$..") {
+			return true
+		}
+	}
+	return false
+}
+
+func targetPathForResult(
+	result *model.RuleFunctionResult,
+	rolodex *index.Rolodex,
+	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
+) (*index.SpecIndex, string) {
+	if result == nil || rolodex == nil {
+		return nil, ""
+	}
+
+	origin := result.Origin
+	if origin == nil && result.StartNode != nil {
+		origin = rolodex.FindNodeOrigin(result.StartNode)
+	}
+	if origin == nil || origin.Index == nil {
+		return nil, ""
+	}
+
+	pathIndex := resultPathIndexForSpec(origin.Index, pathIndexes)
+	if path, ok := pathIndex.Lookup(origin.Node); ok && path != "" {
+		return origin.Index, path
+	}
+	if path, ok := pathIndex.Lookup(origin.ValueNode); ok && path != "" {
+		return origin.Index, path
+	}
+	if path, ok := pathIndex.Lookup(result.StartNode); ok && path != "" {
+		return origin.Index, path
+	}
+	if origin.Line > 0 && origin.Column > 0 {
+		if node, found := origin.Index.GetNode(origin.Line, origin.Column); found {
+			if path, ok := pathIndex.Lookup(node); ok && path != "" {
+				return origin.Index, path
+			}
+		}
+	}
+	if origin.LineValue > 0 && origin.ColumnValue > 0 {
+		if node, found := origin.Index.GetNode(origin.LineValue, origin.ColumnValue); found {
+			if path, ok := pathIndex.Lookup(node); ok && path != "" {
+				return origin.Index, path
+			}
+		}
+	}
+	return nil, ""
+}
+
+func resultPathIndexForSpec(specIndex *index.SpecIndex, pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex) *vacuumUtils.NodePathIndex {
+	if specIndex == nil {
+		return nil
+	}
+	if pathIndex, ok := pathIndexes[specIndex]; ok {
+		return pathIndex
+	}
+	pathIndex := vacuumUtils.BuildNodePathIndex(specIndex.GetRootNode())
+	pathIndexes[specIndex] = pathIndex
+	return pathIndex
+}
+
+func expandResultReferenceAliasPaths(
+	sourceIndex *index.SpecIndex,
+	targetIndex *index.SpecIndex,
+	targetPath string,
+	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
+) []string {
+	if sourceIndex == nil || targetIndex == nil || targetPath == "" {
+		return nil
+	}
+
+	sourcePathIndex := resultPathIndexForSpec(sourceIndex, pathIndexes)
+	targetPathIndex := resultPathIndexForSpec(targetIndex, pathIndexes)
+	if sourcePathIndex == nil || targetPathIndex == nil {
+		return nil
+	}
+
+	var paths []string
+	for _, ref := range sourceIndex.GetAllSequencedReferences() {
+		if ref == nil || ref.Node == nil || ref.Path == "" {
+			continue
+		}
+		if !referenceTargetsIndex(ref, targetIndex) {
+			continue
+		}
+		sourcePath, ok := sourcePathIndex.Lookup(ref.Node)
+		if !ok || sourcePath == "" {
+			continue
+		}
+		paths = append(paths, expandResultReferenceAliasPath(
+			ref.Path,
+			sourcePath,
+			targetPath,
+			targetIndex.GetAllSequencedReferences(),
+			targetPathIndex,
+			targetIndex,
+			nil,
+			0,
+		)...)
+	}
+	return uniqueSortedResultPaths(paths)
+}
+
+func expandResultReferenceAliasPath(
+	currentTargetPath string,
+	currentSourcePath string,
+	targetPath string,
+	targetReferences []*index.Reference,
+	targetPathIndex *vacuumUtils.NodePathIndex,
+	targetIndex *index.SpecIndex,
+	seen map[string]struct{},
+	depth int,
+) []string {
+	if currentTargetPath == "" || currentSourcePath == "" || targetPath == "" {
+		return nil
+	}
+	if seen == nil {
+		seen = make(map[string]struct{})
+	}
+
+	seenKey := currentTargetPath + "\x00" + currentSourcePath
+	if _, ok := seen[seenKey]; ok {
+		return nil
+	}
+	seen[seenKey] = struct{}{}
+	defer delete(seen, seenKey)
+
+	var paths []string
+	if suffix, ok := trimAliasPathPrefix(targetPath, currentTargetPath); ok {
+		paths = append(paths, canonicalizeResultAliasPath(currentSourcePath+suffix))
+	}
+	if depth >= maxResultReferenceAliasDepth {
+		return paths
+	}
+
+	for _, nestedRef := range targetReferences {
+		if nestedRef == nil || nestedRef.Node == nil || nestedRef.Path == "" {
+			continue
+		}
+		if !referenceTargetsIndex(nestedRef, targetIndex) {
+			continue
+		}
+
+		nestedSourcePath, ok := targetPathIndex.Lookup(nestedRef.Node)
+		if !ok || nestedSourcePath == "" {
+			continue
+		}
+		nestedSuffix, ok := trimAliasPathPrefix(nestedSourcePath, currentTargetPath)
+		if !ok {
+			continue
+		}
+
+		nextSourcePath := canonicalizeResultAliasPath(currentSourcePath + nestedSuffix)
+		paths = append(paths, expandResultReferenceAliasPath(
+			nestedRef.Path,
+			nextSourcePath,
+			targetPath,
+			targetReferences,
+			targetPathIndex,
+			targetIndex,
+			seen,
+			depth+1,
+		)...)
+	}
+
+	return paths
+}
+
+func referenceTargetsIndex(ref *index.Reference, targetIndex *index.SpecIndex) bool {
+	if ref == nil || targetIndex == nil {
+		return false
+	}
+	if strings.HasPrefix(ref.FullDefinition, "#") {
+		return ref.Index == targetIndex
+	}
+
+	targetDocumentPath := targetIndex.GetSpecAbsolutePath()
+	if targetDocumentPath == "" || ref.FullDefinition == "" {
+		return true
+	}
+	if ref.RemoteLocation == targetDocumentPath {
+		return true
+	}
+	if !strings.HasPrefix(ref.FullDefinition, targetDocumentPath) {
+		return false
+	}
+	return len(ref.FullDefinition) == len(targetDocumentPath) ||
+		ref.FullDefinition[len(targetDocumentPath)] == '#'
+}
+
+func applyResultPathSuffix(result *model.RuleFunctionResult, aliasPaths []string) []string {
+	if result == nil || len(aliasPaths) == 0 {
+		return aliasPaths
+	}
+
+	suffix := resultPathSuffix(result.Path, aliasPaths)
+	if suffix == "" {
+		for _, path := range result.Paths {
+			suffix = resultPathSuffix(path, aliasPaths)
+			if suffix != "" {
+				break
+			}
+		}
+	}
+	if suffix == "" {
+		return aliasPaths
+	}
+
+	paths := make([]string, 0, len(aliasPaths))
+	for _, path := range aliasPaths {
+		paths = append(paths, path+suffix)
+	}
+	return paths
+}
+
+func resultPathSuffix(path string, aliasPaths []string) string {
+	if path == "" {
+		return ""
+	}
+	for _, aliasPath := range aliasPaths {
+		if len(path) <= len(aliasPath) {
+			continue
+		}
+		if suffix, ok := trimAliasPathPrefix(path, aliasPath); ok {
+			return suffix
+		}
+	}
+	return ""
+}
+
+func uniqueSortedResultPaths(paths []string) []string {
+	if len(paths) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(paths))
+	unique := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		unique = append(unique, path)
+	}
+	sort.Strings(unique)
+	return unique
+}
+
+func trimAliasPathPrefix(path, prefix string) (string, bool) {
+	if resultPathHasPrefix(path, prefix) {
+		return strings.TrimPrefix(path, prefix), true
+	}
+
+	normalizedPath := normalizeSimpleBracketResultPath(path)
+	normalizedPrefix := normalizeSimpleBracketResultPath(prefix)
+	if !resultPathHasPrefix(normalizedPath, normalizedPrefix) {
+		return "", false
+	}
+	return strings.TrimPrefix(normalizedPath, normalizedPrefix), true
+}
+
+func normalizeSimpleBracketResultPath(path string) string {
+	var b strings.Builder
+	b.Grow(len(path))
+	for i := 0; i < len(path); {
+		if i+3 < len(path) && path[i] == '[' && (path[i+1] == '\'' || path[i+1] == '"') {
+			quote := path[i+1]
+			end := i + 2
+			for end < len(path) && path[end] != quote {
+				end++
+			}
+			if end+1 < len(path) && path[end+1] == ']' {
+				key := path[i+2 : end]
+				if isSimpleResultPathKey(key) {
+					b.WriteByte('.')
+					b.WriteString(key)
+					i = end + 2
+					continue
+				}
+			}
+		}
+		b.WriteByte(path[i])
+		i++
+	}
+	return b.String()
+}
+
+func canonicalizeResultAliasPath(path string) string {
+	for _, marker := range []string{".properties.", ".patternProperties."} {
+		for {
+			idx := strings.Index(path, marker)
+			if idx < 0 {
+				break
+			}
+			keyStart := idx + len(marker)
+			keyEnd := keyStart
+			for keyEnd < len(path) && path[keyEnd] != '.' && path[keyEnd] != '[' {
+				keyEnd++
+			}
+			if keyEnd == keyStart {
+				break
+			}
+			key := path[keyStart:keyEnd]
+			path = path[:idx+len(marker)-1] + "['" + key + "']" + path[keyEnd:]
+		}
+	}
+	return path
+}
+
+func resultPathHasPrefix(path, prefix string) bool {
+	if path == prefix {
+		return true
+	}
+	if prefix == "" || len(path) <= len(prefix) || !strings.HasPrefix(path, prefix) {
+		return false
+	}
+	next := path[len(prefix)]
+	return next == '.' || next == '['
 }
 
 type resultPathStepKind int
