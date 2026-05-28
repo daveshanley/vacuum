@@ -230,6 +230,7 @@ func TestShouldCheckForUpdatesSkipsNonTerminal(t *testing.T) {
 
 func configureUpdateCheckTest(t *testing.T, delay time.Duration) func() {
 	t.Helper()
+	t.Setenv("CI", "")
 
 	previousVersionInfo := versionInfo
 	previousOptions := updateCheckOptions
