@@ -75,7 +75,7 @@ jobs:
         run: go tool cover -func=coverage.out
 
       - name: Check default source build
-        run: go test -run '^$' ./...
+        run: go build ./...
 
       - name: Build
         run: go build -tags html_report_ui -o bin/vacuum
