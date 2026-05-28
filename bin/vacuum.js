@@ -6,11 +6,18 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const binaryName = process.platform === "win32" ? "vacuum.exe" : "vacuum";
 
 try {
-    execFileSync(path.resolve(`${__dirname}/vacuum`), process.argv.slice(2), {
+    const env = {
+        ...process.env,
+        VACUUM_MANAGED_BY_NPM: "1",
+        VACUUM_MANAGED_PACKAGE_ROOT: path.resolve(`${__dirname}/..`),
+    };
+    execFileSync(path.resolve(__dirname, binaryName), process.argv.slice(2), {
         stdio: "inherit",
+        env,
     });
 } catch (e) {
-    exit(1)
+    exit(typeof e.status === "number" ? e.status : 1)
 }

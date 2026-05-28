@@ -1,6 +1,6 @@
 import { createWriteStream } from "fs";
 import * as fs from "fs/promises";
-import fetch from "node-fetch";
+import https from "https";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { pipeline } from "stream/promises";
 import * as tar from "tar";
@@ -16,6 +16,47 @@ function getProxyUrl() {
            process.env.HTTP_PROXY ||
            process.env.http_proxy ||
            null;
+}
+
+function createRequestOptions() {
+    const proxyUrl = getProxyUrl();
+    if (!proxyUrl) {
+        return {};
+    }
+    console.log("Using proxy:", proxyUrl);
+    return { agent: new HttpsProxyAgent(proxyUrl) };
+}
+
+function requestUrl(url, options, redirectsRemaining = 5) {
+    return new Promise((resolve, reject) => {
+        const request = https.get(url, options, (response) => {
+            const { statusCode, headers } = response;
+            const location = headers.location;
+
+            if (statusCode >= 300 && statusCode < 400 && location) {
+                response.resume();
+                if (redirectsRemaining <= 0) {
+                    reject(new Error("Too many redirects while fetching the binary"));
+                    return;
+                }
+                const nextUrl = new URL(location, url).toString();
+                requestUrl(nextUrl, options, redirectsRemaining - 1).then(resolve, reject);
+                return;
+            }
+
+            resolve(response);
+        });
+        request.on("error", reject);
+    });
+}
+
+async function downloadFile(url, destination) {
+    const response = await requestUrl(url, createRequestOptions());
+    if (response.statusCode < 200 || response.statusCode > 299) {
+        response.resume();
+        throw new Error("Failed fetching the binary: " + response.statusMessage);
+    }
+    await pipeline(response, createWriteStream(destination));
 }
 
 async function install() {
@@ -43,24 +84,11 @@ async function install() {
     url = url.replace(/{{version}}/g, version);
     url = url.replace(/{{bin_name}}/g, binName);
 
-    // Configure fetch options with proxy support
-    const fetchOptions = {};
-    const proxyUrl = getProxyUrl();
-    if (proxyUrl) {
-        console.log('Using proxy:', proxyUrl);
-        fetchOptions.agent = new HttpsProxyAgent(proxyUrl);
-    }
-
-    console.log('fetching from URL', url)
-    const response = await fetch(url, fetchOptions);
-    if (!response.ok) {
-        throw new Error("Failed fetching the binary: " + response.statusText);
-    }
-
     const tarFile = "downloaded.tar.gz";
 
     await fs.mkdir(binPath, { recursive: true });
-    await pipeline(response.body, createWriteStream(tarFile));
+    console.log("fetching from URL", url);
+    await downloadFile(url, tarFile);
     await tar.x({ file: tarFile, cwd: binPath });
     await fs.rm(tarFile);
 }

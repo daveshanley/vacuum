@@ -61,10 +61,10 @@ setup_color() {
   # Only use colors if connected to a terminal
   if [ -t 1 ]; then
     RED=$(printf '\033[31m')
-    GREEN=$(printf '\033[32m')
+    GREEN=$(printf '\033[38;5;46m')
     YELLOW=$(printf '\033[33m')
-    BLUE=$(printf '\033[34m')
-    MAGENTA=$(printf '\033[35m')
+    BLUE=$(printf '\033[38;5;45m')
+    MAGENTA=$(printf '\033[38;5;201m')
     BOLD=$(printf '\033[1m')
     RESET=$(printf '\033[m')
   else
@@ -99,23 +99,24 @@ get_machine() {
 }
 
 get_tmp_dir() {
-  echo $(mktemp -d)
+  mktemp -d
 }
 
 do_checksum() {
-  checksum_url=$(get_checksum_url $version)
-  get_checksum_url $version
-  expected_checksum=$(curl -sL $checksum_url | grep $asset_name | awk '{print $1}')
-
-
+  checksum_url=$(get_checksum_url "$version")
+  expected_checksum=$(curl -fsSL "$checksum_url" | awk -v asset="$asset_name" '$2 == asset {print $1; exit}')
+  if [ -z "$expected_checksum" ]; then
+    fmt_error "Could not find checksum for $asset_name"
+    exit 1
+  fi
 
   if command_exists sha256sum; then
-    checksum=$(sha256sum $asset_name | awk '{print $1}')
+    checksum=$(sha256sum "$asset_name" | awk '{print $1}')
   elif command_exists shasum; then
-    checksum=$(shasum -a 256 $asset_name | awk '{print $1}')
+    checksum=$(shasum -a 256 "$asset_name" | awk '{print $1}')
   else
-    fmt_warning "Could not find a checksum program. Install shasum or sha256sum to validate checksum."
-    return 0
+    fmt_error "Could not find a checksum program. Install shasum or sha256sum to validate checksum."
+    exit 1
   fi
 
   if [ "$checksum" != "$expected_checksum" ]; then
@@ -124,9 +125,30 @@ do_checksum() {
   fi
 }
 
+verify_installed_binary() {
+  installed_version=$("$1" version 2>/dev/null || true)
+  if [ "$installed_version" != "v$version" ] && [ "$installed_version" != "$version" ]; then
+    fmt_error "Installed binary reports version '$installed_version', expected '$version'"
+    exit 1
+  fi
+}
+
+cleanup_install() {
+  status=$?
+  if [ "$status" -ne 0 ] && [ -n "$backup_path" ] && [ -f "$backup_path" ]; then
+    mv "$backup_path" "$install_path" 2>/dev/null || true
+  fi
+  rm -rf "$tmp_dir"
+  rm -f "$tmp_install_path"
+  if [ "$status" -eq 0 ]; then
+    rm -f "$backup_path"
+  fi
+  return "$status"
+}
+
 do_install_binary() {
-  asset_name=$(get_asset_name $version $os $machine)
-  download_url=$(get_download_url $version $os $machine)
+  asset_name=$(get_asset_name "$version" "$os" "$machine")
+  download_url=$(get_download_url "$version" "$os" "$machine")
 
   command_exists curl || {
     fmt_error "curl is not installed"
@@ -139,22 +161,36 @@ do_install_binary() {
   }
 
   local tmp_dir=$(get_tmp_dir)
+  local install_path="$INSTALL_DIR/$BINARY_NAME"
+  local tmp_install_path="$INSTALL_DIR/.$BINARY_NAME.tmp.$$"
+  local backup_path="$install_path.bak"
+  trap cleanup_install EXIT
 
   # Download tar.gz to tmp directory
   echo "Downloading $download_url"
-  (cd $tmp_dir && curl -sL -O "$download_url")
+  (cd "$tmp_dir" && curl -fsSL --retry 5 -o "$asset_name" "$download_url")
 
-  (cd $tmp_dir && do_checksum)
+  (cd "$tmp_dir" && do_checksum)
 
   # Extract download
-  (cd $tmp_dir && tar -xzf "$asset_name")
+  (cd "$tmp_dir" && tar -xzf "$asset_name")
+
+  mkdir -p "$INSTALL_DIR"
+  mv "$tmp_dir/$BINARY_NAME" "$tmp_install_path"
+  chmod 755 "$tmp_install_path"
+  verify_installed_binary "$tmp_install_path"
 
   # Install binary
-  mv "$tmp_dir/$BINARY_NAME" $INSTALL_DIR
-  echo "Installed vacuum to $INSTALL_DIR"
+  if [ -f "$install_path" ]; then
+    cp -p "$install_path" "$backup_path"
+  fi
+  mv "$tmp_install_path" "$install_path"
+  verify_installed_binary "$install_path"
+  echo "Installed vacuum to $install_path"
 
   # Cleanup
-  rm -rf $tmp_dir
+  trap - EXIT INT TERM
+  cleanup_install
 }
 
 install_termux() {
@@ -190,25 +226,19 @@ main() {
 
   printf "$MAGENTA"
   cat <<'EOF'
-                   .
-         /^\     .
-    /\   "V"
-   /__\   I      O  o
-  //..\\  I     .                            Poof!
-  \].`[/  I
-  /l\/j\  (]    .  O
- /. ~~ ,\/I          .               vacuum is now installed
- \\L__j^\/I       o              Run `vacuum help` for commands
-  \/--v}  I     o   .
-  |    |  I   _________
-  |    |  I c(`       ')o
-  |    l  I   \.     ,/
-_/j  L l\_!  _//^---^\\_
 
+ ██╗   ██╗ █████╗  ██████╗██╗   ██╗██╗   ██╗███╗   ███╗ 《《《─═─═── ·* · ˙*
+ ██║   ██║██╔══██╗██╔════╝██║   ██║██║   ██║████╗ ████║《《《──═─═──· ··* ˙˙
+ ██║   ██║███████║██║     ██║   ██║██║   ██║██╔████╔██║《《《───═─═─··· ˙˙ ˙
+ ╚██╗ ██╔╝██╔══██║██║     ██║   ██║██║   ██║██║╚██╔╝██║《《──═─═──·* ·· ˙˙
+  ╚████╔╝ ██║  ██║╚██████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║ 《《─═─═──* · · ˙
+   ╚═══╝  ╚═╝  ╚═╝ ╚═════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝ 《───═─═─· ··* ˙˙ ˙
 EOF
   printf "$RESET"
+  printf "\n"
+  printf "%svacuum has been installed.%s\n\n" "$GREEN" "$RESET"
+  printf "Run %s for a list of commands\n\n" "$(fmt_code "vacuum help")"
 
 }
 
 main
-
