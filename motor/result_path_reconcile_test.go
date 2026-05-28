@@ -105,6 +105,58 @@ func TestIssue879MissingExampleSharedResponsePathsAreCompleteAndStable(t *testin
 	}
 }
 
+func TestIssue879RecursiveCustomRuleSharedResponsePathsAreCompleteAndStable(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879RecursiveCustomRuleFixture(t)
+
+	rule := &model.Rule{
+		Id:          "repro-property-description",
+		Description: "Every property must have a description",
+		Message:     "Property is missing a description",
+		Given:       "$..properties.*",
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}
+
+	expectedPaths := []string{
+		"$.paths['/v1/orders'].post.responses['400'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders'].post.responses['500'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders/{orderId}'].get.responses['400'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders/{orderId}'].get.responses['404'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders/{orderId}'].get.responses['500'].content['*/*'].schema.properties['error-code'].description",
+	}
+
+	for i := 0; i < 100; i++ {
+		results := ApplyRulesToRuleSet(&RuleSetExecution{
+			RuleSet:           ruleSet,
+			Spec:              specBytes,
+			SpecFileName:      specPath,
+			Base:              dir,
+			AllowLookup:       true,
+			NodeLookupTimeout: 5 * time.Second,
+			SilenceLogs:       true,
+		})
+
+		require.Empty(t, results.Errors, "iteration %d", i)
+
+		var errorCodeResults []model.RuleFunctionResult
+		for _, result := range results.Results {
+			if result.RuleId == rule.Id && strings.Contains(result.Path, "error-code") {
+				errorCodeResults = append(errorCodeResults, result)
+			}
+		}
+
+		if assert.Len(t, errorCodeResults, 1, "iteration %d", i) {
+			assert.Equal(t, expectedPaths[0], errorCodeResults[0].Path, "iteration %d", i)
+			assert.Equal(t, expectedPaths, errorCodeResults[0].Paths, "iteration %d", i)
+		}
+	}
+}
+
 func TestIssue879AliasedResultPathsSupportUnquotedKeyUnion(t *testing.T) {
 	dir, specPath, specBytes := writeIssue879AliasedResponseFixture(t)
 
@@ -452,6 +504,62 @@ paths:
           $ref: './common-responses.yaml#/ErrorResponse'
         '500':
           $ref: './common-responses.yaml#/ErrorResponse'
+components:
+  schemas: {}
+`)
+	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
+	return dir, specPath, specBytes
+}
+
+func writeIssue879RecursiveCustomRuleFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi-test.yaml")
+	commonDir := filepath.Join(dir, "common")
+	require.NoError(t, os.MkdirAll(commonDir, 0755))
+	commonPath := filepath.Join(commonDir, "error-response.yaml")
+
+	require.NoError(t, os.WriteFile(commonPath, []byte(`ErrorResponse:
+  description: Standard error response
+  content:
+    '*/*':
+      schema:
+        type: object
+        properties:
+          error-code:
+            type: string
+          error-message:
+            type: string
+          error-detail:
+            type: string
+`), 0644))
+
+	specBytes := []byte(`openapi: 3.0.3
+info:
+  title: Vacuum issue 879 recursive custom rule repro
+  version: 1.0.0
+paths:
+  /v1/orders:
+    post:
+      responses:
+        '201':
+          description: Order created
+        '400':
+          $ref: './common/error-response.yaml#/ErrorResponse'
+        '500':
+          $ref: './common/error-response.yaml#/ErrorResponse'
+  /v1/orders/{orderId}:
+    get:
+      responses:
+        '200':
+          description: Order details
+        '400':
+          $ref: './common/error-response.yaml#/ErrorResponse'
+        '404':
+          $ref: './common/error-response.yaml#/ErrorResponse'
+        '500':
+          $ref: './common/error-response.yaml#/ErrorResponse'
 components:
   schemas: {}
 `)
