@@ -1,4 +1,4 @@
-![logo](logo.png)
+![logo](.github/assets/logo.png)
 
 # vacuum - The world's fastest OpenAPI and JSON Schema linter.
 
@@ -385,7 +385,7 @@ you can explore broken rules and violations, but in your browser.
 
 No external dependencies, the HTML report will run completely offline.
 
-![vacuum html-report](html-report-screenshot.png)
+![vacuum html-report](.github/assets/html-report-screenshot.png)
 
 ---
 
