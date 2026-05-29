@@ -1,21 +1,29 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package model
 
 import (
 	_ "embed"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v4"
 )
 
 const (
-	OAS2  = "oas2"
-	OAS3  = "oas3"   // family format - matches all 3.x versions
-	OAS30 = "oas3_0" // exact 3.0 only - does not match 3.1 or 3.2
-	OAS31 = "oas3_1"
-	OAS32 = "oas3_2"
+	OAS2                = "oas2"
+	OAS3                = "oas3"   // family format - matches all 3.x versions
+	OAS30               = "oas3_0" // exact 3.0 only - does not match 3.1 or 3.2
+	OAS31               = "oas3_1"
+	OAS32               = "oas3_2"
+	JSONSchema          = "json-schema"
+	JSONSchemaDraft2020 = "json-schema-2020-12"
+	JSONSchemaDraft2019 = "json-schema-draft-2019-09"
+	JSONSchemaDraft07   = "json-schema-draft-07"
+	WebsiteUrl          = "https://quobix.com/vacuum"
 )
 
 var OAS3_1Format = []string{OAS31}
@@ -25,6 +33,8 @@ var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
 var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
+var JSONSchemaFormat = []string{JSONSchema}
+var JSONSchemaAllFormats = []string{JSONSchema, JSONSchemaDraft2020, JSONSchemaDraft2019, JSONSchemaDraft07}
 
 // FormatMatches checks if a rule format matches a spec format.
 // The oas3 format is treated as a "family" that covers oas3, oas3_1, and oas3_2.
@@ -43,11 +53,12 @@ func FormatMatches(ruleFormat, specFormat string) bool {
 	if ruleFormat == OAS30 && specFormat == OAS3 {
 		return true
 	}
+	if ruleFormat == JSONSchema && (specFormat == JSONSchemaDraft2020 ||
+		specFormat == JSONSchemaDraft2019 || specFormat == JSONSchemaDraft07) {
+		return true
+	}
 	return false
 }
-
-const WebsiteUrl = "https://quobix.com/vacuum"
-const GithubUrl = "https://github.com/daveshanley/vacuum"
 
 // buildResultMessage efficiently builds a result message without fmt.Sprintf
 func buildResultMessage(key, message string, value interface{}) string {
@@ -61,57 +72,6 @@ func buildResultMessage(key, message string, value interface{}) string {
 	builder.WriteString(" '")
 	builder.WriteString(fmt.Sprintf("%v", value)) // Keep fmt for interface{} conversion
 	builder.WriteByte('\'')
-	return builder.String()
-}
-
-// Simple JSONPath builder for basic path construction
-type JSONPathBuilder struct {
-	segments []string
-}
-
-// GetJSONPathBuilder returns a simple JSONPath builder
-func GetJSONPathBuilder() *JSONPathBuilder {
-	return &JSONPathBuilder{
-		segments: make([]string, 0, 10),
-	}
-}
-
-// Reset clears the builder
-func (b *JSONPathBuilder) Reset() *JSONPathBuilder {
-	b.segments = b.segments[:0]
-	return b
-}
-
-// Root starts a JSONPath
-func (b *JSONPathBuilder) Root() *JSONPathBuilder {
-	b.segments = append(b.segments, "$")
-	return b
-}
-
-// Field adds a field to the path
-func (b *JSONPathBuilder) Field(field string) *JSONPathBuilder {
-	b.segments = append(b.segments, ".", field)
-	return b
-}
-
-// Key adds a key to the path
-func (b *JSONPathBuilder) Key(key string) *JSONPathBuilder {
-	b.segments = append(b.segments, "['", key, "']")
-	return b
-}
-
-// Index adds an index to the path
-func (b *JSONPathBuilder) Index(index int) *JSONPathBuilder {
-	b.segments = append(b.segments, "[", strconv.Itoa(index), "]")
-	return b
-}
-
-// Build constructs the JSONPath
-func (b *JSONPathBuilder) Build() string {
-	var builder strings.Builder
-	for _, segment := range b.segments {
-		builder.WriteString(segment)
-	}
 	return builder.String()
 }
 

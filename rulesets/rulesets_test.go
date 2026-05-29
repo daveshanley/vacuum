@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package rulesets
 
 import (
@@ -25,6 +29,25 @@ func TestBuildDefaultRuleSets(t *testing.T) {
 	assert.NotNil(t, rs.GenerateOpenAPIDefaultRuleSet())
 	assert.Len(t, rs.GenerateOpenAPIDefaultRuleSet().Rules, totalRules)
 
+}
+
+func TestBuildDefaultRuleSets_JSONSchemaRecommended(t *testing.T) {
+	rsm := BuildDefaultRuleSets()
+	defaultRS := rsm.GenerateJSONSchemaDefaultRuleSet()
+	recommendedRS := rsm.GenerateJSONSchemaRecommendedRuleSet()
+	assert.NotNil(t, recommendedRS)
+	assert.NotSame(t, defaultRS, recommendedRS)
+	assert.Len(t, recommendedRS.Rules, 10)
+	assert.Contains(t, recommendedRS.Rules, JsonSchemaValid)
+	assert.Contains(t, recommendedRS.Rules, JsonSchemaRefValid)
+	assert.NotContains(t, recommendedRS.Rules, CamelCasePropertiesRule)
+	for _, rule := range recommendedRS.Rules {
+		assert.Contains(t, rule.Formats, model.JSONSchema)
+		assert.NotContains(t, rule.Formats, model.OAS3)
+	}
+
+	delete(recommendedRS.Rules, JsonSchemaValid)
+	assert.Contains(t, defaultRS.Rules, JsonSchemaValid)
 }
 
 func TestCreateRuleSetUsingJSON_Fail(t *testing.T) {

@@ -1,4 +1,5 @@
-// Copyright 2020-2021 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package core
@@ -84,15 +85,19 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		}
 
 		if seenCount != 1 {
-			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := pathValue
+			var locatedObjects []v3.Foundational
 			var allPaths []string
-			if err == nil && locatedObjects != nil {
-				for s, obj := range locatedObjects {
-					if s == 0 {
-						locatedPath = obj.GenerateJSONPath()
+			if context.DrDocument != nil {
+				located, err := context.DrDocument.LocateModel(node)
+				if err == nil && located != nil {
+					locatedObjects = located
+					for s, obj := range locatedObjects {
+						if s == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
-					allPaths = append(allPaths, obj.GenerateJSONPath())
 				}
 			}
 			result := model.RuleFunctionResult{

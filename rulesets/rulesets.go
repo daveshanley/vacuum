@@ -1,4 +1,5 @@
-// Copyright 2020-2022 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package rulesets
@@ -25,12 +26,6 @@ import (
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
-
-//go:embed schemas/ruleset.schema.json
-var RulesetSchema string
-
-//go:embed schemas/rule.schema.json
-var RuleSchema string
 
 const (
 	Style                                = "style"
@@ -127,7 +122,19 @@ const (
 	OwaspSecurityHostsHttpsOAS3          = "owasp-security-hosts-https-oas3"
 	PostResponseSuccess                  = "post-response-success"
 	NoRequestBody                        = "no-request-body"
+	JsonSchemaValid                      = "json-schema-valid"
+	JsonSchemaRefValid                   = "json-schema-ref-valid"
+	JsonSchemaTypeConstraintCompatible   = "json-schema-type-constraint-compatible"
+	JsonSchemaEnumValuesCompatible       = "json-schema-enum-values-compatible"
+	JsonSchemaRequiredPropertiesDefined  = "json-schema-required-properties-defined"
+	JsonSchemaDependentRequiredDefined   = "json-schema-dependent-required-defined"
+	JsonSchemaPatternsValid              = "json-schema-patterns-valid"
+	JsonSchemaCompositionSanity          = "json-schema-composition-sanity"
+	JsonSchemaTitleDescriptionType       = "json-schema-title-description-type"
+	JsonSchemaExamplesValid              = "json-schema-examples-valid"
 	VacuumOpenAPI                        = "vacuum:oas"
+	VacuumJSONSchema                     = "vacuum:json-schema"
+	VacuumJSONSchemaRecommended          = "json-schema-recommended"
 	SpectralOpenAPI                      = "spectral:oas"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
@@ -140,11 +147,6 @@ const (
 	SpectralOff                          = SpectralAll
 )
 
-type ruleSetsModel struct {
-	openAPIRuleSet *RuleSet
-	logger         *slog.Logger
-}
-
 // RuleSets is used to generate default RuleSets built into vacuum
 type RuleSets interface {
 
@@ -156,6 +158,14 @@ type RuleSets interface {
 	// recommended rules (not all rules). Passing all these rules would result in a quality specification
 	GenerateOpenAPIRecommendedRuleSet() *RuleSet
 
+	// GenerateJSONSchemaRecommendedRuleSet generates a ready to run pointer to a RuleSet that contains only
+	// recommended JSON Schema rules. The returned rules are scoped to JSON Schema formats only.
+	GenerateJSONSchemaRecommendedRuleSet() *RuleSet
+
+	// GenerateJSONSchemaDefaultRuleSet generates a ready to run pointer to a RuleSet containing all built-in
+	// JSON Schema rules supported by vacuum. The returned rules are scoped to JSON Schema formats only.
+	GenerateJSONSchemaDefaultRuleSet() *RuleSet
+
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
@@ -164,6 +174,32 @@ type RuleSets interface {
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	// It accepts an HTTP client for downloading remote rulesets with certificate authentication.
 	GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(config *RuleSet, httpClient *http.Client) *RuleSet
+}
+
+// RuleSet represents a collection of Rule definitions.
+type RuleSet struct {
+	Description      string                  `json:"description,omitempty" yaml:"description,omitempty"`
+	DocumentationURI string                  `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Formats          []string                `json:"formats,omitempty" yaml:"formats,omitempty"`
+	RuleDefinitions  map[string]interface{}  `json:"rules" yaml:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
+	Rules            map[string]*model.Rule  `json:"-" yaml:"-"`
+	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
+	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
+	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
+	extendsMeta      map[string]string
+	mutex            sync.Mutex
+}
+
+//go:embed schemas/ruleset.schema.json
+var RulesetSchema string
+
+//go:embed schemas/rule.schema.json
+var RuleSchema string
+
+type ruleSetsModel struct {
+	openAPIRuleSet *RuleSet
+	jsonSchemaSet  *RuleSet
+	logger         *slog.Logger
 }
 
 //var rulesetsSingleton *ruleSetsModel
@@ -178,6 +214,7 @@ func BuildDefaultRuleSets() RuleSets {
 func BuildDefaultRuleSetsWithLogger(logger *slog.Logger) RuleSets {
 	rulesetsSingleton := &ruleSetsModel{
 		openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
+		jsonSchemaSet:  GenerateDefaultJSONSchemaRuleSet(),
 		logger:         logger,
 	}
 	return rulesetsSingleton
@@ -188,7 +225,6 @@ func (rsm ruleSetsModel) GenerateOpenAPIDefaultRuleSet() *RuleSet {
 }
 
 func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
-
 	filtered := make(map[string]*model.Rule)
 	for ruleName, rule := range rsm.openAPIRuleSet.Rules {
 		if rule.Recommended {
@@ -196,12 +232,47 @@ func (rsm ruleSetsModel) GenerateOpenAPIRecommendedRuleSet() *RuleSet {
 		}
 	}
 
-	// copy.
-	modifiedRS := *rsm.openAPIRuleSet
+	modifiedRS := cloneRuleSetMetadata(rsm.openAPIRuleSet)
 	modifiedRS.Rules = filtered
 	modifiedRS.DocumentationURI = "https://quobix.com/vacuum/rulesets/recommended"
 	modifiedRS.Description = "Recommended rules for a high quality specification."
-	return &modifiedRS
+	return modifiedRS
+}
+
+func (rsm ruleSetsModel) GenerateJSONSchemaDefaultRuleSet() *RuleSet {
+	return rsm.jsonSchemaSet
+}
+
+func (rsm ruleSetsModel) GenerateJSONSchemaRecommendedRuleSet() *RuleSet {
+	filtered := make(map[string]*model.Rule)
+	for ruleName, rule := range rsm.jsonSchemaSet.Rules {
+		if rule.Recommended {
+			filtered[ruleName] = rule
+		}
+	}
+
+	modifiedRS := cloneRuleSetMetadata(rsm.jsonSchemaSet)
+	modifiedRS.Rules = filtered
+	modifiedRS.DocumentationURI = "https://quobix.com/vacuum/rulesets/json-schema-recommended"
+	modifiedRS.Description = "Recommended rules for high quality JSON Schema documents."
+	return modifiedRS
+}
+
+func cloneRuleSetMetadata(source *RuleSet) *RuleSet {
+	if source == nil {
+		return &RuleSet{}
+	}
+	return &RuleSet{
+		Description:      source.Description,
+		DocumentationURI: source.DocumentationURI,
+		Formats:          append([]string(nil), source.Formats...),
+		RuleDefinitions:  source.RuleDefinitions,
+		Rules:            source.Rules,
+		Extends:          source.Extends,
+		Aliases:          source.Aliases,
+		ParsedAliases:    source.ParsedAliases,
+		extendsMeta:      source.extendsMeta,
+	}
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
@@ -226,6 +297,12 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
 	}
 
+	if extends[VacuumJSONSchema] == VacuumRecommended ||
+		extends[VacuumJSONSchema] == VacuumJSONSchema ||
+		extends[VacuumJSONSchema] == VacuumJSONSchemaRecommended {
+		rs = rsm.GenerateJSONSchemaRecommendedRuleSet()
+	}
+
 	// default and explicitly recommended
 	if extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
@@ -234,6 +311,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 	// all rules
 	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
 		rs = rsm.openAPIRuleSet
+	}
+
+	if extends[VacuumJSONSchema] == VacuumAll {
+		rs = rsm.GenerateJSONSchemaDefaultRuleSet()
 	}
 
 	// vacuum:all - combines both OpenAPI and OWASP rules
@@ -264,6 +345,14 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		}
 		rs.Rules = make(map[string]*model.Rule)
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
+	}
+
+	if extends[VacuumJSONSchema] == VacuumOff {
+		if rs.DocumentationURI == "" {
+			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
+		}
+		rs.Rules = make(map[string]*model.Rule)
+		rs.Description = fmt.Sprintf("JSON Schema disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
 	// if the custom ruleset defines its own documentationUrl, preserve it over the base ruleset's URI.
@@ -378,6 +467,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				// First check if it's in the OpenAPI ruleset
 				if rsm.openAPIRuleSet.Rules[k] != nil {
 					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
+				} else if rsm.jsonSchemaSet.Rules[k] != nil {
+					rs.Rules[k] = rsm.jsonSchemaSet.Rules[k]
 				} else {
 					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
 					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
@@ -609,20 +700,6 @@ func GenerateOWASPOpenAPIRuleSet() *RuleSet {
 		Description:      "All OWASP Rules, or 'hard mode' as we call it.",
 	}
 	return set
-}
-
-// RuleSet represents a collection of Rule definitions.
-type RuleSet struct {
-	Description      string                  `json:"description,omitempty" yaml:"description,omitempty"`
-	DocumentationURI string                  `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
-	Formats          []string                `json:"formats,omitempty" yaml:"formats,omitempty"`
-	RuleDefinitions  map[string]interface{}  `json:"rules" yaml:"rules"` // this can be either a string, or an entire rule (super annoying, stoplight).
-	Rules            map[string]*model.Rule  `json:"-" yaml:"-"`
-	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
-	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
-	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
-	extendsMeta      map[string]string
-	mutex            sync.Mutex
 }
 
 func isSeverityRuleDefinition(value string) bool {

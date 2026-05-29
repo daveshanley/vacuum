@@ -1,4 +1,5 @@
-// Copyright 2020-2022 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package cmd
@@ -149,6 +150,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.AddCommand(GetGenerateIgnoreFileCommand())
 	rootCmd.AddCommand(GetGenerateVersionCommand())
 	rootCmd.AddCommand(GetLanguageServerCommand())
+	rootCmd.AddCommand(GetSchemaCommand())
 	rootCmd.AddCommand(GetBundleCommand())
 	rootCmd.AddCommand(GetApplyOverlayCommand())
 	rootCmd.AddCommand(GetOpenCollectionCommand())

@@ -1,4 +1,5 @@
-// Copyright 2020-2022 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package functions
@@ -7,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/daveshanley/vacuum/functions/core"
+	jsonschema_functions "github.com/daveshanley/vacuum/functions/jsonschema"
 	openapi_functions "github.com/daveshanley/vacuum/functions/openapi"
 	"github.com/daveshanley/vacuum/functions/owasp"
 	"github.com/daveshanley/vacuum/model"
@@ -59,6 +61,9 @@ func MapBuiltinFunctions() Functions {
 		funcs["length"] = core.Length{}
 		funcs["xor"] = core.Xor{}
 		funcs["schema"] = core.Schema{}
+		funcs["jsonSchemaValid"] = jsonschema_functions.Valid{}
+		funcs["jsonSchemaSanity"] = jsonschema_functions.Sanity{}
+		funcs["jsonSchemaRefValid"] = jsonschema_functions.RefValid{}
 
 		// add known OpenAPI rules
 		funcs["postResponseSuccess"] = openapi_functions.PostResponseSuccess{}

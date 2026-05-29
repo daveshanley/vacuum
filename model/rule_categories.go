@@ -1,4 +1,5 @@
-// Copyright 2022 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package model
@@ -36,9 +37,8 @@ func init() {
 	RuleCategories[CategorySchemas] = &RuleCategory{
 		Id:   CategorySchemas,
 		Name: "Schemas",
-		Description: "Schemas are how request bodies and response payloads are defined. They define the data going in " +
-			"and the data flowing out of an operation. These rules check for structural validity, checking types, checking " +
-			"required fields and validating correct use of structures.",
+		Description: "Schemas define the shape, type, and constraints of JSON data. These rules check structural " +
+			"validity, type usage, required fields, examples, and correct use of schema composition.",
 	}
 	RuleCategories[CategorySecurity] = &RuleCategory{
 		Id:   CategorySecurity,

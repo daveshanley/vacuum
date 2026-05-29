@@ -1,4 +1,5 @@
-// Copyright 2020-2022 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package core
@@ -277,13 +278,15 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 				}
 			}
 		} else {
-			locatedObjects, err = context.DrDocument.LocateModel(fieldNodeValue)
-			if err == nil && locatedObjects != nil {
-				for s, obj := range locatedObjects {
-					if s == 0 {
-						locatedPath = obj.GenerateJSONPath()
+			if context.DrDocument != nil {
+				locatedObjects, err = context.DrDocument.LocateModel(fieldNodeValue)
+				if err == nil && locatedObjects != nil {
+					for s, obj := range locatedObjects {
+						if s == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
-					allPaths = append(allPaths, obj.GenerateJSONPath())
 				}
 			}
 		}
