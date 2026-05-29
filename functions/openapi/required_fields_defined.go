@@ -1,11 +1,12 @@
-// Copyright 2026 Princess Beef Heavy Industries, LLC / Dave Shanley
-// https://pb33f.io
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
 
 package openapi
 
 import (
+	"github.com/daveshanley/vacuum/functions/schemachecks"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/pb33f/doctor/model/high/v3"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -31,25 +32,24 @@ func (rfd RequiredFieldsDefined) RunRule(_ []*yaml.Node, context model.RuleFunct
 	}
 
 	var results []model.RuleFunctionResult
-	st := SchemaTypeCheck{}
 
 	for _, schema := range context.DrDocument.Schemas {
-		if !schemaUsesObjectKeywords(schema) || len(schema.Value.Required) == 0 {
+		if !schemachecks.SchemaUsesObjectKeywords(schema) || len(schema.Value.Required) == 0 {
 			continue
 		}
 		requiredNode := schema.Value.GoLow().Required.KeyNode
 		for i, required := range schema.Value.Required {
-			propertyLookup := st.lookupRequiredProperty(schema, required)
-			if !propertyLookup.propertiesFound {
-				result := st.buildResult("object contains `required` fields but no `properties`",
+			propertyLookup := schemachecks.LookupRequiredProperty(schema, required)
+			if !propertyLookup.PropertiesFound {
+				result := schemachecks.BuildResult("object contains `required` fields but no `properties`",
 					schema.GenerateJSONPath(), "required", i,
 					schema, requiredNode, &context)
 				results = append(results, result)
 				break
 			}
 
-			if !propertyLookup.propertyDefined {
-				result := st.buildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
+			if !propertyLookup.PropertyDefined {
+				result := schemachecks.BuildResult(model.GetStringTemplates().BuildRequiredFieldMessage(required),
 					schema.GenerateJSONPath(), "required", i,
 					schema, requiredNode, &context)
 				results = append(results, result)
@@ -58,22 +58,4 @@ func (rfd RequiredFieldsDefined) RunRule(_ []*yaml.Node, context model.RuleFunct
 	}
 
 	return results
-}
-
-func schemaUsesObjectKeywords(schema *v3.Schema) bool {
-	if schema == nil || schema.Value == nil {
-		return false
-	}
-
-	for _, t := range schema.Value.Type {
-		if t == "object" {
-			return true
-		}
-	}
-
-	return schema.Value.Properties != nil ||
-		len(schema.Value.Required) > 0 ||
-		len(schema.AllOf) > 0 ||
-		len(schema.AnyOf) > 0 ||
-		len(schema.OneOf) > 0
 }

@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package model
 
 import (
@@ -588,6 +592,13 @@ func TestFormatMatches(t *testing.T) {
 		{"oas3_0 does not match oas3_1", OAS30, OAS31, false},
 		{"oas3_0 does not match oas3_2", OAS30, OAS32, false},
 		{"oas3_0 does not match oas2", OAS30, OAS2, false},
+
+		// JSON Schema family matching stays disjoint from OpenAPI formats.
+		{"json-schema matches 2020-12", JSONSchema, JSONSchemaDraft2020, true},
+		{"json-schema matches 2019-09", JSONSchema, JSONSchemaDraft2019, true},
+		{"json-schema matches draft-07", JSONSchema, JSONSchemaDraft07, true},
+		{"json-schema does not match oas3", JSONSchema, OAS3, false},
+		{"oas3 does not match json-schema", OAS3, JSONSchemaDraft2020, false},
 
 		// Edge cases with empty strings
 		{"empty rule format does not match oas3", "", OAS3, false},

@@ -1,4 +1,5 @@
-// Copyright 2022 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package motor
@@ -23,6 +24,7 @@ import (
 	"github.com/sourcegraph/conc"
 
 	"github.com/daveshanley/vacuum/functions"
+	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/mitchellh/mapstructure"
@@ -34,70 +36,16 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-type ruleContext struct {
-	rule               *model.Rule
-	specNode           *yaml.Node
-	specNodeUnresolved *yaml.Node
-	builtinFunctions   functions.Functions
-	ruleResults        *[]model.RuleFunctionResult
-	ignoredResults     *[]model.RuleFunctionResult
-	fixedResults       *[]model.RuleFunctionResult
-	errors             *[]error
-	index              *index.SpecIndex
-	indexUnresolved    *index.SpecIndex
-	specInfo           *datamodel.SpecInfo
-	customFunctions    map[string]model.RuleFunction
-	autoFixFunctions   map[string]model.AutoFixFunction
-	panicFunc          func(p any)
-	silenceLogs        bool
-	document           libopenapi.Document
-	drDocument         *doctorModel.DrDocument
-	skipDocumentCheck  bool
-	logger             *slog.Logger
-	nodeLookupTimeout  time.Duration
-	applyAutoFixes     bool
-	resolvedExecution  bool
-	fetchConfig        *vacuumUtils.FetchConfig
-	turboMode          bool
-	hasInlineIgnores   bool
-	ignoreIndex        *inlineIgnoreIndex
-	schemaPathCache    *sync.Map
-	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
-}
+// todo: move copy into virtual file system or some kind of map.
+const CircularReferencesFix string = "Circular references are created by schemas that reference back to themselves somewhere " +
+	"in the chain. The link could be very deep, or it could be super shallow. Sometimes it's hard to know what is looping " +
+	"without resolving the references. This model is looping, Remove the looping link in the chain. This can also appear with missing or " +
+	"references that cannot be located or resolved correctly."
 
 type RuleLookupError struct {
 	RuleId string
 	Given  string
 	Err    error
-}
-
-func (e *RuleLookupError) Error() string {
-	if e == nil {
-		return "rule lookup failed"
-	}
-
-	var message string
-	switch {
-	case e.RuleId != "" && e.Given != "":
-		message = fmt.Sprintf("rule %s lookup failed for given %s", e.RuleId, e.Given)
-	case e.RuleId != "":
-		message = fmt.Sprintf("rule %s lookup failed", e.RuleId)
-	case e.Given != "":
-		message = fmt.Sprintf("rule lookup failed for given %s", e.Given)
-	default:
-		message = "rule lookup failed"
-	}
-	if e.Err != nil {
-		return message + ": " + e.Err.Error()
-	}
-	return message
-}
-
-func (e *RuleLookupError) Unwrap() error {
-	if e == nil {
-		return nil
-	}
-	return e.Err
 }
 
 // ExecutionOptions configures optional execution behavior without extending
@@ -157,6 +105,85 @@ type RuleSetExecution struct {
 	SkipResolve       bool // Skip second-pass reference resolution
 	SkipCircularCheck bool // Skip circular reference result injection
 	SkipSchemaErrors  bool // Skip schema build error injection
+	SpecFormat        string
+}
+
+// RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
+type RuleSetExecutionResult struct {
+	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
+	Results          []model.RuleFunctionResult       // The results of the execution.
+	IgnoredResults   []model.RuleFunctionResult       // Results that were ignored due to inline ignore directives.
+	FixedResults     []model.RuleFunctionResult       // Results that were automatically fixed.
+	Index            *index.SpecIndex                 // The index that was created from the specification, used by the rules.
+	SpecInfo         *datamodel.SpecInfo              // A reference to the SpecInfo object, used by all the rules.
+	Errors           []error                          // Any errors that were returned.
+	FilesProcessed   int                              // number of files extracted by the rolodex
+	FileSize         int64                            // total filesize loaded by the rolodex
+	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
+	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
+	ownedDocument    libopenapi.Document
+	unresolvedDoc    libopenapi.Document
+	ownedIndex       *index.SpecIndex
+}
+
+type ruleContext struct {
+	rule               *model.Rule
+	specNode           *yaml.Node
+	specNodeUnresolved *yaml.Node
+	builtinFunctions   functions.Functions
+	ruleResults        *[]model.RuleFunctionResult
+	ignoredResults     *[]model.RuleFunctionResult
+	fixedResults       *[]model.RuleFunctionResult
+	errors             *[]error
+	index              *index.SpecIndex
+	indexUnresolved    *index.SpecIndex
+	specInfo           *datamodel.SpecInfo
+	customFunctions    map[string]model.RuleFunction
+	autoFixFunctions   map[string]model.AutoFixFunction
+	panicFunc          func(p any)
+	silenceLogs        bool
+	document           libopenapi.Document
+	drDocument         *doctorModel.DrDocument
+	skipDocumentCheck  bool
+	logger             *slog.Logger
+	nodeLookupTimeout  time.Duration
+	applyAutoFixes     bool
+	resolvedExecution  bool
+	fetchConfig        *vacuumUtils.FetchConfig
+	turboMode          bool
+	hasInlineIgnores   bool
+	ignoreIndex        *inlineIgnoreIndex
+	schemaPathCache    *sync.Map
+	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
+}
+
+func (e *RuleLookupError) Error() string {
+	if e == nil {
+		return "rule lookup failed"
+	}
+
+	var message string
+	switch {
+	case e.RuleId != "" && e.Given != "":
+		message = fmt.Sprintf("rule %s lookup failed for given %s", e.RuleId, e.Given)
+	case e.RuleId != "":
+		message = fmt.Sprintf("rule %s lookup failed", e.RuleId)
+	case e.Given != "":
+		message = fmt.Sprintf("rule lookup failed for given %s", e.Given)
+	default:
+		message = "rule lookup failed"
+	}
+	if e.Err != nil {
+		return message + ": " + e.Err.Error()
+	}
+	return message
+}
+
+func (e *RuleLookupError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
 }
 
 // buildLocationString efficiently builds a location string in format "line:column"
@@ -213,24 +240,6 @@ func syncIndexConfigFromDocumentConfig(indexConfig *index.SpecIndexConfig, docCo
 	indexConfig.ResolveNestedRefsWithDocumentContext = docConfig.ResolveNestedRefsWithDocumentContext
 	indexConfig.PropertyMergeStrategy = docConfig.PropertyMergeStrategy
 	indexConfig.SkipExternalRefResolution = docConfig.SkipExternalRefResolution
-}
-
-// RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
-type RuleSetExecutionResult struct {
-	RuleSetExecution *RuleSetExecution                // The execution struct that was used invoking the result.
-	Results          []model.RuleFunctionResult       // The results of the execution.
-	IgnoredResults   []model.RuleFunctionResult       // Results that were ignored due to inline ignore directives.
-	FixedResults     []model.RuleFunctionResult       // Results that were automatically fixed.
-	Index            *index.SpecIndex                 // The index that was created from the specification, used by the rules.
-	SpecInfo         *datamodel.SpecInfo              // A reference to the SpecInfo object, used by all the rules.
-	Errors           []error                          // Any errors that were returned.
-	FilesProcessed   int                              // number of files extracted by the rolodex
-	FileSize         int64                            // total filesize loaded by the rolodex
-	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
-	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
-	ownedDocument    libopenapi.Document
-	unresolvedDoc    libopenapi.Document
-	ownedIndex       *index.SpecIndex
 }
 
 type ownedResultResources struct {
@@ -326,12 +335,6 @@ func (r *RuleSetExecutionResult) ReleaseOwnedResources() {
 func (r *RuleSetExecutionResult) Release() {
 	r.release(true)
 }
-
-// todo: move copy into virtual file system or some kind of map.
-const CircularReferencesFix string = "Circular references are created by schemas that reference back to themselves somewhere " +
-	"in the chain. The link could be very deep, or it could be super shallow. Sometimes it's hard to know what is looping " +
-	"without resolving the references. This model is looping, Remove the looping link in the chain. This can also appear with missing or " +
-	"references that cannot be located or resolved correctly."
 
 // ruleUsesFunction checks whether a rule's Then field references the given function name.
 // Rule.Then is interface{} and may be a model.RuleAction, map[string]interface{},
@@ -578,6 +581,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		docUnresolved = builtUnresolvedDoc
 		specInfo = docResolved.GetSpecInfo()
 		specInfoUnresolved = docUnresolved.GetSpecInfo()
+		applySpecFormatOverride(specInfo, specInfoUnresolved, execution.SpecFormat)
 		indexConfig.SpecInfo = specInfo
 
 	} else {
@@ -614,6 +618,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 		specInfo = docResolved.GetSpecInfo()
 		specInfoUnresolved = docUnresolved.GetSpecInfo()
+		applySpecFormatOverride(specInfo, specInfoUnresolved, execution.SpecFormat)
 
 		syncIndexConfigFromDocumentConfig(indexConfig, docConfigResolved)
 		indexConfig.SpecInfo = specInfo
@@ -630,6 +635,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	var indexUnresolved *index.SpecIndex
 
 	version := docResolved.GetVersion()
+	if isJSONSchemaFormat(execution.SpecFormat) {
+		version = ""
+	}
 
 	// When skip-check is enabled, the document version might not be detected
 	// but we still need to know if it's OAS2 or OAS3 for rule filtering
@@ -744,8 +752,12 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			then = time.Since(now).Milliseconds()
 			indexConfig.Logger.Debug("built unresolved model", "ms", then)
 
-			indexResolved = rolodexResolved.GetRootIndex()
-			indexUnresolved = rolodexUnresolved.GetRootIndex()
+			if rolodexResolved != nil {
+				indexResolved = rolodexResolved.GetRootIndex()
+			}
+			if rolodexUnresolved != nil {
+				indexUnresolved = rolodexUnresolved.GetRootIndex()
+			}
 
 			wg := conc.WaitGroup{}
 			wg.Go(func() {
@@ -775,7 +787,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				}
 			})
 			wg.Go(func() {
-				if !execution.SkipResolve {
+				if !execution.SkipResolve && rolodexResolved != nil {
 					// we only resolve one.
 					resolvedTime := time.Now()
 					rolodexResolved.Resolve()
@@ -804,10 +816,15 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		unresRoloConfig.ResolveNestedRefsWithDocumentContext = false
 
 		wg := conc.WaitGroup{}
+		var resolvedRolodexErr error
+		var unresolvedRolodexErr error
 
 		wg.Go(func() {
 			// create an index for the unresolved spec.
-			rolodexResolved, _ = BuildRolodexFromIndexConfig(&resRoloConfig, execution.RolodexFS)
+			rolodexResolved, resolvedRolodexErr = BuildRolodexFromIndexConfig(&resRoloConfig, execution.RolodexFS)
+			if resolvedRolodexErr != nil || rolodexResolved == nil {
+				return
+			}
 			rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
 
 			_ = rolodexResolved.IndexTheRolodex(context.Background())
@@ -818,16 +835,24 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 		wg.Go(func() {
 			unResInfo, _ := datamodel.ExtractSpecInfo(*specInfo.SpecBytes)
-			rolodexUnresolved, _ = BuildRolodexFromIndexConfig(&unresRoloConfig, execution.RolodexFS)
+			rolodexUnresolved, unresolvedRolodexErr = BuildRolodexFromIndexConfig(&unresRoloConfig, execution.RolodexFS)
+			if unresolvedRolodexErr != nil || rolodexUnresolved == nil {
+				return
+			}
 			if unResInfo != nil {
 				rolodexUnresolved.SetRootNode(unResInfo.RootNode)
 				_ = rolodexUnresolved.IndexTheRolodex(context.Background())
 			}
 		})
 		wg.Wait()
+		resolvedModelErrors = errors.Join(resolvedModelErrors, resolvedRolodexErr, unresolvedRolodexErr)
 
-		indexResolved = rolodexResolved.GetRootIndex()
-		indexUnresolved = rolodexUnresolved.GetRootIndex()
+		if rolodexResolved != nil {
+			indexResolved = rolodexResolved.GetRootIndex()
+		}
+		if rolodexUnresolved != nil {
+			indexUnresolved = rolodexUnresolved.GetRootIndex()
+		}
 
 		if rolodexUnresolved != nil && rolodexUnresolved.GetRootIndex() != nil {
 			execution.CanonicalDocument = rolodexUnresolved.GetRootIndex().GetRootNode()
@@ -838,6 +863,25 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		}
 		if rolodexResolved != nil {
 			circularReferences = rolodexResolved.GetSafeCircularReferences()
+		}
+		if isJSONSchemaFormat(execution.SpecFormat) && indexUnresolved != nil {
+			// JSON Schema Doctor models are inseparable from libopenapi's rolodex/index pipeline.
+			// The rolodex owns reference discovery, resolution state, origins and circulars; Doctor only models
+			// the indexed schema tree so rules can work against the same object graph as OpenAPI schema rules.
+			drDoc, buildErr := schemautil.NewDoctorDocumentFromRolodexIndex(indexUnresolved, schemautil.RolodexDoctorBuildConfig{
+				BuildGraph:         execution.BuildGraph,
+				UseSchemaCache:     !execution.BuildDeepGraph,
+				RenderChanges:      execution.RenderChanges,
+				DeterministicPaths: true,
+				StorageRoot:        execution.StorageRoot,
+				Logger:             indexConfig.Logger,
+			})
+			if buildErr != nil {
+				resolvedModelErrors = errors.Join(resolvedModelErrors, buildErr)
+			} else {
+				execution.DrDocument = drDoc
+				drDocument = drDoc
+			}
 		}
 	}
 
@@ -874,6 +918,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			Function: "blank",
 		},
 		HowToFix: "Ensure that all $ref values are resolvable and locatable within a local or remote document. " + CircularReferencesFix,
+	}
+	if isJSONSchemaFormat(execution.SpecFormat) {
+		resolvingRule = schemautil.NewReferenceValidationRule()
 	}
 
 	// checks if schemas can be programmatically built using libopenapi. If not, they will generally fail
@@ -912,6 +959,11 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		HowToFix: "An index is required to use vacuum. If an index cannot be created then the file cannot be read, or the OpenAPI version is not supported." +
 			" Check your version of OpenAPI to start and if that looks correct, check the syntax of the document.",
 	}
+	if isJSONSchemaFormat(execution.SpecFormat) {
+		indexBuildRule.Name = "Check that an index can be created from the JSON Schema document"
+		indexBuildRule.Description = "vacuum must be able to index the JSON Schema document; if it cannot then it cannot be linted"
+		indexBuildRule.HowToFix = "An index is required to use vacuum. If an index cannot be created then the JSON Schema document cannot be read. Check the document syntax."
+	}
 
 	// add all circular reference errors to the results.
 	circularRefRule := &model.Rule{
@@ -933,8 +985,11 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	// add all resolving errors to the results.
 	for _, er := range resolvingErrors {
+		if isJSONSchemaFormat(execution.SpecFormat) && schemautil.IsDynamicScopeResolvingError(er) {
+			continue
+		}
 		res := model.RuleFunctionResult{
-			RuleId:    "resolving-references",
+			RuleId:    resolvingRule.Id,
 			Rule:      resolvingRule,
 			StartNode: er.Node,
 			EndNode:   vacuumUtils.BuildEndNode(er.Node),
@@ -992,8 +1047,11 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		for _, er := range indexResolved.GetReferenceIndexErrors() {
 			var idxError *index.IndexingError
 			errors.As(er, &idxError)
+			if isJSONSchemaFormat(execution.SpecFormat) && schemautil.IsDynamicScopeIndexingError(idxError) {
+				continue
+			}
 			res := model.RuleFunctionResult{
-				RuleId:    "resolving-references",
+				RuleId:    resolvingRule.Id,
 				Rule:      resolvingRule,
 				StartNode: idxError.Node,
 				EndNode:   vacuumUtils.BuildEndNode(idxError.KeyNode),
@@ -1335,6 +1393,25 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	}
 	ownedResources.transfer(result)
 	return result
+}
+
+func applySpecFormatOverride(specInfo, specInfoUnresolved *datamodel.SpecInfo, override string) {
+	if override == "" {
+		return
+	}
+	if specInfo != nil {
+		specInfo.SpecFormat = override
+	}
+	if specInfoUnresolved != nil {
+		specInfoUnresolved.SpecFormat = override
+	}
+}
+
+func isJSONSchemaFormat(format string) bool {
+	return format == model.JSONSchema ||
+		format == model.JSONSchemaDraft2020 ||
+		format == model.JSONSchemaDraft2019 ||
+		format == model.JSONSchemaDraft07
 }
 
 func runRule(ctx ruleContext, doneChan chan struct{}) {

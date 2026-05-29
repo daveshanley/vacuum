@@ -1,4 +1,5 @@
-// Copyright 2020-2021 Dave Shanley / Quobix
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package core
@@ -145,15 +146,18 @@ func (a Alphabetical) reportMapKeyViolation(node *yaml.Node, mapKeys []string, c
 	// Find the first out-of-order pair to create a deterministic error message
 	for i := 0; i < len(mapKeys)-1; i++ {
 		if strings.Compare(mapKeys[i], mapKeys[i+1]) > 0 {
-			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := ""
 			var allPaths []string
-			if err == nil && locatedObjects != nil {
-				for v, obj := range locatedObjects {
-					if v == 0 {
-						locatedPath = obj.GenerateJSONPath()
+			var locatedObjects []v3.Foundational
+			if context.DrDocument != nil {
+				locatedObjects, err := context.DrDocument.LocateModel(node)
+				if err == nil && locatedObjects != nil {
+					for v, obj := range locatedObjects {
+						if v == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
-					allPaths = append(allPaths, obj.GenerateJSONPath())
 				}
 			}
 
@@ -238,15 +242,18 @@ func compareStringArray(node *yaml.Node, strArr []string,
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 
-				locatedObjects, err := context.DrDocument.LocateModel(node)
 				locatedPath := ""
 				var allPaths []string
-				if err == nil && locatedObjects != nil {
-					for v, obj := range locatedObjects {
-						if v == 0 {
-							locatedPath = obj.GenerateJSONPath()
+				var locatedObjects []v3.Foundational
+				if context.DrDocument != nil {
+					locatedObjects, err := context.DrDocument.LocateModel(node)
+					if err == nil && locatedObjects != nil {
+						for v, obj := range locatedObjects {
+							if v == 0 {
+								locatedPath = obj.GenerateJSONPath()
+							}
+							allPaths = append(allPaths, obj.GenerateJSONPath())
 						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
 				}
 
@@ -315,15 +322,18 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
 
-			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := ""
 			var allPaths []string
-			if err == nil && locatedObjects != nil {
-				for x, obj := range locatedObjects {
-					if x == 0 {
-						locatedPath = obj.GenerateJSONPath()
+			var locatedObjects []v3.Foundational
+			if context.DrDocument != nil {
+				locatedObjects, err := context.DrDocument.LocateModel(node)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
-					allPaths = append(allPaths, obj.GenerateJSONPath())
 				}
 			}
 
@@ -357,15 +367,18 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
-			locatedObjects, err := context.DrDocument.LocateModel(node)
 			locatedPath := ""
 			var allPaths []string
-			if err == nil && locatedObjects != nil {
-				for x, obj := range locatedObjects {
-					if x == 0 {
-						locatedPath = obj.GenerateJSONPath()
+			var locatedObjects []v3.Foundational
+			if context.DrDocument != nil {
+				locatedObjects, err := context.DrDocument.LocateModel(node)
+				if err == nil && locatedObjects != nil {
+					for x, obj := range locatedObjects {
+						if x == 0 {
+							locatedPath = obj.GenerateJSONPath()
+						}
+						allPaths = append(allPaths, obj.GenerateJSONPath())
 					}
-					allPaths = append(allPaths, obj.GenerateJSONPath())
 				}
 			}
 
