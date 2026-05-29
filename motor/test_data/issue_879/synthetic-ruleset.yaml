@@ -1,0 +1,32 @@
+extends: [[vacuum:oas, off]]
+rules:
+  synthetic-string-min-length:
+    id: synthetic-string-min-length
+    description: Synthetic string fields must declare minLength.
+    category:
+      id: synthetic-string
+      name: Synthetic String
+      description: Synthetic string rules with double  spacing
+    given: "$..[?(@ && @.type == 'string')]"
+    recommended: true
+    resolved: true
+    severity: error
+    then:
+      - field: minLength
+        function: defined
+    type: validation
+  synthetic-string-pattern:
+    id: synthetic-string-pattern
+    description: Synthetic string fields must declare pattern.
+    category:
+      id: synthetic-string
+      name: Synthetic String
+      description: Synthetic string rules with single spacing
+    given: "$..[?(@ && @.type == 'string')]"
+    recommended: true
+    resolved: true
+    severity: error
+    then:
+      - field: pattern
+        function: defined
+    type: validation

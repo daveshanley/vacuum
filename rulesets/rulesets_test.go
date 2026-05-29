@@ -291,6 +291,56 @@ rules:
 
 }
 
+func TestRuleSetsModel_GenerateRuleSetFromConfig_CustomCategoriesDoNotShareGlobalState(t *testing.T) {
+
+	yaml := `extends: [[vacuum:oas, off]]
+rules:
+ first-rule:
+   category:
+     id: local
+     name: local
+     description: first description
+   description: first
+   recommended: true
+   type: style
+   given: "$"
+   then:
+     function: truthy
+ second-rule:
+   category:
+     id: local
+     name: local
+     description: second description
+   description: second
+   recommended: true
+   type: style
+   given: "$"
+   then:
+     function: truthy`
+
+	def := BuildDefaultRuleSets()
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+
+	assert.Equal(t, "first description", repl.Rules["first-rule"].RuleCategory.Description)
+	assert.Equal(t, "second description", repl.Rules["second-rule"].RuleCategory.Description)
+	assert.Nil(t, model.RuleCategories["local"])
+
+	results := model.NewRuleResultSet([]model.RuleFunctionResult{
+		{Rule: repl.Rules["first-rule"]},
+		{Rule: repl.Rules["second-rule"]},
+	})
+	categoryResults := results.GetRuleResultsForCategory("local")
+
+	assert.NotNil(t, categoryResults)
+	assert.Equal(t, "local", categoryResults.Category.Id)
+	assert.Len(t, categoryResults.RuleResults, 2)
+	assert.Equal(t, "first description", categoryResults.RuleResults[0].Rule.RuleCategory.Description)
+	assert.Equal(t, "second description", categoryResults.RuleResults[1].Rule.RuleCategory.Description)
+
+}
+
 func TestRuleSetsModel_GenerateRuleSetFromConfig_All_NewRuleReplace(t *testing.T) {
 
 	yaml := `extends:

@@ -6,6 +6,7 @@ package motor
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -154,6 +155,42 @@ func TestIssue879RecursiveCustomRuleSharedResponsePathsAreCompleteAndStable(t *t
 			assert.Equal(t, expectedPaths[0], errorCodeResults[0].Path, "iteration %d", i)
 			assert.Equal(t, expectedPaths, errorCodeResults[0].Paths, "iteration %d", i)
 		}
+	}
+}
+
+func TestIssue879SyntheticFixtureResultPathsAreStable(t *testing.T) {
+	specPath := filepath.Join("test_data", "issue_879", "synthetic-openapi.yaml")
+	rulesetPath := filepath.Join("test_data", "issue_879", "synthetic-ruleset.yaml")
+
+	specBytes, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+	rulesetBytes, err := os.ReadFile(rulesetPath)
+	require.NoError(t, err)
+
+	suppliedRuleSet, err := rulesets.CreateRuleSetFromData(rulesetBytes)
+	require.NoError(t, err)
+	ruleSet := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(suppliedRuleSet)
+
+	var expected []string
+	for i := 0; i < 30; i++ {
+		results := ApplyRulesToRuleSet(&RuleSetExecution{
+			RuleSet:           ruleSet,
+			Spec:              specBytes,
+			SpecFileName:      specPath,
+			Base:              filepath.Dir(specPath),
+			AllowLookup:       true,
+			NodeLookupTimeout: 5 * time.Second,
+			SilenceLogs:       true,
+		})
+
+		require.Empty(t, results.Errors, "iteration %d", i)
+		actual := resultPathSnapshot(results.Results)
+		require.NotEmpty(t, actual, "iteration %d", i)
+		if expected == nil {
+			expected = actual
+			continue
+		}
+		assert.Equal(t, expected, actual, "iteration %d", i)
 	}
 }
 
@@ -385,6 +422,14 @@ func TestCompleteAliasedResultPathsExpandsGivenAliases(t *testing.T) {
 	assert.Equal(t, expectedPaths, results[0].Paths)
 }
 
+func TestCanonicalizeResultAliasPathQuotesComponentSchemaKeys(t *testing.T) {
+	path := "$.components.schemas.lossEventDeclarationResult_c.allOf[2].properties.persons"
+
+	canonical := canonicalizeResultAliasPath(path)
+
+	assert.Equal(t, "$.components.schemas['lossEventDeclarationResult_c'].allOf[2].properties['persons']", canonical)
+}
+
 func TestResultPathCandidateIndexMatchesByNodeAndPosition(t *testing.T) {
 	nodeMatch := &yaml.Node{Kind: yaml.MappingNode, Line: 10, Column: 2}
 	positionMatch := &yaml.Node{Kind: yaml.MappingNode, Line: 20, Column: 4}
@@ -412,6 +457,15 @@ func resultPathCandidatePaths(candidates []resultPathCandidate) []string {
 		paths[i] = candidates[i].path
 	}
 	return paths
+}
+
+func resultPathSnapshot(results []model.RuleFunctionResult) []string {
+	snapshot := make([]string, 0, len(results))
+	for _, result := range results {
+		snapshot = append(snapshot, result.RuleId+"|"+result.Path+"|"+strings.Join(result.Paths, ","))
+	}
+	sort.Strings(snapshot)
+	return snapshot
 }
 
 func writeIssue879AliasedResponseFixture(t *testing.T) (string, string, []byte) {

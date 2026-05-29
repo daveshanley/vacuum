@@ -316,12 +316,15 @@ func (rr *RuleResultSet) GetHintByRuleCategory(category string) []*RuleFunctionR
 // compiled statistics for easy indexing.
 func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResultsForCategory {
 	cat := RuleCategories[category]
-	if cat == nil {
-		return nil
-	}
 
 	rrfc := RuleResultsForCategory{}
 	catResults := rr.GetResultsByRuleCategory(category)
+	if cat == nil {
+		cat = ruleCategoryFromResults(category, catResults)
+	}
+	if cat == nil {
+		return nil
+	}
 	rrfc.Category = cat
 
 	seenRules := make(map[*Rule]bool)
@@ -345,11 +348,40 @@ func (rr *RuleResultSet) GetRuleResultsForCategory(category string) *RuleResults
 	return &rrfc
 }
 
+func ruleCategoryFromResults(category string, results []*RuleFunctionResult) *RuleCategory {
+	var categories []*RuleCategory
+	for _, result := range results {
+		if result == nil || result.Rule == nil || result.Rule.RuleCategory == nil {
+			continue
+		}
+		if result.Rule.RuleCategory.Id == category {
+			categories = append(categories, result.Rule.RuleCategory)
+		}
+	}
+	if len(categories) == 0 {
+		return nil
+	}
+	sort.Slice(categories, func(i, j int) bool {
+		return ruleCategoryMetadataKey(categories[i]) < ruleCategoryMetadataKey(categories[j])
+	})
+	return categories[0]
+}
+
+func ruleCategoryMetadataKey(category *RuleCategory) string {
+	if category == nil {
+		return ""
+	}
+	return category.Id + "\x00" + category.Name + "\x00" + category.Description
+}
+
 // GetResultsForCategoryWithLimit is identical to GetRuleResultsForCategory, except for the fact that there
 // will be a limit on the number of results returned, defined by the limit arg. This is used by the HTML report
 // to stop gigantic files from being created, iterating through all the results.
 func (rr *RuleResultSet) GetResultsForCategoryWithLimit(category string, limit int) *RuleResultsForCategory {
 	rrfc := rr.GetRuleResultsForCategory(category)
+	if rrfc == nil {
+		return nil
+	}
 	for x, catResult := range rrfc.RuleResults {
 		if len(catResult.Results) > limit {
 			rrfc.RuleResults[x].Results = rrfc.RuleResults[x].Results[:limit]

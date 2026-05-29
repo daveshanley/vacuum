@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Synthetic Boat Alias Repro
+  version: 1.0.0
+paths:
+  /boats:
+    post:
+      operationId: createBoat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BoatCreate"
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoatResult"
+  /boats/{boatId}:
+    get:
+      operationId: getBoat
+      parameters:
+        - name: boatId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BoatRead"
+components:
+  schemas:
+    BoatCreate:
+      allOf:
+        - $ref: "#/components/schemas/BoatCommon"
+        - type: object
+          properties:
+            crew:
+              type: array
+              items:
+                $ref: "#/components/schemas/CrewMemberCreate"
+    BoatResult:
+      allOf:
+        - $ref: "#/components/schemas/BoatCommon"
+        - $ref: "#/components/schemas/ResourceId"
+        - type: object
+          properties:
+            crew:
+              type: array
+              items:
+                $ref: "#/components/schemas/CrewMemberResult"
+    BoatRead:
+      allOf:
+        - $ref: "#/components/schemas/BoatCommon"
+        - $ref: "#/components/schemas/ResourceId"
+        - type: object
+          properties:
+            crew:
+              type: array
+              items:
+                $ref: "#/components/schemas/CrewMemberRead"
+    BoatCommon:
+      type: object
+      properties:
+        hullNumber:
+          type: string
+          description: public hull reference
+    CrewMemberCreate:
+      allOf:
+        - $ref: "#/components/schemas/CrewMemberCommon"
+        - type: object
+          properties:
+            berths:
+              type: array
+              items:
+                $ref: "#/components/schemas/BerthCreate"
+    CrewMemberResult:
+      allOf:
+        - $ref: "#/components/schemas/CrewMemberCommon"
+        - $ref: "#/components/schemas/ResourceId"
+        - type: object
+          properties:
+            berths:
+              type: array
+              items:
+                $ref: "#/components/schemas/BerthResult"
+    CrewMemberRead:
+      allOf:
+        - $ref: "#/components/schemas/CrewMemberCommon"
+        - $ref: "#/components/schemas/ResourceId"
+        - type: object
+          properties:
+            berths:
+              type: array
+              items:
+                $ref: "#/components/schemas/BerthRead"
+    CrewMemberCommon:
+      type: object
+      properties:
+        roleName:
+          type: string
+          description: crew role name
+    BerthCreate:
+      allOf:
+        - $ref: "#/components/schemas/BerthCommon"
+    BerthResult:
+      allOf:
+        - $ref: "#/components/schemas/BerthCommon"
+        - $ref: "#/components/schemas/ResourceId"
+    BerthRead:
+      allOf:
+        - $ref: "#/components/schemas/BerthCommon"
+        - $ref: "#/components/schemas/ResourceId"
+    BerthCommon:
+      type: object
+      properties:
+        marinaName:
+          type: string
+          description: marina name
+        slipCode:
+          type: string
+          description: slip code
+    ResourceId:
+      type: object
+      properties:
+        id:
+          type: string
+          description: synthetic identifier
