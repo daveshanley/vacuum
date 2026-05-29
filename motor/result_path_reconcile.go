@@ -328,9 +328,6 @@ func completeAliasedResultPathsFromReferences(results []model.RuleFunctionResult
 		if targetIndex == nil || targetPath == "" {
 			continue
 		}
-		if targetIndex == rolodex.GetRootIndex() {
-			continue
-		}
 
 		cacheKey := resultReferenceAliasKey{index: targetIndex, path: targetPath}
 		aliasPaths, ok := aliasCache[cacheKey]
@@ -654,7 +651,7 @@ func normalizeSimpleBracketResultPath(path string) string {
 }
 
 func canonicalizeResultAliasPath(path string) string {
-	for _, marker := range []string{".properties.", ".patternProperties."} {
+	for _, marker := range []string{".components.schemas.", ".properties.", ".patternProperties."} {
 		for {
 			idx := strings.Index(path, marker)
 			if idx < 0 {

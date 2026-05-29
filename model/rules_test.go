@@ -385,6 +385,74 @@ func TestRuleResultSet_GetRuleResultsForCategory(t *testing.T) {
 
 }
 
+func TestRuleResultSet_GetRuleResultsForCustomCategory(t *testing.T) {
+	customCategory := &RuleCategory{
+		Id:          "local",
+		Name:        "Local",
+		Description: "Local custom checks",
+	}
+	ruleOne := &Rule{
+		Id:           "local-one",
+		Description:  "one",
+		Severity:     SeverityWarn,
+		RuleCategory: customCategory,
+	}
+	ruleTwo := &Rule{
+		Id:           "local-two",
+		Description:  "two",
+		Severity:     SeverityError,
+		RuleCategory: customCategory,
+	}
+	results := NewRuleResultSet([]RuleFunctionResult{
+		{Rule: ruleOne, StartNode: &yaml.Node{Line: 10, Column: 10}, EndNode: &yaml.Node{Line: 10, Column: 10}},
+		{Rule: ruleTwo, StartNode: &yaml.Node{Line: 11, Column: 10}, EndNode: &yaml.Node{Line: 11, Column: 10}},
+	})
+
+	categoryResults := results.GetRuleResultsForCategory("local")
+
+	assert.NotNil(t, categoryResults)
+	assert.Equal(t, customCategory, categoryResults.Category)
+	assert.Len(t, categoryResults.RuleResults, 2)
+	assert.Nil(t, RuleCategories["local"])
+}
+
+func TestRuleResultSet_GetRuleResultsForCustomCategoryUsesDeterministicMetadata(t *testing.T) {
+	alphaCategory := &RuleCategory{
+		Id:          "local",
+		Name:        "Local",
+		Description: "alpha description",
+	}
+	zuluCategory := &RuleCategory{
+		Id:          "local",
+		Name:        "Local",
+		Description: "zulu description",
+	}
+	ruleOne := &Rule{
+		Id:           "local-one",
+		Description:  "one",
+		Severity:     SeverityWarn,
+		RuleCategory: zuluCategory,
+	}
+	ruleTwo := &Rule{
+		Id:           "local-two",
+		Description:  "two",
+		Severity:     SeverityError,
+		RuleCategory: alphaCategory,
+	}
+
+	for _, results := range [][]RuleFunctionResult{
+		{{Rule: ruleOne}, {Rule: ruleTwo}},
+		{{Rule: ruleTwo}, {Rule: ruleOne}},
+	} {
+		categoryResults := NewRuleResultSet(results).GetRuleResultsForCategory("local")
+
+		assert.NotNil(t, categoryResults)
+		assert.Equal(t, alphaCategory, categoryResults.Category)
+		assert.Len(t, categoryResults.RuleResults, 2)
+	}
+	assert.Nil(t, RuleCategories["local"])
+}
+
 func TestRuleResultSet_GetRuleResultsForCategoryAll(t *testing.T) {
 
 	r1 := RuleFunctionResult{Rule: &Rule{

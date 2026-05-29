@@ -417,17 +417,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				rsm.logger.Error("Unable to decode rule category", "error", dErr.Error())
 			}
 
-			// add to validation category if it's not supplied
-			if rc.Id == "" {
-				nr.RuleCategory = model.RuleCategories[model.CategoryValidation]
-			} else {
-				if model.RuleCategories[rc.Id] != nil {
-					nr.RuleCategory = model.RuleCategories[rc.Id]
-				} else {
-					model.RuleCategories[rc.Id] = &rc
-					nr.RuleCategory = model.RuleCategories[rc.Id]
-				}
-			}
+			nr.RuleCategory = resolveRuleCategory(rc)
 
 			if nr.Id == "" {
 				nr.Id = k
@@ -472,6 +462,18 @@ func CreateRuleSetFromRuleMap(rules map[string]*model.Rule) *RuleSet {
 		Rules:            rules,
 	}
 	return rs
+}
+
+func resolveRuleCategory(category model.RuleCategory) *model.RuleCategory {
+	if category.Id == "" {
+		return model.RuleCategories[model.CategoryValidation]
+	}
+	if category.Name == "" && category.Description == "" {
+		if builtin := model.RuleCategories[category.Id]; builtin != nil {
+			return builtin
+		}
+	}
+	return &category
 }
 
 // GetAllBuiltInRules returns a map of all the built-in rules available, ready to be used in a RuleSet.
