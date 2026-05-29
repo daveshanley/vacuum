@@ -31,6 +31,4 @@ WORKDIR /work
 
 COPY --from=builder /opt/vacuum/vacuum /usr/local/bin/vacuum
 
-COPY docker-entrypoint.sh /
-
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["vacuum"]
