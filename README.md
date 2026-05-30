@@ -135,7 +135,20 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.27` 🔥: **Generate OpenAPI Documentation in vacuum**
+🔥 **New in** `v0.28` 🔥: **Lint JSON Schema documents in vacuum**
+
+A new `schema` command has been added that opens up vacuum to JSON Schema specific linting rules and checks! 
+With a whole new set of functions and rules, specifically for JSON Schema documents. 
+
+Try it out on your own JSON Schema docs! with `vacuum schema`
+
+- [Read more about JSON Schema linting in vacuum](https://quobix.com/vacuum/json-schema/)
+- [Read the available `schema` command options](https://quobix.com/vacuum/commands/schema/)
+- [See the new recommended JSON Schema ruleset](https://quobix.com/vacuum/rulesets/json-schema-recommended/)
+
+---
+
+`v0.27`: **Generate OpenAPI Documentation in vacuum**
 
 A new `docs` command will generate the **best OpenAPI Documentation you ever saw**! Now vacuum has 
 integrated with [the printing press](https://github.com/pb33f/printing-press), it means
@@ -212,88 +225,6 @@ vs individually.
 - [Read all about async JS functions in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#async-functions--promises)
 - [Learn about using fetch in vacuum](https://quobix.com/vacuum/api/custom-javascript-functions/#fetch-api)
 - [find out how batch mode works](https://quobix.com/vacuum/api/custom-javascript-functions/#batch-mode-processing)
-
----
-
-`v0.21`: **Change detection filtering**
-
-Want to see linting results on **just** the changes you have made to an OpenAPI document? Or want to see just the results on the differences between two documents? 
-comes with a **what changed** mode. Using the new `--original` and `--changes-summary` global flags, you can filter out all the noise. 
-
-[documentation for change detection](https://quobix.com/vacuum/commands/change-detection/) is available to learn more.
-
-vacuum now supports [JSON Path Plus](https://github.com/JSONPath-Plus/JSONPath) annotations. This means that vacuum is 
-compliant with **All Spectral Paths**. One of the last remaining gaps between vacuum and spectral has been closed. 
-
-[See all the newly supported annotations](https://quobix.com/vacuum/rulesets/custom-rulesets/#anatomy-of-a-rule)
-
----
-
-`v0.20`: **Support for auto fixing custom rules**
-
-Got some rules that don't really need a human to look at?
-
-Well now you can define an `AutoFixFunction` for your rules, and when you run with the `--fix` flag, the fixes will be applied to the file, or use `--fix-file` to write them to a different file.
-
-See [Auto-Fixing Rule Violations](#auto-fixing-rule-violations) for more specifics.
-
----
-
-`v0.19`: **Ignore rules with `x-lint-ignore`**
-
-Got an error in your spec you know about but can't get round to fixing yet?
-Migrating from zally and wanting to keep your existing `x-zally-ignore` issues silenced?
-
-Now you can! Just add `x-lint-ignore: rule-id` to the yaml node reporting the failure (or `x-lint-ignore: [rule-one, rule-two]` if there are multiple issues to ignore).
-
----
-
-`v0.18`: **New dashboard, new lint command, new rules!**.
-
-Upgrades all around. There is a completely new `dashboard` command with a completely new dashboard terminal UI. It's 
-completely interactive and allows you to explore, and filter violations, view full docs and see code. The `dashboard` command
-also adds a new `-w` / `--watch` flag that will watch your OpenAPI file for changes and re-lint and re-render results automatically.
-
-A re-written `lint` command that has a whole new rendering engine and output. Everything is much more readable, 
-easier to see on a screen, matches the new `dashboard` style. It's 100% backwards compatible with previous versions, all flags as they were. 
-
-New rules:
-
- - [no-request-body](https://quobix.com/vacuum/rules/operations/no-request-body/) - Ensures `GET` and `DELETE` operations do not have request bodies.
- - [duplicate-paths](https://quobix.com/vacuum/rules/operations/duplicate-paths/) - Ensures there are no duplicate paths exist
- - [no-unnecessary-combinator](https://quobix.com/vacuum/rules/schemas/no-unnecessary-combinator/) - Ensures no `allOf`, `oneOf` or `anyOf` combinators exist with a single schema inside them.
- - [camel-case-properties](https://quobix.com/vacuum/rules/schemas/camel-case-properties/) - Ensures all schema properties are `camelCase`.
-
----
-
-`v0.17`: **GitHub Action**.
-
-vacuum now has an official GitHub Action. [Read the docs](https://quobix.com/vacuum/github-action/), or check it out
-in the [GitHub Marketplace](https://github.com/marketplace/actions/vacuum-openapi-linter-and-quality-analysis-tool).
-
----
-
-
-`v0.16.11`: **Composed bundling mode**.
-
-A different way to bundle exploded OpenAPI specifications into a single file. [Read the docs](https://quobix.com/vacuum/commands/bundle/).
-
----
-
-`v0.16+` : **RFC 9535 Compliant**.
-
-`v0.21+` : **JSON Path Plus Support**.
-
-vacuum now supports both [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535) JSONPath and **JSON Path Plus** extensions - full Spectral compatibility!
-
----
-
-`v0.15+`: **Fixes, New Rules, Functions and Command**.
-
-There is a new command `generate-ignorefile` that will generate an ignore file from a linting report.
-
-New rule `no-request-body` checks for incorrect request bodies in operations, and `path-item-refs` checks for
-$refs being incorrectly used on operations within path items (only the path item itself may use $ref).
 
 ---
 
