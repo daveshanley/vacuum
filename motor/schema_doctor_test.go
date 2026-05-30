@@ -111,4 +111,9 @@ properties:
 		result = ApplyRulesToRuleSet(execution)
 	})
 	require.NotNil(t, result)
+	require.NotNil(t, execution.DrDocument)
+	require.NotEmpty(t, execution.DrDocument.Schemas)
+	assert.Empty(t, result.Errors)
+	assert.Contains(t, recorder.paths, "$")
+	assert.Contains(t, recorder.paths, "$.properties['vesselId']")
 }

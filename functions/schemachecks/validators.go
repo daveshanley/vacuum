@@ -31,7 +31,7 @@ func RunTypeChecks(schemas []*drV3.Schema, context model.RuleFunctionContext, op
 func RunSchemaSanityCheck(schema *drV3.Schema, root *yaml.Node, context *model.RuleFunctionContext,
 	check string,
 ) []model.RuleFunctionResult {
-	if schema == nil || schema.Value == nil {
+	if schema == nil || schema.Value == nil || schema.Value.GoLow() == nil {
 		return nil
 	}
 

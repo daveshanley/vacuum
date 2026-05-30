@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 	"sort"
@@ -146,20 +145,7 @@ func (a Alphabetical) reportMapKeyViolation(node *yaml.Node, mapKeys []string, c
 	// Find the first out-of-order pair to create a deterministic error message
 	for i := 0; i < len(mapKeys)-1; i++ {
 		if strings.Compare(mapKeys[i], mapKeys[i+1]) > 0 {
-			locatedPath := ""
-			var allPaths []string
-			var locatedObjects []v3.Foundational
-			if context.DrDocument != nil {
-				locatedObjects, err := context.DrDocument.LocateModel(node)
-				if err == nil && locatedObjects != nil {
-					for v, obj := range locatedObjects {
-						if v == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-			}
+			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, "")
 
 			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
@@ -174,11 +160,7 @@ func (a Alphabetical) reportMapKeyViolation(node *yaml.Node, mapKeys []string, c
 			if len(allPaths) > 1 {
 				result.Paths = allPaths
 			}
-			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-				}
-			}
+			addResultToLocatedModel(locatedObjects, &result)
 			return &result
 		}
 	}
@@ -242,20 +224,7 @@ func compareStringArray(node *yaml.Node, strArr []string,
 			s := strings.Compare(strArr[x], strArr[x+1])
 			if s > 0 {
 
-				locatedPath := ""
-				var allPaths []string
-				var locatedObjects []v3.Foundational
-				if context.DrDocument != nil {
-					locatedObjects, err := context.DrDocument.LocateModel(node)
-					if err == nil && locatedObjects != nil {
-						for v, obj := range locatedObjects {
-							if v == 0 {
-								locatedPath = obj.GenerateJSONPath()
-							}
-							allPaths = append(allPaths, obj.GenerateJSONPath())
-						}
-					}
-				}
+				locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, "")
 
 				result := model.RuleFunctionResult{
 					Rule:      context.Rule,
@@ -269,11 +238,7 @@ func compareStringArray(node *yaml.Node, strArr []string,
 					result.Paths = allPaths
 				}
 				results = append(results, result)
-				if len(locatedObjects) > 0 {
-					if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-						arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-					}
-				}
+				addResultToLocatedModel(locatedObjects, &result)
 
 			}
 		}
@@ -322,20 +287,7 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 	for x, n := range intArray {
 		if x+1 < len(intArray) && n > intArray[x+1] {
 
-			locatedPath := ""
-			var allPaths []string
-			var locatedObjects []v3.Foundational
-			if context.DrDocument != nil {
-				locatedObjects, err := context.DrDocument.LocateModel(node)
-				if err == nil && locatedObjects != nil {
-					for x, obj := range locatedObjects {
-						if x == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-			}
+			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, "")
 
 			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
@@ -350,11 +302,7 @@ func (a Alphabetical) evaluateIntArray(node *yaml.Node, intArray []int, errmsg s
 				result.Paths = allPaths
 			}
 			results = append(results, result)
-			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-				}
-			}
+			addResultToLocatedModel(locatedObjects, &result)
 		}
 	}
 	return results
@@ -367,20 +315,7 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 
 	for x, n := range floatArray {
 		if x+1 < len(floatArray) && n > floatArray[x+1] {
-			locatedPath := ""
-			var allPaths []string
-			var locatedObjects []v3.Foundational
-			if context.DrDocument != nil {
-				locatedObjects, err := context.DrDocument.LocateModel(node)
-				if err == nil && locatedObjects != nil {
-					for x, obj := range locatedObjects {
-						if x == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-			}
+			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, "")
 
 			result := model.RuleFunctionResult{
 				Rule:      context.Rule,
@@ -395,11 +330,7 @@ func (a Alphabetical) evaluateFloatArray(node *yaml.Node, floatArray []float64, 
 				result.Paths = allPaths
 			}
 			results = append(results, result)
-			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-				}
-			}
+			addResultToLocatedModel(locatedObjects, &result)
 		}
 	}
 	return results

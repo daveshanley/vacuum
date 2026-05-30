@@ -303,6 +303,23 @@ func TestSchemaBundle_MissingOutputSuggestsNextCommand(t *testing.T) {
 	assert.Contains(t, err.Error(), fmt.Sprintf("vacuum schema bundle %q --stdout", rootPath))
 }
 
+func TestSchemaBundle_RejectsDuplicateOutputPath(t *testing.T) {
+	dir := t.TempDir()
+	rootPath := filepath.Join(dir, "root.schema.json")
+	writeTestFile(t, rootPath, `{"type":"object"}`)
+
+	cmd := getSchemaBundleCommand()
+	cmd.PersistentFlags().StringP("base", "p", "", "")
+	cmd.PersistentFlags().BoolP("remote", "u", true, "")
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{rootPath, filepath.Join(dir, "bundle.json"), "--output", filepath.Join(dir, "other.json"), "--no-style"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "schema bundle output was supplied twice")
+}
+
 func TestSchemaBundle_RejectsFolderInput(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, filepath.Join(dir, "schemas", "one.schema.json"), `{"type":"object"}`)
@@ -338,7 +355,7 @@ func TestSchemaBundle_StdoutPreservesJSONAndRewritesExtractedDefs(t *testing.T) 
     }
   }
 }`)
-	writeTestFile(t, filepath.Join(dir, "_defs", "BarrierType.schema.json"), `{
+	writeTestFile(t, filepath.Join(dir, "_defs", "BarrierType.json"), `{
   "type": "string",
   "enum": ["KnockIn", "KnockOut"]
 }`)

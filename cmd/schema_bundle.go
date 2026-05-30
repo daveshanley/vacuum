@@ -185,6 +185,9 @@ func splitSchemaBundleArgs(args []string, flags *schemaBundleFlags) ([]string, s
 	if info.IsDir() {
 		return nil, "", errors.New("schema bundle cannot bundle folders; provide a single JSON Schema file")
 	}
+	if flags.Output != "" && len(args) == 2 {
+		return nil, "", errors.New("schema bundle output was supplied twice; use either an output argument or --output")
+	}
 	if flags.Output != "" || len(args) == 1 {
 		return args[:1], flags.Output, nil
 	}
@@ -334,8 +337,7 @@ func rewriteSchemaRef(ctx *schemaBundleContext, documentRoot *yaml.Node, ref, cu
 		if !ok {
 			return "", nil
 		}
-		external = keyName + ".schema.json"
-		key, err := ctx.bundleExternalSchema(external, currentDir)
+		key, err := ctx.bundleMissingLocalDef(keyName, currentDir)
 		if err != nil {
 			return "", err
 		}
@@ -373,6 +375,35 @@ func missingLocalDefsReference(documentRoot *yaml.Node, fragment string) (keyNam
 		suffix = "/" + suffix
 	}
 	return keyName, suffix, true
+}
+
+func (ctx *schemaBundleContext) bundleMissingLocalDef(keyName, currentDir string) (string, error) {
+	candidates := schemaDefinitionFilenames(keyName)
+	var attempts []string
+	var lastErr error
+	for _, candidate := range candidates {
+		attempts = append(attempts, candidate)
+		key, err := ctx.bundleExternalSchema(candidate, currentDir)
+		if err == nil {
+			return key, nil
+		}
+		lastErr = err
+		if !strings.Contains(err.Error(), "unable to resolve external schema reference") {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("cannot resolve local $defs reference %q; tried %s: %w", keyName, strings.Join(attempts, ", "), lastErr)
+}
+
+func schemaDefinitionFilenames(keyName string) []string {
+	return []string{
+		keyName + ".schema.json",
+		keyName + ".json",
+		keyName + ".schema.yaml",
+		keyName + ".yaml",
+		keyName + ".schema.yml",
+		keyName + ".yml",
+	}
 }
 
 func schemaHasRelativeExternalRefs(raw []byte) bool {

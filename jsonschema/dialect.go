@@ -53,10 +53,6 @@ func IsSupportedDialect(format string) bool {
 		format == model.JSONSchemaDraft07
 }
 
-func FormatForSchema(root *yaml.Node) string {
-	return DetectDialect(root).Format
-}
-
 func HasSchemaKeyword(root *yaml.Node) bool {
 	return mappingValueNode(RootNode(root), "$schema") != nil
 }

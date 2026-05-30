@@ -120,6 +120,7 @@ func walkDoctorSchema(root *yaml.Node, schemaProxy *highbase.SchemaProxy, idx *i
 		StorageRoot:        config.StorageRoot,
 		Logger:             config.Logger,
 	}
+	//nolint:staticcheck // SA1029: Doctor's walkers currently read the literal "drCtx" context key.
 	ctx := context.WithValue(context.Background(), "drCtx", drCtx)
 	rootFoundation := &drV3.Foundation{
 		PathSegment: schemaDoctorPathRoot,

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
 	"regexp"
@@ -195,21 +194,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// Go through each node and check if the casing is correct
 	for _, n := range nodesToMatch {
 		if !rx.MatchString(n.Value) {
-			locatedPath := pathValue
-			var allPaths []string
-			var locatedObjects []v3.Foundational
-			if context.DrDocument != nil {
-				located, err := context.DrDocument.LocateModel(node)
-				if err == nil && located != nil {
-					locatedObjects = located
-					for s, obj := range locatedObjects {
-						if s == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-			}
+			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, pathValue)
 			result := model.RuleFunctionResult{
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage, n.Value, casingType)),
 				StartNode: n,
@@ -221,11 +206,7 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 				result.Paths = allPaths
 			}
 			results = append(results, result)
-			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-				}
-			}
+			addResultToLocatedModel(locatedObjects, &result)
 		}
 	}
 

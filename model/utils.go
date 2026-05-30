@@ -33,7 +33,6 @@ var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
 var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
-var JSONSchemaFormat = []string{JSONSchema}
 var JSONSchemaAllFormats = []string{JSONSchema, JSONSchemaDraft2020, JSONSchemaDraft2019, JSONSchemaDraft07}
 
 // FormatMatches checks if a rule format matches a spec format.
