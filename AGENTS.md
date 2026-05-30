@@ -6,7 +6,8 @@ Operational guide for AI agents working in `github.com/daveshanley/vacuum`.
 
 - vacuum is a Go CLI and library for linting OpenAPI and JSON Schema documents, generating reports, bundling specs, running an LSP server, and generating API docs through printing press.
 - Main entry point: `vacuum.go` -> `cmd.Execute(...)` -> `cmd.GetRootCommand()`.
-- The default user path is `vacuum lint <spec>`. The shared lint engine is in `cmd/build_results.go` and `motor/`.
+- The default OpenAPI user path is `vacuum lint <spec>`. JSON Schema linting uses `vacuum schema <schema>` or `vacuum schema lint <schema>`.
+- OpenAPI lint/report commands share helpers in `cmd/build_results.go` and `motor/`. JSON Schema command wiring lives in `cmd/schema*.go` and still executes rules through `motor/`.
 - Go version is `1.25.0`. Node is only needed for the HTML report UI and npm package wrapper.
 - The interactive HTML report is compiled only when UI assets exist and builds use `-tags html_report_ui`.
 - Release/CI-shaped Go checks should usually run with `GOWORK=off` so local sibling checkouts do not hide committed module problems.
@@ -51,17 +52,28 @@ Before handoff for docs-only or config-only edits:
 git diff --check -- <changed-files>
 ```
 
+For JSON Schema command, ruleset, or schema Doctor changes, prefer focused checks before broader package runs:
+
+```bash
+go test ./cmd -run 'Schema'
+go test ./motor -run 'JSONSchema'
+go test ./jsonschema ./functions/jsonschema ./functions/schemachecks ./rulesets
+```
+
 ## Repo Map
 
 ```text
 vacuum.go                    binary entry point and ldflags pass-through
-cmd/                         Cobra commands, CLI flags, rendering, reports, docs command
+cmd/                         Cobra commands, CLI flags, rendering, reports, docs and schema commands
 motor/                       rule execution engine, document/index setup, result collection
 model/                       rules, result models, reports, categories, test fixtures
 rulesets/                    built-in rulesets, schemas, rule aliases, example rulesets
 functions/core/              Spectral-compatible core rule functions
+functions/jsonschema/        JSON Schema rule functions and synthetic validation rules
 functions/openapi/           OpenAPI-specific rule functions
 functions/owasp/             OWASP rule functions
+functions/schemachecks/      Shared schema sanity/type checks used by OpenAPI and JSON Schema rules
+jsonschema/                  JSON Schema dialect, metaschema, Doctor, and reference helpers
 plugin/javascript/           JavaScript custom-function runtime, event loop, fetch support
 plugin/sample/               sample Go and JS custom functions
 language-server/             OpenAPI LSP server integration
@@ -93,10 +105,20 @@ Root command registration lives in `cmd/root.go`. Current subcommands include:
 - `language-server`
 - `upgrade`
 - `bundle`
+- `schema`
 - `apply-overlay`
 - `open-collection`
 
 When adding or changing flags, check every command surface that shares the behavior. For example, change filtering and resolved-reference behavior span `lint`, `report`, `spectral-report`, `html-report`, `dashboard`, and sometimes `language-server` or `docs`.
+
+`vacuum schema` is the first-class JSON Schema surface:
+
+- `vacuum schema <input...>` and `vacuum schema lint <input...>` lint JSON Schema documents.
+- `vacuum schema bundle <input> [output]` bundles one schema entry document; use `--stdout` for piping.
+- Schema inputs support explicit files, `--globbed-files`, folders, and exclusive `--stdin/-i`.
+- Folder inputs default to recursive `.json`, `.yaml`, and `.yml`; `--include` and `--exclude` refine folder discovery. Explicit files and globs may use any filename or extension.
+- Schema mode uses `json-schema-recommended` by default, supports custom rules/functions, and must not run OpenAPI-only rules.
+- Schema bundling rewrites ordinary external `$ref` values into root `$defs`; dynamic/recursive references are preserved rather than resolved as ordinary refs.
 
 ## Core Rules
 
@@ -106,6 +128,7 @@ When adding or changing flags, check every command surface that shares the behav
 - Use `go.yaml.in/yaml/v4` where current code does; do not casually mix YAML libraries.
 - Keep rule IDs, categories, and built-in rule constants centralized in `rulesets/` and `model/`.
 - For result paths, preserve both `Path` and `Paths` semantics. Many report and diff workflows depend on stable path output.
+- For JSON Schema, preserve the schema-only Doctor path, libopenapi index/rolodex reference behavior, and low-level YAML/JSON node fidelity. Line/column, snippets, JSONPath output, and `$ref` diagnostics depend on that stack.
 - Do not remove or weaken panic recovery, timeouts, lookup timeouts, or circular-reference controls without focused tests.
 - For custom JS functions, keep fetch security defaults intact: HTTPS only unless `--allow-http`, and private network access only with `--allow-private-networks`.
 
@@ -122,9 +145,10 @@ When adding or changing flags, check every command surface that shares the behav
 
 - Built-in functions implement `model.RuleFunction`.
 - A function must provide `RunRule`, `GetSchema`, and `GetCategory`.
-- Tests usually live beside the function they cover: `functions/core`, `functions/openapi`, or `functions/owasp`.
+- Tests usually live beside the function they cover: `functions/core`, `functions/openapi`, `functions/jsonschema`, `functions/schemachecks`, or `functions/owasp`.
 - Add new built-in rule IDs and docs metadata through the existing `rulesets` patterns.
 - Example rulesets belong under `rulesets/examples/`; schema changes belong under `rulesets/schemas/`.
+- JSON Schema-specific built-ins should use `functions/jsonschema`; shared schema semantics belong in `functions/schemachecks` so OpenAPI and JSON Schema do not drift.
 - Custom Go plugin behavior is demonstrated in `plugin/sample/`.
 - Custom JavaScript runtime behavior lives under `plugin/javascript/`; async, Promise, and fetch behavior should be tested there.
 
@@ -199,6 +223,7 @@ Check `git status --short` before editing. Preserve unrelated user changes.
 - Command behavior: add focused tests under `cmd/`.
 - Rule execution behavior: add or update tests under `motor/`.
 - Built-in rule functions: test in the relevant `functions/...` package.
+- JSON Schema command behavior: test under `cmd/`; dialect, metaschema, Doctor, and reference helpers: test under `jsonschema/`; schema-only motor behavior: test under `motor/`.
 - Ruleset parsing/aliases/default rules: test under `rulesets/`.
 - Language server behavior: test under `language-server/`.
 - HTML report Go behavior: test under `html-report/`; use `-tags html_report_ui` for embedded UI behavior.
