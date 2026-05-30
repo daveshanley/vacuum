@@ -48,7 +48,6 @@ func collectSchemaInputs(cmd *cobra.Command, args, globPatterns, includes, exclu
 	}
 
 	var files []string
-	var folderRoots []string
 	var folderInputs []string
 	var fileInputs []string
 	for _, arg := range args {
@@ -66,7 +65,6 @@ func collectSchemaInputs(cmd *cobra.Command, args, globPatterns, includes, exclu
 				return nil, walkErr
 			}
 			files = append(files, rootFiles...)
-			folderRoots = append(folderRoots, arg)
 			continue
 		}
 		fileInputs = append(fileInputs, arg)
@@ -86,7 +84,6 @@ func collectSchemaInputs(cmd *cobra.Command, args, globPatterns, includes, exclu
 	if len(files) == 0 {
 		return nil, nil
 	}
-	commonRoot := commonDirectory(files)
 	inputs := make([]schemaInput, 0, len(files))
 	for _, file := range files {
 		raw, readErr := os.ReadFile(file)
@@ -97,20 +94,11 @@ func collectSchemaInputs(cmd *cobra.Command, args, globPatterns, includes, exclu
 		if baseErr != nil {
 			return nil, baseErr
 		}
-		mirrorRoot := commonRoot
-		for _, root := range folderRoots {
-			rel, relErr := filepath.Rel(root, file)
-			if relErr == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				mirrorRoot = root
-				break
-			}
-		}
 		inputs = append(inputs, schemaInput{
-			Path:       file,
-			Display:    file,
-			Bytes:      raw,
-			Base:       base,
-			MirrorRoot: mirrorRoot,
+			Path:    file,
+			Display: file,
+			Bytes:   raw,
+			Base:    base,
 		})
 	}
 	return inputs, nil
@@ -269,34 +257,4 @@ func globRegex(pattern string) (*regexp.Regexp, error) {
 	}
 	b.WriteString("$")
 	return regexp.Compile(b.String())
-}
-
-func commonDirectory(files []string) string {
-	if len(files) == 0 {
-		return "."
-	}
-	dirs := make([]string, len(files))
-	for i, file := range files {
-		abs, err := filepath.Abs(file)
-		if err != nil {
-			dirs[i] = filepath.Dir(file)
-			continue
-		}
-		dirs[i] = filepath.Dir(abs)
-	}
-	common := dirs[0]
-	for _, dir := range dirs[1:] {
-		for {
-			rel, err := filepath.Rel(common, dir)
-			if err == nil && (rel == "." || (!strings.HasPrefix(rel, "..") && rel != "..")) {
-				break
-			}
-			parent := filepath.Dir(common)
-			if parent == common {
-				break
-			}
-			common = parent
-		}
-	}
-	return common
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/index"
+	"go.yaml.in/yaml/v4"
 )
 
 const (
@@ -41,13 +42,7 @@ func IsDynamicScopeResolvingError(err *index.ResolvingError) bool {
 	if err == nil {
 		return false
 	}
-	if hasDynamicScopeKeyword(err.Path) {
-		return true
-	}
-	if err.Node != nil {
-		return hasDynamicScopeKeyword(err.Node.Value)
-	}
-	return false
+	return hasDynamicScopeKeywordPath(err.Path) || hasDynamicScopeKeywordNode(err.Node)
 }
 
 // IsDynamicScopeIndexingError reports whether a libopenapi indexing error came from a dynamic-scope reference keyword.
@@ -55,15 +50,20 @@ func IsDynamicScopeIndexingError(err *index.IndexingError) bool {
 	if err == nil {
 		return false
 	}
-	if hasDynamicScopeKeyword(err.Path) {
-		return true
-	}
-	if err.Node != nil {
-		return hasDynamicScopeKeyword(err.Node.Value)
+	return hasDynamicScopeKeywordPath(err.Path) || hasDynamicScopeKeywordNode(err.Node)
+}
+
+func hasDynamicScopeKeywordPath(path string) bool {
+	for _, part := range strings.FieldsFunc(path, func(r rune) bool {
+		return r == '.' || r == '[' || r == ']' || r == '\'' || r == '"' || r == '/'
+	}) {
+		if part == dynamicRefKeyword || part == recursiveRefKeyword {
+			return true
+		}
 	}
 	return false
 }
 
-func hasDynamicScopeKeyword(value string) bool {
-	return strings.Contains(value, dynamicRefKeyword) || strings.Contains(value, recursiveRefKeyword)
+func hasDynamicScopeKeywordNode(node *yaml.Node) bool {
+	return node != nil && (node.Value == dynamicRefKeyword || node.Value == recursiveRefKeyword)
 }

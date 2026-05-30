@@ -641,7 +641,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	// When skip-check is enabled, the document version might not be detected
 	// but we still need to know if it's OAS2 or OAS3 for rule filtering
-	if version == "" && execution.SkipDocumentCheck && specInfo != nil {
+	if version == "" && execution.SkipDocumentCheck && specInfo != nil && !isJSONSchemaFormat(execution.SpecFormat) {
 		// Try to detect the version from the spec directly
 		if specInfo.SpecType != "" {
 			if strings.HasPrefix(strings.ToLower(specInfo.SpecType), "swagger") {

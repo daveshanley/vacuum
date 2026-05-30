@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/doctor/model/high/v3"
 	"go.yaml.in/yaml/v4"
 	"strconv"
 	"strings"
@@ -96,20 +95,7 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	for _, node := range nodes {
 		if !e.checkValueAgainstAllowedValues(node.Value, values) {
 
-			locatedPath := pathValue
-			var allPaths []string
-			var locatedObjects []v3.Foundational
-			if context.DrDocument != nil {
-				locatedObjects, err := context.DrDocument.LocateModel(node)
-				if err == nil && locatedObjects != nil {
-					for s, obj := range locatedObjects {
-						if s == 0 {
-							locatedPath = obj.GenerateJSONPath()
-						}
-						allPaths = append(allPaths, obj.GenerateJSONPath())
-					}
-				}
-			}
+			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, pathValue)
 
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,
@@ -123,11 +109,7 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 				result.Paths = allPaths
 			}
 			results = append(results, result)
-			if len(locatedObjects) > 0 {
-				if arr, ok := locatedObjects[0].(v3.AcceptsRuleResults); ok {
-					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-				}
-			}
+			addResultToLocatedModel(locatedObjects, &result)
 		}
 	}
 	return results

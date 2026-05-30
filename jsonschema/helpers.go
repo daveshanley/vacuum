@@ -6,6 +6,7 @@ package jsonschema
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -57,18 +58,6 @@ func NodeToInterface(node *yaml.Node) (any, error) {
 	default:
 		return nil, nil
 	}
-}
-
-func DecodeYAMLToJSONInterface(data []byte) (any, *yaml.Node, error) {
-	var root yaml.Node
-	if err := yaml.Unmarshal(data, &root); err != nil {
-		return nil, nil, err
-	}
-	value, err := NodeToInterface(&root)
-	if err != nil {
-		return nil, nil, err
-	}
-	return value, &root, nil
 }
 
 func IsFragmentRoot(root *yaml.Node) bool {
@@ -164,42 +153,6 @@ func MappingValueNode(node *yaml.Node, key string) *yaml.Node {
 	return mappingValueNode(node, key)
 }
 
-func MappingScalarValue(node *yaml.Node, key string) string {
-	return mappingScalarValue(node, key)
-}
-
-func SetMappingScalar(node *yaml.Node, key, value string) {
-	node = RootNode(node)
-	if node == nil || node.Kind != yaml.MappingNode {
-		return
-	}
-	if val := mappingValueNode(node, key); val != nil {
-		val.Kind = yaml.ScalarNode
-		val.Tag = "!!str"
-		val.Value = value
-		return
-	}
-	node.Content = append(node.Content,
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
-		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: value},
-	)
-}
-
-func CloneNode(node *yaml.Node) (*yaml.Node, error) {
-	if node == nil {
-		return nil, nil
-	}
-	bytes, err := yaml.Marshal(node)
-	if err != nil {
-		return nil, err
-	}
-	var clone yaml.Node
-	if err := yaml.Unmarshal(bytes, &clone); err != nil {
-		return nil, err
-	}
-	return RootNode(&clone), nil
-}
-
 func ToJSON(root *yaml.Node, pretty bool) ([]byte, error) {
 	data, err := NodeToInterface(root)
 	if err != nil {
@@ -222,11 +175,13 @@ func scalarToInterface(node *yaml.Node) (any, error) {
 		if err == nil {
 			return i, nil
 		}
+		return nil, fmt.Errorf("unable to parse integer value %q at line %d, column %d: %w", node.Value, node.Line, node.Column, err)
 	case "!!float":
 		f, err := strconv.ParseFloat(node.Value, 64)
 		if err == nil {
 			return f, nil
 		}
+		return nil, fmt.Errorf("unable to parse float value %q at line %d, column %d: %w", node.Value, node.Line, node.Column, err)
 	}
 	return node.Value, nil
 }
@@ -244,32 +199,10 @@ func mappingValueNode(node *yaml.Node, key string) *yaml.Node {
 	return nil
 }
 
-func mappingKeyNode(node *yaml.Node, key string) *yaml.Node {
-	node = RootNode(node)
-	if node == nil || node.Kind != yaml.MappingNode {
-		return nil
-	}
-	for i := 0; i+1 < len(node.Content); i += 2 {
-		if node.Content[i].Value == key {
-			return node.Content[i]
-		}
-	}
-	return nil
-}
-
 func mappingScalarValue(node *yaml.Node, key string) string {
 	val := mappingValueNode(node, key)
 	if val == nil || val.Kind != yaml.ScalarNode {
 		return ""
 	}
 	return val.Value
-}
-
-func KeyNodeForLocation(root *yaml.Node, location []string) *yaml.Node {
-	root = RootNode(root)
-	if len(location) == 0 {
-		return root
-	}
-	parent, _ := FindNodeByLocation(root, location[:len(location)-1])
-	return mappingKeyNode(parent, location[len(location)-1])
 }

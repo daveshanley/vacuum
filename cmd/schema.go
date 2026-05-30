@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -31,9 +32,14 @@ const (
 	schemaOutputText = "text"
 	schemaOutputJSON = "json"
 
-	schemaLintExamples = `Examples:
-  vacuum schema my-schema.json
-  vacuum schema -d my-schema.yaml`
+	schemaLintExamples = `  vacuum schema my-schema.json          # or: vacuum schema lint my-schema.json
+  vacuum schema -d my-schema.yaml       # full details and snippets
+  cat schema.json | vacuum schema -i    # from stdin
+
+Lint many documents:
+  vacuum schema ./schemas                 # recursively lints .json, .yaml and .yml
+  vacuum schema --globbed-files "schemas/**/*.json"
+  vacuum schema ./schemas --include "**/*.schema" --exclude "**/*.test.json"`
 )
 
 func GetSchemaCommand() *cobra.Command {
@@ -159,7 +165,7 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if len(inputs) == 0 {
-		err = errors.New("please supply a JSON Schema document to lint\n\n" + schemaLintExamples)
+		err = errors.New("please supply a JSON Schema document to lint\n\nExamples:\n" + schemaLintExamples)
 		tui.RenderErrorString("%s", err.Error())
 		return err
 	}
@@ -212,7 +218,7 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	var totalSize int64
 	for _, input := range inputs {
 		totalSize += int64(len(input.Bytes))
-		run, runErr := lintSchemaInput(input, selectedRS, customFuncs, ignoredItems, flags, logger, httpClientConfig, fetchConfig)
+		run, runErr := lintSchemaInput(input, selectedRS, customFuncs, ignoredItems, flags, logger, httpClientConfig, fetchConfig, cmd.ErrOrStderr())
 		if runErr != nil {
 			return runErr
 		}
@@ -289,6 +295,7 @@ func lintSchemaInput(
 	logger *slog.Logger,
 	httpClientConfig utils.HTTPClientConfig,
 	fetchConfig *utils.FetchConfig,
+	errOut io.Writer,
 ) (schemaLintRun, error) {
 	run := schemaLintRun{Input: input}
 	if flags.Bundle {
@@ -301,8 +308,10 @@ func lintSchemaInput(
 			Base:      flags.Base,
 			Remote:    flags.Remote,
 		}, httpClient)
-		for _, warning := range warnings {
-			fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+		if !flags.Silent {
+			for _, warning := range warnings {
+				fmt.Fprintf(errOut, "Warning: %s\n", warning)
+			}
 		}
 		if bundleErr != nil {
 			return run, bundleErr
@@ -319,8 +328,8 @@ func lintSchemaInput(
 		return run, fmt.Errorf("unable to parse JSON Schema '%s': %w", input.Display, err)
 	}
 	dialect := schemautil.DetectDialect(&root)
-	if !schemautil.IsSupportedDialect(dialect.Format) {
-		fmt.Fprintf(os.Stderr, "Warning: schema '%s' declares unsupported dialect %q; running generic JSON Schema rules only.\n", input.Display, dialect.URL)
+	if !schemautil.IsSupportedDialect(dialect.Format) && !flags.Silent {
+		fmt.Fprintf(errOut, "Warning: schema '%s' declares unsupported dialect %q; running generic JSON Schema rules only.\n", input.Display, dialect.URL)
 	}
 	specPath, err := ResolveSpecPathForExecution(input.Path)
 	if err != nil {

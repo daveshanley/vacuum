@@ -71,12 +71,11 @@ type schemaBundleFlags struct {
 }
 
 type schemaInput struct {
-	Path       string
-	Display    string
-	Bytes      []byte
-	Base       string
-	MirrorRoot string
-	FromStdin  bool
+	Path      string
+	Display   string
+	Bytes     []byte
+	Base      string
+	FromStdin bool
 }
 
 type schemaLintRun struct {

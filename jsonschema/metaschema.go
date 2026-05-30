@@ -91,7 +91,7 @@ func CompileSchema(root *yaml.Node) (*santhoshjsonschema.Schema, error) {
 type noopLoader struct{}
 
 func (noopLoader) Load(loadURL string) (any, error) {
-	return nil, fmt.Errorf("remote schema loading disabled for metaschema validation: %s", loadURL)
+	return nil, fmt.Errorf("remote schema loading is disabled: %s", loadURL)
 }
 
 func metaschemaForFormat(format string) (*santhoshjsonschema.Schema, error) {
