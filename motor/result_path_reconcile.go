@@ -354,26 +354,44 @@ func completeAliasedResultPathsFromReferences(results []model.RuleFunctionResult
 			aliasPaths = expandResultReferenceAliasPaths(rolodex.GetRootIndex(), targetIndex, targetPath, pathIndexes)
 			aliasCache[cacheKey] = aliasPaths
 		}
-		if len(aliasPaths) <= 1 {
+		if len(aliasPaths) == 0 {
 			continue
 		}
 
-		mergeResultPathCandidates(result, applyResultPathSuffix(result, aliasPaths))
+		candidatePaths := make([]string, 0, len(aliasPaths)+1)
+		targetCandidate := canonicalizeResultAliasPath(targetPath)
+		if strings.HasPrefix(targetCandidate, "$.components.") ||
+			resultPathSuffix(result.Path, []string{targetCandidate}) != "" {
+			candidatePaths = append(candidatePaths, targetCandidate)
+		}
+		candidatePaths = append(candidatePaths, aliasPaths...)
+		mergeResultPathCandidates(result, applyResultPathSuffix(result, candidatePaths))
 	}
 }
 
 func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionResult) bool {
-	if result == nil || result.Rule == nil || result.StartNode == nil {
+	if result == nil || result.Rule == nil {
 		return false
 	}
-	if len(result.Paths) <= 1 && !resultPathNeedsReconciliation(result) {
+	if result.StartNode == nil && result.Origin == nil && !resultPathMayReferenceAlias(result.Path) {
 		return false
 	}
 	if !ruleUsesRecursiveDescent(result.Rule) {
 		return false
 	}
-	_, ok := aliasedResultKey(result)
-	return ok
+	if len(result.Paths) <= 1 && !resultPathNeedsReconciliation(result) && !resultPathMayReferenceAlias(result.Path) {
+		return false
+	}
+	if _, ok := aliasedResultKey(result); ok {
+		return true
+	}
+	return resultPathMayReferenceAlias(result.Path)
+}
+
+func resultPathMayReferenceAlias(path string) bool {
+	return strings.Contains(path, ".allOf[") ||
+		strings.Contains(path, ".anyOf[") ||
+		strings.Contains(path, ".oneOf[")
 }
 
 func ruleUsesRecursiveDescent(rule *model.Rule) bool {
@@ -399,6 +417,9 @@ func targetPathForResult(
 		origin = rolodex.FindNodeOrigin(result.StartNode)
 	}
 	if origin == nil || origin.Index == nil {
+		if targetPath := targetPathFromReferenceAliasResultPath(result.Path); targetPath != "" {
+			return rolodex.GetRootIndex(), targetPath
+		}
 		return nil, ""
 	}
 
@@ -426,7 +447,20 @@ func targetPathForResult(
 			}
 		}
 	}
+	if targetPath := targetPathFromReferenceAliasResultPath(result.Path); targetPath != "" {
+		return rolodex.GetRootIndex(), targetPath
+	}
 	return nil, ""
+}
+
+func targetPathFromReferenceAliasResultPath(path string) string {
+	for _, marker := range []string{".allOf[", ".anyOf[", ".oneOf["} {
+		idx := strings.Index(path, marker)
+		if idx > 0 {
+			return normalizeSimpleBracketResultPath(path[:idx])
+		}
+	}
+	return ""
 }
 
 func resultPathIndexForSpec(specIndex *index.SpecIndex, pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex) *vacuumUtils.NodePathIndex {
