@@ -1,8 +1,11 @@
 package motor
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
@@ -152,6 +155,32 @@ info:
 func TestCheckInlineIgnoreByPathIndexed_NilIndex(t *testing.T) {
 	var node yaml.Node
 	assert.False(t, checkInlineIgnoreByPathIndexed(nil, &node, "$.info", "any-rule"))
+}
+
+func TestCheckInlineIgnoreByPathIndexed_AncestorIgnore(t *testing.T) {
+	// x-lint-ignore on a parent must suppress a result reported against a child path.
+	spec := `
+openapi: 3.0.0
+components:
+  securitySchemes:
+    basicAuth:
+      x-lint-ignore: owasp-no-http-basic
+      type: http
+      scheme: basic
+`
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(spec), &node))
+
+	idx := buildInlineIgnoreIndex(&node)
+	require.NotNil(t, idx)
+	require.True(t, idx.hasNonRootIgnores)
+
+	// Path points at the child `scheme`; ignore lives on the parent object.
+	assert.True(t, checkInlineIgnoreByPathIndexed(idx, &node,
+		"$.components.securitySchemes.basicAuth.scheme", "owasp-no-http-basic"))
+	// A different rule id must not be suppressed.
+	assert.False(t, checkInlineIgnoreByPathIndexed(idx, &node,
+		"$.components.securitySchemes.basicAuth.scheme", "some-other-rule"))
 }
 
 func TestInlineIgnore_Integration_InfoDescription(t *testing.T) {
@@ -536,4 +565,62 @@ rules:
 			assert.True(t, foundIgnored, "%s should be in ignored results", spec.rule)
 		})
 	}
+}
+
+func TestInlineIgnore_Integration_OWASPNoHttpBasic(t *testing.T) {
+	spec := `
+openapi: 3.0.0
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+components:
+  securitySchemes:
+    ignoredBasic:
+      description: Basic auth that should be ignored.
+      x-lint-ignore: owasp-no-http-basic
+      scheme: basic
+      type: http
+    flaggedBasic:
+      description: Basic auth that should still be reported.
+      scheme: basic
+      type: http
+`
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			rulesets.OwaspNoHttpBasic: rulesets.GetOWASPNoHttpBasicRule(),
+		},
+	}
+
+	execution := &RuleSetExecution{
+		RuleSet:      rs,
+		Spec:         []byte(spec),
+		SpecFileName: "test.yaml",
+	}
+
+	result := ApplyRulesToRuleSet(execution)
+
+	for _, res := range result.Results {
+		assert.NotContains(t, res.Path, "ignoredBasic",
+			"ignoredBasic should be suppressed by x-lint-ignore")
+	}
+
+	var foundIgnored bool
+	for _, res := range result.IgnoredResults {
+		if res.RuleId == rulesets.OwaspNoHttpBasic {
+			foundIgnored = true
+			break
+		}
+	}
+	assert.True(t, foundIgnored, "owasp-no-http-basic should be ignored for ignoredBasic")
+
+	var foundFlagged bool
+	for _, res := range result.Results {
+		if res.RuleId == rulesets.OwaspNoHttpBasic && strings.Contains(res.Path, "flaggedBasic") {
+			foundFlagged = true
+			break
+		}
+	}
+	assert.True(t, foundFlagged, "flaggedBasic should still be reported")
 }
