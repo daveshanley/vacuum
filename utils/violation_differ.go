@@ -24,12 +24,11 @@ type violationKey struct {
 }
 
 type violationIdentity struct {
-	key            violationKey
-	paths          []string
-	source         string
-	sourceLine     int
-	sourceColumn   int
-	sourceFromRoot bool
+	key          violationKey
+	paths        []string
+	source       string
+	sourceLine   int
+	sourceColumn int
 }
 
 type violationIdentityGroup struct {
@@ -162,14 +161,6 @@ func (m canonicalOriginMapper) canonicalLocation(location string) string {
 		return canonical
 	}
 	return path
-}
-
-func (m canonicalOriginMapper) isRootLocation(location string) bool {
-	if m.rootPath == "" || location == "" || strings.Contains(location, "://") {
-		return false
-	}
-	path, ok := normalizeLocalOriginPath(location)
-	return ok && path == m.rootPath
 }
 
 func (m *canonicalOriginMapper) sourcePathIdentity(result model.RuleFunctionResult) string {
@@ -400,9 +391,8 @@ func extractIdentity(result model.RuleFunctionResult, originMapper *canonicalOri
 
 func buildViolationIdentity(result model.RuleFunctionResult, originMapper *canonicalOriginMapper) violationIdentity {
 	source := originMapper.sourcePathIdentity(result)
-	sourceFromRoot, sourceLine, sourceColumn := false, 0, 0
+	sourceLine, sourceColumn := 0, 0
 	if result.Origin != nil {
-		sourceFromRoot = originMapper.isRootLocation(result.Origin.AbsoluteLocation)
 		sourceLine = result.Origin.Line
 		sourceColumn = result.Origin.Column
 		if sourceLine == 0 {
@@ -418,11 +408,10 @@ func buildViolationIdentity(result model.RuleFunctionResult, originMapper *canon
 			Path:    extractIdentity(result, originMapper),
 			Message: result.Message,
 		},
-		paths:          extractPathCandidates(result.Path, result.Paths),
-		source:         source,
-		sourceLine:     sourceLine,
-		sourceColumn:   sourceColumn,
-		sourceFromRoot: sourceFromRoot,
+		paths:        extractPathCandidates(result.Path, result.Paths),
+		source:       source,
+		sourceLine:   sourceLine,
+		sourceColumn: sourceColumn,
 	}
 }
 
@@ -485,6 +474,7 @@ func diffCore(originalKeys []violationIdentity, newKeys []violationIdentity) (ke
 			}
 		}
 	}
+	sort.Strings(stats.RulesFullyFiltered)
 
 	return kept, stats
 }
@@ -528,14 +518,14 @@ func aliasedViolationIdentityMatches(original, next violationIdentity) bool {
 		if original.source != next.source {
 			return false
 		}
-		if original.sourceFromRoot && next.sourceFromRoot && rootSourcePositionMoved(original, next) {
+		if sourcePositionMoved(original, next) {
 			return true
 		}
 	}
 	return pathCandidatesIntersect(original.paths, next.paths)
 }
 
-func rootSourcePositionMoved(original, next violationIdentity) bool {
+func sourcePositionMoved(original, next violationIdentity) bool {
 	if original.sourceLine <= 0 || next.sourceLine <= 0 {
 		return false
 	}

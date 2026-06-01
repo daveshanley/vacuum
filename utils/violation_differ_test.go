@@ -144,7 +144,7 @@ func TestDiffViolationsValues_FullOverlap(t *testing.T) {
 	result, stats := DiffViolationsValues(violations, violations)
 	assert.Empty(t, result)
 	assert.Equal(t, 2, stats.ResultsDropped)
-	assert.Len(t, stats.RulesFullyFiltered, 2)
+	assert.Equal(t, []string{"rule-1", "rule-2"}, stats.RulesFullyFiltered)
 }
 
 func TestDiffViolationsValues_PartialOverlap(t *testing.T) {
@@ -366,6 +366,28 @@ func TestDiffViolationsValues_PathIdentityKeepsNewAliasPathDistinctWhenSourceMat
 	require.Len(t, result, 1)
 	assert.Equal(t, pathB, result[0].Path)
 	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValues_ExternalSourceSuppressesDriftedPathWhenSourceMoves(t *testing.T) {
+	message := "media type schema property `error-code` is missing `examples` or `example`"
+	pathA := "$.paths['/a'].get.responses['400'].content['*/*'].schema.properties['error-code']"
+	pathB := "$.tags[1].schema.properties['error-code']"
+
+	original := []model.RuleFunctionResult{
+		makeIndexedSourceResultAtLocation(t, "oas3-missing-example", pathA, message, "/workspace/original/common.yaml", 0),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeIndexedSourceResultAtLocation(t, "oas3-missing-example", pathB, message, "/workspace/shifted/common.yaml", 3),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(
+		original,
+		newResults,
+		"/workspace/original/openapi.yaml",
+		"/workspace/shifted/openapi.yaml",
+	)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
 func TestDiffViolationsValuesWithOriginBases_RootSourceSuppressesDriftedPath(t *testing.T) {
@@ -743,7 +765,7 @@ func TestDiffViolationsValues_StatsCorrect(t *testing.T) {
 	assert.Equal(t, 3, stats.ResultsDropped)
 
 	// rule-1: 1 before, 0 after (fully filtered)
-	assert.Contains(t, stats.RulesFullyFiltered, "rule-1")
+	assert.Equal(t, []string{"rule-1"}, stats.RulesFullyFiltered)
 
 	// rule-2: 3 before, 1 after (partial: 2 dropped)
 	assert.Equal(t, 2, stats.RulesPartialFiltered["rule-2"])

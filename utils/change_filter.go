@@ -4,6 +4,8 @@
 package utils
 
 import (
+	"sort"
+
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
@@ -177,6 +179,7 @@ func (cf *ChangeFilter) FilterResultsWithStats(results []*model.RuleFunctionResu
 			}
 		}
 	}
+	sort.Strings(stats.RulesFullyFiltered)
 
 	return filtered, stats
 }
@@ -275,6 +278,7 @@ func (cf *ChangeFilter) FilterResultsValues(results []model.RuleFunctionResult) 
 			}
 		}
 	}
+	sort.Strings(stats.RulesFullyFiltered)
 
 	return filtered, stats
 }
