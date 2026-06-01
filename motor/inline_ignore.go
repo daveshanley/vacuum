@@ -23,6 +23,9 @@ type inlineIgnoreIndex struct {
 	// When false, checkInlineIgnoreByPathIndexed can skip JSONPath queries
 	// and only check root-level ignores.
 	hasNonRootIgnores bool
+
+	// parents maps each node to its parent. Only built when non-root ignores exist.
+	parents map[*yaml.Node]*yaml.Node
 }
 
 // buildInlineIgnoreIndex walks the YAML tree once, building a map of
@@ -54,7 +57,24 @@ func buildInlineIgnoreIndex(node *yaml.Node) *inlineIgnoreIndex {
 	// Extract root ignores for fast access
 	idx.rootIgnores = idx.nodeIgnores[rootNode]
 
+	// Build a parent map so parent ignores can be honored during path lookups.
+	if idx.hasNonRootIgnores {
+		idx.parents = make(map[*yaml.Node]*yaml.Node)
+		buildParentMap(node, idx.parents)
+	}
+
 	return idx
+}
+
+// buildParentMap records each node's parent for parent-ignore lookups.
+func buildParentMap(node *yaml.Node, parents map[*yaml.Node]*yaml.Node) {
+	if node == nil {
+		return
+	}
+	for _, c := range node.Content {
+		parents[c] = node
+		buildParentMap(c, parents)
+	}
 }
 
 // scanAndIndex recursively walks the YAML tree, recording nodes that
@@ -133,8 +153,10 @@ func checkInlineIgnoreByPathIndexed(idx *inlineIgnoreIndex, specNode *yaml.Node,
 	// Non-root ignores exist — must do JSONPath lookup for this path
 	nodes, err := utils.FindNodesWithoutDeserializingWithTimeout(specNode, path, time.Millisecond*500)
 	if err == nil && len(nodes) > 0 {
-		if rules, ok := idx.nodeIgnores[nodes[0]]; ok {
-			return rules[ruleId]
+		// check the node and its parent
+		node := nodes[0]
+		if idx.nodeIgnores[node][ruleId] || idx.nodeIgnores[idx.parents[node]][ruleId] {
+			return true
 		}
 	}
 
