@@ -30,5 +30,6 @@ FROM debian:bookworm-slim
 WORKDIR /work
 
 COPY --from=builder /opt/vacuum/vacuum /usr/local/bin/vacuum
+COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 
-ENTRYPOINT ["vacuum"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
