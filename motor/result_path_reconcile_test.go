@@ -13,6 +13,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
@@ -156,6 +157,75 @@ func TestIssue879RecursiveCustomRuleSharedResponsePathsAreCompleteAndStable(t *t
 			assert.Equal(t, expectedPaths, errorCodeResults[0].Paths, "iteration %d", i)
 		}
 	}
+}
+
+func TestResultPathCacheDoesNotUseRootPositionForExternalOrigin(t *testing.T) {
+	rootLocation := filepath.Join(t.TempDir(), "openapi.yaml")
+	externalLocation := filepath.Join(t.TempDir(), "common.yaml")
+	rootValue := &yaml.Node{
+		Kind:   yaml.ScalarNode,
+		Value:  "root",
+		Line:   60,
+		Column: 11,
+	}
+	root := testResultPathDocumentNode(testResultPathMappingNode("tags", rootValue))
+	cache := newResultPathCache(root, rootLocation)
+
+	rootOriginNode := &yaml.Node{
+		Kind:   yaml.ScalarNode,
+		Value:  "root origin",
+		Line:   60,
+		Column: 11,
+	}
+	rootResult := &model.RuleFunctionResult{
+		Path: "unknown",
+		Origin: &index.NodeOrigin{
+			Node:             rootOriginNode,
+			Line:             60,
+			Column:           11,
+			AbsoluteLocation: rootLocation,
+		},
+	}
+	cache.reconcile(rootResult)
+	assert.Equal(t, "$", rootResult.Path)
+
+	externalNode := &yaml.Node{
+		Kind:   yaml.ScalarNode,
+		Value:  "external",
+		Line:   60,
+		Column: 11,
+	}
+	externalResult := &model.RuleFunctionResult{
+		Path:      "unknown",
+		StartNode: externalNode,
+		Origin: &index.NodeOrigin{
+			Node:             externalNode,
+			Line:             60,
+			Column:           11,
+			AbsoluteLocation: externalLocation,
+		},
+	}
+	cache.reconcile(externalResult)
+	assert.Equal(t, "unknown", externalResult.Path)
+}
+
+func TestMergeResultPathCandidatesDropsDriftedPrimaryPath(t *testing.T) {
+	candidates := []string{
+		"$.paths['/v1/a'].get.responses['400'].content['*/*'].examples",
+		"$.paths['/v1/b'].get.responses['400'].content['*/*'].examples",
+	}
+	result := &model.RuleFunctionResult{
+		Path: "$.tags[1].examples",
+		Paths: []string{
+			"$.tags[1].examples",
+			candidates[0],
+		},
+	}
+
+	mergeResultPathCandidates(result, candidates)
+
+	assert.Equal(t, candidates[0], result.Path)
+	assert.Equal(t, candidates, result.Paths)
 }
 
 func TestIssue879SyntheticFixtureResultPathsAreStable(t *testing.T) {

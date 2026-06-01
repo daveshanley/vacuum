@@ -1352,7 +1352,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	completeAliasedResultPathsFromReferences(ruleResults, rolodexResolved)
 	if execution.CanonicalDocument != nil &&
 		(needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1 || needsTerminalKeySelectorPathUpgrade(ruleResults)) {
-		resultPathCache = newResultPathCache(execution.CanonicalDocument)
+		resultPathCache = newResultPathCache(execution.CanonicalDocument, execution.SpecFileName)
 		if needsResultPathReconciliation(ruleResults) {
 			for i := range ruleResults {
 				resultPathCache.reconcile(&ruleResults[i])

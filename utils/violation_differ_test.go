@@ -43,6 +43,10 @@ func makeOriginResultPtr(ruleId, path, message, location string, line, column in
 }
 
 func makeIndexedSourceResult(t *testing.T, ruleId, path, message string) model.RuleFunctionResult {
+	return makeIndexedSourceResultAtLocation(t, ruleId, path, message, "common.yaml", 0)
+}
+
+func makeIndexedSourceResultAtLocation(t *testing.T, ruleId, path, message, location string, lineOffset int) model.RuleFunctionResult {
 	t.Helper()
 
 	var root yaml.Node
@@ -64,9 +68,11 @@ components:
 	result := makeResult(ruleId, path, message)
 	result.Paths = []string{path}
 	result.Origin = &index.NodeOrigin{
-		AbsoluteLocation: "common.yaml",
+		AbsoluteLocation: location,
 		Index:            idx,
 		Node:             node,
+		Line:             node.Line + lineOffset,
+		Column:           node.Column,
 	}
 	return result
 }
@@ -283,6 +289,39 @@ func TestDiffViolationsValues_PathsSuppressExternalRefPrimaryDrift(t *testing.T)
 	assert.Equal(t, 1, stats.ResultsDropped)
 }
 
+func TestDiffViolationsValues_PathIntersectionSuppressesAliasedLineShiftDrift(t *testing.T) {
+	message := "examples must be set"
+	sharedPath := "$.paths['/a'].get.responses['400'].content['*/*'].examples"
+	original := []model.RuleFunctionResult{
+		{
+			RuleId: "cnp-p0043-examples-must-exist",
+			Path:   "$.tags[1].examples",
+			Paths: []string{
+				"$.tags[1].examples",
+				sharedPath,
+			},
+			Message: message,
+			Rule:    &model.Rule{Id: "cnp-p0043-examples-must-exist"},
+		},
+	}
+	newResults := []model.RuleFunctionResult{
+		{
+			RuleId: "cnp-p0043-examples-must-exist",
+			Path:   "$.examples",
+			Paths: []string{
+				"$.examples",
+				sharedPath,
+			},
+			Message: message,
+			Rule:    &model.Rule{Id: "cnp-p0043-examples-must-exist"},
+		},
+	}
+
+	result, stats := DiffViolationsValues(original, newResults)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
 func TestDiffViolationsValues_PathIdentitySuppressesOriginLineShift(t *testing.T) {
 	message := "operation method `GET` at path `/pets` is missing a description or summary"
 	original := []model.RuleFunctionResult{
@@ -324,6 +363,56 @@ func TestDiffViolationsValues_PathIdentityKeepsNewAliasPathDistinctWhenSourceMat
 	}
 
 	result, stats := DiffViolationsValues(original, newResults)
+	require.Len(t, result, 1)
+	assert.Equal(t, pathB, result[0].Path)
+	assert.Equal(t, 0, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValuesWithOriginBases_RootSourceSuppressesDriftedPath(t *testing.T) {
+	message := "service type must be defined"
+	originalSpecPath := "/workspace/original/openapi.yaml"
+	newSpecPath := "/workspace/shifted/openapi.yaml"
+	original := []model.RuleFunctionResult{
+		makeIndexedSourceResultAtLocation(
+			t,
+			"cnp-p0045-x-service-type-must-exist",
+			"$.components.schemas['lossEventDeclarationCommon'].properties['collectivity'].x-service-type",
+			message,
+			originalSpecPath,
+			0,
+		),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeIndexedSourceResultAtLocation(
+			t,
+			"cnp-p0045-x-service-type-must-exist",
+			"$.components.schemas['wrongLine'].properties['collectivity'].x-service-type",
+			message,
+			newSpecPath,
+			3,
+		),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(original, newResults, originalSpecPath, newSpecPath)
+	assert.Empty(t, result)
+	assert.Equal(t, 1, stats.ResultsDropped)
+}
+
+func TestDiffViolationsValuesWithOriginBases_RootSourceKeepsNewAliasPathDistinctWhenSourceMatches(t *testing.T) {
+	message := "media type schema property `error-code` is missing `examples` or `example`"
+	originalSpecPath := "/workspace/original/openapi.yaml"
+	newSpecPath := "/workspace/changed/openapi.yaml"
+	pathA := "$.components.schemas.Error.properties['error-code']"
+	pathB := "$.paths['/b'].get.responses['400'].content['*/*'].schema.properties['error-code']"
+
+	original := []model.RuleFunctionResult{
+		makeIndexedSourceResultAtLocation(t, "oas3-missing-example", pathA, message, originalSpecPath, 0),
+	}
+	newResults := []model.RuleFunctionResult{
+		makeIndexedSourceResultAtLocation(t, "oas3-missing-example", pathB, message, newSpecPath, 0),
+	}
+
+	result, stats := DiffViolationsValuesWithOriginBases(original, newResults, originalSpecPath, newSpecPath)
 	require.Len(t, result, 1)
 	assert.Equal(t, pathB, result[0].Path)
 	assert.Equal(t, 0, stats.ResultsDropped)

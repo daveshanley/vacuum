@@ -23,6 +23,20 @@ type violationKey struct {
 	Message string
 }
 
+type violationIdentity struct {
+	key            violationKey
+	paths          []string
+	source         string
+	sourceLine     int
+	sourceColumn   int
+	sourceFromRoot bool
+}
+
+type violationIdentityGroup struct {
+	RuleId  string
+	Message string
+}
+
 // extractPath returns a stable JSONPath identity from a result.
 // Some rules report a primary Path plus alternate Paths for the same resolved
 // model. The primary can vary when external refs are resolved concurrently, so
@@ -54,26 +68,52 @@ func extractPath(path string, paths []string) string {
 	return ""
 }
 
-type canonicalOriginMapper struct {
-	localRoot       string
-	canonicalByPath map[string]string
-	nodePathIndexes map[*yaml.Node]*NodePathIndex
+func extractPathCandidates(path string, paths []string) []string {
+	candidates := make([]string, 0, len(paths)+1)
+	seen := make(map[string]struct{}, len(paths)+1)
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if _, ok := seen[candidate]; ok {
+			return
+		}
+		seen[candidate] = struct{}{}
+		candidates = append(candidates, candidate)
+	}
+	add(path)
+	for _, candidate := range paths {
+		add(candidate)
+	}
+	sort.Strings(candidates)
+	return candidates
 }
 
-func newCanonicalOriginMapper(localRoot string, canonicalByPath map[string]string) canonicalOriginMapper {
+type canonicalOriginMapper struct {
+	localRoot             string
+	rootPath              string
+	rootCanonicalLocation string
+	canonicalByPath       map[string]string
+	nodePathIndexes       map[*yaml.Node]*NodePathIndex
+}
+
+func newCanonicalOriginMapper(localRoot, rootPath, rootCanonicalLocation string, canonicalByPath map[string]string) canonicalOriginMapper {
 	return canonicalOriginMapper{
-		localRoot:       localRoot,
-		canonicalByPath: canonicalByPath,
-		nodePathIndexes: make(map[*yaml.Node]*NodePathIndex),
+		localRoot:             localRoot,
+		rootPath:              rootPath,
+		rootCanonicalLocation: rootCanonicalLocation,
+		canonicalByPath:       canonicalByPath,
+		nodePathIndexes:       make(map[*yaml.Node]*NodePathIndex),
 	}
 }
 
-func newCanonicalOriginMapperFromSpecPath(specPath string, canonicalByPath map[string]string, sharedParentDepth int) (canonicalOriginMapper, bool) {
+func newCanonicalOriginMapperFromSpecPath(specPath, rootCanonicalLocation string, canonicalByPath map[string]string, sharedParentDepth int) (canonicalOriginMapper, bool) {
 	root, ok := originRootFromSpecPath(specPath)
 	if !ok {
 		return canonicalOriginMapper{}, false
 	}
-	return newCanonicalOriginMapper(ascendPath(root, sharedParentDepth), canonicalByPath), true
+	rootPath, _ := normalizeLocalOriginPath(specPath)
+	return newCanonicalOriginMapper(ascendPath(root, sharedParentDepth), rootPath, rootCanonicalLocation, canonicalByPath), true
 }
 
 func newCanonicalOriginMappers(originalLocations, newLocations []string, originalSpecPath, newSpecPath string) (canonicalOriginMapper, canonicalOriginMapper) {
@@ -91,13 +131,14 @@ func newCanonicalOriginMappers(originalLocations, newLocations []string, origina
 			maxParentTraversalDepth(originalRoot, originalPaths),
 			maxParentTraversalDepth(newRoot, newPaths),
 		)
-		originalMapper, _ := newCanonicalOriginMapperFromSpecPath(originalSpecPath, originalInferred, sharedParentDepth)
-		newMapper, _ := newCanonicalOriginMapperFromSpecPath(newSpecPath, newInferred, sharedParentDepth)
+		rootCanonicalLocation := "$root"
+		originalMapper, _ := newCanonicalOriginMapperFromSpecPath(originalSpecPath, rootCanonicalLocation, originalInferred, sharedParentDepth)
+		newMapper, _ := newCanonicalOriginMapperFromSpecPath(newSpecPath, rootCanonicalLocation, newInferred, sharedParentDepth)
 		return originalMapper, newMapper
 	}
 
-	return newCanonicalOriginMapper("", originalInferred),
-		newCanonicalOriginMapper("", newInferred)
+	return newCanonicalOriginMapper("", "", "", originalInferred),
+		newCanonicalOriginMapper("", "", "", newInferred)
 }
 
 func (m canonicalOriginMapper) canonicalLocation(location string) string {
@@ -109,6 +150,9 @@ func (m canonicalOriginMapper) canonicalLocation(location string) string {
 	if !ok {
 		return filepath.Clean(location)
 	}
+	if m.rootPath != "" && path == m.rootPath {
+		return m.rootCanonicalLocation
+	}
 	if m.localRoot != "" {
 		if rel, err := filepath.Rel(m.localRoot, path); err == nil && rel != "." && !isParentRelativePath(rel) {
 			return filepath.ToSlash(rel)
@@ -118,6 +162,14 @@ func (m canonicalOriginMapper) canonicalLocation(location string) string {
 		return canonical
 	}
 	return path
+}
+
+func (m canonicalOriginMapper) isRootLocation(location string) bool {
+	if m.rootPath == "" || location == "" || strings.Contains(location, "://") {
+		return false
+	}
+	path, ok := normalizeLocalOriginPath(location)
+	return ok && path == m.rootPath
 }
 
 func (m *canonicalOriginMapper) sourcePathIdentity(result model.RuleFunctionResult) string {
@@ -346,34 +398,77 @@ func extractIdentity(result model.RuleFunctionResult, originMapper *canonicalOri
 	return "path:"
 }
 
-// diffCore builds a count map from original keys and returns which new indices survive filtering.
-func diffCore(originalKeys []violationKey, newKeys []violationKey) (kept []int, stats *ChangeFilterStats) {
+func buildViolationIdentity(result model.RuleFunctionResult, originMapper *canonicalOriginMapper) violationIdentity {
+	source := originMapper.sourcePathIdentity(result)
+	sourceFromRoot, sourceLine, sourceColumn := false, 0, 0
+	if result.Origin != nil {
+		sourceFromRoot = originMapper.isRootLocation(result.Origin.AbsoluteLocation)
+		sourceLine = result.Origin.Line
+		sourceColumn = result.Origin.Column
+		if sourceLine == 0 {
+			sourceLine = result.Origin.LineValue
+		}
+		if sourceColumn == 0 {
+			sourceColumn = result.Origin.ColumnValue
+		}
+	}
+	return violationIdentity{
+		key: violationKey{
+			RuleId:  result.RuleId,
+			Path:    extractIdentity(result, originMapper),
+			Message: result.Message,
+		},
+		paths:          extractPathCandidates(result.Path, result.Paths),
+		source:         source,
+		sourceLine:     sourceLine,
+		sourceColumn:   sourceColumn,
+		sourceFromRoot: sourceFromRoot,
+	}
+}
+
+// diffCore builds exact and aliased-path match state and returns which new indices survive filtering.
+func diffCore(originalKeys []violationIdentity, newKeys []violationIdentity) (kept []int, stats *ChangeFilterStats) {
 	stats = &ChangeFilterStats{
 		TotalResultsBefore:   len(newKeys),
 		RulesPartialFiltered: make(map[string]int),
-	}
-
-	// Build occurrence count map from original results
-	origCounts := make(map[violationKey]int, len(originalKeys))
-	for _, k := range originalKeys {
-		origCounts[k]++
 	}
 
 	// Track per-rule before/after counts
 	ruleResultsBefore := make(map[string]int)
 	ruleResultsAfter := make(map[string]int)
 
+	originalAvailable := make([]bool, len(originalKeys))
+	newMatched := make([]bool, len(newKeys))
+	originalByKey := make(map[violationKey][]int, len(originalKeys))
+	originalByGroup := make(map[violationIdentityGroup][]int, len(originalKeys))
+	for i, k := range originalKeys {
+		originalAvailable[i] = true
+		originalByKey[k.key] = append(originalByKey[k.key], i)
+		group := violationIdentityGroup{RuleId: k.key.RuleId, Message: k.key.Message}
+		originalByGroup[group] = append(originalByGroup[group], i)
+	}
+
+	for i, k := range newKeys {
+		if matchIndex := findExactOriginalViolationMatch(k, originalAvailable, originalByKey); matchIndex >= 0 {
+			originalAvailable[matchIndex] = false
+			newMatched[i] = true
+		}
+	}
+
 	kept = make([]int, 0, len(newKeys))
 	for i, k := range newKeys {
-		ruleResultsBefore[k.RuleId]++
-		if origCounts[k] > 0 {
-			// This violation existed in the original — suppress it
-			origCounts[k]--
-		} else {
-			// New violation — keep it
-			kept = append(kept, i)
-			ruleResultsAfter[k.RuleId]++
+		ruleResultsBefore[k.key.RuleId]++
+		if newMatched[i] {
+			continue
 		}
+		if matchIndex := findAliasedOriginalViolationMatch(k, originalKeys, originalAvailable, originalByGroup); matchIndex >= 0 {
+			// This violation existed in the original — suppress it.
+			originalAvailable[matchIndex] = false
+			continue
+		}
+		// New violation — keep it.
+		kept = append(kept, i)
+		ruleResultsAfter[k.key.RuleId]++
 	}
 
 	stats.TotalResultsAfter = len(kept)
@@ -392,6 +487,80 @@ func diffCore(originalKeys []violationKey, newKeys []violationKey) (kept []int, 
 	}
 
 	return kept, stats
+}
+
+func findExactOriginalViolationMatch(
+	newKey violationIdentity,
+	originalAvailable []bool,
+	originalByKey map[violationKey][]int,
+) int {
+	for _, idx := range originalByKey[newKey.key] {
+		if originalAvailable[idx] {
+			return idx
+		}
+	}
+	return -1
+}
+
+func findAliasedOriginalViolationMatch(
+	newKey violationIdentity,
+	originalKeys []violationIdentity,
+	originalAvailable []bool,
+	originalByGroup map[violationIdentityGroup][]int,
+) int {
+	group := violationIdentityGroup{RuleId: newKey.key.RuleId, Message: newKey.key.Message}
+	for _, idx := range originalByGroup[group] {
+		if !originalAvailable[idx] {
+			continue
+		}
+		if aliasedViolationIdentityMatches(originalKeys[idx], newKey) {
+			return idx
+		}
+	}
+	return -1
+}
+
+func aliasedViolationIdentityMatches(original, next violationIdentity) bool {
+	if len(original.paths) == 0 || len(next.paths) == 0 {
+		return false
+	}
+	if original.source != "" && next.source != "" {
+		if original.source != next.source {
+			return false
+		}
+		if original.sourceFromRoot && next.sourceFromRoot && rootSourcePositionMoved(original, next) {
+			return true
+		}
+	}
+	return pathCandidatesIntersect(original.paths, next.paths)
+}
+
+func rootSourcePositionMoved(original, next violationIdentity) bool {
+	if original.sourceLine <= 0 || next.sourceLine <= 0 {
+		return false
+	}
+	if original.sourceLine != next.sourceLine {
+		return true
+	}
+	if original.sourceColumn <= 0 || next.sourceColumn <= 0 {
+		return false
+	}
+	return original.sourceColumn != next.sourceColumn
+}
+
+func pathCandidatesIntersect(a, b []string) bool {
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		switch {
+		case a[i] == b[j]:
+			return true
+		case a[i] < b[j]:
+			i++
+		default:
+			j++
+		}
+	}
+	return false
 }
 
 // DiffViolationsValues compares original (value slice) and new (value slice) violations,
@@ -420,22 +589,14 @@ func DiffViolationsValuesWithOriginBases(original, new []model.RuleFunctionResul
 }
 
 func diffViolationsValuesWithMappers(original, new []model.RuleFunctionResult, originalOrigins, newOrigins canonicalOriginMapper) ([]model.RuleFunctionResult, *ChangeFilterStats) {
-	originalKeys := make([]violationKey, len(original))
+	originalKeys := make([]violationIdentity, len(original))
 	for i := range original {
-		originalKeys[i] = violationKey{
-			RuleId:  original[i].RuleId,
-			Path:    extractIdentity(original[i], &originalOrigins),
-			Message: original[i].Message,
-		}
+		originalKeys[i] = buildViolationIdentity(original[i], &originalOrigins)
 	}
 
-	newKeys := make([]violationKey, len(new))
+	newKeys := make([]violationIdentity, len(new))
 	for i := range new {
-		newKeys[i] = violationKey{
-			RuleId:  new[i].RuleId,
-			Path:    extractIdentity(new[i], &newOrigins),
-			Message: new[i].Message,
-		}
+		newKeys[i] = buildViolationIdentity(new[i], &newOrigins)
 	}
 
 	kept, stats := diffCore(originalKeys, newKeys)
@@ -473,25 +634,17 @@ func DiffViolationsMixedWithOriginBases(original []model.RuleFunctionResult, new
 }
 
 func diffViolationsMixedWithMappers(original []model.RuleFunctionResult, new []*model.RuleFunctionResult, originalOrigins, newOrigins canonicalOriginMapper) ([]*model.RuleFunctionResult, *ChangeFilterStats) {
-	originalKeys := make([]violationKey, len(original))
+	originalKeys := make([]violationIdentity, len(original))
 	for i := range original {
-		originalKeys[i] = violationKey{
-			RuleId:  original[i].RuleId,
-			Path:    extractIdentity(original[i], &originalOrigins),
-			Message: original[i].Message,
-		}
+		originalKeys[i] = buildViolationIdentity(original[i], &originalOrigins)
 	}
 
-	newKeys := make([]violationKey, len(new))
+	newKeys := make([]violationIdentity, len(new))
 	for i := range new {
 		if new[i] == nil {
 			continue
 		}
-		newKeys[i] = violationKey{
-			RuleId:  new[i].RuleId,
-			Path:    extractIdentity(*new[i], &newOrigins),
-			Message: new[i].Message,
-		}
+		newKeys[i] = buildViolationIdentity(*new[i], &newOrigins)
 	}
 
 	kept, stats := diffCore(originalKeys, newKeys)

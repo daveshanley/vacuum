@@ -18,6 +18,7 @@ type resultPathPosition struct {
 }
 
 type resultPathCache struct {
+	rootLocation       string
 	nodePaths          map[*yaml.Node]string
 	positionPaths      map[resultPathPosition]string
 	precisePositionMap map[resultPathPosition]string
@@ -39,8 +40,9 @@ func resultPathNeedsReconciliation(result *model.RuleFunctionResult) bool {
 	return result.Path == "" || result.Path == "unknown" || strings.Contains(result.Path, "*")
 }
 
-func newResultPathCache(root *yaml.Node) *resultPathCache {
+func newResultPathCache(root *yaml.Node, rootLocation string) *resultPathCache {
 	cache := &resultPathCache{
+		rootLocation:       rootLocation,
 		nodePaths:          make(map[*yaml.Node]string),
 		positionPaths:      make(map[resultPathPosition]string),
 		precisePositionMap: make(map[resultPathPosition]string),
@@ -108,21 +110,38 @@ func (c *resultPathCache) canonicalPathForResult(result *model.RuleFunctionResul
 		if path, found := c.lookupNodePath(result.Origin.ValueNode); found {
 			return path, true
 		}
-		if path, found := c.lookupPositionPath(result.Origin.Line, result.Origin.Column); found {
-			return path, true
-		}
-		if path, found := c.lookupPositionPath(result.Origin.LineValue, result.Origin.ColumnValue); found {
-			return path, true
+		if c.originMatchesRoot(result.Origin) {
+			if path, found := c.lookupPositionPath(result.Origin.Line, result.Origin.Column); found {
+				return path, true
+			}
+			if path, found := c.lookupPositionPath(result.Origin.LineValue, result.Origin.ColumnValue); found {
+				return path, true
+			}
 		}
 	}
 
 	if path, found := c.lookupNodePath(result.StartNode); found {
 		return path, true
 	}
-	if path, found := c.lookupPositionPathForNode(result.StartNode); found {
-		return path, true
+	if result.Origin == nil || c.originMatchesRoot(result.Origin) {
+		if path, found := c.lookupPositionPathForNode(result.StartNode); found {
+			return path, true
+		}
 	}
 	return "", false
+}
+
+func (c *resultPathCache) originMatchesRoot(origin *index.NodeOrigin) bool {
+	if c == nil || origin == nil || c.rootLocation == "" {
+		return true
+	}
+	if origin.AbsoluteLocation == "" && origin.AbsoluteLocationValue == "" {
+		return true
+	}
+	if sameResultPathLocation(c.rootLocation, origin.AbsoluteLocation) {
+		return true
+	}
+	return sameResultPathLocation(c.rootLocation, origin.AbsoluteLocationValue)
 }
 
 func collapseAliasedResults(results []model.RuleFunctionResult, cache *resultPathCache) []model.RuleFunctionResult {
@@ -1063,6 +1082,10 @@ func mergeResultPathCandidates(result *model.RuleFunctionResult, candidatePaths 
 	if result == nil || len(candidatePaths) == 0 {
 		return
 	}
+	candidatePaths = uniqueSortedResultPaths(candidatePaths)
+	if len(candidatePaths) == 0 {
+		return
+	}
 	needsReconciliation := resultPathNeedsReconciliation(result)
 	if !needsReconciliation && !resultPathCandidatesOverlap(result, candidatePaths) {
 		return
@@ -1072,9 +1095,14 @@ func mergeResultPathCandidates(result *model.RuleFunctionResult, candidatePaths 
 	if needsReconciliation {
 		mergedResult.Path = ""
 	}
-	mergedResult.Paths = make([]string, 0, len(result.Paths)+len(candidatePaths))
-	mergedResult.Paths = append(mergedResult.Paths, result.Paths...)
-	mergedResult.Paths = append(mergedResult.Paths, candidatePaths...)
+	if resultPathCandidatesAreAuthoritative(result, candidatePaths) {
+		mergedResult.Path = ""
+		mergedResult.Paths = append(mergedResult.Paths, candidatePaths...)
+	} else {
+		mergedResult.Paths = make([]string, 0, len(result.Paths)+len(candidatePaths))
+		mergedResult.Paths = append(mergedResult.Paths, result.Paths...)
+		mergedResult.Paths = append(mergedResult.Paths, candidatePaths...)
+	}
 	canonicalPath := result.Path
 	if uniqueResultPathCount(canonicalPath, mergedResult.Paths) > 1 && !strings.HasPrefix(canonicalPath, "$.components.") {
 		canonicalPath = ""
@@ -1089,6 +1117,16 @@ func mergeResultPathCandidates(result *model.RuleFunctionResult, candidatePaths 
 	} else {
 		result.Paths = nil
 	}
+}
+
+func resultPathCandidatesAreAuthoritative(result *model.RuleFunctionResult, candidatePaths []string) bool {
+	if result == nil || len(candidatePaths) <= 1 {
+		return false
+	}
+	if strings.HasPrefix(result.Path, "$.components.") {
+		return false
+	}
+	return resultPathCandidatesOverlap(result, candidatePaths)
 }
 
 func resultPathCandidatesOverlap(result *model.RuleFunctionResult, candidatePaths []string) bool {
