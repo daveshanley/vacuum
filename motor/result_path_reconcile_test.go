@@ -6,6 +6,7 @@ package motor
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -207,6 +208,110 @@ func TestIssue879RecursiveFilterCustomRuleSharedResponsePathsAreCompleteAndStabl
 		if assert.Len(t, errorCodeResults, 1, "iteration %d", i) {
 			assert.Equal(t, expectedPaths[0], errorCodeResults[0].Path, "iteration %d", i)
 			assert.Equal(t, expectedPaths, errorCodeResults[0].Paths, "iteration %d", i)
+		}
+	}
+}
+
+func TestIssue879RecursiveAllOfSiblingReferencePathsAreCompleteAndStable(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879AllOfSiblingReferenceFixture(t)
+
+	descriptionRule := &model.Rule{
+		Id:          "repro-property-description",
+		Description: "Every property must have a description",
+		Message:     "Property is missing a description",
+		Given:       []string{"$..properties.*", "$..items"},
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+	requiredRule := &model.Rule{
+		Id:          "repro-object-required",
+		Description: "Every object must declare required fields",
+		Message:     "Object is missing required",
+		Given:       "$..[?(@ && @.type && @.type == 'object')]",
+		Severity:    model.SeverityWarn,
+		Then: &model.RuleAction{
+			Field:    "required",
+			Function: "truthy",
+		},
+	}
+	enumRule := &model.Rule{
+		Id:          "repro-enum-uppercase",
+		Description: "Enum values must be uppercase",
+		Message:     "Enum value must be uppercase",
+		Given:       "$..enum[*]",
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Function: "pattern",
+			FunctionOptions: map[string]interface{}{
+				"match": "^[A-Z_]+$",
+			},
+		},
+	}
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{
+		descriptionRule.Id: descriptionRule,
+		requiredRule.Id:    requiredRule,
+		enumRule.Id:        enumRule,
+	}}
+
+	expectedDescriptionPaths := []string{
+		"$.components.schemas['deathFile'].properties['death'].allOf[0].description",
+		"$.paths['/v1/deathAlert'].post.requestBody.content['application/json'].schema.properties['death'].allOf[0].description",
+	}
+	expectedItemsPaths := []string{
+		"$.components.schemas['deathFile'].properties['contracts'].items",
+		"$.paths['/v1/deathAlert'].post.requestBody.content['application/json'].schema.properties['contracts'].items",
+	}
+	expectedRequiredPaths := []string{
+		"$.components.schemas['deathFile'].properties['death'].allOf[0].required",
+		"$.paths['/v1/deathAlert'].post.requestBody.content['application/json'].schema.properties['death'].allOf[0].required",
+	}
+	expectedEnumPaths := []string{
+		"$.components.schemas['request_c'].properties['type'].enum[0]",
+		"$.paths['/v1/request'].post.requestBody.content['application/json'].schema.properties['type'].enum[0]",
+	}
+
+	previousProcs := runtime.GOMAXPROCS(0)
+	defer runtime.GOMAXPROCS(previousProcs)
+
+	for _, procs := range []int{1, 4} {
+		runtime.GOMAXPROCS(procs)
+		for i := 0; i < 50; i++ {
+			results := ApplyRulesToRuleSet(&RuleSetExecution{
+				RuleSet:           ruleSet,
+				Spec:              specBytes,
+				SpecFileName:      specPath,
+				Base:              dir,
+				AllowLookup:       true,
+				NodeLookupTimeout: 5 * time.Second,
+				SilenceLogs:       true,
+			})
+
+			require.Empty(t, results.Errors, "GOMAXPROCS=%d iteration %d", procs, i)
+
+			descriptionResult := findResultByRuleAndPath(results.Results, descriptionRule.Id, expectedDescriptionPaths[0])
+			if assert.NotNil(t, descriptionResult, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedDescriptionPaths, descriptionResult.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
+
+			itemsResult := findResultByRuleAndPath(results.Results, descriptionRule.Id, expectedItemsPaths[0])
+			if assert.NotNil(t, itemsResult, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedItemsPaths, itemsResult.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
+
+			requiredResult := findResultByRuleAndPath(results.Results, requiredRule.Id, expectedRequiredPaths[0])
+			if assert.NotNil(t, requiredResult, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedRequiredPaths, requiredResult.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
+
+			enumResult := findResultByRuleAndPath(results.Results, enumRule.Id, expectedEnumPaths[0])
+			if assert.NotNil(t, enumResult, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedEnumPaths, enumResult.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
 		}
 	}
 }
@@ -590,6 +695,15 @@ func resultPathSnapshot(results []model.RuleFunctionResult) []string {
 	return snapshot
 }
 
+func findResultByRuleAndPath(results []model.RuleFunctionResult, ruleID, path string) *model.RuleFunctionResult {
+	for i := range results {
+		if results[i].RuleId == ruleID && results[i].Path == path {
+			return &results[i]
+		}
+	}
+	return nil
+}
+
 func writeIssue879AliasedResponseFixture(t *testing.T) (string, string, []byte) {
 	t.Helper()
 
@@ -682,6 +796,73 @@ paths:
           $ref: './common-responses.yaml#/ErrorResponse'
 components:
   schemas: {}
+`)
+	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
+	return dir, specPath, specBytes
+}
+
+func writeIssue879AllOfSiblingReferenceFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi-test.yaml")
+
+	specBytes := []byte(`openapi: 3.0.3
+info:
+  title: Vacuum issue 879 allOf sibling ref repro
+  version: 1.0.0
+paths:
+  /v1/deathAlert:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/deathFile'
+      responses:
+        '200':
+          description: ok
+  /v1/request:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/request_c'
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    deathFile:
+      type: object
+      properties:
+        death:
+          type: object
+          $ref: '#/components/schemas/dead'
+        contracts:
+          type: array
+          items:
+            $ref: '#/components/schemas/deadContract'
+    dead:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Civilité
+    deadContract:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Contract id
+    request_c:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - pending
 `)
 	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
 	return dir, specPath, specBytes
