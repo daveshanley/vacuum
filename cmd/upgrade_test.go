@@ -42,3 +42,26 @@ func TestRunUpgradeUsesUpdateCheckOptions(t *testing.T) {
 		t.Fatalf("unexpected output: %q", out.String())
 	}
 }
+
+func TestWriteManualUpgradeCommandsUsesActionSpecificCommand(t *testing.T) {
+	var out bytes.Buffer
+	action := upgrade.Action{
+		Method:        upgrade.MethodHomebrew,
+		CanRun:        false,
+		Reason:        "Homebrew formula installs are not supported by automatic upgrade; switch to the supported cask version of vacuum",
+		ManualCommand: "brew uninstall --formula vacuum && brew install --cask daveshanley/vacuum/vacuum",
+	}
+
+	writeManualUpgradeCommands(&out, action, "v0.28.1")
+
+	output := out.String()
+	if !strings.Contains(output, "Use this command:") {
+		t.Fatalf("output did not use singular command prompt: %q", output)
+	}
+	if !strings.Contains(output, "brew uninstall --formula vacuum && brew install --cask daveshanley/vacuum/vacuum") {
+		t.Fatalf("output did not include cask switch command: %q", output)
+	}
+	if strings.Contains(output, "Use one of these commands:") {
+		t.Fatalf("output included generic commands: %q", output)
+	}
+}

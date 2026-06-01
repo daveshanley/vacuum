@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +26,19 @@ func TestParseHomebrewCaskVersion(t *testing.T) {
 	}
 	if version != "0.27.0" {
 		t.Fatalf("version = %q, want 0.27.0", version)
+	}
+}
+
+func TestVerifyUpgradeRejectsHomebrewFormula(t *testing.T) {
+	err := VerifyUpgrade(context.Background(), InstallContext{HomebrewKind: HomebrewKindFormula}, MethodHomebrew, "v0.27.0")
+	if err == nil {
+		t.Fatalf("VerifyUpgrade returned nil error for formula install")
+	}
+	if !strings.Contains(err.Error(), "switch to the supported cask version of vacuum") {
+		t.Fatalf("error did not tell user to switch to the cask: %v", err)
+	}
+	if !strings.Contains(err.Error(), "brew uninstall --formula vacuum && brew install --cask daveshanley/vacuum/vacuum") {
+		t.Fatalf("error did not include cask switch command: %v", err)
 	}
 }
 

@@ -41,7 +41,7 @@ func PlanUpgrade(ctx InstallContext, latestVersion string) Action {
 	case MethodNPM:
 		return actionIfAvailable(MethodNPM, "npm", []string{"install", "-g", NPMPackageName + "@latest"})
 	case MethodHomebrew:
-		return brewUpgradeAction()
+		return brewUpgradeAction(ctx.HomebrewKind)
 	case MethodShell:
 		return shellInstallerAction(ctx.Executable, latestVersion)
 	default:
@@ -53,7 +53,15 @@ func PlanUpgrade(ctx InstallContext, latestVersion string) Action {
 	}
 }
 
-func brewUpgradeAction() Action {
+func brewUpgradeAction(kind string) Action {
+	if kind == HomebrewKindFormula {
+		return Action{
+			Method:        MethodHomebrew,
+			CanRun:        false,
+			Reason:        "Homebrew formula installs are not supported by automatic upgrade; switch to the supported cask version of vacuum",
+			ManualCommand: "brew uninstall --formula " + BrewCaskToken + " && brew install --cask " + BrewCaskFullToken,
+		}
+	}
 	if _, err := exec.LookPath("brew"); err != nil {
 		return Action{
 			Method: MethodHomebrew,
@@ -61,12 +69,18 @@ func brewUpgradeAction() Action {
 			Reason: "brew is not available on PATH",
 		}
 	}
+	command := homebrewUpgradeCommand()
 	return Action{
-		Method:  MethodHomebrew,
-		Command: "sh",
-		Args:    []string{"-c", "brew update && brew upgrade --cask " + BrewCaskToken},
-		CanRun:  true,
+		Method:        MethodHomebrew,
+		Command:       "sh",
+		Args:          []string{"-c", command},
+		CanRun:        true,
+		ManualCommand: command,
 	}
+}
+
+func homebrewUpgradeCommand() string {
+	return "brew update && brew upgrade --cask " + BrewCaskFullToken
 }
 
 func actionIfAvailable(method, command string, args []string) Action {
@@ -142,7 +156,7 @@ type ManualUpgradeCommands struct {
 
 func ManualCommandSet(latestVersion string) ManualUpgradeCommands {
 	return ManualUpgradeCommands{
-		Homebrew: "brew upgrade --cask " + BrewCaskToken,
+		Homebrew: "brew upgrade --cask " + BrewCaskFullToken,
 		NPM:      "npm install -g " + NPMPackageName + "@latest",
 		Shell:    "curl -sSL " + ShellInstallerURLForTag(latestVersion) + " | VERSION=" + shellQuote(NormalizeVersion(latestVersion)) + " sh",
 	}

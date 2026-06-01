@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/daveshanley/vacuum/upgrade"
@@ -54,10 +55,7 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	if !action.CanRun {
 		fmt.Fprintf(out, "vacuum %s is available. Current version: %s.\n", latest.TagName, current)
 		fmt.Fprintf(out, "Automatic upgrade is not available: %s.\n", action.Reason)
-		fmt.Fprintln(out, "Use one of these commands:")
-		for _, command := range upgrade.ManualCommands(latest.TagName) {
-			fmt.Fprintf(out, "  %s\n", command)
-		}
+		writeManualUpgradeCommands(out, action, latest.TagName)
 		return nil
 	}
 
@@ -77,4 +75,16 @@ func runUpgrade(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "vacuum upgrade completed.")
 	return nil
+}
+
+func writeManualUpgradeCommands(out io.Writer, action upgrade.Action, latestVersion string) {
+	if command := action.CommandString(); command != "" {
+		fmt.Fprintln(out, "Use this command:")
+		fmt.Fprintf(out, "  %s\n", command)
+		return
+	}
+	fmt.Fprintln(out, "Use one of these commands:")
+	for _, command := range upgrade.ManualCommands(latestVersion) {
+		fmt.Fprintf(out, "  %s\n", command)
+	}
 }

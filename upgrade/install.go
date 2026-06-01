@@ -19,7 +19,10 @@ const (
 	MethodShell         = "shell"
 	MethodManual        = "manual"
 	MethodUnknown       = "unknown"
+	HomebrewKindCask    = "cask"
+	HomebrewKindFormula = "formula"
 	BrewCaskToken       = "vacuum"
+	BrewCaskFullToken   = "daveshanley/vacuum/vacuum"
 	NPMPackageName      = "@quobix/vacuum"
 	shellInstallerURL   = "https://raw.githubusercontent.com/daveshanley/vacuum/%s/bin/install.sh"
 	defaultBinaryName   = "vacuum"
@@ -28,10 +31,11 @@ const (
 )
 
 type InstallContext struct {
-	Method      string
-	Executable  string
-	PackageRoot string
-	Reason      string
+	Method       string
+	Executable   string
+	PackageRoot  string
+	HomebrewKind string
+	Reason       string
 }
 
 func DetectInstallContext() InstallContext {
@@ -58,11 +62,12 @@ func DetectInstallContextFrom(executable string, getenv func(string) string) Ins
 			resolved = realPath
 		}
 	}
-	if isHomebrewCaskroomPath(resolved) {
+	if kind := homebrewInstallKind(resolved); kind != "" {
 		return InstallContext{
-			Method:     MethodHomebrew,
-			Executable: resolved,
-			Reason:     "executable resolved under Homebrew Caskroom",
+			Method:       MethodHomebrew,
+			Executable:   resolved,
+			HomebrewKind: kind,
+			Reason:       "executable resolved under Homebrew " + kind,
 		}
 	}
 
@@ -97,22 +102,24 @@ func looksLikeVacuumBinary(path string) bool {
 	return name == defaultBinaryName
 }
 
-func isHomebrewCaskroomPath(path string) bool {
+func homebrewInstallKind(path string) string {
 	if path == "" {
-		return false
+		return ""
 	}
 	dir := filepath.Clean(filepath.Dir(path))
 	for {
 		if filepath.Base(dir) == defaultBinaryName && filepath.Base(filepath.Dir(dir)) == "Caskroom" {
-			return true
+			return HomebrewKindCask
+		}
+		if filepath.Base(dir) == defaultBinaryName && filepath.Base(filepath.Dir(dir)) == "Cellar" {
+			return HomebrewKindFormula
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return false
+			return ""
 		}
 		dir = parent
 	}
-	return false
 }
 
 func ShellInstallerURLForTag(tag string) string {
