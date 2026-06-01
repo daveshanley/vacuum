@@ -167,6 +167,31 @@ func TestChangeFilter_FilterResultsWithStats(t *testing.T) {
 	assert.Contains(t, stats.RulesFullyFiltered, "rule-2")
 }
 
+func TestChangeFilter_FilterResultsWithStatsSortsFullyFilteredRules(t *testing.T) {
+	line := 10
+	changes := &wcModel.DocumentChanges{
+		PropertyChanges: &wcModel.PropertyChanges{
+			Changes: []*wcModel.Change{
+				{
+					ChangeType: wcModel.Modified,
+					Context: &wcModel.ChangeContext{
+						NewLine: &line,
+					},
+				},
+			},
+		},
+	}
+	cf := NewChangeFilter(changes, nil)
+	results := []*model.RuleFunctionResult{
+		{Range: reports.Range{Start: reports.RangeItem{Line: 20}}, Rule: &model.Rule{Id: "rule-z"}},
+		{Range: reports.Range{Start: reports.RangeItem{Line: 30}}, Rule: &model.Rule{Id: "rule-a"}},
+		{Range: reports.Range{Start: reports.RangeItem{Line: 10}}, Rule: &model.Rule{Id: "rule-kept"}},
+	}
+
+	_, stats := cf.FilterResultsWithStats(results)
+	assert.Equal(t, []string{"rule-a", "rule-z"}, stats.RulesFullyFiltered)
+}
+
 func TestChangeFilter_IgnoresRemovedChanges(t *testing.T) {
 	addedLine := 10
 	removedLine := 20
@@ -258,4 +283,29 @@ func TestChangeFilter_FilterResultsValues(t *testing.T) {
 	assert.Equal(t, 2, stats.ResultsDropped)
 	assert.Equal(t, 1, stats.RulesPartialFiltered["rule-1"])
 	assert.Contains(t, stats.RulesFullyFiltered, "rule-2")
+}
+
+func TestChangeFilter_FilterResultsValuesSortsFullyFilteredRules(t *testing.T) {
+	line := 10
+	changes := &wcModel.DocumentChanges{
+		PropertyChanges: &wcModel.PropertyChanges{
+			Changes: []*wcModel.Change{
+				{
+					ChangeType: wcModel.Modified,
+					Context: &wcModel.ChangeContext{
+						NewLine: &line,
+					},
+				},
+			},
+		},
+	}
+	cf := NewChangeFilter(changes, nil)
+	results := []model.RuleFunctionResult{
+		{Range: reports.Range{Start: reports.RangeItem{Line: 20}}, Rule: &model.Rule{Id: "rule-z"}},
+		{Range: reports.Range{Start: reports.RangeItem{Line: 30}}, Rule: &model.Rule{Id: "rule-a"}},
+		{Range: reports.Range{Start: reports.RangeItem{Line: 10}}, Rule: &model.Rule{Id: "rule-kept"}},
+	}
+
+	_, stats := cf.FilterResultsValues(results)
+	assert.Equal(t, []string{"rule-a", "rule-z"}, stats.RulesFullyFiltered)
 }

@@ -159,6 +159,58 @@ func TestIssue879RecursiveCustomRuleSharedResponsePathsAreCompleteAndStable(t *t
 	}
 }
 
+func TestIssue879RecursiveFilterCustomRuleSharedResponsePathsAreCompleteAndStable(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879RecursiveCustomRuleFixture(t)
+
+	rule := &model.Rule{
+		Id:          "repro-string-property-description",
+		Description: "Every string property must have a description",
+		Message:     "String property is missing a description",
+		Given:       "$..[?(@ && @.type && @.type == 'string')]",
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}
+
+	expectedPaths := []string{
+		"$.paths['/v1/orders'].post.responses['400'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders'].post.responses['500'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders/{orderId}'].get.responses['400'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders/{orderId}'].get.responses['404'].content['*/*'].schema.properties['error-code'].description",
+		"$.paths['/v1/orders/{orderId}'].get.responses['500'].content['*/*'].schema.properties['error-code'].description",
+	}
+
+	for i := 0; i < 100; i++ {
+		results := ApplyRulesToRuleSet(&RuleSetExecution{
+			RuleSet:           ruleSet,
+			Spec:              specBytes,
+			SpecFileName:      specPath,
+			Base:              dir,
+			AllowLookup:       true,
+			NodeLookupTimeout: 5 * time.Second,
+			SilenceLogs:       true,
+		})
+
+		require.Empty(t, results.Errors, "iteration %d", i)
+
+		var errorCodeResults []model.RuleFunctionResult
+		for _, result := range results.Results {
+			if result.RuleId == rule.Id && strings.Contains(result.Path, "error-code") {
+				errorCodeResults = append(errorCodeResults, result)
+			}
+		}
+
+		if assert.Len(t, errorCodeResults, 1, "iteration %d", i) {
+			assert.Equal(t, expectedPaths[0], errorCodeResults[0].Path, "iteration %d", i)
+			assert.Equal(t, expectedPaths, errorCodeResults[0].Paths, "iteration %d", i)
+		}
+	}
+}
+
 func TestResultPathCacheDoesNotUseRootPositionForExternalOrigin(t *testing.T) {
 	rootLocation := filepath.Join(t.TempDir(), "openapi.yaml")
 	externalLocation := filepath.Join(t.TempDir(), "common.yaml")
