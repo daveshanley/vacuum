@@ -21,13 +21,16 @@ type brewInfo struct {
 func VerifyUpgrade(ctx context.Context, installContext InstallContext, method, latestVersion string) error {
 	switch method {
 	case MethodHomebrew:
+		if installContext.HomebrewKind == HomebrewKindFormula {
+			return fmt.Errorf("Homebrew formula installs are not supported by automatic upgrade; switch to the supported cask version of vacuum with: brew uninstall --formula %s && brew install --cask %s", BrewCaskToken, BrewCaskFullToken)
+		}
 		version, err := HomebrewCaskVersion(ctx)
 		if err != nil {
 			return fmt.Errorf("verify Homebrew cask version: %w", err)
 		}
 		if cmp, ok := CompareVersions(version, latestVersion); !ok || cmp < 0 {
 			return fmt.Errorf("Homebrew cask %s is at %s, but GitHub latest is %s; the tap may not be updated yet",
-				BrewCaskToken, version, latestVersion)
+				BrewCaskFullToken, version, latestVersion)
 		}
 		return nil
 	case MethodNPM:

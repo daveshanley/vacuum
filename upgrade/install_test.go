@@ -35,12 +35,28 @@ func TestDetectInstallContextFromHomebrewCaskroom(t *testing.T) {
 	if ctx.Method != MethodHomebrew {
 		t.Fatalf("Method = %q, want %q", ctx.Method, MethodHomebrew)
 	}
+	if ctx.HomebrewKind != HomebrewKindCask {
+		t.Fatalf("HomebrewKind = %q, want %q", ctx.HomebrewKind, HomebrewKindCask)
+	}
 }
 
 func TestDetectInstallContextFromCustomHomebrewCaskroom(t *testing.T) {
 	ctx := DetectInstallContextFrom("/custom/prefix/Caskroom/vacuum/0.27.0/vacuum", nil)
 	if ctx.Method != MethodHomebrew {
 		t.Fatalf("Method = %q, want %q", ctx.Method, MethodHomebrew)
+	}
+	if ctx.HomebrewKind != HomebrewKindCask {
+		t.Fatalf("HomebrewKind = %q, want %q", ctx.HomebrewKind, HomebrewKindCask)
+	}
+}
+
+func TestDetectInstallContextFromHomebrewCellarFormula(t *testing.T) {
+	ctx := DetectInstallContextFrom("/opt/homebrew/Cellar/vacuum/0.28.0/bin/vacuum", nil)
+	if ctx.Method != MethodHomebrew {
+		t.Fatalf("Method = %q, want %q", ctx.Method, MethodHomebrew)
+	}
+	if ctx.HomebrewKind != HomebrewKindFormula {
+		t.Fatalf("HomebrewKind = %q, want %q", ctx.HomebrewKind, HomebrewKindFormula)
 	}
 }
 
