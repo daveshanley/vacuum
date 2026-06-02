@@ -19,6 +19,11 @@ import (
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	ppserve "github.com/pb33f/doctor/printingpress/serve"
 	"github.com/pb33f/doctor/terminal"
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/bundler"
+	"github.com/pb33f/libopenapi/datamodel"
+	"github.com/pb33f/libopenapi/index"
+	libopenapiutils "github.com/pb33f/libopenapi/utils"
 )
 
 type docsTerminal struct {
@@ -99,12 +104,13 @@ func runDocsSingle(source *docsSource, opts *docsOptions, diagnostics *docsDiagn
 		renderer.UpdateManual("diagnostics", fmt.Sprintf("linted %d diagnostics", len(lintResults)), "completed", 1, time.Since(diagnosticsStart), nil)
 	}
 
-	pp, err := press.CreatePrintingPressFromBytes(source.specBytes, &press.PrintingPressConfig{
+	pressSource := prepareDocsPressSource(source, docsBundlingFlags(diagnostics))
+	pp, err := press.CreatePrintingPressFromBytes(pressSource.specBytes, &press.PrintingPressConfig{
 		Title:                              opts.title,
 		BaseURL:                            opts.baseURL,
-		BasePath:                           source.basePath,
-		SpecPath:                           source.specPath,
-		SpecURL:                            source.specURL,
+		BasePath:                           pressSource.basePath,
+		SpecPath:                           pressSource.specPath,
+		SpecURL:                            pressSource.specURL,
 		OutputDir:                          outputDir,
 		AssetMode:                          docsAssetMode(opts),
 		DeveloperMode:                      diagnostics != nil && diagnostics.enabled,
@@ -174,6 +180,91 @@ func runDocsSingle(source *docsSource, opts *docsOptions, diagnostics *docsDiagn
 		return serveDocsSingle(source, opts, site, lintResults)
 	}
 	return nil
+}
+
+func docsBundlingFlags(diagnostics *docsDiagnosticsContext) *LintFlags {
+	if diagnostics == nil {
+		return nil
+	}
+	return diagnostics.flags
+}
+
+func prepareDocsPressSource(source *docsSource, flags *LintFlags) *docsSource {
+	if source == nil || len(source.specBytes) == 0 || !docsSourceNeedsBundle(source, flags) {
+		return source
+	}
+
+	bundled, err := bundler.BundleBytes(source.specBytes, newDocsBundleDocumentConfiguration(source, flags))
+	if err != nil && len(bundled) == 0 {
+		return source
+	}
+	if len(bundled) == 0 {
+		return source
+	}
+
+	prepared := *source
+	prepared.specBytes = bundled
+	return &prepared
+}
+
+func docsSourceNeedsBundle(source *docsSource, flags *LintFlags) bool {
+	if source == nil || len(source.specBytes) == 0 {
+		return false
+	}
+
+	doc, err := libopenapi.NewDocumentWithConfiguration(source.specBytes, newDocsBundleDocumentConfiguration(source, flags))
+	if err != nil {
+		return false
+	}
+	_, _ = doc.BuildV3Model()
+	rolodex := doc.GetRolodex()
+	if rolodex == nil {
+		return false
+	}
+	return docsIndexHasExternalReferences(rolodex.GetRootIndex())
+}
+
+func docsIndexHasExternalReferences(idx *index.SpecIndex) bool {
+	if idx == nil {
+		return false
+	}
+	for _, ref := range idx.GetAllSequencedReferences() {
+		if docsReferenceIsExternal(ref) {
+			return true
+		}
+	}
+	return false
+}
+
+func docsReferenceIsExternal(ref *index.Reference) bool {
+	if ref == nil || ref.IsExtensionRef {
+		return false
+	}
+	return libopenapiutils.IsExternalRef(ref.Definition) || libopenapiutils.IsExternalRef(ref.RawRef)
+}
+
+func newDocsBundleDocumentConfiguration(source *docsSource, flags *LintFlags) *datamodel.DocumentConfiguration {
+	docConfig := datamodel.NewDocumentConfiguration()
+	docConfig.AllowFileReferences = true
+	docConfig.AllowRemoteReferences = docsAllowRemoteReferences(flags)
+	docConfig.ExtractRefsSequentially = true
+	docConfig.ExcludeExtensionRefs = true
+	docConfig.Logger = slog.Default()
+	if source == nil {
+		return docConfig
+	}
+	docConfig.BasePath = source.basePath
+	if source.specPath != "" && !isDocsRemoteInput(source.specPath) {
+		docConfig.SpecFilePath = source.specPath
+	}
+	return docConfig
+}
+
+func docsAllowRemoteReferences(flags *LintFlags) bool {
+	if flags == nil {
+		return true
+	}
+	return flags.RemoteFlag
 }
 
 func runDocsAggregate(scanRoot string, opts *docsOptions, fileConfig *ppconfig.File, diagnostics *docsDiagnosticsContext, term *docsTerminal) error {

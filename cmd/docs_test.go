@@ -216,6 +216,120 @@ func TestRunDocsSingleGeneratesHTMLAndDiagnostics(t *testing.T) {
 	assert.NoFileExists(t, filepath.Join(outOff, "diagnostics.html"))
 }
 
+func TestPrepareDocsPressSourceBundlesExplodedSpecBeforeDoctor(t *testing.T) {
+	root := t.TempDir()
+	specPath := writeDocsExplodedSpecFixture(t, root)
+	specBytes, err := os.ReadFile(specPath)
+	require.NoError(t, err)
+
+	source := &docsSource{
+		specBytes: specBytes,
+		basePath:  root,
+		specPath:  specPath,
+	}
+	prepared := prepareDocsPressSource(source, &LintFlags{RemoteFlag: true})
+
+	require.NotSame(t, source, prepared)
+	rendered := string(prepared.specBytes)
+	assert.NotContains(t, rendered, "./paths/pets.yaml")
+	assert.NotContains(t, rendered, "../schemas/pet.yaml")
+	assert.Contains(t, rendered, "listPets")
+	assert.Contains(t, rendered, "Pet:")
+
+	out := filepath.Join(root, "out")
+	term := newDocsTerminal(io.Discard, io.Discard, false)
+	defer term.finish(nil)
+
+	require.NoError(t, runDocsSingle(source, &docsOptions{outputDir: out, noLLM: true, noJSON: true, noLogo: true}, nil, term))
+	assert.FileExists(t, filepath.Join(out, "index.html"))
+}
+
+func TestPrepareDocsPressSourceLeavesSingleFileLocalRefsAlone(t *testing.T) {
+	source := &docsSource{specBytes: []byte(`openapi: 3.1.0
+info:
+  title: Local Refs API
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+components:
+  schemas:
+    Pet:
+      type: object
+`)}
+
+	prepared := prepareDocsPressSource(source, &LintFlags{RemoteFlag: true})
+
+	require.Same(t, source, prepared)
+}
+
+func TestPrepareDocsPressSourceIgnoresExtensionRefs(t *testing.T) {
+	source := &docsSource{specBytes: []byte(`openapi: 3.1.0
+info:
+  title: Extension Refs API
+  version: 1.0.0
+x-docs:
+  $ref: ./metadata.yaml
+paths: {}
+`)}
+
+	prepared := prepareDocsPressSource(source, &LintFlags{RemoteFlag: true})
+
+	require.Same(t, source, prepared)
+}
+
+func writeDocsExplodedSpecFixture(t *testing.T, root string) string {
+	t.Helper()
+
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "paths"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "schemas"), 0o755))
+
+	specPath := filepath.Join(root, "openapi.yaml")
+	require.NoError(t, os.WriteFile(specPath, []byte(`openapi: 3.1.0
+info:
+  title: Exploded Docs API
+  version: 1.0.0
+paths:
+  /pets:
+    $ref: './paths/pets.yaml'
+components:
+  schemas:
+    Pet:
+      $ref: './schemas/pet.yaml'
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "paths", "pets.yaml"), []byte(`get:
+  operationId: listPets
+  summary: List pets
+  responses:
+    '200':
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../schemas/pet.yaml'
+`), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "schemas", "pet.yaml"), []byte(`type: object
+required:
+  - id
+properties:
+  id:
+    type: string
+`), 0o644))
+
+	return specPath
+}
+
 func docsFingerprintRuleSet(id, message string) *rulesets.RuleSet {
 	return &rulesets.RuleSet{
 		Rules: map[string]*model.Rule{
