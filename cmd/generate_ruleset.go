@@ -21,7 +21,7 @@ func GetGenerateRulesetCommand() *cobra.Command {
 		SilenceErrors: true,
 		Use:           "generate-ruleset",
 		Short:         "Generate a vacuum RuleSet",
-		Long:          "Generate a YAML ruleset containing 'all', or 'recommended' rules",
+		Long:          "Generate a YAML ruleset containing OpenAPI, AsyncAPI or OWASP built-in rules",
 		Example:       "vacuum generate-ruleset recommended | all | asyncapi-recommended | asyncapi-all <ruleset-output-name>",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			switch len(args) {

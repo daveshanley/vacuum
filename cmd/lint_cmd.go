@@ -32,9 +32,9 @@ import (
 func GetLintCommand() *cobra.Command {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	cmd := &cobra.Command{
-		Use:           "lint <your-openapi-file.yaml>",
-		Short:         "Lint an OpenAPI specification",
-		Long:          `Lint an OpenAPI specification, the output of the response will be in the terminal`,
+		Use:           "lint <your-api-file.yaml>",
+		Short:         "Lint an OpenAPI or AsyncAPI specification",
+		Long:          `Lint an OpenAPI or AsyncAPI specification, the output of the response will be in the terminal`,
 		RunE:          runLint,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -105,7 +105,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(filesToLint) < 1 {
-		fmt.Printf("🚨 %s%sPlease supply an OpenAPI specification to lint%s\n\n",
+		fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
 			color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
 		return fmt.Errorf("no file supplied")
 	}

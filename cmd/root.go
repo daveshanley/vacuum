@@ -88,9 +88,9 @@ func GetDate() string {
 
 func GetRootCommand() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "vacuum lint <your-openapi-file.yaml>",
-		Short: "vacuum is a very fast OpenAPI linter",
-		Long:  `vacuum is a very fast OpenAPI linter. It will suck all the lint off your spec in milliseconds`,
+		Use:   "vacuum lint <your-api-file.yaml>",
+		Short: "vacuum is a very fast API linter",
+		Long:  `vacuum is a very fast OpenAPI, AsyncAPI and JSON Schema linter. It will suck all the lint off your spec in milliseconds`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			err := useConfigFile(cmd)
 			if err != nil {
@@ -102,7 +102,7 @@ func GetRootCommand() *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			PrintBanner()
-			fmt.Println(">> Welcome! To lint something, try 'vacuum lint <my-openapi-spec.yaml>'")
+			fmt.Println(">> Welcome! To lint something, try 'vacuum lint <my-api-spec.yaml>'")
 			fmt.Println()
 			fmt.Println("To see all the options, try 'vacuum --help'")
 			fmt.Println()

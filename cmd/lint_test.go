@@ -10,8 +10,8 @@ import (
 func TestGetLintCommand(t *testing.T) {
 	cmd := GetLintCommand()
 	assert.NotNil(t, cmd)
-	assert.Equal(t, "lint <your-openapi-file.yaml>", cmd.Use)
-	assert.Contains(t, cmd.Short, "Lint an OpenAPI")
+	assert.Equal(t, "lint <your-api-file.yaml>", cmd.Use)
+	assert.Contains(t, cmd.Short, "Lint an OpenAPI or AsyncAPI")
 }
 
 func TestGetLintCommand_NoSpec(t *testing.T) {
