@@ -1,6 +1,6 @@
 ![logo](.github/assets/logo.png)
 
-# vacuum - The world's fastest OpenAPI and JSON Schema linter.
+# vacuum - The world's fastest OpenAPI, AsyncAPI and JSON Schema linter.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
@@ -10,7 +10,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 
-An **ultra-super-fast**, lightweight OpenAPI linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
+An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI and JSON Schema linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
 
 It's **fully compatible** with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
@@ -136,6 +136,19 @@ come say hi!
 
 ## Documentation
 
+🔥 **New in** `v0.29` 🔥: **Lint AsyncAPI 3 documents in vacuum**
+
+[AsyncAPI](https://www.asyncapi.com) is now a first-class document type in vacuum, alongside OpenAPI and JSON Schema.
+Use the normal `lint` command and vacuum will detect AsyncAPI 3 documents automatically.
+
+- [Read more about AsyncAPI linting in vacuum](https://quobix.com/vacuum/asyncapi/)
+- [See the default AsyncAPI ruleset](https://quobix.com/vacuum/rulesets/asyncapi-recommended/)
+- [See every built-in AsyncAPI rule](https://quobix.com/vacuum/rulesets/asyncapi/)
+- [Generate an AsyncAPI ruleset](https://quobix.com/vacuum/commands/generate-ruleset/)
+- [See the AsyncAPI functions](https://quobix.com/vacuum/functions/asyncapi/)
+
+---
+
 🔥 **New in** `v0.28` 🔥: **Lint JSON Schema documents in vacuum**
 
 A new `schema` command has been added that opens up vacuum to JSON Schema specific linting rules and checks! 
@@ -238,6 +251,7 @@ See all the documentation at https://quobix.com/vacuum
 - [Why should you care?](https://quobix.com/vacuum/why/)
 - [Concepts](https://quobix.com/vacuum/concepts/)
 - [FAQ](https://quobix.com/vacuum/faq/)
+- [Linting AsyncAPI](https://quobix.com/vacuum/asyncapi/)
 - [Ignoring lint results](https://quobix.com/vacuum/ignoring/)
 - [Generate API Docs](https://quobix.com/vacuum/api-docs/)
 - [Linting JSON Schema](https://quobix.com/vacuum/json-schema/)
@@ -273,6 +287,9 @@ See all the documentation at https://quobix.com/vacuum
   - [Schemas](https://quobix.com/vacuum/rules/schemas/)
   - [Spec Information](https://quobix.com/vacuum/rules/information/)
   - [Operations & Paths](https://quobix.com/vacuum/rules/operations/)
+  - [Channels](https://quobix.com/vacuum/rules/channels/)
+  - [Messages](https://quobix.com/vacuum/rules/messages/)
+  - [Servers](https://quobix.com/vacuum/rules/servers/)
   - [Validation](https://quobix.com/vacuum/rules/validation/)
   - [Security](https://quobix.com/vacuum/rules/security/)
   - [OWASP](https://quobix.com/vacuum/rules/owasp/)
@@ -280,18 +297,21 @@ See all the documentation at https://quobix.com/vacuum
   - [Core Functions](https://quobix.com/vacuum/functions/core/) 
   - [OpenAPI Functions](https://quobix.com/vacuum/functions/openapi/)
   - [OWASP Functions](https://quobix.com/vacuum/functions/owasp/)
+  - [AsyncAPI Functions](https://quobix.com/vacuum/functions/asyncapi/)
 - [Understanding RuleSets](https://quobix.com/vacuum/rulesets/understanding/)
   - [Sharing RuleSets](https://quobix.com/vacuum/rulesets/sharing/)
   - [All Rules](https://quobix.com/vacuum/rulesets/all/)
   - [No Rules](https://quobix.com/vacuum/rulesets/no-rules/)
   - [Recommended Rules](https://quobix.com/vacuum/rulesets/recommended/)
+  - [AsyncAPI Default Rules](https://quobix.com/vacuum/rulesets/asyncapi-recommended/)
+  - [AsyncAPI All Rules](https://quobix.com/vacuum/rulesets/asyncapi/)
   - [Custom Rules](https://quobix.com/vacuum/rulesets/custom-rulesets/)
 
 ---
 
-> **vacuum can suck all the lint of a 5mb OpenAPI spec in milliseconds.**
+> **vacuum can suck all the lint of a 5mb API description in milliseconds.**
 
-Designed to reliably lint OpenAPI specifications, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
+Designed to reliably lint API descriptions, **very, very quickly**. Including _very large_ ones. Spectral can be quite slow
 when used as an API and does not scale for enterprise applications.
 
 vacuum will tell you what is wrong with your spec, why, where, and how to fix it. 
@@ -323,7 +343,7 @@ No external dependencies, the HTML report will run completely offline.
 
 ---
 
-> **_Supports OpenAPI Version 2, OpenAPI Version 3+, and JSON Schema documents_**
+> **_Supports OpenAPI Version 2, OpenAPI Version 3+, AsyncAPI 3, and JSON Schema documents_**
 
 You can use either **YAML** or **JSON**, vacuum supports both formats.
 
