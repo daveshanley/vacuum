@@ -194,7 +194,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
 
 		// load and configure ruleset (handles hard mode, custom rulesets, etc.)
-		selectedRS, err := LoadRulesetWithConfig(flags, logger)
+		selectedRS, specFormat, err := LoadRulesetWithConfigForSpec(flags, logger, specBytes)
 		if err != nil {
 			return err
 		}
@@ -272,6 +272,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			ApplyAutoFixes:                  flags.FixFlag,
 			FetchConfig:                     fetchConfig,
 			TurboMode:                       flags.TurboMode,
+			SpecFormat:                      specFormat,
 		}
 
 		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)

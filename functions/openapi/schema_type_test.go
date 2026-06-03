@@ -3112,6 +3112,31 @@ components:
 			},
 		},
 		{
+			name: "AllOfUntypedObjectConstraintWithObjectRef",
+			yaml: `openapi: 3.1
+paths:
+  /test:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - minProperties: 1
+                - $ref: '#/components/schemas/Common'
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Common:
+      type: object
+      properties:
+        label:
+          type: string`,
+			expectedErrors: []struct{ message, path string }{},
+		},
+		{
 			name: "BooleanWithConstraints",
 			yaml: `openapi: 3.1
 components:

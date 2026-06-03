@@ -12,9 +12,11 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 87)
+	assert.Len(t, funcs.GetAllFunctions(), 99)
 	assert.Contains(t, funcs.GetAllFunctions(), "pathsSpecificityOrder")
 	assert.Contains(t, funcs.GetAllFunctions(), "requiredFieldsDefined")
+	assert.Contains(t, funcs.GetAllFunctions(), "asyncApiDocument")
+	assert.Contains(t, funcs.GetAllFunctions(), "asyncApiChannelServers")
 	assert.Contains(t, funcs.GetAllFunctions(), "jsonSchemaValid")
 	assert.Contains(t, funcs.GetAllFunctions(), "jsonSchemaSanity")
 	assert.Contains(t, funcs.GetAllFunctions(), "jsonSchemaRefValid")

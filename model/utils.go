@@ -19,6 +19,9 @@ const (
 	OAS30               = "oas3_0" // exact 3.0 only - does not match 3.1 or 3.2
 	OAS31               = "oas3_1"
 	OAS32               = "oas3_2"
+	AsyncAPI3           = "asyncapi3"
+	AsyncAPI30          = "asyncapi3_0"
+	AsyncAPI31          = "asyncapi3_1"
 	JSONSchema          = "json-schema"
 	JSONSchemaDraft2020 = "json-schema-2020-12"
 	JSONSchemaDraft2019 = "json-schema-draft-2019-09"
@@ -32,6 +35,8 @@ var AllExceptOAS3_1 = []string{OAS2, OAS30} // uses OAS30 to avoid matching 3.1
 var OAS3Format = []string{OAS3}
 var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
+var AsyncAPI3Format = []string{AsyncAPI3}
+var AsyncAPI3AllFormats = []string{AsyncAPI3, AsyncAPI30, AsyncAPI31}
 var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
 var JSONSchemaAllFormats = []string{JSONSchema, JSONSchemaDraft2020, JSONSchemaDraft2019, JSONSchemaDraft07}
 
@@ -50,6 +55,9 @@ func FormatMatches(ruleFormat, specFormat string) bool {
 	}
 	// oas3_0 (exact 3.0) matches when spec is detected as oas3 (which means 3.0)
 	if ruleFormat == OAS30 && specFormat == OAS3 {
+		return true
+	}
+	if ruleFormat == AsyncAPI3 && (specFormat == AsyncAPI30 || specFormat == AsyncAPI31) {
 		return true
 	}
 	if ruleFormat == JSONSchema && (specFormat == JSONSchemaDraft2020 ||

@@ -335,11 +335,17 @@ func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
 
 // LoadRulesetWithConfig loads and configures the ruleset based on flags
 func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.RuleSet, error) {
-	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+	selectedRS, _, err := LoadRulesetWithConfigForSpec(flags, logger, nil)
+	return selectedRS, err
+}
 
-	if flags.HardModeFlag {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+// LoadRulesetWithConfigForSpec loads and configures the ruleset based on flags
+// and selects an AsyncAPI default ruleset when specBytes are AsyncAPI 3.x.
+func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specBytes []byte) (*rulesets.RuleSet, string, error) {
+	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
+	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, flags.HardModeFlag)
+
+	if flags.HardModeFlag && !asyncDefault {
 		owaspRules := rulesets.GetAllOWASPRules()
 		for k, v := range owaspRules {
 			selectedRS.Rules[k] = v
@@ -354,7 +360,7 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 	if flags.RulesetFlag != "" {
 		httpClient, err := CreateHTTPClientFromFlags(flags)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 
 		var rsErr error
@@ -363,7 +369,7 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 		if rsErr != nil {
 			fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
 				flags.RulesetFlag, rsErr.Error())
-			return nil, rsErr
+			return nil, "", rsErr
 		}
 
 		if !flags.SilentFlag && !flags.PipelineOutput {
@@ -402,7 +408,7 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 		renderRulesList(selectedRS.Rules)
 	}
 
-	return selectedRS, nil
+	return selectedRS, specFormat, nil
 }
 
 // RenderBufferedLogs renders the buffered logs with proper formatting and spacing
@@ -502,6 +508,12 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			Error:    err,
 		}
 	}
+	selectedRuleset := config.SelectedRuleset
+	specFormat := ""
+	if selectedRuleset == nil {
+		defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
+		selectedRuleset, specFormat, _ = prepareDefaultRuleSetForSpec(defaultRuleSets, specBytes, config.Flags.HardModeFlag, config.Flags.TurboMode)
+	}
 
 	// Resolve base path for this specific file
 	resolvedBase, baseErr := ResolveBasePathForFile(fileName, config.Flags.BaseFlag)
@@ -528,7 +540,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	result := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
-		RuleSet:                         config.SelectedRuleset,
+		RuleSet:                         selectedRuleset,
 		Spec:                            specBytes,
 		SpecFileName:                    resolvedSpecPath,
 		CustomFunctions:                 config.CustomFunctions,
@@ -548,6 +560,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		ApplyAutoFixes:                  config.Flags.FixFlag,
 		FetchConfig:                     config.FetchConfig,
 		TurboMode:                       config.Flags.TurboMode,
+		SpecFormat:                      specFormat,
 	}, newMotorExecutionOptionsFromLintFlags(config.Flags))
 	defer result.ReleaseOwnedResources()
 

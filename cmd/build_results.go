@@ -58,12 +58,12 @@ func BuildResultsWithDocCheckSkip(
 	fetchConfig *utils.FetchConfig,
 	ignoredItems model.IgnoredItems,
 	turboFlags *TurboFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	selectedRS, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, remote, httpClientConfig, turboFlags)
+	selectedRS, specFormat, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, specBytes, remote, httpClientConfig, turboFlags)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, nil)
+	return executeBuildResults(selectedRS, specFormat, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, nil)
 }
 
 func BuildResultsWithDocCheckSkipAndExecutionFlags(
@@ -86,12 +86,12 @@ func BuildResultsWithDocCheckSkipAndExecutionFlags(
 		return BuildResultsWithDocCheckSkip(silent, hardMode, rulesetFlag, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags)
 	}
 
-	selectedRS, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, remote, httpClientConfig, turboFlags)
+	selectedRS, specFormat, err := selectRuleSetForBuildResults(silent, hardMode, rulesetFlag, specBytes, remote, httpClientConfig, turboFlags)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
+	return executeBuildResults(selectedRS, specFormat, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
 }
 
 func (f *ExecutionFlags) isEmpty() bool {
@@ -119,26 +119,22 @@ func LintLoadedSpec(
 	ignoredItems model.IgnoredItems,
 	turboFlags *TurboFlags,
 	executionFlags *ExecutionFlags) (*model.RuleResultSet, *motor.RuleSetExecutionResult, error) {
-	return executeBuildResults(selectedRS, specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
+	return executeBuildResults(selectedRS, "", specBytes, customFunctions, base, remote, skipCheck, timeout, lookupTimeout, httpClientConfig, fetchConfig, ignoredItems, turboFlags, executionFlags)
 }
 
 func selectRuleSetForBuildResults(
 	silent bool,
 	hardMode bool,
 	rulesetFlag string,
+	specBytes []byte,
 	remote bool,
 	httpClientConfig utils.HTTPClientConfig,
-	turboFlags *TurboFlags) (*rulesets.RuleSet, error) {
+	turboFlags *TurboFlags) (*rulesets.RuleSet, string, error) {
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
-	// default is recommended rules, based on spectral (for now anyway)
-	selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-
-	// HARD MODE
-	if hardMode {
-		selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-
+	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
+	if hardMode && !asyncDefault {
 		// extract all OWASP Rules
 		owaspRules := rulesets.GetAllOWASPRules()
 		allRules := selectedRS.Rules
@@ -155,13 +151,13 @@ func selectRuleSetForBuildResults(
 	if rulesetFlag != "" {
 		httpClient, clientErr := utils.CreateHTTPClientIfNeeded(httpClientConfig)
 		if clientErr != nil {
-			return nil, fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
+			return nil, "", fmt.Errorf("failed to create custom HTTP client: %w", clientErr)
 		}
 
 		var rsErr error
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(rulesetFlag, defaultRuleSets, remote, httpClient)
 		if rsErr != nil {
-			return nil, rsErr
+			return nil, "", rsErr
 		}
 
 		// Merge OWASP rules if hard mode is enabled
@@ -178,11 +174,12 @@ func selectRuleSetForBuildResults(
 	}
 
 	tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
-	return selectedRS, nil
+	return selectedRS, specFormat, nil
 }
 
 func executeBuildResults(
 	selectedRS *rulesets.RuleSet,
+	specFormat string,
 	specBytes []byte,
 	customFunctions map[string]model.RuleFunction,
 	base string,
@@ -215,6 +212,7 @@ func executeBuildResults(
 		NodeLookupTimeout: lookupTimeout,
 		HTTPClientConfig:  httpClientConfig,
 		FetchConfig:       fetchConfig,
+		SpecFormat:        specFormat,
 	}
 	if executionFlags != nil {
 		exec.ExtractReferencesFromExtensions = executionFlags.ExtractReferencesFromExtensions

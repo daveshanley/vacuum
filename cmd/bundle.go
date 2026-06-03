@@ -110,6 +110,14 @@ func GetBundleCommand() *cobra.Command {
 				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
 				return fileError
 			}
+			if err := rejectAsyncAPIForOpenAPICommand("bundle", specBytes); err != nil {
+				if stdOut {
+					fmt.Fprintln(os.Stderr, err.Error())
+				} else {
+					tui.RenderErrorString("%s", err.Error())
+				}
+				return err
+			}
 			if baseFlag == "" {
 				baseFlag = "."
 			}

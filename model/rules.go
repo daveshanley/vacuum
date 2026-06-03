@@ -49,6 +49,14 @@ type RuleCategory struct {
 	Description string `json:"description,omitempty" yaml:"description"` // What is the category all about?
 }
 
+// AsyncAPIContext is the narrow AsyncAPI contract rule functions need. Keeping
+// this as an interface avoids coupling the model package to libasyncapi.
+type AsyncAPIContext interface {
+	Root() *yaml.Node
+	DocumentErrors() []error
+	NodePath(node *yaml.Node) (string, bool)
+}
+
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
 	RuleAction  *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
@@ -59,6 +67,7 @@ type RuleFunctionContext struct {
 	Index       *index.SpecIndex    `json:"-" yaml:"-"`                                       // A reference to the index created for the spec being parsed
 	Document    libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 	DrDocument  *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
+	AsyncAPI    AsyncAPIContext     `json:"-" yaml:"-"`                                       // AsyncAPI context, set only when linting AsyncAPI documents.
 	Logger      *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 	FetchConfig *config.FetchConfig `json:"-" yaml:"-"`                                       // Configuration for JavaScript fetch() requests
 

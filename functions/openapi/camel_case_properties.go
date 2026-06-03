@@ -140,7 +140,7 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 			if !ccp.matchesConfiguredCase(propertyName, expectedCase) {
 				caseType := ccp.identifyCaseType(propertyName)
 				path := fmt.Sprintf("%s.properties['%s']", schema.GenerateJSONPath(), propertyName)
-				message := fmt.Sprintf("property `%s` is `%s` not `%s`", propertyName, caseType, expectedCaseDisplay)
+				message := ccp.formatCaseMismatchMessage(propertyName, caseType, expectedCaseDisplay)
 				results = append(results, buildResult(message, path, prop.GoLow().GetKeyNode(), schema))
 			}
 		}
@@ -153,6 +153,13 @@ func (ccp CamelCaseProperties) RunRule(_ []*yaml.Node, context model.RuleFunctio
 	}
 
 	return results
+}
+
+func (ccp CamelCaseProperties) formatCaseMismatchMessage(propertyName, caseType, expectedCaseDisplay string) string {
+	if caseType == "unknown" {
+		return fmt.Sprintf("property '%s' is using an unclassified case, not %s", propertyName, expectedCaseDisplay)
+	}
+	return fmt.Sprintf("property `%s` is `%s` not `%s`", propertyName, caseType, expectedCaseDisplay)
 }
 
 // isCamelCase checks if a string is in camelCase format.

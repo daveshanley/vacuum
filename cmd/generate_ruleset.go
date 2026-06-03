@@ -22,11 +22,11 @@ func GetGenerateRulesetCommand() *cobra.Command {
 		Use:           "generate-ruleset",
 		Short:         "Generate a vacuum RuleSet",
 		Long:          "Generate a YAML ruleset containing 'all', or 'recommended' rules",
-		Example:       "vacuum generate-ruleset recommended | all <ruleset-output-name>",
+		Example:       "vacuum generate-ruleset recommended | all | asyncapi-recommended | asyncapi-all <ruleset-output-name>",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			switch len(args) {
 			case 0:
-				return []string{"recommended", "all"}, cobra.ShellCompDirectiveNoFileComp
+				return []string{"recommended", "all", "owasp", "asyncapi-recommended", "asyncapi-all"}, cobra.ShellCompDirectiveNoFileComp
 			case 1:
 				return []string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt
 			default:
@@ -39,13 +39,13 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			// check for file args
 			if len(args) < 1 {
-				errText := "please supply 'recommended', 'owasp' or 'all' and a file path to output the ruleset"
+				errText := "please supply 'recommended', 'owasp', 'all', 'asyncapi-recommended' or 'asyncapi-all' and a file path to output the ruleset"
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
-			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" {
-				errText := fmt.Sprintf("please use 'all', 'owasp' or 'recommended' your choice '%s' is not valid", args[0])
+			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" && args[0] != "asyncapi-recommended" && args[0] != "asyncapi-all" {
+				errText := fmt.Sprintf("please use 'all', 'owasp', 'recommended', 'asyncapi-recommended' or 'asyncapi-all'; your choice '%s' is not valid", args[0])
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
@@ -71,6 +71,12 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			if args[0] == "owasp" {
 				selectedRuleSet = rulesets.GenerateOWASPOpenAPIRuleSet()
+			}
+			if args[0] == "asyncapi-recommended" {
+				selectedRuleSet = defaultRuleSets.GenerateAsyncAPIRecommendedRuleSet()
+			}
+			if args[0] == "asyncapi-all" {
+				selectedRuleSet = defaultRuleSets.GenerateAsyncAPIDefaultRuleSet()
 			}
 
 			// this bit needs a re-think, but it works for now.

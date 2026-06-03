@@ -1,10 +1,13 @@
 package statistics
 
 import (
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
+	"go.yaml.in/yaml/v4"
 )
 
 // CalculateQualityScore calculates the quality score based on the number of errors, warnings, and info messages.
@@ -31,9 +34,12 @@ func CalculateQualityScore(resultSet *model.RuleResultSet) int {
 		score = 25.0
 	}
 
-	// if there are any oas-schema rule violations, bottom out the score, an invalid schema is a big deal.
+	// if there are any document-schema rule violations, bottom out the score,
+	// an invalid API description is a big deal.
 	for _, result := range resultSet.Results {
-		if result.Rule != nil && result.Rule.Id == "oas3-schema" {
+		if result.Rule != nil && (result.Rule.Id == "oas3-schema" ||
+			result.Rule.Id == "asyncapi-3-document-resolved" ||
+			result.Rule.Id == "asyncapi-3-document-unresolved") {
 			score = score - 90
 		}
 	}
@@ -110,5 +116,145 @@ func CreateReportStatistics(index *index.SpecIndex, info *datamodel.SpecInfo, re
 		TotalInfo:          results.GetInfoCount(),
 		CategoryStatistics: catStats,
 	}
+	if isAsyncAPIInfo(info) {
+		applyAsyncAPIStatistics(stats, index, info)
+	}
 	return stats
+}
+
+func isAsyncAPIInfo(info *datamodel.SpecInfo) bool {
+	if info == nil {
+		return false
+	}
+	return strings.EqualFold(info.SpecType, "asyncapi") || strings.HasPrefix(info.SpecFormat, model.AsyncAPI3)
+}
+
+func applyAsyncAPIStatistics(stats *reports.ReportStatistics, specIndex *index.SpecIndex, info *datamodel.SpecInfo) {
+	if stats == nil || info == nil {
+		return
+	}
+	root := statsRoot(info.RootNode)
+	if root == nil {
+		return
+	}
+
+	components := statsMappingValue(root, "components")
+	stats.Paths = 0
+	stats.Channels = statsMappingLen(statsMappingValue(root, "channels")) + statsMappingLen(statsMappingValue(components, "channels"))
+	stats.Operations = statsMappingLen(statsMappingValue(root, "operations")) + statsMappingLen(statsMappingValue(components, "operations"))
+	stats.Messages = statsMappingLen(statsMappingValue(components, "messages")) +
+		asyncAPIChannelMessages(statsMappingValue(root, "channels")) +
+		asyncAPIChannelMessages(statsMappingValue(components, "channels"))
+	stats.Servers = statsMappingLen(statsMappingValue(root, "servers")) + statsMappingLen(statsMappingValue(components, "servers"))
+	stats.Schemas = statsMappingLen(statsMappingValue(components, "schemas"))
+	stats.Security = statsMappingLen(statsMappingValue(components, "securitySchemes"))
+
+	accumulator := asyncAPIStatsAccumulator{countReferences: specIndex == nil}
+	accumulator.walk(root)
+	stats.Parameters = statsMappingLen(statsMappingValue(components, "parameters")) +
+		asyncAPIChannelParameters(statsMappingValue(root, "channels")) +
+		asyncAPIChannelParameters(statsMappingValue(components, "channels"))
+	stats.Replies = statsMappingLen(statsMappingValue(components, "replies")) + accumulator.replies
+	stats.Tags = accumulator.tags
+	stats.Bindings = accumulator.bindings
+	if specIndex != nil {
+		stats.References = len(specIndex.GetMappedReferences())
+	} else {
+		stats.References = accumulator.references
+	}
+}
+
+func statsRoot(node *yaml.Node) *yaml.Node {
+	if node == nil {
+		return nil
+	}
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		return node.Content[0]
+	}
+	return node
+}
+
+func statsMappingValue(node *yaml.Node, key string) *yaml.Node {
+	node = statsRoot(node)
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i < len(node.Content)-1; i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func statsMappingLen(node *yaml.Node) int {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return 0
+	}
+	return len(node.Content) / 2
+}
+
+func asyncAPIChannelMessages(channels *yaml.Node) int {
+	if channels == nil || channels.Kind != yaml.MappingNode {
+		return 0
+	}
+	total := 0
+	for i := 1; i < len(channels.Content); i += 2 {
+		messages := statsMappingValue(channels.Content[i], "messages")
+		if messages != nil && messages.Kind == yaml.SequenceNode {
+			total += len(messages.Content)
+		}
+	}
+	return total
+}
+
+func asyncAPIChannelParameters(channels *yaml.Node) int {
+	if channels == nil || channels.Kind != yaml.MappingNode {
+		return 0
+	}
+	total := 0
+	for i := 1; i < len(channels.Content); i += 2 {
+		total += statsMappingLen(statsMappingValue(channels.Content[i], "parameters"))
+	}
+	return total
+}
+
+type asyncAPIStatsAccumulator struct {
+	replies         int
+	tags            int
+	bindings        int
+	references      int
+	countReferences bool
+}
+
+func (a *asyncAPIStatsAccumulator) walk(node *yaml.Node) {
+	node = statsRoot(node)
+	if node == nil {
+		return
+	}
+	if node.Kind == yaml.MappingNode {
+		for i := 0; i < len(node.Content)-1; i += 2 {
+			key := node.Content[i].Value
+			value := node.Content[i+1]
+			switch key {
+			case "$ref":
+				if a.countReferences && value.Value != "" {
+					a.references++
+				}
+			case "reply":
+				a.replies++
+			case "tags":
+				if value.Kind == yaml.SequenceNode {
+					a.tags += len(value.Content)
+				}
+			case "bindings":
+				a.bindings += statsMappingLen(value)
+			}
+			a.walk(value)
+		}
+		return
+	}
+	for _, child := range node.Content {
+		a.walk(child)
+	}
 }

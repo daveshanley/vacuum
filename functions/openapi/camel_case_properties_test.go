@@ -224,6 +224,27 @@ components:
 	assert.Equal(t, "property `first_name` is `snake_case` not `camelCase`", res[0].Message)
 }
 
+func TestCamelCaseProperties_RunRule_UnclassifiedCaseMessage(t *testing.T) {
+	def := CamelCaseProperties{}
+	ctx := buildTestContext(`
+openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        $MyField:
+          type: string
+`, t)
+
+	res := def.RunRule(nil, ctx)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "property '$MyField' is using an unclassified case, not camelCase", res[0].Message)
+}
+
 func TestCamelCaseProperties_RunRule_ScreamingSnakeCase(t *testing.T) {
 	def := CamelCaseProperties{}
 	ctx := buildTestContext(`

@@ -20,7 +20,12 @@ type ReportStatistics struct {
 	Parameters         int                  `json:"parameters,omitempty" yaml:"parameters,omitempty"`
 	Links              int                  `json:"links,omitempty" yaml:"links,omitempty"`
 	Paths              int                  `json:"paths,omitempty" yaml:"paths,omitempty"`
+	Channels           int                  `json:"channels,omitempty" yaml:"channels,omitempty"`
 	Operations         int                  `json:"operations,omitempty" yaml:"operations,omitempty"`
+	Messages           int                  `json:"messages,omitempty" yaml:"messages,omitempty"`
+	Servers            int                  `json:"servers,omitempty" yaml:"servers,omitempty"`
+	Replies            int                  `json:"replies,omitempty" yaml:"replies,omitempty"`
+	Bindings           int                  `json:"bindings,omitempty" yaml:"bindings,omitempty"`
 	Tags               int                  `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Examples           int                  `json:"examples,omitempty" yaml:"examples,omitempty"`
 	Enums              int                  `json:"enums,omitempty" yaml:"enums,omitempty"`

@@ -168,6 +168,9 @@ func CheckTypeMismatchedConstraints(schema *drV3.Schema, context *model.RuleFunc
 	lowSchema := schema.Value.GoLow()
 	highSchema := schema.Value
 	schemaTypes := schema.Value.Type
+	if len(schemaTypes) == 0 {
+		return nil
+	}
 
 	for i := range allConstraints {
 		c := &allConstraints[i]
