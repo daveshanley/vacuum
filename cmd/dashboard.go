@@ -40,7 +40,7 @@ func GetDashboardCommand() *cobra.Command {
 			PrintBanner()
 
 			if len(args) == 0 {
-				errText := "please supply an OpenAPI specification to generate a report"
+				errText := "please supply an OpenAPI or AsyncAPI specification to generate a report"
 				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(errText)))

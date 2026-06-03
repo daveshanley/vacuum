@@ -110,7 +110,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 
 			// check for file args
 			if len(filesToProcess) == 0 {
-				errText := "please supply an OpenAPI specification to generate an HTML Report"
+				errText := "please supply an OpenAPI or AsyncAPI specification to generate an HTML Report"
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}

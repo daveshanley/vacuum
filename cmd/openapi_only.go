@@ -25,5 +25,5 @@ func rejectAsyncAPIForOpenAPICommand(command string, specBytes []byte) error {
 }
 
 func asyncAPIUnsupportedCommandError(command string) error {
-	return fmt.Errorf("`vacuum %s` only supports OpenAPI documents; AsyncAPI support is currently limited to linting", command)
+	return fmt.Errorf("`vacuum %s` only supports OpenAPI documents; use lint or report commands for AsyncAPI documents", command)
 }
