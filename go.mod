@@ -20,7 +20,7 @@ require (
 	github.com/pb33f/jsonpath v0.8.2
 	github.com/pb33f/libasyncapi v0.0.1
 	github.com/pb33f/libopenapi v0.37.2
-	github.com/pb33f/libopenapi-validator v0.13.7
+	github.com/pb33f/libopenapi-validator v0.13.8
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
@@ -32,7 +32,7 @@ require (
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.43.0
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.37.0
 )
 
 require (
