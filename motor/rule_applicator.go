@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"net/url"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +22,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/sourcegraph/conc"
 
+	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/functions"
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/model"
@@ -72,6 +72,7 @@ type RuleSetExecution struct {
 	AllowLookup                     bool                             // Allow remote lookup of files or links
 	Document                        libopenapi.Document              // a ready to render model.
 	DrDocument                      *doctorModel.DrDocument          // a high level, more powerful model, powered by the doctorModel.
+	AsyncAPI                        *asyncapi_context.Context        // AsyncAPI context, populated only for AsyncAPI execution.
 	SkipDocumentCheck               bool                             // Skip the document check, useful for fragments and non openapi specs.
 	Logger                          *slog.Logger                     // A custom logger.
 	Timeout                         time.Duration                    // The timeout for each rule to run, prevents run-away rules, default is five seconds.
@@ -120,6 +121,7 @@ type RuleSetExecutionResult struct {
 	FilesProcessed   int                              // number of files extracted by the rolodex
 	FileSize         int64                            // total filesize loaded by the rolodex
 	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
+	AsyncAPI         *asyncapi_context.Context        // The AsyncAPI context created for AsyncAPI execution.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
 	ownedDocument    libopenapi.Document
 	unresolvedDoc    libopenapi.Document
@@ -144,6 +146,7 @@ type ruleContext struct {
 	silenceLogs        bool
 	document           libopenapi.Document
 	drDocument         *doctorModel.DrDocument
+	asyncAPI           *asyncapi_context.Context
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
@@ -312,6 +315,7 @@ func (r *RuleSetExecutionResult) release(clearCaches bool) {
 	r.Errors = nil
 	r.DocumentConfig = nil
 	r.ModifiedSpec = nil
+	r.AsyncAPI = nil
 	r.ownedDocument = nil
 	r.unresolvedDoc = nil
 	r.ownedIndex = nil
@@ -388,6 +392,10 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	var ignoredResults []model.RuleFunctionResult
 	var fixedResults []model.RuleFunctionResult
 	// (ruleWaitGroup removed — synchronization uses done channel below)
+
+	if asyncResult, handled := ApplyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions); handled {
+		return asyncResult
+	}
 
 	// create new configurations
 	indexConfig := index.CreateClosedAPIIndexConfig()
@@ -1127,62 +1135,23 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		if specInfo != nil {
 			specFormat = specInfo.SpecFormat
 		}
-		applicableRules := make([]*model.Rule, 0, len(execution.RuleSet.Rules))
-		for _, rule := range execution.RuleSet.Rules {
-			if len(rule.Formats) > 0 && specFormat != "" {
-				match := false
-				for _, format := range rule.Formats {
-					if model.FormatMatches(format, specFormat) {
-						match = true
-						break
-					}
-				}
-				if !match {
-					continue
-				}
-			}
-			applicableRules = append(applicableRules, rule)
-		}
-
-		// Resolve Spectral-compatible aliases once for this spec's format.
-		if execution.RuleSet.ParsedAliases != nil {
-			resolved := rulesets.ResolveAliasesForFormat(execution.RuleSet.ParsedAliases, specFormat)
-			expanded, aliasErr := rulesets.ExpandAliasReferences(resolved)
-			if aliasErr != nil {
-				indexConfig.Logger.Error("alias expansion error", "error", aliasErr)
-			} else {
-				resolvedAliases = expanded
-			}
-		}
+		applicableRules := applicableRulesForFormat(execution.RuleSet, specFormat)
+		resolvedAliases = resolveExecutionAliases(execution.RuleSet, specFormat, indexConfig.Logger)
 
 		totalRules := len(applicableRules)
-		done := make(chan bool, totalRules)
 		indexConfig.Logger.Debug("running rules", "total", totalRules, "filtered_from", len(execution.RuleSet.Rules))
 		now = time.Now()
-
-		// if there are no time outs, set them to defaults
-		if execution.Timeout <= 0 {
-			execution.Timeout = time.Second * 5
-		}
-		if execution.NodeLookupTimeout <= 0 {
-			execution.NodeLookupTimeout = time.Millisecond * 500
-		}
 
 		// Shared cache for LocateSchemaPropertyPaths results across OWASP rules.
 		// Multiple OWASP rules check the same schemas; the cache avoids redundant
 		// LocateModelsByKeyAndValue lookups.
 		var schemaPathCache sync.Map
 
-		// Bound concurrent rule goroutines to NumCPU to reduce scheduling overhead
-		// and memory pressure from simultaneous JSONPath evaluations.
-		ruleSem := make(chan struct{}, runtime.NumCPU())
-
-		for _, rule := range applicableRules {
-			ruleSem <- struct{}{} // acquire semaphore slot
-
-			go func(rule *model.Rule, done chan bool) {
-				defer func() { <-ruleSem }() // release semaphore slot
-
+		runResults, runIgnored, runFixed, runErrs := runRuleContexts(
+			execution,
+			applicableRules,
+			docConfigResolved.Logger,
+			func(rule *model.Rule) ruleContext {
 				ruleResolved := opts.ResolveAllRefs || rule.Resolved
 				// Select resolved or unresolved execution inputs per resource type.
 				// JSONPath/index/spec info can follow resolved execution without
@@ -1219,15 +1188,11 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					ruleSpecNode = execution.CanonicalDocument
 				}
 
-				ctx := ruleContext{
+				return ruleContext{
 					rule:               rule,
 					specNode:           ruleSpecNode,
 					specNodeUnresolved: execution.CanonicalDocument,
 					builtinFunctions:   builtinFunctions,
-					ruleResults:        &ruleResults,
-					ignoredResults:     &ignoredResults,
-					fixedResults:       &fixedResults,
-					errors:             &errs,
 					specInfo:           info,
 					index:              ruleIndex,
 					indexUnresolved:    indexUnresolved,
@@ -1235,6 +1200,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					drDocument:         drDocument,
 					customFunctions:    execution.CustomFunctions,
 					autoFixFunctions:   execution.AutoFixFunctions,
+					panicFunc:          execution.PanicFunction,
 					silenceLogs:        execution.SilenceLogs,
 					skipDocumentCheck:  execution.SkipDocumentCheck,
 					logger:             docConfigResolved.Logger,
@@ -1248,48 +1214,12 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					schemaPathCache:    &schemaPathCache,
 					expandedAliases:    resolvedAliases,
 				}
-				if execution.PanicFunction != nil {
-					ctx.panicFunc = execution.PanicFunction
-				}
-
-				timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
-				defer ruleCancel()
-				doneChan := make(chan struct{})
-
-				localResults := []model.RuleFunctionResult{}
-				localIgnored := []model.RuleFunctionResult{}
-				localFixed := []model.RuleFunctionResult{}
-				localErrs := []error{}
-				localCtx := ctx
-				localCtx.ruleResults = &localResults
-				localCtx.ignoredResults = &localIgnored
-				localCtx.fixedResults = &localFixed
-				localCtx.errors = &localErrs
-
-				go runRule(localCtx, doneChan)
-
-				select {
-				case <-timeoutCtx.Done():
-					ctx.logger.Error("Rule timed out, skipping", "rule", rule.Id, "timeout", execution.Timeout)
-					break
-				case <-doneChan:
-					lock.Lock()
-					ruleResults = append(ruleResults, localResults...)
-					ignoredResults = append(ignoredResults, localIgnored...)
-					fixedResults = append(fixedResults, localFixed...)
-					errs = append(errs, localErrs...)
-					lock.Unlock()
-					break
-				}
-				done <- true
-			}(rule, done)
-		}
-
-		completed := 0
-		for completed < totalRules {
-			<-done
-			completed++
-		}
+			},
+		)
+		ruleResults = append(ruleResults, runResults...)
+		ignoredResults = append(ignoredResults, runIgnored...)
+		fixedResults = append(fixedResults, runFixed...)
+		errs = append(errs, runErrs...)
 		then = time.Since(now).Milliseconds()
 		indexConfig.Logger.Debug("rules completed", "totalRules", totalRules, "ms", then)
 	}
@@ -1310,57 +1240,19 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			if rolodexUnresolved != nil && len(rolodexUnresolved.GetIndexes()) > 0 {
 				cacheRolodex = rolodexUnresolved
 			}
-			nodeOwnerCache := buildNodeOwnerCache(cacheRolodex)
-			rootPath := ""
-			if rootIdx := rolodexResolved.GetRootIndex(); rootIdx != nil {
-				rootPath = rootIdx.GetSpecAbsolutePath()
-			}
-			for i := range ruleResults {
-				if ruleResults[i].Origin == nil && ruleResults[i].StartNode != nil {
-					var origin *index.NodeOrigin
-					if ownerIdx, ok := nodeOwnerCache[ruleResults[i].StartNode]; ok {
-						absLoc := ownerIdx.GetSpecAbsolutePath()
-						if rootPath != "" && absLoc == rootPath {
-							absLoc = execution.SpecFileName
-						}
-						origin = &index.NodeOrigin{
-							Node:             ruleResults[i].StartNode,
-							Line:             ruleResults[i].StartNode.Line,
-							Column:           ruleResults[i].StartNode.Column,
-							AbsoluteLocation: absLoc,
-							Index:            ownerIdx,
-						}
-					} else {
-						origin = rolodexResolved.FindNodeOrigin(ruleResults[i].StartNode)
-						if origin != nil && rootPath != "" && origin.AbsoluteLocation == rootPath {
-							origin.AbsoluteLocation = execution.SpecFileName
-						}
-					}
-					if origin != nil {
-						ruleResults[i].Origin = origin
-					}
-				}
-			}
-			nodeOwnerCache = nil
+			populateResultOrigins(ruleResults, rolodexResolved, cacheRolodex, execution.SpecFileName)
 		}
 	}
 
-	var resultPathCache *resultPathCache
-	if specNodeResolved != nil && needsAliasedResultPathCompletion(ruleResults) {
-		completeAliasedResultPathsFromGiven(ruleResults, specNodeResolved, rolodexResolved, resolvedAliases)
-	}
-	completeAliasedResultPathsFromReferences(ruleResults, rolodexResolved)
-	if execution.CanonicalDocument != nil &&
-		(needsResultPathReconciliation(ruleResults) || len(ruleResults) > 1 || needsTerminalKeySelectorPathUpgrade(ruleResults)) {
-		resultPathCache = newResultPathCache(execution.CanonicalDocument, execution.SpecFileName)
-		if needsResultPathReconciliation(ruleResults) {
-			for i := range ruleResults {
-				resultPathCache.reconcile(&ruleResults[i])
-			}
-		}
-		ruleResults = collapseAliasedResults(ruleResults, resultPathCache)
-	}
-	upgradeTerminalKeySelectorPaths(ruleResults, resultPathCache)
+	ruleResults = finalizeResultPaths(
+		ruleResults,
+		specNodeResolved,
+		execution.CanonicalDocument,
+		execution.SpecFileName,
+		rolodexResolved,
+		resolvedAliases,
+		true,
+	)
 
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
@@ -1505,8 +1397,6 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 	}
 }
 
-var lock sync.Mutex
-
 func resolveRuleGivenPaths(rule *model.Rule, expandedAliases map[string][]string) ([]string, error) {
 	givenPaths := resultGivenPaths(rule)
 	if len(givenPaths) == 0 || expandedAliases == nil {
@@ -1545,6 +1435,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			Logger:          ctx.logger,
 			FetchConfig:     ctx.fetchConfig,
 			SchemaPathCache: ctx.schemaPathCache,
+		}
+		if ctx.asyncAPI != nil {
+			rfc.AsyncAPI = ctx.asyncAPI
 		}
 
 		if !ctx.skipDocumentCheck && ctx.specInfo.SpecFormat == "" && ctx.specInfo.Version == "" {

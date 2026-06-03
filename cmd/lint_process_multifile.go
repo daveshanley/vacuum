@@ -13,6 +13,7 @@ import (
 	"github.com/daveshanley/vacuum/logging"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
 	"github.com/spf13/cobra"
 )
@@ -35,9 +36,13 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	flags := ReadLintFlags(cmd)
 	bufferedLogger, _ := createLogger(flags.DebugFlag)
 
-	selectedRS, err := LoadRulesetWithConfig(flags, bufferedLogger)
-	if err != nil {
-		return err
+	var selectedRS *rulesets.RuleSet
+	if flags.RulesetFlag != "" {
+		var err error
+		selectedRS, err = LoadRulesetWithConfig(flags, bufferedLogger)
+		if err != nil {
+			return err
+		}
 	}
 
 	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
@@ -57,6 +62,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	var totalErrors, totalWarnings, totalInforms, totalHints int
+	var processingErrors int
 	var totalSize int64
 	start := time.Now()
 
@@ -166,6 +172,9 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		totalInforms += result.Informs
 		totalHints += result.Hints
 		totalSize += result.FileSize
+		if result.Error != nil {
+			processingErrors++
+		}
 	}
 
 	// stop spinner and clear line properly
@@ -308,5 +317,8 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		RenderTimeAndFiles(flags.TimeFlag, duration, totalSize, len(filesToLint))
 	}
 
+	if processingErrors > 0 {
+		return NewInputError("linting failed due to %d input/tool errors", processingErrors)
+	}
 	return CheckFailureSeverity(flags.FailSeverityFlag, totalErrors, totalWarnings, totalInforms, totalHints)
 }

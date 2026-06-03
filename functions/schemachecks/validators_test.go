@@ -159,6 +159,20 @@ pattern: "["
 	assert.Contains(t, results[0].Message, "ECMA-262")
 }
 
+func TestRunTypeChecksSkipsConstraintMismatchForUntypedSchemas(t *testing.T) {
+	_, drDoc := buildDoctorSchemas(t, `
+$schema: https://json-schema.org/draft/2020-12/schema
+minProperties: 1
+`)
+
+	context := model.RuleFunctionContext{
+		DrDocument: drDoc,
+		Rule:       &model.Rule{Id: "test-schema-type-check"},
+	}
+	results := RunTypeChecks(drDoc.Schemas, context, TypeCheckOptions{})
+	assert.Empty(t, results)
+}
+
 func TestSchemaUsesObjectKeywords(t *testing.T) {
 	_, drDoc := buildDoctorSchemas(t, `
 $schema: https://json-schema.org/draft/2020-12/schema

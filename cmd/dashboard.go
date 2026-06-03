@@ -167,15 +167,11 @@ func GetDashboardCommand() *cobra.Command {
 				logger = slog.New(handler)
 
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-				selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+				selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag)
 				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent)
 
-				if hardModeFlag {
-					selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-					owaspRules := rulesets.GetAllOWASPRules()
-					for k, v := range owaspRules {
-						selectedRS.Rules[k] = v
-					}
+				if hardModeFlag && !asyncDefault {
+					MergeOWASPRulesToRuleSet(selectedRS, true)
 					if !silent {
 						renderHardModeBox(HardModeEnabled, false)
 					}
@@ -255,6 +251,7 @@ func GetDashboardCommand() *cobra.Command {
 					HTTPClientConfig:  httpConfig,
 					FetchConfig:       fetchConfig,
 					TurboMode:         turboFlag,
+					SpecFormat:        specFormat,
 				}, executionOptions)
 
 				result.Results = utils.FilterIgnoredResultsWithOptions(

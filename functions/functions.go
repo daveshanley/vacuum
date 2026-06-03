@@ -7,6 +7,7 @@ package functions
 import (
 	"sync"
 
+	asyncapi_functions "github.com/daveshanley/vacuum/functions/asyncapi"
 	"github.com/daveshanley/vacuum/functions/core"
 	jsonschema_functions "github.com/daveshanley/vacuum/functions/jsonschema"
 	openapi_functions "github.com/daveshanley/vacuum/functions/openapi"
@@ -64,6 +65,20 @@ func MapBuiltinFunctions() Functions {
 		funcs["jsonSchemaValid"] = jsonschema_functions.Valid{}
 		funcs["jsonSchemaSanity"] = jsonschema_functions.Sanity{}
 		funcs["jsonSchemaRefValid"] = jsonschema_functions.RefValid{}
+
+		// add known AsyncAPI rules
+		funcs["asyncApiDocument"] = asyncapi_functions.Document{}
+		funcs["asyncApiChannelParameters"] = asyncapi_functions.ChannelParameters{}
+		funcs["asyncApiChannelServers"] = asyncapi_functions.ChannelServers{}
+		funcs["asyncApiServerVariables"] = asyncapi_functions.ServerVariables{}
+		funcs["asyncApiSecurity"] = asyncapi_functions.Security{}
+		funcs["asyncApiOperationChannel"] = asyncapi_functions.OperationChannel{}
+		funcs["asyncApiOperationMessages"] = asyncapi_functions.OperationMessages{}
+		funcs["asyncApiOperationReply"] = asyncapi_functions.OperationReply{}
+		funcs["asyncApiMessageExamples"] = asyncapi_functions.MessageExamples{}
+		funcs["asyncApiContentType"] = asyncapi_functions.ContentType{}
+		funcs["asyncApiTagsUnique"] = asyncapi_functions.TagsUnique{}
+		funcs["asyncApiUnusedComponents"] = asyncapi_functions.UnusedComponents{}
 
 		// add known OpenAPI rules
 		funcs["postResponseSuccess"] = openapi_functions.PostResponseSuccess{}

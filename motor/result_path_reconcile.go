@@ -40,6 +40,85 @@ func resultPathNeedsReconciliation(result *model.RuleFunctionResult) bool {
 	return result.Path == "" || result.Path == "unknown" || strings.Contains(result.Path, "*")
 }
 
+func populateResultOrigins(
+	results []model.RuleFunctionResult,
+	resolvedRolodex *index.Rolodex,
+	cacheRolodex *index.Rolodex,
+	specFileName string,
+) {
+	if resolvedRolodex == nil || len(resolvedRolodex.GetIndexes()) == 0 {
+		return
+	}
+	if cacheRolodex == nil {
+		cacheRolodex = resolvedRolodex
+	}
+	nodeOwnerCache := buildNodeOwnerCache(cacheRolodex)
+	rootPath := ""
+	if rootIdx := resolvedRolodex.GetRootIndex(); rootIdx != nil {
+		rootPath = rootIdx.GetSpecAbsolutePath()
+	}
+	for i := range results {
+		if results[i].Origin != nil || results[i].StartNode == nil {
+			continue
+		}
+		var origin *index.NodeOrigin
+		if ownerIdx, ok := nodeOwnerCache[results[i].StartNode]; ok {
+			absLoc := ownerIdx.GetSpecAbsolutePath()
+			if rootPath != "" && absLoc == rootPath {
+				absLoc = specFileName
+			}
+			origin = &index.NodeOrigin{
+				Node:             results[i].StartNode,
+				Line:             results[i].StartNode.Line,
+				Column:           results[i].StartNode.Column,
+				AbsoluteLocation: absLoc,
+				Index:            ownerIdx,
+			}
+		} else {
+			origin = resolvedRolodex.FindNodeOrigin(results[i].StartNode)
+			if origin != nil && rootPath != "" && origin.AbsoluteLocation == rootPath {
+				origin.AbsoluteLocation = specFileName
+			}
+		}
+		if origin != nil {
+			results[i].Origin = origin
+		}
+	}
+}
+
+func finalizeResultPaths(
+	results []model.RuleFunctionResult,
+	aliasRoot *yaml.Node,
+	cacheRoot *yaml.Node,
+	rootLocation string,
+	rolodex *index.Rolodex,
+	expandedAliases map[string][]string,
+	cacheForMultipleResults bool,
+) []model.RuleFunctionResult {
+	var cache *resultPathCache
+	if aliasRoot != nil && needsAliasedResultPathCompletion(results) {
+		completeAliasedResultPathsFromGiven(results, aliasRoot, rolodex, expandedAliases)
+	}
+	completeAliasedResultPathsFromReferences(results, rolodex)
+
+	needsReconciliation := needsResultPathReconciliation(results)
+	needsTerminalKeyUpgrade := needsTerminalKeySelectorPathUpgrade(results)
+	needsCollapse := len(results) > 1
+	if cacheRoot != nil && (needsReconciliation || needsTerminalKeyUpgrade || (cacheForMultipleResults && needsCollapse)) {
+		cache = newResultPathCache(cacheRoot, rootLocation)
+		if needsReconciliation {
+			for i := range results {
+				cache.reconcile(&results[i])
+			}
+		}
+	}
+	if needsCollapse {
+		results = collapseAliasedResults(results, cache)
+	}
+	upgradeTerminalKeySelectorPaths(results, cache)
+	return results
+}
+
 func newResultPathCache(root *yaml.Node, rootLocation string) *resultPathCache {
 	cache := &resultPathCache{
 		rootLocation:       rootLocation,

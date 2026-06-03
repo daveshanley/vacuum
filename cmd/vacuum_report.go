@@ -173,24 +173,10 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			// read spec and parse to dashboard.
 			defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
-			// default is recommended rules, based on spectral (for now anyway)
+			// Custom rulesets are loaded once; built-in defaults are selected per
+			// document so AsyncAPI inputs do not run against OpenAPI defaults.
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-			// HARD MODE
-			if hardModeFlag {
-				selectedRS = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
-
-				// extract all OWASP Rules
-				owaspRules := rulesets.GetAllOWASPRules()
-				allRules := selectedRS.Rules
-				for k, v := range owaspRules {
-					allRules[k] = v
-				}
-
-				if !stdIn && !stdOut {
-					tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
-				}
-
-			}
+			hardModeBoxRendered := false
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
@@ -215,15 +201,16 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				if MergeOWASPRulesToRuleSet(selectedRS, hardModeFlag) {
 					if !stdIn && !stdOut {
 						tui.RenderStyledBox(HardModeWithCustomRuleset, tui.BoxTypeHard, noStyleFlag)
+						hardModeBoxRendered = true
 					}
 				}
 			}
 
-			if turboFlag {
+			if rulesetFlag != "" && turboFlag {
 				rulesets.FilterRulesForTurbo(selectedRS)
 			}
 
-			if !stdIn && !stdOut {
+			if rulesetFlag != "" && !stdIn && !stdOut {
 				tui.RenderInfo("Linting against %d rules: %s", len(selectedRS.Rules), selectedRS.DocumentationURI)
 			}
 
@@ -310,9 +297,23 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
 				}
 
+				selectedRSForFile := selectedRS
+				specFormat := ""
+				if rulesetFlag == "" {
+					var asyncDefault bool
+					selectedRSForFile, specFormat, asyncDefault = prepareDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag, turboFlag)
+					if hardModeFlag && !asyncDefault && !hardModeBoxRendered && !stdIn && !stdOut {
+						tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
+						hardModeBoxRendered = true
+					}
+					if !stdIn && !stdOut {
+						tui.RenderInfo("Linting against %d rules: %s", len(selectedRSForFile.Rules), selectedRSForFile.DocumentationURI)
+					}
+				}
+
 				executionOptions := newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 				ruleset := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
-					RuleSet:                         selectedRS,
+					RuleSet:                         selectedRSForFile,
 					Spec:                            specBytes,
 					SpecFileName:                    resolvedSpecPath,
 					CustomFunctions:                 customFunctions,
@@ -327,6 +328,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					HTTPClientConfig:                httpClientConfig,
 					FetchConfig:                     fetchConfig,
 					TurboMode:                       turboFlag,
+					SpecFormat:                      specFormat,
 				}, executionOptions)
 
 				// Check for spec parsing errors before generating report

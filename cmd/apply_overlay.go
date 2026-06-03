@@ -168,6 +168,14 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		}
 		return fileError
 	}
+	if err := rejectAsyncAPIForOpenAPICommand("apply-overlay", specBytes); err != nil {
+		if stdOut {
+			fmt.Fprintln(os.Stderr, err.Error())
+		} else {
+			tui.RenderErrorString("%s", err.Error())
+		}
+		return err
+	}
 
 	// Build HTTP client config for remote overlay fetching
 	resolvedCertFile, _ := ResolveConfigPath(certFile)

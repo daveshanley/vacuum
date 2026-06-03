@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/plugin"
@@ -338,10 +339,11 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 
 	deepGraph := len(runtimeConfig.ignoredResults) > 0
 	ignoredResults := runtimeConfig.ignoredResults
+	selectedRS, specFormat := s.defaultRuleSetForDocument(runtimeConfig, []byte(content))
 
 	// Build the rule execution config with copied values
 	ruleExec := &motor.RuleSetExecution{
-		RuleSet:                         runtimeConfig.selectedRS,
+		RuleSet:                         selectedRS,
 		Spec:                            []byte(content),
 		SpecFileName:                    specFileName,
 		Timeout:                         time.Duration(runtimeConfig.timeoutSeconds()) * time.Second,
@@ -356,6 +358,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 		BuildDeepGraph:                  deepGraph,
 		ExtractReferencesFromExtensions: runtimeConfig.extensionRefs,
 		HTTPClientConfig:                runtimeConfig.httpClientConfig,
+		SpecFormat:                      specFormat,
 	}
 
 	// Apply ruleset selector if configured (uses copied content)
@@ -389,12 +392,54 @@ func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
 	}()
 }
 
+func (s *ServerState) defaultRuleSetForDocument(runtimeConfig *documentRuntimeConfig, content []byte) (*rulesets.RuleSet, string) {
+	if runtimeConfig == nil {
+		return nil, ""
+	}
+
+	defaultRuleSets := runtimeConfig.defaultRuleSets
+	if defaultRuleSets == nil {
+		defaultRuleSets = rulesets.BuildDefaultRuleSetsWithLogger(s.logger)
+	}
+
+	specFormat := ""
+	if format, err := asyncapi_context.DetectFormat(content); err == nil {
+		specFormat = format
+	}
+	if runtimeConfig.config != nil && runtimeConfig.config.Ruleset != "" {
+		return runtimeConfig.selectedRS, specFormat
+	}
+
+	hardMode := runtimeConfig.config != nil && runtimeConfig.config.HardMode != nil && *runtimeConfig.config.HardMode
+	if specFormat != "" {
+		if hardMode {
+			return defaultRuleSets.GenerateAsyncAPIDefaultRuleSet(), specFormat
+		}
+		return defaultRuleSets.GenerateAsyncAPIRecommendedRuleSet(), specFormat
+	}
+	if runtimeConfig.selectedRS != nil {
+		return runtimeConfig.selectedRS, specFormat
+	}
+	if hardMode {
+		return generateHardModeRuleSet(defaultRuleSets), specFormat
+	}
+	return defaultRuleSets.GenerateOpenAPIRecommendedRuleSet(), specFormat
+}
+
 func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
 	diagnostics := []protocol.Diagnostic{}
+	if result == nil {
+		return diagnostics
+	}
 
 	for _, vacuumResult := range result.Results {
 		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
 
+	}
+	for _, err := range result.Errors {
+		if err != nil {
+			diagnostics = append(diagnostics, ConvertErrorIntoDiagnostic(err))
+		}
 	}
 	return diagnostics
 }
@@ -403,12 +448,19 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 	severity := GetDiagnosticSeverityFromRule(vacuumResult.Rule)
 
 	diagnosticErrorHref := fmt.Sprintf("%s/rules/unknown", model.WebsiteUrl)
-	if vacuumResult.Rule.DocumentationURL != "" {
+	ruleID := vacuumResult.RuleId
+	if vacuumResult.Rule != nil && vacuumResult.Rule.Id != "" {
+		ruleID = vacuumResult.Rule.Id
+	}
+	if ruleID == "" {
+		ruleID = "unknown"
+	}
+	if vacuumResult.Rule != nil && vacuumResult.Rule.DocumentationURL != "" {
 		diagnosticErrorHref = vacuumResult.Rule.DocumentationURL
-	} else if vacuumResult.Rule.RuleCategory != nil {
+	} else if vacuumResult.Rule != nil && vacuumResult.Rule.RuleCategory != nil {
 		diagnosticErrorHref = fmt.Sprintf("%s/rules/%s/%s", model.WebsiteUrl,
 			strings.ToLower(vacuumResult.Rule.RuleCategory.Id),
-			strings.ReplaceAll(strings.ToLower(vacuumResult.Rule.Id), "$", ""))
+			strings.ReplaceAll(strings.ToLower(ruleID), "$", ""))
 	}
 	startLine := 1
 	startChar := 1
@@ -426,11 +478,11 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 
 	// Build comprehensive message with rule details
 	message := vacuumResult.Message
-	if vacuumResult.Rule.Description != "" {
+	if vacuumResult.Rule != nil && vacuumResult.Rule.Description != "" {
 		message += "\n\nDescription: " + vacuumResult.Rule.Description
 	}
-	if vacuumResult.Rule.HowToFix != "" {
-		message += "\n\nHow to fix: " + vacuumResult.Rule.HowToFix + "\n\nRule ID: " + vacuumResult.Rule.Id + "\n"
+	if vacuumResult.Rule != nil && vacuumResult.Rule.HowToFix != "" {
+		message += "\n\nHow to fix: " + vacuumResult.Rule.HowToFix + "\n\nRule ID: " + ruleID + "\n"
 	}
 
 	return protocol.Diagnostic{
@@ -442,9 +494,25 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 		},
 		Severity:        &severity,
 		Source:          &serverName,
-		Code:            &protocol.IntegerOrString{Value: vacuumResult.Rule.Id},
+		Code:            &protocol.IntegerOrString{Value: ruleID},
 		CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
 		Message:         message,
+	}
+}
+
+func ConvertErrorIntoDiagnostic(err error) protocol.Diagnostic {
+	severity := protocol.DiagnosticSeverityError
+	code := "document-error"
+	return protocol.Diagnostic{
+		Range: protocol.Range{
+			Start: protocol.Position{Line: 0, Character: 0},
+			End:   protocol.Position{Line: 0, Character: 1},
+		},
+		Severity:        &severity,
+		Source:          &serverName,
+		Code:            &protocol.IntegerOrString{Value: code},
+		CodeDescription: &protocol.CodeDescription{HRef: fmt.Sprintf("%s/rules/unknown", model.WebsiteUrl)},
+		Message:         err.Error(),
 	}
 }
 
@@ -459,6 +527,9 @@ func applyWorkspaceFolderCapabilities(capabilities *protocol.ServerCapabilities)
 }
 
 func GetDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity {
+	if rule == nil {
+		return protocol.DiagnosticSeverityError
+	}
 	switch rule.Severity {
 	case model.SeverityError:
 		return protocol.DiagnosticSeverityError

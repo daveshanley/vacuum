@@ -4,13 +4,16 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	ppconfig "github.com/pb33f/doctor/printingpress/config"
@@ -120,26 +123,39 @@ func runDocs(cmd *cobra.Command, input string, opts *docsOptions) (err error) {
 	if err != nil {
 		return err
 	}
-	fetchConfig, err := GetFetchConfig(lintFlags)
-	if err != nil {
-		return err
-	}
 
 	mode, inputPath, err := detectDocsInputMode(resolvedInput)
 	if err != nil {
 		return err
 	}
 
-	diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics)
-	if err != nil {
-		return err
-	}
-
 	if mode == docsInputAggregate {
+		if err := rejectAsyncAPIForDocsAggregate(inputPath); err != nil {
+			return err
+		}
+		fetchConfig, err := GetFetchConfig(lintFlags)
+		if err != nil {
+			return err
+		}
+		diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics)
+		if err != nil {
+			return err
+		}
 		return runDocsAggregate(inputPath, opts, fileConfig, diagnostics, term)
 	}
 
 	source, err := loadDocsSource(inputPath, opts, httpClient)
+	if err != nil {
+		return err
+	}
+	if err := rejectAsyncAPIForOpenAPICommand("docs", source.specBytes); err != nil {
+		return err
+	}
+	fetchConfig, err := GetFetchConfig(lintFlags)
+	if err != nil {
+		return err
+	}
+	diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics)
 	if err != nil {
 		return err
 	}
@@ -265,4 +281,44 @@ func normalizeDocsBasePath(basePath string) (string, error) {
 		return "", fmt.Errorf("resolve base path: %w", err)
 	}
 	return abs, nil
+}
+
+var errDocsAggregateAsyncAPI = errors.New("asyncapi document found in docs aggregate input")
+
+func rejectAsyncAPIForDocsAggregate(root string) error {
+	var asyncPath string
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !isDocsSpecCandidate(path) {
+			return nil
+		}
+		specBytes, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		isAsyncAPI, detectErr := asyncapi_context.IsDocument(specBytes)
+		if detectErr != nil && !asyncapi_context.HasMarker(specBytes) {
+			return nil
+		}
+		if detectErr == nil && !isAsyncAPI {
+			return nil
+		}
+		asyncPath = path
+		return errDocsAggregateAsyncAPI
+	})
+	if errors.Is(err, errDocsAggregateAsyncAPI) {
+		return fmt.Errorf("`vacuum docs` only supports OpenAPI documents; AsyncAPI document found in aggregate input: %s", asyncPath)
+	}
+	return err
+}
+
+func isDocsSpecCandidate(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".json", ".yaml", ".yml":
+		return true
+	default:
+		return false
+	}
 }

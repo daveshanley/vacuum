@@ -6,6 +6,7 @@ package model
 
 const FunctionCategoryCore = "core"
 const FunctionCategoryOpenAPI = "openapi"
+const FunctionCategoryAsyncAPI = "asyncapi"
 const FunctionCategoryJSONSchema = "jsonschema"
 const FunctionCategoryOWASP = "owasp"
 const FunctionCategoryCustomJS = "customjs"

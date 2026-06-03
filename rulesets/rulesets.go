@@ -132,10 +132,47 @@ const (
 	JsonSchemaCompositionSanity          = "json-schema-composition-sanity"
 	JsonSchemaTitleDescriptionType       = "json-schema-title-description-type"
 	JsonSchemaExamplesValid              = "json-schema-examples-valid"
+	AsyncAPI3ChannelNoEmptyParameter     = "asyncapi-3-channel-no-empty-parameter"
+	AsyncAPI3ChannelNoQueryNorFragment   = "asyncapi-3-channel-no-query-nor-fragment"
+	AsyncAPI3ChannelNoTrailingSlash      = "asyncapi-3-channel-no-trailing-slash"
+	AsyncAPIChannelParameters            = "asyncapi-channel-parameters"
+	AsyncAPI3ChannelServers              = "asyncapi-3-channel-servers"
+	AsyncAPI3HeadersSchemaTypeObject     = "asyncapi-3-headers-schema-type-object"
+	AsyncAPIInfoContactProperties        = "asyncapi-info-contact-properties"
+	AsyncAPIInfoContact                  = "asyncapi-info-contact"
+	AsyncAPIInfoDescription              = "asyncapi-info-description"
+	AsyncAPIInfoLicenseURL               = "asyncapi-info-license-url"
+	AsyncAPIInfoLicense                  = "asyncapi-info-license"
+	AsyncAPILatestVersion                = "asyncapi-latest-version"
+	AsyncAPI3OperationDescription        = "asyncapi-3-operation-description"
+	AsyncAPI3OperationSecurity           = "asyncapi-3-operation-security"
+	AsyncAPIParameterDescription         = "asyncapi-parameter-description"
+	AsyncAPI3PayloadUnsupportedFormat    = "asyncapi-3-payload-unsupported-schemaFormat"
+	AsyncAPI3ServerNoEmptyVariable       = "asyncapi-3-server-no-empty-variable"
+	AsyncAPI3ServerNoTrailingSlash       = "asyncapi-3-server-no-trailing-slash"
+	AsyncAPI3ServerNotExampleCom         = "asyncapi-3-server-not-example-com"
+	AsyncAPIServers                      = "asyncapi-servers"
+	AsyncAPI3TagDescription              = "asyncapi-3-tag-description"
+	AsyncAPI3TagsAlphabetical            = "asyncapi-3-tags-alphabetical"
+	AsyncAPI3TagsUniqueness              = "asyncapi-3-tags-uniqueness"
+	AsyncAPI3Tags                        = "asyncapi-3-tags"
+	AsyncAPI3DocumentResolved            = "asyncapi-3-document-resolved"
+	AsyncAPI3DocumentUnresolved          = "asyncapi-3-document-unresolved"
+	AsyncAPIServerVariables              = "asyncapi-server-variables"
+	AsyncAPIServerSecurity               = "asyncapi-server-security"
+	AsyncAPIOperationChannel             = "asyncapi-operation-channel"
+	AsyncAPIOperationMessages            = "asyncapi-operation-messages"
+	AsyncAPIOperationReply               = "asyncapi-operation-reply"
+	AsyncAPIMessageExamples              = "asyncapi-message-examples"
+	AsyncAPIUnusedComponents             = "asyncapi-unused-components"
+	AsyncAPIContentType                  = "asyncapi-content-type"
 	VacuumOpenAPI                        = "vacuum:oas"
+	VacuumAsyncAPI                       = "vacuum:asyncapi"
+	VacuumAsyncAPIRecommended            = "asyncapi-recommended"
 	VacuumJSONSchema                     = "vacuum:json-schema"
 	VacuumJSONSchemaRecommended          = "json-schema-recommended"
 	SpectralOpenAPI                      = "spectral:oas"
+	SpectralAsyncAPI                     = "spectral:asyncapi"
 	SpectralOwasp                        = "spectral:owasp"
 	VacuumOwasp                          = "vacuum:owasp"
 	VacuumAllRulesets                    = "vacuum:all" // Combined OpenAPI + OWASP rules
@@ -165,6 +202,14 @@ type RuleSets interface {
 	// GenerateJSONSchemaDefaultRuleSet generates a ready to run pointer to a RuleSet containing all built-in
 	// JSON Schema rules supported by vacuum. The returned rules are scoped to JSON Schema formats only.
 	GenerateJSONSchemaDefaultRuleSet() *RuleSet
+
+	// GenerateAsyncAPIRecommendedRuleSet generates a ready to run pointer to a RuleSet that contains only
+	// recommended AsyncAPI rules. The returned rules are scoped to AsyncAPI 3.x formats only.
+	GenerateAsyncAPIRecommendedRuleSet() *RuleSet
+
+	// GenerateAsyncAPIDefaultRuleSet generates a ready to run pointer to a RuleSet containing all built-in
+	// AsyncAPI rules supported by vacuum. The returned rules are scoped to AsyncAPI 3.x formats only.
+	GenerateAsyncAPIDefaultRuleSet() *RuleSet
 
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
@@ -199,6 +244,7 @@ var RuleSchema string
 type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
 	jsonSchemaSet  *RuleSet
+	asyncAPISet    *RuleSet
 	logger         *slog.Logger
 }
 
@@ -215,6 +261,7 @@ func BuildDefaultRuleSetsWithLogger(logger *slog.Logger) RuleSets {
 	rulesetsSingleton := &ruleSetsModel{
 		openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
 		jsonSchemaSet:  GenerateDefaultJSONSchemaRuleSet(),
+		asyncAPISet:    GenerateDefaultAsyncAPIRuleSet(),
 		logger:         logger,
 	}
 	return rulesetsSingleton
@@ -255,6 +302,25 @@ func (rsm ruleSetsModel) GenerateJSONSchemaRecommendedRuleSet() *RuleSet {
 	modifiedRS.Rules = filtered
 	modifiedRS.DocumentationURI = "https://quobix.com/vacuum/rulesets/json-schema-recommended"
 	modifiedRS.Description = "Recommended rules for high quality JSON Schema documents."
+	return modifiedRS
+}
+
+func (rsm ruleSetsModel) GenerateAsyncAPIDefaultRuleSet() *RuleSet {
+	return rsm.asyncAPISet
+}
+
+func (rsm ruleSetsModel) GenerateAsyncAPIRecommendedRuleSet() *RuleSet {
+	filtered := make(map[string]*model.Rule)
+	for ruleName, rule := range rsm.asyncAPISet.Rules {
+		if rule.Recommended {
+			filtered[ruleName] = rule
+		}
+	}
+
+	modifiedRS := cloneRuleSetMetadata(rsm.asyncAPISet)
+	modifiedRS.Rules = filtered
+	modifiedRS.DocumentationURI = "https://quobix.com/vacuum/rulesets/asyncapi-recommended"
+	modifiedRS.Description = "Recommended rules for high quality AsyncAPI documents."
 	return modifiedRS
 }
 
@@ -303,6 +369,15 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		rs = rsm.GenerateJSONSchemaRecommendedRuleSet()
 	}
 
+	if extends[VacuumAsyncAPI] == VacuumRecommended ||
+		extends[VacuumAsyncAPI] == VacuumAsyncAPI ||
+		extends[VacuumAsyncAPI] == VacuumAsyncAPIRecommended ||
+		extends[VacuumAsyncAPIRecommended] == VacuumAsyncAPIRecommended ||
+		extends[SpectralAsyncAPI] == VacuumRecommended ||
+		extends[SpectralAsyncAPI] == SpectralAsyncAPI {
+		rs = rsm.GenerateAsyncAPIRecommendedRuleSet()
+	}
+
 	// default and explicitly recommended
 	if extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
@@ -315,6 +390,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	if extends[VacuumJSONSchema] == VacuumAll {
 		rs = rsm.GenerateJSONSchemaDefaultRuleSet()
+	}
+
+	if extends[VacuumAsyncAPI] == VacuumAll || extends[SpectralAsyncAPI] == VacuumAll {
+		rs = rsm.GenerateAsyncAPIDefaultRuleSet()
 	}
 
 	// vacuum:all - combines both OpenAPI and OWASP rules
@@ -353,6 +432,14 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		}
 		rs.Rules = make(map[string]*model.Rule)
 		rs.Description = fmt.Sprintf("JSON Schema disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
+	}
+
+	if extends[VacuumAsyncAPI] == VacuumOff || extends[SpectralAsyncAPI] == VacuumOff {
+		if rs.DocumentationURI == "" {
+			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
+		}
+		rs.Rules = make(map[string]*model.Rule)
+		rs.Description = fmt.Sprintf("AsyncAPI disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
 	}
 
 	// if the custom ruleset defines its own documentationUrl, preserve it over the base ruleset's URI.
@@ -469,6 +556,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
 				} else if rsm.jsonSchemaSet.Rules[k] != nil {
 					rs.Rules[k] = rsm.jsonSchemaSet.Rules[k]
+				} else if rsm.asyncAPISet.Rules[k] != nil {
+					rs.Rules[k] = rsm.asyncAPISet.Rules[k]
 				} else {
 					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
 					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
