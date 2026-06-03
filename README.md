@@ -99,7 +99,8 @@ vacuum upgrade
 ```
 
 vacuum will detect the install path and use the matching upgrade mechanism when it can. Normal commands may also show an
-update notice when a newer stable release is available. Use `--no-update-check` to skip that check for a single run.
+update notice when a newer stable release is available. The passive check keeps only a small temporary cache in the OS temp
+directory, refreshed at most every 12 hours. Use `--no-update-check` or `VACUUM_NO_UPDATE_CHECK=true` to skip that check.
 
 ---
 

@@ -54,53 +54,69 @@ func TestUpdateCacheRejectsStaleResult(t *testing.T) {
 	}
 }
 
-func TestUpdateCacheTracksRecentAttemptWithoutRelease(t *testing.T) {
+func TestUpdateCacheReadStatusReturnsStaleReleaseAndRefreshDecision(t *testing.T) {
 	now := time.Unix(1700000000, 0)
 	cache := &UpdateCache{
 		Path: filepath.Join(t.TempDir(), "update-check.json"),
 		Now:  func() time.Time { return now },
 	}
 
-	if err := cache.MarkChecked(); err != nil {
-		t.Fatalf("MarkChecked returned error: %v", err)
-	}
-	if !cache.RecentlyChecked(DefaultCacheMaxAge) {
-		t.Fatalf("RecentlyChecked returned false for fresh attempted check")
-	}
-	cache.Now = func() time.Time { return now.Add(DefaultFailureBackoff + time.Second) }
-	if cache.RecentlyChecked(DefaultFailureBackoff) {
-		t.Fatalf("RecentlyChecked returned true outside failure backoff")
-	}
-	cache.Now = func() time.Time { return now }
-	if _, ok := cache.ReadFresh("v0.26.0", DefaultCacheMaxAge); ok {
-		t.Fatalf("ReadFresh returned release data for attempt-only cache")
-	}
-}
-
-func TestUpdateCacheMarkCheckedPreservesReleaseData(t *testing.T) {
-	now := time.Unix(1700000000, 0)
-	cache := &UpdateCache{
-		Path: filepath.Join(t.TempDir(), "update-check.json"),
-		Now:  func() time.Time { return now },
-	}
 	if err := cache.Write(CheckResult{
 		LatestVersion: "v0.27.0",
 		ReleaseURL:    "https://example.com/release",
 	}); err != nil {
 		t.Fatalf("Write returned error: %v", err)
 	}
+	cache.Now = func() time.Time { return now.Add(DefaultCacheMaxAge + time.Second) }
+
+	result, hasCachedRelease, shouldRefresh := cache.ReadStatus("v0.26.0", DefaultCacheMaxAge)
+	if !hasCachedRelease {
+		t.Fatalf("ReadStatus did not return cached release data")
+	}
+	if !shouldRefresh {
+		t.Fatalf("ReadStatus did not request refresh for stale cache")
+	}
+	if result.CurrentVersion != "v0.26.0" ||
+		result.LatestVersion != "v0.27.0" ||
+		result.ReleaseURL != "https://example.com/release" {
+		t.Fatalf("cached result = %#v", result)
+	}
+}
+
+func TestUpdateCacheShouldRefresh(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	cache := &UpdateCache{
+		Path: filepath.Join(t.TempDir(), "update-check.json"),
+		Now:  func() time.Time { return now },
+	}
+
+	if !cache.ShouldRefresh(DefaultCacheMaxAge) {
+		t.Fatalf("ShouldRefresh returned false for missing cache")
+	}
+	if err := cache.Write(CheckResult{LatestVersion: "v0.27.0"}); err != nil {
+		t.Fatalf("Write returned error: %v", err)
+	}
+	if cache.ShouldRefresh(DefaultCacheMaxAge) {
+		t.Fatalf("ShouldRefresh returned true for fresh cache")
+	}
 
 	cache.Now = func() time.Time { return now.Add(DefaultCacheMaxAge + time.Second) }
-	if err := cache.MarkChecked(); err != nil {
-		t.Fatalf("MarkChecked returned error: %v", err)
+	if !cache.ShouldRefresh(DefaultCacheMaxAge) {
+		t.Fatalf("ShouldRefresh returned false for stale cache")
 	}
+}
 
-	result, ok := cache.ReadFresh("v0.26.0", DefaultCacheMaxAge)
-	if !ok {
-		t.Fatalf("ReadFresh did not return preserved release data")
+func TestUpdateCacheDoesNotWriteFailedResult(t *testing.T) {
+	cache := &UpdateCache{Path: filepath.Join(t.TempDir(), "update-check.json")}
+
+	if err := cache.Write(CheckResult{
+		LatestVersion: "v0.27.0",
+		Err:           fmt.Errorf("unavailable"),
+	}); err != nil {
+		t.Fatalf("Write returned error: %v", err)
 	}
-	if result.LatestVersion != "v0.27.0" || result.ReleaseURL != "https://example.com/release" {
-		t.Fatalf("cached result = %#v", result)
+	if _, _, ok := cache.read(); ok {
+		t.Fatalf("failed result created cache data")
 	}
 }
 
@@ -120,7 +136,7 @@ func TestUpdateCacheWritesAtomically(t *testing.T) {
 	}
 	wg.Wait()
 
-	cached, ok := cache.read()
+	cached, _, ok := cache.read()
 	if !ok {
 		t.Fatalf("cache file was not readable after concurrent writes")
 	}
@@ -137,40 +153,12 @@ func TestUpdateCacheWritesAtomically(t *testing.T) {
 	}
 }
 
-func TestDefaultUpdateCacheUsesXDGConfigHome(t *testing.T) {
-	configHome := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", configHome)
-
+func TestDefaultUpdateCacheUsesTempDir(t *testing.T) {
 	cache, err := DefaultUpdateCache()
 	if err != nil {
 		t.Fatalf("DefaultUpdateCache returned error: %v", err)
 	}
-	want := filepath.Join(configHome, "vacuum", ".vacuum-update-check.json")
-	if cache.Path != want {
-		t.Fatalf("Path = %q, want %q", cache.Path, want)
-	}
-}
-
-func TestDefaultUpdateCacheUsesHomeConfigFallback(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	previousXDG, hadXDG := os.LookupEnv("XDG_CONFIG_HOME")
-	if err := os.Unsetenv("XDG_CONFIG_HOME"); err != nil {
-		t.Fatalf("unset XDG_CONFIG_HOME: %v", err)
-	}
-	t.Cleanup(func() {
-		if hadXDG {
-			_ = os.Setenv("XDG_CONFIG_HOME", previousXDG)
-		} else {
-			_ = os.Unsetenv("XDG_CONFIG_HOME")
-		}
-	})
-
-	cache, err := DefaultUpdateCache()
-	if err != nil {
-		t.Fatalf("DefaultUpdateCache returned error: %v", err)
-	}
-	want := filepath.Join(home, ".config", "vacuum", ".vacuum-update-check.json")
+	want := filepath.Join(os.TempDir(), "vacuum-update-check.json")
 	if cache.Path != want {
 		t.Fatalf("Path = %q, want %q", cache.Path, want)
 	}

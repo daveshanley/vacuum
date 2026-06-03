@@ -16,6 +16,7 @@ import (
 
 var activeUpdateCheck *upgrade.Check
 var activeUpdateCache *upgrade.UpdateCache
+var activeCachedUpdateNotice *upgrade.CheckResult
 var activeUpdateNoticeWriter io.Writer
 var updateCheckOptions upgrade.CheckOptions
 var updateCheckCacheFactory = upgrade.DefaultUpdateCache
@@ -32,16 +33,17 @@ func StartUpdateCheck(cmd *cobra.Command) {
 		return
 	}
 	activeUpdateCache = nil
+	activeCachedUpdateNotice = nil
+	activeUpdateNoticeWriter = nil
 
 	cache, _ := updateCheckCacheFactory()
 	if cache != nil {
-		result, hasFreshRelease, recentlyChecked := cache.ReadStatus(currentVersion, upgrade.DefaultCacheMaxAge, upgrade.DefaultFailureBackoff)
-		if hasFreshRelease {
-			activeUpdateCheck = upgrade.CompletedCheck(result)
+		result, hasCachedRelease, shouldRefresh := cache.ReadStatus(currentVersion, upgrade.DefaultCacheMaxAge)
+		if hasCachedRelease {
+			activeCachedUpdateNotice = &result
 			activeUpdateNoticeWriter = cmd.ErrOrStderr()
-			return
 		}
-		if recentlyChecked {
+		if !shouldRefresh {
 			return
 		}
 	}
@@ -62,15 +64,21 @@ func WaitForUpdateNotice() {
 }
 
 func flushUpdateNotice(wait bool) {
-	if activeUpdateCheck == nil {
-		return
-	}
 	check := activeUpdateCheck
 	cache := activeUpdateCache
+	cachedNotice := activeCachedUpdateNotice
 	writer := activeUpdateNoticeWriter
 	activeUpdateCheck = nil
 	activeUpdateCache = nil
+	activeCachedUpdateNotice = nil
 	activeUpdateNoticeWriter = nil
+
+	if cachedNotice != nil {
+		upgrade.RenderNotice(writer, *cachedNotice)
+	}
+	if check == nil {
+		return
+	}
 
 	var result upgrade.CheckResult
 	var ok bool
@@ -83,14 +91,9 @@ func flushUpdateNotice(wait bool) {
 		check.Cancel()
 		return
 	}
-	if cache != nil {
-		if result.Err != nil {
-			_ = cache.MarkChecked()
-		} else {
-			_ = cache.Write(result)
-		}
+	if cache != nil && result.Err == nil {
+		_ = cache.Write(result)
 	}
-	upgrade.RenderNotice(writer, result)
 }
 
 func ShouldCheckForUpdates(cmd *cobra.Command) bool {

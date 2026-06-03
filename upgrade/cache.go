@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	DefaultCacheMaxAge    = 24 * time.Hour
-	DefaultFailureBackoff = time.Hour
+	DefaultCacheMaxAge = 12 * time.Hour
 )
 
 type UpdateCache struct {
@@ -21,20 +20,19 @@ type UpdateCache struct {
 }
 
 type UpdateCacheData struct {
-	CheckedAt     time.Time `json:"checkedAt"`
-	LatestVersion string    `json:"latestVersion"`
-	ReleaseURL    string    `json:"releaseURL"`
+	LatestVersion string `json:"latestVersion"`
+	ReleaseURL    string `json:"releaseURL"`
 }
 
 func DefaultUpdateCache() (*UpdateCache, error) {
 	return &UpdateCache{
-		Path: filepath.Join(defaultConfigHome(), "vacuum", ".vacuum-update-check.json"),
+		Path: filepath.Join(os.TempDir(), "vacuum-update-check.json"),
 	}, nil
 }
 
 func (c *UpdateCache) ReadFresh(currentVersion string, maxAge time.Duration) (CheckResult, bool) {
-	cached, ok := c.read()
-	if !ok || !c.isFresh(cached, maxAge) || cached.LatestVersion == "" {
+	cached, modTime, ok := c.read()
+	if !ok || !c.isFresh(modTime, maxAge) || cached.LatestVersion == "" {
 		return CheckResult{}, false
 	}
 	return CheckResult{
@@ -44,36 +42,25 @@ func (c *UpdateCache) ReadFresh(currentVersion string, maxAge time.Duration) (Ch
 	}, true
 }
 
-func (c *UpdateCache) ReadStatus(currentVersion string, releaseMaxAge, failureBackoff time.Duration) (result CheckResult, hasFreshRelease bool, recentlyChecked bool) {
-	cached, ok := c.read()
+func (c *UpdateCache) ReadStatus(currentVersion string, maxAge time.Duration) (result CheckResult, hasCachedRelease bool, shouldRefresh bool) {
+	cached, modTime, ok := c.read()
 	if !ok {
-		return CheckResult{}, false, false
+		return CheckResult{}, false, true
 	}
-	if cached.LatestVersion != "" && c.isFresh(cached, releaseMaxAge) {
-		return CheckResult{
-			CurrentVersion: currentVersion,
-			LatestVersion:  cached.LatestVersion,
-			ReleaseURL:     cached.ReleaseURL,
-		}, true, true
+	if cached.LatestVersion == "" {
+		return CheckResult{}, false, true
 	}
-	return CheckResult{}, false, c.isFresh(cached, failureBackoff)
+	result = CheckResult{
+		CurrentVersion: currentVersion,
+		LatestVersion:  cached.LatestVersion,
+		ReleaseURL:     cached.ReleaseURL,
+	}
+	return result, true, !c.isFresh(modTime, maxAge)
 }
 
-func (c *UpdateCache) RecentlyChecked(maxAge time.Duration) bool {
-	cached, ok := c.read()
-	return ok && c.isFresh(cached, maxAge)
-}
-
-func (c *UpdateCache) MarkChecked() error {
-	if c == nil || c.Path == "" {
-		return nil
-	}
-	if err := os.MkdirAll(filepath.Dir(c.Path), 0o755); err != nil {
-		return err
-	}
-	cached, _ := c.read()
-	cached.CheckedAt = c.now()
-	return c.write(cached)
+func (c *UpdateCache) ShouldRefresh(maxAge time.Duration) bool {
+	_, modTime, ok := c.read()
+	return !ok || !c.isFresh(modTime, maxAge)
 }
 
 func (c *UpdateCache) Write(result CheckResult) error {
@@ -84,7 +71,6 @@ func (c *UpdateCache) Write(result CheckResult) error {
 		return err
 	}
 	return c.write(UpdateCacheData{
-		CheckedAt:     c.now(),
 		LatestVersion: result.LatestVersion,
 		ReleaseURL:    result.ReleaseURL,
 	})
@@ -115,32 +101,37 @@ func (c *UpdateCache) write(data UpdateCacheData) error {
 	if err := tmpFile.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, c.Path)
+	if err := os.Rename(tmpPath, c.Path); err != nil {
+		return err
+	}
+	now := c.now()
+	return os.Chtimes(c.Path, now, now)
 }
 
-func (c *UpdateCache) read() (UpdateCacheData, bool) {
+func (c *UpdateCache) read() (UpdateCacheData, time.Time, bool) {
 	if c == nil || c.Path == "" {
-		return UpdateCacheData{}, false
+		return UpdateCacheData{}, time.Time{}, false
 	}
 	data, err := os.ReadFile(c.Path)
 	if err != nil {
-		return UpdateCacheData{}, false
+		return UpdateCacheData{}, time.Time{}, false
+	}
+	info, err := os.Stat(c.Path)
+	if err != nil {
+		return UpdateCacheData{}, time.Time{}, false
 	}
 	var cached UpdateCacheData
 	if err := json.Unmarshal(data, &cached); err != nil {
-		return UpdateCacheData{}, false
+		return UpdateCacheData{}, time.Time{}, false
 	}
-	if cached.CheckedAt.IsZero() {
-		return UpdateCacheData{}, false
-	}
-	return cached, true
+	return cached, info.ModTime(), true
 }
 
-func (c *UpdateCache) isFresh(cached UpdateCacheData, maxAge time.Duration) bool {
+func (c *UpdateCache) isFresh(modTime time.Time, maxAge time.Duration) bool {
 	if maxAge <= 0 {
 		maxAge = DefaultCacheMaxAge
 	}
-	delta := c.now().Sub(cached.CheckedAt)
+	delta := c.now().Sub(modTime)
 	return delta >= 0 && delta <= maxAge
 }
 
@@ -149,11 +140,4 @@ func (c *UpdateCache) now() time.Time {
 		return c.Now()
 	}
 	return time.Now()
-}
-
-func defaultConfigHome() string {
-	if xdgConfigHome, ok := os.LookupEnv("XDG_CONFIG_HOME"); ok {
-		return xdgConfigHome
-	}
-	return filepath.Join(os.Getenv("HOME"), ".config")
 }

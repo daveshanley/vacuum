@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,9 +15,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestWaitForUpdateNoticeWaitsAndRenders(t *testing.T) {
+func TestWaitForUpdateNoticeWaitsAndCaches(t *testing.T) {
 	restore := configureUpdateCheckTest(t, 50*time.Millisecond)
 	defer restore()
+
+	now := time.Unix(1700000000, 0)
+	cache := &upgrade.UpdateCache{
+		Path: filepath.Join(t.TempDir(), "update-check.json"),
+		Now:  func() time.Time { return now },
+	}
+	updateCheckCacheFactory = func() (*upgrade.UpdateCache, error) {
+		return cache, nil
+	}
 
 	var out bytes.Buffer
 	testCmd := &cobra.Command{Use: "test"}
@@ -25,15 +35,30 @@ func TestWaitForUpdateNoticeWaitsAndRenders(t *testing.T) {
 	StartUpdateCheck(testCmd)
 	WaitForUpdateNotice()
 
-	if !strings.Contains(out.String(), "UPDATE AVAILABLE") ||
-		!strings.Contains(out.String(), "v0.26.0 -> v0.27.0") {
-		t.Fatalf("expected update notice, got %q", out.String())
+	if out.String() != "" {
+		t.Fatalf("expected first network result to be cached silently, got %q", out.String())
+	}
+	result, ok := cache.ReadFresh("v0.26.0", upgrade.DefaultCacheMaxAge)
+	if !ok {
+		t.Fatalf("expected completed update check to populate cache")
+	}
+	if result.LatestVersion != "v0.27.0" || result.ReleaseURL != "https://example.com/release" {
+		t.Fatalf("cached result = %#v", result)
 	}
 }
 
-func TestRootCommandWaitsForUpdateNotice(t *testing.T) {
+func TestRootCommandWaitsForUpdateNoticeAndCachesSilently(t *testing.T) {
 	restore := configureUpdateCheckTest(t, 50*time.Millisecond)
 	defer restore()
+
+	now := time.Unix(1700000000, 0)
+	cache := &upgrade.UpdateCache{
+		Path: filepath.Join(t.TempDir(), "update-check.json"),
+		Now:  func() time.Time { return now },
+	}
+	updateCheckCacheFactory = func() (*upgrade.UpdateCache, error) {
+		return cache, nil
+	}
 
 	var out bytes.Buffer
 	rootCmd := GetRootCommand()
@@ -43,9 +68,11 @@ func TestRootCommandWaitsForUpdateNotice(t *testing.T) {
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("root Execute returned error: %v", err)
 	}
-	if !strings.Contains(out.String(), "UPDATE AVAILABLE") ||
-		!strings.Contains(out.String(), "v0.26.0 -> v0.27.0") {
-		t.Fatalf("expected root command update notice, got %q", out.String())
+	if strings.Contains(out.String(), "UPDATE AVAILABLE") {
+		t.Fatalf("expected root command first update check to be silent, got %q", out.String())
+	}
+	if _, ok := cache.ReadFresh("v0.26.0", upgrade.DefaultCacheMaxAge); !ok {
+		t.Fatalf("expected root command to cache completed update check")
 	}
 }
 
@@ -69,7 +96,7 @@ func TestFlushUpdateNoticeDoesNotWait(t *testing.T) {
 	}
 }
 
-func TestFlushUpdateNoticeDoesNotMarkCanceledCheck(t *testing.T) {
+func TestFlushUpdateNoticeDoesNotWriteCanceledCheck(t *testing.T) {
 	restore := configureUpdateCheckTest(t, 200*time.Millisecond)
 	defer restore()
 
@@ -86,12 +113,12 @@ func TestFlushUpdateNoticeDoesNotMarkCanceledCheck(t *testing.T) {
 	StartUpdateCheck(testCmd)
 	FlushUpdateNotice()
 
-	if cache.RecentlyChecked(upgrade.DefaultFailureBackoff) {
-		t.Fatalf("canceled in-flight update check marked the failure backoff")
+	if _, err := os.Stat(cache.Path); !os.IsNotExist(err) {
+		t.Fatalf("canceled in-flight update check wrote cache file, stat error: %v", err)
 	}
 }
 
-func TestWaitForUpdateNoticeMarksCompletedFailure(t *testing.T) {
+func TestWaitForUpdateNoticeDoesNotCacheCompletedFailure(t *testing.T) {
 	restore := configureUpdateCheckTest(t, 0)
 	defer restore()
 
@@ -116,8 +143,8 @@ func TestWaitForUpdateNoticeMarksCompletedFailure(t *testing.T) {
 	StartUpdateCheck(testCmd)
 	WaitForUpdateNotice()
 
-	if !cache.RecentlyChecked(upgrade.DefaultFailureBackoff) {
-		t.Fatalf("completed failing update check did not mark the failure backoff")
+	if _, err := os.Stat(cache.Path); !os.IsNotExist(err) {
+		t.Fatalf("completed failing update check wrote cache file, stat error: %v", err)
 	}
 }
 
@@ -157,7 +184,7 @@ func TestStartUpdateCheckUsesFreshCache(t *testing.T) {
 	}
 }
 
-func TestStartUpdateCheckSkipsRecentlyCheckedCacheWithoutRelease(t *testing.T) {
+func TestStartUpdateCheckSkipsFreshCacheRefresh(t *testing.T) {
 	restore := configureUpdateCheckTest(t, time.Second)
 	defer restore()
 
@@ -166,22 +193,28 @@ func TestStartUpdateCheckSkipsRecentlyCheckedCacheWithoutRelease(t *testing.T) {
 		Path: filepath.Join(t.TempDir(), "update-check.json"),
 		Now:  func() time.Time { return now },
 	}
-	if err := cache.MarkChecked(); err != nil {
-		t.Fatalf("mark cache checked: %v", err)
+	if err := cache.Write(upgrade.CheckResult{
+		LatestVersion: "v0.27.0",
+		ReleaseURL:    "https://example.com/cached",
+	}); err != nil {
+		t.Fatalf("write cache: %v", err)
 	}
 	updateCheckCacheFactory = func() (*upgrade.UpdateCache, error) {
 		return cache, nil
 	}
 
+	var out bytes.Buffer
 	testCmd := &cobra.Command{Use: "test"}
+	testCmd.SetErr(&out)
 	StartUpdateCheck(testCmd)
 
 	if activeUpdateCheck != nil {
-		t.Fatalf("expected recently checked cache to skip starting an update check")
+		t.Fatalf("expected fresh cache to skip starting an update check")
 	}
+	WaitForUpdateNotice()
 }
 
-func TestStartUpdateCheckRetriesAfterFailureBackoff(t *testing.T) {
+func TestStartUpdateCheckRefreshesStaleCache(t *testing.T) {
 	restore := configureUpdateCheckTest(t, 0)
 	defer restore()
 
@@ -190,42 +223,111 @@ func TestStartUpdateCheckRetriesAfterFailureBackoff(t *testing.T) {
 		Path: filepath.Join(t.TempDir(), "update-check.json"),
 		Now:  func() time.Time { return now },
 	}
-	if err := cache.MarkChecked(); err != nil {
-		t.Fatalf("mark cache checked: %v", err)
+	if err := cache.Write(upgrade.CheckResult{
+		LatestVersion: "v0.27.0",
+		ReleaseURL:    "https://example.com/cached",
+	}); err != nil {
+		t.Fatalf("write cache: %v", err)
 	}
-	cache.Now = func() time.Time { return now.Add(upgrade.DefaultFailureBackoff + time.Second) }
+	cache.Now = func() time.Time { return now.Add(upgrade.DefaultCacheMaxAge + time.Second) }
 	updateCheckCacheFactory = func() (*upgrade.UpdateCache, error) {
 		return cache, nil
 	}
 
+	var out bytes.Buffer
 	testCmd := &cobra.Command{Use: "test"}
+	testCmd.SetErr(&out)
 	StartUpdateCheck(testCmd)
-	defer FlushUpdateNotice()
 
 	if activeUpdateCheck == nil {
-		t.Fatalf("expected expired failure backoff to start a new update check")
+		t.Fatalf("expected stale cache to start a new update check")
+	}
+	WaitForUpdateNotice()
+	if cache.ShouldRefresh(upgrade.DefaultCacheMaxAge) {
+		t.Fatalf("completed stale-cache refresh did not update cache mtime")
 	}
 }
 
-func TestShouldCheckForUpdatesSkipsCI(t *testing.T) {
-	previousIsTerminal := updateCheckIsTerminal
-	defer func() { updateCheckIsTerminal = previousIsTerminal }()
-	updateCheckIsTerminal = func() bool { return true }
-	t.Setenv("CI", "true")
+func TestWaitForUpdateNoticeDoesNotMakeStaleCacheFreshAfterFailure(t *testing.T) {
+	restore := configureUpdateCheckTest(t, 0)
+	defer restore()
 
-	if ShouldCheckForUpdates(&cobra.Command{Use: "lint"}) {
-		t.Fatalf("expected update check to be skipped in CI")
+	now := time.Unix(1700000000, 0)
+	cache := &upgrade.UpdateCache{
+		Path: filepath.Join(t.TempDir(), "update-check.json"),
+		Now:  func() time.Time { return now },
+	}
+	if err := cache.Write(upgrade.CheckResult{
+		LatestVersion: "v0.27.0",
+		ReleaseURL:    "https://example.com/cached",
+	}); err != nil {
+		t.Fatalf("write cache: %v", err)
+	}
+	cache.Now = func() time.Time { return now.Add(upgrade.DefaultCacheMaxAge + time.Second) }
+	updateCheckCacheFactory = func() (*upgrade.UpdateCache, error) {
+		return cache, nil
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	updateCheckOptions = upgrade.CheckOptions{
+		LatestReleaseURL: server.URL,
+		Timeout:          time.Second,
+	}
+
+	var out bytes.Buffer
+	testCmd := &cobra.Command{Use: "test"}
+	testCmd.SetErr(&out)
+	StartUpdateCheck(testCmd)
+	WaitForUpdateNotice()
+
+	if !cache.ShouldRefresh(upgrade.DefaultCacheMaxAge) {
+		t.Fatalf("failed refresh made stale cache appear fresh")
 	}
 }
 
-func TestShouldCheckForUpdatesSkipsNonTerminal(t *testing.T) {
+func TestShouldCheckForUpdatesSkipMatrix(t *testing.T) {
 	previousIsTerminal := updateCheckIsTerminal
 	defer func() { updateCheckIsTerminal = previousIsTerminal }()
-	updateCheckIsTerminal = func() bool { return false }
 
-	if ShouldCheckForUpdates(&cobra.Command{Use: "lint"}) {
-		t.Fatalf("expected update check to be skipped for non-terminal stderr")
+	tests := []struct {
+		name       string
+		cmd        *cobra.Command
+		ci         string
+		isTerminal bool
+		want       bool
+	}{
+		{name: "lint terminal", cmd: &cobra.Command{Use: "lint"}, isTerminal: true, want: true},
+		{name: "ci", cmd: &cobra.Command{Use: "lint"}, ci: "true", isTerminal: true, want: false},
+		{name: "non terminal", cmd: &cobra.Command{Use: "lint"}, isTerminal: false, want: false},
+		{name: "hidden command", cmd: &cobra.Command{Use: "__complete"}, isTerminal: true, want: false},
+		{name: "version command", cmd: &cobra.Command{Use: "version"}, isTerminal: true, want: false},
+		{name: "completion command", cmd: &cobra.Command{Use: "completion"}, isTerminal: true, want: false},
+		{name: "help command", cmd: &cobra.Command{Use: "help"}, isTerminal: true, want: false},
+		{name: "language server command", cmd: &cobra.Command{Use: "language-server"}, isTerminal: true, want: false},
+		{name: "upgrade command", cmd: &cobra.Command{Use: "upgrade"}, isTerminal: true, want: false},
+		{name: "no update check flag", cmd: boolFlagCommand("lint", "no-update-check"), isTerminal: true, want: false},
+		{name: "stdout flag", cmd: boolFlagCommand("lint", "stdout"), isTerminal: true, want: false},
+		{name: "silent flag", cmd: boolFlagCommand("lint", "silent"), isTerminal: true, want: false},
+		{name: "pipeline output flag", cmd: boolFlagCommand("lint", "pipeline-output"), isTerminal: true, want: false},
 	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("CI", tt.ci)
+			updateCheckIsTerminal = func() bool { return tt.isTerminal }
+			if got := ShouldCheckForUpdates(tt.cmd); got != tt.want {
+				t.Fatalf("ShouldCheckForUpdates() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func boolFlagCommand(use, name string) *cobra.Command {
+	cmd := &cobra.Command{Use: use}
+	cmd.Flags().Bool(name, true, "")
+	return cmd
 }
 
 func configureUpdateCheckTest(t *testing.T, delay time.Duration) func() {
@@ -236,6 +338,7 @@ func configureUpdateCheckTest(t *testing.T, delay time.Duration) func() {
 	previousOptions := updateCheckOptions
 	previousCheck := activeUpdateCheck
 	previousCache := activeUpdateCache
+	previousCachedNotice := activeCachedUpdateNotice
 	previousWriter := activeUpdateNoticeWriter
 	previousCacheFactory := updateCheckCacheFactory
 	previousIsTerminal := updateCheckIsTerminal
@@ -252,6 +355,7 @@ func configureUpdateCheckTest(t *testing.T, delay time.Duration) func() {
 	}
 	activeUpdateCheck = nil
 	activeUpdateCache = nil
+	activeCachedUpdateNotice = nil
 	activeUpdateNoticeWriter = nil
 	updateCheckCacheFactory = func() (*upgrade.UpdateCache, error) {
 		return &upgrade.UpdateCache{Path: filepath.Join(t.TempDir(), "update-check.json")}, nil
@@ -264,6 +368,7 @@ func configureUpdateCheckTest(t *testing.T, delay time.Duration) func() {
 		}
 		activeUpdateCheck = previousCheck
 		activeUpdateCache = previousCache
+		activeCachedUpdateNotice = previousCachedNotice
 		activeUpdateNoticeWriter = previousWriter
 		updateCheckOptions = previousOptions
 		updateCheckCacheFactory = previousCacheFactory

@@ -18,6 +18,7 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/pb33f/doctor v0.0.72
 	github.com/pb33f/jsonpath v0.8.2
+	github.com/pb33f/libasyncapi v0.0.1
 	github.com/pb33f/libopenapi v0.37.2
 	github.com/pb33f/libopenapi-validator v0.13.7
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
@@ -35,6 +36,7 @@ require (
 )
 
 require (
+	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/a-h/templ v0.3.1001 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
