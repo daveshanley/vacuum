@@ -570,30 +570,98 @@ func expandResultReferenceAliasPaths(
 		return nil
 	}
 
+	targetPaths := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex)
 	var paths []string
-	for _, ref := range sourceIndex.GetAllSequencedReferences() {
-		if ref == nil || ref.Node == nil || ref.Path == "" {
-			continue
+	for _, candidateTargetPath := range targetPaths {
+		if strings.HasPrefix(candidateTargetPath, "$.components.") {
+			paths = append(paths, candidateTargetPath)
 		}
-		if !referenceTargetsIndex(ref, targetIndex) {
-			continue
+		for _, ref := range sourceIndex.GetAllSequencedReferences() {
+			if ref == nil || ref.Node == nil || ref.Path == "" {
+				continue
+			}
+			if !referenceTargetsIndex(ref, targetIndex) {
+				continue
+			}
+			sourcePath, ok := sourcePathIndex.Lookup(ref.Node)
+			if !ok || sourcePath == "" {
+				continue
+			}
+			paths = append(paths, expandResultReferenceAliasPath(
+				ref.Path,
+				sourcePath,
+				candidateTargetPath,
+				targetIndex.GetAllSequencedReferences(),
+				targetPathIndex,
+				targetIndex,
+				nil,
+				0,
+			)...)
 		}
-		sourcePath, ok := sourcePathIndex.Lookup(ref.Node)
-		if !ok || sourcePath == "" {
-			continue
-		}
-		paths = append(paths, expandResultReferenceAliasPath(
-			ref.Path,
-			sourcePath,
-			targetPath,
-			targetIndex.GetAllSequencedReferences(),
-			targetPathIndex,
-			targetIndex,
-			nil,
-			0,
-		)...)
 	}
 	return uniqueSortedResultPaths(paths)
+}
+
+func equivalentResultReferenceTargetPaths(
+	targetIndex *index.SpecIndex,
+	targetPath string,
+	targetPathIndex *vacuumUtils.NodePathIndex,
+) []string {
+	if targetIndex == nil || targetPath == "" || targetPathIndex == nil {
+		return nil
+	}
+
+	seen := make(map[string]struct{})
+	var paths []string
+	type queuedPath struct {
+		path  string
+		depth int
+	}
+
+	var queue []queuedPath
+
+	add := func(path string, depth int) {
+		if path == "" {
+			return
+		}
+		path = canonicalizeResultAliasPath(path)
+		if _, ok := seen[path]; ok {
+			return
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+		if depth < maxResultReferenceAliasDepth {
+			queue = append(queue, queuedPath{path: path, depth: depth})
+		}
+	}
+
+	add(targetPath, 0)
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, ref := range targetIndex.GetAllSequencedReferences() {
+			if ref == nil || ref.Node == nil || ref.Path == "" {
+				continue
+			}
+			if !referenceTargetsIndex(ref, targetIndex) {
+				continue
+			}
+
+			sourcePath, ok := targetPathIndex.Lookup(ref.Node)
+			if !ok || sourcePath == "" {
+				continue
+			}
+			suffix, ok := trimAliasPathPrefix(current.path, sourcePath)
+			if !ok {
+				continue
+			}
+			add(ref.Path+suffix, current.depth+1)
+		}
+	}
+
+	sort.Strings(paths)
+	return paths
 }
 
 func expandResultReferenceAliasPath(

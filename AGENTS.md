@@ -4,10 +4,10 @@ Operational guide for AI agents working in `github.com/daveshanley/vacuum`.
 
 ## TL;DR
 
-- vacuum is a Go CLI and library for linting OpenAPI and JSON Schema documents, generating reports, bundling specs, running an LSP server, and generating API docs through printing press.
+- vacuum is a Go CLI and library for linting OpenAPI, AsyncAPI and JSON Schema documents, generating reports, bundling OpenAPI and JSON Schema documents where supported, running an LSP server, and generating OpenAPI docs through printing press.
 - Main entry point: `vacuum.go` -> `cmd.Execute(...)` -> `cmd.GetRootCommand()`.
-- The default OpenAPI user path is `vacuum lint <spec>`. JSON Schema linting uses `vacuum schema <schema>` or `vacuum schema lint <schema>`.
-- OpenAPI lint/report commands share helpers in `cmd/build_results.go` and `motor/`. JSON Schema command wiring lives in `cmd/schema*.go` and still executes rules through `motor/`.
+- The default OpenAPI and AsyncAPI user path is `vacuum lint <api-description>`. JSON Schema linting uses `vacuum schema <schema>` or `vacuum schema lint <schema>`.
+- OpenAPI and AsyncAPI lint/report commands share helpers in `cmd/build_results.go`, `cmd/lint_shared.go`, and `motor/`. AsyncAPI context and default-ruleset wiring lives in `asyncapi/`, `cmd/asyncapi_ruleset.go`, `motor/asyncapi_applicator.go`, and `rulesets/asyncapi_rules.go`. JSON Schema command wiring lives in `cmd/schema*.go` and still executes rules through `motor/`.
 - Go version is `1.25.0`. Node is only needed for the HTML report UI and npm package wrapper.
 - The interactive HTML report is compiled only when UI assets exist and builds use `-tags html_report_ui`.
 - Release/CI-shaped Go checks should usually run with `GOWORK=off` so local sibling checkouts do not hide committed module problems.
@@ -60,15 +60,25 @@ go test ./motor -run 'JSONSchema'
 go test ./jsonschema ./functions/jsonschema ./functions/schemachecks ./rulesets
 ```
 
+For AsyncAPI linting, ruleset, or context changes, prefer focused checks before broader package runs:
+
+```bash
+go test ./cmd -run 'AsyncAPI|Lint|Report|Dashboard|GenerateRuleset'
+go test ./motor -run 'AsyncAPI'
+go test ./asyncapi ./functions/asyncapi ./rulesets
+```
+
 ## Repo Map
 
 ```text
 vacuum.go                    binary entry point and ldflags pass-through
 cmd/                         Cobra commands, CLI flags, rendering, reports, docs and schema commands
+asyncapi/                    AsyncAPI context, detection, and libasyncapi bridge helpers
 motor/                       rule execution engine, document/index setup, result collection
 model/                       rules, result models, reports, categories, test fixtures
 rulesets/                    built-in rulesets, schemas, rule aliases, example rulesets
 functions/core/              Spectral-compatible core rule functions
+functions/asyncapi/          AsyncAPI-specific rule functions
 functions/jsonschema/        JSON Schema rule functions and synthetic validation rules
 functions/openapi/           OpenAPI-specific rule functions
 functions/owasp/             OWASP rule functions
@@ -120,6 +130,12 @@ When adding or changing flags, check every command surface that shares the behav
 - Schema mode uses `json-schema-recommended` by default, supports custom rules/functions, and must not run OpenAPI-only rules.
 - Schema bundling rewrites ordinary external `$ref` values into root `$defs`; dynamic/recursive references are preserved rather than resolved as ordinary refs.
 
+`vacuum lint` is the first-class OpenAPI and AsyncAPI surface:
+
+- OpenAPI and AsyncAPI documents use `vacuum lint <input...>` plus the `report`, `dashboard`, `html-report`, and `spectral-report` report surfaces.
+- AsyncAPI 3 documents are auto-detected and use `asyncapi-recommended` by default, or the full AsyncAPI ruleset when hard mode is enabled.
+- OpenAPI-only commands such as `bundle`, `docs`, `apply-overlay`, and `open-collection` must reject AsyncAPI clearly instead of falling through an OpenAPI path.
+
 ## Core Rules
 
 - Prefer existing command helpers in `cmd/` over creating parallel execution paths.
@@ -128,6 +144,7 @@ When adding or changing flags, check every command surface that shares the behav
 - Use `go.yaml.in/yaml/v4` where current code does; do not casually mix YAML libraries.
 - Keep rule IDs, categories, and built-in rule constants centralized in `rulesets/` and `model/`.
 - For result paths, preserve both `Path` and `Paths` semantics. Many report and diff workflows depend on stable path output.
+- For AsyncAPI, preserve `RuleFunctionContext.AsyncAPI`, libasyncapi diagnostics, node-path mapping, and the default ruleset selection path. Reports, stats, snippets, and diagnostics should remain first-class outputs.
 - For JSON Schema, preserve the schema-only Doctor path, libopenapi index/rolodex reference behavior, and low-level YAML/JSON node fidelity. Line/column, snippets, JSONPath output, and `$ref` diagnostics depend on that stack.
 - Do not remove or weaken panic recovery, timeouts, lookup timeouts, or circular-reference controls without focused tests.
 - For custom JS functions, keep fetch security defaults intact: HTTPS only unless `--allow-http`, and private network access only with `--allow-private-networks`.
@@ -145,9 +162,10 @@ When adding or changing flags, check every command surface that shares the behav
 
 - Built-in functions implement `model.RuleFunction`.
 - A function must provide `RunRule`, `GetSchema`, and `GetCategory`.
-- Tests usually live beside the function they cover: `functions/core`, `functions/openapi`, `functions/jsonschema`, `functions/schemachecks`, or `functions/owasp`.
+- Tests usually live beside the function they cover: `functions/core`, `functions/openapi`, `functions/asyncapi`, `functions/jsonschema`, `functions/schemachecks`, or `functions/owasp`.
 - Add new built-in rule IDs and docs metadata through the existing `rulesets` patterns.
 - Example rulesets belong under `rulesets/examples/`; schema changes belong under `rulesets/schemas/`.
+- AsyncAPI-specific built-ins should use `functions/asyncapi`; shared core functions are fine when the rule behavior is genuinely format-neutral.
 - JSON Schema-specific built-ins should use `functions/jsonschema`; shared schema semantics belong in `functions/schemachecks` so OpenAPI and JSON Schema do not drift.
 - Custom Go plugin behavior is demonstrated in `plugin/sample/`.
 - Custom JavaScript runtime behavior lives under `plugin/javascript/`; async, Promise, and fetch behavior should be tested there.
@@ -223,6 +241,7 @@ Check `git status --short` before editing. Preserve unrelated user changes.
 - Command behavior: add focused tests under `cmd/`.
 - Rule execution behavior: add or update tests under `motor/`.
 - Built-in rule functions: test in the relevant `functions/...` package.
+- AsyncAPI command, context, and default-ruleset behavior: test under `cmd/`, `asyncapi/`, `motor/`, `functions/asyncapi/`, and `rulesets/`.
 - JSON Schema command behavior: test under `cmd/`; dialect, metaschema, Doctor, and reference helpers: test under `jsonschema/`; schema-only motor behavior: test under `motor/`.
 - Ruleset parsing/aliases/default rules: test under `rulesets/`.
 - Language server behavior: test under `language-server/`.
