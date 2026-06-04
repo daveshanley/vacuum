@@ -14,6 +14,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -313,6 +314,92 @@ func TestIssue879RecursiveAllOfSiblingReferencePathsAreCompleteAndStable(t *test
 				assert.Equal(t, expectedEnumPaths, enumResult.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
 			}
 		}
+	}
+}
+
+func TestIssue879RecursiveNestedReferenceAliasesIncludeSiblingComponentUses(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879NestedReferenceAliasFixture(t)
+
+	rule := &model.Rule{
+		Id:          "repro-string-min-length",
+		Description: "Every string must declare minLength",
+		Message:     "String is missing minLength",
+		Given:       "$..[?(@ && @.type && @.type == 'string')]",
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "minLength",
+			Function: "defined",
+		},
+	}
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}
+
+	expectedPaths := []string{
+		"$.components.schemas['vesselSurveyResult'].allOf[1].allOf[2].properties['hullIdentificationNumber'].allOf[0]",
+		"$.paths['/v1/vesselSurveys'].post.requestBody.content['application/json'].schema.allOf[2].properties['hullIdentificationNumber'].allOf[0]",
+		"$.paths['/v1/vesselSurveys'].post.responses['201'].content['application/json'].schema.allOf[1].allOf[2].properties['hullIdentificationNumber'].allOf[0]",
+	}
+
+	previousProcs := runtime.GOMAXPROCS(0)
+	defer runtime.GOMAXPROCS(previousProcs)
+
+	for _, procs := range []int{1, 4} {
+		runtime.GOMAXPROCS(procs)
+		for i := 0; i < 50; i++ {
+			results := ApplyRulesToRuleSet(&RuleSetExecution{
+				RuleSet:           ruleSet,
+				Spec:              specBytes,
+				SpecFileName:      specPath,
+				Base:              dir,
+				AllowLookup:       true,
+				NodeLookupTimeout: 5 * time.Second,
+				SilenceLogs:       true,
+			})
+
+			require.Empty(t, results.Errors, "GOMAXPROCS=%d iteration %d", procs, i)
+
+			result := findResultByRuleAndPath(results.Results, rule.Id, expectedPaths[0])
+			if assert.NotNil(t, result, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedPaths, result.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
+		}
+	}
+}
+
+func TestEquivalentResultReferenceTargetPathsStopsOnDescendantReferenceCycle(t *testing.T) {
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`openapi: 3.0.3
+info:
+  title: descendant reference cycle
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Loop:
+      $ref: '#/components/schemas/Loop/properties/next'
+      properties:
+        next:
+          type: object
+`), &root))
+
+	cfg := index.CreateOpenAPIIndexConfig()
+	idx := index.NewSpecIndexWithConfig(&root, cfg)
+	idx.BuildIndex()
+	pathIndex := resultPathIndexForSpec(idx, make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex))
+
+	done := make(chan []string, 1)
+	go func() {
+		done <- equivalentResultReferenceTargetPaths(idx, "$.components.schemas['Loop']", pathIndex)
+	}()
+
+	select {
+	case paths := <-done:
+		require.NotEmpty(t, paths)
+		assert.Contains(t, paths, "$.components.schemas['Loop']")
+		assert.Contains(t, paths, "$.components.schemas['Loop'].properties['next']")
+		assert.LessOrEqual(t, len(paths), maxResultReferenceAliasDepth+1)
+	case <-time.After(time.Second):
+		t.Fatal("equivalentResultReferenceTargetPaths did not terminate")
 	}
 }
 
@@ -863,6 +950,71 @@ components:
           type: string
           enum:
             - pending
+`)
+	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
+	return dir, specPath, specBytes
+}
+
+func writeIssue879NestedReferenceAliasFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi-test.yaml")
+
+	specBytes := []byte(`openapi: 3.0.3
+info:
+  title: Vacuum issue 879 marine nested alias repro
+  version: 1.0.0
+paths:
+  /v1/vesselSurveys:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/vesselSurvey'
+      responses:
+        '201':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/vesselSurveyResult'
+components:
+  schemas:
+    vesselSurvey:
+      allOf:
+        - $ref: '#/components/schemas/vesselProfile'
+        - $ref: '#/components/schemas/harborContact'
+        - type: object
+          properties:
+            hullIdentificationNumber:
+              description: Primary hull identifier for the vessel
+              $ref: '#/components/schemas/nauticalIdentifier'
+    vesselSurveyResult:
+      allOf:
+        - $ref: '#/components/schemas/surveyRecord'
+        - $ref: '#/components/schemas/vesselSurvey'
+    vesselProfile:
+      type: object
+      properties:
+        vesselName:
+          type: string
+          minLength: 1
+    harborContact:
+      type: object
+      properties:
+        harborMaster:
+          type: string
+          minLength: 1
+    surveyRecord:
+      type: object
+      properties:
+        surveyId:
+          type: string
+          minLength: 1
+    nauticalIdentifier:
+      type: string
 `)
 	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
 	return dir, specPath, specBytes
