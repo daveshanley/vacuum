@@ -1,6 +1,10 @@
-![logo](.github/assets/logo.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/logo-dark.png">
+  <img alt="vacuum" src=".github/assets/logo-light.png">
+</picture>
 
-# vacuum - The world's fastest OpenAPI, AsyncAPI and JSON Schema linter.
+
+# The world's fastest OpenAPI, AsyncAPI and JSON Schema linter.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
@@ -10,14 +14,14 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 
-An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI and JSON Schema linter and quality checking tool, written in golang and inspired by [Spectral](https://github.com/stoplightio/spectral).
+An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
 
 It's **fully compatible** with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
 
-## Install using [homebrew](https://brew.sh) tap
+## Install using the official [homebrew](https://brew.sh) tap
 
 ```
-brew install daveshanley/vacuum/vacuum
+brew install --cask daveshanley/vacuum/vacuum
 ```
 
 ## Install using [npm](https://npmjs.com)

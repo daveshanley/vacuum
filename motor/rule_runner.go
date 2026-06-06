@@ -38,7 +38,7 @@ func runRuleContexts(
 		execution.NodeLookupTimeout = time.Millisecond * 500
 	}
 
-	ruleSem := make(chan struct{}, runtime.NumCPU())
+	ruleSem := make(chan struct{}, runtime.GOMAXPROCS(0))
 	done := make(chan bool, len(rules))
 	var resultLock sync.Mutex
 
