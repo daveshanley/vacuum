@@ -454,7 +454,10 @@ func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionRe
 		return false
 	}
 	usesRecursiveDescent := ruleUsesRecursiveDescent(result.Rule)
-	componentAliasResult := !usesRecursiveDescent && result.Rule.Resolved && resultPathMayReferenceComponentAlias(result)
+	componentAliasResult := !usesRecursiveDescent &&
+		result.Rule.Resolved &&
+		ruleTargetsComponentPaths(result.Rule) &&
+		resultPathMayReferenceComponentAlias(result)
 	if result.StartNode == nil && result.Origin == nil && !resultPathMayReferenceAlias(result.Path) {
 		return false
 	}
@@ -468,6 +471,20 @@ func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionRe
 		return true
 	}
 	return resultPathMayReferenceAlias(result.Path) || componentAliasResult
+}
+
+func ruleTargetsComponentPaths(rule *model.Rule) bool {
+	for _, givenPath := range resultGivenPaths(rule) {
+		givenPath = strings.TrimSpace(givenPath)
+		if givenPath == "$.components" || strings.HasPrefix(givenPath, "$.components.") {
+			return true
+		}
+		normalizedPath := normalizeSimpleBracketResultPath(givenPath)
+		if normalizedPath == "$.components" || strings.HasPrefix(normalizedPath, "$.components.") {
+			return true
+		}
+	}
+	return false
 }
 
 func resultPathMayReferenceAlias(path string) bool {
@@ -1505,6 +1522,9 @@ func dropRedundantAdditionalPropertiesFieldAliasesFromResults(results []model.Ru
 	if len(results) == 0 || rolodex == nil || rolodex.GetRootIndex() == nil {
 		return
 	}
+	if !resultsContainDirectAdditionalPropertiesFieldAlias(results) {
+		return
+	}
 
 	refSourcePaths := resultReferenceSourcePaths(rolodex.GetRootIndex())
 	if len(refSourcePaths) == 0 {
@@ -1527,6 +1547,28 @@ func dropRedundantAdditionalPropertiesFieldAliasesFromResults(results []model.Ru
 			results[i].Paths = nil
 		}
 	}
+}
+
+func resultsContainDirectAdditionalPropertiesFieldAlias(results []model.RuleFunctionResult) bool {
+	for i := range results {
+		if len(results[i].Paths) <= 1 {
+			continue
+		}
+		pathSet := make(map[string]struct{}, len(results[i].Paths))
+		for _, path := range results[i].Paths {
+			pathSet[path] = struct{}{}
+		}
+		for _, path := range results[i].Paths {
+			parentFieldPath, _, ok := directAdditionalPropertiesParentFieldPath(path)
+			if !ok {
+				continue
+			}
+			if _, found := pathSet[parentFieldPath]; found {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func resultReferenceSourcePaths(sourceIndex *index.SpecIndex) map[string]struct{} {

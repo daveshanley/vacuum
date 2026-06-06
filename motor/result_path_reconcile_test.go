@@ -586,6 +586,32 @@ func TestDropRedundantAdditionalPropertiesFieldAliasesPreservesReferenceAliases(
 	}))
 }
 
+func TestShouldCompleteAliasedResultPathsFromReferencesSkipsRootGivenComponentResults(t *testing.T) {
+	result := &model.RuleFunctionResult{
+		Path:      "$.components.schemas['shared_value'].description",
+		StartNode: &yaml.Node{Kind: yaml.MappingNode},
+		Rule: &model.Rule{
+			Given:    "$",
+			Resolved: true,
+		},
+	}
+
+	assert.False(t, shouldCompleteAliasedResultPathsFromReferences(result))
+}
+
+func TestShouldCompleteAliasedResultPathsFromReferencesAllowsComponentGivenResults(t *testing.T) {
+	result := &model.RuleFunctionResult{
+		Path:      "$.components.schemas['shared_value'].description",
+		StartNode: &yaml.Node{Kind: yaml.MappingNode},
+		Rule: &model.Rule{
+			Given:    "$.components.*.*",
+			Resolved: true,
+		},
+	}
+
+	assert.True(t, shouldCompleteAliasedResultPathsFromReferences(result))
+}
+
 func TestIssue879SyntheticFixtureResultPathsAreStable(t *testing.T) {
 	specPath := filepath.Join("test_data", "issue_879", "synthetic-openapi.yaml")
 	rulesetPath := filepath.Join("test_data", "issue_879", "synthetic-ruleset.yaml")
