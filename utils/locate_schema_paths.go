@@ -112,7 +112,8 @@ func locateSchemaReferenceAliasPaths(context model.RuleFunctionContext, schema *
 
 	sourceDocumentPath := context.Index.GetSpecAbsolutePath()
 	targetDocumentPath := targetIndex.GetSpecAbsolutePath()
-	if sourceDocumentPath != "" && targetDocumentPath != "" && sourceDocumentPath == targetDocumentPath {
+	if targetDocumentPath == "" ||
+		(sourceDocumentPath != "" && sourceDocumentPath == targetDocumentPath) {
 		return nil
 	}
 
