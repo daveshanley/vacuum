@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/stretchr/testify/assert"
+	"go.yaml.in/yaml/v4"
 	"testing"
 )
 
@@ -181,6 +185,58 @@ components:
 	assert.Len(t, res, 2)
 	assert.Equal(t, "schema property `id` is missing `examples` or `example`", res[0].Message)
 	assert.Contains(t, res[0].Path, "$.components.schemas['Pizza']")
+}
+
+func TestExamplesMissing_PropertySchemaWithoutValueDoesNotPanic(t *testing.T) {
+	yml := `openapi: 3.1
+info:
+  title: Test API
+  version: 1.0.0
+paths: {}
+`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	properties := orderedmap.New[string, *drV3.SchemaProxy]()
+	properties.Set("broken", &drV3.SchemaProxy{
+		Schema: &drV3.Schema{
+			Foundation: drV3.Foundation{
+				Key:         "broken",
+				PathSegment: "broken",
+			},
+		},
+	})
+	rootSchema := &drV3.Schema{
+		Value: &highbase.Schema{
+			Type: []string{"object"},
+			Example: &yaml.Node{
+				Kind:   yaml.MappingNode,
+				Tag:    "!!map",
+				Line:   1,
+				Column: 1,
+			},
+		},
+		Properties: properties,
+		Foundation: drV3.Foundation{
+			Key:         "Root",
+			PathSegment: "Root",
+		},
+	}
+	drDocument := &drModel.DrDocument{Schemas: []*drV3.Schema{rootSchema}}
+
+	rule := buildOpenApiTestRuleAction("$", "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
+	assert.NotPanics(t, func() {
+		def.RunRule(nil, ctx)
+	})
 }
 
 func TestExamplesMissing_Header(t *testing.T) {

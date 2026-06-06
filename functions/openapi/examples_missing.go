@@ -259,8 +259,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				if propErr {
 					if prop != nil {
 						// Find all locations where this property schema appears
-						locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop,
-							prop.Value.GoLow().Type.KeyNode, prop.Value.GoLow().Type.ValueNode)
+						keyNode, valueNode := schemaTypeLookupNodes(prop)
+						locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
 
 						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 							model.GetStringTemplates().BuildMissingExampleMessage(propName)),
@@ -326,6 +326,9 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.Schemas != nil {
 		for i := range context.DrDocument.Schemas {
 			s := context.DrDocument.Schemas[i]
+			if s == nil || s.Value == nil {
+				continue
+			}
 			if isSchemaBoolean(s) || isSchemaEnum(s) || isSchemaNumber(s) || isSchemaString(s) {
 				continue
 			}
@@ -381,10 +384,10 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 						break
 					}
 				}
-				if propErr {
+				if propErr && prop != nil {
 					// Find all locations where this property schema appears
-					locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop,
-						prop.Value.GoLow().Type.KeyNode, prop.Value.GoLow().Type.ValueNode)
+					keyNode, valueNode := schemaTypeLookupNodes(prop)
+					locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
 
 					result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
 						fmt.Sprintf("schema property `%s` is missing `examples` or `example`", propName)),
@@ -402,8 +405,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 			if hasProps && propErr && isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
 				// Find all locations where this schema appears
-				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s,
-					s.Value.GoLow().Type.KeyNode, s.Value.GoLow().Type.ValueNode)
+				keyNode, valueNode := schemaTypeLookupNodes(s)
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s, keyNode, valueNode)
 
 				result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 					locatedPath,
@@ -419,8 +422,8 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 
 			if !hasProps && isExampleNodeNull(s.Value.Examples) && isExampleNodeNull([]*yaml.Node{s.Value.Example}) {
 				// Find all locations where this schema appears
-				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s,
-					s.Value.GoLow().Type.KeyNode, s.Value.GoLow().Type.ValueNode)
+				keyNode, valueNode := schemaTypeLookupNodes(s)
+				locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, s, keyNode, valueNode)
 
 				result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message, "schema is missing `examples` or `example`"),
 					locatedPath,
@@ -464,6 +467,27 @@ func checkProps(s *v3.Schema) bool {
 		}
 	}
 	return false
+}
+
+func schemaTypeLookupNodes(schema *v3.Schema) (*yaml.Node, *yaml.Node) {
+	if schema == nil || schema.Value == nil {
+		return schemaFallbackLookupNodes(schema)
+	}
+	lowSchema := schema.Value.GoLow()
+	if lowSchema == nil {
+		return schemaFallbackLookupNodes(schema)
+	}
+	if lowSchema.Type.KeyNode != nil || lowSchema.Type.ValueNode != nil {
+		return lowSchema.Type.KeyNode, lowSchema.Type.ValueNode
+	}
+	return schemaFallbackLookupNodes(schema)
+}
+
+func schemaFallbackLookupNodes(schema *v3.Schema) (*yaml.Node, *yaml.Node) {
+	if schema == nil {
+		return nil, nil
+	}
+	return schema.GetKeyNode(), schema.GetValueNode()
 }
 
 // checkArrayItems checks if array items have examples in their properties

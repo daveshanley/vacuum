@@ -116,6 +116,7 @@ func finalizeResultPaths(
 		results = collapseAliasedResults(results, cache)
 	}
 	upgradeTerminalKeySelectorPaths(results, cache)
+	dropRedundantAdditionalPropertiesFieldAliasesFromResults(results, rolodex)
 	return results
 }
 
@@ -452,25 +453,49 @@ func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionRe
 	if result == nil || result.Rule == nil {
 		return false
 	}
+	usesRecursiveDescent := ruleUsesRecursiveDescent(result.Rule)
+	componentAliasResult := !usesRecursiveDescent && result.Rule.Resolved && resultPathMayReferenceComponentAlias(result)
 	if result.StartNode == nil && result.Origin == nil && !resultPathMayReferenceAlias(result.Path) {
 		return false
 	}
-	if !ruleUsesRecursiveDescent(result.Rule) {
+	if !usesRecursiveDescent && !componentAliasResult {
 		return false
 	}
-	if len(result.Paths) <= 1 && !resultPathNeedsReconciliation(result) && !resultPathMayReferenceAlias(result.Path) {
+	if len(result.Paths) <= 1 && !resultPathNeedsReconciliation(result) && !resultPathMayReferenceAlias(result.Path) && !componentAliasResult {
 		return false
 	}
 	if _, ok := aliasedResultKey(result); ok {
 		return true
 	}
-	return resultPathMayReferenceAlias(result.Path)
+	return resultPathMayReferenceAlias(result.Path) || componentAliasResult
 }
 
 func resultPathMayReferenceAlias(path string) bool {
 	return strings.Contains(path, ".allOf[") ||
 		strings.Contains(path, ".anyOf[") ||
 		strings.Contains(path, ".oneOf[")
+}
+
+func resultPathMayReferenceComponentAlias(result *model.RuleFunctionResult) bool {
+	if result == nil {
+		return false
+	}
+	if resultPathIsComponent(result.Path) {
+		return true
+	}
+	for _, path := range result.Paths {
+		if resultPathIsComponent(path) {
+			return true
+		}
+	}
+	return false
+}
+
+func resultPathIsComponent(path string) bool {
+	if path == "" {
+		return false
+	}
+	return strings.HasPrefix(canonicalizeResultAliasPath(path), "$.components.")
 }
 
 func ruleUsesRecursiveDescent(rule *model.Rule) bool {
@@ -1474,6 +1499,104 @@ func buildMergedResultPaths(canonicalPath string, results ...*model.RuleFunction
 		merged = append(merged, path)
 	}
 	return merged
+}
+
+func dropRedundantAdditionalPropertiesFieldAliasesFromResults(results []model.RuleFunctionResult, rolodex *index.Rolodex) {
+	if len(results) == 0 || rolodex == nil || rolodex.GetRootIndex() == nil {
+		return
+	}
+
+	refSourcePaths := resultReferenceSourcePaths(rolodex.GetRootIndex())
+	if len(refSourcePaths) == 0 {
+		return
+	}
+
+	for i := range results {
+		if len(results[i].Paths) <= 1 {
+			continue
+		}
+		filteredPaths := dropRedundantAdditionalPropertiesFieldAliases(results[i].Paths, refSourcePaths)
+		if len(filteredPaths) == len(results[i].Paths) {
+			continue
+		}
+		results[i].Paths = filteredPaths
+		if !resultPathListContains(filteredPaths, results[i].Path) && len(filteredPaths) > 0 {
+			results[i].Path = filteredPaths[0]
+		}
+		if len(results[i].Paths) <= 1 {
+			results[i].Paths = nil
+		}
+	}
+}
+
+func resultReferenceSourcePaths(sourceIndex *index.SpecIndex) map[string]struct{} {
+	if sourceIndex == nil || sourceIndex.GetRootNode() == nil {
+		return nil
+	}
+
+	pathIndex := resultPathIndexForSpec(sourceIndex, make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex))
+	if pathIndex == nil {
+		return nil
+	}
+
+	refSourcePaths := make(map[string]struct{})
+	for _, ref := range sourceIndex.GetAllSequencedReferences() {
+		if ref == nil || ref.Node == nil {
+			continue
+		}
+		sourcePath, ok := pathIndex.Lookup(ref.Node)
+		if !ok || sourcePath == "" {
+			continue
+		}
+		refSourcePaths[canonicalizeResultAliasPath(sourcePath)] = struct{}{}
+	}
+	return refSourcePaths
+}
+
+func dropRedundantAdditionalPropertiesFieldAliases(paths []string, refSourcePaths map[string]struct{}) []string {
+	if len(paths) <= 1 {
+		return paths
+	}
+
+	pathSet := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		pathSet[path] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if parentFieldPath, additionalPropertiesPath, ok := directAdditionalPropertiesParentFieldPath(path); ok {
+			if _, found := pathSet[parentFieldPath]; found {
+				if _, refFound := refSourcePaths[additionalPropertiesPath]; !refFound {
+					continue
+				}
+			}
+		}
+		filtered = append(filtered, path)
+	}
+	return filtered
+}
+
+func directAdditionalPropertiesParentFieldPath(path string) (string, string, bool) {
+	const marker = ".additionalProperties."
+	idx := strings.LastIndex(path, marker)
+	if idx < 0 {
+		return "", "", false
+	}
+	suffix := path[idx+len(marker):]
+	if suffix == "" || strings.ContainsAny(suffix, ".[") {
+		return "", "", false
+	}
+	return path[:idx] + "." + suffix, path[:idx] + ".additionalProperties", true
+}
+
+func resultPathListContains(paths []string, path string) bool {
+	for _, candidate := range paths {
+		if candidate == path {
+			return true
+		}
+	}
+	return false
 }
 
 func selectPrimaryResultPath(canonicalPath string, candidates []string) string {

@@ -366,6 +366,103 @@ func TestIssue879RecursiveNestedReferenceAliasesIncludeSiblingComponentUses(t *t
 	}
 }
 
+func TestIssue879ComponentSchemaReferenceWithAdditionalPropertiesPathsAreCompleteAndStable(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879AdditionalPropertiesComponentAliasFixture(t)
+
+	rule := &model.Rule{
+		Id:          "repro-schema-description",
+		Description: "Every component schema must have a description",
+		Message:     "Schema is missing a description",
+		Given:       "$.components.*.*",
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}
+
+	expectedPaths := []string{
+		"$.components.schemas['fraudy_description'].description",
+		"$.paths['/v1/fraud-detection/analyze'].post.requestBody.content['application/json'].schema.description",
+	}
+
+	previousProcs := runtime.GOMAXPROCS(0)
+	defer runtime.GOMAXPROCS(previousProcs)
+
+	for _, procs := range []int{1, 4} {
+		runtime.GOMAXPROCS(procs)
+		for i := 0; i < 50; i++ {
+			results := ApplyRulesToRuleSet(&RuleSetExecution{
+				RuleSet:           ruleSet,
+				Spec:              specBytes,
+				SpecFileName:      specPath,
+				Base:              dir,
+				AllowLookup:       true,
+				NodeLookupTimeout: 5 * time.Second,
+				SilenceLogs:       true,
+			})
+
+			require.Empty(t, results.Errors, "GOMAXPROCS=%d iteration %d", procs, i)
+
+			result := findResultByRuleAndPath(results.Results, rule.Id, expectedPaths[0])
+			if assert.NotNil(t, result, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedPaths, result.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
+		}
+	}
+}
+
+func TestIssue879ComponentSchemaAdditionalPropertiesReferencePathsArePreserved(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879AdditionalPropertiesSchemaReferenceFixture(t)
+
+	rule := &model.Rule{
+		Id:          "repro-schema-description",
+		Description: "Every component schema must have a description",
+		Message:     "Schema is missing a description",
+		Given:       "$.components.*.*",
+		Resolved:    true,
+		Severity:    model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+	ruleSet := &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}}
+
+	expectedPaths := []string{
+		"$.components.schemas['shared_value'].description",
+		"$.paths['/v1/direct'].post.requestBody.content['application/json'].schema.description",
+		"$.paths['/v1/map'].post.requestBody.content['application/json'].schema.additionalProperties.description",
+	}
+
+	previousProcs := runtime.GOMAXPROCS(0)
+	defer runtime.GOMAXPROCS(previousProcs)
+
+	for _, procs := range []int{1, 4} {
+		runtime.GOMAXPROCS(procs)
+		for i := 0; i < 50; i++ {
+			results := ApplyRulesToRuleSet(&RuleSetExecution{
+				RuleSet:           ruleSet,
+				Spec:              specBytes,
+				SpecFileName:      specPath,
+				Base:              dir,
+				AllowLookup:       true,
+				NodeLookupTimeout: 5 * time.Second,
+				SilenceLogs:       true,
+			})
+
+			require.Empty(t, results.Errors, "GOMAXPROCS=%d iteration %d", procs, i)
+
+			result := findResultByRuleAndPath(results.Results, rule.Id, expectedPaths[0])
+			if assert.NotNil(t, result, "GOMAXPROCS=%d iteration %d", procs, i) {
+				assert.Equal(t, expectedPaths, result.Paths, "GOMAXPROCS=%d iteration %d", procs, i)
+			}
+		}
+	}
+}
+
 func TestEquivalentResultReferenceTargetPathsStopsOnDescendantReferenceCycle(t *testing.T) {
 	var root yaml.Node
 	require.NoError(t, yaml.Unmarshal([]byte(`openapi: 3.0.3
@@ -470,6 +567,23 @@ func TestMergeResultPathCandidatesDropsDriftedPrimaryPath(t *testing.T) {
 
 	assert.Equal(t, candidates[0], result.Path)
 	assert.Equal(t, candidates, result.Paths)
+}
+
+func TestDropRedundantAdditionalPropertiesFieldAliasesPreservesReferenceAliases(t *testing.T) {
+	paths := []string{
+		"$.components.schemas['shared_value'].description",
+		"$.paths['/v1/map'].post.requestBody.content['application/json'].schema.additionalProperties.description",
+		"$.paths['/v1/map'].post.requestBody.content['application/json'].schema.description",
+	}
+
+	assert.Equal(t, []string{
+		"$.components.schemas['shared_value'].description",
+		"$.paths['/v1/map'].post.requestBody.content['application/json'].schema.description",
+	}, dropRedundantAdditionalPropertiesFieldAliases(paths, nil))
+
+	assert.Equal(t, paths, dropRedundantAdditionalPropertiesFieldAliases(paths, map[string]struct{}{
+		"$.paths['/v1/map'].post.requestBody.content['application/json'].schema.additionalProperties": {},
+	}))
 }
 
 func TestIssue879SyntheticFixtureResultPathsAreStable(t *testing.T) {
@@ -1014,6 +1128,83 @@ components:
           type: string
           minLength: 1
     nauticalIdentifier:
+      type: string
+`)
+	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
+	return dir, specPath, specBytes
+}
+
+func writeIssue879AdditionalPropertiesComponentAliasFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi-test.yaml")
+
+	specBytes := []byte(`openapi: 3.0.3
+info:
+  title: Vacuum issue 879 component additionalProperties repro
+  version: 1.0.0
+paths:
+  /v1/fraud-detection/analyze:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/fraudy_description'
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    fraudy_description:
+      additionalProperties: false
+      type: object
+      properties:
+        score:
+          type: string
+          description: Fraud score label
+`)
+	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
+	return dir, specPath, specBytes
+}
+
+func writeIssue879AdditionalPropertiesSchemaReferenceFixture(t *testing.T) (string, string, []byte) {
+	t.Helper()
+
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi-test.yaml")
+
+	specBytes := []byte(`openapi: 3.0.3
+info:
+  title: Vacuum issue 879 additionalProperties reference repro
+  version: 1.0.0
+paths:
+  /v1/direct:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/shared_value'
+      responses:
+        '200':
+          description: ok
+  /v1/map:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/shared_value'
+      responses:
+        '200':
+          description: ok
+components:
+  schemas:
+    shared_value:
       type: string
 `)
 	require.NoError(t, os.WriteFile(specPath, specBytes, 0644))
