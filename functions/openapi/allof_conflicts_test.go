@@ -91,6 +91,57 @@ components:
 	assert.Contains(t, res[0].Message, "number")
 }
 
+func TestAllOfConflicts_UsesCachedAliasProperties(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: cached alias allOf
+  version: 1.0.0
+paths:
+  /first:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conflict'
+  /second:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conflict'
+components:
+  schemas:
+    Base:
+      type: object
+      properties:
+        kind:
+          type: string
+    Conflict:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Base'
+        - type: object
+          properties:
+            kind:
+              type: number`
+
+	ctx, def := buildAllOfConflictsContextWithConfig(t, yml, &drModel.DrConfig{
+		UseSchemaCache:     true,
+		DeterministicPaths: true,
+	})
+	res := def.RunRule(nil, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Equal(t, "$.components.schemas['Conflict'].allOf", res[0].Path)
+	assert.Contains(t, res[0].Message, "property `kind`")
+}
+
 func TestAllOfConflicts_ParentPropertyVsAllOfArm(t *testing.T) {
 	yml := `openapi: 3.1.0
 components:
@@ -501,6 +552,11 @@ type allOfConflictsFixture struct {
 
 func buildAllOfConflictsFixture(tb testing.TB, yml string) allOfConflictsFixture {
 	tb.Helper()
+	return buildAllOfConflictsFixtureWithConfig(tb, yml, nil)
+}
+
+func buildAllOfConflictsFixtureWithConfig(tb testing.TB, yml string, config *drModel.DrConfig) allOfConflictsFixture {
+	tb.Helper()
 
 	document, err := libopenapi.NewDocument([]byte(yml))
 	if err != nil {
@@ -518,10 +574,14 @@ func buildAllOfConflictsFixture(tb testing.TB, yml string) allOfConflictsFixture
 	}
 
 	rule := buildOpenApiTestRuleAction("$", "allOfConflicts", "", nil)
+	drDocument := drModel.NewDrDocument(m)
+	if config != nil {
+		drDocument = drModel.NewDrDocumentWithConfig(m, config)
+	}
 
 	return allOfConflictsFixture{
 		document:   document,
-		drDocument: drModel.NewDrDocument(m),
+		drDocument: drDocument,
 		specInfo:   specInfo,
 		rule:       rule,
 	}
@@ -531,6 +591,19 @@ func buildAllOfConflictsContext(t *testing.T, yml string) (model.RuleFunctionCon
 	t.Helper()
 
 	fixture := buildAllOfConflictsFixture(t, yml)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(fixture.rule.Then), nil)
+	ctx.Document = fixture.document
+	ctx.DrDocument = fixture.drDocument
+	ctx.SpecInfo = fixture.specInfo
+	ctx.Rule = &fixture.rule
+
+	return ctx, AllOfConflicts{}
+}
+
+func buildAllOfConflictsContextWithConfig(t *testing.T, yml string, config *drModel.DrConfig) (model.RuleFunctionContext, AllOfConflicts) {
+	t.Helper()
+
+	fixture := buildAllOfConflictsFixtureWithConfig(t, yml, config)
 	ctx := buildOpenApiTestContext(model.CastToRuleAction(fixture.rule.Then), nil)
 	ctx.Document = fixture.document
 	ctx.DrDocument = fixture.drDocument

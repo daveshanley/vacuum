@@ -302,3 +302,85 @@ paths: {}
 	assert.Equal(t, "invalid-jsonpath-selector", report.Errors.Items[0].RuleId)
 	assert.Equal(t, "$..[", report.Errors.Items[0].Given)
 }
+
+func TestGetVacuumReportCommand_Issue907RecursiveFilterPathlessJSResultUsesConcretePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	functionsDir := filepath.Join(tmpDir, "functions")
+	require.NoError(t, os.Mkdir(functionsDir, 0o700))
+
+	specPath := filepath.Join(tmpDir, "openapi.yaml")
+	rulesetPath := filepath.Join(tmpDir, "ruleset.yaml")
+	functionPath := filepath.Join(functionsDir, "issue907.js")
+
+	require.NoError(t, os.WriteFile(specPath, []byte(`openapi: 3.0.3
+info:
+  title: issue 907 repro
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: X-Trace
+          in: header
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+`), 0o600))
+	require.NoError(t, os.WriteFile(rulesetPath, []byte(`extends: [[vacuum:oas, off]]
+rules:
+  issue-907-filter-path:
+    description: Header names should be checked at the matched node
+    severity: error
+    recommended: true
+    formats: [oas3]
+    given: $..[?(@ && @.in == 'header')].name
+    then:
+      function: issue907
+`), 0o600))
+	require.NoError(t, os.WriteFile(functionPath, []byte(`function getSchema() {
+  return {
+    name: "issue907",
+    description: "returns a pathless result for the matched node"
+  };
+}
+
+function runRule(input) {
+  if (!input) {
+    return [];
+  }
+  return [{ message: "header name issue" }];
+}
+`), 0o600))
+
+	cmd := GetVacuumReportCommand()
+	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+	cmd.PersistentFlags().StringP("functions", "f", "", "")
+	reportPrefix := filepath.Join(tmpDir, "issue-907-report")
+	cmd.SetArgs([]string{
+		"--no-style",
+		"--no-pretty",
+		"-r", rulesetPath,
+		"-f", functionsDir,
+		specPath,
+		reportPrefix,
+	})
+
+	cmdErr := cmd.Execute()
+	require.NoError(t, cmdErr)
+
+	reportFiles, globErr := filepath.Glob(reportPrefix + "-*.json")
+	require.NoError(t, globErr)
+	require.Len(t, reportFiles, 1)
+	reportBytes, readErr := os.ReadFile(reportFiles[0])
+	require.NoError(t, readErr)
+
+	var report vacuum_report.VacuumReport
+	require.NoError(t, json.Unmarshal(reportBytes, &report))
+	require.NotNil(t, report.ResultSet)
+	require.Len(t, report.ResultSet.Results, 1)
+	assert.Equal(t, "$.paths['/pets'].get.parameters[0].name", report.ResultSet.Results[0].Path)
+	assert.NotContains(t, report.ResultSet.Results[0].Path, "$..")
+	assert.NotContains(t, report.ResultSet.Results[0].Path, "[?")
+}

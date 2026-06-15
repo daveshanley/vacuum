@@ -234,9 +234,135 @@ paths: {}
 	ctx.Rule = &rule
 
 	def := ExamplesMissing{}
+	var res []model.RuleFunctionResult
+	assert.NotPanics(t, func() {
+		res = def.RunRule(nil, ctx)
+	})
+	assert.Empty(t, res)
+}
+
+func TestExamplesMissing_MediaTypeWithoutSchemaDoesNotPanic(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: media type no schema
+  version: 1.0.0
+paths:
+  /plain:
+    get:
+      responses:
+        '204':
+          description: No Content
+          content:
+            application/json:
+              example:
+                ok: true`
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	if err != nil {
+		panic(fmt.Sprintf("cannot create new document: %e", err))
+	}
+
+	m, _ := document.BuildV3Model()
+	drDocument := drModel.NewDrDocumentWithConfig(m, &drModel.DrConfig{
+		UseSchemaCache:     true,
+		DeterministicPaths: true,
+	})
+
+	rule := buildOpenApiTestRuleAction("$", "examples_missing", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	def := ExamplesMissing{}
 	assert.NotPanics(t, func() {
 		def.RunRule(nil, ctx)
 	})
+}
+
+func TestExamplesMissing_MediaTypeSchemaCacheAliasesUseHydratedSchemaGuards(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema string
+	}{
+		{
+			name: "schema_example",
+			schema: `type: object
+      example:
+        id: abc`,
+		},
+		{
+			name: "schema_default",
+			schema: `type: object
+      default:
+        id: abc`,
+		},
+		{
+			name:   "simple_string",
+			schema: `type: string`,
+		},
+		{
+			name: "array_item_example",
+			schema: `type: array
+      items:
+        type: string
+        example: abc`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			yml := fmt.Sprintf(`openapi: 3.1.0
+info:
+  title: media type cache alias %s
+  version: 1.0.0
+paths:
+  /first:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aliased'
+  /second:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Aliased'
+components:
+  schemas:
+    Aliased:
+      %s`, tt.name, tt.schema)
+
+			document, err := libopenapi.NewDocument([]byte(yml))
+			if err != nil {
+				panic(fmt.Sprintf("cannot create new document: %e", err))
+			}
+
+			m, _ := document.BuildV3Model()
+			drDocument := drModel.NewDrDocumentWithConfig(m, &drModel.DrConfig{
+				UseSchemaCache:     true,
+				DeterministicPaths: true,
+			})
+
+			rule := buildOpenApiTestRuleAction("$", "examples_missing", "", nil)
+			ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+			ctx.Document = document
+			ctx.DrDocument = drDocument
+			ctx.Rule = &rule
+
+			def := ExamplesMissing{}
+			res := def.RunRule(nil, ctx)
+
+			assert.Empty(t, res)
+		})
+	}
 }
 
 func TestExamplesMissing_Header(t *testing.T) {

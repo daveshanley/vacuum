@@ -204,7 +204,7 @@ func GetOpenApiTagsAlphabeticalRule() *model.Rule {
 		Formats:      model.AllFormats,
 		Description:  "Tags must be in alphabetical order",
 		Given:        "$.tags",
-		Resolved:     true,
+		Resolved:     false, // Ordering must use source order; resolved trees can reorder tags.
 		Recommended:  false,
 		RuleCategory: model.RuleCategories[model.CategoryTags],
 		Type:         Style,

@@ -210,24 +210,25 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 	if context.DrDocument.MediaTypes != nil {
 		for i := range context.DrDocument.MediaTypes {
 			mt := context.DrDocument.MediaTypes[i]
+			mtSchema := v3.SchemaFromProxyForRead(mt.SchemaProxy)
 
-			if mt.SchemaProxy != nil && isSchemaBoolean(mt.SchemaProxy.Schema) {
+			if mtSchema != nil && isSchemaBoolean(mtSchema) {
 				continue
 			}
-			if mt.SchemaProxy != nil &&
-				mt.SchemaProxy.Schema != nil &&
-				mt.SchemaProxy.Schema.Value != nil &&
-				(mt.SchemaProxy.Schema.Value.Examples != nil || mt.SchemaProxy.Schema.Value.Example != nil) {
-				continue
-			}
-
-			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil && (isSchemaBoolean(mt.SchemaProxy.Schema) ||
-				isSchemaEnum(mt.SchemaProxy.Schema) || isSchemaNumber(mt.SchemaProxy.Schema) || isSchemaString(mt.SchemaProxy.Schema)) {
+			if mtSchema != nil &&
+				mtSchema.Value != nil &&
+				(mtSchema.Value.Examples != nil || mtSchema.Value.Example != nil) {
 				continue
 			}
 
-			if (mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil && mt.SchemaProxy.Schema.Value != nil) &&
-				(mt.SchemaProxy.Schema.Value.Const != nil || mt.SchemaProxy.Schema.Value.Default != nil) {
+			if mtSchema != nil && (isSchemaBoolean(mtSchema) ||
+				isSchemaEnum(mtSchema) || isSchemaNumber(mtSchema) || isSchemaString(mtSchema)) {
+				continue
+			}
+
+			if mtSchema != nil &&
+				mtSchema.Value != nil &&
+				(mtSchema.Value.Const != nil || mtSchema.Value.Default != nil) {
 				continue
 			}
 
@@ -236,43 +237,51 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 			hasArrayItemsWithExamples := false
 
 			// Check for array items with examples
-			if mt.SchemaProxy != nil && mt.SchemaProxy.Schema != nil {
-				hasArrayItemsWithExamples = checkArrayItems(mt.SchemaProxy.Schema)
+			if mtSchema != nil {
+				hasArrayItemsWithExamples = checkArrayItems(mtSchema)
 			}
 
-			if mt.SchemaProxy != nil &&
-				mt.SchemaProxy.Schema != nil &&
-				mt.SchemaProxy.Schema.Properties != nil &&
-				mt.SchemaProxy.Schema.Properties.Len() > 0 {
+			// doctor schema-cache aliases build child fields lazily; the
+			// *ForRead accessors hydrate them before reading.
+			if mtSchema != nil {
+				mtProps := mtSchema.PropertiesForRead()
+				if mtProps != nil && mtProps.Len() > 0 {
 
-				hasProps = true
-				var prop *v3.Schema
-				var propName string
-				for k, v := range mt.SchemaProxy.Schema.Properties.FromOldest() {
-					if !checkProps(v.Schema) {
-						propErr = true
-						prop = v.Schema
-						propName = k
-						break
-					}
-				}
-				if propErr {
-					if prop != nil {
-						// Find all locations where this property schema appears
-						keyNode, valueNode := schemaTypeLookupNodes(prop)
-						locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
-
-						result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							model.GetStringTemplates().BuildMissingExampleMessage(propName)),
-							locatedPath,
-							prop.KeyNode, mt.ValueNode, mt)
-
-						// Set the Paths array if there are multiple locations
-						if len(allPaths) > 1 {
-							result.Paths = allPaths
+					hasProps = true
+					var prop *v3.Schema
+					var propName string
+					for k, v := range mtProps.FromOldest() {
+						propSchema := v.SchemaForRead()
+						// a property schema without an underlying value cannot be
+						// judged - skip it rather than flag a false missing-example.
+						if propSchema == nil || propSchema.Value == nil {
+							continue
 						}
+						if !checkProps(propSchema) {
+							propErr = true
+							prop = propSchema
+							propName = k
+							break
+						}
+					}
+					if propErr {
+						if prop != nil {
+							// Find all locations where this property schema appears
+							keyNode, valueNode := schemaTypeLookupNodes(prop)
+							locatedPath, allPaths := vacuumUtils.LocateSchemaPropertyPaths(context, prop, keyNode, valueNode)
 
-						results = append(results, result)
+							result := buildResult(vacuumUtils.SuppliedOrDefault(context.Rule.Message,
+								model.GetStringTemplates().BuildMissingExampleMessage(propName)),
+								locatedPath,
+								prop.KeyNode, mt.ValueNode, mt)
+
+							// Set the Paths array if there are multiple locations
+							if len(allPaths) > 1 {
+								result.Paths = allPaths
+							}
+
+							results = append(results, result)
+						}
 					}
 				}
 			}
@@ -372,14 +381,20 @@ func (em ExamplesMissing) RunRule(_ []*yaml.Node, context model.RuleFunctionCont
 				continue
 			}
 
-			if s.Properties != nil && s.Properties.Len() > 0 {
+			if sProps := s.PropertiesForRead(); sProps != nil && sProps.Len() > 0 {
 				hasProps = true
 				var prop *v3.Schema
 				var propName string
-				for k, v := range s.Properties.FromOldest() {
-					if !checkProps(v.Schema) {
+				for k, v := range sProps.FromOldest() {
+					propSchema := v.SchemaForRead()
+					// a property schema without an underlying value cannot be
+					// judged - skip it rather than flag a false missing-example.
+					if propSchema == nil || propSchema.Value == nil {
+						continue
+					}
+					if !checkProps(propSchema) {
 						propErr = true
-						prop = v.Schema
+						prop = propSchema
 						propName = k
 						break
 					}
@@ -461,9 +476,14 @@ func checkProps(s *v3.Schema) bool {
 	if s.Value.Default != nil {
 		return true
 	}
-	if s.Value.Properties != nil && s.Value.Properties.Len() > 0 {
-		for _, p := range s.Properties.FromOldest() {
-			return checkProps(p.Schema)
+	// doctor aliases hydrate child fields lazily - use the *ForRead
+	// accessors so cache-hit occurrences expose their properties.
+	if props := s.PropertiesForRead(); props != nil && props.Len() > 0 {
+		for _, p := range props.FromOldest() {
+			if p == nil {
+				continue
+			}
+			return checkProps(p.SchemaForRead())
 		}
 	}
 	return false

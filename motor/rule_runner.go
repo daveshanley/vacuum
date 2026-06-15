@@ -7,15 +7,33 @@ package motor
 import (
 	"context"
 	"log/slog"
-	"runtime"
-	"sync"
+	"sort"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 )
 
+const (
+	// Keep rule execution independent from GOMAXPROCS without flooding shared
+	// spec/index lookup state with hundreds of concurrent rules.
+	maxRuleConcurrency = 32
+)
+
 type ruleContextBuilder func(rule *model.Rule) ruleContext
+
+type ruleContextResult struct {
+	index          int
+	ruleResults    []model.RuleFunctionResult
+	ignoredResults []model.RuleFunctionResult
+	fixedResults   []model.RuleFunctionResult
+	errors         []error
+}
+
+type ruleJob struct {
+	index int
+	rule  *model.Rule
+}
 
 func runRuleContexts(
 	execution *RuleSetExecution,
@@ -38,54 +56,91 @@ func runRuleContexts(
 		execution.NodeLookupTimeout = time.Millisecond * 500
 	}
 
-	ruleSem := make(chan struct{}, runtime.GOMAXPROCS(0))
-	done := make(chan bool, len(rules))
-	var resultLock sync.Mutex
+	workerCount := ruleConcurrencyLimit(len(rules))
+	jobs := make(chan ruleJob)
+	done := make(chan ruleContextResult, len(rules))
 
-	for _, rule := range rules {
-		ruleSem <- struct{}{}
-		go func(rule *model.Rule) {
-			defer func() { <-ruleSem }()
-
-			ctx := buildContext(rule)
-			if ctx.logger == nil {
-				ctx.logger = logger
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			for job := range jobs {
+				result := executeRuleContext(execution, job.rule, logger, buildContext)
+				result.index = job.index
+				done <- result
 			}
-
-			timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
-			defer ruleCancel()
-			doneChan := make(chan struct{})
-
-			localResults := []model.RuleFunctionResult{}
-			localIgnored := []model.RuleFunctionResult{}
-			localFixed := []model.RuleFunctionResult{}
-			localErrs := []error{}
-			localCtx := ctx
-			localCtx.ruleResults = &localResults
-			localCtx.ignoredResults = &localIgnored
-			localCtx.fixedResults = &localFixed
-			localCtx.errors = &localErrs
-
-			go runRule(localCtx, doneChan)
-			select {
-			case <-timeoutCtx.Done():
-				ctx.logger.Error("Rule timed out, skipping", "rule", rule.Id, "timeout", execution.Timeout)
-			case <-doneChan:
-				resultLock.Lock()
-				ruleResults = append(ruleResults, localResults...)
-				ignoredResults = append(ignoredResults, localIgnored...)
-				fixedResults = append(fixedResults, localFixed...)
-				errs = append(errs, localErrs...)
-				resultLock.Unlock()
-			}
-			done <- true
-		}(rule)
+		}()
 	}
 
+	for i, rule := range rules {
+		jobs <- ruleJob{index: i, rule: rule}
+	}
+	close(jobs)
+
+	resultsByRule := make([]ruleContextResult, len(rules))
 	for completed := 0; completed < len(rules); completed++ {
-		<-done
+		result := <-done
+		resultsByRule[result.index] = result
+	}
+	for _, result := range resultsByRule {
+		ruleResults = append(ruleResults, result.ruleResults...)
+		ignoredResults = append(ignoredResults, result.ignoredResults...)
+		fixedResults = append(fixedResults, result.fixedResults...)
+		errs = append(errs, result.errors...)
 	}
 	return ruleResults, ignoredResults, fixedResults, errs
+}
+
+func ruleConcurrencyLimit(ruleCount int) int {
+	if ruleCount <= 0 {
+		return 0
+	}
+	if ruleCount < maxRuleConcurrency {
+		return ruleCount
+	}
+	return maxRuleConcurrency
+}
+
+func executeRuleContext(
+	execution *RuleSetExecution,
+	rule *model.Rule,
+	logger *slog.Logger,
+	buildContext ruleContextBuilder,
+) ruleContextResult {
+	ctx := buildContext(rule)
+	if ctx.logger == nil {
+		ctx.logger = logger
+	}
+
+	timeoutCtx, ruleCancel := context.WithTimeout(context.Background(), execution.Timeout)
+	defer ruleCancel()
+	doneChan := make(chan struct{})
+
+	localResults := []model.RuleFunctionResult{}
+	localIgnored := []model.RuleFunctionResult{}
+	localFixed := []model.RuleFunctionResult{}
+	localErrs := []error{}
+	localCtx := ctx
+	localCtx.ruleResults = &localResults
+	localCtx.ignoredResults = &localIgnored
+	localCtx.fixedResults = &localFixed
+	localCtx.errors = &localErrs
+
+	go runRule(localCtx, doneChan)
+	select {
+	case <-timeoutCtx.Done():
+		if ctx.logger != nil {
+			ctx.logger.Error("Rule timed out, skipping", "rule", rule.Id, "timeout", execution.Timeout)
+		}
+		// runRule is not cancellable; on timeout its goroutine may finish later,
+		// writing only to these orphaned local slices.
+		return ruleContextResult{}
+	case <-doneChan:
+		return ruleContextResult{
+			ruleResults:    localResults,
+			ignoredResults: localIgnored,
+			fixedResults:   localFixed,
+			errors:         localErrs,
+		}
+	}
 }
 
 func applicableRulesForFormat(ruleSet *rulesets.RuleSet, format string) []*model.Rule {
@@ -115,6 +170,9 @@ func applicableRulesForFormat(ruleSet *rulesets.RuleSet, format string) []*model
 		}
 		applicable = append(applicable, rule)
 	}
+	sort.SliceStable(applicable, func(i, j int) bool {
+		return applicable[i].Id < applicable[j].Id
+	})
 	return applicable
 }
 

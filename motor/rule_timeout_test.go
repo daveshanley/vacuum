@@ -108,7 +108,7 @@ paths: {}`
 	assert.Len(t, results.Results, 0)
 }
 
-func TestRuleRunnerConcurrencyHonorsGOMAXPROCS(t *testing.T) {
+func TestRuleRunnerConcurrencyIgnoresGOMAXPROCSOne(t *testing.T) {
 	previousProcs := runtime.GOMAXPROCS(1)
 	defer runtime.GOMAXPROCS(previousProcs)
 
@@ -119,7 +119,7 @@ info:
 paths: {}`
 
 	rules := make(map[string]*model.Rule)
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 16; i++ {
 		ruleID := "track-" + strconv.Itoa(i)
 		rules[ruleID] = &model.Rule{
 			Id:           ruleID,
@@ -132,7 +132,7 @@ paths: {}`
 			},
 		}
 	}
-	tracker := &concurrencyTrackingRule{sleep: 20 * time.Millisecond}
+	tracker := &concurrencyTrackingRule{sleep: 50 * time.Millisecond}
 
 	ex := &RuleSetExecution{
 		RuleSet: &rulesets.RuleSet{
@@ -146,8 +146,11 @@ paths: {}`
 		SilenceLogs: true,
 	}
 
+	start := time.Now()
 	results := ApplyRulesToRuleSet(ex)
+	elapsed := time.Since(start)
 
 	assert.Len(t, results.Results, len(rules))
-	assert.Equal(t, int32(1), tracker.maxActive.Load())
+	assert.Greater(t, tracker.maxActive.Load(), int32(1))
+	assert.Less(t, elapsed, 500*time.Millisecond)
 }

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
+	jsplugin "github.com/daveshanley/vacuum/plugin/javascript"
 	"github.com/daveshanley/vacuum/rulesets"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/libopenapi/index"
@@ -786,6 +787,244 @@ func TestNeedsAliasedResultPathCompletion(t *testing.T) {
 
 	assert.False(t, needsAliasedResultPathCompletion(clean))
 	assert.True(t, needsAliasedResultPathCompletion(needsCompletion))
+}
+
+func TestResultPathNeedsReconciliationDetectsSelectorFallbacks(t *testing.T) {
+	tests := []struct {
+		name              string
+		path              string
+		pathFromRuleGiven bool
+		want              bool
+	}{
+		{
+			name: "empty",
+			path: "",
+			want: true,
+		},
+		{
+			name: "unknown",
+			path: "unknown",
+			want: true,
+		},
+		{
+			name: "wildcard",
+			path: "$.paths[*][*].responses",
+			want: true,
+		},
+		{
+			name:              "recursive_filter_fallback",
+			path:              "$..[?(@ && @.in == 'header')].name",
+			pathFromRuleGiven: true,
+			want:              true,
+		},
+		{
+			name:              "nested_recursive_fallback",
+			path:              "$.paths..summary",
+			pathFromRuleGiven: true,
+			want:              true,
+		},
+		{
+			name: "explicit_recursive_filter",
+			path: "$..[?(@ && @.in == 'header')].name",
+			want: false,
+		},
+		{
+			name: "concrete",
+			path: "$.paths['/pets'].get.parameters[0].name",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := &model.RuleFunctionResult{
+				Path:              tt.path,
+				PathFromRuleGiven: tt.pathFromRuleGiven,
+			}
+			assert.Equal(t, tt.want, resultPathNeedsReconciliation(result))
+		})
+	}
+}
+
+func TestAppendSelectorTerminalSegment(t *testing.T) {
+	tests := []struct {
+		name          string
+		canonicalPath string
+		selectorPath  string
+		want          string
+	}{
+		{
+			name:          "dot_terminal",
+			canonicalPath: "$.paths['/pets'].get.parameters[0]",
+			selectorPath:  "$..[?(@ && @.in == 'header')].name",
+			want:          "$.paths['/pets'].get.parameters[0].name",
+		},
+		{
+			name:          "quoted_terminal",
+			canonicalPath: "$.paths['/pets'].get.parameters[0]",
+			selectorPath:  "$..[?(@ && @.in == 'header')]['name']",
+			want:          "$.paths['/pets'].get.parameters[0].name",
+		},
+		{
+			name:          "already_terminal",
+			canonicalPath: "$.paths['/pets'].get.parameters[0].name",
+			selectorPath:  "$..[?(@ && @.in == 'header')].name",
+			want:          "$.paths['/pets'].get.parameters[0].name",
+		},
+		{
+			name:          "filter_only",
+			canonicalPath: "$.paths['/pets'].get.parameters[0]",
+			selectorPath:  "$..[?(@ && @.in == 'header')]",
+			want:          "$.paths['/pets'].get.parameters[0]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, appendSelectorTerminalSegment(tt.canonicalPath, tt.selectorPath))
+		})
+	}
+}
+
+func TestResultSelectorPathFallsBackToRuleGiven(t *testing.T) {
+	result := &model.RuleFunctionResult{
+		Path:              "unknown",
+		PathFromRuleGiven: true,
+		Rule: &model.Rule{
+			Given: "$..[?(@ && @.in == 'header')].name",
+		},
+	}
+
+	assert.Equal(t, "$..[?(@ && @.in == 'header')].name", resultSelectorPath(result))
+}
+
+func TestUpgradeSelectorTerminalPathsUsesRuleGiven(t *testing.T) {
+	results := []model.RuleFunctionResult{
+		{
+			Path:              "$.paths['/pets'].get.parameters[0]",
+			PathFromRuleGiven: true,
+			Rule: &model.Rule{
+				Given: "$..[?(@ && @.in == 'header')].name",
+			},
+		},
+	}
+
+	upgradeSelectorTerminalPaths(results)
+
+	assert.Equal(t, "$.paths['/pets'].get.parameters[0].name", results[0].Path)
+}
+
+func TestIssue907RecursiveFilterPathlessJSResultUsesMatchedPath(t *testing.T) {
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: issue 907 repro
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: X-Trace
+          in: header
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+`)
+	ruleFunc := jsplugin.NewJSRuleFunction("issue907", `
+function runRule(input) {
+  if (!input) {
+    return [];
+  }
+  return [{ message: "header name issue" }];
+}
+`)
+	require.NoError(t, ruleFunc.CheckScript())
+
+	rule := &model.Rule{
+		Id:           "issue-907-filter-path",
+		Description:  "Header names should be checked at the matched node",
+		Given:        "$..[?(@ && @.in == 'header')].name",
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         rulesets.Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "issue907",
+		},
+	}
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{rule.Id: rule},
+		},
+		Spec:        spec,
+		SilenceLogs: true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"issue907": ruleFunc,
+		},
+	})
+
+	require.Empty(t, results.Errors)
+	require.Len(t, results.Results, 1)
+	assert.Equal(t, "$.paths['/pets'].get.parameters[0].name", results.Results[0].Path)
+	assert.NotContains(t, results.Results[0].Path, "$..")
+	assert.NotContains(t, results.Results[0].Path, "[?")
+}
+
+func TestIssue907RecursiveFilterExplicitJSResultPathIsPreserved(t *testing.T) {
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: issue 907 explicit path
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      parameters:
+        - name: X-Trace
+          in: header
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ok
+`)
+	ruleFunc := jsplugin.NewJSRuleFunction("issue907", `
+function runRule(input) {
+  if (!input) {
+    return [];
+  }
+  return [{
+    message: "header name issue",
+    path: "$.info.title"
+  }];
+}
+`)
+	require.NoError(t, ruleFunc.CheckScript())
+
+	rule := &model.Rule{
+		Id:           "issue-907-explicit-path",
+		Description:  "Explicit custom paths should be preserved",
+		Given:        "$..[?(@ && @.in == 'header')].name",
+		RuleCategory: model.RuleCategories[model.CategoryValidation],
+		Type:         rulesets.Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "issue907",
+		},
+	}
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{rule.Id: rule},
+		},
+		Spec:        spec,
+		SilenceLogs: true,
+		CustomFunctions: map[string]model.RuleFunction{
+			"issue907": ruleFunc,
+		},
+	})
+
+	require.Empty(t, results.Errors)
+	require.Len(t, results.Results, 1)
+	assert.Equal(t, "$.info.title", results.Results[0].Path)
 }
 
 func TestWalkResultPathCandidatesStopsAtLimit(t *testing.T) {

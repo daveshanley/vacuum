@@ -68,7 +68,9 @@ function runRule(input) {
 
 	assert.Len(t, results, 2)
 	assert.Equal(t, "$.paths['/pets'].get", results[0].Path)
+	assert.False(t, results[0].PathFromRuleGiven)
 	assert.Equal(t, "$", results[1].Path)
+	assert.True(t, results[1].PathFromRuleGiven)
 }
 
 func Test_JSPlugin_Schema_Success(t *testing.T) {

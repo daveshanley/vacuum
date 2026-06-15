@@ -89,15 +89,17 @@ func populateJSResultDefaults(result *model.RuleFunctionResult, node *yaml.Node,
 			Char: node.Column,
 		},
 	}
-	result.Path = jsResultPathOrDefault(result.Path, ruleContext.Given)
+	path, fromRuleGiven := jsResultPathOrDefault(result.Path, ruleContext.Given)
+	result.Path = path
+	result.PathFromRuleGiven = fromRuleGiven
 	result.Rule = ruleContext.Rule
 }
 
-func jsResultPathOrDefault(path string, given interface{}) string {
+func jsResultPathOrDefault(path string, given interface{}) (string, bool) {
 	if strings.TrimSpace(path) != "" {
-		return path
+		return path, false
 	}
-	return fmt.Sprint(given)
+	return fmt.Sprint(given), true
 }
 
 // batchNodeInfo stores node info for batch result mapping (rolodex-aware)

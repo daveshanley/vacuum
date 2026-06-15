@@ -71,7 +71,7 @@ func (a AllOfConflicts) RunRule(_ []*yaml.Node, context model.RuleFunctionContex
 
 	var results []model.RuleFunctionResult
 	for _, schema := range context.DrDocument.Schemas {
-		if schema == nil || schema.Value == nil || len(schema.AllOf) == 0 {
+		if schema == nil || schema.Value == nil || len(schema.AllOfForRead()) == 0 {
 			continue
 		}
 
@@ -225,7 +225,7 @@ func newAllOfConflictGraph(schemas []*drV3.Schema, specInfo *datamodel.SpecInfo)
 	}
 
 	for _, schema := range schemas {
-		if schema == nil || schema.Value == nil || len(schema.AllOf) == 0 {
+		if schema == nil || schema.Value == nil || len(schema.AllOfForRead()) == 0 {
 			continue
 		}
 		graph.ensureNode(schema)
@@ -286,16 +286,21 @@ func (g *allOfConflictGraph) ensureNode(schema *drV3.Schema) int {
 	g.nodes = append(g.nodes, node)
 	g.storeNode(schema, id)
 
-	if len(schema.AllOf) == 0 {
+	allOf := schema.AllOfForRead()
+	if len(allOf) == 0 {
 		return id
 	}
 
-	childSet := make(map[int]struct{}, len(schema.AllOf))
-	for _, proxy := range schema.AllOf {
-		if proxy == nil || proxy.Schema == nil {
+	childSet := make(map[int]struct{}, len(allOf))
+	for _, proxy := range allOf {
+		if proxy == nil {
 			continue
 		}
-		childID := g.ensureNode(proxy.Schema)
+		childSchema := proxy.SchemaForRead()
+		if childSchema == nil {
+			continue
+		}
+		childID := g.ensureNode(childSchema)
 		if childID < 0 {
 			continue
 		}
@@ -473,18 +478,23 @@ func mergePropAgg(existing, incoming propAgg) propAgg {
 }
 
 func extractLocalTypedProps(schema *drV3.Schema, specInfo *datamodel.SpecInfo) map[string]propAgg {
-	if schema == nil || schema.Properties == nil || schema.Properties.Len() == 0 {
+	if schema == nil {
+		return nil
+	}
+	propsForRead := schema.PropertiesForRead()
+	if propsForRead == nil || propsForRead.Len() == 0 {
 		return nil
 	}
 
-	props := make(map[string]propAgg, schema.Properties.Len())
-	for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+	props := make(map[string]propAgg, propsForRead.Len())
+	for pair := propsForRead.First(); pair != nil; pair = pair.Next() {
 		propertyProxy := pair.Value()
-		if propertyProxy == nil || propertyProxy.Schema == nil {
+		propertySchema := drV3.SchemaFromProxyForRead(propertyProxy)
+		if propertySchema == nil {
 			continue
 		}
 
-		declared, accepted, ok := normalizeSchemaTypeMasks(propertyProxy.Schema, specInfo)
+		declared, accepted, ok := normalizeSchemaTypeMasks(propertySchema, specInfo)
 		if !ok {
 			continue
 		}
