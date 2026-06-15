@@ -37,7 +37,37 @@ func resultPathNeedsReconciliation(result *model.RuleFunctionResult) bool {
 	if result == nil {
 		return false
 	}
-	return result.Path == "" || result.Path == "unknown" || strings.Contains(result.Path, "*")
+	path := strings.TrimSpace(result.Path)
+	return path == "" ||
+		path == "unknown" ||
+		strings.Contains(path, "*") ||
+		(result.PathFromRuleGiven && resultPathHasRecursiveOrFilterSelector(path))
+}
+
+func resultPathHasSelectorSyntax(path string) bool {
+	path = strings.TrimSpace(path)
+	return strings.Contains(path, "*") ||
+		resultPathHasRecursiveOrFilterSelector(path)
+}
+
+func resultPathHasRecursiveOrFilterSelector(path string) bool {
+	path = strings.TrimSpace(path)
+	return strings.Contains(path, "..") ||
+		strings.Contains(path, "[?")
+}
+
+func resultPathIsFallbackSelector(result *model.RuleFunctionResult, path string) bool {
+	return result != nil &&
+		result.PathFromRuleGiven &&
+		resultPathHasSelectorSyntax(path)
+}
+
+func resultPathIsFallbackConcretePath(result *model.RuleFunctionResult) bool {
+	return result != nil &&
+		result.PathFromRuleGiven &&
+		result.Path != "" &&
+		result.Path != "unknown" &&
+		!resultPathHasSelectorSyntax(result.Path)
 }
 
 func populateResultOrigins(
@@ -96,10 +126,15 @@ func finalizeResultPaths(
 	cacheForMultipleResults bool,
 ) []model.RuleFunctionResult {
 	var cache *resultPathCache
+	pathIndexes := make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
+
+	// Result path finalization is order-sensitive: expand aliases first, repair
+	// selector fallbacks, collapse duplicate alias results, then trim redundant
+	// field aliases that only appear after collapse.
 	if aliasRoot != nil && needsAliasedResultPathCompletion(results) {
 		completeAliasedResultPathsFromGiven(results, aliasRoot, rolodex, expandedAliases)
 	}
-	completeAliasedResultPathsFromReferences(results, rolodex)
+	completeAliasedResultPathsFromReferences(results, rolodex, pathIndexes)
 
 	needsReconciliation := needsResultPathReconciliation(results)
 	needsTerminalKeyUpgrade := needsTerminalKeySelectorPathUpgrade(results)
@@ -112,11 +147,14 @@ func finalizeResultPaths(
 			}
 		}
 	}
+	if needsSelectorTerminalPathUpgrade(results) {
+		upgradeSelectorTerminalPaths(results)
+	}
 	if needsCollapse {
 		results = collapseAliasedResults(results, cache)
 	}
 	upgradeTerminalKeySelectorPaths(results, cache)
-	dropRedundantAdditionalPropertiesFieldAliasesFromResults(results, rolodex)
+	dropRedundantAdditionalPropertiesFieldAliasesFromResults(results, rolodex, pathIndexes)
 	return results
 }
 
@@ -136,6 +174,12 @@ func (c *resultPathCache) reconcile(result *model.RuleFunctionResult) {
 		return
 	}
 
+	if selectorPath := resultSelectorPath(result); selectorPath != "" {
+		if path, found := c.canonicalPathForSelectorResult(result); found {
+			result.Path = appendSelectorTerminalSegment(path, selectorPath)
+			return
+		}
+	}
 	if path, found := c.canonicalPathForResult(result); found {
 		result.Path = path
 	}
@@ -178,6 +222,15 @@ func needsTerminalKeySelectorPathUpgrade(results []model.RuleFunctionResult) boo
 	return false
 }
 
+func needsSelectorTerminalPathUpgrade(results []model.RuleFunctionResult) bool {
+	for i := range results {
+		if selectorTerminalPathForResult(&results[i]) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *resultPathCache) canonicalPathForResult(result *model.RuleFunctionResult) (string, bool) {
 	if c == nil || result == nil {
 		return "", false
@@ -209,6 +262,135 @@ func (c *resultPathCache) canonicalPathForResult(result *model.RuleFunctionResul
 		}
 	}
 	return "", false
+}
+
+func (c *resultPathCache) canonicalPathForSelectorResult(result *model.RuleFunctionResult) (string, bool) {
+	if c == nil || result == nil {
+		return "", false
+	}
+
+	// Selector matches point at the selected node; prefer StartNode before the
+	// origin object so a path like "$..[?(@.in == 'header')].name" resolves to
+	// the matched scalar rather than the containing parameter object.
+	if path, found := c.lookupNodePath(result.StartNode); found {
+		return path, true
+	}
+	if result.Origin != nil {
+		if path, found := c.lookupNodePath(result.Origin.ValueNode); found {
+			return path, true
+		}
+		if path, found := c.lookupNodePath(result.Origin.Node); found {
+			return path, true
+		}
+		if c.originMatchesRoot(result.Origin) {
+			if path, found := c.lookupPositionPathForNode(result.StartNode); found {
+				return path, true
+			}
+			if path, found := c.lookupPositionPath(result.Origin.LineValue, result.Origin.ColumnValue); found {
+				return path, true
+			}
+			if path, found := c.lookupPositionPath(result.Origin.Line, result.Origin.Column); found {
+				return path, true
+			}
+		}
+	}
+	return "", false
+}
+
+func resultSelectorPath(result *model.RuleFunctionResult) string {
+	if result == nil {
+		return ""
+	}
+	if resultPathIsFallbackSelector(result, result.Path) {
+		return result.Path
+	}
+	if !result.PathFromRuleGiven || result.Rule == nil {
+		return ""
+	}
+	for _, givenPath := range resultGivenPaths(result.Rule) {
+		if resultPathHasSelectorSyntax(givenPath) {
+			return givenPath
+		}
+	}
+	return ""
+}
+
+func appendSelectorTerminalSegment(canonicalPath, selectorPath string) string {
+	terminal := selectorTerminalSegment(selectorPath)
+	if terminal == "" || hasTerminalKeyPathSegment(canonicalPath, terminal) {
+		return canonicalPath
+	}
+	return appendResultPathSegment(canonicalPath, terminal)
+}
+
+func selectorTerminalSegment(selectorPath string) string {
+	selectorPath = strings.TrimSpace(selectorPath)
+	if selectorPath == "" {
+		return ""
+	}
+	if strings.HasSuffix(selectorPath, "]") {
+		return bracketSelectorTerminalSegment(selectorPath)
+	}
+	lastDot := strings.LastIndex(selectorPath, ".")
+	if lastDot < 0 || lastDot == len(selectorPath)-1 {
+		return ""
+	}
+	segment := selectorPath[lastDot+1:]
+	if !isSimpleResultPathKey(segment) {
+		return ""
+	}
+	return segment
+}
+
+func bracketSelectorTerminalSegment(selectorPath string) string {
+	lastOpen := strings.LastIndex(selectorPath, "[")
+	if lastOpen < 0 || lastOpen >= len(selectorPath)-2 {
+		return ""
+	}
+	segment := selectorPath[lastOpen+1 : len(selectorPath)-1]
+	if len(segment) < 2 {
+		return ""
+	}
+	quote := segment[0]
+	if (quote != '\'' && quote != '"') || segment[len(segment)-1] != quote {
+		return ""
+	}
+	key := segment[1 : len(segment)-1]
+	if !isSimpleResultPathKey(key) {
+		return ""
+	}
+	return key
+}
+
+func selectorTerminalPathForResult(result *model.RuleFunctionResult) string {
+	if result == nil {
+		return ""
+	}
+	if !resultPathIsFallbackConcretePath(result) {
+		return ""
+	}
+	return selectorTerminalSegment(resultSelectorPath(result))
+}
+
+func upgradeSelectorTerminalPaths(results []model.RuleFunctionResult) {
+	for i := range results {
+		result := &results[i]
+		terminal := selectorTerminalPathForResult(result)
+		if terminal == "" {
+			continue
+		}
+		result.Path = upgradeSelectorTerminalPath(result.Path, terminal)
+		for j := range result.Paths {
+			result.Paths[j] = upgradeSelectorTerminalPath(result.Paths[j], terminal)
+		}
+	}
+}
+
+func upgradeSelectorTerminalPath(path, terminal string) string {
+	if path == "" || path == "unknown" || resultPathHasSelectorSyntax(path) || hasTerminalKeyPathSegment(path, terminal) {
+		return path
+	}
+	return appendResultPathSegment(path, terminal)
 }
 
 func (c *resultPathCache) originMatchesRoot(origin *index.NodeOrigin) bool {
@@ -409,12 +591,18 @@ func (c *resultPathCandidateIndex) matchingPaths(result *model.RuleFunctionResul
 	return paths
 }
 
-func completeAliasedResultPathsFromReferences(results []model.RuleFunctionResult, rolodex *index.Rolodex) {
+func completeAliasedResultPathsFromReferences(
+	results []model.RuleFunctionResult,
+	rolodex *index.Rolodex,
+	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
+) {
 	if len(results) == 0 || rolodex == nil || rolodex.GetRootIndex() == nil || rolodex.GetRootIndex().GetRootNode() == nil {
 		return
 	}
 
-	pathIndexes := make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
+	if pathIndexes == nil {
+		pathIndexes = make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
+	}
 	aliasCache := make(map[resultReferenceAliasKey][]string)
 
 	for i := range results {
@@ -1518,7 +1706,11 @@ func buildMergedResultPaths(canonicalPath string, results ...*model.RuleFunction
 	return merged
 }
 
-func dropRedundantAdditionalPropertiesFieldAliasesFromResults(results []model.RuleFunctionResult, rolodex *index.Rolodex) {
+func dropRedundantAdditionalPropertiesFieldAliasesFromResults(
+	results []model.RuleFunctionResult,
+	rolodex *index.Rolodex,
+	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
+) {
 	if len(results) == 0 || rolodex == nil || rolodex.GetRootIndex() == nil {
 		return
 	}
@@ -1526,7 +1718,11 @@ func dropRedundantAdditionalPropertiesFieldAliasesFromResults(results []model.Ru
 		return
 	}
 
-	refSourcePaths := resultReferenceSourcePaths(rolodex.GetRootIndex())
+	// A schema referenced both directly and through additionalProperties can
+	// produce parent-field and additionalProperties-field paths for the same
+	// violation. Keep the direct field path unless additionalProperties is the
+	// actual reference source.
+	refSourcePaths := resultReferenceSourcePaths(rolodex.GetRootIndex(), pathIndexes)
 	if len(refSourcePaths) == 0 {
 		return
 	}
@@ -1571,12 +1767,15 @@ func resultsContainDirectAdditionalPropertiesFieldAlias(results []model.RuleFunc
 	return false
 }
 
-func resultReferenceSourcePaths(sourceIndex *index.SpecIndex) map[string]struct{} {
+func resultReferenceSourcePaths(sourceIndex *index.SpecIndex, pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex) map[string]struct{} {
 	if sourceIndex == nil || sourceIndex.GetRootNode() == nil {
 		return nil
 	}
+	if pathIndexes == nil {
+		pathIndexes = make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
+	}
 
-	pathIndex := resultPathIndexForSpec(sourceIndex, make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex))
+	pathIndex := resultPathIndexForSpec(sourceIndex, pathIndexes)
 	if pathIndex == nil {
 		return nil
 	}

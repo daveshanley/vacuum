@@ -18,6 +18,7 @@ import (
 	"github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/helpers"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
+	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/santhosh-tekuri/jsonschema/v6/kind"
@@ -262,6 +263,9 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	var results []model.RuleFunctionResult
 	info := context.SpecInfo
 
+	if info == nil {
+		return results
+	}
 	if info.SpecType == "" {
 		// spec type is un-known, there is no point in running this rule.
 		return results
@@ -296,8 +300,34 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
-	// Early return when no JSON representation is available (e.g. turbo mode with SkipJSONConversion)
-	if info.SpecJSON == nil && (info.SpecJSONBytes == nil || len(*info.SpecJSONBytes) == 0) {
+	// Early return when no JSON representation is available (e.g. turbo mode with
+	// SkipJSONConversion). Newer libopenapi builds the JSON view lazily; use its
+	// accessors when present and fall back to the released eager fields otherwise.
+	validationInfo := info
+	if context.Document != nil && context.Document.GetSpecInfo() != nil {
+		validationInfo = context.Document.GetSpecInfo()
+	}
+
+	// libopenapi-validator v0.13.x still reads the deprecated SpecInfo fields
+	// directly, so hydrate the same SpecInfo instance it will validate.
+	specJSON, specJSONBytes, specJSONErr := specJSONForRead(validationInfo)
+	if specJSON == nil && (specJSONBytes == nil || len(*specJSONBytes) == 0) {
+		// a nil JSON view means either conversion was intentionally skipped
+		// (no error) or the document cannot be represented as JSON at all -
+		// surface the failure instead of silently skipping schema validation.
+		if specJSONErr != nil {
+			n := &yaml.Node{Line: 1, Column: 0}
+			if info.RootNode != nil {
+				n = info.RootNode
+			}
+			results = append(results, model.RuleFunctionResult{
+				Message:   fmt.Sprintf("schema invalid: document cannot be converted to JSON: %s", specJSONErr.Error()),
+				StartNode: n,
+				EndNode:   vacuumUtils.BuildEndNode(n),
+				Path:      "$",
+				Rule:      context.Rule,
+			})
+		}
 		return results
 	}
 
@@ -307,7 +337,7 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		context.Document, compiledSchema)
 
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
-	version := context.Document.GetSpecInfo().VersionNumeric
+	version := validationInfo.VersionNumeric
 	if version >= 3.1 {
 		nullableResults := checkForNullableKeyword(context)
 		results = append(results, nullableResults...)
@@ -394,6 +424,24 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		}
 	}
 	return results
+}
+
+type specJSONReader interface {
+	GetSpecJSON() *map[string]interface{}
+	GetSpecJSONBytes() *[]byte
+	GetSpecJSONError() error
+}
+
+func specJSONForRead(info *datamodel.SpecInfo) (*map[string]interface{}, *[]byte, error) {
+	if info == nil {
+		return nil, nil, nil
+	}
+	// TODO: remove this compatibility shim once libopenapi-validator reads
+	// SpecInfo through the lazy JSON accessors directly.
+	if reader, ok := any(info).(specJSONReader); ok {
+		return reader.GetSpecJSON(), reader.GetSpecJSONBytes(), reader.GetSpecJSONError()
+	}
+	return info.SpecJSON, info.SpecJSONBytes, nil
 }
 
 func hashResult(sve *errors.SchemaValidationFailure) string {

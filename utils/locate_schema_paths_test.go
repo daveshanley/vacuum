@@ -237,16 +237,24 @@ func TestLocateSchemaPropertyPaths_Issue768_CanonicalPrimaryPath(t *testing.T) {
 		require.NotNil(t, resource)
 		require.NotNil(t, resource.Schema)
 
-		labels := resource.Schema.Properties.GetOrZero("labels")
+		resourceProps := resource.Schema.PropertiesForRead()
+		require.NotNil(t, resourceProps)
+
+		labels := resourceProps.GetOrZero("labels")
 		require.NotNil(t, labels)
-		require.NotNil(t, labels.Schema)
+		labelsSchema := labels.SchemaForRead()
+		require.NotNil(t, labelsSchema)
 
-		hedwig := labels.Schema.Properties.GetOrZero("hedwig_scope")
+		labelsProps := labelsSchema.PropertiesForRead()
+		require.NotNil(t, labelsProps)
+
+		hedwig := labelsProps.GetOrZero("hedwig_scope")
 		require.NotNil(t, hedwig)
-		require.NotNil(t, hedwig.Schema)
+		hedwigSchema := hedwig.SchemaForRead()
+		require.NotNil(t, hedwigSchema)
 
-		keyNode := hedwig.Schema.Value.GoLow().Type.KeyNode
-		valueNode := hedwig.Schema.Value.GoLow().Type.ValueNode
+		keyNode := hedwigSchema.Value.GoLow().Type.KeyNode
+		valueNode := hedwigSchema.Value.GoLow().Type.ValueNode
 		require.NotNil(t, keyNode)
 		require.NotNil(t, valueNode)
 
@@ -255,7 +263,7 @@ func TestLocateSchemaPropertyPaths_Issue768_CanonicalPrimaryPath(t *testing.T) {
 			SchemaPathCache: &sync.Map{},
 		}
 
-		primaryPath, allPaths := LocateSchemaPropertyPaths(ctx, hedwig.Schema, keyNode, valueNode)
+		primaryPath, allPaths := LocateSchemaPropertyPaths(ctx, hedwigSchema, keyNode, valueNode)
 		assert.Equalf(t, expectedPath, primaryPath, "iteration %d should keep the canonical path", i)
 		require.NotEmpty(t, allPaths)
 		assert.Equalf(t, expectedPath, allPaths[0], "iteration %d should keep canonical path first", i)

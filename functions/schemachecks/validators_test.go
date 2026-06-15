@@ -12,6 +12,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	doctorModel "github.com/pb33f/doctor/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -188,4 +189,19 @@ required:
 	}
 	require.NotNil(t, rootSchema)
 	assert.True(t, SchemaUsesObjectKeywords(rootSchema))
+}
+
+func TestSchemaUsesObjectKeywordsHydratesAliasCompositions(t *testing.T) {
+	source := &drV3.Schema{
+		Value: &highbase.Schema{},
+		AllOf: []*drV3.SchemaProxy{
+			{Schema: &drV3.Schema{Value: &highbase.Schema{Type: []string{"object"}}}},
+		},
+	}
+	alias := &drV3.Schema{
+		Value:      &highbase.Schema{},
+		Definition: source,
+	}
+
+	assert.True(t, SchemaUsesObjectKeywords(alias))
 }

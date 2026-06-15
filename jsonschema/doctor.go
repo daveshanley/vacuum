@@ -81,7 +81,6 @@ func walkDoctorSchema(root *yaml.Node, schemaProxy *highbase.SchemaProxy, idx *i
 
 	var schemaCache sync.Map
 	var canonicalPathCache sync.Map
-	var stringCache sync.Map
 	var schemas []*drV3.Schema
 	var skippedSchemas []*drV3.Schema
 	var buildErrors []*drV3.BuildError
@@ -116,7 +115,6 @@ func walkDoctorSchema(root *yaml.Node, schemaProxy *highbase.SchemaProxy, idx *i
 		SchemaCache:        &schemaCache,
 		CanonicalPathCache: &canonicalPathCache,
 		HashCache:          drV3.NewHashCache(),
-		StringCache:        &stringCache,
 		StorageRoot:        config.StorageRoot,
 		Logger:             config.Logger,
 	}

@@ -78,11 +78,11 @@ func SchemaUsesObjectKeywords(schema *drV3.Schema) bool {
 		}
 	}
 
-	return schema.Value.Properties != nil ||
+	return schema.PropertiesForRead() != nil ||
 		len(schema.Value.Required) > 0 ||
-		len(schema.AllOf) > 0 ||
-		len(schema.AnyOf) > 0 ||
-		len(schema.OneOf) > 0
+		len(schema.AllOfForRead()) > 0 ||
+		len(schema.AnyOfForRead()) > 0 ||
+		len(schema.OneOfForRead()) > 0
 }
 
 func lookupRequiredPropertyInSchema(schema *drV3.Schema, required string, visited map[*yaml.Node]struct{}) RequiredPropertyLookup {
@@ -98,16 +98,16 @@ func lookupRequiredPropertyInSchema(schema *drV3.Schema, required string, visite
 	}
 
 	lookup := RequiredPropertyLookup{}
-	if schema.Value.Properties != nil {
+	if properties := schema.PropertiesForRead(); properties != nil {
 		lookup.PropertiesFound = true
-		if schema.Value.Properties.GetOrZero(required) != nil {
+		if properties.GetOrZero(required) != nil {
 			lookup.PropertyDefined = true
 		}
 	}
 
-	lookup = lookup.merge(lookupRequiredPropertyInProxies(schema.AnyOf, required, visited))
-	lookup = lookup.merge(lookupRequiredPropertyInProxies(schema.OneOf, required, visited))
-	lookup = lookup.merge(lookupRequiredPropertyInProxies(schema.AllOf, required, visited))
+	lookup = lookup.merge(lookupRequiredPropertyInProxies(schema.AnyOfForRead(), required, visited))
+	lookup = lookup.merge(lookupRequiredPropertyInProxies(schema.OneOfForRead(), required, visited))
+	lookup = lookup.merge(lookupRequiredPropertyInProxies(schema.AllOfForRead(), required, visited))
 
 	return lookup
 }
@@ -117,10 +117,14 @@ func lookupRequiredPropertyInProxies(proxies []*drV3.SchemaProxy, required strin
 ) RequiredPropertyLookup {
 	lookup := RequiredPropertyLookup{}
 	for _, proxy := range proxies {
-		if proxy == nil || proxy.Schema == nil {
+		if proxy == nil {
 			continue
 		}
-		lookup = lookup.merge(lookupRequiredPropertyInSchema(proxy.Schema, required, visited))
+		schema := proxy.SchemaForRead()
+		if schema == nil {
+			continue
+		}
+		lookup = lookup.merge(lookupRequiredPropertyInSchema(schema, required, visited))
 		if lookup.PropertyDefined {
 			return lookup
 		}

@@ -1,6 +1,6 @@
 module github.com/daveshanley/vacuum
 
-go 1.25.0
+go 1.25.7
 
 require (
 	charm.land/bubbles/v2 v2.1.0
@@ -19,7 +19,7 @@ require (
 	github.com/pb33f/doctor v0.0.72
 	github.com/pb33f/jsonpath v0.8.2
 	github.com/pb33f/libasyncapi v0.0.1
-	github.com/pb33f/libopenapi v0.37.2
+	github.com/pb33f/libopenapi v0.38.0
 	github.com/pb33f/libopenapi-validator v0.13.8
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
@@ -28,9 +28,9 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/tliron/glsp v0.2.2
-	go.yaml.in/yaml/v4 v4.0.0-rc.4
+	go.yaml.in/yaml/v4 v4.0.0-rc.5
 	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/term v0.43.0
 	golang.org/x/text v0.37.0
 )
