@@ -4,6 +4,7 @@ package cmd
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -46,56 +47,45 @@ paths:
 	ignoreContent := `operation-tag-defined:
   - "$.paths['/test'].get.tags[0]"`
 
-	// Write test files
-	specFile := "test-spec-for-ignore.yaml"
-	ignoreFile := "test-ignore-rules.yaml"
+	tmpDir := t.TempDir()
+	specFile := filepath.Join(tmpDir, "spec.yaml")
+	ignoreFile := filepath.Join(tmpDir, "ignore.yaml")
 	err := os.WriteFile(specFile, []byte(specContent), 0644)
 	assert.NoError(t, err)
-	defer os.Remove(specFile)
 
 	err = os.WriteFile(ignoreFile, []byte(ignoreContent), 0644)
 	assert.NoError(t, err)
-	defer os.Remove(ignoreFile)
 
 	// Generate vacuum report first
 	reportCmd := GetVacuumReportCommand()
-	reportCmd.SetArgs([]string{"-c", specFile, "test-report"})
+	reportPrefix := filepath.Join(tmpDir, "report")
+	reportCmd.SetArgs([]string{"-c", "--no-style", specFile, reportPrefix})
 	err = reportCmd.Execute()
 	assert.NoError(t, err)
 
-	// Find the generated report file
-	files, err := os.ReadDir(".")
-	assert.NoError(t, err)
-	var reportFile string
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "test-report-") && strings.HasSuffix(f.Name(), ".json.gz") {
-			reportFile = f.Name()
-			break
-		}
-	}
+	reportFile := requireSingleGeneratedFile(t, reportPrefix+"-*.json.gz")
 	assert.NotEmpty(t, reportFile)
-	defer os.Remove(reportFile)
 
 	// Generate HTML report without ignore file from vacuum report
 	htmlCmd1 := GetHTMLReportCommand()
-	htmlCmd1.SetArgs([]string{reportFile, "test-no-ignore.html"})
+	noIgnoreFile := filepath.Join(tmpDir, "no-ignore.html")
+	htmlCmd1.SetArgs([]string{"--no-banner", "--no-style", reportFile, noIgnoreFile})
 	err = htmlCmd1.Execute()
 	assert.NoError(t, err)
-	defer os.Remove("test-no-ignore.html")
 
 	// Read HTML report without ignore
-	noIgnoreContent, err := os.ReadFile("test-no-ignore.html")
+	noIgnoreContent, err := os.ReadFile(noIgnoreFile)
 	assert.NoError(t, err)
 
 	// Generate HTML report with ignore file from vacuum report
 	htmlCmd2 := GetHTMLReportCommand()
-	htmlCmd2.SetArgs([]string{reportFile, "test-with-ignore.html", "--ignore-file", ignoreFile})
+	withIgnoreFile := filepath.Join(tmpDir, "with-ignore.html")
+	htmlCmd2.SetArgs([]string{"--no-banner", "--no-style", reportFile, withIgnoreFile, "--ignore-file", ignoreFile})
 	err = htmlCmd2.Execute()
 	assert.NoError(t, err)
-	defer os.Remove("test-with-ignore.html")
 
 	// Read HTML report with ignore
-	withIgnoreContent, err := os.ReadFile("test-with-ignore.html")
+	withIgnoreContent, err := os.ReadFile(withIgnoreFile)
 	assert.NoError(t, err)
 
 	// Extract warning counts from headers

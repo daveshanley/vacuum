@@ -2,19 +2,24 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/pb33f/testify/assert"
 	"io"
-	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestGetSpectralReportCommand(t *testing.T) {
 	cmd := GetSpectralReportCommand()
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "spectral-report.json")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"--no-style",
 		"../model/test_files/petstorev3.json",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -22,16 +27,18 @@ func TestGetSpectralReportCommand(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("vacuum-spectral-report.json")
+	requireSingleGeneratedFile(t, reportFile)
 }
 
 func TestGetSpectralReportCommand_CustomName(t *testing.T) {
 	cmd := GetSpectralReportCommand()
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "blue-shoes.json")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"--no-style",
 		"../model/test_files/petstorev3.json",
-		"blue-shoes.json",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -39,7 +46,7 @@ func TestGetSpectralReportCommand_CustomName(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("blue-shoes.json")
+	requireSingleGeneratedFile(t, reportFile)
 }
 
 func TestGetSpectralReportCommand_StdInOut(t *testing.T) {
@@ -76,12 +83,14 @@ func TestGetSpectralReportCommand_CustomRuleset(t *testing.T) {
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "blue-shoes.json")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"--no-style",
 		"-r",
 		"../rulesets/examples/norules-ruleset.yaml",
 		"../model/test_files/petstorev3.json",
-		"blue-shoes.json",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -89,7 +98,7 @@ func TestGetSpectralReportCommand_CustomRuleset(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("blue-shoes.json")
+	requireSingleGeneratedFile(t, reportFile)
 }
 
 func TestGetSpectralReportCommand_BadRuleset(t *testing.T) {
@@ -99,11 +108,12 @@ func TestGetSpectralReportCommand_BadRuleset(t *testing.T) {
 
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
+	reportFile := filepath.Join(t.TempDir(), "bad-ruleset.json")
 	cmd.SetArgs([]string{
 		"-r",
 		"I do not exist",
 		"../model/test_files/petstorev3.json",
-		"blue-shoes.json",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
@@ -129,9 +139,9 @@ func TestGetSpectralReportCommand_WrongFile(t *testing.T) {
 		"../rulesets/examples/all-ruleset.yaml",
 	})
 	cmdErr := cmd.Execute()
-	assert.Error(t, cmdErr)
+	require.Error(t, cmdErr)
 	var exitErr *ExitError
-	assert.ErrorAs(t, cmdErr, &exitErr)
+	require.ErrorAs(t, cmdErr, &exitErr)
 	assert.Equal(t, ExitCodeInputError, exitErr.Code)
 }
 
@@ -142,11 +152,12 @@ func TestGetSpectralReportCommand_BadRuleset_WrongFile(t *testing.T) {
 
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
+	reportFile := filepath.Join(t.TempDir(), "wrong-ruleset.json")
 	cmd.SetArgs([]string{
 		"-r",
 		"../model/test_files/petstorev3.json",
 		"../model/test_files/petstorev3.json",
-		"blue-shoes.json",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)

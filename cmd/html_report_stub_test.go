@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/pb33f/testify/assert"
@@ -12,7 +13,7 @@ func TestGetHTMLReportCommand_WithoutUIAssets(t *testing.T) {
 	cmd := GetHTMLReportCommand()
 	cmd.SetArgs([]string{
 		"../model/test_files/burgershop-report.json.gz",
-		"test-report.html",
+		filepath.Join(t.TempDir(), "report.html"),
 	})
 
 	err := cmd.Execute()

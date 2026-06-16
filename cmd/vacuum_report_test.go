@@ -3,13 +3,11 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/testify/assert"
@@ -19,9 +17,12 @@ import (
 func TestGetVacuumReportCommand(t *testing.T) {
 	cmd := GetVacuumReportCommand()
 	b := bytes.NewBufferString("")
+	reportPrefix := filepath.Join(t.TempDir(), "vacuum-report")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"--no-style",
 		"../model/test_files/petstorev3.json",
+		reportPrefix,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -29,10 +30,7 @@ func TestGetVacuumReportCommand(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-
-	time := time.Now()
-	file := fmt.Sprintf("vacuum-report-%s.json", time.Format("01-02-06-15_04_05"))
-	defer os.Remove(file)
+	requireSingleGeneratedFile(t, reportPrefix+"-*.json")
 }
 
 func TestGetVacuumReportCommand_StdInOut(t *testing.T) {
@@ -66,10 +64,13 @@ func TestGetVacuumReportCommand_NoPretty(t *testing.T) {
 func TestGetVacuumReportCommand_Compress(t *testing.T) {
 	cmd := GetVacuumReportCommand()
 	b := bytes.NewBufferString("")
+	reportPrefix := filepath.Join(t.TempDir(), "vacuum-report")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
 		"-c",
+		"--no-style",
 		"../model/test_files/petstorev3.json",
+		reportPrefix,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -77,19 +78,18 @@ func TestGetVacuumReportCommand_Compress(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-
-	time := time.Now()
-	file := fmt.Sprintf("vacuum-report-%s.json.gz", time.Format("01-02-06-15_04_05"))
-	defer os.Remove(file)
+	requireSingleGeneratedFile(t, reportPrefix+"-*.json.gz")
 }
 
 func TestGetVacuumReportCommand_CustomPrefix(t *testing.T) {
 	cmd := GetVacuumReportCommand()
 	b := bytes.NewBufferString("")
+	reportPrefix := filepath.Join(t.TempDir(), "cheesy-shoes")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"--no-style",
 		"../model/test_files/petstorev3.json",
-		"cheesy-shoes",
+		reportPrefix,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -97,10 +97,7 @@ func TestGetVacuumReportCommand_CustomPrefix(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-
-	time := time.Now()
-	file := fmt.Sprintf("cheesy-shoes-%s.json", time.Format("01-02-06-15_04_05"))
-	defer os.Remove(file)
+	requireSingleGeneratedFile(t, reportPrefix+"-*.json")
 }
 
 func TestGetVacuumReportCommand_WithRuleSet(t *testing.T) {
@@ -109,11 +106,14 @@ func TestGetVacuumReportCommand_WithRuleSet(t *testing.T) {
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 
 	b := bytes.NewBufferString("")
+	reportPrefix := filepath.Join(t.TempDir(), "vacuum-report")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
+		"--no-style",
 		"-r",
 		"../rulesets/examples/norules-ruleset.yaml",
 		"../model/test_files/petstorev3.json",
+		reportPrefix,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -121,10 +121,7 @@ func TestGetVacuumReportCommand_WithRuleSet(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-
-	time := time.Now()
-	file := fmt.Sprintf("vacuum-report-%s.json", time.Format("01-02-06-15_04_05"))
-	defer os.Remove(file)
+	requireSingleGeneratedFile(t, reportPrefix+"-*.json")
 }
 
 func TestGetVacuumReportCommand_WithBadRuleset(t *testing.T) {
@@ -203,9 +200,9 @@ func TestGetVacuumReportCommand_UnparseableSpec(t *testing.T) {
 		"../rulesets/examples/all-ruleset.yaml",
 	})
 	cmdErr := cmd.Execute()
-	assert.Error(t, cmdErr)
+	require.Error(t, cmdErr)
 	var exitErr *ExitError
-	assert.ErrorAs(t, cmdErr, &exitErr)
+	require.ErrorAs(t, cmdErr, &exitErr)
 	assert.Equal(t, ExitCodeInputError, exitErr.Code)
 }
 
@@ -225,18 +222,20 @@ rules:
                 match: "/v[0-9]+/"
 `
 
-	tmp, _ := os.CreateTemp("", "")
-	_, _ = io.WriteString(tmp, yaml)
-
-	defer os.Remove(tmp.Name())
+	tmpDir := t.TempDir()
+	rulesetFile := filepath.Join(tmpDir, "ruleset.yaml")
+	require.NoError(t, os.WriteFile(rulesetFile, []byte(yaml), 0o600))
 
 	cmd := GetVacuumReportCommand()
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{
 		"--ignore-file",
 		"../model/test_files/burgershop.ignorefile.yaml",
 		"-r",
-		tmp.Name(),
+		rulesetFile,
 		"../model/test_files/burgershop.openapi.yaml",
 		"--stdout",
 	})

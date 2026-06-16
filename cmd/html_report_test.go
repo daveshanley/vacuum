@@ -4,10 +4,13 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/pb33f/testify/assert"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestGetHTMLReportCommand(t *testing.T) {
@@ -16,12 +19,16 @@ func TestGetHTMLReportCommand(t *testing.T) {
 	cmd.PersistentFlags().StringP("ruleset", "r", "", "")
 
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "report.html")
 	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
 		"-r",
 		"../rulesets/examples/norules-ruleset.yaml",
 		"../model/test_files/burgershop.openapi.yaml",
-		"test-report.html",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -29,47 +36,59 @@ func TestGetHTMLReportCommand(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("test-report.html")
+	_, statErr := os.Stat(reportFile)
+	assert.NoError(t, statErr)
 }
 
 func TestGetHTMLReportCommand_NoRuleset(t *testing.T) {
 	cmd := GetHTMLReportCommand()
 
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "report.html")
 	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
 		"../model/test_files/burgershop.openapi.yaml",
-		"test-report.html",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("test-report.html")
+	_, statErr := os.Stat(reportFile)
+	assert.NoError(t, statErr)
 }
 
 func TestGetHTMLReportCommand_LoadReport(t *testing.T) {
 	cmd := GetHTMLReportCommand()
 
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "report.html")
 	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
 		"../model/test_files/burgershop-report.json.gz",
-		"test-report.html",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("test-report.html")
+	_, statErr := os.Stat(reportFile)
+	assert.NoError(t, statErr)
 }
 
 func TestGetHTMLReportCommand_NoArgs(t *testing.T) {
 	cmd := GetHTMLReportCommand()
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{})
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
@@ -80,7 +99,10 @@ func TestGetHTMLReportCommand_BadWrite(t *testing.T) {
 
 	b := bytes.NewBufferString("")
 	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
 		"../model/test_files/burgershop-report.json.gz",
 		"/cant-write-here/no/stop.html",
 	})
@@ -91,17 +113,21 @@ func TestGetHTMLReportCommand_BadWrite(t *testing.T) {
 func TestGetHTMLReportCommand_UnparseableSpec(t *testing.T) {
 	cmd := GetHTMLReportCommand()
 	b := bytes.NewBufferString("")
+	reportFile := filepath.Join(t.TempDir(), "bad-report.html")
 	cmd.SetOut(b)
+	cmd.SetErr(b)
 	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
 		"../rulesets/examples/all-ruleset.yaml",
-		"test-report-bad.html",
+		reportFile,
 	})
 	cmdErr := cmd.Execute()
-	assert.Error(t, cmdErr)
+	require.Error(t, cmdErr)
 	var exitErr *ExitError
-	assert.ErrorAs(t, cmdErr, &exitErr)
+	require.ErrorAs(t, cmdErr, &exitErr)
 	assert.Equal(t, ExitCodeInputError, exitErr.Code)
 	// Ensure no report file was written
-	_, statErr := os.Stat("test-report-bad.html")
+	_, statErr := os.Stat(reportFile)
 	assert.True(t, os.IsNotExist(statErr))
 }
