@@ -54,6 +54,15 @@ func registerPersistentFlags(cmd *cobra.Command) {
 	pf.Bool("nested-refs-doc-context", false, "Nested refs doc context")
 }
 
+func runIssue839OriginalDiffRegressionSerial(t *testing.T) {
+	t.Helper()
+
+	origProcs := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() {
+		runtime.GOMAXPROCS(origProcs)
+	})
+}
+
 // --- Lint command tests ---
 
 func TestLintOriginalSpec_ReturnsResults(t *testing.T) {
@@ -108,8 +117,7 @@ func TestLintCommand_OriginalSuppressesLineShiftedViolations(t *testing.T) {
 }
 
 func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testing.T) {
-	origProcs := runtime.GOMAXPROCS(1)
-	defer runtime.GOMAXPROCS(origProcs)
+	runIssue839OriginalDiffRegressionSerial(t)
 
 	spec, ruleset := writeIssue839RegressionFixture(t)
 
@@ -134,8 +142,7 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testin
 }
 
 func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
-	origProcs := runtime.GOMAXPROCS(1)
-	defer runtime.GOMAXPROCS(origProcs)
+	runIssue839OriginalDiffRegressionSerial(t)
 
 	spec := "../model/test_files/api-main.yaml"
 	ruleset := "../model/test_files/issue_839_ruleset.yaml"
@@ -418,6 +425,8 @@ func TestSpectralReport_OriginalSameSpec(t *testing.T) {
 }
 
 func TestSpectralReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
+	runIssue839OriginalDiffRegressionSerial(t)
+
 	spec := "../model/test_files/api-main.yaml"
 	ruleset := "../model/test_files/issue_839_ruleset.yaml"
 	reportFile := filepath.Join(t.TempDir(), "spectral-issue-839.json")
@@ -509,6 +518,8 @@ func TestVacuumReport_OriginalSameSpec(t *testing.T) {
 }
 
 func TestVacuumReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
+	runIssue839OriginalDiffRegressionSerial(t)
+
 	spec := "../model/test_files/api-main.yaml"
 	ruleset := "../model/test_files/issue_839_ruleset.yaml"
 	reportPrefix := filepath.Join(t.TempDir(), "vacuum-issue-839")
@@ -554,6 +565,8 @@ func TestVacuumReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *t
 }
 
 func TestVacuumReport_OriginalMirroredExternalRefsSuppressesAll(t *testing.T) {
+	runIssue839OriginalDiffRegressionSerial(t)
+
 	originalSpec, currentSpec := copyIssue839FixturesToMirroredDirs(t)
 	ruleset := "../model/test_files/issue_839_ruleset.yaml"
 	reportPrefix := filepath.Join(t.TempDir(), "vacuum-issue-880")
