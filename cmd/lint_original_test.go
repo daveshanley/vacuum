@@ -78,7 +78,7 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll(t *testing.T) {
 	cmd.SetArgs([]string{
 		"--original", spec,
 		"-n", "error", // fail-severity=error only
-		"-x", // silent
+		"--pipeline-output",
 		spec,
 	})
 
@@ -99,7 +99,7 @@ func TestLintCommand_OriginalSuppressesLineShiftedViolations(t *testing.T) {
 		"--original", original,
 		"-r", ruleset,
 		"-n", "warn",
-		"-x",
+		"--pipeline-output",
 		newSpec,
 	})
 
@@ -124,7 +124,7 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testin
 			"--original", spec,
 			"-r", ruleset,
 			"-n", "error",
-			"-x",
+			"--pipeline-output",
 			spec,
 		})
 
@@ -134,6 +134,9 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839Regression(t *testin
 }
 
 func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
+	origProcs := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(origProcs)
+
 	spec := "../model/test_files/api-main.yaml"
 	ruleset := "../model/test_files/issue_839_ruleset.yaml"
 
@@ -148,7 +151,7 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839CustomerSuppliedExte
 			"--original", spec,
 			"-r", ruleset,
 			"-n", "error",
-			"-x",
+			"--pipeline-output",
 			spec,
 		})
 
@@ -169,7 +172,7 @@ func TestLintCommand_OriginalDifferentSpec(t *testing.T) {
 	cmd.SetErr(b)
 	cmd.SetArgs([]string{
 		"--original", original,
-		"-x", // silent
+		"--pipeline-output",
 		newSpec,
 	})
 
@@ -309,7 +312,7 @@ func TestLintCommand_OriginalWithErrorOnBreaking(t *testing.T) {
 		"--original", spec,
 		"--error-on-breaking",
 		"-n", "error",
-		"-x", // silent
+		"--pipeline-output",
 		spec,
 	})
 
