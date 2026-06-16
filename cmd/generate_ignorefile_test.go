@@ -2,15 +2,17 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/pb33f/testify/assert"
 	"go.yaml.in/yaml/v4"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/pb33f/testify/assert"
 )
 
 func TestGenerateIgnoreFileCommand(t *testing.T) {
-	outputFile := "/tmp/ignorefile.yaml"
+	outputFile := filepath.Join(t.TempDir(), "ignorefile.yaml")
 
 	cmd := GetGenerateIgnoreFileCommand()
 	b := bytes.NewBufferString("")
@@ -25,8 +27,6 @@ func TestGenerateIgnoreFileCommand(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-
-	defer os.Remove(outputFile)
 
 	ignoreFileBytes, err := os.ReadFile(outputFile)
 	assert.NoError(t, err)

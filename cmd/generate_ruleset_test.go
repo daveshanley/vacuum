@@ -2,19 +2,21 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/pb33f/testify/assert"
 	"io"
-	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/pb33f/testify/assert"
 )
 
 func TestGenerateRulesetCommand(t *testing.T) {
 	cmd := GetGenerateRulesetCommand()
 	b := bytes.NewBufferString("")
+	outputPrefix := filepath.Join(t.TempDir(), "test-output")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
 		"all",
-		"test-output",
+		outputPrefix,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -22,16 +24,17 @@ func TestGenerateRulesetCommand(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("test-output-all.yaml")
+	requireSingleGeneratedFile(t, outputPrefix+"-all.yaml")
 }
 
 func TestGenerateRulesetCommand_Recommended(t *testing.T) {
 	cmd := GetGenerateRulesetCommand()
 	b := bytes.NewBufferString("")
+	outputPrefix := filepath.Join(t.TempDir(), "test-output")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
 		"recommended",
-		"test-output",
+		outputPrefix,
 	})
 	cmdErr := cmd.Execute()
 	outBytes, err := io.ReadAll(b)
@@ -39,16 +42,17 @@ func TestGenerateRulesetCommand_Recommended(t *testing.T) {
 	assert.NoError(t, cmdErr)
 	assert.NoError(t, err)
 	assert.NotNil(t, outBytes)
-	defer os.Remove("test-output-recommended.yaml")
+	requireSingleGeneratedFile(t, outputPrefix+"-recommended.yaml")
 }
 
 func TestGenerateRulesetCommand_InvalidType(t *testing.T) {
 	cmd := GetGenerateRulesetCommand()
 	b := bytes.NewBufferString("")
+	outputPrefix := filepath.Join(t.TempDir(), "test-output")
 	cmd.SetOut(b)
 	cmd.SetArgs([]string{
 		"fish-cakes",
-		"test-output",
+		outputPrefix,
 	})
 	cmdErr := cmd.Execute()
 	assert.Error(t, cmdErr)
