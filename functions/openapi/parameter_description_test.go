@@ -8,7 +8,7 @@ import (
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"go.yaml.in/yaml/v4"
 )
 

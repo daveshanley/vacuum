@@ -12,7 +12,7 @@ import (
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	libopenapi_base "github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestUnnecessaryCombinator_GetSchema(t *testing.T) {

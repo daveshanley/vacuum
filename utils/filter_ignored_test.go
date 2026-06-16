@@ -5,7 +5,7 @@ package utils
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"testing"
 
 	"go.yaml.in/yaml/v4"

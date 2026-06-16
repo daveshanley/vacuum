@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"

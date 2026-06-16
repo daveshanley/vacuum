@@ -5,7 +5,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"os"
 	"testing"
 )

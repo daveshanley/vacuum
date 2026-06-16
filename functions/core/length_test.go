@@ -6,7 +6,7 @@ import (
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"testing"
 )
 

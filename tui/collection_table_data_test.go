@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/pb33f/doctor/frank"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestBuildCollectionTable_NilResult(t *testing.T) {

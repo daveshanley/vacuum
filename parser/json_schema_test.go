@@ -7,7 +7,7 @@ import (
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"go.yaml.in/yaml/v4"
 )
 

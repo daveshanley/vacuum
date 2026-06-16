@@ -9,9 +9,9 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
+	"github.com/pb33f/testify/assert"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/santhosh-tekuri/jsonschema/v6/kind"
-	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
 )
 

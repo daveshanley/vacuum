@@ -3,7 +3,7 @@ package cmd
 import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"testing"
 	"time"
 )

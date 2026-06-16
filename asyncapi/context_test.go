@@ -12,8 +12,8 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libasyncapi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestDetectFormatSkipsNonAsyncAPIDocumentsWithoutParsing(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"charm.land/bubbles/v2/table"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 )
 
 const watchRelintTestSpec = `openapi: "3.0.2"

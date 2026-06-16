@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestNonExistingConfigFile(t *testing.T) {

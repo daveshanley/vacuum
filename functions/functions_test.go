@@ -7,7 +7,7 @@ package functions
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestMapBuiltinFunctions(t *testing.T) {

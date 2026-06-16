@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"runtime"
 	"testing"
 )

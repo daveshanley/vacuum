@@ -10,7 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 	"go.yaml.in/yaml/v4"

@@ -16,9 +16,9 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // registerPersistentFlags registers the persistent flags normally set on the root command.

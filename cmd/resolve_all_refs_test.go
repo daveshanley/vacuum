@@ -11,10 +11,10 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
 )
 

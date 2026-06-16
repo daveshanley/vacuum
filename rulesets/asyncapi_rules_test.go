@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestBuildDefaultRuleSets_AsyncAPIRecommended(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestAllOfConflicts_GetSchema(t *testing.T) {

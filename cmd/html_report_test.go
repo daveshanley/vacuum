@@ -4,7 +4,7 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"io"
 	"os"
 	"testing"

@@ -3,7 +3,7 @@ package core
 import (
 	"github.com/daveshanley/vacuum/model"
 	gen_utils "github.com/pb33f/libopenapi/utils"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"testing"
 )
 

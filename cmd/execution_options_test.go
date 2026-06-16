@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestNewMotorExecutionOptions(t *testing.T) {
