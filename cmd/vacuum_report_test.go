@@ -12,8 +12,8 @@ import (
 	"time"
 
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestGetVacuumReportCommand(t *testing.T) {

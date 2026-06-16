@@ -15,8 +15,8 @@ import (
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestLocateSchemaPropertyPaths_DoesNotCacheIncompleteFallback(t *testing.T) {

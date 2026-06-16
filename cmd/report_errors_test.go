@@ -9,7 +9,7 @@ import (
 
 	"github.com/daveshanley/vacuum/motor"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestBuildReportErrors(t *testing.T) {

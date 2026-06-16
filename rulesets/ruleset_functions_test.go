@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestNoRefSiblingsRules_FormatSelection(t *testing.T) {

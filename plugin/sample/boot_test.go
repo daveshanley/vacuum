@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/daveshanley/vacuum/plugin"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"testing"
 )
 

@@ -13,7 +13,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	doctorModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi/index"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/require"
 	"go.yaml.in/yaml/v4"
 )
 

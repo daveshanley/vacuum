@@ -3,8 +3,8 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pb33f/testify/assert"
 	"github.com/santhosh-tekuri/jsonschema/v6"
-	"github.com/stretchr/testify/assert"
 	"go.yaml.in/yaml/v4"
 	"os"
 	"sort"

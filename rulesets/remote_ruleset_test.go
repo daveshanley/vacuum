@@ -5,7 +5,7 @@ package rulesets
 
 import (
 	ctx "context"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"os"

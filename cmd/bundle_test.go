@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func newBundleTestCommand() *cobra.Command {

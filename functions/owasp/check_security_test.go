@@ -8,7 +8,7 @@ import (
 	"github.com/pb33f/libopenapi"
 
 	"github.com/daveshanley/vacuum/model"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestCheckSecurity_GetSchema(t *testing.T) {

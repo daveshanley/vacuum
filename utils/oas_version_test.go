@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi/datamodel"
-	"github.com/stretchr/testify/assert"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestIsOAS30(t *testing.T) {

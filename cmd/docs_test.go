@@ -15,8 +15,8 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	ppconfig "github.com/pb33f/doctor/printingpress/config"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestDocsCommandKeepsLiveProgressFlags(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/motor"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestConvertResultsIntoDiagnosticsIncludesExecutionErrors(t *testing.T) {
