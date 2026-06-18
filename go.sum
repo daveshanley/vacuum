@@ -147,8 +147,8 @@ github.com/muesli/termenv v0.16.0 h1:S5AlUN9dENB57rsbnkPyfdGuWIlkmzJjbFf0Tf5FWUc
 github.com/muesli/termenv v0.16.0/go.mod h1:ZRfOIKPFDYQoDFF4Olj7/QJbW60Ol/kL1pU3VfY/Cnk=
 github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOFAw7w=
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
-github.com/pb33f/doctor v0.0.77 h1:/sc9ba4MrZ8JjItXh6QPyzTCTZXe+XSa7jP79yO9zio=
-github.com/pb33f/doctor v0.0.77/go.mod h1:UCAKkAJpdcndw0vlTpQXTwq6npad1/m2Hvqem4zSMSw=
+github.com/pb33f/doctor v0.0.78 h1:6bAgJDacnUYNd6Neg9/nBl+L6aukmvBFopx37eqgHYw=
+github.com/pb33f/doctor v0.0.78/go.mod h1:UCAKkAJpdcndw0vlTpQXTwq6npad1/m2Hvqem4zSMSw=
 github.com/pb33f/jsonpath v0.8.2 h1:Ou4C7zjYClBm97dfZjDCjdZGusJoynv/vrtiEKNfj2Y=
 github.com/pb33f/jsonpath v0.8.2/go.mod h1:zBV5LJW4OQOPatmQE2QdKpGQJvhDTlE5IEj6ASaRNTo=
 github.com/pb33f/libasyncapi v0.0.1 h1:dy0FYKaHBJvxszFYkJ1Wr8n57Ocg0i7r6LjSYTjCtD8=
