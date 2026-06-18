@@ -199,6 +199,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
+		// Resolve base path before comparison-mode setup so the same-spec
+		// shortcut can refuse non-default --base executions.
+		resolvedBase, baseErr := ResolveBasePathForFile(fileName, flags.BaseFlag)
+		if baseErr != nil {
+			return fmt.Errorf("failed to resolve base path: %w", baseErr)
+		}
+
 		if !flags.SilentFlag && !flags.PipelineOutput {
 			fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 				color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
@@ -207,13 +214,19 @@ func runLint(cmd *cobra.Command, args []string) error {
 		// Load/generate changes early for comparison mode display
 		var documentChanges *wcModel.DocumentChanges
 		var changeResult *utils.ChangeResult
+		unchangedOriginalSpec := false
 		if flags.ChangesFlag != "" || flags.OriginalFlag != "" {
 			var changesErr error
 			if flags.OriginalFlag != "" {
-				// Use changerator for full tree support
-				changeResult, changesErr = utils.GenerateChangeReportWithTree(flags.OriginalFlag, specBytes, fileName)
-				if changeResult != nil {
-					documentChanges = changeResult.DocumentChanges
+				unchangedOriginalSpec = originalSpecCanReuseCurrentResults(flags.OriginalFlag, specBytes, fileName, resolvedBase, customFuncs)
+				if unchangedOriginalSpec {
+					documentChanges = emptyDocumentChanges()
+				} else {
+					// Use changerator for full tree support
+					changeResult, changesErr = utils.GenerateChangeReportWithTree(flags.OriginalFlag, specBytes, fileName)
+					if changeResult != nil {
+						documentChanges = changeResult.DocumentChanges
+					}
 				}
 			} else {
 				// JSON report - no tree available
@@ -237,11 +250,6 @@ func runLint(cmd *cobra.Command, args []string) error {
 			deepGraph = true
 		}
 
-		// Resolve base path for this specific file
-		resolvedBase, baseErr := ResolveBasePathForFile(fileName, flags.BaseFlag)
-		if baseErr != nil {
-			return fmt.Errorf("failed to resolve base path: %w", baseErr)
-		}
 		resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(displayFileName)
 		if specPathErr != nil {
 			return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
@@ -286,27 +294,20 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
-			originalLint, lintErr := lintOriginalSpecForDiff(flags.OriginalFlag, execution, executionOptions)
-			if lintErr != nil {
-				if !flags.SilentFlag {
-					fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", lintErr)
-					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
-				}
-			} else {
-				var originalResults []model.RuleFunctionResult
-				if originalLint != nil {
-					originalResults = originalLint.results
-				}
-				result.Results, changeFilterStats = utils.DiffViolationsValuesWithOriginBases(
-					originalResults,
-					result.Results,
-					flags.OriginalFlag,
-					fileName,
-				)
-				if originalLint != nil {
-					originalLint.releaseOwnedResources()
-				}
-			}
+			result.Results, changeFilterStats = applyOriginalDiffToValues(originalValueDiffOptions{
+				OriginalPath:        flags.OriginalFlag,
+				CurrentPath:         fileName,
+				Results:             result.Results,
+				Execution:           execution,
+				ExecutionOptions:    executionOptions,
+				ReuseCurrentResults: unchangedOriginalSpec,
+				WarnOriginalLintFailure: func(err error) {
+					if !flags.SilentFlag {
+						fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", err)
+						fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
+					}
+				},
+			})
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
 			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)

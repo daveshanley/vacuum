@@ -311,52 +311,36 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					var documentChanges *wcModel.DocumentChanges
 					var filtered bool
 
-					// Use violation-set diffing when --original is specified and we have an execution template
-					if originalFlag != "" && ruleset != nil && ruleset.RuleSetExecution != nil {
-						originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, ruleset.RuleSetExecution, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
-						if lintErr != nil {
-							if !silent {
-								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
-							}
-						} else {
-							var originalResults []model.RuleFunctionResult
-							if originalLint != nil {
-								originalResults = originalLint.results
-							}
-							resultSet.Results, _ = utils.DiffViolationsMixedWithOriginBases(
-								originalResults,
-								resultSet.Results,
-								originalFlag,
-								specFile,
-							)
-							if originalLint != nil {
-								originalLint.releaseOwnedResources()
-							}
-							filtered = true
+					if originalFlag != "" {
+						var execution *motor.RuleSetExecution
+						var executionOptions *motor.ExecutionOptions
+						if ruleset != nil && ruleset.RuleSetExecution != nil {
+							execution = ruleset.RuleSetExecution
+							executionOptions = newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 						}
-
-						// Still load document changes for change violation injection
-						changeResult, changeErr := utils.GenerateChangeReportWithTree(originalFlag, specBytes, specFile)
-						if changeErr != nil {
-							if !silent {
-								tui.RenderErrorString("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changeErr)
-							}
-						} else if changeResult != nil {
-							documentChanges = changeResult.DocumentChanges
-						}
-					} else if originalFlag != "" {
-						// Precompiled report without execution template: fall back to area-based filter
-						changeResult, changeErr := utils.GenerateChangeReportWithTree(originalFlag, specBytes, specFile)
-						if changeErr != nil {
-							if !silent {
-								tui.RenderErrorString("Warning: Failed to generate change report: %v. Proceeding without change filtering.", changeErr)
-							}
-						} else if changeResult != nil {
-							documentChanges = changeResult.DocumentChanges
-							changeFilter := utils.NewChangeFilter(documentChanges, drDoc)
-							resultSet.Results = changeFilter.FilterResults(resultSet.Results)
-							filtered = true
-						}
+						documentChanges, filtered = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+							OriginalPath:     originalFlag,
+							CurrentBytes:     specBytes,
+							CurrentPath:      specFile,
+							ResultSet:        resultSet,
+							Execution:        execution,
+							ExecutionOptions: executionOptions,
+							DrDocument:       drDoc,
+							WarnOriginalLintFailure: func(err error) {
+								if !silent {
+									tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", err)
+								}
+							},
+							WarnChangeReportFailure: func(err error) {
+								if !silent {
+									if execution == nil {
+										tui.RenderErrorString("Warning: Failed to generate change report: %v. Proceeding without change filtering.", err)
+										return
+									}
+									tui.RenderErrorString("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", err)
+								}
+							},
+						})
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)

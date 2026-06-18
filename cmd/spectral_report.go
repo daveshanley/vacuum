@@ -344,36 +344,24 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
-						originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, ruleset.RuleSetExecution, executionOptions)
-						if lintErr != nil {
-							if !stdIn && !stdOut {
-								tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
-							}
-						} else {
-							var originalResults []model.RuleFunctionResult
-							if originalLint != nil {
-								originalResults = originalLint.results
-							}
-							resultSet.Results, _ = utils.DiffViolationsMixedWithOriginBases(
-								originalResults,
-								resultSet.Results,
-								originalFlag,
-								specFile,
-							)
-							if originalLint != nil {
-								originalLint.releaseOwnedResources()
-							}
-						}
-
-						// Still load document changes for change violation injection
-						changeResult, changeErr := utils.GenerateChangeReportWithTree(originalFlag, specBytes, specFile)
-						if changeErr != nil {
-							if !stdIn && !stdOut {
-								tui.RenderErrorString("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changeErr)
-							}
-						} else if changeResult != nil {
-							documentChanges = changeResult.DocumentChanges
-						}
+						documentChanges, _ = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+							OriginalPath:     originalFlag,
+							CurrentBytes:     specBytes,
+							CurrentPath:      specFile,
+							ResultSet:        resultSet,
+							Execution:        ruleset.RuleSetExecution,
+							ExecutionOptions: executionOptions,
+							WarnOriginalLintFailure: func(err error) {
+								if !stdIn && !stdOut {
+									tui.RenderErrorString("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", err)
+								}
+							},
+							WarnChangeReportFailure: func(err error) {
+								if !stdIn && !stdOut {
+									tui.RenderErrorString("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", err)
+								}
+							},
+						})
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)
