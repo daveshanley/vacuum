@@ -246,6 +246,144 @@ paths:
 	assert.Len(t, res, 0)
 }
 
+func TestOASSchema_RunRule_QuotedResponseExampleWithSmartQuote(t *testing.T) {
+	yml := `openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    post:
+      responses:
+        "400":
+          description: "Invalid input"
+        "200":
+          description: "Calculation successful"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  values:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label:
+                          type: string
+                        value:
+                          type: number
+                        description:
+                          type: string
+                    example:
+                      - label: "Sample"
+                        value: 3.14
+                        description: “score"`
+
+	path := "$"
+
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "oas_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+	ctx.SpecInfo = specInfo
+
+	ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
+
+	def := OASSchema{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestOASSchema_RunRule_UnquotedResponseCodeUsesValidatorMessage(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        200:
+          description: OK`
+
+	path := "$"
+
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "oas_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+	ctx.SpecInfo = specInfo
+
+	ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
+
+	def := OASSchema{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "Response status code keys must be strings")
+	assert.NotContains(t, res[0].Message, "cannot marshal")
+	assert.Equal(t, "$.paths['/items'].get.responses['200']", res[0].Path)
+}
+
+func TestOASSchema_RunRule_NonStringKeyInArrayUsesArrayPath(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      parameters:
+        - 1: invalid
+          name: limit
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK`
+
+	path := "$"
+
+	specInfo, _ := datamodel.ExtractSpecInfo([]byte(yml))
+
+	rule := buildOpenApiTestRuleAction(path, "oas_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(specInfo.RootNode, config)
+	ctx.SpecInfo = specInfo
+
+	ctx.Document, _ = libopenapi.NewDocument([]byte(yml))
+
+	def := OASSchema{}
+	res := def.RunRule([]*yaml.Node{specInfo.RootNode}, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "OpenAPI documents require string mapping keys")
+	assert.Equal(t, "$.paths['/items'].get.parameters[0]['1']", res[0].Path)
+}
+
+func TestJSONPointerToJSONPathEscapesBracketSegments(t *testing.T) {
+	yml := `paths:
+  /items:
+    get:
+      x\key:
+        c'd: true`
+
+	var root yaml.Node
+	assert.NoError(t, yaml.Unmarshal([]byte(yml), &root))
+
+	path := jsonPointerToJSONPath("/paths/~1items/get/x\\key/c'd", &root)
+
+	assert.Equal(t, "$.paths['/items'].get['x\\\\key']['c\\'d']", path)
+}
+
 // TestOASSchema_OpenAPI30_NullableValid demonstrates that nullable: true is valid at document level in OpenAPI 3.0
 // See https://github.com/daveshanley/vacuum/issues/710
 // See https://github.com/daveshanley/vacuum/issues/603

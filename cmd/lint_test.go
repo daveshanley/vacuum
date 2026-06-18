@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"bytes"
+	"path/filepath"
 	"testing"
 
 	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestGetLintCommand(t *testing.T) {
@@ -122,4 +124,66 @@ func TestGetLintCommand_WithVacuumReport(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func TestGetLintCommand_QuotedResponseExampleDoesNotReportMarshalIssues(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    post:
+      responses:
+        "400":
+          description: "Invalid input"
+        "200":
+          description: "Calculation successful"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  values:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label:
+                          type: string
+                        value:
+                          type: number
+                        description:
+                          type: string
+                    example:
+                      - label: "Sample"
+                        value: 3.14
+                        description: “score"
+`)
+
+	for range 5 {
+		cmd := GetLintCommand()
+		b := bytes.NewBufferString("")
+		cmd.SetOut(b)
+		cmd.SetErr(b)
+		cmd.SetArgs([]string{
+			"--fail-severity", "none",
+			"--no-banner",
+			"--no-style",
+			"--details",
+			specPath,
+		})
+
+		var err error
+		stdout, stderr := captureOSStreams(t, func() {
+			err = cmd.Execute()
+		})
+
+		require.NoError(t, err)
+		output := stdout + stderr + b.String()
+		assert.NotContains(t, output, "cannot marshal")
+		assert.NotContains(t, output, "schema invalid: cannot marshal")
+	}
 }

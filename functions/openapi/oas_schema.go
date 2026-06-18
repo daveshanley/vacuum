@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"hash/fnv"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -271,35 +272,6 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		return results
 	}
 
-	// Check the YAML AST directly for marshaling issues (e.g. non-string map keys)
-	// without re-parsing the raw bytes or trial-marshaling to JSON.
-	var marshalingIssues []vacuumUtils.MarshalingIssue
-	if info.RootNode != nil {
-		marshalingIssues = vacuumUtils.FindMarshalingIssuesInYAML(info.RootNode)
-	}
-
-	if len(marshalingIssues) > 0 {
-		// Report all marshaling issues
-		for _, issue := range marshalingIssues {
-			n := &yaml.Node{
-				Line:   issue.Line,
-				Column: issue.Column,
-			}
-
-			result := model.RuleFunctionResult{
-				Message:   fmt.Sprintf("schema invalid: cannot marshal: %s", issue.Reason),
-				StartNode: n,
-				EndNode:   vacuumUtils.BuildEndNode(n),
-				Path:      issue.Path,
-				Rule:      context.Rule,
-			}
-			results = append(results, result)
-		}
-		// Return marshaling errors without attempting schema validation
-		// since it would fail with unhelpful "got null, want object" errors
-		return results
-	}
-
 	// Early return when no JSON representation is available (e.g. turbo mode with
 	// SkipJSONConversion). Newer libopenapi builds the JSON view lazily; use its
 	// accessors when present and fall back to the released eager fields otherwise.
@@ -348,10 +320,22 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	}
 
 	// validation errors can appear multiple times across different schema branches; deduplicate by hash
-	seen := make(map[string]*errors.SchemaValidationFailure)
+	seenDocumentResults := make(map[string]struct{})
+	seenSchemaFailures := make(map[string]*errors.SchemaValidationFailure)
 	for i := range validationErrors {
+		if len(validationErrors[i].SchemaValidationErrors) == 0 {
+			res := buildDocumentValidationResult(validationErrors[i], context.Rule, validationInfo.RootNode)
+			hash := hashDocumentValidationResult(&res)
+			if _, ok := seenDocumentResults[hash]; ok {
+				continue
+			}
+			results = append(results, res)
+			seenDocumentResults[hash] = struct{}{}
+			addResultToModelByLine(&res, context.DrDocument, validationErrors[i].SpecLine+1)
+			continue
+		}
 		for y := range validationErrors[i].SchemaValidationErrors {
-			if _, ok := seen[hashResult(validationErrors[i].SchemaValidationErrors[y])]; ok {
+			if _, ok := seenSchemaFailures[hashResult(validationErrors[i].SchemaValidationErrors[y])]; ok {
 				continue
 			}
 			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-else failed" {
@@ -420,10 +404,134 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&res))
 				}
 			}
-			seen[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]
+			seenSchemaFailures[hashResult(validationErrors[i].SchemaValidationErrors[y])] = validationErrors[i].SchemaValidationErrors[y]
 		}
 	}
 	return results
+}
+
+type modelByLineLocator interface {
+	LocateModelByLine(line int) ([]v3.Foundational, error)
+}
+
+func addResultToModelByLine(result *model.RuleFunctionResult, locator modelByLineLocator, line int) {
+	if result == nil || locator == nil {
+		return
+	}
+	if line < 1 {
+		line = 1
+	}
+	modelByLine, err := locator.LocateModelByLine(line)
+	if err != nil || len(modelByLine) == 0 {
+		return
+	}
+	if arr, ok := modelByLine[0].(v3.AcceptsRuleResults); ok {
+		arr.AddRuleFunctionResult(v3.ConvertRuleResult(result))
+	}
+}
+
+func buildDocumentValidationResult(validationError *errors.ValidationError, rule *model.Rule, rootNode *yaml.Node) model.RuleFunctionResult {
+	line := validationError.SpecLine
+	if line == 0 {
+		line = 1
+	}
+	n := &yaml.Node{
+		Line:   line,
+		Column: validationError.SpecCol,
+	}
+
+	reason := validationError.Reason
+	if reason == "" {
+		reason = validationError.Message
+	}
+	if reason == "" {
+		reason = "schema validation failed"
+	}
+
+	return model.RuleFunctionResult{
+		Message:   fmt.Sprintf("schema invalid: %v", reason),
+		StartNode: n,
+		EndNode:   vacuumUtils.BuildEndNode(n),
+		Path:      validationErrorResultPath(validationError, rootNode),
+		Rule:      rule,
+	}
+}
+
+func validationErrorResultPath(validationError *errors.ValidationError, rootNode *yaml.Node) string {
+	if validationError == nil {
+		return "$"
+	}
+	if pointer, ok := validationError.Context.(string); ok {
+		return jsonPointerToJSONPath(pointer, rootNode)
+	}
+	return "$"
+}
+
+func jsonPointerToJSONPath(pointer string, rootNode *yaml.Node) string {
+	if pointer == "" || !strings.HasPrefix(pointer, "/") {
+		return "$"
+	}
+
+	path := "$"
+	node := documentContentNode(rootNode)
+	for _, segment := range strings.Split(pointer[1:], "/") {
+		segment = strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~")
+		if node != nil && node.Kind == yaml.SequenceNode {
+			if index, err := strconv.Atoi(segment); err == nil && index >= 0 {
+				path += fmt.Sprintf("[%d]", index)
+				if index < len(node.Content) {
+					node = node.Content[index]
+				} else {
+					node = nil
+				}
+				continue
+			}
+		}
+		if isJSONPathIdentifier(segment) {
+			path += "." + segment
+		} else {
+			path += "['" + escapeJSONPathSegment(segment) + "']"
+		}
+		node = mappingValueNode(node, segment)
+	}
+	return path
+}
+
+func escapeJSONPathSegment(segment string) string {
+	segment = strings.ReplaceAll(segment, "\\", "\\\\")
+	return strings.ReplaceAll(segment, "'", "\\'")
+}
+
+func documentContentNode(node *yaml.Node) *yaml.Node {
+	if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		return node.Content[0]
+	}
+	return node
+}
+
+func mappingValueNode(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func isJSONPathIdentifier(segment string) bool {
+	if segment == "" {
+		return false
+	}
+	for i, r := range segment {
+		valid := r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || i > 0 && r >= '0' && r <= '9'
+		if !valid {
+			return false
+		}
+	}
+	return true
 }
 
 type specJSONReader interface {
@@ -447,6 +555,19 @@ func specJSONForRead(info *datamodel.SpecInfo) (*map[string]interface{}, *[]byte
 func hashResult(sve *errors.SchemaValidationFailure) string {
 	return fmt.Sprintf("%x",
 		sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", sve.KeywordLocation, sve.Line, sve.Column, sve.Reason))))
+}
+
+func hashDocumentValidationResult(res *model.RuleFunctionResult) string {
+	if res == nil {
+		return ""
+	}
+	line := 0
+	column := 0
+	if res.StartNode != nil {
+		line = res.StartNode.Line
+		column = res.StartNode.Column
+	}
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%s:%d:%d:%s", res.Path, line, column, res.Message))))
 }
 
 // checkForNullableKeyword searches for nullable keyword usage in OpenAPI 3.1+ documents
