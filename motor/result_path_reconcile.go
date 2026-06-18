@@ -534,7 +534,40 @@ type resultReferenceAliasKey struct {
 	path  string
 }
 
+type resultReferenceAliasPathKey struct {
+	sourceIndex *index.SpecIndex
+	targetIndex *index.SpecIndex
+	path        string
+}
+
+type resultReferenceAliasIndexPairKey struct {
+	sourceIndex *index.SpecIndex
+	targetIndex *index.SpecIndex
+}
+
+// resultReferenceAliasExpansion splits a resolved target path into the referenced
+// root that should be expanded through $ref aliases and the nested suffix to
+// append to each alias path.
+type resultReferenceAliasExpansion struct {
+	rootPath string
+	suffix   string
+}
+
 const maxResultReferenceAliasDepth = 16
+
+type resultPathNormalizeCache map[string]string
+
+func (c resultPathNormalizeCache) normalize(path string) string {
+	if c == nil {
+		return normalizeSimpleBracketResultPath(path)
+	}
+	if normalized, ok := c[path]; ok {
+		return normalized
+	}
+	normalized := normalizeSimpleBracketResultPath(path)
+	c[path] = normalized
+	return normalized
+}
 
 func newResultPathCandidateIndex(candidates []resultPathCandidate) *resultPathCandidateIndex {
 	candidateIndex := &resultPathCandidateIndex{
@@ -604,6 +637,10 @@ func completeAliasedResultPathsFromReferences(
 		pathIndexes = make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
 	}
 	aliasCache := make(map[resultReferenceAliasKey][]string)
+	aliasRootCache := make(map[resultReferenceAliasPathKey]string)
+	aliasExpansionCache := make(map[resultReferenceAliasPathKey][]resultReferenceAliasExpansion)
+	aliasReferencePathCache := make(map[resultReferenceAliasIndexPairKey][]string)
+	normalizeCache := make(resultPathNormalizeCache)
 
 	for i := range results {
 		result := &results[i]
@@ -616,12 +653,28 @@ func completeAliasedResultPathsFromReferences(
 			continue
 		}
 
-		cacheKey := resultReferenceAliasKey{index: targetIndex, path: targetPath}
-		aliasPaths, ok := aliasCache[cacheKey]
-		if !ok {
-			aliasPaths = expandResultReferenceAliasPaths(rolodex.GetRootIndex(), targetIndex, targetPath, pathIndexes)
-			aliasCache[cacheKey] = aliasPaths
+		expansions := referenceAliasExpansionsForTargetPath(
+			rolodex.GetRootIndex(),
+			targetIndex,
+			targetPath,
+			pathIndexes,
+			aliasRootCache,
+			aliasExpansionCache,
+			aliasReferencePathCache,
+			normalizeCache,
+		)
+
+		var aliasPaths []string
+		for _, expansion := range expansions {
+			cacheKey := resultReferenceAliasKey{index: targetIndex, path: expansion.rootPath}
+			rootAliasPaths, ok := aliasCache[cacheKey]
+			if !ok {
+				rootAliasPaths = expandResultReferenceAliasPaths(rolodex.GetRootIndex(), targetIndex, expansion.rootPath, pathIndexes)
+				aliasCache[cacheKey] = rootAliasPaths
+			}
+			aliasPaths = append(aliasPaths, appendResultPathSuffixToAliases(rootAliasPaths, expansion.suffix)...)
 		}
+		aliasPaths = uniqueSortedResultPaths(aliasPaths)
 		if len(aliasPaths) == 0 {
 			continue
 		}
@@ -659,6 +712,150 @@ func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionRe
 		return true
 	}
 	return resultPathMayReferenceAlias(result.Path) || componentAliasResult
+}
+
+// referenceAliasExpansionsForTargetPath returns the root/suffix pairs needed to
+// rebuild aliased result paths for a resolved target path. A rule can report a
+// node nested below a referenced schema, for example
+// $.components.schemas.Address.properties.street; expanding the whole path would
+// miss refs that point at $.components.schemas.Address, so we expand Address and
+// append .properties.street to every alias.
+func referenceAliasExpansionsForTargetPath(
+	sourceIndex *index.SpecIndex,
+	targetIndex *index.SpecIndex,
+	targetPath string,
+	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
+	rootCache map[resultReferenceAliasPathKey]string,
+	expansionCache map[resultReferenceAliasPathKey][]resultReferenceAliasExpansion,
+	referencePathCache map[resultReferenceAliasIndexPairKey][]string,
+	normalizeCache resultPathNormalizeCache,
+) []resultReferenceAliasExpansion {
+	if targetIndex == nil || targetPath == "" {
+		return nil
+	}
+
+	cacheKey := resultReferenceAliasPathKey{sourceIndex: sourceIndex, targetIndex: targetIndex, path: targetPath}
+	if expansionCache != nil {
+		if expansions, ok := expansionCache[cacheKey]; ok {
+			return expansions
+		}
+	}
+
+	targetPathIndex := resultPathIndexForSpec(targetIndex, pathIndexes)
+	targetPaths := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex)
+	expansions := make([]resultReferenceAliasExpansion, 0, len(targetPaths))
+	seen := make(map[string]struct{}, len(targetPaths))
+	for _, candidateTargetPath := range targetPaths {
+		rootPath := referenceAliasExpansionRootForTargetPath(sourceIndex, targetIndex, candidateTargetPath, rootCache, referencePathCache)
+		suffix, ok := trimAliasPathPrefixCached(candidateTargetPath, rootPath, normalizeCache)
+		if !ok {
+			continue
+		}
+		key := rootPath + "\x00" + suffix
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		expansions = append(expansions, resultReferenceAliasExpansion{rootPath: rootPath, suffix: suffix})
+	}
+
+	sort.Slice(expansions, func(i, j int) bool {
+		if expansions[i].rootPath == expansions[j].rootPath {
+			return expansions[i].suffix < expansions[j].suffix
+		}
+		return expansions[i].rootPath < expansions[j].rootPath
+	})
+	if expansionCache != nil {
+		expansionCache[cacheKey] = expansions
+	}
+	return expansions
+}
+
+// referenceAliasExpansionRootForTargetPath finds the deepest $ref target path
+// that contains targetPath. That root is the stable cache key for alias
+// expansion, while the remainder is kept as a suffix so nested results under
+// the referenced schema still map back to every place the schema was used.
+func referenceAliasExpansionRootForTargetPath(
+	sourceIndex *index.SpecIndex,
+	targetIndex *index.SpecIndex,
+	targetPath string,
+	cache map[resultReferenceAliasPathKey]string,
+	referencePathCache map[resultReferenceAliasIndexPairKey][]string,
+) string {
+	if targetIndex == nil || targetPath == "" {
+		return targetPath
+	}
+	targetPath = canonicalizeResultAliasPath(targetPath)
+	cacheKey := resultReferenceAliasPathKey{sourceIndex: sourceIndex, targetIndex: targetIndex, path: targetPath}
+	if cache != nil {
+		if rootPath, ok := cache[cacheKey]; ok {
+			return rootPath
+		}
+	}
+
+	rootPath := targetPath
+	rootPathLen := 0
+	for _, refPath := range resultReferenceAliasRootCandidatePaths(sourceIndex, targetIndex, referencePathCache) {
+		if refPath == "" || len(refPath) <= rootPathLen {
+			continue
+		}
+		if resultPathHasPrefix(targetPath, refPath) {
+			rootPath = refPath
+			rootPathLen = len(refPath)
+		}
+	}
+
+	if cache != nil {
+		cache[cacheKey] = rootPath
+	}
+	return rootPath
+}
+
+// resultReferenceAliasRootCandidatePaths collects canonical $ref target paths
+// for a source/target index pair once per reconciliation pass. These are the
+// only paths that can act as expansion roots, and caching them avoids walking
+// every sequenced reference for each candidate result path.
+func resultReferenceAliasRootCandidatePaths(
+	sourceIndex *index.SpecIndex,
+	targetIndex *index.SpecIndex,
+	cache map[resultReferenceAliasIndexPairKey][]string,
+) []string {
+	if targetIndex == nil {
+		return nil
+	}
+	cacheKey := resultReferenceAliasIndexPairKey{sourceIndex: sourceIndex, targetIndex: targetIndex}
+	if cache != nil {
+		if paths, ok := cache[cacheKey]; ok {
+			return paths
+		}
+	}
+
+	targetReferences := targetIndex.GetAllSequencedReferences()
+	estimatedCapacity := len(targetReferences)
+	var sourceReferences []*index.Reference
+	if sourceIndex != nil && sourceIndex != targetIndex {
+		sourceReferences = sourceIndex.GetAllSequencedReferences()
+		estimatedCapacity += len(sourceReferences)
+	}
+	paths := make([]string, 0, estimatedCapacity)
+	collect := func(refs []*index.Reference) {
+		for _, ref := range refs {
+			if ref == nil || ref.Path == "" || !referenceTargetsIndex(ref, targetIndex) {
+				continue
+			}
+			refPath := canonicalizeResultAliasPath(ref.Path)
+			if refPath != "" {
+				paths = append(paths, refPath)
+			}
+		}
+	}
+	collect(targetReferences)
+	collect(sourceReferences)
+
+	if cache != nil {
+		cache[cacheKey] = paths
+	}
+	return paths
 }
 
 func ruleTargetsComponentPaths(rule *model.Rule) bool {
@@ -802,11 +999,14 @@ func expandResultReferenceAliasPaths(
 
 	targetPaths := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex)
 	var paths []string
+	sourceReferences := sourceIndex.GetAllSequencedReferences()
+	targetReferences := targetIndex.GetAllSequencedReferences()
+	normalizeCache := make(resultPathNormalizeCache, len(targetPaths)+len(sourceReferences)+len(targetReferences))
 	for _, candidateTargetPath := range targetPaths {
 		if strings.HasPrefix(candidateTargetPath, "$.components.") {
 			paths = append(paths, candidateTargetPath)
 		}
-		for _, ref := range sourceIndex.GetAllSequencedReferences() {
+		for _, ref := range sourceReferences {
 			if ref == nil || ref.Node == nil || ref.Path == "" {
 				continue
 			}
@@ -821,9 +1021,10 @@ func expandResultReferenceAliasPaths(
 				ref.Path,
 				sourcePath,
 				candidateTargetPath,
-				targetIndex.GetAllSequencedReferences(),
+				targetReferences,
 				targetPathIndex,
 				targetIndex,
+				normalizeCache,
 				nil,
 				0,
 			)...)
@@ -866,11 +1067,13 @@ func equivalentResultReferenceTargetPaths(
 	}
 
 	add(targetPath, 0)
+	targetReferences := targetIndex.GetAllSequencedReferences()
+	normalizeCache := make(resultPathNormalizeCache, len(targetReferences)+1)
 	for len(queue) > 0 {
 		current := queue[0]
 		queue = queue[1:]
 
-		for _, ref := range targetIndex.GetAllSequencedReferences() {
+		for _, ref := range targetReferences {
 			if ref == nil || ref.Node == nil || ref.Path == "" {
 				continue
 			}
@@ -882,7 +1085,7 @@ func equivalentResultReferenceTargetPaths(
 			if !ok || sourcePath == "" {
 				continue
 			}
-			suffix, ok := trimAliasPathPrefix(current.path, sourcePath)
+			suffix, ok := trimAliasPathPrefixCached(current.path, sourcePath, normalizeCache)
 			if !ok {
 				continue
 			}
@@ -901,6 +1104,7 @@ func expandResultReferenceAliasPath(
 	targetReferences []*index.Reference,
 	targetPathIndex *vacuumUtils.NodePathIndex,
 	targetIndex *index.SpecIndex,
+	normalizeCache resultPathNormalizeCache,
 	seen map[string]struct{},
 	depth int,
 ) []string {
@@ -919,7 +1123,7 @@ func expandResultReferenceAliasPath(
 	defer delete(seen, seenKey)
 
 	var paths []string
-	if suffix, ok := trimAliasPathPrefix(targetPath, currentTargetPath); ok {
+	if suffix, ok := trimAliasPathPrefixCached(targetPath, currentTargetPath, normalizeCache); ok {
 		paths = append(paths, canonicalizeResultAliasPath(currentSourcePath+suffix))
 	}
 	if depth >= maxResultReferenceAliasDepth {
@@ -938,7 +1142,7 @@ func expandResultReferenceAliasPath(
 		if !ok || nestedSourcePath == "" {
 			continue
 		}
-		nestedSuffix, ok := trimAliasPathPrefix(nestedSourcePath, currentTargetPath)
+		nestedSuffix, ok := trimAliasPathPrefixCached(nestedSourcePath, currentTargetPath, normalizeCache)
 		if !ok {
 			continue
 		}
@@ -951,6 +1155,7 @@ func expandResultReferenceAliasPath(
 			targetReferences,
 			targetPathIndex,
 			targetIndex,
+			normalizeCache,
 			seen,
 			depth+1,
 		)...)
@@ -979,6 +1184,17 @@ func referenceTargetsIndex(ref *index.Reference, targetIndex *index.SpecIndex) b
 	}
 	return len(ref.FullDefinition) == len(targetDocumentPath) ||
 		ref.FullDefinition[len(targetDocumentPath)] == '#'
+}
+
+func appendResultPathSuffixToAliases(paths []string, suffix string) []string {
+	if len(paths) == 0 || suffix == "" {
+		return paths
+	}
+	suffixed := make([]string, 0, len(paths))
+	for _, path := range paths {
+		suffixed = append(suffixed, canonicalizeResultAliasPath(path+suffix))
+	}
+	return suffixed
 }
 
 func applyResultPathSuffix(result *model.RuleFunctionResult, aliasPaths []string) []string {
@@ -1048,6 +1264,19 @@ func trimAliasPathPrefix(path, prefix string) (string, bool) {
 
 	normalizedPath := normalizeSimpleBracketResultPath(path)
 	normalizedPrefix := normalizeSimpleBracketResultPath(prefix)
+	if !resultPathHasPrefix(normalizedPath, normalizedPrefix) {
+		return "", false
+	}
+	return strings.TrimPrefix(normalizedPath, normalizedPrefix), true
+}
+
+func trimAliasPathPrefixCached(path, prefix string, normalizeCache resultPathNormalizeCache) (string, bool) {
+	if resultPathHasPrefix(path, prefix) {
+		return strings.TrimPrefix(path, prefix), true
+	}
+
+	normalizedPath := normalizeCache.normalize(path)
+	normalizedPrefix := normalizeCache.normalize(prefix)
 	if !resultPathHasPrefix(normalizedPath, normalizedPrefix) {
 		return "", false
 	}

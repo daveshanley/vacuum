@@ -13,12 +13,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v4"
 )
 
 // registerPersistentFlags registers the persistent flags normally set on the root command.
@@ -63,6 +65,20 @@ func runIssue839OriginalDiffRegressionSerial(t *testing.T) {
 	})
 }
 
+type originalShortcutTestFunction struct{}
+
+func (originalShortcutTestFunction) RunRule(_ []*yaml.Node, _ model.RuleFunctionContext) []model.RuleFunctionResult {
+	return nil
+}
+
+func (originalShortcutTestFunction) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "original-shortcut-test"}
+}
+
+func (originalShortcutTestFunction) GetCategory() string {
+	return model.CategoryValidation
+}
+
 // --- Lint command tests ---
 
 func TestLintOriginalSpec_ReturnsResults(t *testing.T) {
@@ -72,6 +88,141 @@ func TestLintOriginalSpec_ReturnsResults(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotEmpty(t, results)
+}
+
+func TestOriginalSpecCanReuseCurrentResults_InternalRefsOnly(t *testing.T) {
+	dir := t.TempDir()
+	original := filepath.Join(dir, "original.yaml")
+	current := filepath.Join(dir, "current.yaml")
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Thing:
+      $ref: '#/components/schemas/Other'
+    Other:
+      type: string
+`)
+	require.NoError(t, os.WriteFile(original, spec, 0o600))
+	require.NoError(t, os.WriteFile(current, spec, 0o600))
+
+	assert.True(t, originalSpecCanReuseCurrentResults(original, spec, current, "", nil))
+}
+
+func TestOriginalSpecCanReuseCurrentResults_CustomFunctionsRequireOriginalLint(t *testing.T) {
+	dir := t.TempDir()
+	original := filepath.Join(dir, "original.yaml")
+	current := filepath.Join(dir, "current.yaml")
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+paths: {}
+`)
+	require.NoError(t, os.WriteFile(original, spec, 0o600))
+	require.NoError(t, os.WriteFile(current, spec, 0o600))
+
+	customFunctions := map[string]model.RuleFunction{
+		"original-shortcut-test": originalShortcutTestFunction{},
+	}
+	assert.False(t, originalSpecCanReuseCurrentResults(original, spec, current, "", customFunctions))
+}
+
+func TestOriginalSpecCanReuseCurrentResults_CustomBaseRequiresOriginalLint(t *testing.T) {
+	dir := t.TempDir()
+	original := filepath.Join(dir, "original.yaml")
+	current := filepath.Join(dir, "current.yaml")
+	customBase := filepath.Join(dir, "custom-base")
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+paths: {}
+`)
+	require.NoError(t, os.MkdirAll(customBase, 0o755))
+	require.NoError(t, os.WriteFile(original, spec, 0o600))
+	require.NoError(t, os.WriteFile(current, spec, 0o600))
+
+	assert.False(t, originalSpecCanReuseCurrentResults(original, spec, current, customBase, nil))
+}
+
+func TestOriginalSpecCanReuseCurrentResults_ExternalRefsNeedOriginalLintAcrossDifferentFiles(t *testing.T) {
+	dir := t.TempDir()
+	original := filepath.Join(dir, "original.yaml")
+	current := filepath.Join(dir, "current.yaml")
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Thing:
+      $ref: './common.yaml#/Thing'
+`)
+	require.NoError(t, os.WriteFile(original, spec, 0o600))
+	require.NoError(t, os.WriteFile(current, spec, 0o600))
+
+	assert.False(t, originalSpecCanReuseCurrentResults(original, spec, current, "", nil))
+	assert.True(t, originalSpecCanReuseCurrentResults(original, spec, original, "", nil))
+}
+
+func TestOriginalSpecCanReuseCurrentResults_MirroredExternalRefs(t *testing.T) {
+	dir := t.TempDir()
+	originalDir := filepath.Join(dir, "original")
+	currentDir := filepath.Join(dir, "current")
+	require.NoError(t, os.MkdirAll(originalDir, 0o755))
+	require.NoError(t, os.MkdirAll(currentDir, 0o755))
+
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Test
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Thing:
+      $ref: './common.yaml#/Thing'
+`)
+	common := []byte(`Thing:
+  type: string
+`)
+	original := filepath.Join(originalDir, "openapi.yaml")
+	current := filepath.Join(currentDir, "openapi.yaml")
+	require.NoError(t, os.WriteFile(original, spec, 0o600))
+	require.NoError(t, os.WriteFile(current, spec, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(originalDir, "common.yaml"), common, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(currentDir, "common.yaml"), common, 0o600))
+
+	assert.True(t, originalSpecCanReuseCurrentResults(original, spec, current, "", nil))
+
+	require.NoError(t, os.WriteFile(filepath.Join(currentDir, "common.yaml"), []byte("Thing:\n  type: integer\n"), 0o600))
+	assert.False(t, originalSpecCanReuseCurrentResults(original, spec, current, "", nil))
+}
+
+func TestApplyOriginalDiffToValues_ReuseCurrentResultsUsesCanonicalStats(t *testing.T) {
+	results := []model.RuleFunctionResult{
+		{RuleId: "z-rule", Message: "same", Path: "$.z"},
+		{RuleId: "a-rule", Message: "same", Path: "$.a"},
+	}
+
+	filtered, stats := applyOriginalDiffToValues(originalValueDiffOptions{
+		OriginalPath:        "original.yaml",
+		CurrentPath:         "current.yaml",
+		Results:             results,
+		ReuseCurrentResults: true,
+	})
+
+	assert.Empty(t, filtered)
+	require.NotNil(t, stats)
+	assert.Equal(t, len(results), stats.TotalResultsBefore)
+	assert.Equal(t, 0, stats.TotalResultsAfter)
+	assert.Equal(t, len(results), stats.ResultsDropped)
+	assert.Equal(t, []string{"a-rule", "z-rule"}, stats.RulesFullyFiltered)
+	assert.Empty(t, stats.RulesPartialFiltered)
 }
 
 func TestLintCommand_OriginalSameSpec_SuppressesAll(t *testing.T) {
@@ -93,6 +244,25 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll(t *testing.T) {
 
 	err := cmd.Execute()
 	// Same spec vs same spec: no new violations, no errors expected
+	assert.NoError(t, err)
+}
+
+func TestLintCommand_OriginalSameSpec_RendersComparisonSummary(t *testing.T) {
+	spec := "../model/test_files/burgershop.openapi.yaml"
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"--original", spec,
+		"-n", "error",
+		"--no-style",
+		spec,
+	})
+
+	err := cmd.Execute()
 	assert.NoError(t, err)
 }
 
@@ -422,6 +592,10 @@ func TestSpectralReport_OriginalSameSpec(t *testing.T) {
 	data, readErr := os.ReadFile(reportFile)
 	require.NoError(t, readErr)
 	assert.True(t, len(data) > 0)
+
+	var spectralResults []map[string]any
+	require.NoError(t, json.Unmarshal(data, &spectralResults))
+	assert.Empty(t, spectralResults)
 }
 
 func TestSpectralReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
@@ -515,6 +689,22 @@ func TestVacuumReport_OriginalSameSpec(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.NoError(t, err)
+
+	reportFiles, globErr := filepath.Glob(reportPrefix + "-*.json")
+	require.NoError(t, globErr)
+	require.Len(t, reportFiles, 1)
+
+	data, readErr := os.ReadFile(reportFiles[0])
+	require.NoError(t, readErr)
+
+	var report vacuum_report.VacuumReport
+	require.NoError(t, json.Unmarshal(data, &report))
+	require.NotNil(t, report.ResultSet)
+	assert.Empty(t, report.ResultSet.Results)
+	assert.Equal(t, 0, report.ResultSet.ErrorCount)
+	assert.Equal(t, 0, report.ResultSet.WarnCount)
+	assert.Equal(t, 0, report.ResultSet.InfoCount)
+	assert.Equal(t, 0, report.ResultSet.HintCount)
 }
 
 func TestVacuumReport_OriginalSameSpec_Issue839CustomerSuppliedExternalRefs(t *testing.T) {
