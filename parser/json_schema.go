@@ -64,8 +64,9 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 	return highSch, nil
 }
 
-// Global validator instance and mutex to ensure thread-safe schema validation
-// This fixes issue #512 where concurrent validations cause non-deterministic results
+// Global validator instance and mutex to ensure thread-safe schema validation.
+// The mutex also covers yaml.Node marshaling because the YAML desolver mutates
+// node metadata while rendering; callers may validate the same parsed node concurrently.
 var (
 	globalValidator     schema_validation.SchemaValidator
 	globalValidatorOnce sync.Once
@@ -86,6 +87,11 @@ func getGlobalValidator(ctx *model.RuleFunctionContext) schema_validation.Schema
 
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
 func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
+	validator := getGlobalValidator(ctx)
+
+	globalValidatorMu.Lock()
+	defer globalValidatorMu.Unlock()
+
 	// convert node to raw yaml first, then convert to json to be used in schema validation
 	var d []byte
 	var e error
@@ -116,15 +122,6 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 	var decoded any
 	_ = json.Unmarshal(n, &decoded)
-
-	// Use global validator with mutex protection to prevent concurrent schema mutations
-	// This ensures thread-safe validation when multiple goroutines validate schemas
-	validator := getGlobalValidator(ctx)
-
-	// Lock to ensure only one validation happens at a time
-	// This prevents race conditions in schema.RenderInline() which mutates internal state
-	globalValidatorMu.Lock()
-	defer globalValidatorMu.Unlock()
 
 	return validator.ValidateSchemaObject(schema, decoded)
 }
