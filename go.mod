@@ -19,8 +19,8 @@ require (
 	github.com/pb33f/doctor v0.0.78
 	github.com/pb33f/jsonpath v0.8.2
 	github.com/pb33f/libasyncapi v0.0.1
-	github.com/pb33f/libopenapi v0.38.2
-	github.com/pb33f/libopenapi-validator v0.13.10
+	github.com/pb33f/libopenapi v0.38.3
+	github.com/pb33f/libopenapi-validator v0.13.13
 	github.com/pb33f/testify v0.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
