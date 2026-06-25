@@ -18,11 +18,34 @@ jobs:
     steps:
       - name: Free Disk Space
         run: |
+          set -euo pipefail
+
+          target_free_gb=95
+          target_free_kb=$((target_free_gb * 1024 * 1024))
+
+          available_kb() {
+            df --output=avail / | tail -n 1
+          }
+
+          cleanup_path() {
+            local path="$1"
+            local label="$2"
+
+            if [ "$(available_kb)" -ge "${target_free_kb}" ]; then
+              return
+            fi
+            if [ ! -e "${path}" ]; then
+              return
+            fi
+
+            echo "Removing ${label}: ${path}"
+            sudo rm -rf "${path}"
+            df -h /
+          }
+
           df -h /
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo docker image prune --all --force || true
+          cleanup_path /opt/ghc "Haskell runtime"
+          cleanup_path /usr/share/dotnet ".NET runtime"
           df -h /
 
       - name: Checkout code
