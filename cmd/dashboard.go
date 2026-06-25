@@ -56,6 +56,8 @@ func GetDashboardCommand() *cobra.Command {
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			functionsFlag, _ := cmd.Flags().GetString("functions")
 			rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 			certFile, _ := cmd.Flags().GetString("cert-file")
@@ -238,20 +240,22 @@ func GetDashboardCommand() *cobra.Command {
 				}
 
 				result := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
-					RuleSet:           selectedRS,
-					Spec:              specBytes,
-					SpecFileName:      displayFileName,
-					CustomFunctions:   customFuncs,
-					Base:              resolvedBase,
-					AllowLookup:       remoteFlag,
-					SkipDocumentCheck: skipCheckFlag,
-					Logger:            logger,
-					Timeout:           time.Duration(timeoutFlag) * time.Second,
-					NodeLookupTimeout: time.Duration(lookupTimeoutFlag) * time.Millisecond,
-					HTTPClientConfig:  httpConfig,
-					FetchConfig:       fetchConfig,
-					TurboMode:         turboFlag,
-					SpecFormat:        specFormat,
+					RuleSet:                      selectedRS,
+					Spec:                         specBytes,
+					SpecFileName:                 displayFileName,
+					CustomFunctions:              customFuncs,
+					Base:                         resolvedBase,
+					AllowLookup:                  remoteFlag,
+					SkipDocumentCheck:            skipCheckFlag,
+					Logger:                       logger,
+					Timeout:                      time.Duration(timeoutFlag) * time.Second,
+					NodeLookupTimeout:            time.Duration(lookupTimeoutFlag) * time.Millisecond,
+					IgnoreCircularArrayRef:       ignoreArrayCircleRef,
+					IgnoreCircularPolymorphicRef: ignorePolymorphCircleRef,
+					HTTPClientConfig:             httpConfig,
+					FetchConfig:                  fetchConfig,
+					TurboMode:                    turboFlag,
+					SpecFormat:                   specFormat,
 				}, executionOptions)
 
 				result.Results = utils.FilterIgnoredResultsWithOptions(
@@ -417,23 +421,25 @@ func GetDashboardCommand() *cobra.Command {
 			}
 
 			watchConfig := &tui.WatchConfig{
-				Enabled:           watchFlag,
-				BaseFlag:          baseFlag,
-				SkipCheckFlag:     skipCheckFlag,
-				TimeoutFlag:       timeoutFlag,
-				HardModeFlag:      hardModeFlag,
-				RemoteFlag:        remoteFlag,
-				IgnoreFile:        ignoreFile,
-				FunctionsFlag:     functionsFlag,
-				RulesetFlag:       rulesetFlag,
-				CertFile:          certFile,
-				KeyFile:           keyFile,
-				CAFile:            caFile,
-				Insecure:          insecure,
-				Silent:            silent,
-				CustomFunctions:   customFuncs,
-				OriginalSpecPath:  originalFlag,
-				ChangesReportPath: changesFlag,
+				Enabled:                      watchFlag,
+				BaseFlag:                     baseFlag,
+				SkipCheckFlag:                skipCheckFlag,
+				TimeoutFlag:                  timeoutFlag,
+				HardModeFlag:                 hardModeFlag,
+				RemoteFlag:                   remoteFlag,
+				IgnoreFile:                   ignoreFile,
+				FunctionsFlag:                functionsFlag,
+				RulesetFlag:                  rulesetFlag,
+				CertFile:                     certFile,
+				KeyFile:                      keyFile,
+				CAFile:                       caFile,
+				Insecure:                     insecure,
+				IgnoreCircularArrayRef:       ignoreArrayCircleRef,
+				IgnoreCircularPolymorphicRef: ignorePolymorphCircleRef,
+				Silent:                       silent,
+				CustomFunctions:              customFuncs,
+				OriginalSpecPath:             originalFlag,
+				ChangesReportPath:            changesFlag,
 			}
 
 			err = tui.ShowViolationTableView(resultSet.Results, displayFileName, specBytes, watchConfig, changeStats, filterStats)
@@ -453,6 +459,8 @@ func GetDashboardCommand() *cobra.Command {
 
 	// dashboard flags
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
+	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().BoolP("watch", "W", false, "Watch for file changes and automatically re-lint")
 
 	return cmd

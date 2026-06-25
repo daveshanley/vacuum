@@ -25,23 +25,25 @@ import (
 
 // WatchConfig holds configuration for file watching
 type WatchConfig struct {
-	Enabled           bool
-	BaseFlag          string
-	SkipCheckFlag     bool
-	TimeoutFlag       int
-	HardModeFlag      bool
-	RemoteFlag        bool
-	IgnoreFile        string
-	FunctionsFlag     string
-	RulesetFlag       string
-	CertFile          string
-	KeyFile           string
-	CAFile            string
-	Insecure          bool
-	Silent            bool
-	CustomFunctions   map[string]model.RuleFunction // Pre-loaded custom functions
-	OriginalSpecPath  string                        // Path to original spec for what-changed mode (--original)
-	ChangesReportPath string                        // Path to JSON change report for what-changed mode (--changes)
+	Enabled                      bool
+	BaseFlag                     string
+	SkipCheckFlag                bool
+	TimeoutFlag                  int
+	HardModeFlag                 bool
+	RemoteFlag                   bool
+	IgnoreFile                   string
+	FunctionsFlag                string
+	RulesetFlag                  string
+	CertFile                     string
+	KeyFile                      string
+	CAFile                       string
+	Insecure                     bool
+	IgnoreCircularArrayRef       bool
+	IgnoreCircularPolymorphicRef bool
+	Silent                       bool
+	CustomFunctions              map[string]model.RuleFunction // Pre-loaded custom functions
+	OriginalSpecPath             string                        // Path to original spec for what-changed mode (--original)
+	ChangesReportPath            string                        // Path to JSON change report for what-changed mode (--changes)
 }
 
 // setupFileWatcher initializes file watching if enabled
@@ -227,15 +229,17 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 	}
 
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
-		RuleSet:           selectedRS,
-		Spec:              specBytes,
-		SpecFileName:      m.fileName,
-		CustomFunctions:   customFuncs,
-		Base:              m.watchConfig.BaseFlag,
-		AllowLookup:       m.watchConfig.RemoteFlag,
-		SkipDocumentCheck: m.watchConfig.SkipCheckFlag,
-		Logger:            bufferedLogger,
-		Timeout:           time.Duration(m.watchConfig.TimeoutFlag) * time.Second,
+		RuleSet:                      selectedRS,
+		Spec:                         specBytes,
+		SpecFileName:                 m.fileName,
+		CustomFunctions:              customFuncs,
+		Base:                         m.watchConfig.BaseFlag,
+		AllowLookup:                  m.watchConfig.RemoteFlag,
+		SkipDocumentCheck:            m.watchConfig.SkipCheckFlag,
+		Logger:                       bufferedLogger,
+		Timeout:                      time.Duration(m.watchConfig.TimeoutFlag) * time.Second,
+		IgnoreCircularArrayRef:       m.watchConfig.IgnoreCircularArrayRef,
+		IgnoreCircularPolymorphicRef: m.watchConfig.IgnoreCircularPolymorphicRef,
 		HTTPClientConfig: utils.HTTPClientConfig{
 			CertFile: m.watchConfig.CertFile,
 			KeyFile:  m.watchConfig.KeyFile,

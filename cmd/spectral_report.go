@@ -61,6 +61,8 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			changesFlag, _ := cmd.Flags().GetString("changes")
 			originalFlag, _ := cmd.Flags().GetString("original")
 			globPattern, _ := cmd.Flags().GetString("globbed-files")
@@ -314,6 +316,8 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					Timeout:                         time.Duration(timeoutFlag) * time.Second,
 					NodeLookupTimeout:               time.Duration(lookupTimeoutFlag) * time.Millisecond,
 					ExtractReferencesFromExtensions: extensionRefsFlag,
+					IgnoreCircularArrayRef:          ignoreArrayCircleRef,
+					IgnoreCircularPolymorphicRef:    ignorePolymorphCircleRef,
 					HTTPClientConfig:                httpClientConfig,
 					FetchConfig:                     fetchConfig,
 					TurboMode:                       turboFlag,
@@ -464,6 +468,8 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
+	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to process (e.g., 'specs/*.yaml')")
 	cmd.Flags().String("output-dir", "", "Directory to write report files to (default: current directory)")
 	return cmd
