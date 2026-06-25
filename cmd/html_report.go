@@ -66,6 +66,8 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
 			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
+			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			changesFlag, _ := cmd.Flags().GetString("changes")
 			originalFlag, _ := cmd.Flags().GetString("original")
 			globPattern, _ := cmd.Flags().GetString("globbed-files")
@@ -221,9 +223,11 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					resultSet, ruleset, err = BuildResultsWithDocCheckSkipAndExecutionFlags(false, hardModeFlag, rulesetFlag, specBytes, customFunctions,
 						resolvedBase, remoteFlag, skipCheckFlag, time.Duration(timeoutFlag)*time.Second, time.Duration(lookupTimeoutFlag)*time.Millisecond, httpClientConfig, fetchConfig, ignoredItems,
 						turboFlags, &ExecutionFlags{
-							ResolveAllRefs:       resolveAllRefsFlag,
-							NestedRefsDocContext: nestedRefsDocContextFlag,
-							SpecFilePath:         specFile,
+							ResolveAllRefs:               resolveAllRefsFlag,
+							NestedRefsDocContext:         nestedRefsDocContextFlag,
+							SpecFilePath:                 specFile,
+							IgnoreCircularArrayRef:       ignoreArrayCircleRef,
+							IgnoreCircularPolymorphicRef: ignorePolymorphCircleRef,
 						})
 					if err != nil {
 						tui.RenderError(err)
@@ -465,6 +469,8 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner output")
 	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
+	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to process (e.g., 'specs/*.yaml')")
 	cmd.Flags().String("output-dir", "", "Directory to write report files to (default: current directory)")
 
