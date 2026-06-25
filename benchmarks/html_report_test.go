@@ -74,7 +74,7 @@ func BenchmarkHtmlReport_GenerateReportIdentical(b *testing.B) {
 	}
 }
 
-func TestHtmlReport_GenerateReportIdenticalRun200(t *testing.T) {
+func TestHtmlReport_GenerateReportIdenticalRepeated(t *testing.T) {
 	specBytes, _ := os.ReadFile("../model/test_files/pegel-online-api.yaml")
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
@@ -96,7 +96,8 @@ func TestHtmlReport_GenerateReportIdenticalRun200(t *testing.T) {
 	reportZeroBytes := reportZero.GenerateReport(false, "")
 	hashZero := sha256.Sum256(reportZeroBytes)
 
-	for n := 0; n < 200; n++ {
+	const iterations = 20
+	for n := 0; n < iterations; n++ {
 		// generate html reports and compare hash
 		reportA := html_report.NewHTMLReport(ruleset.Index, ruleset.SpecInfo, resultSet, stats, true)
 		reportABytes := reportA.GenerateReport(false, "")

@@ -161,8 +161,12 @@ func setupTestServer() *httptest.Server {
 
 	// Slow endpoint for timeout testing
 	mux.HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(2 * time.Second)
-		w.Write([]byte("slow response"))
+		select {
+		case <-time.After(2 * time.Second):
+			w.Write([]byte("slow response"))
+		case <-r.Context().Done():
+			return
+		}
 	})
 
 	return httptest.NewServer(mux)
