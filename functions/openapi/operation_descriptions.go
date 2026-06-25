@@ -73,6 +73,7 @@ func (od OperationDescription) RunRule(nodes []*yaml.Node, context model.RuleFun
 					Char: endNode.Column,
 				},
 			},
+			Origin: context.Index.GetRolodex().FindNodeOrigin(node),
 		}
 		component.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
 		return result
