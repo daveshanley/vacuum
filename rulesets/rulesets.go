@@ -184,6 +184,8 @@ const (
 	SpectralOff                          = SpectralAll
 )
 
+var externalRulesetFetchTimeout = 5 * time.Second
+
 // RuleSets is used to generate default RuleSets built into vacuum
 type RuleSets interface {
 
@@ -486,8 +488,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 		doneChan := make(chan bool)
 
-		// give it a fair wait, 5 seconds is long enough.
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		// give it a fair wait, 5 seconds is long enough by default.
+		ctx, cancel := context.WithTimeout(context.Background(), externalRulesetFetchTimeout)
 		defer cancel()
 		total := 0
 
@@ -511,7 +513,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 		select {
 		case <-ctx.Done():
-			rsm.logger.Error("external ruleset fetch timed out after 5 seconds")
+			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
 			break
 		case <-doneChan:
 			break

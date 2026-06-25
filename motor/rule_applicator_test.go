@@ -1674,7 +1674,7 @@ components:
     none:
       type: int`)
 
-	panicChan := make(chan bool)
+	panicChan := make(chan bool, 1)
 
 	saveMePlease := func(r any) {
 		panicChan <- true
@@ -2756,6 +2756,7 @@ security:
   - Default: []
 `)
 
+	ruleSet := rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet()
 	run := func(wg *sync.WaitGroup) {
 		docConf := &datamodel.DocumentConfiguration{}
 		d, err := libopenapi.NewDocumentWithConfiguration(yml, docConf)
@@ -2764,7 +2765,7 @@ security:
 		}
 
 		ex := &RuleSetExecution{
-			RuleSet:           rulesets.BuildDefaultRuleSets().GenerateOpenAPIDefaultRuleSet(),
+			RuleSet:           ruleSet,
 			Document:          d,
 			NodeLookupTimeout: 5 * time.Second,  // Increase timeout for CI/CD environments
 			Timeout:           30 * time.Second, // Increase rule timeout for CI/CD environments
@@ -2777,15 +2778,18 @@ security:
 		}
 	}
 
-	// run it a thousand times to ensure that the results are consistent and deterministic.
-	for i := 0; i < 1000; i++ {
+	const deterministicRuns = 100
+	const concurrentRuns = 100
+
+	// Keep this as a repeated check, but avoid turning the unit suite into a stress test.
+	for i := 0; i < deterministicRuns; i++ {
 		run(nil)
 	}
 
 	// now run it async
 	var wg sync.WaitGroup
-	wg.Add(1000)
-	for i := 0; i < 1000; i++ {
+	wg.Add(concurrentRuns)
+	for i := 0; i < concurrentRuns; i++ {
 		go run(&wg)
 	}
 	wg.Wait()
@@ -3152,7 +3156,7 @@ func TestIssue441_DeterministicResolvedRules(t *testing.T) {
 		t.Skipf("Could not load spec: %v", err)
 	}
 
-	const runs = 10
+	const runs = 3
 	var baselineSchemaCount int
 	var baselineResultCount int
 

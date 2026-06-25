@@ -27,18 +27,20 @@ jobs:
           docker-images: true
           swap-storage: false
 
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.25
-        id: go
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 50
           fetch-tags: true
           show-progress: true
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v6
+        with:
+          go-version: 1.25
+          cache: true
+          cache-dependency-path: go.sum
+        id: go
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -49,14 +51,6 @@ jobs:
 
       - name: Check go mod tidy is up to date
         run: go mod tidy && git diff --exit-code
-
-      - name: Get dependencies
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
 
       - name: Build HTML report UI assets
         run: ./scripts/build-ui-assets.sh
@@ -70,6 +64,9 @@ jobs:
       - name: Lint HTML report UI
         run: npm run lint
         working-directory: html-report/ui
+
+      - name: Remove HTML report UI dependencies before Go checks
+        run: rm -rf html-report/ui/node_modules
 
       - name: Test official build with coverage
         run: go test -tags html_report_ui -coverprofile=coverage.out ./...

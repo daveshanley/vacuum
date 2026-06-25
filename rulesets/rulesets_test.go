@@ -700,6 +700,11 @@ rules:
 }
 
 func TestRuleSet_GetExtendsRemoteSpec_Chain_Timeout(t *testing.T) {
+	previousTimeout := externalRulesetFetchTimeout
+	externalRulesetFetchTimeout = 50 * time.Millisecond
+	t.Cleanup(func() {
+		externalRulesetFetchTimeout = previousTimeout
+	})
 
 	yamlA := `extends: [{{URLA}}]`
 	yamlB := `extends: [{{URLB}}]
@@ -734,8 +739,12 @@ rules:
 
 	mockRemoteB := func() *httptest.Server {
 		return httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			time.Sleep(time.Second * 6)
-			_, _ = rw.Write([]byte(yamlC))
+			select {
+			case <-time.After(time.Second * 6):
+				_, _ = rw.Write([]byte(yamlC))
+			case <-req.Context().Done():
+				return
+			}
 		}))
 	}
 
@@ -763,7 +772,7 @@ rules:
 	assert.Len(t, override.RuleDefinitions, 1)
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.Nil(t, rs.Rules["dong"])
-	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out after 5 seconds")
+	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out")
 }
 
 func TestRuleSet_GetExtendsLocalSpec_Single(t *testing.T) {

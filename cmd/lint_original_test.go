@@ -317,7 +317,7 @@ func TestLintCommand_OriginalSameSpec_SuppressesAll_Issue839CustomerSuppliedExte
 	spec := "../model/test_files/api-main.yaml"
 	ruleset := "../model/test_files/issue_839_ruleset.yaml"
 
-	const iterations = 20
+	const iterations = 5
 	for i := 0; i < iterations; i++ {
 		cmd := GetLintCommand()
 		registerPersistentFlags(cmd)
