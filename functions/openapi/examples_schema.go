@@ -21,6 +21,7 @@ import (
 	"github.com/pb33f/libopenapi-validator/strict"
 	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
+	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
@@ -168,18 +169,19 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		rx []model.RuleFunctionResult,
 		example any,
 		schema *v3.Schema,
+		validationSchema *v3Base.Schema,
 		path string,
 		keyNode, valueNode *yaml.Node,
 	) []model.RuleFunctionResult {
 		if !strictMode || len(rx) > 0 {
 			return rx
 		}
-		if !isObjectExample(example) || schema == nil || schema.Value == nil || schema.Value.GoLow() == nil {
+		if !isObjectExample(example) || schema == nil || validationSchema == nil {
 			return rx
 		}
 
 		direction := deriveDirectionFromPath(path)
-		undeclared := validateExampleStrict(schema.Value, example, version, path, direction)
+		undeclared := validateExampleStrict(validationSchema, example, version, path, direction)
 		for _, u := range undeclared {
 			rx = append(rx, buildResult(
 				vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, formatUndeclaredMessage(u)),
@@ -198,12 +200,17 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	) []model.RuleFunctionResult {
 		var rx []model.RuleFunctionResult
 		if s != nil && s.Value != nil {
+			validationSchema := cloneSchemaForExampleValidation(s, ruleContext)
+			if validationSchema == nil {
+				return rx
+			}
+
 			var valid bool
 			var validationErrors []*errors.ValidationError
 			if version > 0 {
-				valid, validationErrors = validator.ValidateSchemaObjectWithVersion(s.Value, example, version)
+				valid, validationErrors = validator.ValidateSchemaObjectWithVersion(validationSchema, example, version)
 			} else {
-				valid, validationErrors = validator.ValidateSchemaObject(s.Value, example)
+				valid, validationErrors = validator.ValidateSchemaObject(validationSchema, example)
 			}
 
 			// compute path for error reporting (needed for both normal and strict validation)
@@ -241,7 +248,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 			// NOTE: Strict validation only applies to JSON examples. XML examples are strings
 			// (not maps) and use a separate validation path. If this changes, add explicit
 			// content-type check here.
-			rx = appendStrictResults(rx, example, s, path, keyNode, node)
+			rx = appendStrictResults(rx, example, s, validationSchema, path, keyNode, node)
 		}
 		return rx
 	}
@@ -304,9 +311,10 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 							ref = fNode
 						}
 					}
-					changeKeys(0, ref)
+					refForDecode := utils.CloneYAMLNode(ref)
+					changeKeys(0, refForDecode)
 					var example interface{}
-					_ = ref.Decode(&example)
+					_ = refForDecode.Decode(&example)
 
 					result := validateSchema(nil, "", "example", s, s, s.Value.Example,
 						s.Value.GoLow().Example.GetKeyNode(), example)
@@ -321,7 +329,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	}
 
 	// exampleValidatorFunc defines the function signature for validating examples
-	type exampleValidatorFunc func(example any) (bool, []*errors.ValidationError)
+	type exampleValidatorFunc func(example any) (bool, []*errors.ValidationError, *v3Base.Schema)
 
 	// processValidationErrors converts validation errors to rule function results
 	processValidationErrors := func(
@@ -355,27 +363,36 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 
 	// createJSONValidator creates a validator for JSON examples
 	createJSONValidator := func(s *v3.Schema, ver float32) exampleValidatorFunc {
-		return func(example any) (bool, []*errors.ValidationError) {
-			if s != nil && s.Value != nil {
+		return func(example any) (bool, []*errors.ValidationError, *v3Base.Schema) {
+			validationSchema := cloneSchemaForExampleValidation(s, ruleContext)
+			if validationSchema != nil {
 				if ver > 0 {
-					return validator.ValidateSchemaObjectWithVersion(s.Value, example, ver)
+					valid, validationErrors := validator.ValidateSchemaObjectWithVersion(validationSchema, example, ver)
+					return valid, validationErrors, validationSchema
 				}
-				return validator.ValidateSchemaObject(s.Value, example)
+				valid, validationErrors := validator.ValidateSchemaObject(validationSchema, example)
+				return valid, validationErrors, validationSchema
 			}
-			return true, nil
+			return true, nil, nil
 		}
 	}
 
 	// createXMLValidator creates a validator for XML examples
 	createXMLValidator := func(s *v3.Schema, ver float32) exampleValidatorFunc {
-		return func(example any) (bool, []*errors.ValidationError) {
+		return func(example any) (bool, []*errors.ValidationError, *v3Base.Schema) {
+			validationSchema := cloneSchemaForExampleValidation(s, ruleContext)
 			if xmlStr, ok := example.(string); ok {
-				if ver > 0 {
-					return xmlValidator.ValidateXMLStringWithVersion(s.Value, xmlStr, ver)
+				if validationSchema == nil {
+					return true, nil, nil
 				}
-				return xmlValidator.ValidateXMLString(s.Value, xmlStr)
+				if ver > 0 {
+					valid, validationErrors := xmlValidator.ValidateXMLStringWithVersion(validationSchema, xmlStr, ver)
+					return valid, validationErrors, validationSchema
+				}
+				valid, validationErrors := xmlValidator.ValidateXMLString(validationSchema, xmlStr)
+				return valid, validationErrors, validationSchema
 			}
-			return true, nil
+			return true, nil, validationSchema
 		}
 	}
 
@@ -392,7 +409,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 			var ex any
 			if example.Value != nil {
 				_ = example.Value.Decode(&ex)
-				valid, validationErrors := validatorFunc(ex)
+				valid, validationErrors, validationSchema := validatorFunc(ex)
 
 				path := fmt.Sprintf("%s.examples['%s']", obj.(v3.Foundational).GenerateJSONPath(), exampleKey)
 				if !valid {
@@ -400,7 +417,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 						example.GoLow().KeyNode, example.Value, s)...)
 				}
 
-				rx = appendStrictResults(rx, ex, s, path, example.GoLow().KeyNode, example.Value)
+				rx = appendStrictResults(rx, ex, s, validationSchema, path, example.GoLow().KeyNode, example.Value)
 			}
 		}
 		return rx
@@ -411,13 +428,13 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		var ex any
 		_ = node.Decode(&ex)
 
-		valid, validationErrors := validatorFunc(ex)
+		valid, validationErrors, validationSchema := validatorFunc(ex)
 		path := fmt.Sprintf("%s.example", obj.(v3.Foundational).GenerateJSONPath())
 		if !valid {
 			rx = append(rx, processValidationErrors(validationErrors, path, key, node, s)...)
 		}
 
-		rx = appendStrictResults(rx, ex, s, path, key, node)
+		rx = appendStrictResults(rx, ex, s, validationSchema, path, key, node)
 		return rx
 	}
 
@@ -550,6 +567,50 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	}
 
 	return results
+}
+
+// cloneSchemaForExampleValidation rebuilds a schema from copied YAML nodes so
+// validator rendering cannot mutate the shared Doctor/libopenapi model.
+func cloneSchemaForExampleValidation(schema *v3.Schema, ruleContext model.RuleFunctionContext) *v3Base.Schema {
+	if schema == nil || schema.Value == nil || schema.Value.GoLow() == nil {
+		return nil
+	}
+
+	lowSchema := schema.Value.GoLow()
+	root := utils.CloneYAMLNode(lowSchema.GetRootNode())
+	if root == nil {
+		return nil
+	}
+
+	idx := lowSchema.GetIndex()
+	if idx == nil {
+		idx = ruleContext.Index
+	}
+
+	buildCtx := lowSchema.GetContext()
+	if buildCtx == nil {
+		buildCtx = context.Background()
+	}
+
+	if isRef, _, _ := utils.IsNodeRefValue(root); isRef {
+		if idx == nil {
+			return nil
+		}
+		ref, _, _, refCtx := low.LocateRefNodeWithContext(buildCtx, root, idx)
+		if ref == nil {
+			return nil
+		}
+		root = utils.CloneYAMLNode(ref)
+		if refCtx != nil {
+			buildCtx = refCtx
+		}
+	}
+
+	var clone lowBase.Schema
+	if err := clone.Build(buildCtx, root, idx); err != nil {
+		return nil
+	}
+	return v3Base.NewSchema(&clone)
 }
 
 // all keys need to be strings, anything else and we're going to have a bad time.

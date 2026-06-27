@@ -340,6 +340,82 @@ components:
 	assert.Empty(t, res)
 }
 
+func TestSchemaType_Issue916_AllOfRefDefaultDoesNotPoisonSiblingEnums(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Test
+  version: 1.0.0
+  description: Ok
+tags:
+  - name: "tag"
+    description: "My tag"
+servers:
+  - description: "Prod server"
+    url: "https://api.com"
+paths:
+  /cars:
+    get:
+      tags:
+        - "tag"
+      operationId: "cars.get"
+      description: "get a car"
+      parameters:
+        - in: query
+          name: brand
+          description: Car brand to filter
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Brand'
+              - default: Toyota
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Type'
+components:
+  schemas:
+    Brand:
+      description: Car brand
+      type: string
+      enum:
+        - Toyota
+        - Ford
+        - BMW
+    Type:
+      title: Type
+      description: The type of something
+      type: string
+      enum:
+        - Local
+        - OpenId
+        - X509
+      example: Local`
+
+	for i := 0; i < 1000; i++ {
+		document, err := libopenapi.NewDocument([]byte(yml))
+		assert.NoError(t, err)
+
+		m, modelErrors := document.BuildV3Model()
+		assert.Empty(t, modelErrors)
+
+		drDocument := drModel.NewDrDocument(m)
+		rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+		ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Document = document
+		ctx.DrDocument = drDocument
+		ctx.Rule = &rule
+
+		ExamplesSchema{}.RunRule(nil, ctx)
+
+		res := SchemaTypeCheck{}.RunRule(nil, ctx)
+		if len(res) > 0 {
+			t.Fatalf("iteration %d returned schema type results: %#v", i+1, res)
+		}
+	}
+}
+
 func TestSchemaType_MultipleOf(t *testing.T) {
 
 	yml := `openapi: 3.1
