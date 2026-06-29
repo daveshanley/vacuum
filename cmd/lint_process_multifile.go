@@ -53,7 +53,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
 	}
 
-	if !flags.SilentFlag && !flags.PipelineOutput {
+	if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		if !flags.NoStyleFlag {
 			fmt.Printf(" vacuuming %s%d%s files...\n\n", color.ASCIIGreenBold, len(filesToLint), color.ASCIIReset)
 		} else {
@@ -65,13 +65,14 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	var processingErrors int
 	var totalSize int64
 	start := time.Now()
+	annotationsOnly := flags.GitHubAnnotations && !flags.PipelineOutput
 
 	fileResults := make([]fileResult, len(filesToLint))
 	stopSpinner := make(chan bool)
 	currentFile := make(chan string, 1)
 	progressChan := make(chan float64, 1)
 
-	if !flags.SilentFlag && !flags.PipelineOutput && !flags.NoStyleFlag {
+	if !flags.SilentFlag && !flags.PipelineOutput && !flags.NoStyleFlag && !flags.GitHubAnnotations {
 		go func() {
 			spinners := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			spinnerIndex := 0
@@ -126,7 +127,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	// process all files
 	for i, fileName := range filesToLint {
 		// update progress display
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if !flags.NoStyleFlag {
 				currentFile <- fileName
 				progressChan <- float64(i) / float64(len(filesToLint))
@@ -154,16 +155,20 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 		result := ProcessSingleFileOptimized(fileName, processingConfig)
 
-		fileResults[i] = fileResult{
-			fileName: fileName,
-			results:  result.Results,
-			errors:   result.Errors,
-			warnings: result.Warnings,
-			informs:  result.Informs,
-			hints:    result.Hints,
-			size:     result.FileSize,
-			logs:     result.Logs,
-			err:      result.Error,
+		if !annotationsOnly {
+			fileResults[i] = fileResult{
+				fileName: fileName,
+				results:  result.Results,
+				errors:   result.Errors,
+				warnings: result.Warnings,
+				informs:  result.Informs,
+				hints:    result.Hints,
+				size:     result.FileSize,
+				logs:     result.Logs,
+				err:      result.Error,
+			}
+		} else if result.Error == nil {
+			RenderGitHubAnnotations(result.Results, fileName)
 		}
 
 		// accumulate totals
@@ -178,7 +183,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	// stop spinner and clear line properly
-	if !flags.SilentFlag && !flags.PipelineOutput && !flags.NoStyleFlag {
+	if !flags.SilentFlag && !flags.PipelineOutput && !flags.NoStyleFlag && !flags.GitHubAnnotations {
 		stopSpinner <- true
 		time.Sleep(150 * time.Millisecond) // give spinner time to clear
 	}
@@ -221,7 +226,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 			fmt.Println() // Add spacing between files
 		}
-	} else {
+	} else if !flags.GitHubAnnotations {
 		// Normal console output mode
 		// get terminal width and calculate table width
 		termWidth := getTerminalWidth()
@@ -311,8 +316,17 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 	}
 
+	// GitHub Actions annotations mode
+	if flags.GitHubAnnotations && !annotationsOnly {
+		for _, fr := range fileResults {
+			if fr.err == nil {
+				RenderGitHubAnnotations(fr.results, fr.fileName)
+			}
+		}
+	}
+
 	// show timing
-	if flags.TimeFlag && !flags.PipelineOutput && !flags.SilentFlag {
+	if flags.TimeFlag && !flags.PipelineOutput && !flags.GitHubAnnotations && !flags.SilentFlag {
 		duration := time.Since(start)
 		RenderTimeAndFiles(flags.TimeFlag, duration, totalSize, len(filesToLint))
 	}
