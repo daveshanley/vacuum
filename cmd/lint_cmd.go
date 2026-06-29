@@ -63,6 +63,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
+	cmd.Flags().Bool("github-annotations", false, "Emit GitHub Actions file annotation lines; can be combined with --pipeline-output")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
@@ -206,7 +207,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to resolve base path: %w", baseErr)
 		}
 
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 				color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 		}
@@ -411,7 +412,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		stats = reportOrSpec.Report.Statistics
 	}
 
-	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
+	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		specStringData = strings.Split(string(specBytes), "\n")
 		renderFixedDetails(RenderDetailsOptions{
 			Results:     resultSet.Results,
@@ -429,27 +430,33 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render change filter summary if requested
-	if changeFilterStats != nil && flags.ChangesSummaryFlag && !flags.SilentFlag && !flags.PipelineOutput {
+	if changeFilterStats != nil && flags.ChangesSummaryFlag && !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		width := getTerminalWidth()
 		widths := calculateColumnWidths(width)
 		renderChangeFilterSummary(changeFilterStats, widths, flags.NoStyleFlag)
 	}
 
-	renderFixedSummary(RenderSummaryOptions{
-		RuleResultSet:  resultSet,
-		RuleCategories: cats,
-		Statistics:     stats,
-		Filename:       displayFileName,
-		Silent:         flags.SilentFlag,
-		NoStyle:        flags.NoStyleFlag,
-		PipelineOutput: flags.PipelineOutput,
-		ShowRules:      flags.ShowRules,
-		FixesApplied:   fixesApplied,
-	})
+	if !flags.GitHubAnnotations || flags.PipelineOutput {
+		renderFixedSummary(RenderSummaryOptions{
+			RuleResultSet:  resultSet,
+			RuleCategories: cats,
+			Statistics:     stats,
+			Filename:       displayFileName,
+			Silent:         flags.SilentFlag,
+			NoStyle:        flags.NoStyleFlag,
+			PipelineOutput: flags.PipelineOutput,
+			ShowRules:      flags.ShowRules,
+			FixesApplied:   fixesApplied,
+		})
+	}
+
+	if flags.GitHubAnnotations {
+		RenderGitHubAnnotations(resultSet.Results, displayFileName)
+	}
 
 	// timing
 	duration := time.Since(start)
-	if flags.TimeFlag && !flags.PipelineOutput {
+	if flags.TimeFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		renderFixedTiming(duration, fileSize)
 	}
 
