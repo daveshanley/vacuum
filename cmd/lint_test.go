@@ -299,6 +299,49 @@ paths:
 	assert.NotContains(t, output, "vacuuming")
 	assert.NotContains(t, output, "# 📄 `")
 	assert.NotContains(t, output, "RULE")
+
+	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
+	for _, line := range lines {
+		assert.Equal(t, 2, strings.Count(line, "::"), line)
+	}
+	assert.GreaterOrEqual(t, len(lines), 2)
+	assert.Contains(t, output, "first.yaml")
+	assert.Contains(t, output, "second.yaml")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileAnnotationOnlyReportsInputErrors(t *testing.T) {
+	dir := t.TempDir()
+	goodSpec := filepath.Join(dir, "good.yaml")
+	missingSpec := filepath.Join(dir, "missing.yaml")
+	writeTestFile(t, goodSpec, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", goodSpec, missingSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "missing.yaml")
+	assert.Contains(t, output, "::error ")
+	assert.Contains(t, output, "no such file or directory")
 }
 
 func TestResolveBasePathForFile(t *testing.T) {
