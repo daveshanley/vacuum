@@ -250,15 +250,34 @@ func nonZeroInt(value int, fallback int) int {
 func generateHardModeRuleSet(defaultRuleSets rulesets.RuleSets) *rulesets.RuleSet {
 	base := defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
 	owaspRules := rulesets.GetAllOWASPRules()
-	selectedRS := *base
-	selectedRS.Rules = make(map[string]*model.Rule, len(base.Rules)+len(owaspRules))
+	selectedRS := &rulesets.RuleSet{
+		Description:      base.Description,
+		DocumentationURI: base.DocumentationURI,
+		Formats:          append([]string(nil), base.Formats...),
+		RuleDefinitions:  cloneRuntimeConfigMap(base.RuleDefinitions),
+		Rules:            make(map[string]*model.Rule, len(base.Rules)+len(owaspRules)),
+		Extends:          base.Extends,
+		Aliases:          cloneRuntimeConfigMap(base.Aliases),
+		ParsedAliases:    cloneRuntimeConfigMap(base.ParsedAliases),
+	}
 	for k, v := range base.Rules {
 		selectedRS.Rules[k] = v
 	}
 	for k, v := range owaspRules {
 		selectedRS.Rules[k] = v
 	}
-	return &selectedRS
+	return selectedRS
+}
+
+func cloneRuntimeConfigMap[K comparable, V any](source map[K]V) map[K]V {
+	if source == nil {
+		return nil
+	}
+	cloned := make(map[K]V, len(source))
+	for key, value := range source {
+		cloned[key] = value
+	}
+	return cloned
 }
 
 func (s *ServerState) pullWorkspaceConfiguration(uri protocol.DocumentUri) (*LSPConfig, bool) {

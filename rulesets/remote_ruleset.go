@@ -46,6 +46,9 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 	if location == "" {
 		return nil, fmt.Errorf("cannot download ruleset, location is empty")
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	if httpClient == nil {
 		httpClient = http.DefaultClient
@@ -60,10 +63,14 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 	if ruleRemoteErr != nil {
 		return nil, ruleRemoteErr
 	}
+	defer ruleResp.Body.Close()
 
 	ruleBytes, bytesErr := io.ReadAll(ruleResp.Body)
 	if bytesErr != nil {
 		return nil, bytesErr
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	if len(ruleBytes) <= 0 {
@@ -80,15 +87,21 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 
 // LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
 // returns an error if it cannot load the ruleset
-func LoadLocalRuleSet(_ context.Context, location string) (*RuleSet, error) {
+func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot load ruleset, location is empty")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	ruleBytes, bytesErr := os.ReadFile(location)
 	if bytesErr != nil {
 		return nil, bytesErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	if len(ruleBytes) <= 0 {
@@ -115,6 +128,13 @@ func SniffOutAllExternalRules(
 	remote bool,
 	httpClient *http.Client) {
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ctx.Err() != nil {
+		return
+	}
+
 	var drs *RuleSet
 	var err error
 
@@ -124,12 +144,21 @@ func SniffOutAllExternalRules(
 		drs, err = LoadLocalRuleSet(ctx, location)
 	}
 	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
 		rsm.logger.Error("cannot open external ruleset",
 			"location", location, "error", err.Error())
 		return
 	}
+	if ctx.Err() != nil {
+		return
+	}
 
 	for ruleName, ruleValue := range drs.RuleDefinitions {
+		if ctx.Err() != nil {
+			return
+		}
 		rs.mutex.Lock()
 		rs.RuleDefinitions[ruleName] = mergeRuleDefinition(rs.RuleDefinitions[ruleName], ruleValue)
 		rs.mutex.Unlock()
@@ -142,6 +171,10 @@ func SniffOutAllExternalRules(
 			rs.Aliases = make(map[string]interface{})
 		}
 		for name, value := range drs.Aliases {
+			if ctx.Err() != nil {
+				rs.mutex.Unlock()
+				return
+			}
 			if _, exists := rs.Aliases[name]; !exists {
 				rs.Aliases[name] = value
 			}
@@ -161,11 +194,17 @@ func SniffOutAllExternalRules(
 		// suck in all recommended rules
 		recommended := rsm.GenerateOpenAPIRecommendedRuleSet()
 		for k, v := range recommended.Rules {
+			if ctx.Err() != nil {
+				return
+			}
 			rs.mutex.Lock()
 			rs.Rules[k] = v
 			rs.mutex.Unlock()
 		}
 		for k, v := range recommended.RuleDefinitions {
+			if ctx.Err() != nil {
+				return
+			}
 			rs.mutex.Lock()
 			rs.RuleDefinitions[k] = v
 			rs.mutex.Unlock()
@@ -177,27 +216,43 @@ func SniffOutAllExternalRules(
 		// suck in all rules
 		allRules := rsm.openAPIRuleSet
 		for k, v := range allRules.Rules {
+			if ctx.Err() != nil {
+				return
+			}
 			rs.mutex.Lock()
 			rs.Rules[k] = v
 			rs.mutex.Unlock()
 		}
 		for k, v := range allRules.RuleDefinitions {
+			if ctx.Err() != nil {
+				return
+			}
+			rs.mutex.Lock()
 			rs.RuleDefinitions[k] = v
+			rs.mutex.Unlock()
 		}
 	}
 
 	// no rules!
 	if extends[SpectralOpenAPI] == VacuumOff || extends[VacuumOpenAPI] == VacuumOff {
+		if ctx.Err() != nil {
+			return
+		}
+		rs.mutex.Lock()
 		if rs.DocumentationURI == "" {
 			rs.DocumentationURI = "https://quobix.com/vacuum/rulesets/no-rules"
 		}
 		rs.Rules = make(map[string]*model.Rule)
 		rs.Description = fmt.Sprintf("All disabled ruleset, processing %d supplied rules", len(rs.RuleDefinitions))
+		rs.mutex.Unlock()
 	}
 
 	// do we have extensions?
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
 		for k := range extends {
+			if ctx.Err() != nil {
+				return
+			}
 			if strings.HasPrefix(k, "http") ||
 				filepath.Ext(k) == ".yml" ||
 				filepath.Ext(k) == ".yaml" ||
@@ -209,7 +264,7 @@ func SniffOutAllExternalRules(
 				}
 
 				// do down the rabbit hole.
-				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, remote, httpClient)
+				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, strings.HasPrefix(k, "http"), httpClient)
 			}
 		}
 	}

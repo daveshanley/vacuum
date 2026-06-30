@@ -22,6 +22,7 @@ import (
 	v3Base "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/libopenapi/utils"
 	"go.yaml.in/yaml/v4"
@@ -190,17 +191,30 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		return rx
 	}
 
+	newCachedValidationSchema := func(s *v3.Schema) func() *v3Base.Schema {
+		var validationSchema *v3Base.Schema
+		var loaded bool
+		return func() *v3Base.Schema {
+			if !loaded {
+				validationSchema = cloneSchemaForExampleValidation(s, ruleContext)
+				loaded = true
+			}
+			return validationSchema
+		}
+	}
+
 	validateSchema := func(iKey *int,
 		sKey, label string,
 		s *v3.Schema,
 		obj v3.AcceptsRuleResults,
 		node *yaml.Node,
 		keyNode *yaml.Node,
+		getValidationSchema func() *v3Base.Schema,
 		example any,
 	) []model.RuleFunctionResult {
 		var rx []model.RuleFunctionResult
 		if s != nil && s.Value != nil {
-			validationSchema := cloneSchemaForExampleValidation(s, ruleContext)
+			validationSchema := getValidationSchema()
 			if validationSchema == nil {
 				return rx
 			}
@@ -257,6 +271,10 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		for i := range ruleContext.DrDocument.Schemas {
 			s := ruleContext.DrDocument.Schemas[i]
 			spawnWorker(func() {
+				// Keep cloned validation schemas scoped to this worker. Sharing them
+				// across workers would reintroduce mutable schema state.
+				getValidationSchema := newCachedValidationSchema(s)
+
 				// check context at start of work
 				select {
 				case <-ctx.Done():
@@ -289,7 +307,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 						_ = ex.Decode(&example)
 						result := validateSchema(&x, "", "examples",
 							s, s, s.Value.GoLow().Examples.Value[x].ValueNode,
-							s.Value.GoLow().Examples.GetKeyNode(), example)
+							s.Value.GoLow().Examples.GetKeyNode(), getValidationSchema, example)
 
 						if result != nil {
 							expLock.Lock()
@@ -317,7 +335,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 					_ = refForDecode.Decode(&example)
 
 					result := validateSchema(nil, "", "example", s, s, s.Value.Example,
-						s.Value.GoLow().Example.GetKeyNode(), example)
+						s.Value.GoLow().Example.GetKeyNode(), getValidationSchema, example)
 					if result != nil {
 						expLock.Lock()
 						results = append(results, result...)
@@ -363,8 +381,9 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 
 	// createJSONValidator creates a validator for JSON examples
 	createJSONValidator := func(s *v3.Schema, ver float32) exampleValidatorFunc {
+		getValidationSchema := newCachedValidationSchema(s)
 		return func(example any) (bool, []*errors.ValidationError, *v3Base.Schema) {
-			validationSchema := cloneSchemaForExampleValidation(s, ruleContext)
+			validationSchema := getValidationSchema()
 			if validationSchema != nil {
 				if ver > 0 {
 					valid, validationErrors := validator.ValidateSchemaObjectWithVersion(validationSchema, example, ver)
@@ -379,8 +398,9 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 
 	// createXMLValidator creates a validator for XML examples
 	createXMLValidator := func(s *v3.Schema, ver float32) exampleValidatorFunc {
+		getValidationSchema := newCachedValidationSchema(s)
 		return func(example any) (bool, []*errors.ValidationError, *v3Base.Schema) {
-			validationSchema := cloneSchemaForExampleValidation(s, ruleContext)
+			validationSchema := getValidationSchema()
 			if xmlStr, ok := example.(string); ok {
 				if validationSchema == nil {
 					return true, nil, nil
@@ -577,19 +597,26 @@ func cloneSchemaForExampleValidation(schema *v3.Schema, ruleContext model.RuleFu
 	}
 
 	lowSchema := schema.Value.GoLow()
-	root := utils.CloneYAMLNode(lowSchema.GetRootNode())
-	if root == nil {
-		return nil
-	}
-
 	idx := lowSchema.GetIndex()
 	if idx == nil {
 		idx = ruleContext.Index
 	}
-
 	buildCtx := lowSchema.GetContext()
 	if buildCtx == nil {
 		buildCtx = context.Background()
+	}
+
+	sourceRoot := lowSchema.GetRootNode()
+	if sourceRoot == nil {
+		return nil
+	}
+
+	// ResolveRefsInNode intentionally resolves local refs only. Nested external
+	// refs remain bound to the existing index/rolodex until that path has its own
+	// isolated external-document clone.
+	root := utils.CloneYAMLNode(index.ResolveRefsInNode(sourceRoot, idx))
+	if root == nil {
+		return nil
 	}
 
 	if isRef, _, _ := utils.IsNodeRefValue(root); isRef {

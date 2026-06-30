@@ -351,7 +351,7 @@ func validateEnumTypes(schema *drV3.Schema, context *model.RuleFunctionContext,
 		if node == nil {
 			continue
 		}
-		if node.Tag == "!!null" && nullAllowed {
+		if node.ShortTag() == "!!null" && nullAllowed {
 			continue
 		}
 

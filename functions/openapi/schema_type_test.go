@@ -5,6 +5,7 @@ package openapi
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -412,6 +413,62 @@ components:
 		res := SchemaTypeCheck{}.RunRule(nil, ctx)
 		if len(res) > 0 {
 			t.Fatalf("iteration %d returned schema type results: %#v", i+1, res)
+		}
+	}
+}
+
+func TestSchemaType_Issue919_ConcurrentExampleValidationDoesNotPoisonRefEnums(t *testing.T) {
+	yml := `openapi: 3.0.3
+info:
+  title: User Service API
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    UserDataResponse:
+      properties:
+        message:
+          type: string
+          pattern: ^[\x20-\x7E]*$
+        userData:
+          $ref: '#/components/schemas/UserData'
+      example: {}
+    UserData:
+      properties:
+        subscriptionStatus:
+          type: string
+          enum:
+          - REFUNDED`
+
+	for i := 0; i < 200; i++ {
+		document, err := libopenapi.NewDocument([]byte(yml))
+		assert.NoError(t, err)
+
+		m, modelErrors := document.BuildV3Model()
+		assert.Empty(t, modelErrors)
+
+		drDocument := drModel.NewDrDocument(m)
+		rule := buildOpenApiTestRuleAction("$", "schema-type-check", "", nil)
+		ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+		ctx.Document = document
+		ctx.DrDocument = drDocument
+		ctx.Rule = &rule
+
+		var wg sync.WaitGroup
+		var schemaResults []model.RuleFunctionResult
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			ExamplesSchema{}.RunRule(nil, ctx)
+		}()
+		go func() {
+			defer wg.Done()
+			schemaResults = SchemaTypeCheck{}.RunRule(nil, ctx)
+		}()
+		wg.Wait()
+
+		if len(schemaResults) > 0 {
+			t.Fatalf("iteration %d returned schema type results: %#v", i+1, schemaResults)
 		}
 	}
 }

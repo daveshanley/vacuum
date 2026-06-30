@@ -17,27 +17,28 @@ func constNodeValidForType(node *yaml.Node, schemaType string) bool {
 	if node == nil {
 		return false
 	}
+	nodeTag := node.ShortTag()
 	switch schemaType {
 	case "string":
-		return node.Tag == "!!str"
+		return nodeTag == "!!str"
 	case "integer":
-		if node.Tag == "!!int" {
+		if nodeTag == "!!int" {
 			return true
 		}
-		if node.Tag == "!!float" {
+		if nodeTag == "!!float" {
 			return isFloatWhole(node.Value)
 		}
 		return false
 	case "number":
-		return node.Tag == "!!int" || node.Tag == "!!float"
+		return nodeTag == "!!int" || nodeTag == "!!float"
 	case "boolean":
-		return node.Tag == "!!bool"
+		return nodeTag == "!!bool"
 	case "null":
-		return node.Tag == "!!null"
+		return nodeTag == "!!null"
 	case "array":
-		return node.Tag == "!!seq"
+		return nodeTag == "!!seq"
 	case "object":
-		return node.Tag == "!!map"
+		return nodeTag == "!!map"
 	}
 	return false
 }
