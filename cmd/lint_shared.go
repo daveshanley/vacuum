@@ -352,7 +352,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 		for k, v := range owaspRules {
 			selectedRS.Rules[k] = v
 		}
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if flags.RulesetFlag == "" {
 				renderHardModeBox(HardModeEnabled, flags.NoStyleFlag)
 			}
@@ -374,7 +374,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 			return nil, "", rsErr
 		}
 
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if flags.NoStyleFlag {
 				fmt.Printf(" using ruleset '%s' (containing %d rules)\n",
 					flags.RulesetFlag, len(selectedRS.Rules))
