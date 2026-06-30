@@ -167,7 +167,9 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				logs:     result.Logs,
 				err:      result.Error,
 			}
-		} else if result.Error == nil {
+		} else if result.Error != nil {
+			RenderGitHubAnnotationError(result.Error, fileName)
+		} else {
 			RenderGitHubAnnotations(result.Results, fileName)
 		}
 

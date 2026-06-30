@@ -15,6 +15,11 @@ type GitHubAnnotationRenderOptions struct {
 	SpectralRanges bool
 }
 
+type cachedNodeSpan struct {
+	start reports.RangeItem
+	end   reports.RangeItem
+}
+
 // severityToGitHubLevel maps a vacuum severity string to a GitHub Actions
 // workflow command annotation level.
 func severityToGitHubLevel(severity string) string {
@@ -86,11 +91,22 @@ func toAnnotationFilePath(filePath string) string {
 //
 // Format per violation:
 //
-	//	::{level} title={rule-id},file={path},col={n},endColumn={n},line={n},endLine={n}::{message}
+//	::{level} title={rule-id},file={path},col={n},endColumn={n},line={n},endLine={n}::{message}
 //
 // Severity mapping: error→error, warn→warning, info/hint→notice.
 func RenderGitHubAnnotations(results []*model.RuleFunctionResult, fileName string) {
 	RenderGitHubAnnotationsWithOptions(results, fileName, GitHubAnnotationRenderOptions{SpectralRanges: true})
+}
+
+func RenderGitHubAnnotationError(err error, fileName string) {
+	if err == nil {
+		return
+	}
+
+	RenderGitHubAnnotations([]*model.RuleFunctionResult{{
+		RuleSeverity: model.SeverityError,
+		Message:      err.Error(),
+	}}, fileName)
 }
 
 func RenderGitHubAnnotationsWithOptions(
@@ -98,7 +114,9 @@ func RenderGitHubAnnotationsWithOptions(
 	fileName string,
 	options GitHubAnnotationRenderOptions,
 ) {
-	var lines []string
+	var output strings.Builder
+	printed := 0
+	spanCache := make(map[*yaml.Node]cachedNodeSpan)
 
 	for _, r := range results {
 		if r == nil {
@@ -124,7 +142,7 @@ func RenderGitHubAnnotationsWithOptions(
 		relFile := toAnnotationFilePath(sourcePath)
 		props = append(props, fmt.Sprintf("file=%s", escapeGitHubAnnotationProperty(relFile)))
 
-		start, end := annotationRange(r, options)
+		start, end := annotationRange(r, options, spanCache)
 		if start.Char > 0 {
 			props = append(props, fmt.Sprintf("col=%d", start.Char))
 		}
@@ -143,19 +161,28 @@ func RenderGitHubAnnotationsWithOptions(
 			message += "%0ADocumentation: " + escapeGitHubAnnotationMessage(r.Rule.DocumentationURL)
 		}
 
-		if len(props) > 0 {
-			lines = append(lines, fmt.Sprintf("::%s %s::%s", level, strings.Join(props, ","), message))
-		} else {
-			lines = append(lines, fmt.Sprintf("::%s::%s", level, message))
+		if printed > 0 {
+			output.WriteByte('\n')
 		}
+		if len(props) > 0 {
+			output.WriteString(fmt.Sprintf("::%s %s::%s", level, strings.Join(props, ","), message))
+		} else {
+			output.WriteString(fmt.Sprintf("::%s::%s", level, message))
+		}
+		printed++
 	}
 
-	if len(lines) > 0 {
-		fmt.Print(strings.Join(lines, "\n"))
+	if printed > 0 {
+		output.WriteByte('\n')
+		fmt.Print(output.String())
 	}
 }
 
-func annotationRange(result *model.RuleFunctionResult, options GitHubAnnotationRenderOptions) (reports.RangeItem, reports.RangeItem) {
+func annotationRange(
+	result *model.RuleFunctionResult,
+	options GitHubAnnotationRenderOptions,
+	spanCache map[*yaml.Node]cachedNodeSpan,
+) (reports.RangeItem, reports.RangeItem) {
 	if result == nil {
 		return reports.RangeItem{}, reports.RangeItem{}
 	}
@@ -164,12 +191,12 @@ func annotationRange(result *model.RuleFunctionResult, options GitHubAnnotationR
 	end := result.Range.End
 	if options.SpectralRanges && shouldExpandSpectralRange(result, start, end) {
 		if result.StartNode != nil {
-			s, e := nodeSpan(result.StartNode)
+			s, e := nodeSpan(result.StartNode, spanCache)
 			start = earlierRangeItem(start, s)
 			end = laterRangeItem(end, e)
 		}
 		if result.EndNode != nil {
-			s, e := nodeSpan(result.EndNode)
+			s, e := nodeSpan(result.EndNode, spanCache)
 			start = earlierRangeItem(start, s)
 			end = laterRangeItem(end, e)
 		}
@@ -201,16 +228,19 @@ func annotationRange(result *model.RuleFunctionResult, options GitHubAnnotationR
 	return start, end
 }
 
-func nodeSpan(node *yaml.Node) (reports.RangeItem, reports.RangeItem) {
+func nodeSpan(node *yaml.Node, spanCache map[*yaml.Node]cachedNodeSpan) (reports.RangeItem, reports.RangeItem) {
 	if node == nil {
 		return reports.RangeItem{}, reports.RangeItem{}
+	}
+	if cached, ok := spanCache[node]; ok {
+		return cached.start, cached.end
 	}
 
 	start := reports.RangeItem{Line: node.Line, Char: node.Column}
 	end := scalarNodeEnd(node)
 
 	for _, child := range node.Content {
-		cStart, cEnd := nodeSpan(child)
+		cStart, cEnd := nodeSpan(child, spanCache)
 		start = earlierRangeItem(start, cStart)
 		end = laterRangeItem(end, cEnd)
 	}
@@ -221,6 +251,7 @@ func nodeSpan(node *yaml.Node) (reports.RangeItem, reports.RangeItem) {
 	if end.Char == 0 {
 		end.Char = start.Char
 	}
+	spanCache[node] = cachedNodeSpan{start: start, end: end}
 
 	return start, end
 }

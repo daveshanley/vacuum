@@ -19,7 +19,7 @@ import (
 func captureAnnotationsOutput(t *testing.T, fn func()) string {
 	t.Helper()
 	stdout, _ := captureOSStreams(t, fn)
-	return stdout
+	return strings.TrimRight(stdout, "\n")
 }
 
 func TestRenderGitHubAnnotations_Empty(t *testing.T) {
