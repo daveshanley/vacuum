@@ -5,7 +5,6 @@
 package rulesets
 
 import (
-	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -13,7 +12,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -485,40 +483,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	// download remote rulesets
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
-
-		doneChan := make(chan bool)
-
-		// give it a fair wait, 5 seconds is long enough by default.
-		ctx, cancel := context.WithTimeout(context.Background(), externalRulesetFetchTimeout)
-		defer cancel()
-		total := 0
-
-		go func() {
-
-			for k := range extends {
-				if strings.HasPrefix(k, "http") ||
-					filepath.Ext(k) == ".yml" ||
-					filepath.Ext(k) == ".yaml" ||
-					filepath.Ext(k) == ".json" {
-					total++
-					remote := false
-					if strings.HasPrefix(k, "http") {
-						remote = true
-					}
-					SniffOutAllExternalRules(ctx, &rsm, k, nil, rs, remote, httpClient)
-				}
-			}
-			doneChan <- true
-		}()
-
-		select {
-		case <-ctx.Done():
-			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
-			break
-		case <-doneChan:
-			break
-		}
-
+		rsm.loadExternalRulesetsWithTimeout(extends, rs, httpClient)
 	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide

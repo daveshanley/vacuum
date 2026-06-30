@@ -5,14 +5,17 @@ package openapi
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/testify/assert"
+	"go.yaml.in/yaml/v4"
 )
 
 func TestExamplesSchema(t *testing.T) {
@@ -51,6 +54,62 @@ components:
 
 }
 
+func TestCloneSchemaForExampleValidation_ResolvesSequenceLocalRefs(t *testing.T) {
+	yml := `openapi: 3.1
+components:
+  schemas:
+    Composed:
+      allOf:
+        - $ref: '#/components/schemas/UserData'
+        - type: object
+          properties:
+            message:
+              type: string
+      example:
+        subscriptionStatus: REFUNDED
+        message: ok
+    UserData:
+      type: object
+      properties:
+        subscriptionStatus:
+          type: string
+          enum:
+            - REFUNDED`
+
+	ctx, schema := buildExampleSchemaCloneContext(t, yml, "Composed")
+	cloned := cloneSchemaForExampleValidation(schema, ctx)
+	assert.NotNil(t, cloned)
+	if cloned == nil {
+		return
+	}
+	assert.False(t, containsLocalRef(cloned.GoLow().GetRootNode()))
+}
+
+func BenchmarkCloneSchemaForExampleValidation_LargeLocalRefClosure(b *testing.B) {
+	ctx, schema := buildExampleSchemaCloneContext(b, buildLargeLocalRefExampleDocument(750), "Composed")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if cloned := cloneSchemaForExampleValidation(schema, ctx); cloned == nil {
+			b.Fatal("expected cloned schema")
+		}
+	}
+}
+
+func BenchmarkExamplesSchema_ManyNamedExamplesSharedSchema(b *testing.B) {
+	ctx, _ := buildExampleSchemaCloneContext(b, buildManyNamedExamplesDocument(20), "Composed")
+	def := ExamplesSchema{}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if res := def.RunRule(nil, ctx); len(res) > 0 {
+			b.Fatalf("expected no validation results, got %#v", res)
+		}
+	}
+}
+
 func TestExamplesSchema_TrainTravel(t *testing.T) {
 	yml := `openapi: 3.1
 components:
@@ -87,6 +146,131 @@ components:
 
 	assert.Len(t, res, 0)
 
+}
+
+func buildExampleSchemaCloneContext(tb testing.TB, yml, schemaName string) (model.RuleFunctionContext, *drV3.Schema) {
+	tb.Helper()
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(tb, err)
+
+	m, modelErrors := document.BuildV3Model()
+	assert.Empty(tb, modelErrors)
+
+	drDocument := drModel.NewDrDocument(m)
+	rule := buildOpenApiTestRuleAction("$", "examples_schema", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	for _, schema := range drDocument.Schemas {
+		if schema.Name == schemaName || schema.GenerateJSONPath() == "$.components.schemas['"+schemaName+"']" {
+			return ctx, schema
+		}
+	}
+	tb.Fatalf("schema %q not found", schemaName)
+	return model.RuleFunctionContext{}, nil
+}
+
+func containsLocalRef(node *yaml.Node) bool {
+	if node == nil {
+		return false
+	}
+	if node.Kind == yaml.MappingNode {
+		for idx := 0; idx+1 < len(node.Content); idx += 2 {
+			key := node.Content[idx]
+			value := node.Content[idx+1]
+			if key != nil && key.Value == "$ref" && value != nil && strings.HasPrefix(value.Value, "#/") {
+				return true
+			}
+		}
+	}
+	for _, child := range node.Content {
+		if containsLocalRef(child) {
+			return true
+		}
+	}
+	return false
+}
+
+func buildLargeLocalRefExampleDocument(schemaCount int) string {
+	var b strings.Builder
+	b.WriteString(`openapi: 3.1
+components:
+  schemas:
+`)
+	for i := 0; i < schemaCount; i++ {
+		fmt.Fprintf(&b, `    Padding%d:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+`, i)
+	}
+	b.WriteString(`    Composed:
+      allOf:
+        - $ref: '#/components/schemas/UserData'
+        - type: object
+          properties:
+            message:
+              type: string
+      example:
+        subscriptionStatus: REFUNDED
+        message: ok
+    UserData:
+      type: object
+      properties:
+        subscriptionStatus:
+          type: string
+          enum:
+            - REFUNDED
+`)
+	return b.String()
+}
+
+func buildManyNamedExamplesDocument(exampleCount int) string {
+	var b strings.Builder
+	b.WriteString(`openapi: 3.1
+paths:
+  /users:
+    get:
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Composed'
+              examples:
+`)
+	for i := 0; i < exampleCount; i++ {
+		fmt.Fprintf(&b, `                example%d:
+                  value:
+                    subscriptionStatus: REFUNDED
+                    message: ok
+`, i)
+	}
+	b.WriteString(`components:
+  schemas:
+    Composed:
+      allOf:
+        - $ref: '#/components/schemas/UserData'
+        - type: object
+          properties:
+            message:
+              type: string
+    UserData:
+      type: object
+      properties:
+        subscriptionStatus:
+          type: string
+          enum:
+            - REFUNDED
+`)
+	return b.String()
 }
 
 func TestExamplesSchema_Invalid(t *testing.T) {

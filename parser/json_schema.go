@@ -13,7 +13,6 @@ import (
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
-	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
@@ -31,10 +30,6 @@ func ConvertYAMLIntoJSONSchema(str string, index *index.SpecIndex) (*highBase.Sc
 
 func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase.Schema, error) {
 	sch := lowBase.Schema{}
-	mbErr := low.BuildModel(node, &sch)
-	if mbErr != nil {
-		return nil, mbErr
-	}
 
 	path := ""
 
@@ -56,6 +51,8 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 
 	ctx := context.WithValue(context.Background(), index.CurrentPathKey, path)
 
+	// Schema.Build performs the low-model extraction; do not pre-build the
+	// model here or validation pays that cost twice.
 	schErr := sch.Build(ctx, node, idx)
 	if schErr != nil {
 		return nil, schErr

@@ -144,6 +144,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	}
 
 	// use the current node to validate (field not needed)
+	schema = cloneSchemaForCoreValidation(schema, schemaIndex)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
 
 	// Auto-enable forceValidationOnCurrentNode when:
@@ -162,7 +163,6 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 
 	if forceBool, ok := forceValidationOnCurrentNode.(bool); (ok && forceBool) || autoForce {
 		if len(nodes) > 0 {
-			schema.GoLow().Index = schemaIndex
 			results = append(results, validateNodeAgainstSchema(&context, schema, nil, nodes[0], context, 0)...)
 			return results
 		}
@@ -182,7 +182,6 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		result := vacuumUtils.FindFieldPath(context.RuleAction.Field, searchNode.Content, fieldLookupOptions(context, false))
 		fieldNode, fieldNodeValue := result.KeyNode, result.ValueNode
 		if fieldNodeValue != nil {
-			schema.GoLow().Index = schemaIndex
 			results = append(results, validateNodeAgainstSchema(&context, schema, fieldNode, fieldNodeValue, context, x)...)
 
 		} else {
@@ -231,6 +230,29 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		}
 	}
 	return results
+}
+
+func cloneSchemaForCoreValidation(schema *highBase.Schema, schemaIndex *index.SpecIndex) *highBase.Schema {
+	if schema == nil || schema.GoLow() == nil || schema.GoLow().GetRootNode() == nil {
+		return schema
+	}
+	if schemaIndex == nil {
+		return schema
+	}
+	if schema.GoLow().GetIndex() == schemaIndex {
+		return schema
+	}
+	// Core rule schemas are expected to be self-contained. This clone prevents
+	// validation from retargeting a shared schema's index.
+	clonedRoot := utils.CloneYAMLNode(schema.GoLow().GetRootNode())
+	if clonedRoot == nil {
+		return schema
+	}
+	clonedSchema, err := parser.ConvertNodeIntoJSONSchema(clonedRoot, schemaIndex)
+	if err != nil || clonedSchema == nil {
+		return schema
+	}
+	return clonedSchema
 }
 
 var bannedErrors = []string{"if-then failed", "if-else failed", "allOf failed", "oneOf failed"}

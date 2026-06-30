@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/testify/assert"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -22,6 +23,26 @@ import (
 var totalRules = 69
 var totalRecommendedRules = 55
 var totalOwaspRules = 23
+
+type blockingRulesetTransport struct {
+	started  chan struct{}
+	release  chan struct{}
+	finished chan struct{}
+	body     string
+}
+
+func (t *blockingRulesetTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	close(t.started)
+	<-t.release
+	close(t.finished)
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Status:     "200 OK",
+		Body:       io.NopCloser(strings.NewReader(t.body)),
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
 
 func TestBuildDefaultRuleSets(t *testing.T) {
 
@@ -773,6 +794,66 @@ rules:
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.Nil(t, rs.Rules["dong"])
 	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out")
+}
+
+func TestRuleSet_GetExtendsRemoteSpec_TimeoutDoesNotWaitForNonContextAwareClient(t *testing.T) {
+	previousTimeout := externalRulesetFetchTimeout
+	externalRulesetFetchTimeout = 20 * time.Millisecond
+	t.Cleanup(func() {
+		externalRulesetFetchTimeout = previousTimeout
+	})
+
+	transport := &blockingRulesetTransport{
+		started:  make(chan struct{}),
+		release:  make(chan struct{}),
+		finished: make(chan struct{}),
+		body: `rules:
+  late:
+    description: late
+    severity: error
+    recommended: true
+    formats: [oas2, oas3]
+    given: $.info.title
+    then:
+      field: title
+      function: pattern`,
+	}
+
+	var logBuf []byte
+	logBuffer := bytes.NewBuffer(logBuf)
+	logger := slog.New(slog.NewTextHandler(logBuffer, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	def := BuildDefaultRuleSetsWithLogger(logger)
+	rs, err := CreateRuleSetFromData([]byte(`extends: http://example.com/slow-ruleset.yaml`))
+	assert.NoError(t, err)
+
+	start := time.Now()
+	override := def.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rs, &http.Client{Transport: transport})
+	elapsed := time.Since(start)
+
+	assert.Less(t, elapsed, 200*time.Millisecond)
+	assert.Len(t, override.Rules, 0)
+	assert.Len(t, override.RuleDefinitions, 0)
+	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out")
+
+	select {
+	case <-transport.started:
+	default:
+		t.Fatal("expected custom transport to receive the ruleset request")
+	}
+
+	close(transport.release)
+	select {
+	case <-transport.finished:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for custom transport to finish")
+	}
+	time.Sleep(20 * time.Millisecond)
+
+	assert.Nil(t, override.Rules["late"])
+	assert.Nil(t, rs.Rules["late"])
 }
 
 func TestRuleSet_GetExtendsLocalSpec_Single(t *testing.T) {
