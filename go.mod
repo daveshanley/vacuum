@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.7
 	charm.land/lipgloss/v2 v2.0.4
-	github.com/alecthomas/chroma/v2 v2.26.1
+	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/dop251/goja v0.0.0-20260607120635-348e6bea910d
