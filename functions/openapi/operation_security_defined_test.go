@@ -56,6 +56,41 @@ components:
 	assert.Len(t, res, 0)
 }
 
+func TestOperationSecurityDefined_OptionalAlternative(t *testing.T) {
+
+	yml := `paths:
+  /public-or-authenticated:
+    get:
+      security:
+        - {}
+        - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      name: x-api-key
+      in: header`
+
+	path := "$"
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	ops := make(map[string]string)
+	ops["schemesPath"] = "$.components.securitySchemes"
+
+	rule := buildOpenApiTestRuleAction(path, "operation_security", "", ops)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), ops)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	def := OperationSecurityDefined{}
+	res := def.RunRule(rootNode.Content, ctx)
+
+	assert.Len(t, res, 0)
+}
+
 func TestOperationSecurityDefined_Fail_One(t *testing.T) {
 
 	yml := `paths:
