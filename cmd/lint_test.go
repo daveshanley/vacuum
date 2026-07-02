@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pb33f/testify/assert"
@@ -186,4 +188,210 @@ paths:
 		assert.NotContains(t, output, "cannot marshal")
 		assert.NotContains(t, output, "schema invalid: cannot marshal")
 	}
+}
+
+func TestGetLintCommand_GitHubAnnotations_SingleFileSuppressesSummaryAndEmitsAnnotations(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.Contains(t, output, "title=")
+	assert.NotContains(t, output, "vacuuming file")
+	assert.NotContains(t, output, "RULE")
+	assert.NotContains(t, output, "violations")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileWithPipelineOutputEmitsAnnotationsAndMarkdown(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	content := `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`
+	writeTestFile(t, firstSpec, content)
+	writeTestFile(t, secondSpec, content)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--pipeline-output", firstSpec, secondSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "# 📄 `")
+	assert.GreaterOrEqual(t, strings.Count(output, "::"), 2)
+	assert.Contains(t, output, "title=")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileAnnotationOnlyEmitsAnnotations(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	content := `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`
+	writeTestFile(t, firstSpec, content)
+	writeTestFile(t, secondSpec, content)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", firstSpec, secondSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.GreaterOrEqual(t, strings.Count(output, "::"), 2)
+	assert.Contains(t, output, "title=")
+	assert.NotContains(t, output, "vacuuming")
+	assert.NotContains(t, output, "# 📄 `")
+	assert.NotContains(t, output, "RULE")
+
+	lines := strings.Split(strings.TrimRight(output, "\n"), "\n")
+	for _, line := range lines {
+		assert.Equal(t, 2, strings.Count(line, "::"), line)
+	}
+	assert.GreaterOrEqual(t, len(lines), 2)
+	assert.Contains(t, output, "first.yaml")
+	assert.Contains(t, output, "second.yaml")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileAnnotationOnlyReportsInputErrors(t *testing.T) {
+	dir := t.TempDir()
+	goodSpec := filepath.Join(dir, "good.yaml")
+	missingSpec := filepath.Join(dir, "missing.yaml")
+	writeTestFile(t, goodSpec, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", goodSpec, missingSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "missing.yaml")
+	assert.Contains(t, output, "::error ")
+	assert.Contains(t, output, "no such file or directory")
+}
+
+func TestResolveBasePathForFile(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "nested", "openapi.yaml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(specPath), 0o755))
+	writeTestFile(t, specPath, "openapi: 3.0.3\ninfo:\n  title: t\n  version: 1.0.0\npaths: {}\n")
+
+	t.Run("uses explicit base flag", func(t *testing.T) {
+		basePath, err := ResolveBasePathForFile(specPath, "..")
+		require.NoError(t, err)
+		expected, absErr := filepath.Abs("..")
+		require.NoError(t, absErr)
+		assert.Equal(t, expected, basePath)
+	})
+
+	t.Run("defaults to spec directory", func(t *testing.T) {
+		basePath, err := ResolveBasePathForFile(specPath, "")
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Dir(specPath), basePath)
+	})
+}
+
+func TestResolveSpecPathForExecution(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, "openapi: 3.0.3\ninfo:\n  title: t\n  version: 1.0.0\npaths: {}\n")
+
+	resolvedPath, err := ResolveSpecPathForExecution(specPath)
+	require.NoError(t, err)
+	assert.Equal(t, specPath, resolvedPath)
+
+	stdinPath, err := ResolveSpecPathForExecution("stdin")
+	require.NoError(t, err)
+	assert.Equal(t, "stdin", stdinPath)
+
+	urlPath, err := ResolveSpecPathForExecution("https://example.com/openapi.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.com/openapi.yaml", urlPath)
+
+	emptyPath, err := ResolveSpecPathForExecution("")
+	require.NoError(t, err)
+	assert.Empty(t, emptyPath)
+}
+
+func TestReadLintFlags_GitHubAnnotations(t *testing.T) {
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	require.NoError(t, cmd.ParseFlags([]string{"--github-annotations", "--pipeline-output", "--no-style", "../model/test_files/burgershop.openapi.yaml"}))
+
+	flags := ReadLintFlags(cmd)
+	assert.True(t, flags.GitHubAnnotations)
+	assert.True(t, flags.PipelineOutput)
+	assert.True(t, flags.NoStyleFlag)
 }

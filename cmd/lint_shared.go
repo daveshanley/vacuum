@@ -113,6 +113,7 @@ type LintFlags struct {
 	ResolveAllRefs           bool   // --resolve-all-refs: force resolved execution for all rules
 	NestedRefsDocContext     bool   // --nested-refs-doc-context: resolve nested relative refs from the referenced document during resolved execution
 	OutputAbsPathsFlag       bool
+	GitHubAnnotations        bool // --github-annotations: emit GitHub Actions file annotation lines
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -241,6 +242,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 		flags.NestedRefsDocContext = viper.GetBool("lint.nested-refs-doc-context")
 	}
 	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
+	flags.GitHubAnnotations, _ = cmd.Flags().GetBool("github-annotations")
 	return flags
 }
 
@@ -257,7 +259,7 @@ func SetupVacuumEnvironment(flags *LintFlags) {
 		color.DisableColors()
 	}
 
-	if !flags.SilentFlag && !flags.NoBannerFlag && !flags.PipelineOutput {
+	if !flags.SilentFlag && !flags.NoBannerFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		PrintBanner(flags.NoStyleFlag)
 	}
 }
@@ -350,7 +352,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 		for k, v := range owaspRules {
 			selectedRS.Rules[k] = v
 		}
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if flags.RulesetFlag == "" {
 				renderHardModeBox(HardModeEnabled, flags.NoStyleFlag)
 			}
@@ -372,7 +374,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 			return nil, "", rsErr
 		}
 
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if flags.NoStyleFlag {
 				fmt.Printf(" using ruleset '%s' (containing %d rules)\n",
 					flags.RulesetFlag, len(selectedRS.Rules))
