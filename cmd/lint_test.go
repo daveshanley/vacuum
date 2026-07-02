@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
@@ -124,6 +126,152 @@ func TestGetLintCommand_WithVacuumReport(t *testing.T) {
 
 	err := cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func TestResolveLintCategoryFlagIsCaseInsensitive(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		wantID string
+	}{
+		{name: "lowercase id", input: "tags", wantID: model.CategoryTags},
+		{name: "display name", input: "Tags", wantID: model.CategoryTags},
+		{name: "uppercase id", input: "TAGS", wantID: model.CategoryTags},
+		{name: "mixed case display name", input: "ScHeMaS", wantID: model.CategorySchemas},
+		{name: "multi word display name", input: "contract information", wantID: model.CategoryInfo},
+		{name: "owasp lowercase", input: "owasp", wantID: model.CategoryOWASP},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			categories, ok := resolveLintCategoryFlag(tt.input)
+
+			require.True(t, ok)
+			require.Len(t, categories, 1)
+			assert.Equal(t, tt.wantID, categories[0].Id)
+		})
+	}
+}
+
+func TestResolveLintCategoryFlagUnknownFallsBackToAllCategories(t *testing.T) {
+	categories, ok := resolveLintCategoryFlag("not-a-real-category")
+
+	assert.False(t, ok)
+	assert.Equal(t, model.RuleCategoriesOrdered, categories)
+}
+
+func TestGetLintCommand_FixFileWarnsWhenNoReportedViolationsSupportAutoFix(t *testing.T) {
+	cmd := GetLintCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+
+	fixPath := filepath.Join(t.TempDir(), "fixed.yaml")
+	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
+		"--fix",
+		"--fix-file", fixPath,
+		"../model/test_files/burgershop.openapi.yaml",
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.NoError(t, err)
+	output := stdout + stderr + b.String()
+	assert.Contains(t, output, "▲ No fixes were written to")
+	assert.Contains(t, output, fixPath)
+	assert.Contains(t, output, "none of the reported violations support auto-fix")
+
+	_, statErr := os.Stat(fixPath)
+	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestGetLintCommand_FixWarnsWhenNoReportedViolationsSupportAutoFix(t *testing.T) {
+	cmd := GetLintCommand()
+	b := bytes.NewBufferString("")
+	cmd.SetOut(b)
+	cmd.SetErr(b)
+	cmd.SetArgs([]string{
+		"--no-banner",
+		"--no-style",
+		"--fix",
+		"../model/test_files/burgershop.openapi.yaml",
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.NoError(t, err)
+	output := stdout + stderr + b.String()
+	assert.Contains(t, output, "▲ No fixes were applied")
+	assert.Contains(t, output, "none of the reported violations support auto-fix")
+}
+
+func TestRenderNoFixesAppliedWarningRespectsOutputMode(t *testing.T) {
+	resultSet := &model.RuleResultSet{
+		Results: []*model.RuleFunctionResult{
+			{Rule: &model.Rule{}},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		flags      *LintFlags
+		wantOutput bool
+	}{
+		{
+			name: "normal terminal output",
+			flags: &LintFlags{
+				FixFlag:     true,
+				FixFileFlag: "fixed.yaml",
+			},
+			wantOutput: true,
+		},
+		{
+			name: "silent suppresses warning",
+			flags: &LintFlags{
+				FixFlag:     true,
+				FixFileFlag: "fixed.yaml",
+				SilentFlag:  true,
+			},
+		},
+		{
+			name: "pipeline output suppresses warning",
+			flags: &LintFlags{
+				FixFlag:        true,
+				FixFileFlag:    "fixed.yaml",
+				PipelineOutput: true,
+			},
+		},
+		{
+			name: "fix without fix file warns",
+			flags: &LintFlags{
+				FixFlag: true,
+			},
+			wantOutput: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr := captureOSStreams(t, func() {
+				renderNoFixesAppliedWarning(tt.flags, resultSet, 0)
+			})
+
+			output := stdout + stderr
+			if tt.wantOutput {
+				assert.Contains(t, output, "No fixes were")
+				return
+			}
+			assert.Empty(t, output)
+		})
+	}
 }
 
 func TestGetLintCommand_QuotedResponseExampleDoesNotReportMarshalIssues(t *testing.T) {

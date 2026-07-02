@@ -26,6 +26,7 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/statistics"
+	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 )
 
@@ -363,31 +364,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 	if flags.CategoryFlag != "" {
 		resultSet.ResetCounts()
 		var filteredResults []*model.RuleFunctionResult
-		switch flags.CategoryFlag {
-		case model.CategoryDescriptions:
-			cats = append(cats, model.RuleCategories[model.CategoryDescriptions])
-		case model.CategoryExamples:
-			cats = append(cats, model.RuleCategories[model.CategoryExamples])
-		case model.CategoryInfo:
-			cats = append(cats, model.RuleCategories[model.CategoryInfo])
-		case model.CategorySchemas:
-			cats = append(cats, model.RuleCategories[model.CategorySchemas])
-		case model.CategorySecurity:
-			cats = append(cats, model.RuleCategories[model.CategorySecurity])
-		case model.CategoryValidation:
-			cats = append(cats, model.RuleCategories[model.CategoryValidation])
-		case model.CategoryOperations:
-			cats = append(cats, model.RuleCategories[model.CategoryOperations])
-		case model.CategoryTags:
-			cats = append(cats, model.RuleCategories[model.CategoryTags])
-		case model.CategoryOWASP:
-			cats = append(cats, model.RuleCategories[model.CategoryOWASP])
-		default:
-			if !flags.SilentFlag {
-				fmt.Printf("%sWarning: Category '%s' is unknown, all categories are being considered.%s\n\n",
-					color.ASCIIYellow, flags.CategoryFlag, color.ASCIIReset)
-			}
-			cats = model.RuleCategoriesOrdered
+		var knownCategory bool
+		cats, knownCategory = resolveLintCategoryFlag(flags.CategoryFlag)
+		if !knownCategory {
+			renderLintWarning(flags, "Category '%s' is unknown, all categories are being considered.", flags.CategoryFlag)
 		}
 		// filter results by category
 		for _, val := range cats {
@@ -406,6 +386,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	resultSet.SortResultsByLineNumber()
+
+	renderNoFixesAppliedWarning(flags, resultSet, fixesApplied)
 
 	if reportOrSpec.IsReport && reportOrSpec.Report.Statistics != nil {
 		stats = reportOrSpec.Report.Statistics
@@ -486,6 +468,63 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func resolveLintCategoryFlag(categoryFlag string) ([]*model.RuleCategory, bool) {
+	categoryFlag = strings.TrimSpace(categoryFlag)
+	if categoryFlag == "" {
+		return model.RuleCategoriesOrdered, true
+	}
+	if matchesRuleCategory(model.RuleCategories[model.CategoryAll], categoryFlag) {
+		return model.RuleCategoriesOrdered, true
+	}
+	for _, category := range model.RuleCategoriesOrdered {
+		if matchesRuleCategory(category, categoryFlag) {
+			return []*model.RuleCategory{category}, true
+		}
+	}
+	return model.RuleCategoriesOrdered, false
+}
+
+func matchesRuleCategory(category *model.RuleCategory, categoryFlag string) bool {
+	if category == nil {
+		return false
+	}
+	return strings.EqualFold(categoryFlag, category.Id) || strings.EqualFold(categoryFlag, category.Name)
+}
+
+func renderNoFixesAppliedWarning(flags *LintFlags, resultSet *model.RuleResultSet, fixesApplied int) {
+	if flags == nil || resultSet == nil {
+		return
+	}
+	if !flags.FixFlag || fixesApplied > 0 || len(resultSet.Results) == 0 {
+		return
+	}
+	messagePrefix := "No fixes were applied"
+	if flags.FixFileFlag != "" {
+		messagePrefix = fmt.Sprintf("No fixes were written to '%s'", flags.FixFileFlag)
+	}
+	if hasAutoFixableResults(resultSet.Results) {
+		renderLintWarning(flags, "%s; no auto-fixes were applied.", messagePrefix)
+		return
+	}
+	renderLintWarning(flags, "%s; none of the reported violations support auto-fix.", messagePrefix)
+}
+
+func hasAutoFixableResults(results []*model.RuleFunctionResult) bool {
+	for _, result := range results {
+		if result != nil && result.Rule != nil && result.Rule.AutoFixFunction != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func renderLintWarning(flags *LintFlags, format string, args ...any) {
+	if flags == nil || flags.SilentFlag || flags.PipelineOutput {
+		return
+	}
+	tui.RenderWarning(format, args...)
 }
 
 // fileResult holds the results and logs for a single file
