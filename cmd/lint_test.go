@@ -372,6 +372,72 @@ paths:
 	assert.NotContains(t, output, "violations")
 }
 
+func TestGetLintCommand_GitHubAnnotations_SingleFileLoadErrorEmitsAnnotation(t *testing.T) {
+	missingSpec := filepath.Join(t.TempDir(), "missing.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", missingSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error ")
+	assert.Contains(t, output, "no such file or directory")
+	assert.NotContains(t, output, "\033[31mUnable to load file")
+}
+
+func TestGetLintCommand_GitHubAnnotations_SuppressesHardModeAndTurboAndShowRulesChrome(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	rulesetPath := filepath.Join(t.TempDir(), "ruleset.yaml")
+	writeTestFile(t, rulesetPath, `extends: [[spectral:oas, recommended]]
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations",
+		"--no-style",
+		"--hard-mode",
+		"--turbo",
+		"--show-rules",
+		"-r", rulesetPath,
+		specPath,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+	_ = err
+
+	output := stdout + stderr
+	assert.NotContains(t, output, "turbo mode")
+	assert.NotContains(t, output, "OWASP Rules added to custom ruleset")
+	assert.NotContains(t, output, "The following rules are going to be used")
+}
+
 func TestGetLintCommand_GitHubAnnotations_MultiFileWithPipelineOutputEmitsAnnotationsAndMarkdown(t *testing.T) {
 	dir := t.TempDir()
 	firstSpec := filepath.Join(dir, "first.yaml")

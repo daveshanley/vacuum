@@ -139,8 +139,9 @@ func RenderGitHubAnnotationsWithOptions(
 		if r.Origin != nil && r.Origin.AbsoluteLocation != "" {
 			sourcePath = r.Origin.AbsoluteLocation
 		}
-		relFile := toAnnotationFilePath(sourcePath)
-		props = append(props, fmt.Sprintf("file=%s", escapeGitHubAnnotationProperty(relFile)))
+		if relFile := toAnnotationFilePath(sourcePath); relFile != "" {
+			props = append(props, fmt.Sprintf("file=%s", escapeGitHubAnnotationProperty(relFile)))
+		}
 
 		start, end := annotationRange(r, options, spanCache)
 		if start.Char > 0 {

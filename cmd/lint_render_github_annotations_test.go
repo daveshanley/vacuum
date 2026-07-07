@@ -46,7 +46,7 @@ func TestRenderGitHubAnnotations_SkipsNilEntries(t *testing.T) {
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 	assert.Len(t, lines, 1)
 	assert.Contains(t, lines[0], "::error ")
-	assert.Contains(t, lines[0], "file=")
+	assert.NotContains(t, lines[0], "file=")
 	assert.Contains(t, lines[0], "title=rule-error")
 	assert.Contains(t, lines[0], "::an error")
 }
@@ -157,7 +157,7 @@ func TestRenderGitHubAnnotations_URLInput_NoFileProperty(t *testing.T) {
 		RenderGitHubAnnotations(results, "https://example.com/spec.yaml")
 	})
 
-	assert.Contains(t, out, "file=")
+	assert.NotContains(t, out, "file=")
 	assert.Contains(t, out, "::error ")
 }
 
@@ -174,7 +174,7 @@ func TestRenderGitHubAnnotations_StdinInput_NoFileProperty(t *testing.T) {
 		RenderGitHubAnnotations(results, "stdin")
 	})
 
-	assert.Contains(t, out, "file=")
+	assert.NotContains(t, out, "file=")
 }
 
 func TestRenderGitHubAnnotations_NoPropertiesPrintsBareAnnotation(t *testing.T) {
@@ -189,7 +189,7 @@ func TestRenderGitHubAnnotations_NoPropertiesPrintsBareAnnotation(t *testing.T) 
 		RenderGitHubAnnotations(results, "stdin")
 	})
 
-	assert.Equal(t, "::notice file=::bare message", out)
+	assert.Equal(t, "::notice::bare message", out)
 }
 
 func TestRenderGitHubAnnotations_UsesRangeWhenAvailable(t *testing.T) {
@@ -319,6 +319,32 @@ func TestRenderGitHubAnnotations_MessageEscaping(t *testing.T) {
 
 	assert.Contains(t, out, "%0A")
 	assert.NotContains(t, out, "\nline two")
+}
+
+func TestRenderGitHubAnnotationError_NilErrorPrintsNothing(t *testing.T) {
+	out := captureAnnotationsOutput(t, func() {
+		RenderGitHubAnnotationError(nil, "spec.yaml")
+	})
+	assert.Empty(t, out)
+}
+
+func TestRenderGitHubAnnotationError_EmitsErrorAnnotation(t *testing.T) {
+	out := captureAnnotationsOutput(t, func() {
+		RenderGitHubAnnotationError(fmt.Errorf("boom"), "spec.yaml")
+	})
+	assert.Contains(t, out, "::error ")
+	assert.Contains(t, out, "file=spec.yaml")
+	assert.Contains(t, out, "::boom")
+}
+
+func TestRenderGitHubAnnotationError_OmitsFileForStdinAndURLs(t *testing.T) {
+	for _, src := range []string{"stdin", "", "https://example.com/spec.yaml"} {
+		out := captureAnnotationsOutput(t, func() {
+			RenderGitHubAnnotationError(fmt.Errorf("boom"), src)
+		})
+		assert.Contains(t, out, "::error")
+		assert.NotContains(t, out, "file=")
+	}
 }
 
 func TestEscapeGitHubAnnotationProperty(t *testing.T) {

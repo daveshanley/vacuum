@@ -390,7 +390,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 
 		if flags.HardModeFlag {
 			if MergeOWASPRulesToRuleSet(selectedRS, true) {
-				if !flags.SilentFlag && !flags.PipelineOutput {
+				if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 					renderHardModeBox(HardModeWithCustomRuleset, flags.NoStyleFlag)
 				}
 			}
@@ -400,13 +400,13 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 	// Apply turbo mode rule filtering
 	if flags.TurboMode {
 		removed := rulesets.FilterRulesForTurbo(selectedRS)
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			fmt.Printf(" %s⚡ [turbo mode]: removed %d expensive rules (%d rules remaining)%s\n\n",
 				color.ASCIIYellow, removed, len(selectedRS.Rules), color.ASCIIReset)
 		}
 	}
 
-	if flags.ShowRules && !flags.PipelineOutput && !flags.SilentFlag {
+	if flags.ShowRules && !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
 		renderRulesList(selectedRS.Rules)
 	}
 

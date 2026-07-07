@@ -142,7 +142,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 	// try to load the file as either a report or spec (supports URLs)
 	reportOrSpec, err := LoadFileAsReportOrSpecWithClient(fileName, httpClient)
 	if err != nil {
-		if !flags.SilentFlag {
+		annotationsOnly := flags.GitHubAnnotations && !flags.PipelineOutput
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(err, fileName)
+		}
+		if !flags.SilentFlag && !annotationsOnly {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
 		}
 		return err
@@ -334,8 +338,14 @@ func runLint(cmd *cobra.Command, args []string) error {
 		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
 
 		if len(result.Errors) > 0 {
+			annotationsOnly := flags.GitHubAnnotations && !flags.PipelineOutput
 			for _, err := range result.Errors {
-				fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+				if flags.GitHubAnnotations {
+					RenderGitHubAnnotationError(err, displayFileName)
+				}
+				if !annotationsOnly {
+					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+				}
 			}
 			return NewInputError("linting failed due to %d issues", len(result.Errors))
 		}
