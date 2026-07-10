@@ -1317,3 +1317,139 @@ components:
 	// Should pass - array examples are not object maps, so strict validation is skipped
 	assert.Len(t, res, 0)
 }
+
+func TestExamplesSchema_GetSchema_AdvertisesAssertionOptions(t *testing.T) {
+	schema := (ExamplesSchema{}).GetSchema()
+
+	assert.Equal(t, "oasExampleSchema", schema.Name)
+	assert.Equal(t, 3, schema.MaxProperties)
+	assert.Len(t, schema.Properties, 3)
+	assert.Equal(t, "strictMode", schema.Properties[0].Name)
+	assert.Equal(t, "formatAssertions", schema.Properties[1].Name)
+	assert.Equal(t, "contentAssertions", schema.Properties[2].Name)
+}
+
+func TestExamplesSchema_FormatAssertions_Issue930(t *testing.T) {
+	yml := `openapi: 3.0.3
+info:
+  title: Issue 930
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Registration:
+      type: object
+      properties:
+        registration_date:
+          type: string
+          format: date-time
+          example: nullable datetime
+          nullable: true`
+
+	tests := []struct {
+		name    string
+		opts    map[string]string
+		wantLen int
+	}{
+		{name: "disabled by default", wantLen: 0},
+		{name: "explicitly disabled", opts: map[string]string{"formatAssertions": "false"}, wantLen: 0},
+		{name: "enabled", opts: map[string]string{"formatAssertions": "true"}, wantLen: 1},
+		{name: "malformed value remains disabled", opts: map[string]string{"formatAssertions": "sometimes"}, wantLen: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := runExamplesSchemaRule(t, yml, tt.opts)
+			assert.Len(t, res, tt.wantLen)
+			if tt.wantLen > 0 {
+				assert.Contains(t, strings.ToLower(res[0].Message), "date-time")
+			}
+		})
+	}
+}
+
+func TestExamplesSchema_FormatAssertions_ValidDateTime(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Valid date-time
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Timestamp:
+      type: string
+      format: date-time
+      example: "2026-07-10T12:30:32Z"`
+
+	res := runExamplesSchemaRule(t, yml, map[string]string{"formatAssertions": "true"})
+	assert.Len(t, res, 0)
+}
+
+func TestExamplesSchema_ContentAssertions(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Content assertions
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    EncodedPayload:
+      type: string
+      contentEncoding: base64
+      example: "not base64!"`
+
+	assert.Len(t, runExamplesSchemaRule(t, yml, nil), 0)
+	res := runExamplesSchemaRule(t, yml, map[string]string{"contentAssertions": "true"})
+	assert.Len(t, res, 1)
+}
+
+func TestExamplesSchema_AssertionOptionsCombineWithStrictMode(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Combined assertions
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Event:
+      type: object
+      properties:
+        occurredAt:
+          type: string
+          format: date-time
+      example:
+        occurredAt: "2026-07-10T12:30:32Z"
+        undeclared: true`
+
+	res := runExamplesSchemaRule(t, yml, map[string]string{
+		"formatAssertions": "true",
+		"strictMode":       "true",
+	})
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "undeclared property 'undeclared'")
+}
+
+func runExamplesSchemaRule(t *testing.T, yml string, opts map[string]string) []model.RuleFunctionResult {
+	t.Helper()
+
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+	if err != nil {
+		return nil
+	}
+
+	m, errs := document.BuildV3Model()
+	assert.Nil(t, errs)
+	if m == nil {
+		return nil
+	}
+
+	drDocument := drModel.NewDrDocument(m)
+	rule := buildOpenApiTestRuleAction("$", "examples_schema", "", opts)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Document = document
+	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
+
+	return (ExamplesSchema{}).RunRule(nil, ctx)
+}
