@@ -124,8 +124,8 @@ like our _very kind_ sponsors, past and present:
 
 <a href="https://apideck.com">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/apideck-dark.png">
-  <img alt="apideck'" src=".github/sponsors/apideck-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/apideck-light.png">
+  <img alt="apideck" src=".github/sponsors/apideck-dark.png">
 </picture>
 </a>
 
