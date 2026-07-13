@@ -4,16 +4,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	ppconfig "github.com/pb33f/doctor/printingpress/config"
@@ -34,15 +31,19 @@ type docsSource struct {
 	specURL   string
 }
 
-// GetDocsCommand returns the OpenAPI documentation generation command.
+// GetDocsCommand returns the OpenAPI and AsyncAPI documentation generation command.
 func GetDocsCommand() *cobra.Command {
 	opts := &docsOptions{
 		port: 9090,
 	}
 
 	cmd := &cobra.Command{
-		Use:           "docs <openapi-file-url-or-directory>",
-		Short:         "Generate Agentic AI and Human OpenAPI documentation via the printing press",
+		Use:   "docs <api-file-url-or-directory>",
+		Short: "Ship world-class, fast, modern and agent-ready OpenAPI and AsyncAPI docs with the printing press",
+		Long: `Generate portable OpenAPI and AsyncAPI documentation for humans and agents with the printing press.
+
+The source API contract is not shipped in generated output by default. Use
+--include-spec to render and expose it with linked source locations.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Args:          cobra.MaximumNArgs(1),
@@ -81,6 +82,7 @@ func GetDocsCommand() *cobra.Command {
 	cmd.Flags().BoolVarP(&opts.noLogo, "no-logo", "b", false, "Disable the vacuum banner")
 	cmd.Flags().BoolVar(&opts.noFooter, "no-footer", false, "Disable the generated HTML footer")
 	cmd.Flags().BoolVar(&opts.disableExport, "disable-export", false, "Disable local preview archive export controls")
+	cmd.Flags().BoolVar(&opts.includeSpec, "include-spec", false, "Render and expose the source OpenAPI or AsyncAPI contract with linked source locations")
 	cmd.Flags().BoolVar(&opts.noHTML, "no-html", false, "Skip HTML output")
 	cmd.Flags().BoolVar(&opts.noLLM, "no-llm", false, "Skip LLM output")
 	cmd.Flags().BoolVar(&opts.noJSON, "no-json", false, "Skip JSON artifact output")
@@ -130,9 +132,6 @@ func runDocs(cmd *cobra.Command, input string, opts *docsOptions) (err error) {
 	}
 
 	if mode == docsInputAggregate {
-		if err := rejectAsyncAPIForDocsAggregate(inputPath); err != nil {
-			return err
-		}
 		fetchConfig, err := GetFetchConfig(lintFlags)
 		if err != nil {
 			return err
@@ -146,9 +145,6 @@ func runDocs(cmd *cobra.Command, input string, opts *docsOptions) (err error) {
 
 	source, err := loadDocsSource(inputPath, opts, httpClient)
 	if err != nil {
-		return err
-	}
-	if err := rejectAsyncAPIForOpenAPICommand("docs", source.specBytes); err != nil {
 		return err
 	}
 	fetchConfig, err := GetFetchConfig(lintFlags)
@@ -177,9 +173,10 @@ func resolveDocsInput(input string, fileConfig *ppconfig.File) (string, error) {
 	if fileConfig != nil && strings.TrimSpace(fileConfig.Scan.Root) != "" {
 		return strings.TrimSpace(fileConfig.Scan.Root), nil
 	}
-	return "", fmt.Errorf(`Supply an OpenAPI spec path, URL, or directory to generate the most fly, modern and agentic ready API documentation you have ever seen.
+	return "", fmt.Errorf(`Supply an OpenAPI or AsyncAPI spec path, URL, or directory to ship world-class, modern and agent-ready API documentation.
 usage:
   vacuum docs ./openapi.yaml
+  vacuum docs ./asyncapi.yaml
   vacuum docs https://example.com/openapi.yaml
   vacuum docs ./apis --output ./api-docs
   vacuum docs ./openapi.yaml --serve --port 9090
@@ -238,7 +235,7 @@ func loadDocsSource(input string, opts *docsOptions, httpClient *http.Client) (*
 		return nil, fmt.Errorf("unable to load specification input: %w", err)
 	}
 	if len(reportOrSpec.SpecBytes) == 0 {
-		return nil, fmt.Errorf("specification input did not contain OpenAPI bytes")
+		return nil, fmt.Errorf("specification input did not contain API contract bytes")
 	}
 
 	if isDocsRemoteInput(input) {
@@ -281,44 +278,4 @@ func normalizeDocsBasePath(basePath string) (string, error) {
 		return "", fmt.Errorf("resolve base path: %w", err)
 	}
 	return abs, nil
-}
-
-var errDocsAggregateAsyncAPI = errors.New("asyncapi document found in docs aggregate input")
-
-func rejectAsyncAPIForDocsAggregate(root string) error {
-	var asyncPath string
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || !isDocsSpecCandidate(path) {
-			return nil
-		}
-		specBytes, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		isAsyncAPI, detectErr := asyncapi_context.IsDocument(specBytes)
-		if detectErr != nil && !asyncapi_context.HasMarker(specBytes) {
-			return nil
-		}
-		if detectErr == nil && !isAsyncAPI {
-			return nil
-		}
-		asyncPath = path
-		return errDocsAggregateAsyncAPI
-	})
-	if errors.Is(err, errDocsAggregateAsyncAPI) {
-		return fmt.Errorf("`vacuum docs` only supports OpenAPI documents; AsyncAPI document found in aggregate input: %s", asyncPath)
-	}
-	return err
-}
-
-func isDocsSpecCandidate(path string) bool {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".json", ".yaml", ".yml":
-		return true
-	default:
-		return false
-	}
 }

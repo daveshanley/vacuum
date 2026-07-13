@@ -24,6 +24,37 @@ func TestDocsCommandKeepsLiveProgressFlags(t *testing.T) {
 
 	assert.Nil(t, cmd.Flags().Lookup("theme"))
 	assert.NotNil(t, cmd.Flags().Lookup("metrics"))
+	includeSpec := cmd.Flags().Lookup("include-spec")
+	require.NotNil(t, includeSpec)
+	assert.Contains(t, cmd.Short, "Ship")
+	assert.Contains(t, cmd.Short, "OpenAPI and AsyncAPI")
+	assert.Contains(t, cmd.Long, "source API contract is not shipped")
+	assert.Contains(t, includeSpec.Usage, "source OpenAPI or AsyncAPI contract")
+}
+
+func TestApplyDocsConfigIncludesSpec(t *testing.T) {
+	cmd := GetDocsCommand()
+	opts := &docsOptions{}
+
+	applyDocsConfigToOptions(cmd, opts, &ppconfig.File{IncludeSpec: true})
+
+	assert.True(t, opts.includeSpec)
+}
+
+func TestApplyDocsConfigIncludeSpecCanBeDisabledByFlag(t *testing.T) {
+	cmd := GetDocsCommand()
+	require.NoError(t, cmd.Flags().Set("include-spec", "false"))
+	opts := &docsOptions{}
+
+	applyDocsConfigToOptions(cmd, opts, &ppconfig.File{IncludeSpec: true})
+
+	assert.False(t, opts.includeSpec)
+}
+
+func TestBuildDocsAggregateConfigIncludesSpec(t *testing.T) {
+	cfg := buildDocsAggregateConfig("/apis", "/output", "hosted", &docsOptions{includeSpec: true}, nil)
+
+	assert.True(t, cfg.IncludeSpec)
 }
 
 func TestApplyDocsConfigDescriptionDoesNotDependOnTitle(t *testing.T) {
@@ -53,8 +84,9 @@ func TestResolveDocsInputRequiresInput(t *testing.T) {
 	_, err := resolveDocsInput("", nil)
 
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "Supply an OpenAPI spec path, URL, or directory to generate the most fly")
+	assert.ErrorContains(t, err, "Supply an OpenAPI or AsyncAPI spec path, URL, or directory to ship world-class")
 	assert.ErrorContains(t, err, "vacuum docs ./openapi.yaml")
+	assert.ErrorContains(t, err, "vacuum docs ./asyncapi.yaml")
 	assert.ErrorContains(t, err, "--docs-config printing-press.yaml")
 }
 
@@ -206,13 +238,15 @@ func TestRunDocsSingleGeneratesHTMLAndDiagnostics(t *testing.T) {
 	assert.FileExists(t, filepath.Join(outOn, "index.html"))
 	assert.FileExists(t, filepath.Join(outOn, "static", "printing-press.css"))
 	assert.FileExists(t, filepath.Join(outOn, "diagnostics.html"))
+	assert.NoFileExists(t, filepath.Join(outOn, "spec", filepath.Base(specPath)))
 
 	// diagnostics disabled -> docs render but no diagnostics page.
 	withoutDiagnostics, err := newDocsDiagnosticsContext(flags, httpClientConfig, fetchConfig, false)
 	require.NoError(t, err)
 	outOff := filepath.Join(root, "out-off")
-	require.NoError(t, runDocsSingle(source, &docsOptions{outputDir: outOff, noLLM: true, noJSON: true, noLogo: true}, withoutDiagnostics, term))
+	require.NoError(t, runDocsSingle(source, &docsOptions{outputDir: outOff, noLLM: true, noJSON: true, noLogo: true, includeSpec: true}, withoutDiagnostics, term))
 	assert.FileExists(t, filepath.Join(outOff, "index.html"))
+	assert.FileExists(t, filepath.Join(outOff, "spec", filepath.Base(specPath)))
 	assert.NoFileExists(t, filepath.Join(outOff, "diagnostics.html"))
 }
 

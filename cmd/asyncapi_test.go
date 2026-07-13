@@ -29,6 +29,32 @@ func TestSelectRuleSetForBuildResults_AsyncAPIDefault(t *testing.T) {
 	assert.NotContains(t, ruleSet.Rules, rulesets.OperationSuccessResponse)
 }
 
+func TestDocsDiagnosticsSelectsRuleSetForEachSpec(t *testing.T) {
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+	ctx := &docsDiagnosticsContext{
+		flags: &LintFlags{
+			RemoteFlag:     true,
+			SilentFlag:     true,
+			PipelineOutput: true,
+		},
+		selectedRuleset: defaultRuleSets.GenerateOpenAPIRecommendedRuleSet(),
+	}
+
+	asyncRules, err := ctx.ruleSetForSpec([]byte(cmdAsyncAPI31Fixture))
+	require.NoError(t, err)
+	assert.Contains(t, asyncRules.Rules, rulesets.AsyncAPI3DocumentResolved)
+	assert.NotContains(t, asyncRules.Rules, rulesets.OperationSuccessResponse)
+
+	openAPIRules, err := ctx.ruleSetForSpec([]byte(`openapi: 3.1.0
+info:
+  title: HTTP API
+  version: 1.0.0
+paths: {}`))
+	require.NoError(t, err)
+	assert.Contains(t, openAPIRules.Rules, rulesets.OperationSuccessResponse)
+	assert.NotContains(t, openAPIRules.Rules, rulesets.AsyncAPI3DocumentResolved)
+}
+
 func TestRejectAsyncAPIForOpenAPICommand(t *testing.T) {
 	err := rejectAsyncAPIForOpenAPICommand("bundle", []byte(cmdAsyncAPI31Fixture))
 
@@ -133,27 +159,35 @@ func TestApplyOverlayAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
 	assert.Contains(t, stderr, "only supports OpenAPI")
 }
 
-func TestRunDocsRejectsAsyncAPIBeforeDiagnostics(t *testing.T) {
+func TestRunDocsSupportsAsyncAPIWithDiagnosticsAndIncludedContract(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "asyncapi.yaml")
 	writeTestFile(t, specPath, cmdAsyncAPI31Fixture)
+	outputDir := filepath.Join(dir, "docs")
 
 	cmd := GetDocsCommand()
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
 	err := runDocs(cmd, specPath, &docsOptions{
-		outputDir: filepath.Join(dir, "docs"),
-		noLLM:     true,
-		noJSON:    true,
-		noLogo:    true,
+		outputDir:   outputDir,
+		noLLM:       true,
+		noJSON:      true,
+		noLogo:      true,
+		includeSpec: true,
 	})
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "only supports OpenAPI")
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(outputDir, "index.html"))
+	assert.FileExists(t, filepath.Join(outputDir, "spec", "asyncapi.yaml"))
+	indexHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexHTML), "<h1>Events</h1>")
+	assert.Contains(t, string(indexHTML), "mqtt://api.example.com")
+	assert.Contains(t, string(indexHTML), `href="spec/asyncapi.yaml"`)
 }
 
-func TestRunDocsRejectsMalformedAsyncAPIBeforeDiagnostics(t *testing.T) {
+func TestRunDocsReportsMalformedAsyncAPI(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "asyncapi.yaml")
 	writeTestFile(t, specPath, cmdMalformedAsyncAPI31Fixture)
@@ -170,19 +204,52 @@ func TestRunDocsRejectsMalformedAsyncAPIBeforeDiagnostics(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "only supports OpenAPI")
+	assert.NotContains(t, err.Error(), "only supports OpenAPI")
 }
 
-func TestRunDocsAggregateRejectsMalformedAsyncAPI(t *testing.T) {
+func TestRunDocsAggregateSupportsMixedOpenAPIAndAsyncAPI(t *testing.T) {
 	dir := t.TempDir()
-	specPath := filepath.Join(dir, "asyncapi.yaml")
-	writeTestFile(t, specPath, cmdMalformedAsyncAPI31Fixture)
+	writeTestFile(t, filepath.Join(dir, "asyncapi.yaml"), cmdAsyncAPI31Fixture)
+	writeTestFile(t, filepath.Join(dir, "openapi.yaml"), `openapi: 3.1.0
+info:
+  title: HTTP API
+  version: 1.0.0
+  description: HTTP contract.
+paths: {}`)
+	outputDir := filepath.Join(t.TempDir(), "docs")
+	cmd := GetDocsCommand()
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
 
-	err := rejectAsyncAPIForDocsAggregate(dir)
+	err := runDocs(cmd, dir, &docsOptions{
+		outputDir:   outputDir,
+		noLLM:       true,
+		noJSON:      true,
+		noLogo:      true,
+		includeSpec: true,
+	})
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "AsyncAPI document found in aggregate input")
-	assert.Contains(t, err.Error(), specPath)
+	require.NoError(t, err)
+	indexHTML, err := os.ReadFile(filepath.Join(outputDir, "index.html"))
+	require.NoError(t, err)
+	assert.Contains(t, string(indexHTML), "services/openapi/")
+	assert.Contains(t, string(indexHTML), "services/asyncapi/")
+	assert.True(t, docsOutputContainsFile(t, outputDir, "asyncapi.yaml"))
+}
+
+func docsOutputContainsFile(t *testing.T, root, name string) bool {
+	t.Helper()
+	found := false
+	require.NoError(t, filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() && entry.Name() == name && filepath.Base(filepath.Dir(path)) == "spec" {
+			found = true
+		}
+		return nil
+	}))
+	return found
 }
 
 func captureOSStreams(t *testing.T, fn func()) (string, string) {
