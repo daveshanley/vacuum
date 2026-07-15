@@ -71,7 +71,8 @@ jobs:
           direct_gocache="$(mktemp -d)"
           trap 'rm -rf "${direct_gopath}" "${direct_gocache}"' EXIT
 
-          GOWORK=off \
+          GOFLAGS=-modcacherw \
+            GOWORK=off \
             GOPROXY=direct \
             GOPATH="${direct_gopath}" \
             GOCACHE="${direct_gocache}" \

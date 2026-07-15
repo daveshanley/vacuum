@@ -43,7 +43,8 @@ jobs:
 
           cd "${install_dir}"
           go mod init vacuum-install-check
-          GOWORK=off \
+          GOFLAGS=-modcacherw \
+            GOWORK=off \
             GOPROXY=direct \
             GOPATH="${install_gopath}" \
             GOCACHE="${install_gocache}" \
