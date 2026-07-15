@@ -44,6 +44,7 @@ jobs:
           cd "${install_dir}"
           go mod init vacuum-install-check
           GOFLAGS=-modcacherw \
+            GIT_LFS_SKIP_SMUDGE=1 \
             GOWORK=off \
             GOPROXY=direct \
             GOPATH="${install_gopath}" \

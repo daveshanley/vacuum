@@ -72,6 +72,7 @@ jobs:
           trap 'rm -rf "${direct_gopath}" "${direct_gocache}"' EXIT
 
           GOFLAGS=-modcacherw \
+            GIT_LFS_SKIP_SMUDGE=1 \
             GOWORK=off \
             GOPROXY=direct \
             GOPATH="${direct_gopath}" \
