@@ -32,6 +32,23 @@ jobs:
         with:
           go-version: 1.25
 
+      - name: Verify tagged module installs directly
+        run: |
+          set -euo pipefail
+
+          install_dir="$(mktemp -d)"
+          install_gopath="$(mktemp -d)"
+          install_gocache="$(mktemp -d)"
+          trap 'rm -rf "${install_dir}" "${install_gopath}" "${install_gocache}"' EXIT
+
+          cd "${install_dir}"
+          go mod init vacuum-install-check
+          GOWORK=off \
+            GOPROXY=direct \
+            GOPATH="${install_gopath}" \
+            GOCACHE="${install_gocache}" \
+            go get -tool github.com/daveshanley/vacuum@${{ github.event.client_payload.new-tag }}
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
