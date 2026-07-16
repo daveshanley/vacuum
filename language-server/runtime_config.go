@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/daveshanley/vacuum/language-server/internal/lsp"
+	"github.com/daveshanley/vacuum/language-server/protocol"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/tliron/glsp"
-	protocol "github.com/tliron/glsp/protocol_3_16"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -78,7 +78,7 @@ func (s *ServerState) setClientCapabilities(capabilities protocol.ClientCapabili
 	}
 }
 
-func (s *ServerState) registerConfigurationChangeNotifications(call glsp.CallFunc) {
+func (s *ServerState) registerConfigurationChangeNotifications(call lsp.CallFunc) {
 	if call == nil || !s.didChangeConfigurationDynamicRegistrationSupported {
 		return
 	}
@@ -649,13 +649,13 @@ func (s *ServerState) clearDocumentRuntimeConfigCache() {
 	s.documentRuntimeConfigMu.Unlock()
 }
 
-func (s *ServerState) setCallFunc(call glsp.CallFunc) {
+func (s *ServerState) setCallFunc(call lsp.CallFunc) {
 	s.callMu.Lock()
 	s.callFunc = call
 	s.callMu.Unlock()
 }
 
-func (s *ServerState) getCallFunc() glsp.CallFunc {
+func (s *ServerState) getCallFunc() lsp.CallFunc {
 	s.callMu.RLock()
 	defer s.callMu.RUnlock()
 	return s.callFunc

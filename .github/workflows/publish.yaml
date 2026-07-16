@@ -35,6 +35,9 @@ jobs:
         with:
           go-version: 1.25
 
+      - name: Verify release dependency graph resolves without the module proxy
+        run: bash ./scripts/verify-direct-dependencies.sh
+
       - name: Verify tagged module installs directly
         run: |
           set -euo pipefail

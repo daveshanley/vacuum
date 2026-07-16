@@ -17,13 +17,16 @@ package languageserver
 import (
 	"sync"
 
-	protocol "github.com/tliron/glsp/protocol_3_16"
+	"github.com/daveshanley/vacuum/language-server/protocol"
 )
 
+// DocumentStore contains documents currently open in the language client.
 type DocumentStore struct {
 	documents map[string]*Document
 	mu        sync.RWMutex
 }
+
+// Document contains the current content and URI of an open document.
 type Document struct {
 	URI               protocol.DocumentUri
 	RunningDiagnostic bool
@@ -36,6 +39,8 @@ func newDocumentStore() *DocumentStore {
 		documents: map[string]*Document{},
 	}
 }
+
+// Add stores or replaces an open document.
 func (s *DocumentStore) Add(uri string, content string) *Document {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -48,6 +53,7 @@ func (s *DocumentStore) Add(uri string, content string) *Document {
 	return doc
 }
 
+// Get returns an open document by URI.
 func (s *DocumentStore) Get(uri string) (*Document, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -56,6 +62,7 @@ func (s *DocumentStore) Get(uri string) (*Document, bool) {
 	return d, ok
 }
 
+// Remove deletes an open document by URI.
 func (s *DocumentStore) Remove(uri string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
