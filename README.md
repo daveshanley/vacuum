@@ -7,7 +7,6 @@
 # The world's fastest OpenAPI, AsyncAPI and JSON Schema linter.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/daveshanley/vacuum)](https://goreportcard.com/report/github.com/daveshanley/vacuum)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
 [![Docs](https://img.shields.io/badge/godoc-reference-5fafd7)](https://pkg.go.dev/github.com/daveshanley/vacuum)
 [![npm](https://img.shields.io/npm/dm/@quobix/vacuum?style=flat-square&label=npm%20downloads)](https://www.npmjs.com/package/@quobix/vacuum)
@@ -124,8 +123,8 @@ like our _very kind_ sponsors, past and present:
 
 <a href="https://apideck.com">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/apideck-dark.png">
-  <img alt="apideck'" src=".github/sponsors/apideck-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset=".github/sponsors/apideck-light.png">
+  <img alt="apideck" src=".github/sponsors/apideck-dark.png">
 </picture>
 </a>
 

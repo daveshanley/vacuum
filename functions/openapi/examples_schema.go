@@ -31,9 +31,26 @@ import (
 // ExamplesSchema will check anything that has an example, has a schema and it's valid.
 type ExamplesSchema struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the ComponentDescription rule.
+// GetSchema returns a model.RuleFunctionSchema defining the options for example schema validation.
 func (es ExamplesSchema) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "oasExampleSchema"}
+	return model.RuleFunctionSchema{
+		Name: "oasExampleSchema",
+		Properties: []model.RuleFunctionProperty{
+			{
+				Name:        "strictMode",
+				Description: "Report properties in examples that are not declared by the schema (default is false)",
+			},
+			{
+				Name:        "formatAssertions",
+				Description: "Assert string formats such as date-time and UUID (default is false)",
+			},
+			{
+				Name:        "contentAssertions",
+				Description: "Assert content encoding and media type constraints (default is false)",
+			},
+		},
+		MaxProperties: 3,
+	}
 }
 
 // GetCategory returns the category of the ExamplesMissing rule.
@@ -66,19 +83,26 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 	ctx, cancel := context.WithTimeout(context.Background(), validationTimeout)
 	defer cancel()
 
-	// extract strictMode option from functionOptions
-	strictMode := false
 	opts := ruleContext.GetOptionsStringMap()
-	if val := opts["strictMode"]; val != "" {
+	parseBoolOption := func(name string) bool {
+		val := opts[name]
+		if val == "" {
+			return false
+		}
+
 		parsed, err := strconv.ParseBool(val)
 		if err != nil {
 			if ruleContext.Logger != nil {
-				ruleContext.Logger.Warn("invalid strictMode value", "value", val)
+				ruleContext.Logger.Warn("invalid boolean function option", "option", name, "value", val)
 			}
-		} else {
-			strictMode = parsed
+			return false
 		}
+		return parsed
 	}
+
+	strictMode := parseBoolOption("strictMode")
+	formatAssertions := parseBoolOption("formatAssertions")
+	contentAssertions := parseBoolOption("contentAssertions")
 
 	// create semaphore for concurrency limiting
 	sem := make(chan struct{}, maxConcurrentValidations)
@@ -160,8 +184,16 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		}()
 	}
 
-	validator := schema_validation.NewSchemaValidator()
-	xmlValidator := schema_validation.NewXMLValidator()
+	var validatorOptions []config.Option
+	if formatAssertions {
+		validatorOptions = append(validatorOptions, config.WithFormatAssertions())
+	}
+	if contentAssertions {
+		validatorOptions = append(validatorOptions, config.WithContentAssertions())
+	}
+
+	validator := schema_validation.NewSchemaValidator(validatorOptions...)
+	xmlValidator := schema_validation.NewXMLValidator(validatorOptions...)
 	version := ruleContext.Document.GetSpecInfo().VersionNumeric
 
 	// appendStrictResults performs strict validation and appends any undeclared property errors.

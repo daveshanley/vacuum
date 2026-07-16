@@ -115,6 +115,7 @@ func runDocsSingle(source *docsSource, opts *docsOptions, diagnostics *docsDiagn
 		AssetMode:                          docsAssetMode(opts),
 		DeveloperMode:                      diagnostics != nil && diagnostics.enabled,
 		ArchiveExportURL:                   docsArchiveExportURLForServe(opts),
+		IncludeSpec:                        opts.includeSpec,
 		LintResults:                        lintResults,
 		Footer:                             buildDocsFooterConfig(opts),
 		MaxPatternRepeatBudget:             opts.maxPatternRepeatBudget,
@@ -373,6 +374,7 @@ func serveDocsSingle(source *docsSource, opts *docsOptions, site *ppmodel.Site, 
 			SpecPath:                           source.specPath,
 			SpecURL:                            source.specURL,
 			SpecBytes:                          source.specBytes,
+			IncludeSpec:                        opts.includeSpec,
 			LintResults:                        lintResults,
 			Footer:                             buildDocsFooterConfig(opts),
 			MaxPatternRepeatBudget:             opts.maxPatternRepeatBudget,
@@ -485,6 +487,7 @@ func buildDocsAggregateConfig(scanRoot, outputDir, assetMode string, opts *docsO
 		LLMMaxAggregateFileBytes:           opts.llmMaxAggregateFileBytes,
 		LLMGenerateMonoliths:               opts.llmGenerateMonoliths,
 		DisableSkippedRendering:            opts.disableSkippedRendering,
+		IncludeSpec:                        opts.includeSpec,
 		Footer:                             buildDocsFooterConfig(opts),
 	}
 	if fileConfig == nil {
