@@ -8,12 +8,13 @@ import "fmt"
 // Exit code constants for CI/CD integration.
 //
 //	0 = success (spec processed, no violations at threshold)
-//	1 = violations found at or above the configured --fail-severity
+//	1 = violations found, or an LSP exit received without shutdown
 //	2 = tool / input error (spec could not be parsed, file not found, invalid flags, etc.)
 const (
-	ExitCodeSuccess    = 0
-	ExitCodeViolations = 1
-	ExitCodeInputError = 2
+	ExitCodeSuccess                = 0
+	ExitCodeViolations             = 1
+	ExitCodeLanguageServerProtocol = 1
+	ExitCodeInputError             = 2
 )
 
 // ExitError is an error that carries a specific process exit code.

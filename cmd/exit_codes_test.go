@@ -37,6 +37,7 @@ func TestExitError_ErrorsAs(t *testing.T) {
 func TestExitCodeConstants(t *testing.T) {
 	assert.Equal(t, 0, ExitCodeSuccess)
 	assert.Equal(t, 1, ExitCodeViolations)
+	assert.Equal(t, 1, ExitCodeLanguageServerProtocol)
 	assert.Equal(t, 2, ExitCodeInputError)
 }
 

@@ -11,12 +11,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/daveshanley/vacuum/language-server/internal/lsp"
+	"github.com/daveshanley/vacuum/language-server/protocol"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"github.com/tliron/glsp"
-	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
 func TestRuntimeConfigForDocument_PullsWorkspaceConfiguration(t *testing.T) {
@@ -46,7 +46,7 @@ func TestRuntimeConfigForDocument_PullsWorkspaceConfiguration(t *testing.T) {
 	rootURI := fileURI(tempDir)
 	specURI := fileURI(filepath.Join(tempDir, "openapi.yaml"))
 	state.setWorkspaceFolders(nil, []protocol.WorkspaceFolder{{URI: rootURI, Name: "test-workspace"}})
-	state.setCallFunc(glsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
 		assert.Equal(t, string(protocol.ServerWorkspaceConfiguration), method)
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
@@ -84,7 +84,7 @@ func TestRuntimeConfigForDocument_NullWorkspaceDefaultsDoNotOverrideFileConfig(t
 		LookupTimeout: intPtr(42),
 	}, ""))
 	state.workspaceConfigurationSupported = true
-	state.setCallFunc(glsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
 		*configResult = []any{
@@ -120,7 +120,7 @@ func TestRuntimeConfigForDocument_UserWorkspaceValuesOverrideFileConfig(t *testi
 		LookupTimeout: intPtr(42),
 	}, ""))
 	state.workspaceConfigurationSupported = true
-	state.setCallFunc(glsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
 		*configResult = []any{
@@ -144,7 +144,7 @@ func TestRuntimeConfigForDocument_WorkspaceHardModeFalseRebuildsRecommendedRules
 	state := newRuntimeConfigTestState()
 	require.NoError(t, state.setFileConfig(&LSPConfig{HardMode: boolPtr(true)}, ""))
 	state.workspaceConfigurationSupported = true
-	state.setCallFunc(glsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
 		*configResult = []any{
@@ -168,7 +168,7 @@ func TestRuntimeConfigForDocument_RebuildsWhenConfigGenerationChangesDuringBuild
 	state.workspaceConfigurationSupported = true
 	specURI := fileURI(filepath.Join(t.TempDir(), "openapi.yaml"))
 	calls := 0
-	state.setCallFunc(glsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
 		calls++
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)

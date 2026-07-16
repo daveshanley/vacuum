@@ -63,21 +63,8 @@ jobs:
           cache-dependency-path: go.sum
         id: go
 
-      - name: Verify selected dependencies resolve without the module proxy
-        run: |
-          set -euo pipefail
-
-          direct_gopath="$(mktemp -d)"
-          direct_gocache="$(mktemp -d)"
-          trap 'rm -rf "${direct_gopath}" "${direct_gocache}"' EXIT
-
-          GOFLAGS=-modcacherw \
-            GIT_LFS_SKIP_SMUDGE=1 \
-            GOWORK=off \
-            GOPROXY=direct \
-            GOPATH="${direct_gopath}" \
-            GOCACHE="${direct_gocache}" \
-            go list -deps -test ./... > /dev/null
+      - name: Verify full dependency graph resolves without the module proxy
+        run: bash ./scripts/verify-direct-dependencies.sh
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

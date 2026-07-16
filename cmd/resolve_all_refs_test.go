@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -386,6 +387,29 @@ func TestRunLanguageServer_DefaultRunnerUsesExecutionOptions(t *testing.T) {
 	err := runLanguageServer("v1.2.3", lintRequest, executionOptions)
 	assert.NoError(t, err)
 	assert.True(t, called)
+}
+
+func TestRunLanguageServerMapsExitWithoutShutdownToProtocolExitCode(t *testing.T) {
+	originalRunner := newLanguageServerRunner
+	defer func() {
+		newLanguageServerRunner = originalRunner
+	}()
+	newLanguageServerRunner = func(
+		_ string,
+		_ *utils.LintFileRequest,
+		_ *motor.ExecutionOptions,
+	) languageServerRunner {
+		return &fakeLanguageServerRunner{
+			run: func() error {
+				return languageserver.ExitWithoutShutdownError{}
+			},
+		}
+	}
+
+	err := runLanguageServer("v-test", &utils.LintFileRequest{}, nil)
+	var exitErr *ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, ExitCodeLanguageServerProtocol, exitErr.Code)
 }
 
 func TestNewLanguageServerRunner_DefaultConstructor(t *testing.T) {

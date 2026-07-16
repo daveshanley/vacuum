@@ -59,9 +59,8 @@ func Execute(version, commit, date string) {
 			tui.RenderErrorString("%s", errStr)
 		}
 		// Use the exit code from ExitError if available.
-		// Otherwise default to exit 2 (input/tool error). Exit 1 is reserved
-		// exclusively for "spec processed, violations found" and is only
-		// produced by NewViolationError / CheckFailureSeverity.
+		// Otherwise default to exit 2 (input/tool error). Exit 1 represents
+		// either lint violations or the LSP-mandated exit-without-shutdown status.
 		var exitErr *ExitError
 		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.Code)

@@ -16,6 +16,7 @@
 package languageserver
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -25,18 +26,21 @@ import (
 	"time"
 
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
+	"github.com/daveshanley/vacuum/language-server/internal/lsp"
+	"github.com/daveshanley/vacuum/language-server/protocol"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/viper"
-	"github.com/tliron/glsp"
-	protocol "github.com/tliron/glsp/protocol_3_16"
-	glspserv "github.com/tliron/glsp/server"
 )
 
 var serverName = "vacuum"
+
+// ExitWithoutShutdownError reports an LSP exit notification received before a
+// successful shutdown request.
+type ExitWithoutShutdownError = lsp.ExitWithoutShutdownError
 
 // DocumentContext contains details about the file being processed by the LSP.
 // This allows you to add logic to the RulesetSelector based on the file name or
@@ -52,8 +56,9 @@ type DocumentContext struct {
 // the actual content of the OpenAPI spec being procesed.
 type RulesetSelector func(ctx *DocumentContext) *rulesets.RuleSet
 
+// ServerState owns Vacuum language-server configuration, documents and transport.
 type ServerState struct {
-	server           *glspserv.Server
+	server           *lsp.Server
 	documentStore    *DocumentStore
 	lintRequest      *utils.LintFileRequest
 	executionOptions *motor.ExecutionOptions
@@ -90,25 +95,26 @@ type ServerState struct {
 	documentRuntimeConfigMu                            sync.RWMutex
 
 	// Notify function for triggering re-lints (used by file watcher)
-	notifyFunc glsp.NotifyFunc
+	notifyFunc lsp.NotifyFunc
 	notifyMu   sync.RWMutex
-	callFunc   glsp.CallFunc
+	callFunc   lsp.CallFunc
 	callMu     sync.RWMutex
 }
 
+// NewServer creates a Vacuum language server with default execution options.
 func NewServer(version string, lintRequest *utils.LintFileRequest) *ServerState {
 	return NewServerWithExecutionOptions(version, lintRequest, nil)
 }
 
+// NewServerWithExecutionOptions creates a Vacuum language server with motor options.
 func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRequest, executionOptions *motor.ExecutionOptions) *ServerState {
-	handler := protocol.Handler{}
-	server := glspserv.NewServer(&handler, serverName, true)
-
 	// Initialize logger
 	logger := lintRequest.Logger
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	}
+	handler := &lsp.Handler{}
+	server := lsp.NewServer(handler, logger)
 
 	// Create base config from initial lintRequest values (command-line flags)
 	baseConfig := &LSPConfig{
@@ -137,7 +143,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		baseConfig:             baseConfig,
 		documentRuntimeConfigs: map[protocol.DocumentUri]*documentRuntimeConfig{},
 	}
-	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
+	handler.Initialize = func(context *lsp.Context, params *protocol.InitializeParams) (any, error) {
 		if params.Trace != nil {
 			protocol.SetTraceValue(*params.Trace)
 		}
@@ -156,7 +162,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			}
 		}
 
-		serverCapabilities := handler.CreateServerCapabilities()
+		serverCapabilities := protocol.ServerCapabilities{}
 		serverCapabilities.TextDocumentSync = protocol.TextDocumentSyncKindIncremental
 		serverCapabilities.CompletionProvider = &protocol.CompletionOptions{}
 		serverCapabilities.CodeActionProvider = &protocol.CodeActionOptions{
@@ -175,16 +181,16 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			},
 		}, nil
 	}
-	handler.Initialized = func(context *glsp.Context, params *protocol.InitializedParams) error {
+	handler.Initialized = func(context *lsp.Context, params *protocol.InitializedParams) error {
 		state.setCallFunc(context.Call)
 		state.registerConfigurationChangeNotifications(context.Call)
 		return nil
 	}
-	handler.SetTrace = func(context *glsp.Context, params *protocol.SetTraceParams) error {
+	handler.SetTrace = func(context *lsp.Context, params *protocol.SetTraceParams) error {
 		protocol.SetTraceValue(params.Value)
 		return nil
 	}
-	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
+	handler.TextDocumentDidOpen = func(context *lsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 		// Store notify function for file watcher re-linting
 		state.setNotifyFunc(context.Notify)
 		state.setCallFunc(context.Call)
@@ -193,41 +199,31 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
-	handler.TextDocumentDidChange = func(context *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
+	handler.TextDocumentDidChange = func(context *lsp.Context, params *protocol.DidChangeTextDocumentParams) error {
 		state.setCallFunc(context.Call)
 		doc, ok := state.documentStore.Get(params.TextDocument.URI)
 		if !ok {
 			return nil
 		}
 
-		// Hold write lock while modifying Content
-		doc.mu.Lock()
-		for _, change := range params.ContentChanges {
-			switch c := change.(type) {
-			case protocol.TextDocumentContentChangeEvent:
-				startIndex, endIndex := c.Range.IndexesIn(doc.Content)
-				doc.Content = doc.Content[:startIndex] + c.Text + doc.Content[endIndex:]
-			case protocol.TextDocumentContentChangeEventWhole:
-				doc.Content = c.Text
-			}
+		if err := applyDocumentChanges(doc, params.ContentChanges); err != nil {
+			return err
 		}
-		doc.mu.Unlock()
-
 		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
 
-	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
+	handler.TextDocumentDidClose = func(context *lsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 		state.documentStore.Remove(params.TextDocument.URI)
 		state.clearDocumentRuntimeConfig(params.TextDocument.URI)
 		return nil
 	}
 
-	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
+	handler.TextDocumentCompletion = func(context *lsp.Context, params *protocol.CompletionParams) (any, error) {
 		return nil, nil
 	}
 
-	handler.TextDocumentCodeAction = func(context *glsp.Context, params *protocol.CodeActionParams) (any, error) {
+	handler.TextDocumentCodeAction = func(context *lsp.Context, params *protocol.CodeActionParams) (any, error) {
 		var actions []protocol.CodeAction
 
 		for _, diagnostic := range params.Context.Diagnostics {
@@ -248,7 +244,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		return actions, nil
 	}
 
-	handler.WorkspaceExecuteCommand = func(context *glsp.Context, params *protocol.ExecuteCommandParams) (any, error) {
+	handler.WorkspaceExecuteCommand = func(context *lsp.Context, params *protocol.ExecuteCommandParams) (any, error) {
 		if params.Command == "vacuum.openUrl" && len(params.Arguments) > 0 {
 			if url, ok := params.Arguments[0].(string); ok {
 				utils.OpenURL(url)
@@ -257,7 +253,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		return nil, nil
 	}
 
-	handler.WorkspaceDidChangeConfiguration = func(context *glsp.Context, params *protocol.DidChangeConfigurationParams) error {
+	handler.WorkspaceDidChangeConfiguration = func(context *lsp.Context, params *protocol.DidChangeConfigurationParams) error {
 		state.setCallFunc(context.Call)
 		if !state.workspaceConfigurationSupported {
 			config, err := ParseLSPConfig(params.Settings)
@@ -281,7 +277,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		state.relintAllDocuments(context.Notify)
 		return nil
 	}
-	handler.WorkspaceDidChangeWorkspaceFolders = func(context *glsp.Context, params *protocol.DidChangeWorkspaceFoldersParams) error {
+	handler.WorkspaceDidChangeWorkspaceFolders = func(context *lsp.Context, params *protocol.DidChangeWorkspaceFoldersParams) error {
 		state.updateWorkspaceFolders(params.Event.Added, params.Event.Removed)
 		state.clearDocumentRuntimeConfigCache()
 		state.relintAllDocuments(context.Notify)
@@ -289,6 +285,32 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 
 	return state
+}
+
+func applyDocumentChanges(doc *Document, changes []any) error {
+	doc.mu.Lock()
+	defer doc.mu.Unlock()
+
+	content := doc.Content
+	for _, change := range changes {
+		switch current := change.(type) {
+		case protocol.TextDocumentContentChangeEvent:
+			if current.Range == nil {
+				return fmt.Errorf("incremental document change is missing a range")
+			}
+			start, end, valid := current.Range.ValidIndexesIn(content)
+			if !valid {
+				return fmt.Errorf("invalid incremental document change range")
+			}
+			content = content[:start] + current.Text + content[end:]
+		case protocol.TextDocumentContentChangeEventWhole:
+			content = current.Text
+		default:
+			return fmt.Errorf("unsupported document change type %T", change)
+		}
+	}
+	doc.Content = content
+	return nil
 }
 
 // NewServerWithRulesetSelector creates a new instance of the language server with
@@ -309,15 +331,16 @@ func NewServerWithRulesetSelector(version string, lintRequest *utils.LintFileReq
 	return state
 }
 
+// Run serves the language server over process stdin and stdout.
 func (s *ServerState) Run() error {
 	s.initializeConfig()
 
 	viper.OnConfigChange(s.onConfigChange)
 	viper.WatchConfig()
-	return s.server.RunStdio()
+	return s.server.RunStdio(context.Background())
 }
 
-func (s *ServerState) runDiagnostic(doc *Document, notify glsp.NotifyFunc) {
+func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
 	// Copy document data while holding read lock to avoid data race
 	doc.mu.RLock()
 	content := doc.Content
@@ -426,6 +449,7 @@ func (s *ServerState) defaultRuleSetForDocument(runtimeConfig *documentRuntimeCo
 	return defaultRuleSets.GenerateOpenAPIRecommendedRuleSet(), specFormat
 }
 
+// ConvertResultsIntoDiagnostics converts a Vacuum execution result into LSP diagnostics.
 func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []protocol.Diagnostic {
 	diagnostics := []protocol.Diagnostic{}
 	if result == nil {
@@ -444,6 +468,7 @@ func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []proto
 	return diagnostics
 }
 
+// ConvertResultIntoDiagnostic converts one Vacuum rule result into an LSP diagnostic.
 func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protocol.Diagnostic {
 	severity := GetDiagnosticSeverityFromRule(vacuumResult.Rule)
 
@@ -500,6 +525,7 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 	}
 }
 
+// ConvertErrorIntoDiagnostic converts an execution error into a document diagnostic.
 func ConvertErrorIntoDiagnostic(err error) protocol.Diagnostic {
 	severity := protocol.DiagnosticSeverityError
 	code := "document-error"
@@ -526,6 +552,7 @@ func applyWorkspaceFolderCapabilities(capabilities *protocol.ServerCapabilities)
 	}
 }
 
+// GetDiagnosticSeverityFromRule maps Vacuum severity to LSP severity.
 func GetDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity {
 	if rule == nil {
 		return protocol.DiagnosticSeverityError
@@ -750,7 +777,7 @@ func (s *ServerState) loadIgnoreFileIfChanged(cfg *LSPConfig) error {
 }
 
 // relintAllDocuments triggers re-linting of all open documents.
-func (s *ServerState) relintAllDocuments(notify glsp.NotifyFunc) {
+func (s *ServerState) relintAllDocuments(notify lsp.NotifyFunc) {
 	s.documentStore.mu.RLock()
 	docs := make([]*Document, 0, len(s.documentStore.documents))
 	for _, doc := range s.documentStore.documents {
@@ -764,14 +791,14 @@ func (s *ServerState) relintAllDocuments(notify glsp.NotifyFunc) {
 }
 
 // setNotifyFunc stores the notify function for use by the file watcher.
-func (s *ServerState) setNotifyFunc(notify glsp.NotifyFunc) {
+func (s *ServerState) setNotifyFunc(notify lsp.NotifyFunc) {
 	s.notifyMu.Lock()
 	s.notifyFunc = notify
 	s.notifyMu.Unlock()
 }
 
 // getNotifyFunc retrieves the stored notify function.
-func (s *ServerState) getNotifyFunc() glsp.NotifyFunc {
+func (s *ServerState) getNotifyFunc() lsp.NotifyFunc {
 	s.notifyMu.RLock()
 	defer s.notifyMu.RUnlock()
 	return s.notifyFunc
