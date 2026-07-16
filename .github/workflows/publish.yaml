@@ -8,6 +8,9 @@ jobs:
   release_and_brew:
     name: Release and bump homebrew version
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
       - name: Free Disk Space
@@ -57,6 +60,9 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: html-report/ui/package-lock.json
+
+      - name: Set up Cosign
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
