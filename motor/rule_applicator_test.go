@@ -2145,6 +2145,52 @@ func TestApplyRules_TestRules_Custom_Document_Pattern(t *testing.T) {
 	assert.Len(t, results.Results, 1)
 }
 
+func TestApplyRules_OASExampleSchema_FormatAssertionsFromCustomRuleset(t *testing.T) {
+	rulesetYAML := `extends: [[vacuum:oas, off]]
+rules:
+  oas3-valid-schema-example:
+    description: Check examples against their schemas, including formats
+    formats: [oas3]
+    given: $
+    resolved: false
+    severity: warn
+    then:
+      function: oasExampleSchema
+      functionOptions:
+        formatAssertions: true`
+
+	defaultRuleSets := rulesets.BuildDefaultRuleSets()
+	userRuleSet, err := rulesets.CreateRuleSetFromData([]byte(rulesetYAML))
+	assert.NoError(t, err)
+	ruleSet := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRuleSet)
+
+	spec := `openapi: 3.0.3
+info:
+  title: Issue 930
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Registration:
+      type: object
+      properties:
+        registration_date:
+          type: string
+          format: date-time
+          example: nullable datetime
+          nullable: true`
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: ruleSet,
+		Spec:    []byte(spec),
+	})
+
+	assert.Len(t, results.Errors, 0)
+	assert.Len(t, results.Results, 1)
+	assert.Equal(t, rulesets.Oas3ValidSchemaExample, results.Results[0].Rule.Id)
+	assert.Contains(t, strings.ToLower(results.Results[0].Message), "date-time")
+}
+
 func TestApplyRules_TestRules_Custom_JS_Function_CustomDoc(t *testing.T) {
 
 	yamlBytes := `rules:

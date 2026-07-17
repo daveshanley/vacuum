@@ -34,6 +34,7 @@ type docsOptions struct {
 	noLogo                             bool
 	noFooter                           bool
 	disableExport                      bool
+	includeSpec                        bool
 	noHTML                             bool
 	noLLM                              bool
 	noJSON                             bool
@@ -72,6 +73,7 @@ func applyDocsConfigToOptions(cmd *cobra.Command, opts *docsOptions, fileConfig 
 	applyDocsStringFlag(cmd, "footer-content", &opts.footerContent, fileConfig.Footer.Content)
 	applyDocsBoolFlag(cmd, "no-logo", &opts.noLogo, fileConfig.NoLogo)
 	applyDocsBoolFlag(cmd, "disable-export", &opts.disableExport, fileConfig.DisableExport)
+	applyDocsBoolFlag(cmd, "include-spec", &opts.includeSpec, fileConfig.IncludeSpec)
 	applyDocsBoolFlag(cmd, "no-html", &opts.noHTML, fileConfig.NoHTML)
 	applyDocsBoolFlag(cmd, "no-llm", &opts.noLLM, fileConfig.NoLLM)
 	applyDocsBoolFlag(cmd, "no-json", &opts.noJSON, fileConfig.NoJSON)

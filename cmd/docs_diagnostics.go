@@ -79,8 +79,12 @@ func (d *docsDiagnosticsContext) lintSpec(specBytes []byte, specPath string) ([]
 	if err != nil {
 		return nil, err
 	}
+	selectedRuleset, err := d.ruleSetForSpec(specBytes)
+	if err != nil {
+		return nil, err
+	}
 	resultSet, execution, err := LintLoadedSpec(
-		d.selectedRuleset,
+		selectedRuleset,
 		specBytes,
 		d.customFunctions,
 		base,
@@ -121,6 +125,20 @@ func (d *docsDiagnosticsContext) lintSpec(specBytes []byte, specPath string) ([]
 		converted = append(converted, doctorV3.ConvertRuleResult(result))
 	}
 	return converted, nil
+}
+
+func (d *docsDiagnosticsContext) ruleSetForSpec(specBytes []byte) (*rulesets.RuleSet, error) {
+	if d == nil || d.flags == nil || d.flags.RulesetFlag != "" {
+		if d == nil {
+			return nil, nil
+		}
+		return d.selectedRuleset, nil
+	}
+	selectedRuleset, _, err := LoadRulesetWithConfigForSpec(d.flags, slog.Default(), specBytes)
+	if err != nil {
+		return nil, fmt.Errorf("select diagnostics ruleset: %w", err)
+	}
+	return selectedRuleset, nil
 }
 
 func (d *docsDiagnosticsContext) lintCatalog(catalog *ppmodel.CatalogSite, report docsDiagnosticsProgressFunc) (map[string][]*doctorV3.RuleFunctionResult, error) {
