@@ -46,7 +46,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
-	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
+	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
 
 	fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 	if fetchCfgErr != nil {
@@ -321,9 +321,11 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	// GitHub Actions annotations mode
 	if flags.GitHubAnnotations && !annotationsOnly {
 		for _, fr := range fileResults {
-			if fr.err == nil {
-				RenderGitHubAnnotations(fr.results, fr.fileName)
+			if fr.err != nil {
+				RenderGitHubAnnotationError(fr.err, fr.fileName)
+				continue
 			}
+			RenderGitHubAnnotations(fr.results, fr.fileName)
 		}
 	}
 

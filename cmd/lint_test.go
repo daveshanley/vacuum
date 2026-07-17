@@ -475,6 +475,43 @@ paths:
 	assert.Contains(t, output, "title=")
 }
 
+func TestGetLintCommand_GitHubAnnotations_MultiFileWithPipelineOutputIncludesInputErrors(t *testing.T) {
+	dir := t.TempDir()
+	goodSpec := filepath.Join(dir, "good.yaml")
+	missingSpec := filepath.Join(dir, "missing.yaml")
+	writeTestFile(t, goodSpec, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--pipeline-output", goodSpec, missingSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "# 📄 `")
+	assert.Contains(t, output, "missing.yaml")
+	assert.Contains(t, output, "::error ")
+	assert.Contains(t, output, "no such file or directory")
+	assert.Contains(t, output, "## ❌ Error processing `")
+}
+
 func TestGetLintCommand_GitHubAnnotations_MultiFileAnnotationOnlyEmitsAnnotations(t *testing.T) {
 	dir := t.TempDir()
 	firstSpec := filepath.Join(dir, "first.yaml")
@@ -555,6 +592,254 @@ paths:
 	assert.Contains(t, output, "missing.yaml")
 	assert.Contains(t, output, "::error ")
 	assert.Contains(t, output, "no such file or directory")
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesIgnoreFileInfo(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	ignoreFile := filepath.Join(dir, "ignore.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	writeTestFile(t, ignoreFile, "{}\n")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--ignore-file", ignoreFile, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "Using ignore file")
+	assert.NotContains(t, output, "ignored items")
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesUnknownCategoryWarning(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--category", "not-a-real-category", specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "unknown, all categories are being considered")
+	assert.NotContains(t, output, "Warning")
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesMinScoreText(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "200":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--min-score", "99", specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "SCORE THRESHOLD FAILED")
+	assert.NotContains(t, output, "Overall score is")
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesChangesLoadWarning(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	missingChanges := filepath.Join(dir, "changes-does-not-exist.json")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--changes", missingChanges, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "Warning: Failed to load changes")
+	assert.NotContains(t, output, "Proceeding without change filtering")
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesOriginalLintWarning(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	missingOriginal := filepath.Join(dir, "original-does-not-exist.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--original", missingOriginal, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "Warning: Failed to load changes")
+	assert.NotContains(t, output, "Warning: Failed to lint original spec")
+	assert.NotContains(t, output, "Proceeding without change filtering")
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesComparisonModeChrome(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	originalPath := filepath.Join(dir, "original.yaml")
+	specBody := `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`
+	writeTestFile(t, specPath, specBody)
+	writeTestFile(t, originalPath, specBody)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--original", originalPath, specPath})
+
+	stdout, stderr := captureOSStreams(t, func() {
+		_ = cmd.Execute()
+	})
+
+	output := stdout + stderr
+	assert.NotContains(t, output, WhatChangedModeMessage)
+}
+
+func TestGetLintCommand_GitHubAnnotations_AnnotationOnlySuppressesPrecompiledReportChrome(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	reportPrefix := filepath.Join(dir, "vacuum-report")
+
+	reportCmd := GetVacuumReportCommand()
+	registerPersistentFlags(reportCmd)
+	reportCmd.SetOut(bytes.NewBuffer(nil))
+	reportCmd.SetErr(bytes.NewBuffer(nil))
+	reportCmd.SetArgs([]string{"--no-style", "--no-pretty", specPath, reportPrefix})
+	require.NoError(t, reportCmd.Execute())
+
+	reportFiles, globErr := filepath.Glob(reportPrefix + "-*.json")
+	require.NoError(t, globErr)
+	require.Len(t, reportFiles, 1)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", reportFiles[0]})
+
+	stdout, stderr := captureOSStreams(t, func() {
+		_ = cmd.Execute()
+	})
+
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "Loading pre-compiled vacuum report")
 }
 
 func TestResolveBasePathForFile(t *testing.T) {

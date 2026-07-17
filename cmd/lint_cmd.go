@@ -121,7 +121,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	fileName := filesToLint[0]
 
 	// ignore file
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
+	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 	if reportOrSpec.IsReport {
 		// pre-compiled report
-		if !flags.SilentFlag {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			fmt.Printf("\033[36mLoading pre-compiled vacuum report from '%s'\033[0m\n\n", fileName)
 		}
 
@@ -239,13 +239,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 				documentChanges, changesErr = utils.LoadChangeReportFromFile(flags.ChangesFlag)
 			}
 			if changesErr != nil {
-				if !flags.SilentFlag {
+				if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 					fmt.Printf("\033[33mWarning: Failed to load changes: %v\033[0m\n", changesErr)
 					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
 				}
 				documentChanges = nil
 				changeResult = nil
-			} else if !flags.SilentFlag && !flags.PipelineOutput {
+			} else if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 				renderComparisonModeSummary(changeResult, documentChanges, flags.NoStyleFlag, flags.ChangesSummaryFlag)
 			}
 		}
@@ -308,7 +308,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 				ExecutionOptions:    executionOptions,
 				ReuseCurrentResults: unchangedOriginalSpec,
 				WarnOriginalLintFailure: func(err error) {
-					if !flags.SilentFlag {
+					if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 						fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", err)
 						fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
 					}
@@ -464,7 +464,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 	if flags.MinScore > 10 && overallScore > 0 {
 		if overallScore < flags.MinScore {
-			if !flags.PipelineOutput && !flags.SilentFlag {
+			if !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
 				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
 				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
 					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
@@ -538,7 +538,7 @@ func hasAutoFixableResults(results []*model.RuleFunctionResult) bool {
 }
 
 func renderLintWarning(flags *LintFlags, format string, args ...any) {
-	if flags == nil || flags.SilentFlag || flags.PipelineOutput {
+	if flags == nil || flags.SilentFlag || flags.PipelineOutput || flags.GitHubAnnotations {
 		return
 	}
 	tui.RenderWarning(format, args...)

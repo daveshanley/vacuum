@@ -59,7 +59,7 @@ func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClie
 	if err != nil {
 		return nil, fmt.Errorf("unable to load custom functions: %w", err)
 	}
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, true, true, true)
+	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, true, true, false, true)
 	if err != nil {
 		return nil, err
 	}

@@ -265,16 +265,18 @@ func SetupVacuumEnvironment(flags *LintFlags) {
 }
 
 // LoadIgnoreFile loads and parses the ignore file if specified
-func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.IgnoredItems, error) {
+func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bool) (model.IgnoredItems, error) {
 	ignoredItems := model.IgnoredItems{}
 	if ignoreFile == "" {
 		return ignoredItems, nil
 	}
 
+	annotationOnly := annotations && !pipeline
+
 	originalPath := ignoreFile
 	resolvedPath, err := ResolveConfigPath(ignoreFile)
 	if err != nil {
-		if !silent {
+		if !silent && !annotationOnly {
 			fmt.Printf("%sError: Failed to resolve ignore file path '%s': %v%s\n\n",
 				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
@@ -284,7 +286,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 	raw, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		if !os.IsNotExist(err) || originalPath == resolvedPath {
-			if !silent {
+			if !silent && !annotationOnly {
 				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
 					color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 			}
@@ -293,7 +295,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 		// fallback to original path if resolution-based path not found
 		raw, err = os.ReadFile(originalPath)
 		if err != nil {
-			if !silent {
+			if !silent && !annotationOnly {
 				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
 					color.ASCIIRed, originalPath, err, color.ASCIIReset)
 			}
@@ -304,14 +306,14 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 
 	err = yaml.Unmarshal(raw, &ignoredItems)
 	if err != nil {
-		if !silent {
+		if !silent && !annotationOnly {
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
 				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
 	}
 
-	if !silent && !pipeline {
+	if !silent && !pipeline && !annotationOnly {
 		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", resolvedPath), noStyle)
 		renderIgnoredItems(ignoredItems, noStyle)
 	}

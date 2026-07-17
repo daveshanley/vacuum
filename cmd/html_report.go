@@ -134,7 +134,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 				reportOutput = args[1]
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, noStyleFlag)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false, noStyleFlag)
 			if err != nil {
 				return err
 			}

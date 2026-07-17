@@ -162,7 +162,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				reportOutput = args[1]
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, stdOut, noStyleFlag)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, stdOut, false, noStyleFlag)
 			if err != nil {
 				return err
 			}

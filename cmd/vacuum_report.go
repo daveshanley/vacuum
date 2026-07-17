@@ -167,7 +167,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				reportOutput = args[1]
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, noStyleFlag)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, false, noStyleFlag)
 			if err != nil {
 				return err
 			}

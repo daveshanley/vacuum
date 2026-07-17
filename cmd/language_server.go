@@ -108,7 +108,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false, false)
 			if err != nil {
 				return err
 			}

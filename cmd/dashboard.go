@@ -101,7 +101,7 @@ func GetDashboardCommand() *cobra.Command {
 				defer utils.ResetBreakingRulesConfig()
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false, false)
 			if err != nil {
 				return err
 			}
