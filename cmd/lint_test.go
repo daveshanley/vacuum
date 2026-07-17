@@ -251,6 +251,14 @@ func TestRenderNoFixesAppliedWarningRespectsOutputMode(t *testing.T) {
 			},
 		},
 		{
+			name: "github annotations suppresses warning",
+			flags: &LintFlags{
+				FixFlag:           true,
+				FixFileFlag:       "fixed.yaml",
+				GitHubAnnotations: true,
+			},
+		},
+		{
 			name: "fix without fix file warns",
 			flags: &LintFlags{
 				FixFlag: true,
@@ -1118,4 +1126,144 @@ paths:
 		}
 		assert.True(t, strings.HasPrefix(line, "::"), "unexpected non-annotation line on stdout: %q", line)
 	}
+}
+
+func TestGetLintCommand_GitHubAnnotations_EmitsAnnotationForMinScoreFailure(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "200":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--min-score", "99", specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	var exitErr *ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, ExitCodeViolations, exitErr.Code)
+
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "score threshold failed")
+	assert.Contains(t, output, "threshold is 99")
+	// human-oriented chrome must still be suppressed
+	assert.NotContains(t, output, "SCORE THRESHOLD FAILED")
+	assert.NotContains(t, output, "Overall score is")
+}
+
+func TestGetLintCommand_GitHubAnnotations_EmitsAnnotationForTLSConfigFailure(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths: {}
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	// setting only --cert-file (without --key-file) causes CreateCustomHTTPClient
+	// to fail deterministically with "both cert-file and key-file must be provided together"
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style",
+		"--cert-file", filepath.Join(t.TempDir(), "does-not-exist.pem"),
+		specPath,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "failed to create HTTP client")
+	// no ANSI chrome should leak
+	assert.NotContains(t, output, "\033[31m")
+}
+
+func TestGetLintCommand_GitHubAnnotations_EmitsAnnotationForFetchConfigFailure(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths: {}
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style",
+		"--fetch-timeout", "-1",
+		specPath,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "failed to resolve fetch configuration")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileEmitsAnnotationForFetchConfigFailure(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	content := `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths: {}
+`
+	writeTestFile(t, firstSpec, content)
+	writeTestFile(t, secondSpec, content)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style",
+		"--fetch-timeout", "-1",
+		firstSpec, secondSpec,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "failed to resolve fetch configuration")
 }

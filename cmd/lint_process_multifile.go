@@ -50,7 +50,11 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 	if fetchCfgErr != nil {
-		return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+		wrapped := fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(wrapped, "")
+		}
+		return wrapped
 	}
 
 	if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {

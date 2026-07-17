@@ -150,13 +150,21 @@ func runLint(cmd *cobra.Command, args []string) error {
 	// Create HTTP client early for URL support (cert/TLS config)
 	httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
 	if cfgErr != nil {
-		return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		wrapped := fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(wrapped, "")
+		}
+		return wrapped
 	}
 	var httpClient *http.Client
 	if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 		httpClient, err = utils.CreateCustomHTTPClient(httpClientConfig)
 		if err != nil {
-			return fmt.Errorf("failed to create HTTP client: %w", err)
+			wrapped := fmt.Errorf("failed to create HTTP client: %w", err)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, "")
+			}
+			return wrapped
 		}
 	}
 
@@ -229,7 +237,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 		// shortcut can refuse non-default --base executions.
 		resolvedBase, baseErr := ResolveBasePathForFile(fileName, flags.BaseFlag)
 		if baseErr != nil {
-			return fmt.Errorf("failed to resolve base path: %w", baseErr)
+			wrapped := fmt.Errorf("failed to resolve base path: %w", baseErr)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, fileName)
+			}
+			return wrapped
 		}
 
 		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
@@ -278,12 +290,20 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(displayFileName)
 		if specPathErr != nil {
-			return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+			wrapped := fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, displayFileName)
+			}
+			return wrapped
 		}
 
 		fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 		if fetchCfgErr != nil {
-			return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+			wrapped := fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, "")
+			}
+			return wrapped
 		}
 
 		execution := &motor.RuleSetExecution{
@@ -380,7 +400,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 		if fixesApplied > 0 && flags.FixFlag {
 			err := writeFixedFile(result, fileName, flags.FixFileFlag)
 			if err != nil {
-				return fmt.Errorf("failed to write fixed file: %w", err)
+				wrapped := fmt.Errorf("failed to write fixed file: %w", err)
+				if flags.GitHubAnnotations {
+					RenderGitHubAnnotationError(wrapped, fileName)
+				}
+				return wrapped
 			}
 		}
 
@@ -492,6 +516,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
+			}
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(
+					fmt.Errorf("score threshold failed: overall score is %d, but the threshold is %d",
+						overallScore, flags.MinScore),
+					displayFileName,
+				)
 			}
 			return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
 				overallScore, flags.MinScore)

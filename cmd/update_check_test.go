@@ -311,6 +311,7 @@ func TestShouldCheckForUpdatesSkipMatrix(t *testing.T) {
 		{name: "stdout flag", cmd: boolFlagCommand("lint", "stdout"), isTerminal: true, want: false},
 		{name: "silent flag", cmd: boolFlagCommand("lint", "silent"), isTerminal: true, want: false},
 		{name: "pipeline output flag", cmd: boolFlagCommand("lint", "pipeline-output"), isTerminal: true, want: false},
+		{name: "github annotations flag", cmd: boolFlagCommand("lint", "github-annotations"), isTerminal: true, want: false},
 	}
 
 	for _, tt := range tests {
