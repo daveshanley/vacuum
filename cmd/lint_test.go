@@ -1076,3 +1076,46 @@ func TestReadLintFlags_GitHubAnnotations(t *testing.T) {
 	assert.True(t, flags.PipelineOutput)
 	assert.True(t, flags.NoStyleFlag)
 }
+
+func TestGetLintCommand_GitHubAnnotations_DebugSuppressesBufferedLogs(t *testing.T) {
+	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--debug", "--no-style", specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+	_ = err
+
+	output := stdout + stderr
+	assert.Contains(t, output, "::")
+	assert.NotContains(t, output, "DEV ")
+	assert.NotContains(t, output, "applying rules to rule set")
+	assert.NotContains(t, output, "building documents")
+	assert.NotContains(t, output, "rolodex indexed")
+
+	// every non-empty line must be a GitHub annotation command
+	for _, line := range strings.Split(strings.TrimRight(stdout, "\n"), "\n") {
+		if line == "" {
+			continue
+		}
+		assert.True(t, strings.HasPrefix(line, "::"), "unexpected non-annotation line on stdout: %q", line)
+	}
+}

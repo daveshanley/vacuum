@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,12 +13,16 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 	"go.yaml.in/yaml/v4"
 )
 
 // captureAnnotationsOutput captures stdout while calling fn, returning what was printed.
+// GITHUB_WORKSPACE is cleared so toAnnotationFilePath falls back to CWD for
+// deterministic output regardless of the host environment (CI runners set it).
 func captureAnnotationsOutput(t *testing.T, fn func()) string {
 	t.Helper()
+	t.Setenv("GITHUB_WORKSPACE", "")
 	stdout, _ := captureOSStreams(t, fn)
 	return strings.TrimRight(stdout, "\n")
 }
@@ -371,4 +376,58 @@ func filepathForTest(t *testing.T, rel string) string {
 		t.Fatalf("getwd: %v", err)
 	}
 	return fmt.Sprintf("%s/%s", wd, rel)
+}
+
+func TestToAnnotationFilePath_UsesGithubWorkspaceWhenSet(t *testing.T) {
+	workspace := t.TempDir()
+	filePath := filepath.Join(workspace, "nested", "spec.yaml")
+	t.Setenv("GITHUB_WORKSPACE", workspace)
+
+	got := toAnnotationFilePath(filePath)
+	assert.Equal(t, filepath.Join("nested", "spec.yaml"), got)
+}
+
+func TestToAnnotationFilePath_ReturnsAbsPathWhenOutsideWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	external := filepath.Join(t.TempDir(), "spec.yaml")
+	absExternal, err := filepath.Abs(external)
+	require.NoError(t, err)
+	t.Setenv("GITHUB_WORKSPACE", workspace)
+
+	got := toAnnotationFilePath(external)
+	assert.Equal(t, absExternal, got)
+	assert.False(t, strings.HasPrefix(got, ".."), "annotation path should never contain leading .. traversal")
+}
+
+func TestToAnnotationFilePath_FallsBackToCwdWhenWorkspaceUnset(t *testing.T) {
+	t.Setenv("GITHUB_WORKSPACE", "")
+
+	got := toAnnotationFilePath("spec.yaml")
+	assert.Equal(t, "spec.yaml", got)
+}
+
+func TestRenderGitHubAnnotations_UsesGithubWorkspaceForRelativeFile(t *testing.T) {
+	workspace := t.TempDir()
+	t.Setenv("GITHUB_WORKSPACE", workspace)
+
+	results := []*model.RuleFunctionResult{
+		{
+			RuleSeverity: model.SeverityError,
+			RuleId:       "workspace-rule",
+			Message:      "scoped",
+			StartNode:    &yaml.Node{Line: 1, Column: 1},
+		},
+	}
+
+	specPath := filepath.Join(workspace, "services", "orders", "openapi.yaml")
+
+	// captureAnnotationsOutput clears GITHUB_WORKSPACE via t.Setenv, so call the
+	// renderer directly here after re-setting the env var for this test.
+	stdout, _ := captureOSStreams(t, func() {
+		t.Setenv("GITHUB_WORKSPACE", workspace)
+		RenderGitHubAnnotations(results, specPath)
+	})
+
+	assert.Contains(t, stdout, "file="+filepath.Join("services", "orders", "openapi.yaml"))
+	assert.NotContains(t, stdout, "file=..")
 }

@@ -354,8 +354,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// render out buffered logs
-		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
+		// render out buffered logs (chrome; suppressed in annotation mode so
+		// debug output does not contaminate the annotation stream on stdout)
+		if !flags.GitHubAnnotations {
+			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
+		}
 
 		if len(result.Errors) > 0 {
 			for _, err := range result.Errors {

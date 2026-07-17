@@ -59,8 +59,13 @@ func escapeGitHubAnnotationMessage(s string) string {
 // suitable for the "file=" property of a GitHub Actions annotation.
 //
 // URL inputs and stdin are returned as empty strings so the caller can omit
-// the property; absolute paths are made relative to the current working
-// directory. If any operation fails the original value is returned unchanged.
+// the property. Absolute paths are made relative to GITHUB_WORKSPACE when the
+// env var is set (matching the checkout root on GitHub Actions runners) and
+// otherwise fall back to the current working directory. If the resulting
+// relative path escapes the base (starts with ".."), the absolute path is
+// returned instead so GitHub does not receive a misleading traversal path
+// it cannot map back to a file in the checkout. If any operation fails the
+// original value is returned unchanged.
 func toAnnotationFilePath(filePath string) string {
 	if filePath == "" || filePath == "stdin" {
 		return ""
@@ -74,14 +79,20 @@ func toAnnotationFilePath(filePath string) string {
 		return filePath
 	}
 
-	cwd, err := os.Getwd()
+	base := os.Getenv("GITHUB_WORKSPACE")
+	if base == "" {
+		base, err = os.Getwd()
+		if err != nil {
+			return filePath
+		}
+	}
+
+	rel, err := filepath.Rel(base, absPath)
 	if err != nil {
 		return filePath
 	}
-
-	rel, err := filepath.Rel(cwd, absPath)
-	if err != nil {
-		return filePath
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return absPath
 	}
 	return rel
 }
