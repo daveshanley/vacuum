@@ -271,12 +271,13 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bo
 		return ignoredItems, nil
 	}
 
-	annotationOnly := annotations && !pipeline
-
 	originalPath := ignoreFile
 	resolvedPath, err := ResolveConfigPath(ignoreFile)
 	if err != nil {
-		if !silent && !annotationOnly {
+		if annotations {
+			RenderGitHubAnnotationError(fmt.Errorf("failed to resolve ignore file path '%s': %w", ignoreFile, err), "")
+		}
+		if !silent && !annotations {
 			fmt.Printf("%sError: Failed to resolve ignore file path '%s': %v%s\n\n",
 				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
@@ -286,7 +287,10 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bo
 	raw, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		if !os.IsNotExist(err) || originalPath == resolvedPath {
-			if !silent && !annotationOnly {
+			if annotations {
+				RenderGitHubAnnotationError(fmt.Errorf("failed to read ignore file '%s': %w", resolvedPath, err), "")
+			}
+			if !silent && !annotations {
 				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
 					color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 			}
@@ -295,7 +299,10 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bo
 		// fallback to original path if resolution-based path not found
 		raw, err = os.ReadFile(originalPath)
 		if err != nil {
-			if !silent && !annotationOnly {
+			if annotations {
+				RenderGitHubAnnotationError(fmt.Errorf("failed to read ignore file '%s': %w", originalPath, err), "")
+			}
+			if !silent && !annotations {
 				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
 					color.ASCIIRed, originalPath, err, color.ASCIIReset)
 			}
@@ -306,14 +313,17 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bo
 
 	err = yaml.Unmarshal(raw, &ignoredItems)
 	if err != nil {
-		if !silent && !annotationOnly {
+		if annotations {
+			RenderGitHubAnnotationError(fmt.Errorf("failed to parse ignore file '%s': %w", resolvedPath, err), "")
+		}
+		if !silent && !annotations {
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
 				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
 	}
 
-	if !silent && !pipeline && !annotationOnly {
+	if !silent && !pipeline && !annotations {
 		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", resolvedPath), noStyle)
 		renderIgnoredItems(ignoredItems, noStyle)
 	}
@@ -330,7 +340,12 @@ func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
 
 	httpClient, err := utils.CreateHTTPClientIfNeeded(httpClientConfig)
 	if err != nil {
-		fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", err.Error())
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(err, "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", err.Error())
+		}
 		return nil, err
 	}
 
@@ -371,8 +386,13 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(
 			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient)
 		if rsErr != nil {
-			fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
-				flags.RulesetFlag, rsErr.Error())
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(rsErr, "")
+			}
+			if !flags.SilentFlag && !flags.GitHubAnnotations {
+				fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
+					flags.RulesetFlag, rsErr.Error())
+			}
 			return nil, "", rsErr
 		}
 

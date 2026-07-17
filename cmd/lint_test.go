@@ -512,6 +512,29 @@ paths:
 	assert.Contains(t, output, "## ❌ Error processing `")
 }
 
+func TestGetLintCommand_GitHubAnnotations_SingleFilePipelineCombinedSuppressesLoadErrorChrome(t *testing.T) {
+	dir := t.TempDir()
+	missingSpec := filepath.Join(dir, "missing.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--pipeline-output", missingSpec})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error ")
+	assert.Contains(t, output, "no such file or directory")
+	assert.NotContains(t, output, "Unable to load file")
+	assert.NotContains(t, output, "\033[31m")
+}
+
 func TestGetLintCommand_GitHubAnnotations_MultiFileAnnotationOnlyEmitsAnnotations(t *testing.T) {
 	dir := t.TempDir()
 	firstSpec := filepath.Join(dir, "first.yaml")
@@ -840,6 +863,166 @@ paths:
 	output := stdout + stderr
 	assert.Contains(t, output, "::")
 	assert.NotContains(t, output, "Loading pre-compiled vacuum report")
+}
+
+func TestGetLintCommand_GitHubAnnotations_EmitsAnnotationForBadIgnoreFile(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	missingIgnore := filepath.Join(dir, "missing-ignore.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--ignore-file", missingIgnore, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "missing-ignore.yaml")
+	assert.NotContains(t, output, "\033[31m")
+	assert.NotContains(t, output, "Error: Failed to read ignore file")
+}
+
+func TestGetLintCommand_GitHubAnnotations_CombinedPipelineSuppressesIgnoreFileErrorChrome(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	missingIgnore := filepath.Join(dir, "missing-ignore.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--pipeline-output", "--ignore-file", missingIgnore, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.NotContains(t, output, "\033[31m")
+	assert.NotContains(t, output, "Error: Failed to read ignore file")
+}
+
+func TestGetLintCommand_GitHubAnnotations_EmitsAnnotationForBadRuleset(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	missingRuleset := filepath.Join(dir, "missing-ruleset.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style", "--ruleset", missingRuleset, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.NotContains(t, output, "\033[31m")
+	assert.NotContains(t, output, "Unable to load ruleset")
+}
+
+func TestGetLintCommand_GitHubAnnotations_NoFileEmitsAnnotation(t *testing.T) {
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--no-style"})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "please supply an OpenAPI or AsyncAPI specification")
+	assert.NotContains(t, output, "🚨")
+}
+
+func TestGetLintCommand_GitHubAnnotations_CombinedPipelineSuppressesRulesetErrorChrome(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`)
+	missingRuleset := filepath.Join(dir, "missing-ruleset.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{"--github-annotations", "--pipeline-output", "--ruleset", missingRuleset, specPath})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.NotContains(t, output, "\033[31m")
+	assert.NotContains(t, output, "Unable to load ruleset")
 }
 
 func TestResolveBasePathForFile(t *testing.T) {

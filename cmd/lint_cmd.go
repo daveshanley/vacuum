@@ -87,11 +87,21 @@ func runLint(cmd *cobra.Command, args []string) error {
 		// Check for validation errors and display them nicely
 		var validationErr *utils.ConfigValidationError
 		if errors.As(breakingConfigErr, &validationErr) {
-			fmt.Printf("\033[31mBreaking config validation error in %s:\033[0m\n", validationErr.FilePath)
-			fmt.Print(validationErr.FormatValidationErrors())
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(breakingConfigErr, "")
+			}
+			if !flags.SilentFlag && !flags.GitHubAnnotations {
+				fmt.Printf("\033[31mBreaking config validation error in %s:\033[0m\n", validationErr.FilePath)
+				fmt.Print(validationErr.FormatValidationErrors())
+			}
 			return breakingConfigErr
 		}
-		fmt.Printf("\033[31mError loading breaking config: %v\033[0m\n", breakingConfigErr)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(breakingConfigErr, "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("\033[31mError loading breaking config: %v\033[0m\n", breakingConfigErr)
+		}
 		return breakingConfigErr
 	}
 	if breakingConfig != nil {
@@ -102,14 +112,25 @@ func runLint(cmd *cobra.Command, args []string) error {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	filesToLint, err := getFilesToLint(flags.GlobPattern, args, validFileExtensions)
 	if cmd.Flags().Changed("globbed-files") && err != nil {
-		fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", color.ASCIIBold, color.ASCIIRed, err, color.ASCIIReset)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(err, "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", color.ASCIIBold, color.ASCIIRed, err, color.ASCIIReset)
+		}
 		return err
 	}
 
 	if len(filesToLint) < 1 {
-		fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
-			color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
-		return fmt.Errorf("no file supplied")
+		noFileErr := fmt.Errorf("no file supplied")
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(fmt.Errorf("please supply an OpenAPI or AsyncAPI specification to lint"), "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
+				color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
+		}
+		return noFileErr
 	}
 
 	// for multiple files, run each one and combine results
@@ -142,11 +163,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 	// try to load the file as either a report or spec (supports URLs)
 	reportOrSpec, err := LoadFileAsReportOrSpecWithClient(fileName, httpClient)
 	if err != nil {
-		annotationsOnly := flags.GitHubAnnotations && !flags.PipelineOutput
 		if flags.GitHubAnnotations {
 			RenderGitHubAnnotationError(err, fileName)
 		}
-		if !flags.SilentFlag && !annotationsOnly {
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
 		}
 		return err
@@ -338,12 +358,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
 
 		if len(result.Errors) > 0 {
-			annotationsOnly := flags.GitHubAnnotations && !flags.PipelineOutput
 			for _, err := range result.Errors {
 				if flags.GitHubAnnotations {
 					RenderGitHubAnnotationError(err, displayFileName)
 				}
-				if !annotationsOnly {
+				if !flags.GitHubAnnotations {
 					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
 				}
 			}
