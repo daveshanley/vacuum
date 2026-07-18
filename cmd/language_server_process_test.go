@@ -235,6 +235,48 @@ func TestLanguageServerCommandExitWithoutShutdownIsNonZero(t *testing.T) {
 	assert.Empty(t, stderr.String())
 }
 
+func TestLanguageServerCommandBurstShutdownBeforeEOFExitsZero(t *testing.T) {
+	command := exec.Command(os.Args[0], "-test.run=TestLanguageServerCommandHelperProcess")
+	command.Env = append(os.Environ(), languageServerHelperEnvironment+"=1")
+	stdin, err := command.StdinPipe()
+	require.NoError(t, err)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	require.NoError(t, command.Start())
+
+	writer := &processFrameWriter{writer: stdin}
+	for _, message := range []any{
+		map[string]any{
+			"jsonrpc": "2.0",
+			"id":      1,
+			"method":  "initialize",
+			"params": map[string]any{
+				"processId": nil, "rootUri": nil,
+				"capabilities":     map[string]any{},
+				"workspaceFolders": []any{},
+			},
+		},
+		map[string]any{"jsonrpc": "2.0", "method": "initialized", "params": map[string]any{}},
+		map[string]any{"jsonrpc": "2.0", "id": 2, "method": "shutdown", "params": nil},
+		map[string]any{"jsonrpc": "2.0", "method": "exit", "params": nil},
+	} {
+		require.NoError(t, writer.write(message))
+	}
+	require.NoError(t, stdin.Close())
+	require.NoError(t, command.Wait())
+	assert.Empty(t, stderr.String())
+
+	reader := newProcessFrameReader(&stdout)
+	initialize := reader.read(t)
+	shutdown := reader.read(t)
+	assert.Equal(t, float64(1), initialize["id"])
+	assert.Equal(t, float64(2), shutdown["id"])
+	assert.Contains(t, shutdown, "result")
+	assert.Nil(t, shutdown["result"])
+}
+
 func TestLanguageServerCommandHelperProcess(t *testing.T) {
 	if os.Getenv(languageServerHelperEnvironment) != "1" {
 		return

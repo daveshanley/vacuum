@@ -145,7 +145,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 	handler.Initialize = func(context *lsp.Context, params *protocol.InitializeParams) (any, error) {
 		if params.Trace != nil {
-			protocol.SetTraceValue(*params.Trace)
+			context.SetTrace(*params.Trace)
 		}
 		state.setClientCapabilities(params.Capabilities)
 		state.setWorkspaceFolders(params.RootURI, params.WorkspaceFolders)
@@ -183,11 +183,10 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	}
 	handler.Initialized = func(context *lsp.Context, params *protocol.InitializedParams) error {
 		state.setCallFunc(context.Call)
-		state.registerConfigurationChangeNotifications(context.Call)
-		return nil
+		return state.registerConfigurationChangeNotifications(context.Call)
 	}
 	handler.SetTrace = func(context *lsp.Context, params *protocol.SetTraceParams) error {
-		protocol.SetTraceValue(params.Value)
+		context.SetTrace(params.Value)
 		return nil
 	}
 	handler.TextDocumentDidOpen = func(context *lsp.Context, params *protocol.DidOpenTextDocumentParams) error {
@@ -494,11 +493,11 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 
 	if vacuumResult.StartNode != nil && vacuumResult.StartNode.Line > 0 {
 		startLine = vacuumResult.StartNode.Line - 1
-		startChar = vacuumResult.StartNode.Column - 1
+		startChar = zeroBasedCoordinate(vacuumResult.StartNode.Column)
 	}
 	if vacuumResult.EndNode != nil && vacuumResult.EndNode.Line > 0 {
 		endLine = vacuumResult.EndNode.Line - 1
-		endChar = vacuumResult.EndNode.Column - 1
+		endChar = zeroBasedCoordinate(vacuumResult.EndNode.Column)
 	}
 
 	// Build comprehensive message with rule details
@@ -523,6 +522,13 @@ func ConvertResultIntoDiagnostic(vacuumResult *model.RuleFunctionResult) protoco
 		CodeDescription: &protocol.CodeDescription{HRef: diagnosticErrorHref},
 		Message:         message,
 	}
+}
+
+func zeroBasedCoordinate(value int) int {
+	if value <= 1 {
+		return 0
+	}
+	return value - 1
 }
 
 // ConvertErrorIntoDiagnostic converts an execution error into a document diagnostic.

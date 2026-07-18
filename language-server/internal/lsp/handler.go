@@ -15,16 +15,21 @@ import (
 // NotifyFunc is the compatibility callback used by Vacuum application handlers.
 type NotifyFunc func(method string, params any)
 
-// CallFunc is the compatibility callback used by Vacuum application handlers.
-type CallFunc func(method string, params any, result any)
+// CallFunc sends a server-to-client request and returns any transport, timeout,
+// protocol, or decoding failure to the application handler.
+type CallFunc func(method string, params any, result any) error
+
+// SetTraceFunc updates trace verbosity for the current connection.
+type SetTraceFunc func(value protocol.TraceValue)
 
 // Context contains request state and server-to-client messaging callbacks.
 type Context struct {
-	Context context.Context
-	Method  string
-	Params  json.RawMessage
-	Notify  NotifyFunc
-	Call    CallFunc
+	Context  context.Context
+	Method   string
+	Params   json.RawMessage
+	Notify   NotifyFunc
+	Call     CallFunc
+	SetTrace SetTraceFunc
 }
 
 // Handler contains Vacuum's supported typed LSP callbacks and lifecycle state.

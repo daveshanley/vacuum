@@ -10,8 +10,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"os"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/daveshanley/vacuum/language-server/protocol"
@@ -23,6 +26,12 @@ const (
 	maxQueuedMessages  = maxPendingCalls
 )
 
+const (
+	traceLevelOff uint32 = iota
+	traceLevelMessage
+	traceLevelVerbose
+)
+
 type pendingResponse struct {
 	message *incomingMessage
 	err     error
@@ -30,6 +39,11 @@ type pendingResponse struct {
 
 type activeRequest struct {
 	cancel context.CancelFunc
+}
+
+type activeDispatch struct {
+	cancel context.CancelFunc
+	method string
 }
 
 // Connection owns one framed JSON-RPC stream and its request state.
@@ -48,8 +62,17 @@ type Connection struct {
 	mu      sync.Mutex
 
 	queuedBytes atomic.Int64
+	traceLevel  atomic.Uint32
 	active      map[string]*activeRequest
 	activeMu    sync.Mutex
+
+	readerStopped   chan struct{}
+	readerStopOnce  sync.Once
+	dispatchMu      sync.Mutex
+	currentDispatch *activeDispatch
+	readerDidStop   bool
+	enqueueMu       sync.Mutex
+	acceptMessages  bool
 }
 
 // NewConnection creates a connection with bounded message and pending-call state.
@@ -62,15 +85,17 @@ func NewConnection(stream io.ReadWriteCloser, handler *Handler, logger *slog.Log
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Connection{
-		stream:  stream,
-		reader:  NewFrameReader(stream, maxMessageBytes),
-		writer:  NewFrameWriter(stream),
-		handler: handler,
-		logger:  logger,
-		ctx:     ctx,
-		cancel:  cancel,
-		pending: make(map[string]chan pendingResponse),
-		active:  make(map[string]*activeRequest),
+		stream:         stream,
+		reader:         NewFrameReader(stream, maxMessageBytes),
+		writer:         NewFrameWriter(stream),
+		handler:        handler,
+		logger:         logger,
+		ctx:            ctx,
+		cancel:         cancel,
+		pending:        make(map[string]chan pendingResponse),
+		active:         make(map[string]*activeRequest),
+		readerStopped:  make(chan struct{}),
+		acceptMessages: true,
 	}
 }
 
@@ -90,16 +115,29 @@ func (c *Connection) Run(ctx context.Context) error {
 
 	incoming := make(chan *incomingMessage, maxQueuedMessages)
 	readErrors := make(chan error, 1)
-	go c.readLoop(runCtx, incoming, readErrors)
+	readTerminal := make(chan error, 1)
+	go c.readLoop(runCtx, incoming, readErrors, readTerminal)
 
 	for {
 		select {
 		case <-runCtx.Done():
 			return runResult(runCtx)
 		case err := <-readErrors:
+			if runCtx.Err() != nil {
+				return runResult(runCtx)
+			}
 			return readResult(err)
-		case message := <-incoming:
+		case message, ok := <-incoming:
+			if !ok {
+				return readResult(<-readTerminal)
+			}
 			c.releaseQueuedBytes(message)
+			if c.shouldDiscardAfterReaderStop(message.Method) {
+				if err := c.cancelDiscardedRequest(message); err != nil && !isDisconnectError(err) {
+					return err
+				}
+				continue
+			}
 			exit, err := c.handleIncoming(message)
 			if err != nil {
 				if runCtx.Err() != nil {
@@ -111,6 +149,12 @@ func (c *Connection) Run(ctx context.Context) error {
 						return readResult(readErr)
 					default:
 					}
+				}
+				if isDisconnectError(err) {
+					if c.readerHasStopped() {
+						continue
+					}
+					return c.drainAcceptedLifecycle(incoming)
 				}
 				return err
 			}
@@ -132,7 +176,7 @@ func runResult(ctx context.Context) error {
 }
 
 func readResult(err error) error {
-	if errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+	if isDisconnectError(err) || errors.Is(err, context.Canceled) {
 		return nil
 	}
 	return err
@@ -140,6 +184,11 @@ func readResult(err error) error {
 
 // Notify sends a server-to-client JSON-RPC notification.
 func (c *Connection) Notify(method string, params any) error {
+	select {
+	case <-c.readerStopped:
+		return io.ErrClosedPipe
+	default:
+	}
 	return c.writeJSON(notificationMessage{
 		JSONRPC: jsonRPCVersion,
 		Method:  method,
@@ -151,6 +200,11 @@ func (c *Connection) Notify(method string, params any) error {
 func (c *Connection) Call(ctx context.Context, method string, params, result any) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	select {
+	case <-c.readerStopped:
+		return io.ErrClosedPipe
+	default:
 	}
 	id := protocol.NewIntegerID(c.nextID.Add(1))
 	responseCh, err := c.addPending(id)
@@ -171,6 +225,8 @@ func (c *Connection) Call(ctx context.Context, method string, params, result any
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-c.readerStopped:
+		return io.ErrClosedPipe
 	case <-c.ctx.Done():
 		return io.ErrClosedPipe
 	case response := <-responseCh:
@@ -190,10 +246,21 @@ func (c *Connection) Call(ctx context.Context, method string, params, result any
 	}
 }
 
-func (c *Connection) readLoop(ctx context.Context, incoming chan<- *incomingMessage, readErrors chan<- error) {
+func (c *Connection) readLoop(
+	ctx context.Context,
+	incoming chan<- *incomingMessage,
+	readErrors chan<- error,
+	readTerminal chan<- error,
+) {
 	for {
 		payload, err := c.reader.ReadFrame()
 		if err != nil {
+			if isOrderedReadTermination(err) {
+				c.markReaderStopped()
+				readTerminal <- err
+				close(incoming)
+				return
+			}
 			c.reportReadError(readErrors, err)
 			return
 		}
@@ -227,7 +294,14 @@ func (c *Connection) readLoop(ctx context.Context, incoming chan<- *incomingMess
 		if hasID && idErr == nil {
 			message.requestContext, message.activeRequest = c.registerActive(id)
 		}
+		c.enqueueMu.Lock()
+		if !c.acceptMessages {
+			c.enqueueMu.Unlock()
+			c.releaseRequest(message)
+			return
+		}
 		if !c.reserveQueuedBytes(message, len(payload)) {
+			c.enqueueMu.Unlock()
 			c.releaseRequest(message)
 			c.reportReadError(
 				readErrors,
@@ -239,17 +313,67 @@ func (c *Connection) readLoop(ctx context.Context, incoming chan<- *incomingMess
 		case <-ctx.Done():
 			c.releaseQueuedBytes(message)
 			c.releaseRequest(message)
+			c.enqueueMu.Unlock()
 			c.reportReadError(readErrors, ctx.Err())
 			return
 		case incoming <- message:
+			c.enqueueMu.Unlock()
 		default:
 			c.releaseQueuedBytes(message)
 			c.releaseRequest(message)
+			c.enqueueMu.Unlock()
 			c.reportReadError(
 				readErrors,
 				fmt.Errorf("too many queued LSP messages: %d", maxQueuedMessages),
 			)
 			return
+		}
+	}
+}
+
+func (c *Connection) cancelDiscardedRequest(message *incomingMessage) error {
+	defer c.releaseRequest(message)
+	id, hasID, idErr := message.requestID()
+	if idErr != nil {
+		if hasID {
+			return c.writeError(id, rpcError(CodeInvalidRequest, "invalid request", idErr))
+		}
+		return c.writeError(nil, rpcError(CodeInvalidRequest, "invalid request", idErr))
+	}
+	if !hasID {
+		return nil
+	}
+	return c.writeError(id, rpcError(CodeRequestCanceled, "request canceled", nil))
+}
+
+func (c *Connection) drainAcceptedLifecycle(incoming <-chan *incomingMessage) error {
+	c.enqueueMu.Lock()
+	c.acceptMessages = false
+	c.enqueueMu.Unlock()
+
+	for {
+		select {
+		case message, ok := <-incoming:
+			if !ok {
+				return nil
+			}
+			c.releaseQueuedBytes(message)
+			if !isLifecycleDrainMethod(message.Method) {
+				c.releaseRequest(message)
+				continue
+			}
+			exit, err := c.handleIncoming(message)
+			if err != nil && !isDisconnectError(err) {
+				return err
+			}
+			if exit {
+				if c.handler.ShutdownReceived() {
+					return nil
+				}
+				return ExitWithoutShutdownError{}
+			}
+		default:
+			return nil
 		}
 	}
 }
@@ -281,6 +405,69 @@ func (c *Connection) reportReadError(readErrors chan<- error, err error) {
 	}
 }
 
+func (c *Connection) markReaderStopped() {
+	c.readerStopOnce.Do(func() {
+		var cancel context.CancelFunc
+		c.dispatchMu.Lock()
+		c.readerDidStop = true
+		if c.currentDispatch != nil && !isLifecycleDrainMethod(c.currentDispatch.method) {
+			cancel = c.currentDispatch.cancel
+		}
+		c.dispatchMu.Unlock()
+		close(c.readerStopped)
+		if cancel != nil {
+			cancel()
+		}
+	})
+}
+
+func (c *Connection) shouldDiscardAfterReaderStop(method string) bool {
+	return c.readerHasStopped() && !isLifecycleDrainMethod(method)
+}
+
+func (c *Connection) readerHasStopped() bool {
+	c.dispatchMu.Lock()
+	stopped := c.readerDidStop
+	c.dispatchMu.Unlock()
+	return stopped
+}
+
+func isLifecycleDrainMethod(method string) bool {
+	switch method {
+	case protocol.MethodInitialize,
+		protocol.MethodInitialized,
+		protocol.MethodShutdown,
+		protocol.MethodExit:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Connection) beginDispatch(
+	parent context.Context,
+	method string,
+) (context.Context, func(), bool) {
+	dispatchContext, cancel := context.WithCancel(parent)
+	dispatch := &activeDispatch{cancel: cancel, method: method}
+	c.dispatchMu.Lock()
+	c.currentDispatch = dispatch
+	discard := c.readerDidStop && !isLifecycleDrainMethod(method)
+	c.dispatchMu.Unlock()
+	if discard {
+		cancel()
+	}
+	finish := func() {
+		c.dispatchMu.Lock()
+		if c.currentDispatch == dispatch {
+			c.currentDispatch = nil
+		}
+		c.dispatchMu.Unlock()
+		cancel()
+	}
+	return dispatchContext, finish, discard
+}
+
 func (c *Connection) handleIncoming(message *incomingMessage) (bool, error) {
 	defer c.releaseRequest(message)
 	id, hasID, idErr := message.requestID()
@@ -295,11 +482,16 @@ func (c *Connection) handleIncoming(message *incomingMessage) (bool, error) {
 	if requestContext == nil {
 		requestContext = c.ctx
 	}
-	if hasID && errors.Is(requestContext.Err(), context.Canceled) {
+	dispatchContext, finishDispatch, discard := c.beginDispatch(requestContext, message.Method)
+	defer finishDispatch()
+	if discard {
+		return false, nil
+	}
+	if hasID && errors.Is(dispatchContext.Err(), context.Canceled) {
 		return false, c.writeError(id, rpcError(CodeRequestCanceled, "request canceled", nil))
 	}
 	ctx := &Context{
-		Context: requestContext,
+		Context: dispatchContext,
 		Method:  message.Method,
 		Params:  message.Params,
 		Notify: func(method string, params any) {
@@ -307,13 +499,12 @@ func (c *Connection) handleIncoming(message *incomingMessage) (bool, error) {
 				c.logger.Warn("LSP notification failed", "method", method, "error", err)
 			}
 		},
-		Call: func(method string, params any, result any) {
+		Call: func(method string, params any, result any) error {
 			callCtx, cancel := context.WithTimeout(c.ctx, defaultCallTimeout)
 			defer cancel()
-			if err := c.Call(callCtx, method, params, result); err != nil {
-				c.logger.Warn("LSP client call failed", "method", method, "error", err)
-			}
+			return c.Call(callCtx, method, params, result)
 		},
+		SetTrace: c.setTraceValue,
 	}
 
 	result, responseErr, exit := c.safeHandle(ctx)
@@ -323,7 +514,7 @@ func (c *Connection) handleIncoming(message *incomingMessage) (bool, error) {
 		}
 		return exit, nil
 	}
-	if errors.Is(requestContext.Err(), context.Canceled) {
+	if errors.Is(dispatchContext.Err(), context.Canceled) {
 		return false, c.writeError(id, rpcError(CodeRequestCanceled, "request canceled", nil))
 	}
 	if responseErr != nil {
@@ -448,12 +639,37 @@ func (c *Connection) writeJSON(value any) error {
 }
 
 func (c *Connection) trace(direction string, payload []byte, method string) {
-	switch {
-	case protocol.HasTraceLevel(protocol.TraceValueVerbose):
+	switch c.traceLevel.Load() {
+	case traceLevelVerbose:
 		c.logger.Debug("LSP "+direction, "method", method, "payload", string(payload))
-	case protocol.HasTraceLevel(protocol.TraceValueMessage):
+	case traceLevelMessage:
 		c.logger.Debug("LSP "+direction, "method", method, "bytes", len(payload))
 	}
+}
+
+func (c *Connection) setTraceValue(value protocol.TraceValue) {
+	switch protocol.NormalizeTraceValue(value) {
+	case protocol.TraceValueMessage:
+		c.traceLevel.Store(traceLevelMessage)
+	case protocol.TraceValueVerbose:
+		c.traceLevel.Store(traceLevelVerbose)
+	default:
+		c.traceLevel.Store(traceLevelOff)
+	}
+}
+
+func isDisconnectError(err error) bool {
+	return errors.Is(err, io.EOF) ||
+		errors.Is(err, io.ErrClosedPipe) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, os.ErrClosed) ||
+		errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		isPlatformDisconnectError(err)
+}
+
+func isOrderedReadTermination(err error) bool {
+	return isDisconnectError(err) || errors.Is(err, io.ErrUnexpectedEOF)
 }
 
 func (c *Connection) close() {

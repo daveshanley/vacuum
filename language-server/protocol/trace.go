@@ -3,11 +3,6 @@
 
 package protocol
 
-import (
-	"fmt"
-	"sync"
-)
-
 const (
 	// MethodSetTrace changes server trace verbosity.
 	MethodSetTrace = Method("$/setTrace")
@@ -37,44 +32,16 @@ type SetTraceParams struct {
 	Value TraceValue `json:"value"`
 }
 
-var traceState = struct {
-	sync.RWMutex
-	value TraceValue
-}{value: TraceValueOff}
-
-// GetTraceValue returns the current process-wide trace value.
-func GetTraceValue() TraceValue {
-	traceState.RLock()
-	defer traceState.RUnlock()
-	return traceState.value
-}
-
-// SetTraceValue sets the current trace value, accepting the legacy "messages" alias.
-func SetTraceValue(value TraceValue) {
+// NormalizeTraceValue validates a trace value and accepts the legacy
+// "messages" alias used by older Vacuum clients.
+func NormalizeTraceValue(value TraceValue) TraceValue {
 	if value == "messages" {
 		value = TraceValueMessage
 	}
 	switch value {
 	case TraceValueOff, TraceValueMessage, TraceValueVerbose:
+		return value
 	default:
-		value = TraceValueOff
-	}
-	traceState.Lock()
-	traceState.value = value
-	traceState.Unlock()
-}
-
-// HasTraceLevel reports whether a trace level is currently enabled.
-func HasTraceLevel(value TraceValue) bool {
-	current := GetTraceValue()
-	switch current {
-	case TraceValueOff:
-		return false
-	case TraceValueMessage:
-		return value == TraceValueMessage
-	case TraceValueVerbose:
-		return true
-	default:
-		panic(fmt.Sprintf("unsupported trace level: %s", current))
+		return TraceValueOff
 	}
 }
