@@ -9,21 +9,10 @@ import (
 	"github.com/pb33f/testify/assert"
 )
 
-func TestTraceValuesAndLegacyMessagesAlias(t *testing.T) {
-	t.Cleanup(func() {
-		SetTraceValue(TraceValueOff)
-	})
-
-	SetTraceValue("messages")
-	assert.Equal(t, TraceValueMessage, GetTraceValue())
-	assert.True(t, HasTraceLevel(TraceValueMessage))
-	assert.False(t, HasTraceLevel(TraceValueVerbose))
-
-	SetTraceValue(TraceValueVerbose)
-	assert.True(t, HasTraceLevel(TraceValueMessage))
-	assert.True(t, HasTraceLevel(TraceValueVerbose))
-
-	SetTraceValue("invalid")
-	assert.Equal(t, TraceValueOff, GetTraceValue())
-	assert.False(t, HasTraceLevel(TraceValueMessage))
+func TestNormalizeTraceValue(t *testing.T) {
+	assert.Equal(t, TraceValueMessage, NormalizeTraceValue("messages"))
+	assert.Equal(t, TraceValueMessage, NormalizeTraceValue(TraceValueMessage))
+	assert.Equal(t, TraceValueVerbose, NormalizeTraceValue(TraceValueVerbose))
+	assert.Equal(t, TraceValueOff, NormalizeTraceValue(TraceValueOff))
+	assert.Equal(t, TraceValueOff, NormalizeTraceValue("invalid"))
 }

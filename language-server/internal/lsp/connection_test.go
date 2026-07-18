@@ -11,7 +11,9 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -94,6 +96,267 @@ func TestConnectionExitWithoutShutdownReturnsTypedError(t *testing.T) {
 
 	var exitErr ExitWithoutShutdownError
 	assert.True(t, errors.As(<-resultCh, &exitErr))
+}
+
+func TestConnectionDrainsLifecycleMessagesBeforeEOF(t *testing.T) {
+	for range 100 {
+		var input bytes.Buffer
+		writer := NewFrameWriter(&input)
+		for _, message := range []any{
+			initializeRequest(1),
+			map[string]any{"jsonrpc": "2.0", "method": protocol.MethodInitialized, "params": map[string]any{}},
+			map[string]any{"jsonrpc": "2.0", "id": 2, "method": protocol.MethodShutdown, "params": nil},
+			map[string]any{"jsonrpc": "2.0", "method": protocol.MethodExit, "params": nil},
+		} {
+			payload, err := json.Marshal(message)
+			require.NoError(t, err)
+			require.NoError(t, writer.WriteFrame(payload))
+		}
+
+		var output bytes.Buffer
+		handler := &Handler{
+			Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+				return protocol.InitializeResult{}, nil
+			},
+			Initialized: func(_ *Context, _ *protocol.InitializedParams) error {
+				return nil
+			},
+		}
+		server := NewServer(handler, slog.New(slog.NewTextHandler(io.Discard, nil)))
+		require.NoError(t, server.Run(context.Background(), nopReadWriteCloser{
+			Reader: &input,
+			Writer: &output,
+		}))
+		assert.True(t, handler.ShutdownReceived())
+
+		reader := NewFrameReader(&output, 1<<20)
+		initialize := readTestFrame(t, reader)
+		shutdown := readTestFrame(t, reader)
+		assert.Equal(t, float64(1), initialize["id"])
+		assert.Equal(t, float64(2), shutdown["id"])
+		assert.Contains(t, shutdown, "result")
+		assert.Nil(t, shutdown["result"])
+	}
+}
+
+func TestConnectionEOFDrainDiscardsOrdinaryQueuedWork(t *testing.T) {
+	connection := NewConnection(
+		nopReadWriteCloser{Reader: &bytes.Buffer{}, Writer: io.Discard},
+		&Handler{},
+		nil,
+		1<<20,
+	)
+	connection.markReaderStopped()
+
+	assert.True(t, connection.shouldDiscardAfterReaderStop(protocol.MethodTextDocumentDidOpen))
+	assert.True(t, connection.shouldDiscardAfterReaderStop(protocol.MethodTextDocumentCompletion))
+	assert.False(t, connection.shouldDiscardAfterReaderStop(protocol.MethodInitialize))
+	assert.False(t, connection.shouldDiscardAfterReaderStop(protocol.MethodInitialized))
+	assert.False(t, connection.shouldDiscardAfterReaderStop(protocol.MethodShutdown))
+	assert.False(t, connection.shouldDiscardAfterReaderStop(protocol.MethodExit))
+}
+
+func TestConnectionEOFDrainCancelsQueuedRequests(t *testing.T) {
+	var input bytes.Buffer
+	writer := NewFrameWriter(&input)
+	for _, message := range []any{
+		initializeRequest(1),
+		map[string]any{
+			"jsonrpc": "2.0",
+			"id":      2,
+			"method":  protocol.MethodTextDocumentCompletion,
+			"params":  map[string]any{},
+		},
+	} {
+		payload, err := json.Marshal(message)
+		require.NoError(t, err)
+		require.NoError(t, writer.WriteFrame(payload))
+	}
+
+	var output bytes.Buffer
+	var connection *Connection
+	var completionCalled atomic.Bool
+	handler := &Handler{
+		Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+			<-connection.readerStopped
+			return protocol.InitializeResult{}, nil
+		},
+		TextDocumentCompletion: func(_ *Context, _ *protocol.CompletionParams) (any, error) {
+			completionCalled.Store(true)
+			return nil, nil
+		},
+	}
+	connection = NewConnection(
+		nopReadWriteCloser{Reader: &input, Writer: &output},
+		handler,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		1<<20,
+	)
+
+	require.NoError(t, connection.Run(context.Background()))
+	assert.False(t, completionCalled.Load())
+
+	reader := NewFrameReader(&output, 1<<20)
+	initialize := readTestFrame(t, reader)
+	canceled := readTestFrame(t, reader)
+	assert.Equal(t, float64(1), initialize["id"])
+	assert.Equal(t, float64(2), canceled["id"])
+	assert.Equal(t, float64(CodeRequestCanceled), responseErrorCode(t, canceled))
+}
+
+func TestConnectionDrainsLifecycleMessagesBeforeUnexpectedEOF(t *testing.T) {
+	var input bytes.Buffer
+	writer := NewFrameWriter(&input)
+	for _, message := range []any{
+		initializeRequest(1),
+		map[string]any{"jsonrpc": "2.0", "id": 2, "method": protocol.MethodShutdown},
+		map[string]any{"jsonrpc": "2.0", "method": protocol.MethodExit},
+	} {
+		payload, err := json.Marshal(message)
+		require.NoError(t, err)
+		require.NoError(t, writer.WriteFrame(payload))
+	}
+	_, err := input.WriteString("Content-Length: 5\r\n\r\n{")
+	require.NoError(t, err)
+
+	var output bytes.Buffer
+	var connection *Connection
+	handler := &Handler{
+		Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+			<-connection.readerStopped
+			return protocol.InitializeResult{}, nil
+		},
+	}
+	connection = NewConnection(
+		nopReadWriteCloser{Reader: &input, Writer: &output},
+		handler,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		1<<20,
+	)
+
+	require.NoError(t, connection.Run(context.Background()))
+	assert.True(t, handler.ShutdownReceived())
+}
+
+func TestConnectionTreatsBrokenResponsePipeAsDisconnect(t *testing.T) {
+	var framed bytes.Buffer
+	payload, err := json.Marshal(initializeRequest(1))
+	require.NoError(t, err)
+	require.NoError(t, NewFrameWriter(&framed).WriteFrame(payload))
+
+	stream := newResponseWriteFailureStream(framed.Bytes())
+	handler := &Handler{
+		Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+			return protocol.InitializeResult{}, nil
+		},
+	}
+	server := NewServer(handler, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- server.Run(context.Background(), stream)
+	}()
+
+	select {
+	case runErr := <-resultCh:
+		require.NoError(t, runErr)
+	case <-time.After(time.Second):
+		t.Fatal("broken response pipe did not stop the connection")
+	}
+}
+
+func TestConnectionPreservesQueuedExitAfterBrokenResponsePipe(t *testing.T) {
+	for range 100 {
+		var input bytes.Buffer
+		writer := NewFrameWriter(&input)
+		for _, message := range []any{
+			initializeRequest(1),
+			map[string]any{"jsonrpc": "2.0", "method": protocol.MethodExit},
+		} {
+			payload, err := json.Marshal(message)
+			require.NoError(t, err)
+			require.NoError(t, writer.WriteFrame(payload))
+		}
+
+		var connection *Connection
+		handler := &Handler{
+			Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+				<-connection.readerStopped
+				return protocol.InitializeResult{}, nil
+			},
+		}
+		connection = NewConnection(
+			nopReadWriteCloser{Reader: &input, Writer: errorWriter{err: syscall.EPIPE}},
+			handler,
+			slog.New(slog.NewTextHandler(io.Discard, nil)),
+			1<<20,
+		)
+
+		var exitErr ExitWithoutShutdownError
+		assert.True(t, errors.As(connection.Run(context.Background()), &exitErr))
+	}
+}
+
+func TestConnectionPreservesAcceptedExitWhenBrokenPipePrecedesEOF(t *testing.T) {
+	for range 100 {
+		var input bytes.Buffer
+		writer := NewFrameWriter(&input)
+		for _, message := range []any{
+			initializeRequest(1),
+			map[string]any{"jsonrpc": "2.0", "method": protocol.MethodExit},
+		} {
+			payload, err := json.Marshal(message)
+			require.NoError(t, err)
+			require.NoError(t, writer.WriteFrame(payload))
+		}
+
+		stream := newResponseWriteFailureStream(input.Bytes())
+		var connection *Connection
+		handler := &Handler{
+			Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+				deadline := time.Now().Add(time.Second)
+				for connection.queuedBytes.Load() == 0 && time.Now().Before(deadline) {
+					time.Sleep(time.Millisecond)
+				}
+				return protocol.InitializeResult{}, nil
+			},
+		}
+		connection = NewConnection(
+			stream,
+			handler,
+			slog.New(slog.NewTextHandler(io.Discard, nil)),
+			1<<20,
+		)
+
+		var exitErr ExitWithoutShutdownError
+		assert.True(t, errors.As(connection.Run(context.Background()), &exitErr))
+	}
+}
+
+func TestConnectionTraceLevelsAreConnectionLocal(t *testing.T) {
+	first := NewConnection(
+		nopReadWriteCloser{Reader: &bytes.Buffer{}, Writer: io.Discard},
+		&Handler{},
+		nil,
+		1<<20,
+	)
+	second := NewConnection(
+		nopReadWriteCloser{Reader: &bytes.Buffer{}, Writer: io.Discard},
+		&Handler{},
+		nil,
+		1<<20,
+	)
+	assert.Equal(t, traceLevelOff, first.traceLevel.Load())
+	assert.Equal(t, traceLevelOff, second.traceLevel.Load())
+
+	first.setTraceValue("messages")
+	second.setTraceValue(protocol.TraceValueVerbose)
+	assert.Equal(t, traceLevelMessage, first.traceLevel.Load())
+	assert.Equal(t, traceLevelVerbose, second.traceLevel.Load())
+
+	first.setTraceValue(protocol.TraceValueOff)
+	assert.Equal(t, traceLevelOff, first.traceLevel.Load())
+	assert.Equal(t, traceLevelVerbose, second.traceLevel.Load())
 }
 
 func TestConnectionSupportsServerCallsAndNotifications(t *testing.T) {
@@ -654,6 +917,46 @@ func (nopReadWriteCloser) Close() error {
 	return nil
 }
 
+type errorWriter struct {
+	err error
+}
+
+func (w errorWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+type responseWriteFailureStream struct {
+	reader *bytes.Reader
+	closed chan struct{}
+	once   sync.Once
+}
+
+func newResponseWriteFailureStream(payload []byte) *responseWriteFailureStream {
+	return &responseWriteFailureStream{
+		reader: bytes.NewReader(payload),
+		closed: make(chan struct{}),
+	}
+}
+
+func (s *responseWriteFailureStream) Read(payload []byte) (int, error) {
+	if s.reader.Len() > 0 {
+		return s.reader.Read(payload)
+	}
+	<-s.closed
+	return 0, io.EOF
+}
+
+func (s *responseWriteFailureStream) Write([]byte) (int, error) {
+	return 0, syscall.EPIPE
+}
+
+func (s *responseWriteFailureStream) Close() error {
+	s.once.Do(func() {
+		close(s.closed)
+	})
+	return nil
+}
+
 func (c *pipeClient) Close() error {
 	return c.conn.Close()
 }
@@ -721,4 +1024,13 @@ func responseErrorCode(t *testing.T, response map[string]any) float64 {
 	code, ok := errorValue["code"].(float64)
 	require.True(t, ok)
 	return code
+}
+
+func readTestFrame(t *testing.T, reader *FrameReader) map[string]any {
+	t.Helper()
+	payload, err := reader.ReadFrame()
+	require.NoError(t, err)
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(payload, &value))
+	return value
 }

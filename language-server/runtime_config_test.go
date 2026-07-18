@@ -4,6 +4,7 @@
 package languageserver
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"net/url"
@@ -46,7 +47,7 @@ func TestRuntimeConfigForDocument_PullsWorkspaceConfiguration(t *testing.T) {
 	rootURI := fileURI(tempDir)
 	specURI := fileURI(filepath.Join(tempDir, "openapi.yaml"))
 	state.setWorkspaceFolders(nil, []protocol.WorkspaceFolder{{URI: rootURI, Name: "test-workspace"}})
-	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) error {
 		assert.Equal(t, string(protocol.ServerWorkspaceConfiguration), method)
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
@@ -61,6 +62,7 @@ func TestRuntimeConfigForDocument_PullsWorkspaceConfiguration(t *testing.T) {
 				"extensionRefs": true,
 			},
 		}
+		return nil
 	}))
 
 	runtimeConfig, err := state.runtimeConfigForDocument(specURI)
@@ -84,7 +86,7 @@ func TestRuntimeConfigForDocument_NullWorkspaceDefaultsDoNotOverrideFileConfig(t
 		LookupTimeout: intPtr(42),
 	}, ""))
 	state.workspaceConfigurationSupported = true
-	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) error {
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
 		*configResult = []any{
@@ -101,6 +103,7 @@ func TestRuntimeConfigForDocument_NullWorkspaceDefaultsDoNotOverrideFileConfig(t
 				"extensionRefs": nil,
 			},
 		}
+		return nil
 	}))
 
 	runtimeConfig, err := state.runtimeConfigForDocument(fileURI(filepath.Join(t.TempDir(), "openapi.yaml")))
@@ -120,7 +123,7 @@ func TestRuntimeConfigForDocument_UserWorkspaceValuesOverrideFileConfig(t *testi
 		LookupTimeout: intPtr(42),
 	}, ""))
 	state.workspaceConfigurationSupported = true
-	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) error {
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
 		*configResult = []any{
@@ -130,6 +133,7 @@ func TestRuntimeConfigForDocument_UserWorkspaceValuesOverrideFileConfig(t *testi
 				"lookupTimeout": 25,
 			},
 		}
+		return nil
 	}))
 
 	runtimeConfig, err := state.runtimeConfigForDocument(fileURI(filepath.Join(t.TempDir(), "openapi.yaml")))
@@ -144,7 +148,7 @@ func TestRuntimeConfigForDocument_WorkspaceHardModeFalseRebuildsRecommendedRules
 	state := newRuntimeConfigTestState()
 	require.NoError(t, state.setFileConfig(&LSPConfig{HardMode: boolPtr(true)}, ""))
 	state.workspaceConfigurationSupported = true
-	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) error {
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
 		*configResult = []any{
@@ -152,6 +156,7 @@ func TestRuntimeConfigForDocument_WorkspaceHardModeFalseRebuildsRecommendedRules
 				"hardMode": false,
 			},
 		}
+		return nil
 	}))
 
 	runtimeConfig, err := state.runtimeConfigForDocument(fileURI(filepath.Join(t.TempDir(), "openapi.yaml")))
@@ -168,7 +173,7 @@ func TestRuntimeConfigForDocument_RebuildsWhenConfigGenerationChangesDuringBuild
 	state.workspaceConfigurationSupported = true
 	specURI := fileURI(filepath.Join(t.TempDir(), "openapi.yaml"))
 	calls := 0
-	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) {
+	state.setCallFunc(lsp.CallFunc(func(method string, params any, result any) error {
 		calls++
 		configResult, ok := result.(*[]any)
 		require.True(t, ok)
@@ -179,13 +184,14 @@ func TestRuntimeConfigForDocument_RebuildsWhenConfigGenerationChangesDuringBuild
 				},
 			}
 			state.bumpConfigGeneration()
-			return
+			return nil
 		}
 		*configResult = []any{
 			map[string]any{
 				"remote": true,
 			},
 		}
+		return nil
 	}))
 
 	runtimeConfig, err := state.runtimeConfigForDocument(specURI)
@@ -195,6 +201,49 @@ func TestRuntimeConfigForDocument_RebuildsWhenConfigGenerationChangesDuringBuild
 	assert.True(t, runtimeConfig.remote)
 	require.NotNil(t, state.cachedDocumentRuntimeConfig(specURI))
 	assert.True(t, state.cachedDocumentRuntimeConfig(specURI).remote)
+}
+
+func TestRuntimeConfigForDocument_CachesWorkspaceCallFailureUntilGenerationChanges(t *testing.T) {
+	state := newRuntimeConfigTestState()
+	state.workspaceConfigurationSupported = true
+	specURI := fileURI(filepath.Join(t.TempDir(), "openapi.yaml"))
+	callFailure := errors.New("client disconnected")
+	calls := 0
+	state.setCallFunc(func(method string, params any, result any) error {
+		calls++
+		return callFailure
+	})
+
+	runtimeConfig, err := state.runtimeConfigForDocument(specURI)
+	assert.Nil(t, runtimeConfig)
+	require.ErrorIs(t, err, callFailure)
+	require.NotNil(t, state.cachedDocumentRuntimeConfig(specURI))
+
+	runtimeConfig, err = state.runtimeConfigForDocument(specURI)
+	require.NoError(t, err)
+	require.NotNil(t, runtimeConfig)
+	assert.Equal(t, 1, calls)
+
+	state.bumpConfigGeneration()
+	runtimeConfig, err = state.runtimeConfigForDocument(specURI)
+	assert.Nil(t, runtimeConfig)
+	require.ErrorIs(t, err, callFailure)
+	assert.Equal(t, 2, calls)
+}
+
+func TestRegisterConfigurationChangeNotificationsReturnsClientFailure(t *testing.T) {
+	state := newRuntimeConfigTestState()
+	state.didChangeConfigurationDynamicRegistrationSupported = true
+	callFailure := errors.New("registration rejected")
+
+	err := state.registerConfigurationChangeNotifications(
+		func(method string, params any, result any) error {
+			assert.Equal(t, string(protocol.ServerClientRegisterCapability), method)
+			return callFailure
+		},
+	)
+
+	require.ErrorIs(t, err, callFailure)
 }
 
 func TestRuntimeConfigForDocument_PreservesCLIProvidedLookupTimeout(t *testing.T) {

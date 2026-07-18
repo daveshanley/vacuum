@@ -4,9 +4,9 @@
 package languageserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net"
 	"strings"
@@ -22,11 +22,9 @@ import (
 )
 
 func TestServerWireContractPreservesVacuumBehavior(t *testing.T) {
-	t.Cleanup(func() {
-		protocol.SetTraceValue(protocol.TraceValueOff)
-	})
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var traceLog bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&traceLog, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	state := NewServer("v-test", &utils.LintFileRequest{
 		DefaultRuleSets:   defaultRuleSets,
 		SelectedRS:        defaultRuleSets.GenerateOpenAPIRecommendedRuleSet(),
@@ -123,7 +121,8 @@ func TestServerWireContractPreservesVacuumBehavior(t *testing.T) {
 		},
 	})
 	_ = client.receive(t)
-	assert.Equal(t, protocol.TraceValueMessage, protocol.GetTraceValue())
+	assert.Contains(t, traceLog.String(), "LSP send")
+	assert.Contains(t, traceLog.String(), "bytes=")
 
 	uri := "file:///tmp/owned-lsp-openapi.yaml"
 	document := "openapi: 3.1.0\ninfo:\n  title: a😀b\n  version: 1.0.0\npaths: {}\n"
