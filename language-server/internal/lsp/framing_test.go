@@ -60,6 +60,15 @@ func TestFrameReaderRejectsInvalidHeadersAndLengths(t *testing.T) {
 	}
 }
 
+func TestFrameReaderRejectsContentLengthBeyondPlatformInt(t *testing.T) {
+	wire := "Content-Length: 18446744073709551615\r\n\r\n"
+
+	_, err := NewFrameReader(strings.NewReader(wire), DefaultMaxMessageBytes).ReadFrame()
+
+	require.ErrorIs(t, err, ErrMessageTooLarge)
+	assert.Contains(t, err.Error(), "exceeds platform integer capacity")
+}
+
 func TestFrameReaderAcceptsZeroLengthBody(t *testing.T) {
 	payload, err := NewFrameReader(strings.NewReader("Content-Length: 0\r\n\r\n"), 1).ReadFrame()
 	require.NoError(t, err)
