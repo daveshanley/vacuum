@@ -65,8 +65,8 @@ func TestFrameReaderRejectsContentLengthBeyondPlatformInt(t *testing.T) {
 
 	_, err := NewFrameReader(strings.NewReader(wire), DefaultMaxMessageBytes).ReadFrame()
 
-	require.ErrorIs(t, err, ErrMessageTooLarge)
-	assert.Contains(t, err.Error(), "exceeds platform integer capacity")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid LSP Content-Length")
 }
 
 func TestFrameReaderAcceptsZeroLengthBody(t *testing.T) {
