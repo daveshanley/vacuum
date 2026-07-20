@@ -98,6 +98,28 @@ func TestConnectionExitWithoutShutdownReturnsTypedError(t *testing.T) {
 	assert.True(t, errors.As(<-resultCh, &exitErr))
 }
 
+func TestConnectionShutdownNotificationDoesNotPermitCleanExit(t *testing.T) {
+	handler := &Handler{
+		Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {
+			return protocol.InitializeResult{}, nil
+		},
+	}
+	client, resultCh := runPipeServer(t, handler)
+	defer client.Close()
+
+	client.send(t, initializeRequest(1))
+	initialize := client.receive(t)
+	assert.Equal(t, float64(1), initialize["id"])
+	client.send(t, map[string]any{
+		"jsonrpc": "2.0", "method": protocol.MethodShutdown, "params": nil,
+	})
+	client.send(t, map[string]any{"jsonrpc": "2.0", "method": protocol.MethodExit})
+
+	var exitErr ExitWithoutShutdownError
+	assert.True(t, errors.As(<-resultCh, &exitErr))
+	assert.False(t, handler.ShutdownReceived())
+}
+
 func TestConnectionDrainsLifecycleMessagesBeforeEOF(t *testing.T) {
 	for range 100 {
 		var input bytes.Buffer

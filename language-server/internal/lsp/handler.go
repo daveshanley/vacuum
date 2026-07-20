@@ -24,12 +24,13 @@ type SetTraceFunc func(value protocol.TraceValue)
 
 // Context contains request state and server-to-client messaging callbacks.
 type Context struct {
-	Context  context.Context
-	Method   string
-	Params   json.RawMessage
-	Notify   NotifyFunc
-	Call     CallFunc
-	SetTrace SetTraceFunc
+	Context   context.Context
+	Method    string
+	Params    json.RawMessage
+	IsRequest bool // Whether the incoming message has a JSON-RPC request ID.
+	Notify    NotifyFunc
+	Call      CallFunc
+	SetTrace  SetTraceFunc
 }
 
 // Handler contains Vacuum's supported typed LSP callbacks and lifecycle state.
@@ -188,6 +189,9 @@ func (h *Handler) Handle(ctx *Context) (any, *ResponseError, bool) {
 			return h.WorkspaceDidChangeWorkspaceFolders(ctx, &params)
 		}), false
 	case protocol.MethodShutdown:
+		if !ctx.IsRequest {
+			return nil, nil, false
+		}
 		h.mu.Lock()
 		h.shutdown = true
 		h.initialized = false
