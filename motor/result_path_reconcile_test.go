@@ -485,10 +485,11 @@ components:
 	idx := index.NewSpecIndexWithConfig(&root, cfg)
 	idx.BuildIndex()
 	pathIndex := resultPathIndexForSpec(idx, make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex))
+	edges := sortedResultReferenceAliasEdges(idx.GetAllSequencedReferences(), idx, pathIndex)
 
 	done := make(chan []string, 1)
 	go func() {
-		done <- equivalentResultReferenceTargetPaths(idx, "$.components.schemas['Loop']", pathIndex, nil).paths
+		done <- equivalentResultReferenceTargetPaths("$.components.schemas['Loop']", edges, nil).paths
 	}()
 
 	select {

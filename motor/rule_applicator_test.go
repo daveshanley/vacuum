@@ -33,6 +33,43 @@ type stubDocument struct {
 	specInfo *datamodel.SpecInfo
 }
 
+func TestRuleActionTraversalSupportsAllRepresentations(t *testing.T) {
+	target := model.RuleAction{Field: "name", Function: "target"}
+	nonTarget := model.RuleAction{Field: "description", Function: "other"}
+	tests := []struct {
+		name       string
+		then       interface{}
+		usesTarget bool
+		fields     []string
+	}{
+		{name: "value", then: target, usesTarget: true, fields: []string{"name"}},
+		{name: "pointer", then: &target, usesTarget: true, fields: []string{"name"}},
+		{name: "map", then: map[string]interface{}{"field": "name", "function": "target"}, usesTarget: true, fields: []string{"name"}},
+		{name: "value slice", then: []model.RuleAction{nonTarget, target}, usesTarget: true, fields: []string{"description", "name"}},
+		{name: "pointer slice", then: []*model.RuleAction{nil, &nonTarget, &target}, usesTarget: true, fields: []string{"description", "name"}},
+		{
+			name:       "mixed interface slice",
+			usesTarget: true,
+			then: []interface{}{
+				map[string]interface{}{"field": "summary", "function": "other"},
+				nonTarget,
+				&target,
+			},
+			fields: []string{"summary", "description", "name"},
+		},
+		{name: "no match", then: []model.RuleAction{nonTarget}, fields: []string{"description"}},
+		{name: "nil", fields: nil},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rule := &model.Rule{Then: test.then}
+			assert.Equal(t, test.usesTarget, ruleUsesFunction(rule, "target"))
+			assert.Equal(t, test.fields, resultRuleActionFields(rule))
+		})
+	}
+}
+
 func (d *stubDocument) GetVersion() string {
 	return ""
 }
