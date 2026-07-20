@@ -73,18 +73,14 @@ func (r *FrameReader) ReadFrame() ([]byte, error) {
 		if !validLength {
 			return nil, fmt.Errorf("invalid LSP Content-Length %q", rawLength)
 		}
-		parsed, parseErr := strconv.ParseUint(rawLength, 10, 64)
+		parsed, parseErr := strconv.Atoi(rawLength)
 		if parseErr != nil {
 			return nil, fmt.Errorf("invalid LSP Content-Length %q", rawLength)
 		}
-		platformMaxInt := uint64(^uint(0) >> 1)
-		if parsed > platformMaxInt {
-			return nil, fmt.Errorf("%w: %d exceeds platform integer capacity", ErrMessageTooLarge, parsed)
-		}
-		if parsed > uint64(r.maxMessageBytes) {
+		if parsed > r.maxMessageBytes {
 			return nil, fmt.Errorf("%w: %d > %d", ErrMessageTooLarge, parsed, r.maxMessageBytes)
 		}
-		contentLength = int(parsed)
+		contentLength = parsed
 	}
 	if contentLength < 0 {
 		return nil, errors.New("missing LSP Content-Length header")
