@@ -132,6 +132,21 @@ func TestHandlerDistinguishesInvalidParamsAndUnknownMethods(t *testing.T) {
 	assert.Equal(t, CodeMethodNotFound, responseErr.Code)
 }
 
+func TestHandlerIgnoresShutdownNotifications(t *testing.T) {
+	handler := &Handler{}
+	handler.setInitialized(true)
+
+	_, responseErr, exit := handler.Handle(&Context{
+		Context: context.Background(),
+		Method:  protocol.MethodShutdown,
+		Params:  json.RawMessage(`{}`),
+	})
+
+	assert.False(t, exit)
+	assert.Nil(t, responseErr)
+	assert.False(t, handler.ShutdownReceived())
+}
+
 func BenchmarkHandlerDispatch(b *testing.B) {
 	handler := &Handler{
 		Initialize: func(_ *Context, _ *protocol.InitializeParams) (any, error) {

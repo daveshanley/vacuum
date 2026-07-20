@@ -491,9 +491,10 @@ func (c *Connection) handleIncoming(message *incomingMessage) (bool, error) {
 		return false, c.writeError(id, rpcError(CodeRequestCanceled, "request canceled", nil))
 	}
 	ctx := &Context{
-		Context: dispatchContext,
-		Method:  message.Method,
-		Params:  message.Params,
+		Context:   dispatchContext,
+		Method:    message.Method,
+		Params:    message.Params,
+		IsRequest: hasID,
 		Notify: func(method string, params any) {
 			if err := c.Notify(method, params); err != nil {
 				c.logger.Warn("LSP notification failed", "method", method, "error", err)
