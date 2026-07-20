@@ -353,36 +353,57 @@ func (r *RuleSetExecutionResult) Release() {
 	r.release(true)
 }
 
-// ruleUsesFunction checks whether a rule's Then field references the given function name.
-// Rule.Then is interface{} and may be a model.RuleAction, map[string]interface{},
-// or a slice of either.
-func ruleUsesFunction(rule *model.Rule, funcName string) bool {
+// forEachRuleAction visits every supported representation of Rule.Then. It
+// returns true when the visitor stops traversal early.
+func forEachRuleAction(rule *model.Rule, visit func(model.RuleAction) bool) bool {
 	if rule == nil || rule.Then == nil {
 		return false
 	}
-	switch t := rule.Then.(type) {
+	return forEachRuleActionValue(rule.Then, visit)
+}
+
+func forEachRuleActionValue(value interface{}, visit func(model.RuleAction) bool) bool {
+	switch action := value.(type) {
 	case model.RuleAction:
-		return t.Function == funcName
+		return visit(action)
 	case *model.RuleAction:
-		return t != nil && t.Function == funcName
-	case map[string]interface{}:
-		if fn, ok := t["function"]; ok {
-			if s, ok := fn.(string); ok {
-				return s == funcName
+		return action != nil && visit(*action)
+	case []model.RuleAction:
+		for i := range action {
+			if visit(action[i]) {
+				return true
 			}
 		}
+	case []*model.RuleAction:
+		for _, item := range action {
+			if item != nil && visit(*item) {
+				return true
+			}
+		}
+	case map[string]interface{}:
+		mapped := model.RuleAction{FunctionOptions: action["functionOptions"]}
+		if field, ok := action["field"].(string); ok {
+			mapped.Field = field
+		}
+		if function, ok := action["function"].(string); ok {
+			mapped.Function = function
+		}
+		return visit(mapped)
 	case []interface{}:
-		for _, item := range t {
-			if m, ok := item.(map[string]interface{}); ok {
-				if fn, ok := m["function"]; ok {
-					if s, ok := fn.(string); ok && s == funcName {
-						return true
-					}
-				}
+		for _, item := range action {
+			if forEachRuleActionValue(item, visit) {
+				return true
 			}
 		}
 	}
 	return false
+}
+
+// ruleUsesFunction checks whether a rule's Then field references the given function name.
+func ruleUsesFunction(rule *model.Rule, funcName string) bool {
+	return forEachRuleAction(rule, func(action model.RuleAction) bool {
+		return action.Function == funcName
+	})
 }
 
 // ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
