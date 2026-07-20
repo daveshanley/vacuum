@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -487,7 +488,7 @@ components:
 
 	done := make(chan []string, 1)
 	go func() {
-		done <- equivalentResultReferenceTargetPaths(idx, "$.components.schemas['Loop']", pathIndex)
+		done <- equivalentResultReferenceTargetPaths(idx, "$.components.schemas['Loop']", pathIndex, nil).paths
 	}()
 
 	select {
@@ -495,10 +496,183 @@ components:
 		require.NotEmpty(t, paths)
 		assert.Contains(t, paths, "$.components.schemas['Loop']")
 		assert.Contains(t, paths, "$.components.schemas['Loop'].properties['next']")
-		assert.LessOrEqual(t, len(paths), maxResultReferenceAliasDepth+1)
+		assert.LessOrEqual(t, len(paths), 2)
 	case <-time.After(time.Second):
 		t.Fatal("equivalentResultReferenceTargetPaths did not terminate")
 	}
+}
+
+func TestIssue934BranchingCircularComponentAliasesAreBounded(t *testing.T) {
+	spec, err := os.ReadFile(filepath.Join("test_data", "issue_934", "openapi.yaml"))
+	require.NoError(t, err)
+	rulesetData, err := os.ReadFile(filepath.Join("test_data", "issue_934", "ruleset.yaml"))
+	require.NoError(t, err)
+	suppliedRuleSet, err := rulesets.CreateRuleSetFromData(rulesetData)
+	require.NoError(t, err)
+	ruleSet := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(suppliedRuleSet)
+	rule := ruleSet.Rules["test"]
+
+	previousProcs := runtime.GOMAXPROCS(0)
+	defer runtime.GOMAXPROCS(previousProcs)
+	expectedPaths := []string{
+		"$.components.schemas['A']",
+		"$.components.schemas['B']",
+		"$.components.schemas['C']",
+		"$.components.schemas['D']",
+	}
+	var expectedSnapshot []string
+	for _, procs := range []int{1, 4} {
+		runtime.GOMAXPROCS(procs)
+		for iteration := 0; iteration < 5; iteration++ {
+			done := make(chan *RuleSetExecutionResult, 1)
+			go func() {
+				done <- ApplyRulesToRuleSet(&RuleSetExecution{
+					RuleSet:     ruleSet,
+					Spec:        spec,
+					SilenceLogs: true,
+				})
+			}()
+
+			select {
+			case results := <-done:
+				require.Empty(t, results.Errors, "GOMAXPROCS=%d iteration=%d", procs, iteration)
+				var testResults []model.RuleFunctionResult
+				for i := range results.Results {
+					if results.Results[i].RuleId == rule.Id {
+						testResults = append(testResults, results.Results[i])
+					}
+				}
+				require.Len(t, testResults, 4, "GOMAXPROCS=%d iteration=%d", procs, iteration)
+				paths := make([]string, 0, len(testResults))
+				snapshot := make([]string, 0, len(testResults))
+				for i := range testResults {
+					result := &testResults[i]
+					paths = append(paths, result.Path)
+					assert.LessOrEqual(t, len(result.Paths), maxResultReferenceAliasesPerResult+1)
+					snapshot = append(snapshot, result.Path+"|"+strings.Join(result.Paths, ",")+"|"+strconv.FormatBool(result.PathsTruncated))
+				}
+				assert.Equal(t, expectedPaths, paths)
+				if expectedSnapshot == nil {
+					expectedSnapshot = snapshot
+				} else {
+					assert.Equal(t, expectedSnapshot, snapshot, "GOMAXPROCS=%d iteration=%d", procs, iteration)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatalf("issue 934 result-path reconciliation did not terminate: GOMAXPROCS=%d iteration=%d", procs, iteration)
+			}
+		}
+	}
+}
+
+func TestExpandResultReferenceAliasPathDenseDAGHonorsBudget(t *testing.T) {
+	edges := []resultReferenceAliasEdge{
+		{sourcePath: "$.components.schemas['A'].properties['b']", targetPath: "$.components.schemas['B']"},
+		{sourcePath: "$.components.schemas['A'].properties['c']", targetPath: "$.components.schemas['C']"},
+		{sourcePath: "$.components.schemas['B'].properties['d']", targetPath: "$.components.schemas['D']"},
+		{sourcePath: "$.components.schemas['C'].properties['d']", targetPath: "$.components.schemas['D']"},
+	}
+	budget := &resultReferenceAliasBudget{maxStates: 4, maxPaths: 8}
+
+	pathSet := expandResultReferenceAliasPath(
+		"$.components.schemas['A']",
+		"$.paths['/v1/example'].get.responses['200'].content['application/json'].schema",
+		"$.components.schemas['D']",
+		edges,
+		make(resultPathNormalizeCache),
+		budget,
+	)
+
+	assert.True(t, pathSet.truncated)
+	assert.Equal(t, 4, budget.states)
+	assert.Equal(t, 1, budget.paths)
+	assert.Equal(t, []string{
+		"$.paths['/v1/example'].get.responses['200'].content['application/json'].schema.properties['b'].properties['d']",
+	}, pathSet.paths)
+}
+
+func TestExpandResultReferenceAliasPathStopsSemanticCycle(t *testing.T) {
+	edges := []resultReferenceAliasEdge{
+		{sourcePath: "$.components.schemas['A'].properties['b']", targetPath: "$.components.schemas['B']"},
+		{sourcePath: "$.components.schemas['B'].properties['a']", targetPath: "$.components.schemas['A']"},
+	}
+	budget := &resultReferenceAliasBudget{maxStates: 16, maxPaths: 16}
+
+	pathSet := expandResultReferenceAliasPath(
+		"$.components.schemas['A']",
+		"$.paths['/v1/example'].get.responses['200'].content['application/json'].schema",
+		"$.components.schemas['A']",
+		edges,
+		make(resultPathNormalizeCache),
+		budget,
+	)
+
+	assert.False(t, pathSet.truncated)
+	assert.Equal(t, []string{
+		"$.paths['/v1/example'].get.responses['200'].content['application/json'].schema",
+	}, pathSet.paths)
+}
+
+func TestCompleteAliasedResultPathsPropagatesSharedBudgetTruncation(t *testing.T) {
+	dir, specPath, specBytes := writeIssue879AdditionalPropertiesSchemaReferenceFixture(t)
+	rule := &model.Rule{
+		Id:       "bounded-component-aliases",
+		Given:    "$.components.*.*",
+		Resolved: true,
+		Severity: model.SeverityError,
+		Then: &model.RuleAction{
+			Field:    "description",
+			Function: "truthy",
+		},
+	}
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:           &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}},
+		Spec:              specBytes,
+		SpecFileName:      specPath,
+		Base:              dir,
+		AllowLookup:       true,
+		NodeLookupTimeout: 5 * time.Second,
+		SilenceLogs:       true,
+	})
+	require.Empty(t, results.Errors)
+	result := findResultByRuleAndPath(results.Results, rule.Id, "$.components.schemas['shared_value'].description")
+	require.NotNil(t, result)
+	canonicalPath := result.Path
+	duplicate := *result
+	results.Results = append(results.Results, duplicate)
+
+	for i := range results.Results {
+		results.Results[i].PathsTruncated = false
+	}
+	completeAliasedResultPathsFromReferencesWithBudget(
+		results.Results,
+		results.Index.GetRolodex(),
+		nil,
+		&resultReferenceAliasBudget{maxStates: 1, maxPaths: 1, aliasesPerResult: 1},
+	)
+
+	truncatedResults := 0
+	for i := range results.Results {
+		if results.Results[i].RuleId != rule.Id {
+			continue
+		}
+		truncatedResults++
+		assert.True(t, results.Results[i].PathsTruncated)
+		assert.Equal(t, canonicalPath, results.Results[i].Path)
+	}
+	assert.Equal(t, 2, truncatedResults)
+}
+
+func TestEnforceResultReferenceAliasLimitPreservesCanonicalPath(t *testing.T) {
+	result := &model.RuleFunctionResult{
+		Path:  "$.components.schemas['A']",
+		Paths: []string{"$.z", "$.components.schemas['A']", "$.b", "$.a"},
+	}
+
+	enforceResultReferenceAliasLimit(result, 2)
+
+	assert.True(t, result.PathsTruncated)
+	assert.Equal(t, "$.components.schemas['A']", result.Path)
+	assert.Equal(t, []string{"$.components.schemas['A']", "$.a", "$.b"}, result.Paths)
 }
 
 func TestResultPathCacheDoesNotUseRootPositionForExternalOrigin(t *testing.T) {

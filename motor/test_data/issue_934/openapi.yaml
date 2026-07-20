@@ -1,0 +1,35 @@
+openapi: 3.0.3
+info:
+  title: Vacuum issue 934
+  version: "1.0.0"
+paths: {}
+components:
+  schemas:
+    A:
+      properties:
+        b:
+          $ref: "#/components/schemas/B"
+        c:
+          $ref: "#/components/schemas/C"
+        d:
+          $ref: "#/components/schemas/D"
+    B:
+      properties:
+        a:
+          $ref: "#/components/schemas/A"
+        c:
+          $ref: "#/components/schemas/C"
+        d:
+          $ref: "#/components/schemas/D"
+    C:
+      properties:
+        a:
+          $ref: "#/components/schemas/A"
+        b:
+          $ref: "#/components/schemas/B"
+        d:
+          $ref: "#/components/schemas/D"
+    D:
+      properties:
+        a:
+          $ref: "#/components/schemas/A"

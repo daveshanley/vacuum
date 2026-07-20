@@ -553,7 +553,66 @@ type resultReferenceAliasExpansion struct {
 	suffix   string
 }
 
-const maxResultReferenceAliasDepth = 16
+type resultReferenceAliasExpansionSet struct {
+	expansions []resultReferenceAliasExpansion
+	truncated  bool
+}
+
+type resultReferenceAliasPathSet struct {
+	paths     []string
+	truncated bool
+}
+
+type resultReferenceAliasBudget struct {
+	states           int
+	paths            int
+	maxStates        int
+	maxPaths         int
+	aliasesPerResult int
+}
+
+const (
+	maxResultReferenceAliasStates      = 4096
+	maxResultReferenceAliasPaths       = 4096
+	maxResultReferenceAliasesPerResult = 256
+)
+
+func (b *resultReferenceAliasBudget) consumeState() bool {
+	if b == nil {
+		return true
+	}
+	limit := b.maxStates
+	if limit <= 0 {
+		limit = maxResultReferenceAliasStates
+	}
+	if b.states >= limit {
+		return false
+	}
+	b.states++
+	return true
+}
+
+func (b *resultReferenceAliasBudget) consumePath() bool {
+	if b == nil {
+		return true
+	}
+	limit := b.maxPaths
+	if limit <= 0 {
+		limit = maxResultReferenceAliasPaths
+	}
+	if b.paths >= limit {
+		return false
+	}
+	b.paths++
+	return true
+}
+
+func (b *resultReferenceAliasBudget) resultAliasLimit() int {
+	if b != nil && b.aliasesPerResult > 0 {
+		return b.aliasesPerResult
+	}
+	return maxResultReferenceAliasesPerResult
+}
 
 type resultPathNormalizeCache map[string]string
 
@@ -629,6 +688,17 @@ func completeAliasedResultPathsFromReferences(
 	rolodex *index.Rolodex,
 	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
 ) {
+	completeAliasedResultPathsFromReferencesWithBudget(
+		results, rolodex, pathIndexes, &resultReferenceAliasBudget{},
+	)
+}
+
+func completeAliasedResultPathsFromReferencesWithBudget(
+	results []model.RuleFunctionResult,
+	rolodex *index.Rolodex,
+	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
+	budget *resultReferenceAliasBudget,
+) {
 	if len(results) == 0 || rolodex == nil || rolodex.GetRootIndex() == nil || rolodex.GetRootIndex().GetRootNode() == nil {
 		return
 	}
@@ -636,11 +706,21 @@ func completeAliasedResultPathsFromReferences(
 	if pathIndexes == nil {
 		pathIndexes = make(map[*index.SpecIndex]*vacuumUtils.NodePathIndex)
 	}
-	aliasCache := make(map[resultReferenceAliasKey][]string)
+	aliasCache := make(map[resultReferenceAliasKey]resultReferenceAliasPathSet)
 	aliasRootCache := make(map[resultReferenceAliasPathKey]string)
-	aliasExpansionCache := make(map[resultReferenceAliasPathKey][]resultReferenceAliasExpansion)
+	aliasExpansionCache := make(map[resultReferenceAliasPathKey]resultReferenceAliasExpansionSet)
 	aliasReferencePathCache := make(map[resultReferenceAliasIndexPairKey][]string)
 	normalizeCache := make(resultPathNormalizeCache)
+	if budget == nil {
+		budget = &resultReferenceAliasBudget{}
+	}
+	resultAliasLimit := budget.resultAliasLimit()
+	type aliasWork struct {
+		resultIndex int
+		targetIndex *index.SpecIndex
+		targetPath  string
+	}
+	work := make([]aliasWork, 0, len(results))
 
 	for i := range results {
 		result := &results[i]
@@ -652,8 +732,46 @@ func completeAliasedResultPathsFromReferences(
 		if targetIndex == nil || targetPath == "" {
 			continue
 		}
+		work = append(work, aliasWork{resultIndex: i, targetIndex: targetIndex, targetPath: targetPath})
+	}
+	sort.SliceStable(work, func(i, j int) bool {
+		left, right := work[i], work[j]
+		leftLocation, rightLocation := left.targetIndex.GetSpecAbsolutePath(), right.targetIndex.GetSpecAbsolutePath()
+		if leftLocation != rightLocation {
+			return leftLocation < rightLocation
+		}
+		if left.targetPath != right.targetPath {
+			return left.targetPath < right.targetPath
+		}
+		leftResult, rightResult := &results[left.resultIndex], &results[right.resultIndex]
+		if leftResult.RuleId != rightResult.RuleId {
+			return leftResult.RuleId < rightResult.RuleId
+		}
+		if leftResult.Path != rightResult.Path {
+			return leftResult.Path < rightResult.Path
+		}
+		if leftResult.Message != rightResult.Message {
+			return leftResult.Message < rightResult.Message
+		}
+		leftOrigin, leftLine, leftColumn := stableResultReferenceAliasPosition(leftResult)
+		rightOrigin, rightLine, rightColumn := stableResultReferenceAliasPosition(rightResult)
+		if leftOrigin != rightOrigin {
+			return leftOrigin < rightOrigin
+		}
+		if leftLine != rightLine {
+			return leftLine < rightLine
+		}
+		if leftColumn != rightColumn {
+			return leftColumn < rightColumn
+		}
+		return left.resultIndex < right.resultIndex
+	})
 
-		expansions := referenceAliasExpansionsForTargetPath(
+	for _, item := range work {
+		result := &results[item.resultIndex]
+		targetIndex, targetPath := item.targetIndex, item.targetPath
+
+		expansionSet := referenceAliasExpansionsForTargetPath(
 			rolodex.GetRootIndex(),
 			targetIndex,
 			targetPath,
@@ -662,32 +780,143 @@ func completeAliasedResultPathsFromReferences(
 			aliasExpansionCache,
 			aliasReferencePathCache,
 			normalizeCache,
+			budget,
 		)
+		result.PathsTruncated = result.PathsTruncated || expansionSet.truncated
 
-		var aliasPaths []string
-		for _, expansion := range expansions {
+		aliasPaths := make([]string, 0, resultAliasLimit)
+		seenAliases := make(map[string]struct{})
+		stop := false
+		for _, expansion := range expansionSet.expansions {
 			cacheKey := resultReferenceAliasKey{index: targetIndex, path: expansion.rootPath}
-			rootAliasPaths, ok := aliasCache[cacheKey]
+			rootAliasSet, ok := aliasCache[cacheKey]
 			if !ok {
-				rootAliasPaths = expandResultReferenceAliasPaths(rolodex.GetRootIndex(), targetIndex, expansion.rootPath, pathIndexes)
-				aliasCache[cacheKey] = rootAliasPaths
+				rootAliasSet = expandResultReferenceAliasPaths(
+					rolodex.GetRootIndex(), targetIndex, expansion.rootPath, pathIndexes, budget,
+				)
+				aliasCache[cacheKey] = rootAliasSet
 			}
-			aliasPaths = append(aliasPaths, appendResultPathSuffixToAliases(rootAliasPaths, expansion.suffix)...)
+			result.PathsTruncated = result.PathsTruncated || rootAliasSet.truncated
+			for _, rootAliasPath := range rootAliasSet.paths {
+				aliasPath := appendResultPathSuffixToAlias(rootAliasPath, expansion.suffix)
+				if aliasPath == "" {
+					continue
+				}
+				if _, ok := seenAliases[aliasPath]; ok {
+					continue
+				}
+				if len(aliasPaths) >= resultAliasLimit || !budget.consumePath() {
+					result.PathsTruncated = true
+					stop = true
+					break
+				}
+				seenAliases[aliasPath] = struct{}{}
+				aliasPaths = append(aliasPaths, aliasPath)
+			}
+			if stop {
+				break
+			}
 		}
-		aliasPaths = uniqueSortedResultPaths(aliasPaths)
-		if len(aliasPaths) == 0 {
+		sort.Strings(aliasPaths)
+		componentAliasResult := resultUsesResolvedComponentAliases(result)
+		if len(aliasPaths) == 0 && !componentAliasResult {
+			enforceResultReferenceAliasLimit(result, resultAliasLimit)
 			continue
 		}
 
 		candidatePaths := make([]string, 0, len(aliasPaths)+1)
-		targetCandidate := canonicalizeResultAliasPath(targetPath)
+		baseTargetCandidate := canonicalizeResultAliasPath(targetPath)
+		targetCandidate := baseTargetCandidate
+		if componentAliasResult {
+			targetCandidate = resolvedComponentTargetPath(result, targetCandidate)
+			if fieldSuffix, ok := trimAliasPathPrefix(targetCandidate, baseTargetCandidate); ok && fieldSuffix != "" {
+				for i := range aliasPaths {
+					aliasPaths[i] = appendResultPathSuffixToAlias(aliasPaths[i], fieldSuffix)
+				}
+			}
+		}
 		if strings.HasPrefix(targetCandidate, "$.components.") ||
 			resultPathSuffix(result.Path, []string{targetCandidate}) != "" {
 			candidatePaths = append(candidatePaths, targetCandidate)
 		}
 		candidatePaths = append(candidatePaths, aliasPaths...)
+		if componentAliasResult {
+			paths := buildResolvedComponentResultPaths(targetCandidate, candidatePaths)
+			if len(paths) > 0 {
+				result.Path = paths[0]
+			}
+			if len(paths) > 1 {
+				result.Paths = paths
+			} else {
+				result.Paths = nil
+			}
+			enforceResultReferenceAliasLimit(result, resultAliasLimit)
+			continue
+		}
 		mergeResultPathCandidates(result, applyResultPathSuffix(result, candidatePaths))
+		enforceResultReferenceAliasLimit(result, resultAliasLimit)
 	}
+}
+
+func enforceResultReferenceAliasLimit(result *model.RuleFunctionResult, aliasLimit int) {
+	if result == nil || aliasLimit <= 0 || len(result.Paths) <= aliasLimit+1 {
+		return
+	}
+	aliases := make([]string, 0, len(result.Paths))
+	seen := map[string]struct{}{result.Path: {}}
+	for _, path := range result.Paths {
+		if path == "" || path == result.Path {
+			continue
+		}
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		aliases = append(aliases, path)
+	}
+	sort.Strings(aliases)
+	truncated := len(aliases) > aliasLimit
+	if truncated {
+		aliases = aliases[:aliasLimit]
+	}
+	result.Paths = append([]string{result.Path}, aliases...)
+	result.PathsTruncated = result.PathsTruncated || truncated
+}
+
+func stableResultReferenceAliasPosition(result *model.RuleFunctionResult) (string, int, int) {
+	if result == nil {
+		return "", 0, 0
+	}
+	if result.Origin != nil {
+		location := result.Origin.AbsoluteLocation
+		if location == "" {
+			location = result.Origin.AbsoluteLocationValue
+		}
+		line, column := result.Origin.Line, result.Origin.Column
+		if line <= 0 || column <= 0 {
+			line, column = result.Origin.LineValue, result.Origin.ColumnValue
+		}
+		return location, line, column
+	}
+	if result.StartNode != nil {
+		return "", result.StartNode.Line, result.StartNode.Column
+	}
+	return "", result.Range.Start.Line, result.Range.Start.Char
+}
+
+func buildResolvedComponentResultPaths(canonicalPath string, candidatePaths []string) []string {
+	candidatePaths = uniqueSortedResultPaths(append(candidatePaths, canonicalPath))
+	if len(candidatePaths) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(candidatePaths))
+	paths = append(paths, canonicalPath)
+	for _, path := range candidatePaths {
+		if path != canonicalPath {
+			paths = append(paths, path)
+		}
+	}
+	return paths
 }
 
 func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionResult) bool {
@@ -695,10 +924,7 @@ func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionRe
 		return false
 	}
 	usesRecursiveDescent := ruleUsesRecursiveDescent(result.Rule)
-	componentAliasResult := !usesRecursiveDescent &&
-		result.Rule.Resolved &&
-		ruleTargetsComponentPaths(result.Rule) &&
-		resultPathMayReferenceComponentAlias(result)
+	componentAliasResult := resultUsesResolvedComponentAliases(result)
 	if result.StartNode == nil && result.Origin == nil && !resultPathMayReferenceAlias(result.Path) {
 		return false
 	}
@@ -714,6 +940,78 @@ func shouldCompleteAliasedResultPathsFromReferences(result *model.RuleFunctionRe
 	return resultPathMayReferenceAlias(result.Path) || componentAliasResult
 }
 
+func resultUsesResolvedComponentAliases(result *model.RuleFunctionResult) bool {
+	return result != nil &&
+		result.Rule != nil &&
+		!ruleUsesRecursiveDescent(result.Rule) &&
+		result.Rule.Resolved &&
+		ruleTargetsComponentPaths(result.Rule) &&
+		resultPathMayReferenceComponentAlias(result)
+}
+
+func resolvedComponentTargetPath(result *model.RuleFunctionResult, targetPath string) string {
+	if result == nil || result.Rule == nil || targetPath == "" {
+		return targetPath
+	}
+	for _, field := range resultRuleActionFields(result.Rule) {
+		if field == "" || hasTerminalKeyPathSegment(targetPath, field) {
+			continue
+		}
+		if hasTerminalKeyPathSegment(result.Path, field) {
+			return appendResultPathSegment(targetPath, field)
+		}
+		for _, path := range result.Paths {
+			if hasTerminalKeyPathSegment(path, field) {
+				return appendResultPathSegment(targetPath, field)
+			}
+		}
+	}
+	return targetPath
+}
+
+func resultRuleActionFields(rule *model.Rule) []string {
+	if rule == nil || rule.Then == nil {
+		return nil
+	}
+	var fields []string
+	addAction := func(action model.RuleAction) {
+		if action.Field != "" {
+			fields = append(fields, action.Field)
+		}
+	}
+	switch actions := rule.Then.(type) {
+	case model.RuleAction:
+		addAction(actions)
+	case *model.RuleAction:
+		if actions != nil {
+			addAction(*actions)
+		}
+	case []model.RuleAction:
+		for _, action := range actions {
+			addAction(action)
+		}
+	case []*model.RuleAction:
+		for _, action := range actions {
+			if action != nil {
+				addAction(*action)
+			}
+		}
+	case map[string]interface{}:
+		if field, ok := actions["field"].(string); ok && field != "" {
+			fields = append(fields, field)
+		}
+	case []interface{}:
+		for _, rawAction := range actions {
+			if action, ok := rawAction.(map[string]interface{}); ok {
+				if field, ok := action["field"].(string); ok && field != "" {
+					fields = append(fields, field)
+				}
+			}
+		}
+	}
+	return fields
+}
+
 // referenceAliasExpansionsForTargetPath returns the root/suffix pairs needed to
 // rebuild aliased result paths for a resolved target path. A rule can report a
 // node nested below a referenced schema, for example
@@ -726,26 +1024,30 @@ func referenceAliasExpansionsForTargetPath(
 	targetPath string,
 	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
 	rootCache map[resultReferenceAliasPathKey]string,
-	expansionCache map[resultReferenceAliasPathKey][]resultReferenceAliasExpansion,
+	expansionCache map[resultReferenceAliasPathKey]resultReferenceAliasExpansionSet,
 	referencePathCache map[resultReferenceAliasIndexPairKey][]string,
 	normalizeCache resultPathNormalizeCache,
-) []resultReferenceAliasExpansion {
+	budget *resultReferenceAliasBudget,
+) resultReferenceAliasExpansionSet {
 	if targetIndex == nil || targetPath == "" {
-		return nil
+		return resultReferenceAliasExpansionSet{}
 	}
 
 	cacheKey := resultReferenceAliasPathKey{sourceIndex: sourceIndex, targetIndex: targetIndex, path: targetPath}
 	if expansionCache != nil {
-		if expansions, ok := expansionCache[cacheKey]; ok {
-			return expansions
+		if expansionSet, ok := expansionCache[cacheKey]; ok {
+			return expansionSet
 		}
 	}
 
 	targetPathIndex := resultPathIndexForSpec(targetIndex, pathIndexes)
-	targetPaths := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex)
-	expansions := make([]resultReferenceAliasExpansion, 0, len(targetPaths))
-	seen := make(map[string]struct{}, len(targetPaths))
-	for _, candidateTargetPath := range targetPaths {
+	targetPathSet := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex, budget)
+	expansionSet := resultReferenceAliasExpansionSet{
+		expansions: make([]resultReferenceAliasExpansion, 0, len(targetPathSet.paths)),
+		truncated:  targetPathSet.truncated,
+	}
+	seen := make(map[string]struct{}, len(targetPathSet.paths))
+	for _, candidateTargetPath := range targetPathSet.paths {
 		rootPath := referenceAliasExpansionRootForTargetPath(sourceIndex, targetIndex, candidateTargetPath, rootCache, referencePathCache)
 		suffix, ok := trimAliasPathPrefixCached(candidateTargetPath, rootPath, normalizeCache)
 		if !ok {
@@ -756,19 +1058,19 @@ func referenceAliasExpansionsForTargetPath(
 			continue
 		}
 		seen[key] = struct{}{}
-		expansions = append(expansions, resultReferenceAliasExpansion{rootPath: rootPath, suffix: suffix})
+		expansionSet.expansions = append(expansionSet.expansions, resultReferenceAliasExpansion{rootPath: rootPath, suffix: suffix})
 	}
 
-	sort.Slice(expansions, func(i, j int) bool {
-		if expansions[i].rootPath == expansions[j].rootPath {
-			return expansions[i].suffix < expansions[j].suffix
+	sort.Slice(expansionSet.expansions, func(i, j int) bool {
+		if expansionSet.expansions[i].rootPath == expansionSet.expansions[j].rootPath {
+			return expansionSet.expansions[i].suffix < expansionSet.expansions[j].suffix
 		}
-		return expansions[i].rootPath < expansions[j].rootPath
+		return expansionSet.expansions[i].rootPath < expansionSet.expansions[j].rootPath
 	})
 	if expansionCache != nil {
-		expansionCache[cacheKey] = expansions
+		expansionCache[cacheKey] = expansionSet
 	}
-	return expansions
+	return expansionSet
 }
 
 // referenceAliasExpansionRootForTargetPath finds the deepest $ref target path
@@ -986,182 +1288,272 @@ func expandResultReferenceAliasPaths(
 	targetIndex *index.SpecIndex,
 	targetPath string,
 	pathIndexes map[*index.SpecIndex]*vacuumUtils.NodePathIndex,
-) []string {
+	budget *resultReferenceAliasBudget,
+) resultReferenceAliasPathSet {
 	if sourceIndex == nil || targetIndex == nil || targetPath == "" {
-		return nil
+		return resultReferenceAliasPathSet{}
 	}
 
 	sourcePathIndex := resultPathIndexForSpec(sourceIndex, pathIndexes)
 	targetPathIndex := resultPathIndexForSpec(targetIndex, pathIndexes)
 	if sourcePathIndex == nil || targetPathIndex == nil {
-		return nil
+		return resultReferenceAliasPathSet{}
 	}
 
-	targetPaths := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex)
-	var paths []string
+	targetPathSet := equivalentResultReferenceTargetPaths(targetIndex, targetPath, targetPathIndex, budget)
+	pathSet := resultReferenceAliasPathSet{truncated: targetPathSet.truncated}
+	seenPaths := make(map[string]struct{})
 	sourceReferences := sourceIndex.GetAllSequencedReferences()
 	targetReferences := targetIndex.GetAllSequencedReferences()
-	normalizeCache := make(resultPathNormalizeCache, len(targetPaths)+len(sourceReferences)+len(targetReferences))
-	for _, candidateTargetPath := range targetPaths {
-		if strings.HasPrefix(candidateTargetPath, "$.components.") {
-			paths = append(paths, candidateTargetPath)
+	normalizeCache := make(resultPathNormalizeCache, len(targetPathSet.paths)+len(sourceReferences)+len(targetReferences))
+	sourceEdges := sortedResultReferenceAliasEdges(sourceReferences, targetIndex, sourcePathIndex)
+	targetEdges := sortedResultReferenceAliasEdges(targetReferences, targetIndex, targetPathIndex)
+	addPath := func(path string, consumeBudget bool) bool {
+		path = canonicalizeResultAliasPath(path)
+		if path == "" {
+			return true
 		}
-		for _, ref := range sourceReferences {
-			if ref == nil || ref.Node == nil || ref.Path == "" {
-				continue
+		if _, ok := seenPaths[path]; ok {
+			return true
+		}
+		if consumeBudget && !budget.consumePath() {
+			pathSet.truncated = true
+			return false
+		}
+		seenPaths[path] = struct{}{}
+		pathSet.paths = append(pathSet.paths, path)
+		return true
+	}
+	for _, candidateTargetPath := range targetPathSet.paths {
+		if strings.HasPrefix(candidateTargetPath, "$.components.") {
+			if !addPath(candidateTargetPath, true) {
+				break
 			}
-			if !referenceTargetsIndex(ref, targetIndex) {
-				continue
-			}
-			sourcePath, ok := sourcePathIndex.Lookup(ref.Node)
-			if !ok || sourcePath == "" {
-				continue
-			}
-			paths = append(paths, expandResultReferenceAliasPath(
-				ref.Path,
-				sourcePath,
+		}
+		for _, edge := range sourceEdges {
+			expanded := expandResultReferenceAliasPath(
+				edge.targetPath,
+				edge.sourcePath,
 				candidateTargetPath,
-				targetReferences,
-				targetPathIndex,
-				targetIndex,
+				targetEdges,
 				normalizeCache,
-				nil,
-				0,
-			)...)
+				budget,
+			)
+			pathSet.truncated = pathSet.truncated || expanded.truncated
+			for _, path := range expanded.paths {
+				if !addPath(path, false) {
+					break
+				}
+			}
+			if expanded.truncated {
+				break
+			}
+		}
+		if pathSet.truncated {
+			break
 		}
 	}
-	return uniqueSortedResultPaths(paths)
+	sort.Strings(pathSet.paths)
+	return pathSet
+}
+
+type resultReferenceAliasEdge struct {
+	sourcePath string
+	targetPath string
+}
+
+type resultReferenceAliasVisit struct {
+	target string
+	parent *resultReferenceAliasVisit
+}
+
+func (v *resultReferenceAliasVisit) contains(target string) bool {
+	for current := v; current != nil; current = current.parent {
+		if current.target == target {
+			return true
+		}
+	}
+	return false
+}
+
+func sortedResultReferenceAliasEdges(
+	references []*index.Reference,
+	targetIndex *index.SpecIndex,
+	pathIndex *vacuumUtils.NodePathIndex,
+) []resultReferenceAliasEdge {
+	edges := make([]resultReferenceAliasEdge, 0, len(references))
+	for _, ref := range references {
+		if ref == nil || ref.Node == nil || ref.Path == "" || !referenceTargetsIndex(ref, targetIndex) {
+			continue
+		}
+		sourcePath, ok := pathIndex.Lookup(ref.Node)
+		if !ok || sourcePath == "" {
+			continue
+		}
+		edges = append(edges, resultReferenceAliasEdge{
+			sourcePath: canonicalizeResultAliasPath(sourcePath),
+			targetPath: canonicalizeResultAliasPath(ref.Path),
+		})
+	}
+	sort.Slice(edges, func(i, j int) bool {
+		if edges[i].sourcePath == edges[j].sourcePath {
+			return edges[i].targetPath < edges[j].targetPath
+		}
+		return edges[i].sourcePath < edges[j].sourcePath
+	})
+	unique := edges[:0]
+	for _, edge := range edges {
+		if len(unique) > 0 &&
+			unique[len(unique)-1].sourcePath == edge.sourcePath &&
+			unique[len(unique)-1].targetPath == edge.targetPath {
+			continue
+		}
+		unique = append(unique, edge)
+	}
+	return unique
 }
 
 func equivalentResultReferenceTargetPaths(
 	targetIndex *index.SpecIndex,
 	targetPath string,
 	targetPathIndex *vacuumUtils.NodePathIndex,
-) []string {
+	budget *resultReferenceAliasBudget,
+) resultReferenceAliasPathSet {
 	if targetIndex == nil || targetPath == "" || targetPathIndex == nil {
-		return nil
+		return resultReferenceAliasPathSet{}
 	}
 
-	seen := make(map[string]struct{})
-	var paths []string
+	pathSet := resultReferenceAliasPathSet{}
+	seenPaths := make(map[string]struct{})
 	type queuedPath struct {
-		path  string
-		depth int
+		path    string
+		visited *resultReferenceAliasVisit
 	}
 
 	var queue []queuedPath
-
-	add := func(path string, depth int) {
+	add := func(path string, visited *resultReferenceAliasVisit, consumeBudget bool) bool {
 		if path == "" {
-			return
+			return true
 		}
 		path = canonicalizeResultAliasPath(path)
-		if _, ok := seen[path]; ok {
-			return
+		if _, ok := seenPaths[path]; ok {
+			return true
 		}
-		seen[path] = struct{}{}
-		paths = append(paths, path)
-		if depth < maxResultReferenceAliasDepth {
-			queue = append(queue, queuedPath{path: path, depth: depth})
+		if consumeBudget && (!budget.consumeState() || !budget.consumePath()) {
+			pathSet.truncated = true
+			return false
 		}
+		seenPaths[path] = struct{}{}
+		pathSet.paths = append(pathSet.paths, path)
+		queue = append(queue, queuedPath{path: path, visited: visited})
+		return true
 	}
 
-	add(targetPath, 0)
+	targetPath = canonicalizeResultAliasPath(targetPath)
+	add(targetPath, &resultReferenceAliasVisit{target: targetPath}, false)
 	targetReferences := targetIndex.GetAllSequencedReferences()
 	normalizeCache := make(resultPathNormalizeCache, len(targetReferences)+1)
-	for len(queue) > 0 {
-		current := queue[0]
-		queue = queue[1:]
+	edges := sortedResultReferenceAliasEdges(targetReferences, targetIndex, targetPathIndex)
+	for head := 0; head < len(queue) && !pathSet.truncated; head++ {
+		current := queue[head]
 
-		for _, ref := range targetReferences {
-			if ref == nil || ref.Node == nil || ref.Path == "" {
-				continue
-			}
-			if !referenceTargetsIndex(ref, targetIndex) {
-				continue
-			}
-
-			sourcePath, ok := targetPathIndex.Lookup(ref.Node)
-			if !ok || sourcePath == "" {
-				continue
-			}
-			suffix, ok := trimAliasPathPrefixCached(current.path, sourcePath, normalizeCache)
+		for _, edge := range edges {
+			suffix, ok := trimAliasPathPrefixCached(current.path, edge.sourcePath, normalizeCache)
 			if !ok {
 				continue
 			}
-			add(ref.Path+suffix, current.depth+1)
+			semanticTarget := edge.targetPath
+			if current.visited.contains(semanticTarget) {
+				continue
+			}
+			visited := &resultReferenceAliasVisit{target: semanticTarget, parent: current.visited}
+			if !add(edge.targetPath+suffix, visited, true) {
+				break
+			}
 		}
 	}
 
-	sort.Strings(paths)
-	return paths
+	sort.Strings(pathSet.paths)
+	return pathSet
 }
 
 func expandResultReferenceAliasPath(
 	currentTargetPath string,
 	currentSourcePath string,
 	targetPath string,
-	targetReferences []*index.Reference,
-	targetPathIndex *vacuumUtils.NodePathIndex,
-	targetIndex *index.SpecIndex,
+	targetEdges []resultReferenceAliasEdge,
 	normalizeCache resultPathNormalizeCache,
-	seen map[string]struct{},
-	depth int,
-) []string {
+	budget *resultReferenceAliasBudget,
+) resultReferenceAliasPathSet {
 	if currentTargetPath == "" || currentSourcePath == "" || targetPath == "" {
-		return nil
-	}
-	if seen == nil {
-		seen = make(map[string]struct{})
+		return resultReferenceAliasPathSet{}
 	}
 
-	seenKey := currentTargetPath + "\x00" + currentSourcePath
-	if _, ok := seen[seenKey]; ok {
-		return nil
+	type queuedAlias struct {
+		targetPath string
+		sourcePath string
+		visited    *resultReferenceAliasVisit
 	}
-	seen[seenKey] = struct{}{}
-	defer delete(seen, seenKey)
-
-	var paths []string
-	if suffix, ok := trimAliasPathPrefixCached(targetPath, currentTargetPath, normalizeCache); ok {
-		paths = append(paths, canonicalizeResultAliasPath(currentSourcePath+suffix))
+	currentTargetPath = canonicalizeResultAliasPath(currentTargetPath)
+	targetPath = canonicalizeResultAliasPath(targetPath)
+	visited := &resultReferenceAliasVisit{target: currentTargetPath}
+	if resultPathHasPrefix(canonicalizeResultAliasPath(currentSourcePath), targetPath) {
+		visited = &resultReferenceAliasVisit{target: targetPath, parent: visited}
 	}
-	if depth >= maxResultReferenceAliasDepth {
-		return paths
-	}
-
-	for _, nestedRef := range targetReferences {
-		if nestedRef == nil || nestedRef.Node == nil || nestedRef.Path == "" {
-			continue
+	queue := []queuedAlias{{
+		targetPath: currentTargetPath,
+		sourcePath: canonicalizeResultAliasPath(currentSourcePath),
+		visited:    visited,
+	}}
+	pathSet := resultReferenceAliasPathSet{}
+	seenPaths := make(map[string]struct{})
+	addPath := func(path string) bool {
+		path = canonicalizeResultAliasPath(path)
+		if path == "" {
+			return true
 		}
-		if !referenceTargetsIndex(nestedRef, targetIndex) {
-			continue
+		if _, ok := seenPaths[path]; ok {
+			return true
 		}
-
-		nestedSourcePath, ok := targetPathIndex.Lookup(nestedRef.Node)
-		if !ok || nestedSourcePath == "" {
-			continue
+		if !budget.consumePath() {
+			pathSet.truncated = true
+			return false
 		}
-		nestedSuffix, ok := trimAliasPathPrefixCached(nestedSourcePath, currentTargetPath, normalizeCache)
-		if !ok {
-			continue
-		}
-
-		nextSourcePath := canonicalizeResultAliasPath(currentSourcePath + nestedSuffix)
-		paths = append(paths, expandResultReferenceAliasPath(
-			nestedRef.Path,
-			nextSourcePath,
-			targetPath,
-			targetReferences,
-			targetPathIndex,
-			targetIndex,
-			normalizeCache,
-			seen,
-			depth+1,
-		)...)
+		seenPaths[path] = struct{}{}
+		pathSet.paths = append(pathSet.paths, path)
+		return true
 	}
 
-	return paths
+	for head := 0; head < len(queue) && !pathSet.truncated; head++ {
+		current := queue[head]
+		if !budget.consumeState() {
+			pathSet.truncated = true
+			break
+		}
+		if suffix, ok := trimAliasPathPrefixCached(targetPath, current.targetPath, normalizeCache); ok {
+			if !addPath(current.sourcePath + suffix) {
+				break
+			}
+		}
+		for _, edge := range targetEdges {
+			nestedSuffix, ok := trimAliasPathPrefixCached(edge.sourcePath, current.targetPath, normalizeCache)
+			if !ok {
+				continue
+			}
+			if current.visited.contains(edge.targetPath) {
+				continue
+			}
+			visited := &resultReferenceAliasVisit{target: edge.targetPath, parent: current.visited}
+			queue = append(queue, queuedAlias{
+				targetPath: edge.targetPath,
+				sourcePath: canonicalizeResultAliasPath(current.sourcePath + nestedSuffix),
+				visited:    visited,
+			})
+		}
+	}
+
+	sort.Strings(pathSet.paths)
+	return pathSet
 }
 
 func referenceTargetsIndex(ref *index.Reference, targetIndex *index.SpecIndex) bool {
@@ -1192,9 +1584,16 @@ func appendResultPathSuffixToAliases(paths []string, suffix string) []string {
 	}
 	suffixed := make([]string, 0, len(paths))
 	for _, path := range paths {
-		suffixed = append(suffixed, canonicalizeResultAliasPath(path+suffix))
+		suffixed = append(suffixed, appendResultPathSuffixToAlias(path, suffix))
 	}
 	return suffixed
+}
+
+func appendResultPathSuffixToAlias(path, suffix string) string {
+	if path == "" || suffix == "" {
+		return path
+	}
+	return canonicalizeResultAliasPath(path + suffix)
 }
 
 func applyResultPathSuffix(result *model.RuleFunctionResult, aliasPaths []string) []string {
@@ -1833,7 +2232,7 @@ func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *res
 	}
 
 	canonicalPath := primary.Path
-	if cache != nil {
+	if cache != nil && !resultUsesResolvedComponentAliases(primary) {
 		if path, found := cache.canonicalPathForResult(primary); found {
 			canonicalPath = path
 		} else if path, found := cache.canonicalPathForResult(duplicate); found {
@@ -1855,6 +2254,7 @@ func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *res
 	if primary.Origin == nil && duplicate.Origin != nil {
 		primary.Origin = duplicate.Origin
 	}
+	primary.PathsTruncated = primary.PathsTruncated || duplicate.PathsTruncated
 }
 
 func upgradeTerminalKeySelectorPaths(results []model.RuleFunctionResult, cache *resultPathCache) {

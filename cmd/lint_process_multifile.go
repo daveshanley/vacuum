@@ -20,14 +20,15 @@ import (
 
 // FileProcessingResult contains the results of processing a single file
 type FileProcessingResult struct {
-	Results  []*model.RuleFunctionResult
-	Errors   int
-	Warnings int
-	Informs  int
-	Hints    int
-	FileSize int64
-	Logs     []string
-	Error    error
+	Results        []*model.RuleFunctionResult
+	Errors         int
+	Warnings       int
+	Informs        int
+	Hints          int
+	FileSize       int64
+	Logs           []string
+	Error          error
+	PathsTruncated bool
 }
 
 // runMultipleFiles processes multiple files for lint command
@@ -155,15 +156,16 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		result := ProcessSingleFileOptimized(fileName, processingConfig)
 
 		fileResults[i] = fileResult{
-			fileName: fileName,
-			results:  result.Results,
-			errors:   result.Errors,
-			warnings: result.Warnings,
-			informs:  result.Informs,
-			hints:    result.Hints,
-			size:     result.FileSize,
-			logs:     result.Logs,
-			err:      result.Error,
+			fileName:       fileName,
+			results:        result.Results,
+			errors:         result.Errors,
+			warnings:       result.Warnings,
+			informs:        result.Informs,
+			hints:          result.Hints,
+			size:           result.FileSize,
+			logs:           result.Logs,
+			err:            result.Error,
+			pathsTruncated: result.PathsTruncated,
 		}
 
 		// accumulate totals
@@ -260,6 +262,9 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					fmt.Printf("Error: %v\n", fr.err)
 				}
 			} else {
+				if fr.pathsTruncated {
+					renderResultPathsTruncatedWarning(flags, fr.fileName)
+				}
 				// Details are results - show when -d flag is set (independent of silent)
 				if flags.DetailsFlag && len(fr.results) > 0 {
 					// get spec data for snippets

@@ -66,6 +66,22 @@ func TestNewRuleResultSet(t *testing.T) {
 
 }
 
+func TestRuleFunctionResultPathsTruncatedIsSerialized(t *testing.T) {
+	result := RuleFunctionResult{Path: "$.components.schemas['A']", PathsTruncated: true}
+
+	jsonData, err := json.Marshal(result)
+	assert.NoError(t, err)
+	assert.Contains(t, string(jsonData), `"pathsTruncated":true`)
+
+	yamlData, err := yaml.Marshal(result)
+	assert.NoError(t, err)
+	assert.Contains(t, string(yamlData), "pathsTruncated: true")
+
+	resultSet := &RuleResultSet{Results: []*RuleFunctionResult{&result}}
+	assert.True(t, resultSet.HasTruncatedPaths())
+	assert.False(t, (*RuleResultSet)(nil).HasTruncatedPaths())
+}
+
 func TestRuleResults_GetErrorCount(t *testing.T) {
 
 	r1 := &RuleFunctionResult{Rule: &Rule{
