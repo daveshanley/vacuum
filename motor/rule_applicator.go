@@ -128,6 +128,19 @@ type RuleSetExecutionResult struct {
 	ownedIndex       *index.SpecIndex
 }
 
+// HasTruncatedPaths reports whether result-path reconciliation limited resolved aliases.
+func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
+	if r == nil {
+		return false
+	}
+	for i := range r.Results {
+		if r.Results[i].PathsTruncated {
+			return true
+		}
+	}
+	return false
+}
+
 type ruleContext struct {
 	rule               *model.Rule
 	specNode           *yaml.Node

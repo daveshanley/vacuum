@@ -338,6 +338,9 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 			return NewInputError("linting failed due to %d issues", len(result.Errors))
 		}
+		if result.HasTruncatedPaths() {
+			renderResultPathsTruncatedWarning(flags, "")
+		}
 
 		resultSet = model.NewRuleResultSet(result.Results)
 		resultSet.AddFixedResults(result.FixedResults)
@@ -527,18 +530,27 @@ func renderLintWarning(flags *LintFlags, format string, args ...any) {
 	tui.RenderWarning(format, args...)
 }
 
+func renderResultPathsTruncatedWarning(flags *LintFlags, fileName string) {
+	prefix := ""
+	if fileName != "" {
+		prefix = fileName + ": "
+	}
+	renderLintWarning(flags, "%sresolved result aliases were truncated to keep linting bounded; canonical paths are preserved.", prefix)
+}
+
 // fileResult holds the results and logs for a single file
 type fileResult struct {
-	fileName     string
-	results      []*model.RuleFunctionResult
-	errors       int
-	warnings     int
-	informs      int
-	hints        int
-	size         int64
-	logs         []string
-	err          error
-	fixesApplied int
+	fileName       string
+	results        []*model.RuleFunctionResult
+	errors         int
+	warnings       int
+	informs        int
+	hints          int
+	size           int64
+	logs           []string
+	err            error
+	fixesApplied   int
+	pathsTruncated bool
 }
 
 func PrintBanner(noStyle ...bool) {
