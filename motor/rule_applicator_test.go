@@ -4201,6 +4201,71 @@ components:
 	assert.Len(t, ruleResults, 1, "resolved: false should continue to inspect the unresolved outer node only")
 }
 
+func TestIssue936_SpectralPropertyRegexSelector(t *testing.T) {
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Spectral selector compatibility
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: ok
+  /bad_Path:
+    get:
+      responses:
+        '200':
+          description: selected violation
+  /openapi.json:
+    get:
+      responses:
+        '200':
+          description: excluded
+  /nested/openapi.json:
+    get:
+      responses:
+        '200':
+          description: excluded
+  /openapi.json/Bad_Path:
+    get:
+      responses:
+        '200':
+          description: excluded even though the path is not kebab-case
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"paths-kebab-case": {
+				Id:           "paths-kebab-case",
+				Message:      "{{property}} is not kebab-case.",
+				Given:        `$.paths[?(@property && !@property.match(/\/openapi\.json/))]~`,
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Function: "pattern",
+					FunctionOptions: map[string]any{
+						"match": `^(\/|(\/_[a-z0-9]+|\/(([a-z0-9\-]+|{[^}]+})(\/([a-z0-9\-\.]+|{[^}]+}))*)(\/_[a-z]+)?)\/?)$`,
+					},
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	assert.Empty(t, results.Errors)
+	ruleResults := filterResultsByRuleId(results.Results, "paths-kebab-case")
+	if assert.Len(t, ruleResults, 1) {
+		assert.Equal(t, "/bad_Path", ruleResults[0].StartNode.Value)
+	}
+}
+
 func TestIssue845_ResolvedTruePatternChecksInheritedSimpleField(t *testing.T) {
 	spec := []byte(`openapi: 3.0.2
 info:

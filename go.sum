@@ -142,8 +142,8 @@ github.com/ncruces/go-strftime v1.0.0 h1:HMFp8mLCTPp341M/ZnA4qaf7ZlsbTc+miZjCLOF
 github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/pb33f/doctor v0.0.79 h1:g0Tn6MK3C/rPAIFTfBMBPlhUPv6rsm2gavbDpcEb0GM=
 github.com/pb33f/doctor v0.0.79/go.mod h1:1Det/ZyGtfwUK0P28IjcTmVqsM8xjA6tonRvsbDNVYs=
-github.com/pb33f/jsonpath v0.8.2 h1:Ou4C7zjYClBm97dfZjDCjdZGusJoynv/vrtiEKNfj2Y=
-github.com/pb33f/jsonpath v0.8.2/go.mod h1:zBV5LJW4OQOPatmQE2QdKpGQJvhDTlE5IEj6ASaRNTo=
+github.com/pb33f/jsonpath v0.8.3 h1:gdOUYn31vic8iRSSR4I2SEv7UQf2WxLeDcUnDPpGZNE=
+github.com/pb33f/jsonpath v0.8.3/go.mod h1:zBV5LJW4OQOPatmQE2QdKpGQJvhDTlE5IEj6ASaRNTo=
 github.com/pb33f/libasyncapi v0.0.2 h1:mQn5br4VmDQwnYk8c2s7pVehBVQit1dNxjqoQoy4ZXk=
 github.com/pb33f/libasyncapi v0.0.2/go.mod h1:AWXVo+RUiVuL1YAnrOYQwQri8HLEy3cCKoBjkl3c6cY=
 github.com/pb33f/libopenapi v0.38.7 h1:Q2jfgRPdnU38WW8wQvrX2HEPGiqsxj01PX1BHmAEihc=
