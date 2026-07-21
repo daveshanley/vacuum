@@ -263,6 +263,7 @@ func runAsyncAPIRules(
 	}
 
 	var schemaPathCache sync.Map
+	var ruleJSONPathCache sync.Map
 	runResults, runIgnored, runFixed, runErrs := runRuleContexts(
 		execution,
 		applicableRules,
@@ -292,6 +293,7 @@ func runAsyncAPIRules(
 				hasInlineIgnores:   specHasInlineIgnores,
 				ignoreIndex:        ignoreIdx,
 				schemaPathCache:    &schemaPathCache,
+				ruleJSONPathCache:  &ruleJSONPathCache,
 				expandedAliases:    resolvedAliases,
 			}
 		},

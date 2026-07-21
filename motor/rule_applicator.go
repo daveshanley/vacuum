@@ -170,6 +170,7 @@ type ruleContext struct {
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
 	schemaPathCache    *sync.Map
+	ruleJSONPathCache  *sync.Map
 	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
 }
 
@@ -1180,6 +1181,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		// Multiple OWASP rules check the same schemas; the cache avoids redundant
 		// LocateModelsByKeyAndValue lookups.
 		var schemaPathCache sync.Map
+		var ruleJSONPathCache sync.Map
 
 		runResults, runIgnored, runFixed, runErrs := runRuleContexts(
 			execution,
@@ -1246,6 +1248,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					hasInlineIgnores:   specHasInlineIgnores,
 					ignoreIndex:        ignoreIdx,
 					schemaPathCache:    &schemaPathCache,
+					ruleJSONPathCache:  &ruleJSONPathCache,
 					expandedAliases:    resolvedAliases,
 				}
 			},
@@ -1374,17 +1377,16 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 
 		if givenPath != "$" {
 
-			// Call the timeout helper directly. It already owns the goroutine/timer
-			// needed for bounded lookup, so wrapping it again here would only add
-			// extra per-lookup overhead.
-			nodes, err = utils.FindNodesWithoutDeserializingWithTimeout(
-				ctx.specNode, givenPath, ctx.nodeLookupTimeout)
+			// Rule selectors use the safe Spectral dialect while preserving the
+			// bounded lookup behavior required for untrusted custom rulesets.
+			nodes, err = findRuleGivenNodes(
+				ctx.specNode, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
 			if err != nil {
 				// Timeout or error — retry with unresolved spec
 				ctx.logger.Warn("timeout/error looking for nodes, retrying with unresolved spec",
 					"path", givenPath, "rule", ctx.rule.Id, "error", err)
-				nodes, err = utils.FindNodesWithoutDeserializingWithTimeout(
-					ctx.specNodeUnresolved, givenPath, ctx.nodeLookupTimeout)
+				nodes, err = findRuleGivenNodes(
+					ctx.specNodeUnresolved, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
 				if err != nil {
 					ctx.logger.Error("giving up on node lookup",
 						"path", givenPath, "rule", ctx.rule.Id, "error", err)

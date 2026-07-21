@@ -17,7 +17,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/muesli/termenv v0.16.0
 	github.com/pb33f/doctor v0.0.79
-	github.com/pb33f/jsonpath v0.8.2
+	github.com/pb33f/jsonpath v0.8.3
 	github.com/pb33f/libasyncapi v0.0.2
 	github.com/pb33f/libopenapi v0.38.7
 	github.com/pb33f/libopenapi-validator v0.13.13
