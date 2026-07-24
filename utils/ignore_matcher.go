@@ -111,7 +111,9 @@ func (m *IgnoreMatcher) Matches(result *model.RuleFunctionResult) bool {
 	if matchesAnyPath(m.literalByRule[ruleID], result.Path, result.Paths) {
 		return true
 	}
-	return matchesAnyPath(m.resolvedByRule[ruleID], result.Path, result.Paths)
+	// Resolved JSONPath nodes and rule results can represent simple mapping
+	// keys with equivalent dot or bracket notation.
+	return matchesAnyResolvedPath(m.resolvedByRule[ruleID], result.Path, result.Paths)
 }
 
 func resolveIgnoreExpressionPaths(
@@ -157,4 +159,28 @@ func matchesAnyPath(allowed map[string]struct{}, primary string, alternates []st
 		}
 	}
 	return false
+}
+
+func matchesAnyResolvedPath(allowed map[string]struct{}, primary string, alternates []string) bool {
+	if matchesAnyPath(allowed, primary, alternates) {
+		return true
+	}
+	if matchesNormalizedResolvedPath(allowed, primary) {
+		return true
+	}
+	for _, path := range alternates {
+		if matchesNormalizedResolvedPath(allowed, path) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesNormalizedResolvedPath(allowed map[string]struct{}, path string) bool {
+	normalized := normalizeSimpleBracketResultPath(path)
+	if normalized == path {
+		return false
+	}
+	_, ok := allowed[normalized]
+	return ok
 }

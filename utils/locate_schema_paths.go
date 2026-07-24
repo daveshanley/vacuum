@@ -246,6 +246,10 @@ func trimResultPathPrefix(path, prefix string) (string, bool) {
 }
 
 func normalizeSimpleBracketResultPath(path string) string {
+	if !strings.Contains(path, "['") && !strings.Contains(path, "[\"") {
+		return path
+	}
+
 	var b strings.Builder
 	b.Grow(len(path))
 	for i := 0; i < len(path); {

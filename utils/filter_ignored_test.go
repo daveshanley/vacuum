@@ -176,6 +176,77 @@ paths:
 	assert.Empty(t, filtered)
 }
 
+func TestFilterIgnoredResultsWithOptions_ExpressionMatchesBracketedSchemaPropertyPaths(t *testing.T) {
+	spec := []byte(`
+openapi: 3.1.0
+info:
+  title: Test API
+  version: "1"
+paths: {}
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        bad_name:
+          type: string
+        also_bad:
+          type: string
+`)
+
+	results := []model.RuleFunctionResult{
+		{
+			Path: "$.components.schemas['User'].properties['bad_name']",
+			Rule: &model.Rule{Id: "CAMEL"},
+		},
+		{
+			Path: "$.components.schemas['User'].properties['also_bad']",
+			Rule: &model.Rule{Id: "CAMEL"},
+		},
+	}
+
+	filtered := FilterIgnoredResultsWithOptions(results, model.IgnoredItems{
+		"CAMEL": []string{"$.components.schemas[*].properties[*]"},
+	}, IgnoreMatcherOptions{
+		SpecBytes: spec,
+	})
+
+	assert.Empty(t, filtered)
+}
+
+func TestFilterIgnoredResultsWithOptions_ExpressionMatchesBracketedAlternateSchemaPropertyPath(t *testing.T) {
+	spec := []byte(`
+openapi: 3.1.0
+info:
+  title: Test API
+  version: "1"
+paths: {}
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        bad_name:
+          type: string
+`)
+
+	results := []model.RuleFunctionResult{
+		{
+			Path:  "$.components.schemas['SharedProperty']",
+			Paths: []string{"$.components.schemas['User'].properties['bad_name']"},
+			Rule:  &model.Rule{Id: "CAMEL"},
+		},
+	}
+
+	filtered := FilterIgnoredResultsWithOptions(results, model.IgnoredItems{
+		"CAMEL": []string{"$.components.schemas[*].properties[*]"},
+	}, IgnoreMatcherOptions{
+		SpecBytes: spec,
+	})
+
+	assert.Empty(t, filtered)
+}
+
 func TestFilterIgnoredResultsWithOptions_ExpressionMatchesAlternatePaths(t *testing.T) {
 	spec := []byte(`
 openapi: 3.1.0
@@ -234,6 +305,22 @@ info:
 
 	assert.Len(t, filtered, 1)
 	assert.Equal(t, "a/b", filtered[0].Path)
+}
+
+func TestFilterIgnoredResults_LiteralMatchingRemainsExact(t *testing.T) {
+	results := []model.RuleFunctionResult{
+		{
+			Path: "$.components.schemas['User'].properties['bad_name']",
+			Rule: &model.Rule{Id: "CAMEL"},
+		},
+	}
+
+	filtered := FilterIgnoredResults(results, model.IgnoredItems{
+		"CAMEL": []string{"$.components.schemas.User.properties.bad_name"},
+	})
+
+	assert.Len(t, filtered, 1)
+	assert.Equal(t, "$.components.schemas['User'].properties['bad_name']", filtered[0].Path)
 }
 
 func parseIgnoreMatcherRoot(t *testing.T, spec []byte) *yaml.Node {
