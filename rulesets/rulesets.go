@@ -219,6 +219,10 @@ type RuleSets interface {
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	// It accepts an HTTP client for downloading remote rulesets with certificate authentication.
 	GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(config *RuleSet, httpClient *http.Client) *RuleSet
+
+	// GenerateRuleSetFromSuppliedRuleSetAtLocation will generate a ready to run ruleset based on a supplied configuration.
+	// Local external rulesets are resolved relative to sourceLocation when they use relative paths.
+	GenerateRuleSetFromSuppliedRuleSetAtLocation(config *RuleSet, sourceLocation string, httpClient *http.Client) (*RuleSet, error)
 }
 
 // RuleSet represents a collection of Rule definitions.
@@ -232,6 +236,7 @@ type RuleSet struct {
 	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
 	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
 	extendsMeta      map[string]string
+	loadErrors       []error
 	mutex            sync.Mutex
 }
 
@@ -346,6 +351,18 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *R
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset *RuleSet, httpClient *http.Client) *RuleSet {
+	return rsm.generateRuleSetFromSuppliedRuleSet(ruleset, "", httpClient)
+}
+
+func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetAtLocation(ruleset *RuleSet, sourceLocation string, httpClient *http.Client) (*RuleSet, error) {
+	rs := rsm.generateRuleSetFromSuppliedRuleSet(ruleset, sourceLocation, httpClient)
+	if len(rs.loadErrors) > 0 {
+		return rs, errors.Join(rs.loadErrors...)
+	}
+	return rs, nil
+}
+
+func (rsm ruleSetsModel) generateRuleSetFromSuppliedRuleSet(ruleset *RuleSet, sourceLocation string, httpClient *http.Client) *RuleSet {
 
 	extends := ruleset.GetExtendsValue()
 
@@ -483,7 +500,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	// download remote rulesets
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
-		rsm.loadExternalRulesetsWithTimeout(extends, rs, httpClient)
+		rs.loadErrors = append(rs.loadErrors, rsm.loadExternalRulesetsWithTimeout(extends, rs, sourceLocation, httpClient)...)
 	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide

@@ -192,7 +192,12 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 			if rsErr != nil {
 				return relintErrorMsg{err: fmt.Errorf("unable to load remote ruleset '%s': %w", m.watchConfig.RulesetFlag, rsErr)}
 			}
-			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(downloadedRS)
+			generatedRS, genErr := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetAtLocation(downloadedRS,
+				m.watchConfig.RulesetFlag, nil)
+			if genErr != nil {
+				return relintErrorMsg{err: fmt.Errorf("unable to load remote ruleset '%s': %w", m.watchConfig.RulesetFlag, genErr)}
+			}
+			selectedRS = generatedRS
 		} else {
 			rsBytes, rsErr := os.ReadFile(m.watchConfig.RulesetFlag)
 			if rsErr != nil {
@@ -202,7 +207,12 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 			if userErr != nil {
 				return relintErrorMsg{err: fmt.Errorf("unable to parse ruleset file '%s': %w", m.watchConfig.RulesetFlag, userErr)}
 			}
-			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
+			generatedRS, genErr := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetAtLocation(userRS,
+				filepath.Clean(m.watchConfig.RulesetFlag), nil)
+			if genErr != nil {
+				return relintErrorMsg{err: fmt.Errorf("unable to load ruleset '%s': %w", m.watchConfig.RulesetFlag, genErr)}
+			}
+			selectedRS = generatedRS
 		}
 
 		// Merge OWASP rules if hard mode is enabled

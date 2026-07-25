@@ -13,6 +13,29 @@ import (
 	"strings"
 )
 
+// UnsupportedFunctionFormatError reports custom JavaScript authored for a runtime Vacuum does not execute.
+type UnsupportedFunctionFormatError struct {
+	Path string
+}
+
+func (e UnsupportedFunctionFormatError) Error() string {
+	return fmt.Sprintf(`'%s' is a Spectral function, not a vacuum function.
+
+vacuum does not run npm modules. there is no module resolution, no bundler and no node
+runtime, so imports from '@stoplight/spectral-*' and 'export default' cannot be honoured.
+
+a vacuum custom function is a plain script defining two globals:
+
+  function getSchema() { return {"name": "myFunction"}; }
+  function runRule(input) { return []; }
+
+rewrite this function as a vacuum custom function, or remove it from the functions directory.`, e.Path)
+}
+
+func skippedUnsupportedFunctionMessage(err UnsupportedFunctionFormatError) string {
+	return fmt.Sprintf("%s\n\nthis function has been skipped, all other functions in the directory still loaded.", err.Error())
+}
+
 // LoadFunctions will load custom functions found in the supplied path
 func LoadFunctions(path string, silence bool) (*Manager, error) {
 
@@ -22,6 +45,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 	}
 
 	pm := CreatePluginManager()
+	var unsupportedFunctionErrs []error
 
 	for _, entry := range dirEntries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".so") {
@@ -61,6 +85,16 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			if e != nil {
 				return nil, e
 			}
+			if isUnsupportedSpectralFunction(p) {
+				// migrating users often keep Spectral functions alongside vacuum ones, so skip
+				// what cannot run rather than abandoning every function in the directory. this
+				// goes to stderr so it cannot corrupt machine-readable output on stdout, and is
+				// never silenced, a skipped function silently changes linting results.
+				formatErr := UnsupportedFunctionFormatError{Path: fPath}
+				unsupportedFunctionErrs = append(unsupportedFunctionErrs, formatErr)
+				_, _ = fmt.Fprintf(os.Stderr, "✗ %s\n", skippedUnsupportedFunctionMessage(formatErr))
+				continue
+			}
 
 			function := javascript.NewJSRuleFunction(fName, string(p))
 
@@ -92,7 +126,24 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			}
 		}
 	}
+	if len(unsupportedFunctionErrs) > 0 && pm.LoadedFunctionCount() == 0 {
+		return nil, fmt.Errorf("no vacuum custom functions loaded: %w", unsupportedFunctionErrs[0])
+	}
 	return pm, nil
+}
+
+// isUnsupportedSpectralFunction reports whether a JavaScript file is authored for Spectral rather
+// than vacuum. Vacuum functions expose runRule(), so a file providing it is treated as ours no
+// matter what else it contains, and only files that both lack it and carry module or Spectral
+// markers are rejected.
+func isUnsupportedSpectralFunction(data []byte) bool {
+	body := string(data)
+	if strings.Contains(body, "runRule") {
+		return false
+	}
+	return strings.Contains(body, "createRulesetFunction") ||
+		strings.Contains(body, "@stoplight/spectral") ||
+		strings.Contains(body, "export default")
 }
 
 var extractInput = func(input any) *yaml.Node {

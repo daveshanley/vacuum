@@ -20,6 +20,7 @@ func TestConvertResultsIntoDiagnosticsIncludesExecutionErrors(t *testing.T) {
 	require.Len(t, diagnostics, 1)
 	assert.Equal(t, "document-error", diagnostics[0].Code.Value)
 	assert.Contains(t, diagnostics[0].Message, "AsyncAPI parse failed")
+	assert.Nil(t, diagnostics[0].CodeDescription)
 }
 
 func TestConvertResultIntoDiagnosticClampsMissingNodeColumns(t *testing.T) {

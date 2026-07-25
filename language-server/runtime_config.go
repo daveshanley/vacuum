@@ -426,7 +426,7 @@ func (s *ServerState) loadRulesetForDocument(rulesetLocation string, config *LSP
 		if err != nil {
 			return nil, err
 		}
-		return defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
+		return defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetAtLocation(downloadedRS, rulesetLocation, httpClient)
 	}
 
 	resolvedRuleset, err := s.resolveDocumentConfigPath(rulesetLocation, uri)
@@ -441,7 +441,7 @@ func (s *ServerState) loadRulesetForDocument(rulesetLocation string, config *LSP
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ruleset: %w", err)
 	}
-	return defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient), nil
+	return defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetAtLocation(userRS, resolvedRuleset, httpClient)
 }
 
 func loadIgnoreFileForLSP(ignoreFile string) (model.IgnoredItems, error) {

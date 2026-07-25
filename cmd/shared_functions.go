@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -57,7 +58,11 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
+		selectedRS, err := rs.GenerateRuleSetFromSuppliedRuleSetAtLocation(downloadedRS, rulesetFlag, httpClient)
+		if err != nil {
+			return nil, err
+		}
+		return selectedRS, nil
 	} else {
 		// Handle local ruleset file
 		resolvedPath, err := ResolveConfigPath(rulesetFlag)
@@ -68,7 +73,16 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, rs, httpClient)
+		userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
+		if userErr != nil {
+			tui.RenderErrorString("Unable to parse ruleset file: %s", userErr.Error())
+			return nil, userErr
+		}
+		selectedRS, genErr := rs.GenerateRuleSetFromSuppliedRuleSetAtLocation(userRS, filepath.Clean(resolvedPath), httpClient)
+		if genErr != nil {
+			return nil, genErr
+		}
+		return selectedRS, nil
 	}
 }
 
@@ -130,6 +144,11 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.RuleFunction, error) {
 	// check custom functions
 	if functionsFlag != "" {
+		if strings.HasPrefix(functionsFlag, "-") {
+			err := fmt.Errorf("--functions requires a path, got %q", functionsFlag)
+			tui.RenderError(err)
+			return nil, err
+		}
 		resolvedFunctionsPath, err := ResolveConfigPath(functionsFlag)
 		if err != nil {
 			tui.RenderErrorString("Unable to resolve functions path '%s': %s", functionsFlag, err.Error())

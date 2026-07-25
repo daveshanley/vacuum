@@ -31,6 +31,26 @@ func ApplyAsyncAPIRulesToRuleSet(
 	opts *ExecutionOptions,
 	builtinFunctions functions.Functions,
 ) (*RuleSetExecutionResult, bool) {
+	control, controlErr := newExecutionControl(opts)
+	if controlErr != nil {
+		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{controlErr}}, true
+	}
+	defer control.Close()
+	if execution == nil {
+		return executionErrorResult(nil, control, errors.New("ruleset execution cannot be nil")), true
+	}
+	if controlErr := control.Err(); controlErr != nil {
+		return executionErrorResult(execution, control), true
+	}
+	return applyAsyncAPIRulesToRuleSet(execution, opts, builtinFunctions, control)
+}
+
+func applyAsyncAPIRulesToRuleSet(
+	execution *RuleSetExecution,
+	opts *ExecutionOptions,
+	builtinFunctions functions.Functions,
+	control *executionControl,
+) (*RuleSetExecutionResult, bool) {
 	format := execution.SpecFormat
 	if format == "" {
 		detected, err := asyncapi_context.DetectFormat(execution.Spec)
@@ -38,10 +58,10 @@ func ApplyAsyncAPIRulesToRuleSet(
 			if errors.Is(err, libasyncapi.ErrAsyncAPI2NotSupported) ||
 				errors.Is(err, libasyncapi.ErrInvalidAsyncAPIVersion) ||
 				errors.Is(err, libasyncapi.ErrNoAsyncAPIVersion) {
-				return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}, true
+				return executionErrorResult(execution, control, err), true
 			}
 			if asyncapi_context.HasMarker(execution.Spec) {
-				return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}, true
+				return executionErrorResult(execution, control, err), true
 			}
 			return nil, false
 		}
@@ -97,14 +117,18 @@ func ApplyAsyncAPIRulesToRuleSet(
 	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
 		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
 		if httpErr != nil {
-			return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}, true
+			return executionErrorResult(
+				execution,
+				control,
+				fmt.Errorf("failed to create custom HTTP client: %w", httpErr),
+			), true
 		}
 		config.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 	}
 
 	asyncCtx, err := asyncapi_context.NewContext(execution.Spec, execution.SpecFileName, config)
 	if err != nil {
-		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}, true
+		return executionErrorResult(execution, control, err), true
 	}
 	asyncCtx.Format = format
 	if asyncCtx.SpecInfo != nil {
@@ -116,8 +140,22 @@ func ApplyAsyncAPIRulesToRuleSet(
 	execution.IndexResolved = asyncCtx.Index
 	execution.IndexUnresolved = asyncCtx.Index
 
+	if controlErr := control.Err(); controlErr != nil {
+		filesProcessed, fileSize := rolodexMetrics(asyncCtx.Rolodex)
+		return appendContextError(&RuleSetExecutionResult{
+			RuleSetExecution: execution,
+			Index:            asyncCtx.Index,
+			SpecInfo:         asyncCtx.SpecInfo,
+			FilesProcessed:   filesProcessed,
+			FileSize:         fileSize,
+			AsyncAPI:         asyncCtx,
+		}, controlErr), true
+	}
+
 	documentResults := asyncAPIDocumentErrorResults(asyncCtx, asyncAPIDocumentErrorRule(execution.RuleSet))
-	ruleResults, ignoredResults, fixedResults, errs := runAsyncAPIRules(execution, opts, builtinFunctions, asyncCtx, logger)
+	ruleResults, ignoredResults, fixedResults, errs := runAsyncAPIRules(
+		execution, opts, builtinFunctions, asyncCtx, logger, control,
+	)
 	if len(documentResults) > 0 {
 		ruleResults = append(documentResults, ruleResults...)
 		ruleResults = dedupeAsyncAPIResults(ruleResults)
@@ -151,6 +189,7 @@ func ApplyAsyncAPIRulesToRuleSet(
 		resolveExecutionAliases(execution.RuleSet, asyncCtx.Format, logger),
 		false,
 	)
+	errs = appendContextErrorToErrors(errs, control.Err())
 
 	return &RuleSetExecutionResult{
 		RuleSetExecution: execution,
@@ -163,6 +202,7 @@ func ApplyAsyncAPIRulesToRuleSet(
 		FilesProcessed:   filesProcessed,
 		FileSize:         fileSize,
 		AsyncAPI:         asyncCtx,
+		ruleRunsDone:     control.ruleRunsDone(),
 	}, true
 }
 
@@ -243,6 +283,7 @@ func runAsyncAPIRules(
 	builtinFunctions functions.Functions,
 	asyncCtx *asyncapi_context.Context,
 	logger *slog.Logger,
+	control *executionControl,
 ) ([]model.RuleFunctionResult, []model.RuleFunctionResult, []model.RuleFunctionResult, []error) {
 	var ruleResults []model.RuleFunctionResult
 	var ignoredResults []model.RuleFunctionResult
@@ -265,6 +306,7 @@ func runAsyncAPIRules(
 	var schemaPathCache sync.Map
 	var ruleJSONPathCache sync.Map
 	runResults, runIgnored, runFixed, runErrs := runRuleContexts(
+		control,
 		execution,
 		applicableRules,
 		logger,

@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info:
+  title: Issue 937 split fixture
+  version: 1.0.0
+paths:
+  /first:
+    get:
+      responses:
+        '200':
+          $ref: './responses/first.yaml'
+  /second:
+    get:
+      responses:
+        '200':
+          $ref: './responses/second.yaml'

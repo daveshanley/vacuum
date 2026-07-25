@@ -7,9 +7,9 @@ package rulesets
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -90,30 +90,37 @@ func flushBufferedRuleSetLogs(logger *slog.Logger, records []bufferedRuleSetLogR
 	}
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, rs *RuleSet, httpClient *http.Client) {
+func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, rs *RuleSet, sourceLocation string, httpClient *http.Client) []error {
 	ctx, cancel := context.WithTimeout(context.Background(), externalRulesetFetchTimeout)
 	defer cancel()
 
+	var loadErrors []error
 	for location := range extends {
 		if !isExternalRulesetLocation(location) {
 			continue
 		}
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
+			loadErrors = append(loadErrors, fmt.Errorf("external ruleset fetch timed out after %s", externalRulesetFetchTimeout))
 			break
 		}
 
-		remote := strings.HasPrefix(location, "http")
-		if !rsm.loadExternalRulesetWithTimeout(ctx, location, rs, remote, httpClient) {
+		resolvedLocation := resolveExternalRulesetLocation(sourceLocation, location)
+		remote := strings.HasPrefix(resolvedLocation, "http")
+		ok, errs := rsm.loadExternalRulesetWithTimeout(ctx, resolvedLocation, rs, remote, httpClient)
+		loadErrors = append(loadErrors, errs...)
+		if !ok {
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
+			loadErrors = append(loadErrors, fmt.Errorf("external ruleset fetch timed out after %s", externalRulesetFetchTimeout))
 			break
 		}
 	}
+	return loadErrors
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, location string, rs *RuleSet, remote bool, httpClient *http.Client) bool {
+func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, location string, rs *RuleSet, remote bool, httpClient *http.Client) (bool, []error) {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return false
+		return false, nil
 	}
 
 	workingRuleSet := cloneRuleSetForExternalLoad(rs)
@@ -122,28 +129,27 @@ func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, loc
 	workerRuleSets.logger = workerLogger
 
 	done := make(chan struct{})
+	loadErrors := make(chan []error, 1)
 	go func() {
 		defer close(done)
-		SniffOutAllExternalRules(ctx, &workerRuleSets, location, nil, workingRuleSet, remote, httpClient)
+		loadErrors <- SniffOutAllExternalRules(ctx, &workerRuleSets, location, nil, workingRuleSet, remote, httpClient)
 	}()
 
 	select {
 	case <-done:
+		errs := <-loadErrors
 		copyRuleSetExternalState(rs, workingRuleSet)
 		flushBufferedRuleSetLogs(rsm.logger, bufferedLogs.snapshot())
-		return !errors.Is(ctx.Err(), context.DeadlineExceeded)
+		return !errors.Is(ctx.Err(), context.DeadlineExceeded), errs
 	case <-ctx.Done():
 		copyRuleSetExternalState(rs, workingRuleSet)
 		flushBufferedRuleSetLogs(rsm.logger, bufferedLogs.snapshot())
-		return false
+		return false, nil
 	}
 }
 
 func isExternalRulesetLocation(location string) bool {
-	return strings.HasPrefix(location, "http") ||
-		filepath.Ext(location) == ".yml" ||
-		filepath.Ext(location) == ".yaml" ||
-		filepath.Ext(location) == ".json"
+	return strings.HasPrefix(location, "http") || hasRuleSetFileExtension(location)
 }
 
 func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {

@@ -870,6 +870,146 @@ func TestRuleSet_GetExtendsLocalSpec_Single(t *testing.T) {
 
 }
 
+func TestRuleSet_GetExtendsLocalSpec_ResolvesRelativeToParentRuleset(t *testing.T) {
+	tmpDir := t.TempDir()
+	rulesetDir := filepath.Join(tmpDir, "Specs.Ruleset")
+	nestedDir := filepath.Join(rulesetDir, "nested")
+	assert.NoError(t, os.MkdirAll(nestedDir, 0o700))
+
+	mainRuleset := filepath.Join(rulesetDir, "main.yml")
+	assert.NoError(t, os.WriteFile(mainRuleset, []byte(`extends: ruleset.bank.yml
+`), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(rulesetDir, "ruleset.bank.yml"), []byte(`extends: nested/ruleset.more.yml
+rules:
+  bank-title:
+    description: bank title
+    severity: error
+    recommended: true
+    formats: [oas3]
+    given: $.info.title
+    then:
+      function: truthy
+`), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(nestedDir, "ruleset.more.yml"), []byte(`rules:
+  nested-version:
+    description: nested version
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $.info.version
+    then:
+      function: truthy
+`), 0o600))
+
+	rs, err := CreateRuleSetFromData([]byte(`extends: ruleset.bank.yml`))
+	assert.NoError(t, err)
+
+	def := BuildDefaultRuleSets()
+	override, genErr := def.GenerateRuleSetFromSuppliedRuleSetAtLocation(rs, mainRuleset, nil)
+
+	assert.NoError(t, genErr)
+	assert.NotNil(t, override.Rules["bank-title"])
+	assert.NotNil(t, override.Rules["nested-version"])
+}
+
+func TestRuleSet_GetExtendsLocalSpec_UnsupportedJavaScriptModuleFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	mainRuleset := filepath.Join(tmpDir, "main.yml")
+	assert.NoError(t, os.WriteFile(mainRuleset, []byte(`extends: ruleset.mjs
+`), 0o600))
+	assert.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ruleset.mjs"), []byte(`export default { rules: {} };
+`), 0o600))
+
+	rs, err := CreateRuleSetFromData([]byte(`extends: ruleset.mjs`))
+	assert.NoError(t, err)
+
+	def := BuildDefaultRuleSets()
+	_, genErr := def.GenerateRuleSetFromSuppliedRuleSetAtLocation(rs, mainRuleset, nil)
+
+	assert.Error(t, genErr)
+	assert.Contains(t, genErr.Error(), "this is a JavaScript module, not a ruleset")
+	assert.Contains(t, genErr.Error(), "vacuum is not a JavaScript platform")
+	// the wrapper must not bury the explanation behind a generic 'cannot open' prefix
+	assert.NotContains(t, genErr.Error(), "cannot open external ruleset")
+}
+
+func TestUnsupportedRuleSetFormatError_SuggestsBuiltInReplacements(t *testing.T) {
+	owasp := UnsupportedRuleSetFormatError{
+		Location: "https://unpkg.com/@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs",
+	}.Error()
+	assert.Contains(t, owasp, "vacuum is not a JavaScript platform")
+	assert.Contains(t, owasp, "[spectral:owasp, all]")
+
+	async := UnsupportedRuleSetFormatError{Location: "https://example.com/asyncapi-ruleset.mjs"}.Error()
+	assert.Contains(t, async, "[spectral:asyncapi, all]")
+
+	// anything without a native equivalent still gets told what to do instead
+	unknown := UnsupportedRuleSetFormatError{Location: "https://example.com/custom.mjs"}.Error()
+	assert.Contains(t, unknown, "must be rewritten as YAML")
+	assert.NotContains(t, unknown, "[spectral:owasp, all]")
+}
+
+func TestRuleSet_GetExtendsLocalSpec_YAMLMentioningJavaScriptIsNotRejected(t *testing.T) {
+	tmpDir := t.TempDir()
+	mainRuleset := filepath.Join(tmpDir, "main.yml")
+	assert.NoError(t, os.WriteFile(mainRuleset, []byte(`extends: ruleset.child.yml
+`), 0o600))
+
+	// a perfectly valid YAML ruleset that happens to talk about JavaScript modules
+	assert.NoError(t, os.WriteFile(filepath.Join(tmpDir, "ruleset.child.yml"), []byte(`rules:
+  no-js-modules:
+    description: "reject specs using export default or createRulesetFunction from @stoplight/spectral-core"
+    severity: warn
+    recommended: true
+    formats: [oas3]
+    given: $.info.title
+    then:
+      function: truthy
+`), 0o600))
+
+	rs, err := CreateRuleSetFromData([]byte(`extends: ruleset.child.yml`))
+	assert.NoError(t, err)
+
+	def := BuildDefaultRuleSets()
+	override, genErr := def.GenerateRuleSetFromSuppliedRuleSetAtLocation(rs, mainRuleset, nil)
+
+	assert.NoError(t, genErr)
+	assert.NotNil(t, override.Rules["no-js-modules"])
+}
+
+func TestIsUnsupportedJavaScriptRuleset(t *testing.T) {
+	jsModule := []byte("import { oas } from \"@stoplight/spectral-rulesets\";\nexport default { rules: {} };")
+	yamlBody := []byte("rules:\n  a-rule:\n    description: mentions export default\n")
+
+	// extension wins for known formats, in both directions
+	assert.True(t, isUnsupportedJavaScriptRuleset("ruleset.mjs", nil))
+	assert.True(t, isUnsupportedJavaScriptRuleset("ruleset.cjs", nil))
+	assert.True(t, isUnsupportedJavaScriptRuleset("https://unpkg.com/pkg/dist/ruleset.mjs", nil))
+	assert.False(t, isUnsupportedJavaScriptRuleset("ruleset.yaml", jsModule))
+	assert.False(t, isUnsupportedJavaScriptRuleset("https://example.com/ruleset.yaml?v=2", yamlBody))
+
+	// unknown extension falls back to the body, and only a leading module statement counts
+	assert.True(t, isUnsupportedJavaScriptRuleset("ruleset", jsModule))
+	assert.True(t, isUnsupportedJavaScriptRuleset("ruleset", []byte("// a comment\n\nexport default {};")))
+	assert.False(t, isUnsupportedJavaScriptRuleset("ruleset", yamlBody))
+}
+
+func TestRuleSet_GetExtendsLocalSpec_MissingRelativeRulesetFailsForLocationAwareLoad(t *testing.T) {
+	tmpDir := t.TempDir()
+	mainRuleset := filepath.Join(tmpDir, "main.yml")
+	assert.NoError(t, os.WriteFile(mainRuleset, []byte(`extends: missing.yml
+`), 0o600))
+
+	rs, err := CreateRuleSetFromData([]byte(`extends: missing.yml`))
+	assert.NoError(t, err)
+
+	def := BuildDefaultRuleSets()
+	_, genErr := def.GenerateRuleSetFromSuppliedRuleSetAtLocation(rs, mainRuleset, nil)
+
+	assert.Error(t, genErr)
+	assert.Contains(t, genErr.Error(), "cannot open external ruleset")
+}
+
 func TestRuleSet_GetExtendsLocalSpec_Multi_Chain(t *testing.T) {
 
 	yaml3 := `rules:
