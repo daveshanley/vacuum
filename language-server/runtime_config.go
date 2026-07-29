@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/daveshanley/vacuum/language-server/internal/lsp"
+	"github.com/daveshanley/vacuum/language-server/protocol"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/tliron/glsp"
-	protocol "github.com/tliron/glsp/protocol_3_16"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -78,13 +78,13 @@ func (s *ServerState) setClientCapabilities(capabilities protocol.ClientCapabili
 	}
 }
 
-func (s *ServerState) registerConfigurationChangeNotifications(call glsp.CallFunc) {
+func (s *ServerState) registerConfigurationChangeNotifications(call lsp.CallFunc) error {
 	if call == nil || !s.didChangeConfigurationDynamicRegistrationSupported {
-		return
+		return nil
 	}
 
 	var result any
-	call(string(protocol.ServerClientRegisterCapability), protocol.RegistrationParams{
+	if err := call(string(protocol.ServerClientRegisterCapability), protocol.RegistrationParams{
 		Registrations: []protocol.Registration{
 			{
 				ID:     "vacuum-workspace-configuration",
@@ -94,7 +94,10 @@ func (s *ServerState) registerConfigurationChangeNotifications(call glsp.CallFun
 				},
 			},
 		},
-	}, &result)
+	}, &result); err != nil {
+		return fmt.Errorf("register workspace configuration notifications: %w", err)
+	}
+	return nil
 }
 
 func (s *ServerState) runtimeConfigForDocument(uri protocol.DocumentUri) (*documentRuntimeConfig, error) {
@@ -104,7 +107,15 @@ func (s *ServerState) runtimeConfigForDocument(uri protocol.DocumentUri) (*docum
 		}
 
 		config, snapshot, generation := s.baseEffectiveConfig(!s.workspaceConfigurationSupported)
-		if workspaceConfig, ok := s.pullWorkspaceConfiguration(uri); ok {
+		workspaceConfig, ok, err := s.pullWorkspaceConfiguration(uri)
+		if err != nil {
+			fallback := s.defaultRuntimeConfigFrom(config, snapshot, uri)
+			if s.cacheDocumentRuntimeConfig(uri, fallback, generation) {
+				return nil, err
+			}
+			continue
+		}
+		if ok {
 			MergeConfig(config, workspaceConfig)
 		}
 
@@ -121,6 +132,14 @@ func (s *ServerState) runtimeConfigForDocument(uri protocol.DocumentUri) (*docum
 
 func (s *ServerState) defaultRuntimeConfig(uri protocol.DocumentUri) *documentRuntimeConfig {
 	config, snapshot, _ := s.baseEffectiveConfig(!s.workspaceConfigurationSupported)
+	return s.defaultRuntimeConfigFrom(config, snapshot, uri)
+}
+
+func (s *ServerState) defaultRuntimeConfigFrom(
+	config *LSPConfig,
+	snapshot lintRequestSnapshot,
+	uri protocol.DocumentUri,
+) *documentRuntimeConfig {
 	runtimeConfig, err := s.buildDocumentRuntimeConfig(config, uri, snapshot)
 	if err == nil {
 		return runtimeConfig
@@ -280,36 +299,38 @@ func cloneRuntimeConfigMap[K comparable, V any](source map[K]V) map[K]V {
 	return cloned
 }
 
-func (s *ServerState) pullWorkspaceConfiguration(uri protocol.DocumentUri) (*LSPConfig, bool) {
+func (s *ServerState) pullWorkspaceConfiguration(uri protocol.DocumentUri) (*LSPConfig, bool, error) {
 	if !s.workspaceConfigurationSupported {
-		return nil, false
+		return nil, false, nil
 	}
 	call := s.getCallFunc()
 	if call == nil {
-		return nil, false
+		return nil, false, nil
 	}
 
 	scopeURI := uri
 	section := lspConfigurationSection
 	var result []any
-	call(string(protocol.ServerWorkspaceConfiguration), protocol.ConfigurationParams{
+	if err := call(string(protocol.ServerWorkspaceConfiguration), protocol.ConfigurationParams{
 		Items: []protocol.ConfigurationItem{
 			{
 				ScopeURI: &scopeURI,
 				Section:  &section,
 			},
 		},
-	}, &result)
+	}, &result); err != nil {
+		return nil, false, fmt.Errorf("request workspace configuration for %s: %w", uri, err)
+	}
 	if len(result) == 0 || result[0] == nil {
-		return nil, true
+		return nil, true, nil
 	}
 
 	config, err := ParseLSPConfig(result[0])
 	if err != nil {
 		s.logger.Warn("failed to parse workspace configuration", "uri", uri, "error", err)
-		return nil, true
+		return nil, true, nil
 	}
-	return config, true
+	return config, true, nil
 }
 
 func (s *ServerState) buildDocumentRuntimeConfig(config *LSPConfig, uri protocol.DocumentUri, snapshot lintRequestSnapshot) (*documentRuntimeConfig, error) {
@@ -649,13 +670,13 @@ func (s *ServerState) clearDocumentRuntimeConfigCache() {
 	s.documentRuntimeConfigMu.Unlock()
 }
 
-func (s *ServerState) setCallFunc(call glsp.CallFunc) {
+func (s *ServerState) setCallFunc(call lsp.CallFunc) {
 	s.callMu.Lock()
 	s.callFunc = call
 	s.callMu.Unlock()
 }
 
-func (s *ServerState) getCallFunc() glsp.CallFunc {
+func (s *ServerState) getCallFunc() lsp.CallFunc {
 	s.callMu.RLock()
 	defer s.callMu.RUnlock()
 	return s.callFunc

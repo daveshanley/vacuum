@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daveshanley/vacuum/language-server/internal/lsp"
+	"github.com/daveshanley/vacuum/language-server/protocol"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/testify/assert"
-	"github.com/tliron/glsp"
-	protocol "github.com/tliron/glsp/protocol_3_16"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -176,7 +176,7 @@ func TestServerState_RunDiagnostic_ResolveAllRefs(t *testing.T) {
 			}
 
 			notifyCh := make(chan protocol.PublishDiagnosticsParams, 1)
-			notify := glsp.NotifyFunc(func(method string, params any) {
+			notify := lsp.NotifyFunc(func(method string, params any) {
 				if method == protocol.ServerTextDocumentPublishDiagnostics {
 					notifyCh <- params.(protocol.PublishDiagnosticsParams)
 				}
@@ -252,7 +252,7 @@ func TestServerState_RunDiagnostic_NestedRefsDocContext(t *testing.T) {
 			}
 
 			notifyCh := make(chan protocol.PublishDiagnosticsParams, 1)
-			notify := glsp.NotifyFunc(func(method string, params any) {
+			notify := lsp.NotifyFunc(func(method string, params any) {
 				if method == protocol.ServerTextDocumentPublishDiagnostics {
 					notifyCh <- params.(protocol.PublishDiagnosticsParams)
 				}

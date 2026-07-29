@@ -33,6 +33,43 @@ type stubDocument struct {
 	specInfo *datamodel.SpecInfo
 }
 
+func TestRuleActionTraversalSupportsAllRepresentations(t *testing.T) {
+	target := model.RuleAction{Field: "name", Function: "target"}
+	nonTarget := model.RuleAction{Field: "description", Function: "other"}
+	tests := []struct {
+		name       string
+		then       interface{}
+		usesTarget bool
+		fields     []string
+	}{
+		{name: "value", then: target, usesTarget: true, fields: []string{"name"}},
+		{name: "pointer", then: &target, usesTarget: true, fields: []string{"name"}},
+		{name: "map", then: map[string]interface{}{"field": "name", "function": "target"}, usesTarget: true, fields: []string{"name"}},
+		{name: "value slice", then: []model.RuleAction{nonTarget, target}, usesTarget: true, fields: []string{"description", "name"}},
+		{name: "pointer slice", then: []*model.RuleAction{nil, &nonTarget, &target}, usesTarget: true, fields: []string{"description", "name"}},
+		{
+			name:       "mixed interface slice",
+			usesTarget: true,
+			then: []interface{}{
+				map[string]interface{}{"field": "summary", "function": "other"},
+				nonTarget,
+				&target,
+			},
+			fields: []string{"summary", "description", "name"},
+		},
+		{name: "no match", then: []model.RuleAction{nonTarget}, fields: []string{"description"}},
+		{name: "nil", fields: nil},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			rule := &model.Rule{Then: test.then}
+			assert.Equal(t, test.usesTarget, ruleUsesFunction(rule, "target"))
+			assert.Equal(t, test.fields, resultRuleActionFields(rule))
+		})
+	}
+}
+
 func (d *stubDocument) GetVersion() string {
 	return ""
 }
@@ -4162,6 +4199,71 @@ components:
 
 	ruleResults := filterResultsByRuleId(results.Results, "check-datetime-format")
 	assert.Len(t, ruleResults, 1, "resolved: false should continue to inspect the unresolved outer node only")
+}
+
+func TestIssue936_SpectralPropertyRegexSelector(t *testing.T) {
+	spec := []byte(`openapi: 3.0.3
+info:
+  title: Spectral selector compatibility
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: ok
+  /bad_Path:
+    get:
+      responses:
+        '200':
+          description: selected violation
+  /openapi.json:
+    get:
+      responses:
+        '200':
+          description: excluded
+  /nested/openapi.json:
+    get:
+      responses:
+        '200':
+          description: excluded
+  /openapi.json/Bad_Path:
+    get:
+      responses:
+        '200':
+          description: excluded even though the path is not kebab-case
+`)
+
+	rs := &rulesets.RuleSet{
+		Rules: map[string]*model.Rule{
+			"paths-kebab-case": {
+				Id:           "paths-kebab-case",
+				Message:      "{{property}} is not kebab-case.",
+				Given:        `$.paths[?(@property && !@property.match(/\/openapi\.json/))]~`,
+				Severity:     model.SeverityError,
+				RuleCategory: model.RuleCategories[model.CategoryValidation],
+				Type:         rulesets.Validation,
+				Then: model.RuleAction{
+					Function: "pattern",
+					FunctionOptions: map[string]any{
+						"match": `^(\/|(\/_[a-z0-9]+|\/(([a-z0-9\-]+|{[^}]+})(\/([a-z0-9\-\.]+|{[^}]+}))*)(\/_[a-z]+)?)\/?)$`,
+					},
+				},
+			},
+		},
+	}
+
+	results := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:     rs,
+		Spec:        spec,
+		SilenceLogs: true,
+	})
+
+	assert.Empty(t, results.Errors)
+	ruleResults := filterResultsByRuleId(results.Results, "paths-kebab-case")
+	if assert.Len(t, ruleResults, 1) {
+		assert.Equal(t, "/bad_Path", ruleResults[0].StartNode.Value)
+	}
 }
 
 func TestIssue845_ResolvedTruePatternChecksInheritedSimpleField(t *testing.T) {

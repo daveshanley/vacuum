@@ -283,6 +283,37 @@ func TestRenderNoFixesAppliedWarningRespectsOutputMode(t *testing.T) {
 	}
 }
 
+func TestRenderResultPathsTruncatedWarningRespectsOutputMode(t *testing.T) {
+	tests := []struct {
+		name       string
+		flags      *LintFlags
+		fileName   string
+		wantOutput bool
+	}{
+		{name: "normal output", flags: &LintFlags{}, wantOutput: true},
+		{name: "file context", flags: &LintFlags{}, fileName: "openapi.yaml", wantOutput: true},
+		{name: "silent", flags: &LintFlags{SilentFlag: true}},
+		{name: "pipeline output", flags: &LintFlags{PipelineOutput: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stdout, stderr := captureOSStreams(t, func() {
+				renderResultPathsTruncatedWarning(tt.flags, tt.fileName)
+			})
+			output := stdout + stderr
+			if !tt.wantOutput {
+				assert.Empty(t, output)
+				return
+			}
+			assert.Contains(t, output, "resolved result aliases were truncated")
+			if tt.fileName != "" {
+				assert.Contains(t, output, tt.fileName)
+			}
+		})
+	}
+}
+
 func TestGetLintCommand_QuotedResponseExampleDoesNotReportMarshalIssues(t *testing.T) {
 	specPath := filepath.Join(t.TempDir(), "openapi.yaml")
 	writeTestFile(t, specPath, `

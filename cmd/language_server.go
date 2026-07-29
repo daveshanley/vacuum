@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -25,7 +26,15 @@ var newLanguageServerRunner = func(version string, lintRequest *utils.LintFileRe
 }
 
 var runLanguageServer = func(version string, lintRequest *utils.LintFileRequest, executionOptions *motor.ExecutionOptions) error {
-	return newLanguageServerRunner(version, lintRequest, executionOptions).Run()
+	err := newLanguageServerRunner(version, lintRequest, executionOptions).Run()
+	var lifecycleErr languageserver.ExitWithoutShutdownError
+	if errors.As(err, &lifecycleErr) {
+		return &ExitError{
+			Code:    ExitCodeLanguageServerProtocol,
+			Message: lifecycleErr.Error(),
+		}
+	}
+	return err
 }
 
 func GetLanguageServerCommand() *cobra.Command {

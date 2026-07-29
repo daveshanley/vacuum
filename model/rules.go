@@ -90,19 +90,20 @@ type RuleFunctionContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message           string            `json:"message" yaml:"message"`                         // What failed and why?
-	Range             reports.Range     `json:"range" yaml:"range"`                             // Where did it happen?
-	Path              string            `json:"path" yaml:"path"`                               // the JSONPath to where it can be found, the first is extracted if there are multiple.
-	Paths             []string          `json:"paths,omitempty" yaml:"paths,omitempty"`         // the JSONPath(s) to where it can be found, if there are multiple.
-	RuleId            string            `json:"ruleId" yaml:"ruleId"`                           // The ID of the rule
-	RuleSeverity      string            `json:"ruleSeverity" yaml:"ruleSeverity"`               // the severity of the rule used
-	Origin            *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"`       // Where did the result come from (source)?
-	Rule              *Rule             `json:"-" yaml:"-"`                                     // The rule used
-	StartNode         *yaml.Node        `json:"-" yaml:"-"`                                     // Start of the violation
-	EndNode           *yaml.Node        `json:"-" yaml:"-"`                                     // end of the violation
-	Timestamp         *time.Time        `json:"-" yaml:"-"`                                     // When the result was created.
-	AutoFixed         bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"` // Whether this violation was auto-fixed
-	PathFromRuleGiven bool              `json:"-" yaml:"-"`                                     // Path was defaulted from the rule's given selector.
+	Message           string            `json:"message" yaml:"message"`                                   // What failed and why?
+	Range             reports.Range     `json:"range" yaml:"range"`                                       // Where did it happen?
+	Path              string            `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
+	Paths             []string          `json:"paths,omitempty" yaml:"paths,omitempty"`                   // the JSONPath(s) to where it can be found, if there are multiple.
+	RuleId            string            `json:"ruleId" yaml:"ruleId"`                                     // The ID of the rule
+	RuleSeverity      string            `json:"ruleSeverity" yaml:"ruleSeverity"`                         // the severity of the rule used
+	Origin            *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"`                 // Where did the result come from (source)?
+	Rule              *Rule             `json:"-" yaml:"-"`                                               // The rule used
+	StartNode         *yaml.Node        `json:"-" yaml:"-"`                                               // Start of the violation
+	EndNode           *yaml.Node        `json:"-" yaml:"-"`                                               // end of the violation
+	Timestamp         *time.Time        `json:"-" yaml:"-"`                                               // When the result was created.
+	AutoFixed         bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"`           // Whether this violation was auto-fixed
+	PathsTruncated    bool              `json:"pathsTruncated,omitempty" yaml:"pathsTruncated,omitempty"` // Whether resolved aliases were limited by result-path reconciliation.
+	PathFromRuleGiven bool              `json:"-" yaml:"-"`                                               // Path was defaulted from the rule's given selector.
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
 	// populated, then this is a reference to the model that fired the rule. (not currently used yet)
@@ -123,6 +124,19 @@ type RuleResultSet struct {
 	HintCount      int                                     `json:"hintCount" yaml:"hintCount"`                           // Total hints
 	categoryMap    map[*RuleCategory][]*RuleFunctionResult `json:"-" yaml:"-"`
 	countsComputed bool                                    `json:"-" yaml:"-"`
+}
+
+// HasTruncatedPaths reports whether result-path reconciliation limited resolved aliases.
+func (r *RuleResultSet) HasTruncatedPaths() bool {
+	if r == nil {
+		return false
+	}
+	for _, result := range r.Results {
+		if result != nil && result.PathsTruncated {
+			return true
+		}
+	}
+	return false
 }
 
 // RuleFunction is any compatible structure that can be used to run vacuum rules.

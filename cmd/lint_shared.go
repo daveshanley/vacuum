@@ -645,13 +645,14 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 	}
 
 	return &FileProcessingResult{
-		Results:  results,
-		Errors:   errors,
-		Warnings: warnings,
-		Informs:  informs,
-		Hints:    hints,
-		FileSize: fileSize,
-		Logs:     logs,
-		Error:    nil,
+		Results:        results,
+		Errors:         errors,
+		Warnings:       warnings,
+		Informs:        informs,
+		Hints:          hints,
+		FileSize:       fileSize,
+		Logs:           logs,
+		Error:          nil,
+		PathsTruncated: result.HasTruncatedPaths(),
 	}
 }

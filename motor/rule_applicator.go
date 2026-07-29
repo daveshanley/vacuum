@@ -128,6 +128,19 @@ type RuleSetExecutionResult struct {
 	ownedIndex       *index.SpecIndex
 }
 
+// HasTruncatedPaths reports whether result-path reconciliation limited resolved aliases.
+func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
+	if r == nil {
+		return false
+	}
+	for i := range r.Results {
+		if r.Results[i].PathsTruncated {
+			return true
+		}
+	}
+	return false
+}
+
 type ruleContext struct {
 	rule               *model.Rule
 	specNode           *yaml.Node
@@ -157,6 +170,7 @@ type ruleContext struct {
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
 	schemaPathCache    *sync.Map
+	ruleJSONPathCache  *sync.Map
 	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
 }
 
@@ -340,36 +354,57 @@ func (r *RuleSetExecutionResult) Release() {
 	r.release(true)
 }
 
-// ruleUsesFunction checks whether a rule's Then field references the given function name.
-// Rule.Then is interface{} and may be a model.RuleAction, map[string]interface{},
-// or a slice of either.
-func ruleUsesFunction(rule *model.Rule, funcName string) bool {
+// forEachRuleAction visits every supported representation of Rule.Then. It
+// returns true when the visitor stops traversal early.
+func forEachRuleAction(rule *model.Rule, visit func(model.RuleAction) bool) bool {
 	if rule == nil || rule.Then == nil {
 		return false
 	}
-	switch t := rule.Then.(type) {
+	return forEachRuleActionValue(rule.Then, visit)
+}
+
+func forEachRuleActionValue(value interface{}, visit func(model.RuleAction) bool) bool {
+	switch action := value.(type) {
 	case model.RuleAction:
-		return t.Function == funcName
+		return visit(action)
 	case *model.RuleAction:
-		return t != nil && t.Function == funcName
-	case map[string]interface{}:
-		if fn, ok := t["function"]; ok {
-			if s, ok := fn.(string); ok {
-				return s == funcName
+		return action != nil && visit(*action)
+	case []model.RuleAction:
+		for i := range action {
+			if visit(action[i]) {
+				return true
 			}
 		}
+	case []*model.RuleAction:
+		for _, item := range action {
+			if item != nil && visit(*item) {
+				return true
+			}
+		}
+	case map[string]interface{}:
+		mapped := model.RuleAction{FunctionOptions: action["functionOptions"]}
+		if field, ok := action["field"].(string); ok {
+			mapped.Field = field
+		}
+		if function, ok := action["function"].(string); ok {
+			mapped.Function = function
+		}
+		return visit(mapped)
 	case []interface{}:
-		for _, item := range t {
-			if m, ok := item.(map[string]interface{}); ok {
-				if fn, ok := m["function"]; ok {
-					if s, ok := fn.(string); ok && s == funcName {
-						return true
-					}
-				}
+		for _, item := range action {
+			if forEachRuleActionValue(item, visit) {
+				return true
 			}
 		}
 	}
 	return false
+}
+
+// ruleUsesFunction checks whether a rule's Then field references the given function name.
+func ruleUsesFunction(rule *model.Rule, funcName string) bool {
+	return forEachRuleAction(rule, func(action model.RuleAction) bool {
+		return action.Function == funcName
+	})
 }
 
 // ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
@@ -1146,6 +1181,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		// Multiple OWASP rules check the same schemas; the cache avoids redundant
 		// LocateModelsByKeyAndValue lookups.
 		var schemaPathCache sync.Map
+		var ruleJSONPathCache sync.Map
 
 		runResults, runIgnored, runFixed, runErrs := runRuleContexts(
 			execution,
@@ -1212,6 +1248,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					hasInlineIgnores:   specHasInlineIgnores,
 					ignoreIndex:        ignoreIdx,
 					schemaPathCache:    &schemaPathCache,
+					ruleJSONPathCache:  &ruleJSONPathCache,
 					expandedAliases:    resolvedAliases,
 				}
 			},
@@ -1340,17 +1377,16 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 
 		if givenPath != "$" {
 
-			// Call the timeout helper directly. It already owns the goroutine/timer
-			// needed for bounded lookup, so wrapping it again here would only add
-			// extra per-lookup overhead.
-			nodes, err = utils.FindNodesWithoutDeserializingWithTimeout(
-				ctx.specNode, givenPath, ctx.nodeLookupTimeout)
+			// Rule selectors use the safe Spectral dialect while preserving the
+			// bounded lookup behavior required for untrusted custom rulesets.
+			nodes, err = findRuleGivenNodes(
+				ctx.specNode, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
 			if err != nil {
 				// Timeout or error — retry with unresolved spec
 				ctx.logger.Warn("timeout/error looking for nodes, retrying with unresolved spec",
 					"path", givenPath, "rule", ctx.rule.Id, "error", err)
-				nodes, err = utils.FindNodesWithoutDeserializingWithTimeout(
-					ctx.specNodeUnresolved, givenPath, ctx.nodeLookupTimeout)
+				nodes, err = findRuleGivenNodes(
+					ctx.specNodeUnresolved, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
 				if err != nil {
 					ctx.logger.Error("giving up on node lookup",
 						"path", givenPath, "rule", ctx.rule.Id, "error", err)
