@@ -176,7 +176,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 				if vacuumReport == nil {
 
 					functionsFlag, _ := cmd.Flags().GetString("functions")
-					customFunctions, _ := LoadCustomFunctions(functionsFlag, silent)
+					customFunctions, _ := LoadCustomFunctions(functionsFlag, silent, false)
 
 					rulesetFlag, _ := cmd.Flags().GetString("ruleset")
 

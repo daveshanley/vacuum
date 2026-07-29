@@ -181,7 +181,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			hardModeBoxRendered := false
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
-			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, true, false)
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!

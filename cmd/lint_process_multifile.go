@@ -45,8 +45,17 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 	}
 
-	customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
-	ignoredItems, _ := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
+	// LoadCustomFunctions and LoadIgnoreFile render their own annotation/terminal output,
+	// so the error only needs propagating here to fail the run.
+	customFuncs, customFuncsErr := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
+	if customFuncsErr != nil {
+		return customFuncsErr
+	}
+
+	ignoredItems, ignoreErr := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
+	if ignoreErr != nil {
+		return ignoreErr
+	}
 
 	fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 	if fetchCfgErr != nil {

@@ -225,7 +225,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 		specBytes = reportOrSpec.SpecBytes
 		displayFileName = fileName
 
-		customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
+		// LoadCustomFunctions renders its own annotation/terminal output, so the error
+		// only needs propagating here to fail the run.
+		customFuncs, customFuncsErr := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
+		if customFuncsErr != nil {
+			return customFuncsErr
+		}
 
 		// load and configure ruleset (handles hard mode, custom rulesets, etc.)
 		selectedRS, specFormat, err := LoadRulesetWithConfigForSpec(flags, logger, specBytes)

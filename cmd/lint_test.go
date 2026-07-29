@@ -1267,3 +1267,228 @@ paths: {}
 	assert.Contains(t, output, "::error")
 	assert.Contains(t, output, "failed to resolve fetch configuration")
 }
+
+// annotationTestSpec is a minimal, valid spec used by the loader-error tests below.
+const annotationTestSpec = `
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "default":
+          description: ok
+`
+
+func TestGetLintCommand_MultiFile_BadIgnoreFileFailsWithFailSeverityNone(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	writeTestFile(t, firstSpec, annotationTestSpec)
+	writeTestFile(t, secondSpec, annotationTestSpec)
+	missingIgnore := filepath.Join(dir, "missing-ignore.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--no-style", "--fail-severity", "none",
+		"--ignore-file", missingIgnore,
+		firstSpec, secondSpec,
+	})
+
+	var err error
+	captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read ignore file")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileEmitsAnnotationForBadIgnoreFile(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	writeTestFile(t, firstSpec, annotationTestSpec)
+	writeTestFile(t, secondSpec, annotationTestSpec)
+	missingIgnore := filepath.Join(dir, "missing-ignore.yaml")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style", "--fail-severity", "none",
+		"--ignore-file", missingIgnore,
+		firstSpec, secondSpec,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "missing-ignore.yaml")
+	assert.NotContains(t, output, "Error: Failed to read ignore file")
+	// the run must abort before any file is linted
+	assert.NotContains(t, output, "first.yaml")
+}
+
+func TestGetLintCommand_SingleFile_BadFunctionsPathFailsWithFailSeverityNone(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, annotationTestSpec)
+	missingFunctions := filepath.Join(dir, "missing-functions")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--no-style", "--fail-severity", "none",
+		"--functions", missingFunctions,
+		specPath,
+	})
+
+	var err error
+	captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+}
+
+func TestGetLintCommand_GitHubAnnotations_SingleFileEmitsAnnotationForBadFunctionsPath(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, annotationTestSpec)
+	missingFunctions := filepath.Join(dir, "missing-functions")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style", "--fail-severity", "none",
+		"--functions", missingFunctions,
+		specPath,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "missing-functions")
+	assert.NotContains(t, output, "✗")
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileEmitsAnnotationForBadFunctionsPath(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	writeTestFile(t, firstSpec, annotationTestSpec)
+	writeTestFile(t, secondSpec, annotationTestSpec)
+	missingFunctions := filepath.Join(dir, "missing-functions")
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style", "--fail-severity", "none",
+		"--functions", missingFunctions,
+		firstSpec, secondSpec,
+	})
+
+	var err error
+	stdout, stderr := captureOSStreams(t, func() {
+		err = cmd.Execute()
+	})
+
+	require.Error(t, err)
+	output := stdout + stderr
+	assert.Contains(t, output, "::error")
+	assert.Contains(t, output, "missing-functions")
+	assert.NotContains(t, output, "✗")
+	// the run must abort before any file is linted
+	assert.NotContains(t, output, "first.yaml")
+}
+
+func TestGetLintCommand_GitHubAnnotations_ValidCustomFunctionsEmitNoTerminalChrome(t *testing.T) {
+	dir := t.TempDir()
+	specPath := filepath.Join(dir, "openapi.yaml")
+	writeTestFile(t, specPath, annotationTestSpec)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style",
+		"--functions", filepath.Join("..", "plugin", "sample", "js"),
+		specPath,
+	})
+
+	stdout, stderr := captureOSStreams(t, func() {
+		_ = cmd.Execute()
+	})
+
+	output := stdout + stderr
+	assert.NotContains(t, output, "Located custom javascript function")
+	assert.NotContains(t, output, "Registered custom function")
+	assert.NotContains(t, output, "Successfully validated JavaScript function")
+	assert.NotContains(t, output, "custom function(s) successfully")
+	assert.NotContains(t, output, "Available custom functions")
+	assertAnnotationsOnly(t, output)
+}
+
+func TestGetLintCommand_GitHubAnnotations_MultiFileValidCustomFunctionsEmitNoTerminalChrome(t *testing.T) {
+	dir := t.TempDir()
+	firstSpec := filepath.Join(dir, "first.yaml")
+	secondSpec := filepath.Join(dir, "second.yaml")
+	writeTestFile(t, firstSpec, annotationTestSpec)
+	writeTestFile(t, secondSpec, annotationTestSpec)
+
+	cmd := GetLintCommand()
+	registerPersistentFlags(cmd)
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+	cmd.SetArgs([]string{
+		"--github-annotations", "--no-style",
+		"--functions", filepath.Join("..", "plugin", "sample", "js"),
+		firstSpec, secondSpec,
+	})
+
+	stdout, stderr := captureOSStreams(t, func() {
+		_ = cmd.Execute()
+	})
+
+	output := stdout + stderr
+	assert.NotContains(t, output, "Located custom javascript function")
+	assert.NotContains(t, output, "Registered custom function")
+	assert.NotContains(t, output, "custom function(s) successfully")
+	assertAnnotationsOnly(t, output)
+}
+
+// assertAnnotationsOnly fails the test if any non-empty line of output is not a
+// GitHub Actions workflow command.
+func assertAnnotationsOnly(t *testing.T, output string) {
+	t.Helper()
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		assert.True(t, strings.HasPrefix(line, "::"), "unexpected non-annotation output: %q", line)
+	}
+}

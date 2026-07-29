@@ -55,7 +55,7 @@ func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClie
 	if err != nil {
 		return nil, fmt.Errorf("unable to load diagnostics ruleset: %w", err)
 	}
-	customFunctions, err := LoadCustomFunctions(flags.FunctionsFlag, true)
+	customFunctions, err := LoadCustomFunctions(flags.FunctionsFlag, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load custom functions: %w", err)
 	}
