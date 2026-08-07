@@ -497,6 +497,22 @@ func buildDocsAggregateConfig(scanRoot, outputDir, assetMode string, opts *docsO
 	cfg.Include = append([]string(nil), fileConfig.Scan.Include...)
 	cfg.IgnoreRules = append([]string(nil), fileConfig.Scan.IgnoreRules...)
 	cfg.NoiseSegments = append([]string(nil), fileConfig.Grouping.NoiseSegments...)
+	cfg.ServiceIdentity = press.AggregateServiceIdentityConfig{
+		MetadataPointers:           append([]string(nil), fileConfig.Grouping.ServiceIdentity.MetadataPointers...),
+		StripPrefixes:              append([]string(nil), fileConfig.Grouping.ServiceIdentity.StripPrefixes...),
+		StripSuffixes:              append([]string(nil), fileConfig.Grouping.ServiceIdentity.StripSuffixes...),
+		PreferOpenAPISlug:          fileConfig.Grouping.ServiceIdentity.PreferOpenAPISlug,
+		MetadataOptionalForOpenAPI: fileConfig.Grouping.ServiceIdentity.MetadataOptionalForOpenAPI,
+	}
+	cfg.ContractRoles = make([]press.AggregateContractRoleRule, len(fileConfig.Grouping.ContractRoles))
+	for i, role := range fileConfig.Grouping.ContractRoles {
+		cfg.ContractRoles[i] = press.AggregateContractRoleRule{
+			Pattern:    role.Pattern,
+			Role:       role.Role,
+			ContractID: role.ContractID,
+			Default:    role.Default,
+		}
+	}
 	cfg.ServiceOverrides = toDocsAggregateOverrides(fileConfig.Grouping.ServiceOverrides)
 	cfg.DisplayNameOverrides = toDocsAggregateOverrides(fileConfig.Grouping.DisplayNameOverrides)
 	cfg.VersionOverrides = toDocsAggregateOverrides(fileConfig.Grouping.VersionOverrides)
