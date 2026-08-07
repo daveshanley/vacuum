@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
@@ -107,6 +108,8 @@ type RuleSetExecution struct {
 	SkipCircularCheck bool // Skip circular reference result injection
 	SkipSchemaErrors  bool // Skip schema build error injection
 	SpecFormat        string
+	ruleWaitGroup     sync.WaitGroup
+	activeRuleWorkers atomic.Int64
 }
 
 // RuleSetExecutionResult returns the results of running the ruleset against the supplied spec.
@@ -126,6 +129,10 @@ type RuleSetExecutionResult struct {
 	ownedDocument    libopenapi.Document
 	unresolvedDoc    libopenapi.Document
 	ownedIndex       *index.SpecIndex
+	releaseOnce      sync.Once
+	releaseClearAll  atomic.Bool
+	releaseCleared   atomic.Bool
+	releaseDone      chan struct{}
 }
 
 // HasTruncatedPaths reports whether result-path reconciliation limited resolved aliases.
@@ -294,57 +301,90 @@ func (r *RuleSetExecutionResult) release(clearCaches bool) {
 		return
 	}
 
-	execution := r.RuleSetExecution
-
-	ownedResources := ownedResultResources{
-		resolvedDocument:   r.ownedDocument,
-		unresolvedDocument: r.unresolvedDoc,
-		resolvedIndex:      r.ownedIndex,
-	}
-	ownedResources.release()
-
-	if execution != nil && execution.DrDocument != nil {
-		execution.DrDocument.Release()
-		execution.DrDocument = nil
-	}
-
-	if execution != nil {
-		if execution.IndexUnresolved != nil && execution.CanonicalDocument == execution.IndexUnresolved.GetRootNode() {
-			execution.CanonicalDocument = nil
-		}
-		execution.IndexResolved = nil
-		execution.IndexUnresolved = nil
-	}
-
 	if clearCaches {
+		r.releaseClearAll.Store(true)
+	}
+	startedRelease := false
+	r.releaseOnce.Do(func() {
+		startedRelease = true
+		r.releaseDone = make(chan struct{})
+		execution := r.RuleSetExecution
+		ownedResources := ownedResultResources{
+			resolvedDocument:   r.ownedDocument,
+			unresolvedDocument: r.unresolvedDoc,
+			resolvedIndex:      r.ownedIndex,
+		}
+		r.RuleSetExecution = nil
+		r.Results = nil
+		r.IgnoredResults = nil
+		r.FixedResults = nil
+		r.Index = nil
+		r.SpecInfo = nil
+		r.Errors = nil
+		r.DocumentConfig = nil
+		r.ModifiedSpec = nil
+		r.AsyncAPI = nil
+		r.ownedDocument = nil
+		r.unresolvedDoc = nil
+		r.ownedIndex = nil
+
+		finishRelease := func() {
+			if execution != nil {
+				execution.ruleWaitGroup.Wait()
+			}
+			ownedResources.release()
+
+			if execution != nil && execution.DrDocument != nil {
+				execution.DrDocument.Release()
+				execution.DrDocument = nil
+			}
+
+			if execution != nil {
+				if execution.IndexUnresolved != nil && execution.CanonicalDocument == execution.IndexUnresolved.GetRootNode() {
+					execution.CanonicalDocument = nil
+				}
+				execution.IndexResolved = nil
+				execution.IndexUnresolved = nil
+			}
+
+			close(r.releaseDone)
+			r.clearCachesIfRequested()
+		}
+
+		if execution != nil && execution.activeRuleWorkers.Load() > 0 {
+			go finishRelease()
+			return
+		}
+		finishRelease()
+	})
+
+	if !startedRelease && clearCaches {
+		select {
+		case <-r.releaseDone:
+			r.clearCachesIfRequested()
+		default:
+		}
+	}
+}
+
+func (r *RuleSetExecutionResult) clearCachesIfRequested() {
+	if r.releaseClearAll.Load() && r.releaseCleared.CompareAndSwap(false, true) {
 		libopenapi.ClearAllCaches()
 	}
-
-	r.RuleSetExecution = nil
-	r.Results = nil
-	r.IgnoredResults = nil
-	r.FixedResults = nil
-	r.Index = nil
-	r.SpecInfo = nil
-	r.Errors = nil
-	r.DocumentConfig = nil
-	r.ModifiedSpec = nil
-	r.AsyncAPI = nil
-	r.ownedDocument = nil
-	r.unresolvedDoc = nil
-	r.ownedIndex = nil
 }
 
 // ReleaseOwnedResources frees result-owned documents, indexes and other
 // retained execution resources without resetting libopenapi's process-wide
-// caches. Caller-supplied documents are never released by vacuum.
+// caches. Caller-supplied documents are never released by vacuum. If a timed-out
+// rule is still running, cleanup continues in the background after it exits.
 func (r *RuleSetExecutionResult) ReleaseOwnedResources() {
 	r.release(false)
 }
 
 // Release frees memory-heavy resources retained by the result once the caller is
 // finished inspecting it. This includes vacuum-owned documents, the doctor
-// document, indexes, and libopenapi's process-wide caches.
+// document, indexes, and libopenapi's process-wide caches. If a timed-out rule
+// is still running, cleanup continues in the background after it exits.
 //
 // The cache reset is global, not scoped to this result. Calling Release can
 // affect other concurrent linting or document-processing routines running in the
@@ -426,8 +466,6 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	var ruleResults []model.RuleFunctionResult
 	var ignoredResults []model.RuleFunctionResult
 	var fixedResults []model.RuleFunctionResult
-	// (ruleWaitGroup removed — synchronization uses done channel below)
-
 	if asyncResult, handled := ApplyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions); handled {
 		return asyncResult
 	}
@@ -582,7 +620,22 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	docResolved := execution.Document
 	var docUnresolved libopenapi.Document
 	ownedResources := &ownedResultResources{}
-	defer ownedResources.release()
+	resourcesTransferred := false
+	defer func() {
+		if !resourcesTransferred {
+			cleanup := func() {
+				execution.ruleWaitGroup.Wait()
+				ownedResources.release()
+			}
+			if execution.activeRuleWorkers.Load() > 0 {
+				go cleanup()
+				return
+			}
+			cleanup()
+			return
+		}
+		ownedResources.release()
+	}()
 
 	// If no docResolved is supplied (default) then create a new one.
 	// otherwise update the configuration with the supplied document.
@@ -1321,6 +1374,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		ModifiedSpec:     modifiedSpec,
 	}
 	ownedResources.transfer(result)
+	resourcesTransferred = true
 	return result
 }
 

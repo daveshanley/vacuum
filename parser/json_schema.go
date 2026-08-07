@@ -62,8 +62,6 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 }
 
 // Global validator instance and mutex to ensure thread-safe schema validation.
-// The mutex also covers yaml.Node marshaling because the YAML desolver mutates
-// node metadata while rendering; callers may validate the same parsed node concurrently.
 var (
 	globalValidator     schema_validation.SchemaValidator
 	globalValidatorOnce sync.Once
@@ -89,16 +87,20 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	globalValidatorMu.Lock()
 	defer globalValidatorMu.Unlock()
 
+	// yaml.Marshal's desolver mutates node metadata while rendering. Marshal a
+	// deep clone so validation never changes caller-owned nodes.
+	validationNode := utils.CloneYAMLNode(node)
+
 	// convert node to raw yaml first, then convert to json to be used in schema validation
 	var d []byte
 	var e error
 	if !isArray {
-		d, e = yaml.Marshal(node)
+		d, e = yaml.Marshal(validationNode)
 	} else {
-		if !utils.IsNodeArray(node) {
-			d, e = yaml.Marshal([]*yaml.Node{node})
+		if !utils.IsNodeArray(validationNode) {
+			d, e = yaml.Marshal([]*yaml.Node{validationNode})
 		} else {
-			d, e = yaml.Marshal(node)
+			d, e = yaml.Marshal(validationNode)
 		}
 	}
 	if e != nil {

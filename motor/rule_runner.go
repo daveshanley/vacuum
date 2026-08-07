@@ -124,7 +124,15 @@ func executeRuleContext(
 	localCtx.fixedResults = &localFixed
 	localCtx.errors = &localErrs
 
-	go runRule(localCtx, doneChan)
+	execution.ruleWaitGroup.Add(1)
+	execution.activeRuleWorkers.Add(1)
+	go func() {
+		defer func() {
+			execution.ruleWaitGroup.Done()
+			execution.activeRuleWorkers.Add(-1)
+		}()
+		runRule(localCtx, doneChan)
+	}()
 	select {
 	case <-timeoutCtx.Done():
 		if ctx.logger != nil {
