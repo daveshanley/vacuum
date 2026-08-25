@@ -35,6 +35,7 @@ type docsDiagnosticsContext struct {
 	openAPIRuleset   *rulesets.RuleSet
 	asyncAPIRuleset  *rulesets.RuleSet
 	familyRulesets   docsFamilyRulesets
+	fallbackRulesets docsFamilyRulesets
 	customFunctions  map[string]model.RuleFunction
 	ignoredItems     model.IgnoredItems
 	httpClientConfig utils.HTTPClientConfig
@@ -122,7 +123,11 @@ func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClie
 
 	ctx.customFunctions = customFunctions
 	ctx.ignoredItems = ignoredItems
-	ctx.fingerprint = docsDiagnosticsFingerprint(true, clonedFlags, ctx.legacyRuleset, ctx.familyRulesets)
+	ctx.fallbackRulesets = docsFamilyRulesets{
+		openAPI:  buildDocsDefaultRuleset(press.SpecKindOpenAPI, clonedFlags),
+		asyncAPI: buildDocsDefaultRuleset(press.SpecKindAsyncAPI, clonedFlags),
+	}
+	ctx.fingerprint = docsDiagnosticsFingerprint(true, clonedFlags, ctx.legacyRuleset, ctx.familyRulesets, ctx.fallbackRulesets)
 	return ctx, nil
 }
 
@@ -218,6 +223,16 @@ func (d *docsDiagnosticsContext) ruleSetForSpec(specBytes []byte) (*rulesets.Rul
 	}
 	if d.legacyRuleset != nil {
 		return d.legacyRuleset, nil
+	}
+	switch identity.Kind {
+	case press.SpecKindOpenAPI:
+		if d.fallbackRulesets.openAPI != nil {
+			return d.fallbackRulesets.openAPI, nil
+		}
+	case press.SpecKindAsyncAPI:
+		if d.fallbackRulesets.asyncAPI != nil {
+			return d.fallbackRulesets.asyncAPI, nil
+		}
 	}
 	return buildDocsDefaultRuleset(identity.Kind, d.flags), nil
 }
@@ -375,6 +390,10 @@ func docsDiagnosticsFingerprint(enabled bool, flags *LintFlags, selectedRS *rule
 		if len(family) > 0 {
 			payload["openapiRuleset"] = docsRulesetFingerprintIdentity(family[0].openAPIPath, family[0].openAPI)
 			payload["asyncapiRuleset"] = docsRulesetFingerprintIdentity(family[0].asyncAPIPath, family[0].asyncAPI)
+		}
+		if len(family) > 1 {
+			payload["openapiFallbackRuleset"] = docsCanonicalRuleSet(family[1].openAPI)
+			payload["asyncapiFallbackRuleset"] = docsCanonicalRuleSet(family[1].asyncAPI)
 		}
 		if flags != nil {
 			payload["ignoreFile"] = docsPathFingerprint(flags.IgnoreFile)
