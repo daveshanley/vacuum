@@ -207,6 +207,23 @@ func TestDocsDiagnosticsConfiguredRulesetsLoadOnce(t *testing.T) {
 	}
 }
 
+func TestDocsDiagnosticsBuiltInFamilyRulesetsLoadOnce(t *testing.T) {
+	ctx := newDocsTestDiagnosticsContext(t, docsTestLintFlags(""), docsFamilyRulesetPaths{})
+
+	firstOpenAPI, err := ctx.ruleSetForSpec([]byte(docsDiagnosticsSpec("HTTP API")))
+	require.NoError(t, err)
+	secondOpenAPI, err := ctx.ruleSetForSpec([]byte(docsDiagnosticsSpec("HTTP API")))
+	require.NoError(t, err)
+	firstAsyncAPI, err := ctx.ruleSetForSpec([]byte(cmdAsyncAPI31Fixture))
+	require.NoError(t, err)
+	secondAsyncAPI, err := ctx.ruleSetForSpec([]byte(cmdAsyncAPI31Fixture))
+	require.NoError(t, err)
+
+	assert.Same(t, firstOpenAPI, secondOpenAPI)
+	assert.Same(t, firstAsyncAPI, secondAsyncAPI)
+	assert.NotSame(t, firstOpenAPI, firstAsyncAPI)
+}
+
 func TestDocsDiagnosticsFamilyRulesetLoadErrorsIdentifyFamily(t *testing.T) {
 	for _, family := range []string{"OpenAPI", "AsyncAPI"} {
 		t.Run(family, func(t *testing.T) {
@@ -256,7 +273,7 @@ func TestDocsDiagnosticsFingerprintIncludesAllRulesetIdentities(t *testing.T) {
 		assert.Equal(t, baseline, docsDiagnosticsFingerprint(true, flags, ctx.legacyRuleset, docsFamilyRulesets{
 			openAPIPath: openAPIPath, openAPI: ctx.openAPIRuleset,
 			asyncAPIPath: asyncAPIPath, asyncAPI: ctx.asyncAPIRuleset,
-		}))
+		}, ctx.fallbackRulesets))
 	}
 
 	for _, tc := range []struct {
@@ -312,6 +329,20 @@ func TestDocsDiagnosticsFingerprintIsStableAcrossRuleMapOrder(t *testing.T) {
 		docsDiagnosticsFingerprint(true, flags, nil, docsFamilyRulesets{openAPI: first}),
 		docsDiagnosticsFingerprint(true, flags, nil, docsFamilyRulesets{openAPI: second}),
 	)
+}
+
+func TestDocsDiagnosticsFingerprintIncludesBuiltInFamilyRulesets(t *testing.T) {
+	flags := docsTestLintFlags("")
+	fingerprint := func(openAPIMessage, asyncAPIMessage string) string {
+		return docsDiagnosticsFingerprint(true, flags, nil, docsFamilyRulesets{}, docsFamilyRulesets{
+			openAPI:  docsFingerprintRuleSet("openapi-default", openAPIMessage),
+			asyncAPI: docsFingerprintRuleSet("asyncapi-default", asyncAPIMessage),
+		})
+	}
+	baseline := fingerprint("openapi baseline", "asyncapi baseline")
+
+	assert.NotEqual(t, baseline, fingerprint("openapi changed", "asyncapi baseline"))
+	assert.NotEqual(t, baseline, fingerprint("openapi baseline", "asyncapi changed"))
 }
 
 func TestBuildDocsAggregateConfigPassesThroughGroupingWithoutAliasing(t *testing.T) {
