@@ -20,7 +20,7 @@ require (
 	github.com/pb33f/jsonpath v0.8.3
 	github.com/pb33f/libasyncapi v0.0.2
 	github.com/pb33f/libopenapi v0.38.7
-	github.com/pb33f/libopenapi-validator v0.13.13
+	github.com/pb33f/libopenapi-validator v0.14.0
 	github.com/pb33f/testify v0.1.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
@@ -55,8 +55,8 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
-	github.com/go-openapi/jsonpointer v0.23.1 // indirect
-	github.com/go-openapi/swag/jsonname v0.26.0 // indirect
+	github.com/go-openapi/jsonpointer v0.23.2 // indirect
+	github.com/go-openapi/swag/jsonname v0.26.1 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/pprof v0.0.0-20250501235452-c0086092b71a // indirect
