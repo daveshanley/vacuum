@@ -4790,3 +4790,52 @@ func filterResultsByRuleId(results []model.RuleFunctionResult, ruleId string) []
 	}
 	return filtered
 }
+
+type stubJSTimeoutFunction struct {
+	timeout time.Duration
+}
+
+func (s *stubJSTimeoutFunction) RunRule(_ []*yaml.Node, _ model.RuleFunctionContext) []model.RuleFunctionResult {
+	return nil
+}
+
+func (s *stubJSTimeoutFunction) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "stubJS"}
+}
+
+func (s *stubJSTimeoutFunction) GetCategory() string {
+	return "customJS"
+}
+
+func (s *stubJSTimeoutFunction) SetTimeout(timeout time.Duration) {
+	s.timeout = timeout
+}
+
+func TestApplyCustomJSTimeouts_UsesExecutionTimeout(t *testing.T) {
+	stub := &stubJSTimeoutFunction{}
+	applyCustomJSTimeouts(&RuleSetExecution{
+		Timeout:         12 * time.Second,
+		CustomFunctions: map[string]model.RuleFunction{"stubJS": stub},
+	})
+	assert.Equal(t, 12*time.Second, stub.timeout)
+}
+
+func TestApplyCustomJSTimeouts_DefaultsWhenTimeoutUnset(t *testing.T) {
+	stub := &stubJSTimeoutFunction{}
+	applyCustomJSTimeouts(&RuleSetExecution{
+		CustomFunctions: map[string]model.RuleFunction{"stubJS": stub},
+	})
+	assert.Equal(t, 5*time.Second, stub.timeout)
+}
+
+func TestApplyRulesToRuleSet_WiresJSTimeoutFromExecution(t *testing.T) {
+	stub := &stubJSTimeoutFunction{}
+	ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet:         &rulesets.RuleSet{Rules: map[string]*model.Rule{}},
+		Spec:            []byte("openapi: 3.0.0\ninfo:\n  title: t\n  version: 1.0.0\npaths: {}\n"),
+		Timeout:         9 * time.Second,
+		CustomFunctions: map[string]model.RuleFunction{"stubJS": stub},
+		SilenceLogs:     true,
+	})
+	assert.Equal(t, 9*time.Second, stub.timeout)
+}

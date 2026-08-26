@@ -447,6 +447,23 @@ func ruleUsesFunction(rule *model.Rule, funcName string) bool {
 	})
 }
 
+type jsTimeoutSetter interface {
+	SetTimeout(time.Duration)
+}
+
+// applyCustomJSTimeouts propagates the execution timeout to JS functions (which otherwise stay at 5s).
+func applyCustomJSTimeouts(execution *RuleSetExecution) {
+	timeout := execution.Timeout
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	for _, fn := range execution.CustomFunctions {
+		if js, ok := fn.(jsTimeoutSetter); ok {
+			js.SetTimeout(timeout)
+		}
+	}
+}
+
 // ApplyRulesToRuleSet is a replacement for ApplyRules. This function was created before trying to use
 // vacuum as an API. The signature is not sufficient, but is embedded everywhere. This new method
 // uses a message structure, to allow the signature to grow, without breaking anything.
@@ -460,6 +477,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if executionOptions != nil {
 		opts = *executionOptions
 	}
+	applyCustomJSTimeouts(execution)
 
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
