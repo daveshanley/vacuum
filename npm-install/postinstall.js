@@ -68,7 +68,9 @@ async function install() {
         console.log("Installation successful!");
         return;
     }
-    const packageJson = await fs.readFile("package.json").then(JSON.parse);
+    const packageJson = await fs
+        .readFile(new URL("../package.json", import.meta.url))
+        .then(JSON.parse);
     let version = packageJson.version;
 
     if (typeof version !== "string") {
