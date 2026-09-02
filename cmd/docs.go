@@ -64,6 +64,8 @@ The source API contract is not shipped in generated output by default. Use
 	cmd.Flags().StringVar(&opts.title, "title", "", "Override the API title")
 	cmd.Flags().StringVar(&opts.catalogTitle, "catalog-title", "", "Override the API catalog title")
 	cmd.Flags().StringVar(&opts.docsConfigPath, "docs-config", "", "Path to a printing press docs config file")
+	cmd.Flags().StringVar(&opts.openAPIRuleset, "openapi-ruleset", "", "Ruleset for OpenAPI docs diagnostics")
+	cmd.Flags().StringVar(&opts.asyncAPIRuleset, "asyncapi-ruleset", "", "Ruleset for AsyncAPI docs diagnostics")
 	cmd.Flags().StringVar(&opts.baseURL, "base-url", "", "Base URL to use in generated HTML")
 	cmd.Flags().StringVar(&opts.basePath, "base-path", "", "Base path for resolving local file references")
 	cmd.Flags().StringVar(&opts.buildMode, "build-mode", "", "Aggregate build mode: full, fast, or watch")
@@ -136,7 +138,7 @@ func runDocs(cmd *cobra.Command, input string, opts *docsOptions) (err error) {
 		if err != nil {
 			return err
 		}
-		diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics)
+		diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics, docsFamilyRulesetPathsFromOptions(opts))
 		if err != nil {
 			return err
 		}
@@ -151,7 +153,7 @@ func runDocs(cmd *cobra.Command, input string, opts *docsOptions) (err error) {
 	if err != nil {
 		return err
 	}
-	diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics)
+	diagnostics, err := newDocsDiagnosticsContext(lintFlags, httpClientConfig, fetchConfig, !opts.noDiagnostics, docsFamilyRulesetPathsFromOptions(opts))
 	if err != nil {
 		return err
 	}

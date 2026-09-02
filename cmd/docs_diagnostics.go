@@ -22,6 +22,7 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	doctorV3 "github.com/pb33f/doctor/model/high/v3"
+	press "github.com/pb33f/doctor/printingpress"
 	ppmodel "github.com/pb33f/doctor/printingpress/model"
 	"golang.org/x/sync/errgroup"
 )
@@ -30,6 +31,11 @@ type docsDiagnosticsContext struct {
 	enabled          bool
 	flags            *LintFlags
 	selectedRuleset  *rulesets.RuleSet
+	legacyRuleset    *rulesets.RuleSet
+	openAPIRuleset   *rulesets.RuleSet
+	asyncAPIRuleset  *rulesets.RuleSet
+	familyRulesets   docsFamilyRulesets
+	fallbackRulesets docsFamilyRulesets
 	customFunctions  map[string]model.RuleFunction
 	ignoredItems     model.IgnoredItems
 	httpClientConfig utils.HTTPClientConfig
@@ -37,38 +43,106 @@ type docsDiagnosticsContext struct {
 	fingerprint      string
 }
 
+type docsFamilyRulesetPaths struct {
+	openAPI  string
+	asyncAPI string
+}
+
+type docsFamilyRulesets struct {
+	openAPIPath  string
+	openAPI      *rulesets.RuleSet
+	asyncAPIPath string
+	asyncAPI     *rulesets.RuleSet
+}
+
+func docsFamilyRulesetPathsFromOptions(opts *docsOptions) docsFamilyRulesetPaths {
+	if opts == nil {
+		return docsFamilyRulesetPaths{}
+	}
+	return docsFamilyRulesetPaths{
+		openAPI:  opts.openAPIRuleset,
+		asyncAPI: opts.asyncAPIRuleset,
+	}
+}
+
 type docsDiagnosticsProgressFunc func(completed, total int, currentSpec string, elapsed time.Duration)
 
-func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClientConfig, fetchConfig *utils.FetchConfig, enabled bool) (*docsDiagnosticsContext, error) {
+func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClientConfig, fetchConfig *utils.FetchConfig, enabled bool, configured ...docsFamilyRulesetPaths) (*docsDiagnosticsContext, error) {
+	clonedFlags := cloneDocsLintFlags(flags)
+	familyPaths := docsFamilyRulesetPaths{}
+	if len(configured) > 0 {
+		familyPaths = configured[0]
+	}
 	ctx := &docsDiagnosticsContext{
 		enabled:          enabled,
-		flags:            flags,
+		flags:            clonedFlags,
 		httpClientConfig: httpClientConfig,
 		fetchConfig:      fetchConfig,
+		familyRulesets: docsFamilyRulesets{
+			openAPIPath:  strings.TrimSpace(familyPaths.openAPI),
+			asyncAPIPath: strings.TrimSpace(familyPaths.asyncAPI),
+		},
 	}
 	if !enabled {
-		ctx.fingerprint = docsDiagnosticsFingerprint(false, flags, nil)
+		ctx.fingerprint = docsDiagnosticsFingerprint(false, clonedFlags, nil)
 		return ctx, nil
 	}
 
-	selectedRS, err := LoadRulesetWithConfig(flags, slog.Default())
-	if err != nil {
-		return nil, fmt.Errorf("unable to load diagnostics ruleset: %w", err)
+	if strings.TrimSpace(clonedFlags.RulesetFlag) != "" {
+		selectedRS, err := loadDocsDiagnosticsRuleset(clonedFlags, clonedFlags.RulesetFlag)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load legacy diagnostics ruleset: %w", err)
+		}
+		ctx.selectedRuleset = selectedRS
+		ctx.legacyRuleset = selectedRS
 	}
-	customFunctions, err := LoadCustomFunctions(flags.FunctionsFlag, true, false)
+	if ctx.familyRulesets.openAPIPath != "" {
+		selectedRS, err := loadDocsDiagnosticsRuleset(clonedFlags, ctx.familyRulesets.openAPIPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load OpenAPI diagnostics ruleset: %w", err)
+		}
+		ctx.openAPIRuleset = selectedRS
+		ctx.familyRulesets.openAPI = selectedRS
+	}
+	if ctx.familyRulesets.asyncAPIPath != "" {
+		selectedRS, err := loadDocsDiagnosticsRuleset(clonedFlags, ctx.familyRulesets.asyncAPIPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load AsyncAPI diagnostics ruleset: %w", err)
+		}
+		ctx.asyncAPIRuleset = selectedRS
+		ctx.familyRulesets.asyncAPI = selectedRS
+	}
+	customFunctions, err := LoadCustomFunctions(clonedFlags.FunctionsFlag, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load custom functions: %w", err)
 	}
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, true, true, false, true)
+	ignoredItems, err := LoadIgnoreFile(clonedFlags.IgnoreFile, true, true, false, true)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx.selectedRuleset = selectedRS
 	ctx.customFunctions = customFunctions
 	ctx.ignoredItems = ignoredItems
-	ctx.fingerprint = docsDiagnosticsFingerprint(true, flags, selectedRS)
+	ctx.fallbackRulesets = docsFamilyRulesets{
+		openAPI:  buildDocsDefaultRuleset(press.SpecKindOpenAPI, clonedFlags),
+		asyncAPI: buildDocsDefaultRuleset(press.SpecKindAsyncAPI, clonedFlags),
+	}
+	ctx.fingerprint = docsDiagnosticsFingerprint(true, clonedFlags, ctx.legacyRuleset, ctx.familyRulesets, ctx.fallbackRulesets)
 	return ctx, nil
+}
+
+func cloneDocsLintFlags(flags *LintFlags) *LintFlags {
+	if flags == nil {
+		return &LintFlags{}
+	}
+	cloned := *flags
+	return &cloned
+}
+
+func loadDocsDiagnosticsRuleset(flags *LintFlags, rulesetPath string) (*rulesets.RuleSet, error) {
+	loadFlags := cloneDocsLintFlags(flags)
+	loadFlags.RulesetFlag = rulesetPath
+	return LoadRulesetWithConfig(loadFlags, slog.Default())
 }
 
 func (d *docsDiagnosticsContext) lintSpec(specBytes []byte, specPath string) ([]*doctorV3.RuleFunctionResult, error) {
@@ -128,17 +202,64 @@ func (d *docsDiagnosticsContext) lintSpec(specBytes []byte, specPath string) ([]
 }
 
 func (d *docsDiagnosticsContext) ruleSetForSpec(specBytes []byte) (*rulesets.RuleSet, error) {
-	if d == nil || d.flags == nil || d.flags.RulesetFlag != "" {
-		if d == nil {
-			return nil, nil
-		}
-		return d.selectedRuleset, nil
+	if d == nil {
+		return nil, nil
 	}
-	selectedRuleset, _, err := LoadRulesetWithConfigForSpec(d.flags, slog.Default(), specBytes)
+	identity, err := press.DetectSpecIdentity(specBytes)
 	if err != nil {
-		return nil, fmt.Errorf("select diagnostics ruleset: %w", err)
+		return nil, fmt.Errorf("detect diagnostics spec family: %w", err)
 	}
-	return selectedRuleset, nil
+	switch identity.Kind {
+	case press.SpecKindOpenAPI:
+		if d.openAPIRuleset != nil {
+			return d.openAPIRuleset, nil
+		}
+	case press.SpecKindAsyncAPI:
+		if d.asyncAPIRuleset != nil {
+			return d.asyncAPIRuleset, nil
+		}
+	default:
+		return nil, fmt.Errorf("detect diagnostics spec family: unsupported specification kind %q", identity.Kind)
+	}
+	if d.legacyRuleset != nil {
+		return d.legacyRuleset, nil
+	}
+	switch identity.Kind {
+	case press.SpecKindOpenAPI:
+		if d.fallbackRulesets.openAPI != nil {
+			return d.fallbackRulesets.openAPI, nil
+		}
+	case press.SpecKindAsyncAPI:
+		if d.fallbackRulesets.asyncAPI != nil {
+			return d.fallbackRulesets.asyncAPI, nil
+		}
+	}
+	return buildDocsDefaultRuleset(identity.Kind, d.flags), nil
+}
+
+func buildDocsDefaultRuleset(kind press.SpecKind, flags *LintFlags) *rulesets.RuleSet {
+	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(slog.Default())
+	hardMode := flags != nil && flags.HardModeFlag
+	var selectedRuleset *rulesets.RuleSet
+	switch kind {
+	case press.SpecKindAsyncAPI:
+		if hardMode {
+			selectedRuleset = defaultRuleSets.GenerateAsyncAPIDefaultRuleSet()
+		} else {
+			selectedRuleset = defaultRuleSets.GenerateAsyncAPIRecommendedRuleSet()
+		}
+	default:
+		if hardMode {
+			selectedRuleset = defaultRuleSets.GenerateOpenAPIDefaultRuleSet()
+			MergeOWASPRulesToRuleSet(selectedRuleset, true)
+		} else {
+			selectedRuleset = defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
+		}
+	}
+	if flags != nil && flags.TurboMode {
+		rulesets.FilterRulesForTurbo(selectedRuleset)
+	}
+	return selectedRuleset
 }
 
 func (d *docsDiagnosticsContext) lintCatalog(catalog *ppmodel.CatalogSite, report docsDiagnosticsProgressFunc) (map[string][]*doctorV3.RuleFunctionResult, error) {
@@ -258,14 +379,22 @@ func resolveDocsLintBase(specPath string, flags *LintFlags) (string, error) {
 	return ResolveBasePathForFile(specPath, "")
 }
 
-func docsDiagnosticsFingerprint(enabled bool, flags *LintFlags, selectedRS *rulesets.RuleSet) string {
+func docsDiagnosticsFingerprint(enabled bool, flags *LintFlags, selectedRS *rulesets.RuleSet, family ...docsFamilyRulesets) string {
 	payload := map[string]any{
 		"diagnosticsEnabled": enabled,
 		"vacuumVersion":      GetVersion(),
 		"lintFlags":          docsFingerprintLintFlags(flags),
 	}
 	if enabled {
-		payload["ruleset"] = docsCanonicalRuleSet(selectedRS)
+		payload["legacyRuleset"] = docsRulesetFingerprintIdentity(docsRulesetPath(flags), selectedRS)
+		if len(family) > 0 {
+			payload["openapiRuleset"] = docsRulesetFingerprintIdentity(family[0].openAPIPath, family[0].openAPI)
+			payload["asyncapiRuleset"] = docsRulesetFingerprintIdentity(family[0].asyncAPIPath, family[0].asyncAPI)
+		}
+		if len(family) > 1 {
+			payload["openapiFallbackRuleset"] = docsCanonicalRuleSet(family[1].openAPI)
+			payload["asyncapiFallbackRuleset"] = docsCanonicalRuleSet(family[1].asyncAPI)
+		}
 		if flags != nil {
 			payload["ignoreFile"] = docsPathFingerprint(flags.IgnoreFile)
 			payload["functions"] = docsPathFingerprint(flags.FunctionsFlag)
@@ -273,6 +402,20 @@ func docsDiagnosticsFingerprint(enabled bool, flags *LintFlags, selectedRS *rule
 	}
 	encoded, _ := json.Marshal(payload)
 	return fmt.Sprintf("%016x", xxhash.Sum64(encoded))
+}
+
+func docsRulesetPath(flags *LintFlags) string {
+	if flags == nil {
+		return ""
+	}
+	return flags.RulesetFlag
+}
+
+func docsRulesetFingerprintIdentity(rulesetPath string, selectedRS *rulesets.RuleSet) map[string]any {
+	return map[string]any{
+		"source":  docsPathFingerprint(rulesetPath),
+		"ruleset": docsCanonicalRuleSet(selectedRS),
+	}
 }
 
 func docsFingerprintLintFlags(flags *LintFlags) map[string]any {

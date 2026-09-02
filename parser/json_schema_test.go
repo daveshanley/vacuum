@@ -1,12 +1,16 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/orderedmap"
+	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/testify/assert"
 	"go.yaml.in/yaml/v4"
 )
@@ -160,6 +164,84 @@ name: "John123"  # contains numbers
 			}
 		})
 	}
+}
+
+func TestValidateNodeAgainstSchema_DoesNotMutateInput(t *testing.T) {
+	schema, err := ConvertYAMLIntoJSONSchema(`
+type: object
+properties:
+  name:
+    type: string
+  count:
+    type: integer
+  enabled:
+    type: boolean
+`, nil)
+	assert.NoError(t, err)
+
+	var dataNode yaml.Node
+	err = yaml.Unmarshal([]byte("name: example\ncount: 3\nenabled: true\n"), &dataNode)
+	assert.NoError(t, err)
+	input := dataNode.Content[0]
+	before := utils.CloneYAMLNode(input)
+
+	valid, validationErrs := ValidateNodeAgainstSchema(nil, schema, input, false)
+
+	assert.True(t, valid)
+	assert.Empty(t, validationErrs)
+	assert.Equal(t, before, input)
+}
+
+func TestValidateNodeAgainstSchema_ConcurrentTraversalDoesNotRace(t *testing.T) {
+	schema, err := ConvertYAMLIntoJSONSchema("type: object\n", nil)
+	assert.NoError(t, err)
+
+	var dataYAML strings.Builder
+	for i := 0; i < 1024; i++ {
+		_, _ = fmt.Fprintf(&dataYAML, "field%d: value%d\n", i, i)
+	}
+	var dataNode yaml.Node
+	err = yaml.Unmarshal([]byte(dataYAML.String()), &dataNode)
+	assert.NoError(t, err)
+	input := dataNode.Content[0]
+
+	started := make(chan struct{})
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	var checksum atomic.Int64
+	go func() {
+		defer close(done)
+		checksum.Store(int64(yamlNodeTraversalChecksum(input)))
+		close(started)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				checksum.Store(int64(yamlNodeTraversalChecksum(input)))
+			}
+		}
+	}()
+	<-started
+
+	valid, validationErrs := ValidateNodeAgainstSchema(nil, schema, input, false)
+	close(stop)
+	<-done
+
+	assert.True(t, valid)
+	assert.Empty(t, validationErrs)
+	assert.NotZero(t, checksum.Load())
+}
+
+func yamlNodeTraversalChecksum(node *yaml.Node) int {
+	if node == nil {
+		return 0
+	}
+	checksum := int(node.Kind) + int(node.Style) + len(node.Tag) + len(node.Value) + len(node.Anchor)
+	for _, child := range node.Content {
+		checksum += yamlNodeTraversalChecksum(child)
+	}
+	return checksum
 }
 
 // TestIssue512_NonDeterministicValidation specifically tests the scenarios from issue #512

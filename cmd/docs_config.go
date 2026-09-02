@@ -18,6 +18,8 @@ type docsOptions struct {
 	baseURL                            string
 	basePath                           string
 	docsConfigPath                     string
+	openAPIRuleset                     string
+	asyncAPIRuleset                    string
 	buildMode                          string
 	maxPools                           int
 	workersPerPool                     int
