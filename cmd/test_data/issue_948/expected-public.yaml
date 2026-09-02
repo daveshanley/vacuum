@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: Inclusive publication fixture
+  version: 1.0.0
+paths:
+  /mixed:
+    get:
+      tags: [public, shared]
+      operationId: getPublic
+      security:
+        - publicKey: []
+      parameters:
+        - $ref: '#/components/parameters/SharedHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/PublicResponse'
+  /promoted:
+    get:
+      tags: [staging, public]
+      operationId: promotedByOverlay
+      responses:
+        '200':
+          description: promoted
+components:
+  schemas:
+    Public:
+      $ref: '#/components/schemas/Shared'
+    Shared:
+      $ref: '#/components/schemas/Leaf'
+    Leaf:
+      type: string
+  responses:
+    PublicResponse:
+      description: public
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Public'
+      links:
+        internal:
+          operationId: internalOnly
+  parameters:
+    SharedHeader:
+      name: X-Shared
+      in: header
+      schema:
+        type: string
+  securitySchemes:
+    publicKey:
+      type: apiKey
+      in: header
+      name: X-Public

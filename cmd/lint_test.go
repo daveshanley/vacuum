@@ -75,6 +75,44 @@ func TestGetLintCommand_BadRuleset(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestGetLintCommand_UnknownRulesetFunctionIsInputError(t *testing.T) {
+	dir := t.TempDir()
+	rulesetPath := filepath.Join(dir, "ruleset.yaml")
+	err := os.WriteFile(rulesetPath, []byte(`
+extends: [[vacuum:oas, off]]
+rules:
+  check-title-is-exactly-this:
+    severity: info
+    formats: [oas2, oas3]
+    given: $.info
+    then:
+      field: title
+      function: patternd
+      functionOptions:
+        match: this specific thing
+`), 0o600)
+	require.NoError(t, err)
+
+	cmd := GetRootCommand()
+	output := bytes.NewBufferString("")
+	cmd.SetOut(output)
+	cmd.SetErr(output)
+	cmd.SetArgs([]string{
+		"lint",
+		"--ruleset", rulesetPath,
+		"--no-banner",
+		"--no-style",
+		"../model/test_files/burgershop.openapi.yaml",
+	})
+
+	err = cmd.Execute()
+	require.Error(t, err)
+	var exitErr *ExitError
+	require.ErrorAs(t, err, &exitErr)
+	assert.Equal(t, ExitCodeInputError, exitErr.Code)
+	assert.Contains(t, exitErr.Error(), "linting failed due to 1 issues")
+}
+
 func TestGetLintCommand_WithDetails(t *testing.T) {
 	cmd := GetLintCommand()
 	b := bytes.NewBufferString("")

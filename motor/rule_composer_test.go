@@ -1,8 +1,11 @@
 package motor
 
 import (
-	"github.com/pb33f/testify/assert"
+	"errors"
 	"testing"
+
+	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 )
 
 func TestCreateRuleComposer(t *testing.T) {
@@ -51,6 +54,10 @@ func TestRuleComposer_ComposeRuleSet(t *testing.T) {
 `
 	rc := CreateRuleComposer()
 	_, err := rc.ComposeRuleSet([]byte(json))
-	assert.Error(t, err)
+	require.Error(t, err)
+	var functionErr *UnknownRuleFunctionError
+	require.True(t, errors.As(err, &functionErr))
+	assert.Equal(t, "fish-cakes", functionErr.RuleID)
+	assert.Equal(t, "cookForTenMins", functionErr.Function)
 
 }

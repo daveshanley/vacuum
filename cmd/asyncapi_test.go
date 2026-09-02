@@ -147,7 +147,7 @@ func TestApplyOverlayAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
 	cmd := GetApplyOverlayCommand()
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
-	cmd.SetArgs([]string{"--stdout", "--no-style", specPath, filepath.Join(dir, "overlay.yaml")})
+	cmd.SetArgs([]string{"--stdout", "--no-style", "--include-tag", "public", "--tag-match", "all", "--prune-unused", specPath, filepath.Join(dir, "overlay.yaml")})
 
 	var err error
 	stdout, stderr := captureOSStreams(t, func() {

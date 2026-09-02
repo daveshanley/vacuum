@@ -239,6 +239,10 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 					specIndex = ruleset.Index
 					specInfo = ruleset.SpecInfo
 
+					if executionErr := renderPreParseExecutionErrors(specFile, ruleset); executionErr != nil {
+						return executionErr
+					}
+
 					if specInfo == nil {
 						tui.RenderErrorString("Failed to parse specification: %v", specFile)
 						if isMultiFile {

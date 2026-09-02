@@ -335,6 +335,10 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					SpecFormat:                      specFormat,
 				}, executionOptions)
 
+				if executionErr := renderPreParseExecutionErrors(specFile, ruleset); executionErr != nil {
+					return executionErr
+				}
+
 				// Check for spec parsing errors before generating report
 				if ruleset.SpecInfo == nil {
 					tui.RenderErrorString("Failed to parse specification '%s'", specFile)

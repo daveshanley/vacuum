@@ -490,6 +490,12 @@ func forEachRuleActionValue(value interface{}, visit func(model.RuleAction) bool
 				return true
 			}
 		}
+	case []map[string]interface{}:
+		for _, item := range action {
+			if forEachRuleActionValue(item, visit) {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -530,6 +536,14 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
+	if functionErrors := validateRuleSetFunctions(
+		execution.RuleSet, builtinFunctions, execution.CustomFunctions,
+	); len(functionErrors) > 0 {
+		return &RuleSetExecutionResult{
+			RuleSetExecution: execution,
+			Errors:           functionErrors,
+		}
+	}
 	var ruleResults []model.RuleFunctionResult
 	var ignoredResults []model.RuleFunctionResult
 	var fixedResults []model.RuleFunctionResult
@@ -1795,14 +1809,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			}
 		}
 
-		*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
-			Message:      fmt.Sprintf("Unknown function '%s' in rule '%s'", ruleAction.Function, ctx.rule.Id),
-			Rule:         ctx.rule,
-			StartNode:    &yaml.Node{},
-			EndNode:      &yaml.Node{},
-			RuleId:       ctx.rule.Id,
-			RuleSeverity: "error",
-			Path:         fmt.Sprint(ctx.rule.Given),
+		*ctx.errors = append(*ctx.errors, &UnknownRuleFunctionError{
+			RuleID:   ctx.rule.Id,
+			Function: ruleAction.Function,
 		})
 	}
 	return ctx.ruleResults

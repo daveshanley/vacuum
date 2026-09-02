@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"os"
@@ -237,9 +238,13 @@ func useConfigFile(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	// bind command specific flags
-	if viperSubTree := viper.Sub(cmd.Name()); viperSubTree != nil {
-		err = bindFlags(cmd.LocalFlags(), viperSubTree)
+	// Bind command environment values before config so pflag's Changed marker
+	// preserves CLI > environment > config precedence.
+	err = bindEnvironmentFlags(cmd.LocalFlags())
+	if err == nil {
+		if viperSubTree := viper.Sub(cmd.Name()); viperSubTree != nil {
+			err = bindFlags(cmd.LocalFlags(), viperSubTree)
+		}
 	}
 	return err
 }
@@ -295,12 +300,70 @@ func getXdgConfigHome() string {
 func bindFlags(flags *pflag.FlagSet, viperTree *viper.Viper) error {
 	var err error
 	flags.VisitAll(func(f *pflag.Flag) {
-		if !f.Changed && viperTree.IsSet(f.Name) {
+		if err == nil && !f.Changed && viperTree.IsSet(f.Name) {
 			val := viperTree.Get(f.Name)
-			err = flags.Set(f.Name, fmt.Sprintf("%v", val))
+			err = setBoundFlag(flags, f, val)
 		}
 	})
 	return err
+}
+
+func setBoundFlag(flags *pflag.FlagSet, flag *pflag.Flag, value any) error {
+	if flag.Value.Type() != "stringArray" && flag.Value.Type() != "stringSlice" {
+		return flags.Set(flag.Name, fmt.Sprintf("%v", value))
+	}
+	values, err := stringCollectionValues(value)
+	if err != nil {
+		return err
+	}
+	sliceValue, ok := flag.Value.(pflag.SliceValue)
+	if !ok {
+		return fmt.Errorf("flag %s reports collection type without slice support", flag.Name)
+	}
+	if err := sliceValue.Replace(values); err != nil {
+		return err
+	}
+	flag.Changed = true
+	return nil
+}
+
+func stringCollectionValues(value any) ([]string, error) {
+	switch values := value.(type) {
+	case []string:
+		return values, nil
+	case []any:
+		result := make([]string, len(values))
+		for i, item := range values {
+			text, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string collection item at index %d, got %T", i, item)
+			}
+			result[i] = text
+		}
+		return result, nil
+	case string:
+		records, err := csv.NewReader(strings.NewReader(values)).Read()
+		if err != nil {
+			return nil, fmt.Errorf("invalid string collection %q: %w", values, err)
+		}
+		return records, nil
+	default:
+		return nil, fmt.Errorf("expected a string collection, got %T", value)
+	}
+}
+
+func bindEnvironmentFlags(flags *pflag.FlagSet) error {
+	var bindErr error
+	flags.VisitAll(func(flag *pflag.Flag) {
+		if flag.Changed || bindErr != nil {
+			return
+		}
+		key := "VACUUM_" + strings.ToUpper(strings.ReplaceAll(flag.Name, "-", "_"))
+		if value, ok := os.LookupEnv(key); ok {
+			bindErr = setBoundFlag(flags, flag, value)
+		}
+	})
+	return bindErr
 }
 
 // expandUserPath expands environment variables and a leading ~ in a user-supplied path.

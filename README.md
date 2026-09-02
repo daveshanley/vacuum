@@ -226,6 +226,25 @@ target exactly what we want to change. vacuum now supports a new `apply-overlay`
 
 - [Learn more about the apply-overlay command](https://quobix.com/vacuum/commands/apply-overlay)
 
+`apply-overlay` can also build a fail-closed publication document after applying
+the standard Overlay actions:
+
+```bash
+vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml \
+  --include-tag public \
+  --tag-match any \
+  --prune-unused
+```
+
+Inclusive tags are exact and case-sensitive; `any` keeps operations with at
+least one included tag and `all` requires every included tag. Untagged
+operations are removed. Filtering runs after Overlay actions and before
+reachability-based component pruning. These opt-in transforms require a
+bundled, self-contained OpenAPI document. Top-level Tag Objects are retained.
+Link Objects targeting filtered operations are retained and reported as
+warnings. Document output remains pure on stdout; warnings are written to
+stderr.
+
 ---
 
 
