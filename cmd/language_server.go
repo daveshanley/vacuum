@@ -71,7 +71,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, true, false)
 
 			// HARD MODE
 			if hardModeFlag {
@@ -117,7 +117,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false, false)
 			if err != nil {
 				return err
 			}

@@ -167,7 +167,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				reportOutput = args[1]
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, noStyleFlag)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, false, noStyleFlag)
 			if err != nil {
 				return err
 			}
@@ -181,7 +181,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			hardModeBoxRendered := false
 
 			functionsFlag, _ := cmd.Flags().GetString("functions")
-			customFunctions, _ := LoadCustomFunctions(functionsFlag, true)
+			customFunctions, _ := LoadCustomFunctions(functionsFlag, true, false)
 
 			// if ruleset has been supplied, lets make sure it exists, then load it in
 			// and see if it's valid. If so - let's go!
