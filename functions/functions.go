@@ -60,6 +60,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["enumeration"] = core.Enumeration{}
 		funcs["pattern"] = core.Pattern{}
 		funcs["length"] = core.Length{}
+		funcs["or"] = core.Or{}
 		funcs["xor"] = core.Xor{}
 		funcs["schema"] = core.Schema{}
 		funcs["jsonSchemaValid"] = jsonschema_functions.Valid{}

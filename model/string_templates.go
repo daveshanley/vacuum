@@ -155,6 +155,22 @@ func (st *StringTemplates) BuildBothDefinedMessage(ruleMessage, field1, field2 s
 	return builder.String()
 }
 
+// BuildNoneDefinedMessage builds a message for OR validation
+// Pattern: "ruleMessage: at least one `field1`, `field2` or `fieldN` must be defined"
+func (st *StringTemplates) BuildNoneDefinedMessage(ruleMessage string, fields []string) string {
+	var builder strings.Builder
+	builder.Grow(len(ruleMessage) + len(fields) + 50) // rough estimate
+	builder.WriteString(ruleMessage)
+	builder.WriteString(": at least one of")
+	for _, field := range fields {
+		builder.WriteString(" `")
+		builder.WriteString(field)
+		builder.WriteString("`")
+	}
+	builder.WriteString("` must be defined")
+	return builder.String()
+}
+
 // BuildAlphabeticalMessage builds an alphabetical ordering error message
 // Pattern: "ruleMessage: `item1` must be placed before `item2` (alphabetical)"
 func (st *StringTemplates) BuildAlphabeticalMessage(ruleMessage, item1, item2 string) string {
