@@ -67,6 +67,7 @@ func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Respons
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request for %s: %w", url, err)
 		}
+		req.Header.Set("User-Agent", "vacuum-linter/1.0")
 		return client.Do(req)
 	}
 }
