@@ -1077,6 +1077,14 @@ func TestResolveBasePathForFile(t *testing.T) {
 		assert.Equal(t, expected, basePath)
 	})
 
+	for _, baseURL := range []string{"https://example.com/specs", "http://example.com/specs"} {
+		t.Run("preserves remote base "+baseURL, func(t *testing.T) {
+			basePath, err := ResolveBasePathForFile(specPath, baseURL)
+			require.NoError(t, err)
+			assert.Equal(t, baseURL, basePath)
+		})
+	}
+
 	t.Run("defaults to spec directory", func(t *testing.T) {
 		basePath, err := ResolveBasePathForFile(specPath, "")
 		require.NoError(t, err)
