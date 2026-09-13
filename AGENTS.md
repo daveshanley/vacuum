@@ -8,7 +8,7 @@ Operational guide for AI agents working in `github.com/daveshanley/vacuum`.
 - Main entry point: `vacuum.go` -> `cmd.Execute(...)` -> `cmd.GetRootCommand()`.
 - The default OpenAPI and AsyncAPI user path is `vacuum lint <api-description>`. JSON Schema linting uses `vacuum schema <schema>` or `vacuum schema lint <schema>`.
 - OpenAPI and AsyncAPI lint/report commands share helpers in `cmd/build_results.go`, `cmd/lint_shared.go`, and `motor/`. AsyncAPI context and default-ruleset wiring lives in `asyncapi/`, `cmd/asyncapi_ruleset.go`, `motor/asyncapi_applicator.go`, and `rulesets/asyncapi_rules.go`. JSON Schema command wiring lives in `cmd/schema*.go` and still executes rules through `motor/`.
-- Go version is `1.25.0`. Node is only needed for the HTML report UI and npm package wrapper.
+- Go version is `1.26.0`. Node is only needed for the HTML report UI and npm package wrapper.
 - The interactive HTML report is compiled only when UI assets exist and builds use `-tags html_report_ui`.
 - Release/CI-shaped Go checks should usually run with `GOWORK=off` so local sibling checkouts do not hide committed module problems.
 - Keep changes narrow. Do not rewrite generated assets, dependency locks, or docs unless the task requires it.
@@ -231,7 +231,7 @@ Check `git status --short` before editing. Preserve unrelated user changes.
 - GoReleaser config is `.goreleaser.yaml`.
 - Release builds run `./scripts/build-ui-assets.sh` before compiling.
 - Release binaries include HTML report UI assets with `-tags html_report_ui`.
-- Docker builds use Node 20 for UI assets and Go 1.25 for the binary.
+- Docker builds use Node 20 for UI assets and Go 1.26 for the binary.
 - npm publish uses trusted publishing in `.github/workflows/publish.yaml`.
 - `go install github.com/daveshanley/vacuum@<version>` does not include HTML report UI bundles. This is expected.
 - Do not add `replace` directives to released module state; they break `go install module@version` and `go run module@version`.

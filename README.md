@@ -87,7 +87,7 @@ To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the a
 
 ## Run with Go
 
-If you have Go 1.25 or newer installed, you can use `go run` to build and run it:
+If you have Go 1.26 or newer installed, you can use `go run` to build and run it:
 
 ```
 go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
