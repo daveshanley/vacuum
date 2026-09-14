@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -519,16 +520,16 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	indexConfig.Logger.Debug("applying rules to rule set")
 
+	httpClient := http.DefaultClient
 	// Configure custom HTTP client if TLS/certificate options are provided
 	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
-		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
+		customHTTPClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
 		if httpErr != nil {
 			return &RuleSetExecutionResult{Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}
 		}
-
-		// Set the custom RemoteURLHandler for libopenapi
-		docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+		httpClient = customHTTPClient
 	}
+	docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 
 	if execution.Base != "" {
 
