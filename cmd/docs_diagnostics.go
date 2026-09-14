@@ -112,11 +112,11 @@ func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClie
 		ctx.asyncAPIRuleset = selectedRS
 		ctx.familyRulesets.asyncAPI = selectedRS
 	}
-	customFunctions, err := LoadCustomFunctions(clonedFlags.FunctionsFlag, true)
+	customFunctions, err := LoadCustomFunctions(clonedFlags.FunctionsFlag, true, false)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load custom functions: %w", err)
 	}
-	ignoredItems, err := LoadIgnoreFile(clonedFlags.IgnoreFile, true, true, true)
+	ignoredItems, err := LoadIgnoreFile(clonedFlags.IgnoreFile, true, true, false, true)
 	if err != nil {
 		return nil, err
 	}

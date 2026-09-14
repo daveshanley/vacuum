@@ -127,25 +127,40 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 }
 
 // LoadCustomFunctions will scan for (and load) custom functions defined as vacuum plugins.
-func LoadCustomFunctions(functionsFlag string, silence bool) (map[string]model.RuleFunction, error) {
+// When annotations is true, all terminal chrome is suppressed and failures are reported as
+// GitHub Actions annotation lines instead.
+func LoadCustomFunctions(functionsFlag string, silence, annotations bool) (map[string]model.RuleFunction, error) {
 	// check custom functions
 	if functionsFlag != "" {
 		resolvedFunctionsPath, err := ResolveConfigPath(functionsFlag)
 		if err != nil {
-			tui.RenderErrorString("Unable to resolve functions path '%s': %s", functionsFlag, err.Error())
+			if annotations {
+				RenderGitHubAnnotationError(
+					fmt.Errorf("unable to resolve functions path '%s': %w", functionsFlag, err), "")
+			} else {
+				tui.RenderErrorString("Unable to resolve functions path '%s': %s", functionsFlag, err.Error())
+			}
 			return nil, err
 		}
 
-		pm, err := plugin.LoadFunctions(resolvedFunctionsPath, silence)
+		// the plugin loader prints its own progress chrome, so silence it in annotation mode.
+		pm, err := plugin.LoadFunctions(resolvedFunctionsPath, silence || annotations)
 		if err != nil {
-			tui.RenderError(err)
+			if annotations {
+				RenderGitHubAnnotationError(
+					fmt.Errorf("unable to load custom functions from '%s': %w", resolvedFunctionsPath, err), "")
+			} else {
+				tui.RenderError(err)
+			}
 			return nil, err
 		}
 
 		customFunctions := pm.GetCustomFunctions()
-		tui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
+		if !annotations {
+			tui.RenderInfo("Loaded %d custom function(s) successfully.", pm.LoadedFunctionCount())
+		}
 
-		if !silence && len(customFunctions) > 0 {
+		if !silence && !annotations && len(customFunctions) > 0 {
 			tui.RenderInfo("Available custom functions:")
 			for funcName := range customFunctions {
 				fmt.Printf("  - %s%s%s\n", color.ASCIIBlue, funcName, color.ASCIIReset)

@@ -113,6 +113,7 @@ type LintFlags struct {
 	ResolveAllRefs           bool   // --resolve-all-refs: force resolved execution for all rules
 	NestedRefsDocContext     bool   // --nested-refs-doc-context: resolve nested relative refs from the referenced document during resolved execution
 	OutputAbsPathsFlag       bool
+	GitHubAnnotations        bool // --github-annotations: emit GitHub Actions file annotation lines
 }
 
 // FileProcessingConfig contains all configuration needed to process a file
@@ -241,6 +242,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 		flags.NestedRefsDocContext = viper.GetBool("lint.nested-refs-doc-context")
 	}
 	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
+	flags.GitHubAnnotations, _ = cmd.Flags().GetBool("github-annotations")
 	return flags
 }
 
@@ -257,13 +259,13 @@ func SetupVacuumEnvironment(flags *LintFlags) {
 		color.DisableColors()
 	}
 
-	if !flags.SilentFlag && !flags.NoBannerFlag && !flags.PipelineOutput {
+	if !flags.SilentFlag && !flags.NoBannerFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		PrintBanner(flags.NoStyleFlag)
 	}
 }
 
 // LoadIgnoreFile loads and parses the ignore file if specified
-func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.IgnoredItems, error) {
+func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bool) (model.IgnoredItems, error) {
 	ignoredItems := model.IgnoredItems{}
 	if ignoreFile == "" {
 		return ignoredItems, nil
@@ -272,7 +274,10 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 	originalPath := ignoreFile
 	resolvedPath, err := ResolveConfigPath(ignoreFile)
 	if err != nil {
-		if !silent {
+		if annotations {
+			RenderGitHubAnnotationError(fmt.Errorf("failed to resolve ignore file path '%s': %w", ignoreFile, err), "")
+		}
+		if !silent && !annotations {
 			fmt.Printf("%sError: Failed to resolve ignore file path '%s': %v%s\n\n",
 				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
@@ -282,7 +287,10 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 	raw, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		if !os.IsNotExist(err) || originalPath == resolvedPath {
-			if !silent {
+			if annotations {
+				RenderGitHubAnnotationError(fmt.Errorf("failed to read ignore file '%s': %w", resolvedPath, err), "")
+			}
+			if !silent && !annotations {
 				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
 					color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 			}
@@ -291,7 +299,10 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 		// fallback to original path if resolution-based path not found
 		raw, err = os.ReadFile(originalPath)
 		if err != nil {
-			if !silent {
+			if annotations {
+				RenderGitHubAnnotationError(fmt.Errorf("failed to read ignore file '%s': %w", originalPath, err), "")
+			}
+			if !silent && !annotations {
 				fmt.Printf("%sError: Failed to read ignore file '%s': %v%s\n\n",
 					color.ASCIIRed, originalPath, err, color.ASCIIReset)
 			}
@@ -302,14 +313,17 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, noStyle bool) (model.Ig
 
 	err = yaml.Unmarshal(raw, &ignoredItems)
 	if err != nil {
-		if !silent {
+		if annotations {
+			RenderGitHubAnnotationError(fmt.Errorf("failed to parse ignore file '%s': %w", resolvedPath, err), "")
+		}
+		if !silent && !annotations {
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
 				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
 		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
 	}
 
-	if !silent && !pipeline {
+	if !silent && !pipeline && !annotations {
 		renderInfoMessage(fmt.Sprintf("Using ignore file '%s'", resolvedPath), noStyle)
 		renderIgnoredItems(ignoredItems, noStyle)
 	}
@@ -326,7 +340,12 @@ func CreateHTTPClientFromFlags(flags *LintFlags) (*http.Client, error) {
 
 	httpClient, err := utils.CreateHTTPClientIfNeeded(httpClientConfig)
 	if err != nil {
-		fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", err.Error())
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(err, "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("\033[31mFailed to create custom HTTP client: %s\033[0m\n", err.Error())
+		}
 		return nil, err
 	}
 
@@ -350,7 +369,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 		for k, v := range owaspRules {
 			selectedRS.Rules[k] = v
 		}
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if flags.RulesetFlag == "" {
 				renderHardModeBox(HardModeEnabled, flags.NoStyleFlag)
 			}
@@ -367,12 +386,17 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 		selectedRS, rsErr = BuildRuleSetFromUserSuppliedLocation(
 			flags.RulesetFlag, defaultRuleSets, flags.RemoteFlag, httpClient)
 		if rsErr != nil {
-			fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
-				flags.RulesetFlag, rsErr.Error())
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(rsErr, "")
+			}
+			if !flags.SilentFlag && !flags.GitHubAnnotations {
+				fmt.Printf("\033[31mUnable to load ruleset '%s': %s\033[0m\n",
+					flags.RulesetFlag, rsErr.Error())
+			}
 			return nil, "", rsErr
 		}
 
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			if flags.NoStyleFlag {
 				fmt.Printf(" using ruleset '%s' (containing %d rules)\n",
 					flags.RulesetFlag, len(selectedRS.Rules))
@@ -388,7 +412,7 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 
 		if flags.HardModeFlag {
 			if MergeOWASPRulesToRuleSet(selectedRS, true) {
-				if !flags.SilentFlag && !flags.PipelineOutput {
+				if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 					renderHardModeBox(HardModeWithCustomRuleset, flags.NoStyleFlag)
 				}
 			}
@@ -398,13 +422,13 @@ func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specByt
 	// Apply turbo mode rule filtering
 	if flags.TurboMode {
 		removed := rulesets.FilterRulesForTurbo(selectedRS)
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			fmt.Printf(" %s⚡ [turbo mode]: removed %d expensive rules (%d rules remaining)%s\n\n",
 				color.ASCIIYellow, removed, len(selectedRS.Rules), color.ASCIIReset)
 		}
 	}
 
-	if flags.ShowRules && !flags.PipelineOutput && !flags.SilentFlag {
+	if flags.ShowRules && !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
 		renderRulesList(selectedRS.Rules)
 	}
 

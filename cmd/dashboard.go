@@ -101,7 +101,7 @@ func GetDashboardCommand() *cobra.Command {
 				defer utils.ResetBreakingRulesConfig()
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false)
+			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false, false)
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 				selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag)
-				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent)
+				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent, false)
 
 				if hardModeFlag && !asyncDefault {
 					MergeOWASPRulesToRuleSet(selectedRS, true)
@@ -411,7 +411,7 @@ func GetDashboardCommand() *cobra.Command {
 			// Load custom functions
 			var customFuncs map[string]model.RuleFunction
 			if functionsFlag != "" {
-				customFuncs, err = LoadCustomFunctions(functionsFlag, silent)
+				customFuncs, err = LoadCustomFunctions(functionsFlag, silent, false)
 				if err != nil && !silent {
 					message := fmt.Sprintf("Failed to load custom functions: %v", err)
 					style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)

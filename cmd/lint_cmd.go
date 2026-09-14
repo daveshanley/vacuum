@@ -64,6 +64,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().Bool("pipeline-output", false, "Renders CI/CD summary output, suitable for pipelines")
+	cmd.Flags().Bool("github-annotations", false, "Emit GitHub Actions file annotation lines; can be combined with --pipeline-output")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 	cmd.Flags().Bool("fix", false, "Apply auto-fixes for rules that support it")
 	cmd.Flags().String("fix-file", "", "Write fixes to specified file instead of overwriting original")
@@ -86,11 +87,21 @@ func runLint(cmd *cobra.Command, args []string) error {
 		// Check for validation errors and display them nicely
 		var validationErr *utils.ConfigValidationError
 		if errors.As(breakingConfigErr, &validationErr) {
-			fmt.Printf("\033[31mBreaking config validation error in %s:\033[0m\n", validationErr.FilePath)
-			fmt.Print(validationErr.FormatValidationErrors())
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(breakingConfigErr, "")
+			}
+			if !flags.SilentFlag && !flags.GitHubAnnotations {
+				fmt.Printf("\033[31mBreaking config validation error in %s:\033[0m\n", validationErr.FilePath)
+				fmt.Print(validationErr.FormatValidationErrors())
+			}
 			return breakingConfigErr
 		}
-		fmt.Printf("\033[31mError loading breaking config: %v\033[0m\n", breakingConfigErr)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(breakingConfigErr, "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("\033[31mError loading breaking config: %v\033[0m\n", breakingConfigErr)
+		}
 		return breakingConfigErr
 	}
 	if breakingConfig != nil {
@@ -101,14 +112,25 @@ func runLint(cmd *cobra.Command, args []string) error {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	filesToLint, err := getFilesToLint(flags.GlobPattern, args, validFileExtensions)
 	if cmd.Flags().Changed("globbed-files") && err != nil {
-		fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", color.ASCIIBold, color.ASCIIRed, err, color.ASCIIReset)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(err, "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("🚨 %s%sError getting files to lint: %v%s\n\n", color.ASCIIBold, color.ASCIIRed, err, color.ASCIIReset)
+		}
 		return err
 	}
 
 	if len(filesToLint) < 1 {
-		fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
-			color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
-		return fmt.Errorf("no file supplied")
+		noFileErr := fmt.Errorf("no file supplied")
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(fmt.Errorf("please supply an OpenAPI or AsyncAPI specification to lint"), "")
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
+				color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
+		}
+		return noFileErr
 	}
 
 	// for multiple files, run each one and combine results
@@ -120,7 +142,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	fileName := filesToLint[0]
 
 	// ignore file
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.NoStyleFlag)
+	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
 	if err != nil {
 		return err
 	}
@@ -128,20 +150,31 @@ func runLint(cmd *cobra.Command, args []string) error {
 	// Create HTTP client early for URL support (cert/TLS config)
 	httpClientConfig, cfgErr := GetHTTPClientConfig(flags)
 	if cfgErr != nil {
-		return fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		wrapped := fmt.Errorf("failed to resolve TLS configuration: %w", cfgErr)
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(wrapped, "")
+		}
+		return wrapped
 	}
 	var httpClient *http.Client
 	if utils.ShouldUseCustomHTTPClient(httpClientConfig) {
 		httpClient, err = utils.CreateCustomHTTPClient(httpClientConfig)
 		if err != nil {
-			return fmt.Errorf("failed to create HTTP client: %w", err)
+			wrapped := fmt.Errorf("failed to create HTTP client: %w", err)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, "")
+			}
+			return wrapped
 		}
 	}
 
 	// try to load the file as either a report or spec (supports URLs)
 	reportOrSpec, err := LoadFileAsReportOrSpecWithClient(fileName, httpClient)
 	if err != nil {
-		if !flags.SilentFlag {
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(err, fileName)
+		}
+		if !flags.SilentFlag && !flags.GitHubAnnotations {
 			fmt.Printf("\033[31mUnable to load file '%s': %v\033[0m\n", fileName, err)
 		}
 		return err
@@ -166,7 +199,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 	if reportOrSpec.IsReport {
 		// pre-compiled report
-		if !flags.SilentFlag {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			fmt.Printf("\033[36mLoading pre-compiled vacuum report from '%s'\033[0m\n\n", fileName)
 		}
 
@@ -192,7 +225,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 		specBytes = reportOrSpec.SpecBytes
 		displayFileName = fileName
 
-		customFuncs, _ := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag)
+		// LoadCustomFunctions renders its own annotation/terminal output, so the error
+		// only needs propagating here to fail the run.
+		customFuncs, customFuncsErr := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
+		if customFuncsErr != nil {
+			return customFuncsErr
+		}
 
 		// load and configure ruleset (handles hard mode, custom rulesets, etc.)
 		selectedRS, specFormat, err := LoadRulesetWithConfigForSpec(flags, logger, specBytes)
@@ -204,10 +242,14 @@ func runLint(cmd *cobra.Command, args []string) error {
 		// shortcut can refuse non-default --base executions.
 		resolvedBase, baseErr := ResolveBasePathForFile(fileName, flags.BaseFlag)
 		if baseErr != nil {
-			return fmt.Errorf("failed to resolve base path: %w", baseErr)
+			wrapped := fmt.Errorf("failed to resolve base path: %w", baseErr)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, fileName)
+			}
+			return wrapped
 		}
 
-		if !flags.SilentFlag && !flags.PipelineOutput {
+		if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 			fmt.Printf(" %svacuuming file '%s' against %d rules: %s%s\n\n",
 				color.ASCIIBlue, displayFileName, len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 		}
@@ -234,13 +276,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 				documentChanges, changesErr = utils.LoadChangeReportFromFile(flags.ChangesFlag)
 			}
 			if changesErr != nil {
-				if !flags.SilentFlag {
+				if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 					fmt.Printf("\033[33mWarning: Failed to load changes: %v\033[0m\n", changesErr)
 					fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
 				}
 				documentChanges = nil
 				changeResult = nil
-			} else if !flags.SilentFlag && !flags.PipelineOutput {
+			} else if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 				renderComparisonModeSummary(changeResult, documentChanges, flags.NoStyleFlag, flags.ChangesSummaryFlag)
 			}
 		}
@@ -253,12 +295,20 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		resolvedSpecPath, specPathErr := ResolveSpecPathForExecution(displayFileName)
 		if specPathErr != nil {
-			return fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+			wrapped := fmt.Errorf("failed to resolve spec path: %w", specPathErr)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, displayFileName)
+			}
+			return wrapped
 		}
 
 		fetchConfig, fetchCfgErr := GetFetchConfig(flags)
 		if fetchCfgErr != nil {
-			return fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+			wrapped := fmt.Errorf("failed to resolve fetch configuration: %w", fetchCfgErr)
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(wrapped, "")
+			}
+			return wrapped
 		}
 
 		execution := &motor.RuleSetExecution{
@@ -303,7 +353,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 				ExecutionOptions:    executionOptions,
 				ReuseCurrentResults: unchangedOriginalSpec,
 				WarnOriginalLintFailure: func(err error) {
-					if !flags.SilentFlag {
+					if !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 						fmt.Printf("\033[33mWarning: Failed to lint original spec: %v\033[0m\n", err)
 						fmt.Printf("\033[33mProceeding without change filtering.\033[0m\n\n")
 					}
@@ -329,12 +379,20 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// render out buffered logs
-		RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
+		// render out buffered logs (chrome; suppressed in annotation mode so
+		// debug output does not contaminate the annotation stream on stdout)
+		if !flags.GitHubAnnotations {
+			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
+		}
 
 		if len(result.Errors) > 0 {
 			for _, err := range result.Errors {
-				fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+				if flags.GitHubAnnotations {
+					RenderGitHubAnnotationError(err, displayFileName)
+				}
+				if !flags.GitHubAnnotations {
+					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+				}
 			}
 			return NewInputError("linting failed due to %d issues", len(result.Errors))
 		}
@@ -350,7 +408,11 @@ func runLint(cmd *cobra.Command, args []string) error {
 		if fixesApplied > 0 && flags.FixFlag {
 			err := writeFixedFile(result, fileName, flags.FixFileFlag)
 			if err != nil {
-				return fmt.Errorf("failed to write fixed file: %w", err)
+				wrapped := fmt.Errorf("failed to write fixed file: %w", err)
+				if flags.GitHubAnnotations {
+					RenderGitHubAnnotationError(wrapped, fileName)
+				}
+				return wrapped
 			}
 		}
 
@@ -396,7 +458,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		stats = reportOrSpec.Report.Statistics
 	}
 
-	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput {
+	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		specStringData = strings.Split(string(specBytes), "\n")
 		renderFixedDetails(RenderDetailsOptions{
 			Results:     resultSet.Results,
@@ -414,27 +476,33 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 
 	// Render change filter summary if requested
-	if changeFilterStats != nil && flags.ChangesSummaryFlag && !flags.SilentFlag && !flags.PipelineOutput {
+	if changeFilterStats != nil && flags.ChangesSummaryFlag && !flags.SilentFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		width := getTerminalWidth()
 		widths := calculateColumnWidths(width)
 		renderChangeFilterSummary(changeFilterStats, widths, flags.NoStyleFlag)
 	}
 
-	renderFixedSummary(RenderSummaryOptions{
-		RuleResultSet:  resultSet,
-		RuleCategories: cats,
-		Statistics:     stats,
-		Filename:       displayFileName,
-		Silent:         flags.SilentFlag,
-		NoStyle:        flags.NoStyleFlag,
-		PipelineOutput: flags.PipelineOutput,
-		ShowRules:      flags.ShowRules,
-		FixesApplied:   fixesApplied,
-	})
+	if !flags.GitHubAnnotations || flags.PipelineOutput {
+		renderFixedSummary(RenderSummaryOptions{
+			RuleResultSet:  resultSet,
+			RuleCategories: cats,
+			Statistics:     stats,
+			Filename:       displayFileName,
+			Silent:         flags.SilentFlag,
+			NoStyle:        flags.NoStyleFlag,
+			PipelineOutput: flags.PipelineOutput,
+			ShowRules:      flags.ShowRules,
+			FixesApplied:   fixesApplied,
+		})
+	}
+
+	if flags.GitHubAnnotations {
+		RenderGitHubAnnotations(resultSet.Results, displayFileName)
+	}
 
 	// timing
 	duration := time.Since(start)
-	if flags.TimeFlag && !flags.PipelineOutput {
+	if flags.TimeFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		renderFixedTiming(duration, fileSize)
 	}
 
@@ -450,12 +518,19 @@ func runLint(cmd *cobra.Command, args []string) error {
 	}
 	if flags.MinScore > 10 && overallScore > 0 {
 		if overallScore < flags.MinScore {
-			if !flags.PipelineOutput && !flags.SilentFlag {
+			if !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
 				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
 				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
 					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
 			} else if flags.PipelineOutput {
 				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
+			}
+			if flags.GitHubAnnotations {
+				RenderGitHubAnnotationError(
+					fmt.Errorf("score threshold failed: overall score is %d, but the threshold is %d",
+						overallScore, flags.MinScore),
+					displayFileName,
+				)
 			}
 			return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
 				overallScore, flags.MinScore)
@@ -524,7 +599,7 @@ func hasAutoFixableResults(results []*model.RuleFunctionResult) bool {
 }
 
 func renderLintWarning(flags *LintFlags, format string, args ...any) {
-	if flags == nil || flags.SilentFlag || flags.PipelineOutput {
+	if flags == nil || flags.SilentFlag || flags.PipelineOutput || flags.GitHubAnnotations {
 		return
 	}
 	tui.RenderWarning(format, args...)

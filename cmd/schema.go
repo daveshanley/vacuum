@@ -194,11 +194,11 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	customFuncs, err := LoadCustomFunctions(flags.Functions, flags.Silent)
+	customFuncs, err := LoadCustomFunctions(flags.Functions, flags.Silent, false)
 	if err != nil {
 		return err
 	}
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.Silent, false, flags.NoStyle)
+	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.Silent, false, false, flags.NoStyle)
 	if err != nil {
 		return err
 	}
