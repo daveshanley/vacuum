@@ -6,7 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
 // RuleComposer will consume a ruleset specification into a *model.RuleSet

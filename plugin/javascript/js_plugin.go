@@ -19,7 +19,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/pb33f/libopenapi/index"
 	"go.yaml.in/yaml/v4"
 )

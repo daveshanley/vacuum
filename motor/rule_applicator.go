@@ -28,7 +28,7 @@ import (
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	doctorModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
