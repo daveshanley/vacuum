@@ -9,8 +9,64 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/testify/assert"
 	"go.yaml.in/yaml/v4"
+	"sync"
 	"testing"
+	"time"
 )
+
+// slowJSScript resolves after 300ms, long enough to blow a small timeout.
+const slowJSScript = `
+function runRule(input) {
+	return new Promise(function(resolve) {
+		setTimeout(function() {
+			resolve([{ message: "finished" }]);
+		}, 300);
+	});
+}
+`
+
+func Test_JSPlugin_TimeoutComesFromRuleContext(t *testing.T) {
+	f := NewJSRuleFunction("test", slowJSScript)
+	assert.NoError(t, f.CheckScript())
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+
+	results := f.RunRule([]*yaml.Node{y.Content[0]}, model.RuleFunctionContext{
+		Given:       "test.path",
+		RuleTimeout: 20 * time.Millisecond,
+	})
+	assert.Len(t, results, 1)
+	assert.Contains(t, results[0].Message, "timed out after 20ms")
+}
+
+// Test_JSPlugin_ConcurrentRunsUseTheirOwnTimeout covers the language server sharing one function
+// instance across overlapping diagnostics: each run honours its own rule context, and writes
+// nothing to the shared instance. Run with -race.
+func Test_JSPlugin_ConcurrentRunsUseTheirOwnTimeout(t *testing.T) {
+	f := NewJSRuleFunction("test", slowJSScript)
+	assert.NoError(t, f.CheckScript())
+
+	var y yaml.Node
+	_ = yaml.Unmarshal([]byte("input"), &y)
+	nodes := []*yaml.Node{y.Content[0]}
+
+	run := func(timeout time.Duration) []model.RuleFunctionResult {
+		return f.RunRule(nodes, model.RuleFunctionContext{Given: "test.path", RuleTimeout: timeout})
+	}
+
+	var wg sync.WaitGroup
+	var fast, slow []model.RuleFunctionResult
+	wg.Add(2)
+	go func() { defer wg.Done(); fast = run(20 * time.Millisecond) }()
+	go func() { defer wg.Done(); slow = run(10 * time.Second) }()
+	wg.Wait()
+
+	assert.Len(t, fast, 1)
+	assert.Contains(t, fast[0].Message, "timed out after 20ms")
+	assert.Len(t, slow, 1)
+	assert.Equal(t, "finished", slow[0].Message)
+}
 
 func Test_JSPlugin_Basic_Fail(t *testing.T) {
 

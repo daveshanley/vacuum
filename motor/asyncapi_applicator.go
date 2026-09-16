@@ -286,6 +286,7 @@ func runAsyncAPIRules(
 				skipDocumentCheck:  execution.SkipDocumentCheck,
 				logger:             logger,
 				nodeLookupTimeout:  execution.NodeLookupTimeout,
+				ruleTimeout:        execution.Timeout,
 				applyAutoFixes:     execution.ApplyAutoFixes,
 				resolvedExecution:  ruleResolved,
 				fetchConfig:        execution.FetchConfig,

@@ -79,6 +79,10 @@ type RuleFunctionContext struct {
 	// (e.g., oasExampleSchema). Default is 10 seconds if not set or 0.
 	ValidationTimeout time.Duration `json:"-" yaml:"-"`
 
+	// RuleTimeout is RuleSetExecution.Timeout for the run this invocation belongs to; custom
+	// JavaScript functions use it instead of their own default. Zero means fall back to that default.
+	RuleTimeout time.Duration `json:"-" yaml:"-"`
+
 	// SchemaPathCache is a shared cache for LocateSchemaPropertyPaths results,
 	// keyed by schema pointer. Avoids redundant LocateModelsByKeyAndValue calls
 	// when multiple OWASP rules check the same schema. May be nil.
