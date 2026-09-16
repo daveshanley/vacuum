@@ -54,8 +54,12 @@ func (j *JSRuleFunction) SetTimeout(timeout time.Duration) {
 	j.ruleTimeout = timeout
 }
 
-// getTimeout returns the configured timeout or the default
-func (j *JSRuleFunction) getTimeout() time.Duration {
+// getTimeout returns this invocation's timeout: the read-only rule context wins (so concurrent runs
+// cannot see each other's value), then any timeout configured on the function, then the default.
+func (j *JSRuleFunction) getTimeout(ruleContext model.RuleFunctionContext) time.Duration {
+	if ruleContext.RuleTimeout > 0 {
+		return ruleContext.RuleTimeout
+	}
 	if j.ruleTimeout > 0 {
 		return j.ruleTimeout
 	}
@@ -226,7 +230,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 
 	for _, node := range nodes {
 		// create a fresh timeout for each node - prevents cumulative timeout across all nodes
-		ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
+		ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout(ruleContext))
 
 		enc := decodeNodeForJS(node)
 
@@ -266,7 +270,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 			cancel()
 			if errors.Is(rErr, context.DeadlineExceeded) {
 				return j.createErrorResult(
-					fmt.Sprintf("JavaScript function '%s' timed out after %v", j.ruleName, j.getTimeout()),
+					fmt.Sprintf("JavaScript function '%s' timed out after %v", j.ruleName, j.getTimeout(ruleContext)),
 					node, ruleContext)
 			}
 			var jsErr *goja.Exception
@@ -332,7 +336,7 @@ func (j *JSRuleFunction) runBatch(nodes []*yaml.Node, ruleContext model.RuleFunc
 	}
 	fetchModule.Register()
 
-	ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
+	ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout(ruleContext))
 	defer cancel()
 
 	// build batch input with tracking for result mapping
@@ -392,7 +396,7 @@ func (j *JSRuleFunction) runBatch(nodes []*yaml.Node, ruleContext model.RuleFunc
 	if rErr != nil {
 		if errors.Is(rErr, context.DeadlineExceeded) {
 			return j.createErrorResult(
-				fmt.Sprintf("Batch function timed out after %v", j.getTimeout()),
+				fmt.Sprintf("Batch function timed out after %v", j.getTimeout(ruleContext)),
 				nodes[0], ruleContext)
 		}
 		return j.createErrorResult(
