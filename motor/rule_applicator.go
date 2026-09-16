@@ -171,6 +171,7 @@ type ruleContext struct {
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
+	ruleTimeout        time.Duration
 	applyAutoFixes     bool
 	resolvedExecution  bool
 	fetchConfig        *vacuumUtils.FetchConfig
@@ -472,7 +473,6 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if executionOptions != nil {
 		opts = *executionOptions
 	}
-
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
 	if errs := validateRuleFunctions(execution.RuleSet, builtinFunctions, execution.CustomFunctions); len(errs) > 0 {
@@ -1309,6 +1309,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					skipDocumentCheck:  execution.SkipDocumentCheck,
 					logger:             docConfigResolved.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
+					ruleTimeout:        execution.Timeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
 					resolvedExecution:  ruleResolved,
 					fetchConfig:        execution.FetchConfig,
@@ -1540,6 +1541,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			Logger:          ctx.logger,
 			FetchConfig:     ctx.fetchConfig,
 			SchemaPathCache: ctx.schemaPathCache,
+			RuleTimeout:     ctx.ruleTimeout,
 		}
 		// Keep the function's diagnostic available for {{error}}. The rule is
 		// shared by concurrent executions, so clear only this invocation's copy.
