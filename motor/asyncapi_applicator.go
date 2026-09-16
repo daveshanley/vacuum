@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -94,13 +95,15 @@ func ApplyAsyncAPIRulesToRuleSet(
 		config.AllowFileReferences = true
 	}
 
+	httpClient := http.DefaultClient
 	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
-		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
+		customHTTPClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
 		if httpErr != nil {
 			return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}, true
 		}
-		config.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+		httpClient = customHTTPClient
 	}
+	config.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 
 	asyncCtx, err := asyncapi_context.NewContext(execution.Spec, execution.SpecFileName, config)
 	if err != nil {
