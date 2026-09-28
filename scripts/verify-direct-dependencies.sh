@@ -21,6 +21,15 @@ export GOPROXY=direct
 export GOPATH="${direct_gopath}"
 export GOCACHE="${direct_gocache}"
 
-go mod download all
+# Direct Git fetches for unreleased commits can report a transient shallow-file
+# conflict after populating the VCS cache. A fresh attempt uses that cache.
+for attempt in 1 2 3; do
+  if go mod download all; then
+    break
+  fi
+  if [[ "${attempt}" -eq 3 ]]; then
+    exit 1
+  fi
+done
 go list -m all > /dev/null
 go list -deps -test ./... > /dev/null
