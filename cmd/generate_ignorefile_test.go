@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"bytes"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 	"io"
 	"os"
 	"path/filepath"

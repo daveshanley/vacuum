@@ -23,9 +23,9 @@ import (
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 const (

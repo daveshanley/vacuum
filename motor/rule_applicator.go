@@ -30,11 +30,11 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/go-viper/mapstructure/v2"
 	doctorModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 // todo: move copy into virtual file system or some kind of map.

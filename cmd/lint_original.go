@@ -15,8 +15,8 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/utils"
 	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 type lintOriginalResult struct {

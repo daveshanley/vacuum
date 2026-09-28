@@ -11,8 +11,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel/low"
-	"go.yaml.in/yaml/v4"
 )
 
 // ComponentDescription will check through all components and determine if they are correctly described

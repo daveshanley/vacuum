@@ -22,8 +22,8 @@ import (
 	libopenapijson "github.com/pb33f/libopenapi/json"
 
 	"github.com/daveshanley/vacuum/tui"
+	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 const (

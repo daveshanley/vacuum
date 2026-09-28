@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // violationKey identifies a violation across spec versions.

@@ -18,8 +18,8 @@ import (
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 func getSchemaBundleCommand() *cobra.Command {

@@ -20,8 +20,8 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 // DefaultRuleTimeout is the default timeout for JavaScript rule execution
