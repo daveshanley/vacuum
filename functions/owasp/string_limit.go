@@ -14,7 +14,7 @@ import (
 
 type StringLimit struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the StringLimit rule.
 func (st StringLimit) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "owaspStringLimit"}
 }
@@ -24,7 +24,7 @@ func (st StringLimit) GetCategory() string {
 	return model.FunctionCategoryOWASP
 }
 
-// RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule checks request schemas for missing string limits.
 func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
@@ -33,20 +33,23 @@ func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 		return results
 	}
 
+	// Schema names recur across properties and references within one document.
+	directions := make(map[string]utils.DirectionType)
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "string") {
 			if schema.Value.MaxLength == nil && schema.Value.Const == nil && schema.Value.Enum == nil {
-				node := schema.Value.GoLow().Type.KeyNode
-				valueNode := schema.Value.GoLow().Type.ValueNode
-
-				// Find all locations where this schema appears
-				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-
-				var direction = utils.GetSchemaDirection(context.DrDocument.V3Document.Document, schema.Name)
-
+				direction, cached := directions[schema.Name]
+				if !cached {
+					direction = utils.GetSchemaDirection(context.DrDocument.V3Document.Document, schema.Name)
+					directions[schema.Name] = direction
+				}
 				if direction != utils.DirectionRequest && direction != utils.DirectionBoth {
 					continue
 				}
+
+				node := schema.Value.GoLow().Type.KeyNode
+				valueNode := schema.Value.GoLow().Type.ValueNode
+				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
 
 				result := model.RuleFunctionResult{
 					Message: utils.SuppliedOrDefault(context.Rule.Message,
