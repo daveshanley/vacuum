@@ -1,0 +1,4094 @@
+{
+  "date": "2026-09-28",
+  "host": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M4 Max",
+  "cpus": 16,
+  "go_version": "go1.26.4",
+  "runs": 3,
+  "warmups": 1,
+  "flags": [
+    "--timeout",
+    "60",
+    "--lookup-timeout",
+    "10000",
+    "--no-update-check",
+    "--no-style",
+    "--no-banner",
+    "--silent"
+  ],
+  "seed": 20260928,
+  "specs": {
+    "ld.yaml": {
+      "bytes": 1927409,
+      "sha256": "6e282f8852fe1d38527dfb7b6e90c27fe9505d66ed90f87c5b6a30fd8594e86c"
+    },
+    "mistral.yaml": {
+      "bytes": 292380,
+      "sha256": "37659aafcad6a8219609636db74a7481b24b6cbb0a54f6d184278b584f5269df"
+    },
+    "neon.yaml": {
+      "bytes": 369544,
+      "sha256": "958d5c6f86970418ad104dd87e7efb2185ef0ef16bd25c2502c382f82cd64a1b"
+    },
+    "petstore.yaml": {
+      "bytes": 21302,
+      "sha256": "ef2b2dea0ef6a09ba6247017ffd5a6405c689ec9b11e73d1b61b6e2047ce35e8"
+    },
+    "plaid.yml": {
+      "bytes": 2870618,
+      "sha256": "8addecd0b74aeb23ae844b349d8a4a2e1cbbb7ed2210f57d31cf644c37af7fa3"
+    },
+    "stripe.yaml": {
+      "bytes": 6051965,
+      "sha256": "ae4d4352c52ef5246904e15bacc639fd381494022f19eab6f74b36f47c85a1b4"
+    }
+  },
+  "binary_sha256": {
+    "before": "f3e776ee92b4438c66d1b5272c50bb05304337599337ba6c41b01f2d965d47e0",
+    "after": "7f02472e970fc8dec2b1447b37aae35b4fccfb3696bc4b32a7df53e3dbdbb2c4",
+    "fixed": "eff3b5749a07cef7565212235a9d09d6f117e97df1b4bed2e72f43bc89bff1e6"
+  },
+  "revisions": {
+    "before": "778e2a7b",
+    "dependency_migration": "9e6935c0",
+    "owasp_fix": "6d4a82ac",
+    "doctor_local": "ccf0e90",
+    "libasyncapi_local": "e79f259"
+  },
+  "summary": [
+    {
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "median_seconds": 0.3952177080209367,
+      "min_seconds": 0.3726512499852106,
+      "max_seconds": 0.4379407499800436,
+      "median_peak_rss_bytes": 779960320,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "median_seconds": 0.3470999580458738,
+      "min_seconds": 0.33334033301798627,
+      "max_seconds": 0.3783567500067875,
+      "median_peak_rss_bytes": 603078656,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "median_seconds": 0.37387637502979487,
+      "min_seconds": 0.3399975830106996,
+      "max_seconds": 0.5689597919699736,
+      "median_peak_rss_bytes": 610238464,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "median_seconds": 0.3203478339710273,
+      "min_seconds": 0.28439337498275563,
+      "max_seconds": 0.3544220000039786,
+      "median_peak_rss_bytes": 364904448,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "median_seconds": 0.32438900001579896,
+      "min_seconds": 0.27013374998932704,
+      "max_seconds": 0.6623504169983789,
+      "median_peak_rss_bytes": 337788928,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "median_seconds": 0.30500200000824407,
+      "min_seconds": 0.2677034580265172,
+      "max_seconds": 0.31814954202855006,
+      "median_peak_rss_bytes": 349143040,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "median_seconds": 2.285537041956559,
+      "min_seconds": 2.217721834022086,
+      "max_seconds": 2.700346708006691,
+      "median_peak_rss_bytes": 850984960,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "median_seconds": 2.423297500004992,
+      "min_seconds": 2.231002749991603,
+      "max_seconds": 2.9882315829745494,
+      "median_peak_rss_bytes": 737591296,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "median_seconds": 0.6316728329984471,
+      "min_seconds": 0.528399457980413,
+      "max_seconds": 0.635782833036501,
+      "median_peak_rss_bytes": 723501056,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "median_seconds": 2.1981165839824826,
+      "min_seconds": 2.1398078339989297,
+      "max_seconds": 2.5986270420253277,
+      "median_peak_rss_bytes": 535150592,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "median_seconds": 2.312552042014431,
+      "min_seconds": 2.1296277919900604,
+      "max_seconds": 2.884302749997005,
+      "median_peak_rss_bytes": 488898560,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "median_seconds": 0.5287849580054171,
+      "min_seconds": 0.49824854196049273,
+      "max_seconds": 0.5812896660063416,
+      "median_peak_rss_bytes": 455868416,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "median_seconds": 0.13962575001642108,
+      "min_seconds": 0.11683850002009422,
+      "max_seconds": 0.2475705420365557,
+      "median_peak_rss_bytes": 168247296,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "median_seconds": 0.12404895795043558,
+      "min_seconds": 0.09950999997090548,
+      "max_seconds": 0.2359912089887075,
+      "median_peak_rss_bytes": 152780800,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "median_seconds": 0.124435874982737,
+      "min_seconds": 0.10138795897364616,
+      "max_seconds": 0.20255937497131526,
+      "median_peak_rss_bytes": 150323200,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "median_seconds": 0.08867641701363027,
+      "min_seconds": 0.08774887496838346,
+      "max_seconds": 0.09047058300347999,
+      "median_peak_rss_bytes": 126828544,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "median_seconds": 0.0863615830312483,
+      "min_seconds": 0.08619758300483227,
+      "max_seconds": 0.11018912500003353,
+      "median_peak_rss_bytes": 117981184,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "median_seconds": 0.08604166598524898,
+      "min_seconds": 0.08575395803200081,
+      "max_seconds": 0.0923340410226956,
+      "median_peak_rss_bytes": 116621312,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "median_seconds": 0.1577109579811804,
+      "min_seconds": 0.15677674999460578,
+      "max_seconds": 0.16062420897651464,
+      "median_peak_rss_bytes": 177487872,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "median_seconds": 0.15343566599767655,
+      "min_seconds": 0.15109420800581574,
+      "max_seconds": 0.1563330419594422,
+      "median_peak_rss_bytes": 170180608,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "median_seconds": 0.10566787503194064,
+      "min_seconds": 0.1019183750031516,
+      "max_seconds": 0.10603204200742766,
+      "median_peak_rss_bytes": 151126016,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "median_seconds": 0.15513579099206254,
+      "min_seconds": 0.15082508302293718,
+      "max_seconds": 0.2800835410016589,
+      "median_peak_rss_bytes": 158449664,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "median_seconds": 0.15194095904007554,
+      "min_seconds": 0.14643583400174975,
+      "max_seconds": 0.20794512500287965,
+      "median_peak_rss_bytes": 144752640,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "median_seconds": 0.09726416697958484,
+      "min_seconds": 0.09274395799729973,
+      "max_seconds": 0.13773904199479148,
+      "median_peak_rss_bytes": 129433600,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "median_seconds": 0.15954312501708046,
+      "min_seconds": 0.1573149590403773,
+      "max_seconds": 0.16435241600265726,
+      "median_peak_rss_bytes": 174850048,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "median_seconds": 0.12472904199967161,
+      "min_seconds": 0.12190433300565928,
+      "max_seconds": 0.17933245899621397,
+      "median_peak_rss_bytes": 156303360,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "median_seconds": 0.12464908300898969,
+      "min_seconds": 0.1204248340218328,
+      "max_seconds": 0.12531750003108755,
+      "median_peak_rss_bytes": 158711808,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "median_seconds": 0.11998725001467392,
+      "min_seconds": 0.08303883404005319,
+      "max_seconds": 0.18985791702289134,
+      "median_peak_rss_bytes": 119504896,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "median_seconds": 0.08538354199845344,
+      "min_seconds": 0.08089166600257158,
+      "max_seconds": 0.19124120799824595,
+      "median_peak_rss_bytes": 114638848,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "median_seconds": 0.0845081249717623,
+      "min_seconds": 0.08044733398128301,
+      "max_seconds": 0.1873228329932317,
+      "median_peak_rss_bytes": 114900992,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "median_seconds": 0.23981379199540243,
+      "min_seconds": 0.22958287497749552,
+      "max_seconds": 0.30960483400849625,
+      "median_peak_rss_bytes": 189382656,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "median_seconds": 0.2414090420352295,
+      "min_seconds": 0.23734195897122845,
+      "max_seconds": 0.2927166250301525,
+      "median_peak_rss_bytes": 176406528,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "median_seconds": 0.17761025001527742,
+      "min_seconds": 0.12963591696461663,
+      "max_seconds": 0.19160437502432615,
+      "median_peak_rss_bytes": 167804928,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "median_seconds": 0.267185042030178,
+      "min_seconds": 0.24135879200184718,
+      "max_seconds": 0.32383608300006017,
+      "median_peak_rss_bytes": 152829952,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "median_seconds": 0.23644558299565688,
+      "min_seconds": 0.22741516696987674,
+      "max_seconds": 0.2717139999731444,
+      "median_peak_rss_bytes": 147161088,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "median_seconds": 0.21325058402726427,
+      "min_seconds": 0.21109425002941862,
+      "max_seconds": 0.23840891697909683,
+      "median_peak_rss_bytes": 146227200,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "median_seconds": 0.045006167027167976,
+      "min_seconds": 0.04481012502219528,
+      "max_seconds": 0.049193250015378,
+      "median_peak_rss_bytes": 58802176,
+      "exit_codes": [
+        0
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "median_seconds": 0.045057584007736295,
+      "min_seconds": 0.043995375046506524,
+      "max_seconds": 0.0677948750089854,
+      "median_peak_rss_bytes": 59047936,
+      "exit_codes": [
+        0
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "median_seconds": 0.04665550001664087,
+      "min_seconds": 0.04373979102820158,
+      "max_seconds": 0.04730437498074025,
+      "median_peak_rss_bytes": 58425344,
+      "exit_codes": [
+        0
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "median_seconds": 0.039632959000300616,
+      "min_seconds": 0.03958645899547264,
+      "max_seconds": 0.08488166698953137,
+      "median_peak_rss_bytes": 53198848,
+      "exit_codes": [
+        0
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "median_seconds": 0.03948145802132785,
+      "min_seconds": 0.038864500005729496,
+      "max_seconds": 0.09636979101924226,
+      "median_peak_rss_bytes": 53084160,
+      "exit_codes": [
+        0
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "median_seconds": 0.03987670800415799,
+      "min_seconds": 0.03808354103239253,
+      "max_seconds": 0.10111983300885186,
+      "median_peak_rss_bytes": 52854784,
+      "exit_codes": [
+        0
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "median_seconds": 0.06188699998892844,
+      "min_seconds": 0.044581916998140514,
+      "max_seconds": 0.09108670800924301,
+      "median_peak_rss_bytes": 60489728,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "median_seconds": 0.04914654203457758,
+      "min_seconds": 0.04571149998810142,
+      "max_seconds": 0.09743108303518966,
+      "median_peak_rss_bytes": 59342848,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "median_seconds": 0.07895691698649898,
+      "min_seconds": 0.058243957988452166,
+      "max_seconds": 0.10037645901320502,
+      "median_peak_rss_bytes": 58753024,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "median_seconds": 0.04115737503161654,
+      "min_seconds": 0.03972291701938957,
+      "max_seconds": 0.041299582982901484,
+      "median_peak_rss_bytes": 56786944,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "median_seconds": 0.040272084006574005,
+      "min_seconds": 0.04025287501281127,
+      "max_seconds": 0.04088366701034829,
+      "median_peak_rss_bytes": 56508416,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "median_seconds": 0.040056874975562096,
+      "min_seconds": 0.038976666983217,
+      "max_seconds": 0.040458208008203655,
+      "median_peak_rss_bytes": 55640064,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "before",
+      "median_seconds": 1.083300833008252,
+      "min_seconds": 1.0578161659650505,
+      "max_seconds": 1.1016953330254182,
+      "median_peak_rss_bytes": 744685568,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "after",
+      "median_seconds": 0.7512527919607237,
+      "min_seconds": 0.7070732499705628,
+      "max_seconds": 0.9869115829933435,
+      "median_peak_rss_bytes": 662405120,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "fixed",
+      "median_seconds": 0.723763333982788,
+      "min_seconds": 0.7115789169911295,
+      "max_seconds": 0.7246883329935372,
+      "median_peak_rss_bytes": 652247040,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "before",
+      "median_seconds": 0.4765880419872701,
+      "min_seconds": 0.4538201669929549,
+      "max_seconds": 0.4773472499800846,
+      "median_peak_rss_bytes": 502546432,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "after",
+      "median_seconds": 0.4396979579469189,
+      "min_seconds": 0.42881637503160164,
+      "max_seconds": 0.4721560410107486,
+      "median_peak_rss_bytes": 478756864,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "median_seconds": 0.4299297910183668,
+      "min_seconds": 0.42653808294562623,
+      "max_seconds": 0.44660412502707914,
+      "median_peak_rss_bytes": 478003200,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "before",
+      "median_seconds": 5.503973540966399,
+      "min_seconds": 3.989102666033432,
+      "max_seconds": 7.5073815420037135,
+      "median_peak_rss_bytes": 975159296,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "after",
+      "median_seconds": 3.9303117910167202,
+      "min_seconds": 3.8240840829676017,
+      "max_seconds": 6.878471499949228,
+      "median_peak_rss_bytes": 794296320,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "fixed",
+      "median_seconds": 1.820414291054476,
+      "min_seconds": 1.6596586250234395,
+      "max_seconds": 1.9582787080435082,
+      "median_peak_rss_bytes": 813711360,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "median_seconds": 3.7779499589814804,
+      "min_seconds": 3.773793875006959,
+      "max_seconds": 6.012339790991973,
+      "median_peak_rss_bytes": 709984256,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "median_seconds": 3.7287704159971327,
+      "min_seconds": 3.7274132079910487,
+      "max_seconds": 6.397972457983997,
+      "median_peak_rss_bytes": 643678208,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "median_seconds": 1.5661657910095528,
+      "min_seconds": 1.535961417015642,
+      "max_seconds": 2.4600599170080386,
+      "median_peak_rss_bytes": 612302848,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "median_seconds": 0.8321717090439051,
+      "min_seconds": 0.7982185410219245,
+      "max_seconds": 0.9529220000258647,
+      "median_peak_rss_bytes": 1092960256,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "median_seconds": 0.7815468329936266,
+      "min_seconds": 0.7569049579906277,
+      "max_seconds": 0.8574661670136265,
+      "median_peak_rss_bytes": 1030258688,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "median_seconds": 0.8257143329828978,
+      "min_seconds": 0.7549346250016242,
+      "max_seconds": 0.8327069159713574,
+      "median_peak_rss_bytes": 971620352,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "median_seconds": 0.8109478339902125,
+      "min_seconds": 0.7268326249904931,
+      "max_seconds": 0.896581916953437,
+      "median_peak_rss_bytes": 939556864,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "median_seconds": 0.7070601250161417,
+      "min_seconds": 0.7063000830239616,
+      "max_seconds": 0.8059813749860041,
+      "median_peak_rss_bytes": 813105152,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "median_seconds": 0.7112844579969533,
+      "min_seconds": 0.6965486669796519,
+      "max_seconds": 0.7492329590022564,
+      "median_peak_rss_bytes": 810631168,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "median_seconds": 27.577949333994184,
+      "min_seconds": 25.83472291601356,
+      "max_seconds": 28.817106749978848,
+      "median_peak_rss_bytes": 1422852096,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "median_seconds": 24.125443874974735,
+      "min_seconds": 23.286266207986046,
+      "max_seconds": 26.83272558398312,
+      "median_peak_rss_bytes": 1295253504,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "median_seconds": 3.042329125048127,
+      "min_seconds": 3.0369743750197813,
+      "max_seconds": 3.56679750001058,
+      "median_peak_rss_bytes": 1262551040,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "median_seconds": 26.10060954099754,
+      "min_seconds": 26.035185542015824,
+      "max_seconds": 28.128987709002104,
+      "median_peak_rss_bytes": 1374437376,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "median_seconds": 25.99631362501532,
+      "min_seconds": 23.14279125002213,
+      "max_seconds": 26.125463958946057,
+      "median_peak_rss_bytes": 1250705408,
+      "exit_codes": [
+        1
+      ]
+    },
+    {
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "median_seconds": 3.0779283749870956,
+      "min_seconds": 3.0038047920097597,
+      "max_seconds": 4.339479416958056,
+      "median_peak_rss_bytes": 1204420608,
+      "exit_codes": [
+        1
+      ]
+    }
+  ],
+  "samples": [
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.8431401249836199,
+      "peak_rss_bytes": 1128448000,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.7891760829952545,
+      "peak_rss_bytes": 995262464,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 1.3666560409474187,
+      "peak_rss_bytes": 967360512,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 2.3134565830114298,
+      "peak_rss_bytes": 847691776,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 2.3045094159897417,
+      "peak_rss_bytes": 629374976,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.5305244170012884,
+      "peak_rss_bytes": 732020736,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 4.550208125030622,
+      "peak_rss_bytes": 1021493248,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 4.13868812500732,
+      "peak_rss_bytes": 792821760,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 1.802460917038843,
+      "peak_rss_bytes": 768966656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.08792008401360363,
+      "peak_rss_bytes": 120668160,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.08378466701833531,
+      "peak_rss_bytes": 113590272,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.0851827499573119,
+      "peak_rss_bytes": 114016256,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.23170345794642344,
+      "peak_rss_bytes": 182845440,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.2320434160064906,
+      "peak_rss_bytes": 163381248,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.13400354096665978,
+      "peak_rss_bytes": 160202752,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.04462175001390278,
+      "peak_rss_bytes": 58753024,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.04474591597681865,
+      "peak_rss_bytes": 59146240,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.0455420829821378,
+      "peak_rss_bytes": 58851328,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.04063995904289186,
+      "peak_rss_bytes": 53936128,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.039674874977208674,
+      "peak_rss_bytes": 53133312,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.041139959008432925,
+      "peak_rss_bytes": 53280768,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.04137558303773403,
+      "peak_rss_bytes": 56541184,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.04150225000921637,
+      "peak_rss_bytes": 55296000,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.04041441698791459,
+      "peak_rss_bytes": 55836672,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.12228887499077246,
+      "peak_rss_bytes": 170590208,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.10576849995413795,
+      "peak_rss_bytes": 145260544,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.10438999999314547,
+      "peak_rss_bytes": 146145280,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 26.128232125018258,
+      "peak_rss_bytes": 1409204224,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 23.841215374995954,
+      "peak_rss_bytes": 1294401536,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 3.0058793750358745,
+      "peak_rss_bytes": 1248477184,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.14823087502736598,
+      "peak_rss_bytes": 145653760,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.14564416697248816,
+      "peak_rss_bytes": 156286976,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.09266670804936439,
+      "peak_rss_bytes": 130301952,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.37153741595102474,
+      "peak_rss_bytes": 784580608,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.32523662503808737,
+      "peak_rss_bytes": 610844672,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.3432169579900801,
+      "peak_rss_bytes": 592838656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 25.713182166975457,
+      "peak_rss_bytes": 1370439680,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 26.40434925002046,
+      "peak_rss_bytes": 1238384640,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 3.056591125030536,
+      "peak_rss_bytes": 1188003840,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.08980562502983958,
+      "peak_rss_bytes": 125026304,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.08492429100442678,
+      "peak_rss_bytes": 119930880,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.08727945800637826,
+      "peak_rss_bytes": 118964224,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 1.0313036249717698,
+      "peak_rss_bytes": 796934144,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.7003929589991458,
+      "peak_rss_bytes": 659996672,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.7056663749972358,
+      "peak_rss_bytes": 674824192,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 3.8726962080108933,
+      "peak_rss_bytes": 701956096,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 3.82469408295583,
+      "peak_rss_bytes": 643776512,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 1.5153615000308491,
+      "peak_rss_bytes": 623427584,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.21736375003820285,
+      "peak_rss_bytes": 152666112,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.21170825004810467,
+      "peak_rss_bytes": 145293312,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.12418516597244889,
+      "peak_rss_bytes": 146259968,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.043437000014819205,
+      "peak_rss_bytes": 61276160,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.043649750004988164,
+      "peak_rss_bytes": 61685760,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.04345291596837342,
+      "peak_rss_bytes": 60850176,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 2.2798803339828737,
+      "peak_rss_bytes": 532725760,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 3.0208910419605672,
+      "peak_rss_bytes": 495910912,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.564634499954991,
+      "peak_rss_bytes": 423051264,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.1552758750040084,
+      "peak_rss_bytes": 181747712,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.16035670903511345,
+      "peak_rss_bytes": 164462592,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.10600558400619775,
+      "peak_rss_bytes": 153272320,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.2954459169995971,
+      "peak_rss_bytes": 376782848,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.27823400002671406,
+      "peak_rss_bytes": 352927744,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.28663883300032467,
+      "peak_rss_bytes": 350896128,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.17391854198649526,
+      "peak_rss_bytes": 183582720,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.12569070799509063,
+      "peak_rss_bytes": 153337856,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.1176488749915734,
+      "peak_rss_bytes": 155942912,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.4730635409941897,
+      "peak_rss_bytes": 535953408,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.4370831670239568,
+      "peak_rss_bytes": 467910656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.43170208303490654,
+      "peak_rss_bytes": 496189440,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.7248507920303382,
+      "peak_rss_bytes": 938672128,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.6865750829456374,
+      "peak_rss_bytes": 814022656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 0,
+      "warmup": true,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.7008099170052446,
+      "peak_rss_bytes": 804634624,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.08619758300483227,
+      "peak_rss_bytes": 117981184,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.08604166598524898,
+      "peak_rss_bytes": 119308288,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.08867641701363027,
+      "peak_rss_bytes": 125714432,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 23.286266207986046,
+      "peak_rss_bytes": 1288126464,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 3.0369743750197813,
+      "peak_rss_bytes": 1268678656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 28.817106749978848,
+      "peak_rss_bytes": 1422852096,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 2.423297500004992,
+      "peak_rss_bytes": 733839360,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.635782833036501,
+      "peak_rss_bytes": 723501056,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 2.285537041956559,
+      "peak_rss_bytes": 884523008,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.7569049579906277,
+      "peak_rss_bytes": 956104704,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.7549346250016242,
+      "peak_rss_bytes": 961478656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.7982185410219245,
+      "peak_rss_bytes": 959873024,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.7063000830239616,
+      "peak_rss_bytes": 813105152,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.7112844579969533,
+      "peak_rss_bytes": 811106304,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.8109478339902125,
+      "peak_rss_bytes": 941883392,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.2414090420352295,
+      "peak_rss_bytes": 176406528,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.12963591696461663,
+      "peak_rss_bytes": 163627008,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.22958287497749552,
+      "peak_rss_bytes": 192282624,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 2.312552042014431,
+      "peak_rss_bytes": 490536960,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.5287849580054171,
+      "peak_rss_bytes": 438452224,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 2.1981165839824826,
+      "peak_rss_bytes": 531906560,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.4396979579469189,
+      "peak_rss_bytes": 478756864,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.42653808294562623,
+      "peak_rss_bytes": 503382016,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.4773472499800846,
+      "peak_rss_bytes": 528793600,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.1563330419594422,
+      "peak_rss_bytes": 170180608,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.10603204200742766,
+      "peak_rss_bytes": 151126016,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.15677674999460578,
+      "peak_rss_bytes": 177487872,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 25.99631362501532,
+      "peak_rss_bytes": 1250705408,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 4.339479416958056,
+      "peak_rss_bytes": 1212153856,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 28.128987709002104,
+      "peak_rss_bytes": 1374437376,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 6.397972457983997,
+      "peak_rss_bytes": 648396800,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 2.4600599170080386,
+      "peak_rss_bytes": 638369792,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 6.012339790991973,
+      "peak_rss_bytes": 733020160,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.3783567500067875,
+      "peak_rss_bytes": 619413504,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.5689597919699736,
+      "peak_rss_bytes": 610238464,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.4379407499800436,
+      "peak_rss_bytes": 778059776,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.12472904199967161,
+      "peak_rss_bytes": 156303360,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.12531750003108755,
+      "peak_rss_bytes": 160808960,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.1573149590403773,
+      "peak_rss_bytes": 174850048,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.32438900001579896,
+      "peak_rss_bytes": 337428480,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.31814954202855006,
+      "peak_rss_bytes": 347947008,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.3203478339710273,
+      "peak_rss_bytes": 363626496,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 6.878471499949228,
+      "peak_rss_bytes": 801030144,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 1.820414291054476,
+      "peak_rss_bytes": 813711360,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 5.503973540966399,
+      "peak_rss_bytes": 855719936,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.04088366701034829,
+      "peak_rss_bytes": 56786944,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.040458208008203655,
+      "peak_rss_bytes": 56623104,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.04115737503161654,
+      "peak_rss_bytes": 56590336,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.22741516696987674,
+      "peak_rss_bytes": 146210816,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.21109425002941862,
+      "peak_rss_bytes": 146604032,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.32383608300006017,
+      "peak_rss_bytes": 151486464,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.20794512500287965,
+      "peak_rss_bytes": 146374656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.13773904199479148,
+      "peak_rss_bytes": 127516672,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.2800835410016589,
+      "peak_rss_bytes": 166019072,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.09636979101924226,
+      "peak_rss_bytes": 50888704,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.10111983300885186,
+      "peak_rss_bytes": 50888704,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.08488166698953137,
+      "peak_rss_bytes": 52150272,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.2359912089887075,
+      "peak_rss_bytes": 149241856,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.20255937497131526,
+      "peak_rss_bytes": 157450240,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.2475705420365557,
+      "peak_rss_bytes": 173588480,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.09743108303518966,
+      "peak_rss_bytes": 58343424,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.10037645901320502,
+      "peak_rss_bytes": 56967168,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.09108670800924301,
+      "peak_rss_bytes": 58687488,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.19124120799824595,
+      "peak_rss_bytes": 112689152,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.1873228329932317,
+      "peak_rss_bytes": 111558656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.18985791702289134,
+      "peak_rss_bytes": 117555200,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.9869115829933435,
+      "peak_rss_bytes": 677249024,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.723763333982788,
+      "peak_rss_bytes": 652247040,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 1.083300833008252,
+      "peak_rss_bytes": 744685568,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.045057584007736295,
+      "peak_rss_bytes": 58261504,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.04665550001664087,
+      "peak_rss_bytes": 58458112,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 1,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.045006167027167976,
+      "peak_rss_bytes": 59572224,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.6316728329984471,
+      "peak_rss_bytes": 722616320,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 2.700346708006691,
+      "peak_rss_bytes": 839221248,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 2.9882315829745494,
+      "peak_rss_bytes": 737591296,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.040056874975562096,
+      "peak_rss_bytes": 55640064,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.041299582982901484,
+      "peak_rss_bytes": 57180160,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.04025287501281127,
+      "peak_rss_bytes": 56131584,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.44660412502707914,
+      "peak_rss_bytes": 478003200,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.4765880419872701,
+      "peak_rss_bytes": 502546432,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.4721560410107486,
+      "peak_rss_bytes": 487849984,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.0923340410226956,
+      "peak_rss_bytes": 116621312,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.09047058300347999,
+      "peak_rss_bytes": 127631360,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.11018912500003353,
+      "peak_rss_bytes": 116260864,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.5812896660063416,
+      "peak_rss_bytes": 455868416,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 2.5986270420253277,
+      "peak_rss_bytes": 539344896,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 2.884302749997005,
+      "peak_rss_bytes": 488898560,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.19160437502432615,
+      "peak_rss_bytes": 167804928,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.23981379199540243,
+      "peak_rss_bytes": 186630144,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.23734195897122845,
+      "peak_rss_bytes": 173850624,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.12464908300898969,
+      "peak_rss_bytes": 157466624,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.16435241600265726,
+      "peak_rss_bytes": 174178304,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.17933245899621397,
+      "peak_rss_bytes": 159891456,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 1.9582787080435082,
+      "peak_rss_bytes": 755597312,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 7.5073815420037135,
+      "peak_rss_bytes": 1001734144,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 3.9303117910167202,
+      "peak_rss_bytes": 749322240,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.10566787503194064,
+      "peak_rss_bytes": 155058176,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.16062420897651464,
+      "peak_rss_bytes": 184680448,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.15109420800581574,
+      "peak_rss_bytes": 166854656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 3.0038047920097597,
+      "peak_rss_bytes": 1204420608,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 26.10060954099754,
+      "peak_rss_bytes": 1371930624,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 26.125463958946057,
+      "peak_rss_bytes": 1255112704,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.7492329590022564,
+      "peak_rss_bytes": 805601280,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.896581916953437,
+      "peak_rss_bytes": 939556864,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.8059813749860041,
+      "peak_rss_bytes": 813252608,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.124435874982737,
+      "peak_rss_bytes": 150323200,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.13962575001642108,
+      "peak_rss_bytes": 165789696,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.12404895795043558,
+      "peak_rss_bytes": 155271168,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 3.56679750001058,
+      "peak_rss_bytes": 1253228544,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 27.577949333994184,
+      "peak_rss_bytes": 1449639936,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 26.83272558398312,
+      "peak_rss_bytes": 1301250048,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.23840891697909683,
+      "peak_rss_bytes": 146227200,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.267185042030178,
+      "peak_rss_bytes": 165380096,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.23644558299565688,
+      "peak_rss_bytes": 148619264,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 1.535961417015642,
+      "peak_rss_bytes": 603504640,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 3.773793875006959,
+      "peak_rss_bytes": 709984256,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 3.7274132079910487,
+      "peak_rss_bytes": 643678208,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.30500200000824407,
+      "peak_rss_bytes": 349143040,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.3544220000039786,
+      "peak_rss_bytes": 364904448,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.6623504169983789,
+      "peak_rss_bytes": 344981504,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.37387637502979487,
+      "peak_rss_bytes": 615858176,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.3952177080209367,
+      "peak_rss_bytes": 787726336,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.3470999580458738,
+      "peak_rss_bytes": 603078656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.03987670800415799,
+      "peak_rss_bytes": 53133312,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.039632959000300616,
+      "peak_rss_bytes": 53608448,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.03948145802132785,
+      "peak_rss_bytes": 53084160,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.7246883329935372,
+      "peak_rss_bytes": 663126016,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 1.0578161659650505,
+      "peak_rss_bytes": 737492992,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.7512527919607237,
+      "peak_rss_bytes": 660209664,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.0845081249717623,
+      "peak_rss_bytes": 114900992,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.11998725001467392,
+      "peak_rss_bytes": 119848960,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.08538354199845344,
+      "peak_rss_bytes": 114819072,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.09726416697958484,
+      "peak_rss_bytes": 129859584,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.15513579099206254,
+      "peak_rss_bytes": 158449664,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.15194095904007554,
+      "peak_rss_bytes": 144752640,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.8327069159713574,
+      "peak_rss_bytes": 1063698432,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.8321717090439051,
+      "peak_rss_bytes": 1092960256,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.8574661670136265,
+      "peak_rss_bytes": 1045151744,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.04730437498074025,
+      "peak_rss_bytes": 57671680,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.049193250015378,
+      "peak_rss_bytes": 56672256,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.0677948750089854,
+      "peak_rss_bytes": 59047936,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.07895691698649898,
+      "peak_rss_bytes": 58753024,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.06188699998892844,
+      "peak_rss_bytes": 60489728,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 2,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.04914654203457758,
+      "peak_rss_bytes": 59342848,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.24135879200184718,
+      "peak_rss_bytes": 152829952,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.2717139999731444,
+      "peak_rss_bytes": 147161088,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.21325058402726427,
+      "peak_rss_bytes": 141934592,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.30960483400849625,
+      "peak_rss_bytes": 189382656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.2927166250301525,
+      "peak_rss_bytes": 183173120,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.17761025001527742,
+      "peak_rss_bytes": 175882240,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.9529220000258647,
+      "peak_rss_bytes": 1096712192,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.7815468329936266,
+      "peak_rss_bytes": 1030258688,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.8257143329828978,
+      "peak_rss_bytes": 971620352,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.044581916998140514,
+      "peak_rss_bytes": 61800448,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.04571149998810142,
+      "peak_rss_bytes": 61358080,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.058243957988452166,
+      "peak_rss_bytes": 59949056,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.15954312501708046,
+      "peak_rss_bytes": 174931968,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.12190433300565928,
+      "peak_rss_bytes": 152223744,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.1204248340218328,
+      "peak_rss_bytes": 158711808,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 1.1016953330254182,
+      "peak_rss_bytes": 784203776,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.7070732499705628,
+      "peak_rss_bytes": 662405120,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.7115789169911295,
+      "peak_rss_bytes": 646545408,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.28439337498275563,
+      "peak_rss_bytes": 365412352,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.27013374998932704,
+      "peak_rss_bytes": 337788928,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.2677034580265172,
+      "peak_rss_bytes": 351895552,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 3.989102666033432,
+      "peak_rss_bytes": 975159296,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 3.8240840829676017,
+      "peak_rss_bytes": 794296320,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 1.6596586250234395,
+      "peak_rss_bytes": 833994752,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 0.1577109579811804,
+      "peak_rss_bytes": 177061888,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 0.15343566599767655,
+      "peak_rss_bytes": 171474944,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.1019183750031516,
+      "peak_rss_bytes": 151044096,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 25.83472291601356,
+      "peak_rss_bytes": 1419411456,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 24.125443874974735,
+      "peak_rss_bytes": 1295253504,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 3.042329125048127,
+      "peak_rss_bytes": 1262551040,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.15082508302293718,
+      "peak_rss_bytes": 156106752,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.14643583400174975,
+      "peak_rss_bytes": 143720448,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.09274395799729973,
+      "peak_rss_bytes": 129433600,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 3.7779499589814804,
+      "peak_rss_bytes": 708984832,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 3.7287704159971327,
+      "peak_rss_bytes": 637894656,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 1.5661657910095528,
+      "peak_rss_bytes": 612302848,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.04481012502219528,
+      "peak_rss_bytes": 58802176,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.043995375046506524,
+      "peak_rss_bytes": 59260928,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.04373979102820158,
+      "peak_rss_bytes": 58425344,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.03958645899547264,
+      "peak_rss_bytes": 53198848,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.038864500005729496,
+      "peak_rss_bytes": 53280768,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.03808354103239253,
+      "peak_rss_bytes": 52854784,
+      "exit": 0,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.7268326249904931,
+      "peak_rss_bytes": 935444480,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.7070601250161417,
+      "peak_rss_bytes": 812023808,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.6965486669796519,
+      "peak_rss_bytes": 810631168,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.3726512499852106,
+      "peak_rss_bytes": 779960320,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.33334033301798627,
+      "peak_rss_bytes": 595312640,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.3399975830106996,
+      "peak_rss_bytes": 590381056,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.4538201669929549,
+      "peak_rss_bytes": 485965824,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.42881637503160164,
+      "peak_rss_bytes": 457949184,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "plaid.yml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.4299297910183668,
+      "peak_rss_bytes": 450887680,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 0.03972291701938957,
+      "peak_rss_bytes": 56786944,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 0.040272084006574005,
+      "peak_rss_bytes": 56508416,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "petstore.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.038976666983217,
+      "peak_rss_bytes": 55115776,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 26.035185542015824,
+      "peak_rss_bytes": 1375780864,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 23.14279125002213,
+      "peak_rss_bytes": 1243201536,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "stripe.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 3.0779283749870956,
+      "peak_rss_bytes": 1196474368,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "before",
+      "seconds": 2.1398078339989297,
+      "peak_rss_bytes": 535150592,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "after",
+      "seconds": 2.1296277919900604,
+      "peak_rss_bytes": 484163584,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard-turbo",
+      "binary": "fixed",
+      "seconds": 0.49824854196049273,
+      "peak_rss_bytes": 459440128,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "before",
+      "seconds": 2.217721834022086,
+      "peak_rss_bytes": 850984960,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "after",
+      "seconds": 2.231002749991603,
+      "peak_rss_bytes": 766197760,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "ld.yaml",
+      "mode": "hard",
+      "binary": "fixed",
+      "seconds": 0.528399457980413,
+      "peak_rss_bytes": 740163584,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.08303883404005319,
+      "peak_rss_bytes": 119504896,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.08089166600257158,
+      "peak_rss_bytes": 114638848,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "neon.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.08044733398128301,
+      "peak_rss_bytes": 115081216,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "before",
+      "seconds": 0.08774887496838346,
+      "peak_rss_bytes": 126828544,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "after",
+      "seconds": 0.0863615830312483,
+      "peak_rss_bytes": 118964224,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "turbo",
+      "binary": "fixed",
+      "seconds": 0.08575395803200081,
+      "peak_rss_bytes": 116015104,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "before",
+      "seconds": 0.11683850002009422,
+      "peak_rss_bytes": 168247296,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "after",
+      "seconds": 0.09950999997090548,
+      "peak_rss_bytes": 152780800,
+      "exit": 1,
+      "timeouts": 0
+    },
+    {
+      "iteration": 3,
+      "warmup": false,
+      "spec": "mistral.yaml",
+      "mode": "regular",
+      "binary": "fixed",
+      "seconds": 0.10138795897364616,
+      "peak_rss_bytes": 148455424,
+      "exit": 1,
+      "timeouts": 0
+    }
+  ]
+}
