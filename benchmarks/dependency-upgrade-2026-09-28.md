@@ -30,6 +30,21 @@ The rule fix changes hard-mode work; regular and turbo use the dependency-only n
 
 The default five-second rule limit dropped `owasp-array-limit` and `owasp-string-limit` on Stripe before the fix. With a 60-second rule limit, the baseline Stripe hard-mode median was 27.578 s; the dependency-only median was 24.125 s. The fixed binary completed in 3.042 s (3.042–3.567 s across measured runs). At the ordinary five-second limit, the fixed binary completed every spec and mode with no skipped rules.
 
+## After indexing OWASP schema direction
+
+Profiling the fixed build showed that `owasp-string-limit` spent about 3.6 seconds on Stripe determining schema direction and negligible time locating result paths. Each distinct schema name still triggered a full walk of the document. The direction index walks request and response schema references once per rule invocation, then serves candidate names from a map. Paired end-to-end hard-mode medians below compare the fixed build above with the indexed build; each binary had one warm-up and three measured runs per case, with shuffled serial execution.
+
+| Spec | Hard, fixed → indexed | Hard + turbo, fixed → indexed |
+| --- | ---: | ---: |
+| petstore.yaml | 0.045 → 0.044 s | 0.039 → 0.040 s |
+| mistral.yaml | 0.105 → 0.105 s | 0.096 → 0.090 s |
+| neon.yaml | 0.133 → 0.120 s | 0.126 → 0.085 s |
+| ld.yaml | 0.584 → 0.346 s | 0.509 → 0.280 s |
+| plaid.yml | 1.721 → 0.697 s | 1.549 → 0.455 s |
+| stripe.yaml | 3.110 → 0.778 s | 3.137 → 0.717 s |
+
+The index returned the same direction as the previous per-name lookup for every schema name in all six specs. All 24 Spectral-report cases retained their finding counts and content; three Neon `oas3-schema` messages had the previously observed nondeterministic clause ordering. All 24 cases also completed under ordinary default timeouts with no skipped rules. The full Vacuum test suite passed. These paired measurements were a separate, quieter run from the original three-binary experiment; compare only within each pair, especially for sub-100 ms cases.
+
 Selected median peak resident memory (MiB):
 
 | Spec / mode | Before | Dependencies | With rule fix |
