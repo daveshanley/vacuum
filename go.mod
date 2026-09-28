@@ -16,10 +16,10 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/json-iterator/go v1.1.12
 	github.com/muesli/termenv v0.16.0
-	github.com/pb33f/doctor v0.0.80
+	github.com/pb33f/doctor v0.0.82-0.20260928215936-a5a9b7e66598
 	github.com/pb33f/go-yaml v0.1.0
 	github.com/pb33f/jsonpath v0.8.4
-	github.com/pb33f/libasyncapi v0.0.2
+	github.com/pb33f/libasyncapi v0.0.3-0.20260928174225-e79f2595d641
 	github.com/pb33f/libopenapi v0.41.1
 	github.com/pb33f/libopenapi-validator v0.14.1
 	github.com/pb33f/testify v0.1.1
@@ -86,7 +86,6 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
