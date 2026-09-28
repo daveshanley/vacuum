@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 // TypedEnum will check enum values match the types provided

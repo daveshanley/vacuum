@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestInitSyntaxStyles(t *testing.T) {

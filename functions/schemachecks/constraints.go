@@ -10,9 +10,9 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
-	"go.yaml.in/yaml/v4"
 )
 
 type constraintDef struct {

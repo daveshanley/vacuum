@@ -12,8 +12,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel"
-	"go.yaml.in/yaml/v4"
 )
 
 type acceptMask uint8

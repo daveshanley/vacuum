@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	openapiUtils "github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 // IgnoreMatcherOptions controls how ignore expressions are resolved.

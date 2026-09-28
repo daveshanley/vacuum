@@ -19,8 +19,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libasyncapi"
-	"go.yaml.in/yaml/v4"
 )
 
 // ApplyAsyncAPIRulesToRuleSet handles AsyncAPI documents before the shared

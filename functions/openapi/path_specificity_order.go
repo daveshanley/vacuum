@@ -10,7 +10,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	doctorModel "github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // PathSpecificityOrder checks that overlapping paths are ordered from most specific to least specific.
