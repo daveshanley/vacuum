@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -546,6 +547,21 @@ func loadExternalSchema(external, currentDir string, allowRemote bool, httpClien
 		}
 		raw, err := fetchRemoteSpec(external, httpClient)
 		return external, raw, err
+	}
+	if base, err := url.Parse(currentDir); err == nil && base.Scheme != "" && base.Host != "" {
+		ref, refErr := url.Parse(external)
+		if refErr != nil {
+			return "", nil, fmt.Errorf("invalid external schema reference %q: %w", external, refErr)
+		}
+		if !strings.HasSuffix(base.Path, "/") {
+			base.Path += "/"
+		}
+		resolved := base.ResolveReference(ref).String()
+		if !allowRemote {
+			return "", nil, fmt.Errorf("remote schema reference %q found but --remote=false", resolved)
+		}
+		raw, fetchErr := fetchRemoteSpec(resolved, httpClient)
+		return resolved, raw, fetchErr
 	}
 	target := external
 	if !filepath.IsAbs(target) {

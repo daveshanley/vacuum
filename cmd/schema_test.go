@@ -9,9 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pb33f/testify/assert"
@@ -395,6 +398,52 @@ func TestSchemaBundle_StdinRelativeRefsRequireBase(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "provide --base")
+}
+
+func TestSchemaCommand_StdinRemoteBaseResolvesExternalRefs(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/schemas/defs.json" {
+			http.NotFound(w, r)
+			return
+		}
+		requests.Add(1)
+		_, _ = w.Write([]byte(`{"type":"string"}`))
+	}))
+	defer server.Close()
+
+	cmd := GetRootCommand()
+	cmd.SetIn(strings.NewReader(`{"type":"object","properties":{"name":{"$ref":"defs.json"}}}`))
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"schema", "--stdin", "--base", server.URL + "/schemas", "--remote", "--resolve-all-refs", "--fail-severity", "none", "--no-banner", "--no-style"})
+
+	require.NoError(t, cmd.Execute())
+	assert.Positive(t, requests.Load())
+}
+
+func TestSchemaBundle_StdinRemoteBaseResolvesExternalRefs(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/schemas/defs.json" {
+			http.NotFound(w, r)
+			return
+		}
+		requests.Add(1)
+		_, _ = w.Write([]byte(`{"type":"string"}`))
+	}))
+	defer server.Close()
+
+	cmd := GetRootCommand()
+	var out bytes.Buffer
+	cmd.SetIn(strings.NewReader(`{"$ref":"defs.json"}`))
+	cmd.SetOut(&out)
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetArgs([]string{"schema", "bundle", "--stdin", "--stdout", "--base", server.URL + "/schemas", "--remote", "--no-style"})
+
+	require.NoError(t, cmd.Execute())
+	assert.Equal(t, int32(1), requests.Load())
+	assert.Contains(t, out.String(), "$defs")
 }
 
 func findYAMLMapValue(node *yaml.Node, key string) *yaml.Node {
