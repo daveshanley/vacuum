@@ -1453,3 +1453,60 @@ func runExamplesSchemaRule(t *testing.T, yml string, opts map[string]string) []m
 
 	return (ExamplesSchema{}).RunRule(nil, ctx)
 }
+
+func TestIssue976_NotValidationErrorMessage(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Example:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        reason:
+          type: string
+      if:
+        properties:
+          enabled:
+            const: true
+        required:
+          - enabled
+      then:
+        not:
+          required:
+            - reason
+      example:
+        enabled: true
+        reason: This should not be present`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: property `reason` must not be present", res[0].Message)
+	assert.Equal(t, "$.components.schemas['Example'].example", res[0].Path)
+}
+
+func TestIssue976_NotValidationErrorMessage_RootNotType(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    NoString:
+      not:
+        type: string
+      example: hello`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: value must not be of type `string`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['NoString'].example", res[0].Path)
+}
+
+
