@@ -89,7 +89,8 @@ func isConstraintViolation(ek jsonschema.ErrorKind) bool {
 		*kind.AdditionalProperties,
 		*kind.MinLength, *kind.MaxLength, *kind.Minimum, *kind.Maximum,
 		*kind.MinItems, *kind.MaxItems, *kind.MinProperties, *kind.MaxProperties,
-		*kind.UniqueItems, *kind.PropertyNames, *kind.MultipleOf:
+		*kind.UniqueItems, *kind.PropertyNames, *kind.MultipleOf,
+		*kind.Not:
 		return true
 	}
 	return false
@@ -185,6 +186,8 @@ func (f DefaultErrorFormatter) Format(ctx ErrorContext) string {
 		return fmt.Sprintf("must be `%v`", k.Want)
 	case *kind.Format:
 		return fmt.Sprintf("invalid format: expected `%s`", k.Want)
+	case *kind.Not:
+		return "violates `not` constraint"
 	default:
 		return fmt.Sprintf("%v", ctx.ErrorKind)
 	}
@@ -377,6 +380,13 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 						leafErrors = leafErrors[len(leafErrors)-3:]
 					}
 					reason = strings.Join(leafErrors, "; ")
+				}
+			}
+
+			if isNotValidationError(schemaErr) {
+				notReason := formatSchemaValidationReason(schemaErr, "violates `not`")
+				if notReason != schemaErr.Reason {
+					reason = notReason
 				}
 			}
 
