@@ -6,7 +6,7 @@ package asyncapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // Document validates the parsed AsyncAPI document build state.

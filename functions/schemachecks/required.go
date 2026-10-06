@@ -9,8 +9,8 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
-	"go.yaml.in/yaml/v4"
 )
 
 // CheckRequiredFields checks duplicate required entries and required values that are absent from known properties.

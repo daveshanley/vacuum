@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
-	santhoshjsonschema "github.com/santhosh-tekuri/jsonschema/v6"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
+	schemaengine "github.com/pb33f/jsonschema/v6"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 type Dialect struct {
 	Format string
 	URL    string
-	Draft  *santhoshjsonschema.Draft
+	Draft  *schemaengine.Draft
 }
 
 func DetectDialect(root *yaml.Node) Dialect {
@@ -43,7 +43,7 @@ func DetectDialect(root *yaml.Node) Dialect {
 	case strings.Contains(normalized, "draft-07/schema"):
 		return dialectForFormat(model.JSONSchemaDraft07)
 	default:
-		return Dialect{Format: model.JSONSchema, URL: schemaURL, Draft: santhoshjsonschema.Draft2020}
+		return Dialect{Format: model.JSONSchema, URL: schemaURL, Draft: schemaengine.Draft2020}
 	}
 }
 
@@ -70,11 +70,11 @@ func EnsureRootSchema(root *yaml.Node, schemaURL string) {
 func dialectForFormat(format string) Dialect {
 	switch format {
 	case model.JSONSchemaDraft2019:
-		return Dialect{Format: format, URL: SchemaURL2019, Draft: santhoshjsonschema.Draft2019}
+		return Dialect{Format: format, URL: SchemaURL2019, Draft: schemaengine.Draft2019}
 	case model.JSONSchemaDraft07:
-		return Dialect{Format: format, URL: SchemaURL07, Draft: santhoshjsonschema.Draft7}
+		return Dialect{Format: format, URL: SchemaURL07, Draft: schemaengine.Draft7}
 	default:
-		return Dialect{Format: model.JSONSchemaDraft2020, URL: SchemaURL2020, Draft: santhoshjsonschema.Draft2020}
+		return Dialect{Format: model.JSONSchemaDraft2020, URL: SchemaURL2020, Draft: schemaengine.Draft2020}
 	}
 }
 

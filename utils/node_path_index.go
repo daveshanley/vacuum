@@ -3,7 +3,7 @@
 
 package utils
 
-import "go.yaml.in/yaml/v4"
+import "github.com/pb33f/go-yaml"
 
 // NodePathIndex maps YAML nodes back to their exact vacuum JSONPath.
 // This is used when JSONPath expressions return nodes and vacuum needs to

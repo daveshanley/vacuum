@@ -10,8 +10,8 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	santhoshjsonschema "github.com/santhosh-tekuri/jsonschema/v6"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
+	schemaengine "github.com/pb33f/jsonschema/v6"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -27,7 +27,7 @@ type ValidationIssue struct {
 
 var (
 	metaOnce    sync.Once
-	metaSchemas map[string]*santhoshjsonschema.Schema
+	metaSchemas map[string]*schemaengine.Schema
 	metaErr     error
 )
 
@@ -52,7 +52,7 @@ func ValidateAgainstMetaschema(root *yaml.Node) ([]ValidationIssue, error) {
 	if err == nil {
 		return nil, nil
 	}
-	var validationErr *santhoshjsonschema.ValidationError
+	var validationErr *schemaengine.ValidationError
 	if !asValidationError(err, &validationErr) {
 		return []ValidationIssue{issueForLocation(root, nil, err.Error())}, nil
 	}
@@ -69,7 +69,8 @@ func ValidateAgainstMetaschema(root *yaml.Node) ([]ValidationIssue, error) {
 	return issues, nil
 }
 
-func CompileSchema(root *yaml.Node) (*santhoshjsonschema.Schema, error) {
+// CompileSchema compiles a schema using its declared dialect without loading external resources.
+func CompileSchema(root *yaml.Node) (*schemaengine.Schema, error) {
 	root = RootNode(root)
 	dialect := DetectDialect(root)
 	if !IsSupportedDialect(dialect.Format) {
@@ -79,7 +80,7 @@ func CompileSchema(root *yaml.Node) (*santhoshjsonschema.Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	compiler := santhoshjsonschema.NewCompiler()
+	compiler := schemaengine.NewCompiler()
 	compiler.DefaultDraft(dialect.Draft)
 	compiler.UseLoader(noopLoader{})
 	if err := compiler.AddResource("schema.json", data); err != nil {
@@ -94,15 +95,15 @@ func (noopLoader) Load(loadURL string) (any, error) {
 	return nil, fmt.Errorf("remote schema loading is disabled: %s", loadURL)
 }
 
-func metaschemaForFormat(format string) (*santhoshjsonschema.Schema, error) {
+func metaschemaForFormat(format string) (*schemaengine.Schema, error) {
 	metaOnce.Do(func() {
-		metaSchemas = make(map[string]*santhoshjsonschema.Schema)
+		metaSchemas = make(map[string]*schemaengine.Schema)
 		for _, dialect := range []Dialect{
 			dialectForFormat(model.JSONSchemaDraft2020),
 			dialectForFormat(model.JSONSchemaDraft2019),
 			dialectForFormat(model.JSONSchemaDraft07),
 		} {
-			compiler := santhoshjsonschema.NewCompiler()
+			compiler := schemaengine.NewCompiler()
 			compiler.DefaultDraft(dialect.Draft)
 			compiler.UseLoader(noopLoader{})
 			compiled, err := compiler.Compile(dialect.URL)
@@ -135,13 +136,13 @@ func issueForLocation(root *yaml.Node, location []string, msg string) Validation
 	}
 }
 
-func asValidationError(err error, target **santhoshjsonschema.ValidationError) bool {
-	if validationErr, ok := err.(*santhoshjsonschema.ValidationError); ok {
+func asValidationError(err error, target **schemaengine.ValidationError) bool {
+	if validationErr, ok := err.(*schemaengine.ValidationError); ok {
 		*target = validationErr
 		return true
 	}
-	if schemaErr, ok := err.(*santhoshjsonschema.SchemaValidationError); ok {
-		if validationErr, ok := schemaErr.Err.(*santhoshjsonschema.ValidationError); ok {
+	if schemaErr, ok := err.(*schemaengine.SchemaValidationError); ok {
+		if validationErr, ok := schemaErr.Err.(*schemaengine.ValidationError); ok {
 			*target = validationErr
 			return true
 		}
@@ -149,14 +150,14 @@ func asValidationError(err error, target **santhoshjsonschema.ValidationError) b
 	return false
 }
 
-func flattenValidationErrors(err *santhoshjsonschema.ValidationError) []*santhoshjsonschema.ValidationError {
+func flattenValidationErrors(err *schemaengine.ValidationError) []*schemaengine.ValidationError {
 	if err == nil {
 		return nil
 	}
 	if len(err.Causes) == 0 {
-		return []*santhoshjsonschema.ValidationError{err}
+		return []*schemaengine.ValidationError{err}
 	}
-	var leaves []*santhoshjsonschema.ValidationError
+	var leaves []*schemaengine.ValidationError
 	for _, cause := range err.Causes {
 		leaves = append(leaves, flattenValidationErrors(cause)...)
 	}
