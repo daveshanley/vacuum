@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.yaml.in/yaml/v4"
 
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"

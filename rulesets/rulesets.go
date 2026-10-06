@@ -21,8 +21,8 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/pb33f/jsonschema/v6"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 const (

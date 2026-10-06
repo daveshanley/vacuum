@@ -16,10 +16,10 @@ import (
 
 	vacuumModel "github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 var asyncAPIMarker = []byte("asyncapi")

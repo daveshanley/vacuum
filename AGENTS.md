@@ -141,7 +141,7 @@ When adding or changing flags, check every command surface that shares the behav
 - Prefer existing command helpers in `cmd/` over creating parallel execution paths.
 - Keep shared lint behavior in `BuildResults*`, `LintLoadedSpec`, `motor.RuleSetExecution`, or `motor.ExecutionOptions` when multiple commands need it.
 - Preserve the exit-code contract: `0` clean, `1` violations at or above threshold, `2` parse/input/tool error.
-- Use `go.yaml.in/yaml/v4` where current code does; do not casually mix YAML libraries.
+- Use `github.com/pb33f/go-yaml` for YAML nodes shared with libopenapi, Doctor, and libasyncapi; do not mix YAML node types.
 - Keep rule IDs, categories, and built-in rule constants centralized in `rulesets/` and `model/`.
 - For result paths, preserve both `Path` and `Paths` semantics. Many report and diff workflows depend on stable path output.
 - For AsyncAPI, preserve `RuleFunctionContext.AsyncAPI`, libasyncapi diagnostics, node-path mapping, and the default ruleset selection path. Reports, stats, snippets, and diagnostics should remain first-class outputs.

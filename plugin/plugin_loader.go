@@ -5,7 +5,7 @@ import (
 	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin/javascript"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 	"os"
 	"path/filepath"
 	"plugin"

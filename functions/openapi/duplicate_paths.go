@@ -5,7 +5,7 @@ package openapi
 
 import (
 	"fmt"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"

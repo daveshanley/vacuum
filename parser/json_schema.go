@@ -10,13 +10,13 @@ import (
 	"sync"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 func ConvertYAMLIntoJSONSchema(str string, index *index.SpecIndex) (*highBase.Schema, error) {

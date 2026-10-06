@@ -18,9 +18,9 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 // WatchConfig holds configuration for file watching
