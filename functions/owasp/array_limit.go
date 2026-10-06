@@ -14,7 +14,7 @@ import (
 
 type ArrayLimit struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the ArrayLimit rule.
 func (ar ArrayLimit) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "owaspArrayLimit"}
 }
@@ -24,29 +24,28 @@ func (ar ArrayLimit) GetCategory() string {
 	return model.FunctionCategoryOWASP
 }
 
-// RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule checks request schemas for missing array limits.
 func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
 
-	if context.DrDocument == nil {
+	if context.DrDocument == nil || context.DrDocument.V3Document == nil {
 		return results
 	}
 
+	// Schema names recur across properties and references within one document.
+	directions := utils.GetSchemaDirections(context.DrDocument.V3Document.Document)
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "array") {
 			if schema.Value.MaxItems == nil {
-				node := schema.Value.GoLow().Type.KeyNode
-				valueNode := schema.Value.GoLow().Type.ValueNode
-
-				// Find all locations where this schema appears
-				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-
-				var direction = utils.GetSchemaDirection(context.DrDocument.V3Document.Document, schema.Name)
-
+				direction := directions[schema.Name]
 				if direction != utils.DirectionRequest && direction != utils.DirectionBoth {
 					continue
 				}
+
+				node := schema.Value.GoLow().Type.KeyNode
+				valueNode := schema.Value.GoLow().Type.ValueNode
+				locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
 
 				result := model.RuleFunctionResult{
 					Message:   utils.SuppliedOrDefault(context.Rule.Message, "schema of type `array` must specify `maxItems`"),
