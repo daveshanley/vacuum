@@ -184,6 +184,17 @@ func collectSchemaDirections(proxy *base.SchemaProxy, usage DirectionType, visit
 		visited[low.RootNode] = mergeSchemaDirection(previous, usage)
 	}
 
+	// In OpenAPI 3.1, Schema() exposes the authored siblings of a $ref.
+	// Visit its semantic target as well; the node index still keeps the sibling
+	// schema and target distinct and bounds circular traversal.
+	if proxy.IsTransformedRefWithSiblings() {
+		if semantic, err := proxy.BuildTransformedRefSemanticSchema(schema); err == nil && semantic != nil {
+			for _, child := range semantic.AllOf {
+				collectSchemaDirections(child, usage, visited, mark)
+			}
+		}
+	}
+
 	for _, child := range schema.AllOf {
 		collectSchemaDirections(child, usage, visited, mark)
 	}
