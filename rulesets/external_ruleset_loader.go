@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -147,10 +148,18 @@ func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, loc
 }
 
 func isExternalRulesetLocation(location string) bool {
-	return strings.HasPrefix(location, "http") ||
-		filepath.Ext(location) == ".yml" ||
-		filepath.Ext(location) == ".yaml" ||
-		filepath.Ext(location) == ".json"
+	if strings.HasPrefix(location, "http") {
+		return true
+	}
+	path := location
+	if parsed, err := url.Parse(location); err == nil {
+		path = parsed.Path
+	}
+	switch filepath.Ext(path) {
+	case ".yml", ".yaml", ".json":
+		return true
+	}
+	return false
 }
 
 func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
