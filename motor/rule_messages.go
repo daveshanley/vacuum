@@ -16,7 +16,8 @@ import (
 
 // formatRuleMessages runs once for each function result, before auto-fixes can
 // change its value. Replacement text is never interpreted as another template.
-func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, root *yaml.Node, paths *vacuumUtils.NodePathIndex, updates *sync.Map) {
+func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, paths *vacuumUtils.NodePathIndex) {
+	rule, root, updates := ctx.rule, ctx.specNode, ctx.messageUpdates
 	var selectedNodes map[*yaml.Node]struct{}
 	if len(selected) > 1 && ruleMessageNeedsLocation(rule.Message) {
 		selectedNodes = make(map[*yaml.Node]struct{}, len(selected))
@@ -27,10 +28,6 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 	for i := range results {
 		result := &results[i]
 		result.Rule = rule
-		if !strings.Contains(rule.Message, "{{") {
-			result.Message = rule.Message
-			continue
-		}
 		original := doctorMessageKey{rule.Id, result.StartNode, result.Path, result.Message}
 		var property, pointer, value string
 		if ruleMessageNeedsLocation(rule.Message) {
@@ -85,7 +82,7 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 			if !strings.Contains(rule.Message, "{{value}}") || targetIsValue && known && knownPath == path {
 				valueRoot = nil
 			}
-			property, pointer, valueNode = ruleMessageLocation(valueRoot, path)
+			property, pointer, valueNode = ruleMessageLocation(valueRoot, path, ctx.schemaPathCache)
 			if valueNode != nil {
 				target = valueNode
 			}
@@ -113,7 +110,7 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 }
 
 // Rule message paths use escaped JSON Pointers, as in Spectral templates.
-func ruleMessageLocation(root *yaml.Node, path string) (property, pointer string, node *yaml.Node) {
+func ruleMessageLocation(root *yaml.Node, path string, cache *sync.Map) (property, pointer string, node *yaml.Node) {
 	node = root
 	if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 		node = node.Content[0]
@@ -130,16 +127,7 @@ func ruleMessageLocation(root *yaml.Node, path string) (property, pointer string
 		switch step.Kind {
 		case jsonpath.SegmentKindMemberName:
 			property = step.Key
-			var child *yaml.Node
-			if node != nil && node.Kind == yaml.MappingNode {
-				for i := 0; i+1 < len(node.Content); i += 2 {
-					if node.Content[i].Value == step.Key {
-						child = node.Content[i+1]
-						break
-					}
-				}
-			}
-			node = child
+			node = messageMappingValue(node, step.Key, cache)
 		case jsonpath.SegmentKindArrayIndex:
 			property = strconv.FormatInt(step.Index, 10)
 			if node != nil && node.Kind == yaml.SequenceNode && int(step.Index) >= 0 && int(step.Index) < len(node.Content) {
@@ -221,4 +209,37 @@ func messagePathIndex(root *yaml.Node, cache *sync.Map) *vacuumUtils.NodePathInd
 	build := sync.OnceValue(func() *vacuumUtils.NodePathIndex { return vacuumUtils.BuildNodePathIndex(root) })
 	cached, _ := cache.LoadOrStore(key, build)
 	return cached.(func() *vacuumUtils.NodePathIndex)()
+}
+
+type messageMappingIndexKey struct{ node *yaml.Node }
+
+// Index only mapping objects reached by a value lookup. This also handles
+// custom results that point at a key or child rather than the selected node.
+func messageMappingValue(node *yaml.Node, key string, cache *sync.Map) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	if cache == nil {
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if node.Content[i].Value == key {
+				return node.Content[i+1]
+			}
+		}
+		return nil
+	}
+	cacheKey := messageMappingIndexKey{node}
+	if cached, ok := cache.Load(cacheKey); ok {
+		return cached.(func() map[string]*yaml.Node)()[key]
+	}
+	build := sync.OnceValue(func() map[string]*yaml.Node {
+		members := make(map[string]*yaml.Node, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			if _, exists := members[node.Content[i].Value]; !exists {
+				members[node.Content[i].Value] = node.Content[i+1]
+			}
+		}
+		return members
+	})
+	cached, _ := cache.LoadOrStore(cacheKey, build)
+	return cached.(func() map[string]*yaml.Node)()[key]
 }
