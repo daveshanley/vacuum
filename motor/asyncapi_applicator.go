@@ -55,6 +55,10 @@ func ApplyAsyncAPIRulesToRuleSet(
 		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}, true
 	}
 
+	if errs := validateRuleFunctions(execution.RuleSet, builtinFunctions, execution.CustomFunctions); len(errs) > 0 {
+		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: errs}, true
+	}
+
 	if opts == nil {
 		opts = &ExecutionOptions{}
 	}
