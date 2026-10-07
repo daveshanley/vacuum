@@ -409,21 +409,21 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	// all rules
 	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
-		rs = rsm.openAPIRuleSet
+		rs = cloneRuleSetForExternalLoad(rsm.openAPIRuleSet)
 	}
 
 	if extends[VacuumJSONSchema] == VacuumAll {
-		rs = rsm.GenerateJSONSchemaDefaultRuleSet()
+		rs = cloneRuleSetForExternalLoad(rsm.GenerateJSONSchemaDefaultRuleSet())
 	}
 
 	if extends[VacuumAsyncAPI] == VacuumAll || extends[SpectralAsyncAPI] == VacuumAll {
-		rs = rsm.GenerateAsyncAPIDefaultRuleSet()
+		rs = cloneRuleSetForExternalLoad(rsm.GenerateAsyncAPIDefaultRuleSet())
 	}
 
 	// vacuum:all - combines both OpenAPI and OWASP rules
 	if extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
 		// Start with OpenAPI rules
-		rs = rsm.openAPIRuleSet
+		rs = cloneRuleSetForExternalLoad(rsm.openAPIRuleSet)
 		// Add all OWASP rules
 		for ruleName, rule := range GetAllOWASPRules() {
 			rs.Rules[ruleName] = rule
@@ -507,10 +507,6 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	// download remote rulesets
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
-		// External loads must not poison a reusable built-in ruleset on failure.
-		if rs == rsm.openAPIRuleSet || rs == rsm.jsonSchemaSet || rs == rsm.asyncAPISet {
-			rs = cloneRuleSetForExternalLoad(rs)
-		}
 		rsm.loadExternalRulesetsWithTimeout(extends, ruleset.sourceLocation, rs, httpClient)
 	}
 
@@ -533,7 +529,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 			switch evalStr {
 			case model.SeverityError, model.SeverityWarn, model.SeverityInfo, model.SeverityHint:
-				rs.Rules[k].Severity = evalStr
+				// Recommended sets also share rule definitions with their built-in source.
+				rule := *rs.Rules[k]
+				rule.Severity = evalStr
+				rs.Rules[k] = &rule
 			case VacuumOff:
 				delete(rs.Rules, k) // remove it completely
 			}

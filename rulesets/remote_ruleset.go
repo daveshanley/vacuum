@@ -20,7 +20,7 @@ import (
 // returns true if it does, false if it does not
 func CheckForRemoteExtends(extends map[string]string) bool {
 	for k := range extends {
-		if strings.HasPrefix(k, "http") {
+		if isRemoteRulesetLocation(k) {
 			return true
 		}
 	}
@@ -333,7 +333,7 @@ func (l rulesetLocation) String() string {
 
 // In-memory rulesets keep the existing working-directory behavior.
 func resolveRulesetLocation(source rulesetLocation, location string) (rulesetLocation, error) {
-	if source.remoteURL != nil || strings.HasPrefix(location, "http") {
+	if source.remoteURL != nil || isRemoteRulesetLocation(location) {
 		target, err := url.Parse(location)
 		if err != nil {
 			return rulesetLocation{}, fmt.Errorf("invalid remote ruleset reference %q: %w", location, err)
@@ -350,4 +350,8 @@ func resolveRulesetLocation(source rulesetLocation, location string) (rulesetLoc
 		location = filepath.Join(filepath.Dir(source.path), location)
 	}
 	return rulesetLocation{path: filepath.Clean(location)}, nil
+}
+
+func isRemoteRulesetLocation(location string) bool {
+	return strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://")
 }
