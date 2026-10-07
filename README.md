@@ -540,6 +540,29 @@ Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importin
 rule names and behavior; they do not execute the Spectral package. JavaScript
 ruleset modules (`.js`, `.mjs`, `.cjs`) are not supported.
 
+OpenAPI hard mode (`--hard-mode`) includes the OWASP rules. In addition to the
+existing checks, it rejects OAuth password and implicit flows, and explicit
+non-HTTPS authentication URLs. The server transport check covers root, path,
+operation, webhook, and callback servers, including variable defaults and enum
+values. Relative URLs inherit transport and are not rejected.
+
+Request-object checks warn when a simple object leaves additional properties
+unrestricted. Deliberate maps can define an `additionalProperties` schema and a
+`maxProperties` limit. The count limit controls size; it does not prevent mass
+assignment. Composition checks are conservative and do not prove that a composed
+schema is closed. Response-only schemas are excluded from these request checks.
+
+Strict write-operation security is an error, including anonymous alternatives
+such as `security: [{auth: []}, {}]`. Use the existing rule severity overrides or
+`x-lint-ignore` for documented public operations. The JWT rule applies only to
+`bearerFormat: JWT`; its RFC8725 description check is a warning about documentation,
+not proof of runtime token validation.
+
+These static checks support the [OWASP API Security Top 10](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)
+and [OAuth guidance](https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html).
+Authorization, rate-limit enforcement, SSRF controls, and business-flow abuse
+still require runtime checks.
+
 Arazzo workflow linting and `spectral:arazzo` are not supported. Remove that entry
 from rulesets used to lint OpenAPI documents. Use an Arazzo-capable linter for
 Arazzo workflow documents.
