@@ -351,7 +351,11 @@ func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
 	runtimeConfig, err := s.runtimeConfigForDocument(uri)
 	if err != nil {
 		s.logger.Warn("failed to build document configuration", "uri", uri, "error", err)
-		runtimeConfig = s.defaultRuntimeConfig(uri)
+		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+			URI:         uri,
+			Diagnostics: []protocol.Diagnostic{ConvertErrorIntoDiagnostic(err)},
+		})
+		return
 	}
 
 	baseForDoc := runtimeConfig.config.Base
