@@ -66,7 +66,7 @@ func walkSchemaDirections(doc *v3.Document, visit func(*base.SchemaProxy, *base.
 	if doc == nil {
 		return
 	}
-	visited := make(map[*yaml.Node]DirectionType)
+	visited := &schemaDirectionVisits{nodes: make(map[*yaml.Node]DirectionType)}
 	mark := func(proxy *base.SchemaProxy, usage DirectionType) {
 		collectSchemaDirections(proxy, usage, visited, visit)
 	}
@@ -167,7 +167,12 @@ func walkSchemaDirections(doc *v3.Document, visit func(*base.SchemaProxy, *base.
 	}
 }
 
-func collectSchemaDirections(proxy *base.SchemaProxy, usage DirectionType, visited map[*yaml.Node]DirectionType, mark func(*base.SchemaProxy, *base.Schema, DirectionType)) {
+type schemaDirectionVisits struct {
+	nodes     map[*yaml.Node]DirectionType
+	synthetic map[*base.Schema]DirectionType
+}
+
+func collectSchemaDirections(proxy *base.SchemaProxy, usage DirectionType, visited *schemaDirectionVisits, mark func(*base.SchemaProxy, *base.Schema, DirectionType)) {
 	if proxy == nil {
 		return
 	}
@@ -177,11 +182,22 @@ func collectSchemaDirections(proxy *base.SchemaProxy, usage DirectionType, visit
 	}
 	mark(proxy, schema, usage)
 	if low := schema.GoLow(); low != nil && low.RootNode != nil {
-		previous := visited[low.RootNode]
+		previous := visited.nodes[low.RootNode]
 		if previous == usage || previous == DirectionBoth {
 			return
 		}
-		visited[low.RootNode] = mergeSchemaDirection(previous, usage)
+		visited.nodes[low.RootNode] = mergeSchemaDirection(previous, usage)
+	} else {
+		// Programmatic schemas have no source node. Their high-level identity
+		// still bounds recursion without merging unrelated inline schemas.
+		if visited.synthetic == nil {
+			visited.synthetic = make(map[*base.Schema]DirectionType)
+		}
+		previous := visited.synthetic[schema]
+		if previous == usage || previous == DirectionBoth {
+			return
+		}
+		visited.synthetic[schema] = mergeSchemaDirection(previous, usage)
 	}
 
 	// In OpenAPI 3.1, Schema() exposes the authored siblings of a $ref.
