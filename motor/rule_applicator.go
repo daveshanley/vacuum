@@ -437,6 +437,22 @@ func forEachRuleActionValue(value interface{}, visit func(model.RuleAction) bool
 				return true
 			}
 		}
+	default:
+		// Match runRule's decoding contract for library-supplied map and slice
+		// types, including YAML maps with interface keys.
+		var decoded model.RuleAction
+		if err := mapstructure.Decode(value, &decoded); err == nil {
+			return visit(decoded)
+		}
+		var decodedActions []model.RuleAction
+		if err := mapstructure.Decode(value, &decodedActions); err == nil {
+			for _, decoded := range decodedActions {
+				if visit(decoded) {
+					return true
+				}
+			}
+		}
+
 	}
 	return false
 }

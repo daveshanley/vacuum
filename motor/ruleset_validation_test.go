@@ -54,12 +54,19 @@ func TestUnknownFunction_ActionRepresentations(t *testing.T) {
 	for i, then := range []any{
 		action, &action, []model.RuleAction{action}, []*model.RuleAction{&action},
 		map[string]any{"function": "missing"}, []any{map[string]any{"function": "missing"}},
+		map[any]any{"function": "missing"}, []map[any]any{{"function": "missing"}},
+		map[string]string{"function": "missing"}, []map[string]string{{"function": "missing"}},
 	} {
 		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			rs := &rulesets.RuleSet{Rules: map[string]*model.Rule{"check": {Then: then}}}
+			rs := &rulesets.RuleSet{Rules: map[string]*model.Rule{"check": {Given: "$.missing", Then: then}}}
 			errs := validateRuleFunctions(rs, functions.MapBuiltinFunctions(), nil)
 			require.Len(t, errs, 1)
 			require.EqualError(t, errs[0], `rule "check" uses unknown function "missing"`)
+			result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs})
+			defer result.Release()
+			require.Len(t, result.Errors, 1)
+			var unknown *UnknownFunctionError
+			require.ErrorAs(t, result.Errors[0], &unknown)
 		})
 	}
 }

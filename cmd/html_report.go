@@ -231,9 +231,6 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						})
 					if err != nil {
 						tui.RenderError(err)
-						if isMultiFile {
-							continue
-						}
 						return err
 					}
 					specIndex = ruleset.Index
