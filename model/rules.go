@@ -14,6 +14,7 @@ import (
 	"github.com/pb33f/doctor/model"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 )
@@ -83,6 +84,11 @@ type RuleFunctionContext struct {
 	// keyed by schema pointer. Avoids redundant LocateModelsByKeyAndValue calls
 	// when multiple OWASP rules check the same schema. May be nil.
 	SchemaPathCache *sync.Map `json:"-" yaml:"-"`
+
+	// SchemaValidator reuses compiled schemas during one rule action. The owner
+	// must release it after all calls finish and must not share it concurrently.
+	// When nil, schema validation uses a call-scoped validator.
+	SchemaValidator schema_validation.SchemaValidator `json:"-" yaml:"-"`
 
 	// optionsCache caches the converted options map to avoid repeated interface conversions
 	optionsCache map[string]string `json:"-" yaml:"-"`

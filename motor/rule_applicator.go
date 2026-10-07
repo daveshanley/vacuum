@@ -32,6 +32,7 @@ import (
 	doctorModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
@@ -456,6 +457,7 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 // ApplyRulesToRuleSetWithOptions applies a ruleset with explicit execution options.
 func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOptions *ExecutionOptions) *RuleSetExecutionResult {
+
 	opts := ExecutionOptions{}
 	if executionOptions != nil {
 		opts = *executionOptions
@@ -1526,6 +1528,13 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			FetchConfig:     ctx.fetchConfig,
 			SchemaPathCache: ctx.schemaPathCache,
 		}
+		// Calls within one schema action are serial. Keep its compilation cache
+		// local so neither later documents nor timed-out workers share its lifetime.
+		if ruleAction.Function == "schema" {
+			rfc.SchemaValidator = schema_validation.NewSchemaValidatorWithLogger(ctx.logger)
+			defer rfc.SchemaValidator.Release()
+		}
+
 		if ctx.asyncAPI != nil {
 			rfc.AsyncAPI = ctx.asyncAPI
 		}
