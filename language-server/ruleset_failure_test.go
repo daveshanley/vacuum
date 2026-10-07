@@ -64,3 +64,15 @@ func TestRunDiagnostic_DoesNotCacheInvalidWorkspaceFallback(t *testing.T) {
 		}
 	}
 }
+
+func TestRuntimeConfig_RelativeRulesetExtensions(t *testing.T) {
+	dir := t.TempDir()
+	rules := filepath.Join(dir, "main.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte("extends: [./child.yaml]\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "child.yaml"), []byte("rules:\n  child-rule:\n    given: $.info.title\n    then: {function: falsy}\n"), 0600))
+	state := newRuntimeConfigTestState()
+	state.baseConfig.Ruleset = rules
+	config, err := state.runtimeConfigForDocument(fileURI(filepath.Join(dir, "api.yaml")))
+	require.NoError(t, err)
+	require.Contains(t, config.selectedRS.Rules, "child-rule")
+}

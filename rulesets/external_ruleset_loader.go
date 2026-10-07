@@ -91,7 +91,7 @@ func flushBufferedRuleSetLogs(logger *slog.Logger, records []bufferedRuleSetLogR
 	}
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, rs *RuleSet, httpClient *http.Client) {
+func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, source string, rs *RuleSet, httpClient *http.Client) {
 	ctx, cancel := context.WithTimeout(context.Background(), externalRulesetFetchTimeout)
 	defer cancel()
 
@@ -105,6 +105,7 @@ func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]stri
 			break
 		}
 
+		location = resolveRulesetLocation(source, location)
 		remote := strings.HasPrefix(location, "http")
 		if !rsm.loadExternalRulesetWithTimeout(ctx, location, rs, remote, httpClient) {
 			rs.addLoadError(fmt.Errorf("external ruleset fetch timed out at %q: %w", location, ctx.Err()))
@@ -171,6 +172,7 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 		ParsedAliases:    cloneParsedAliasMap(source.ParsedAliases),
 		extendsMeta:      cloneStringMap(source.extendsMeta),
 		loadErrors:       append([]error(nil), source.loadErrors...),
+		sourceLocation:   source.sourceLocation,
 	}
 }
 

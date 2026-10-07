@@ -231,6 +231,7 @@ type RuleSet struct {
 	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
 	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
+	sourceLocation   string                  // file or URL that contains this ruleset; empty for in-memory rulesets
 	loadErrors       []error
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
@@ -505,7 +506,7 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		if rs == rsm.openAPIRuleSet || rs == rsm.jsonSchemaSet || rs == rsm.asyncAPISet {
 			rs = cloneRuleSetForExternalLoad(rs)
 		}
-		rsm.loadExternalRulesetsWithTimeout(extends, rs, httpClient)
+		rsm.loadExternalRulesetsWithTimeout(extends, ruleset.sourceLocation, rs, httpClient)
 	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide

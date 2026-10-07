@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -85,6 +86,7 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, rsErr
 	}
 
+	downloadedRS.sourceLocation = location
 	return downloadedRS, nil
 }
 
@@ -99,6 +101,10 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 		return nil, err
 	}
 
+	location, err := filepath.Abs(location)
+	if err != nil {
+		return nil, err
+	}
 	ruleBytes, bytesErr := os.ReadFile(location)
 	if bytesErr != nil {
 		return nil, bytesErr
@@ -116,6 +122,7 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 		return nil, rsErr
 	}
 
+	downloadedRS.sourceLocation = location
 	return downloadedRS, nil
 }
 
@@ -261,6 +268,7 @@ func SniffOutAllExternalRules(
 				filepath.Ext(k) == ".yml" ||
 				filepath.Ext(k) == ".yaml" ||
 				filepath.Ext(k) == ".json" {
+				k = resolveRulesetLocation(drs.sourceLocation, k)
 				if slices.Contains(visited, k) {
 					rs.addLoadError(fmt.Errorf("circular ruleset extension: %s", k))
 					rsm.logger.Warn("ruleset links to its self, circular rulesets are not permitted",
@@ -273,4 +281,21 @@ func SniffOutAllExternalRules(
 			}
 		}
 	}
+}
+
+// resolveRulesetLocation resolves an external extension at its containing document.
+// In-memory rulesets keep the existing working-directory behavior.
+func resolveRulesetLocation(source, location string) string {
+	if source == "" || strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://") {
+		return location
+	}
+	if base, err := url.Parse(source); err == nil && (base.Scheme == "http" || base.Scheme == "https") {
+		if child, err := url.Parse(location); err == nil {
+			return base.ResolveReference(child).String()
+		}
+	}
+	if filepath.IsAbs(location) {
+		return filepath.Clean(location)
+	}
+	return filepath.Join(filepath.Dir(source), location)
 }
