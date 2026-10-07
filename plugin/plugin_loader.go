@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
@@ -22,6 +23,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 	}
 
 	pm := CreatePluginManager()
+	var loadErrors []error
 
 	for _, entry := range dirEntries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".so") {
@@ -64,20 +66,16 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 
 			function := javascript.NewJSRuleFunction(fName, string(p))
 
-			// found something
-			if !silence {
-				fmt.Printf("● Located custom javascript function: '%s' from file: %s\n", function.GetSchema().Name, fPath)
+			if err := function.CheckScript(); err != nil {
+				loadErr := fmt.Errorf("unable to load custom function %q: %w; vacuum custom functions use a plain script with runRule(input) and getSchema(); npm modules and ES module imports/exports are not supported", fPath, err)
+				loadErrors = append(loadErrors, loadErr)
+				// A skipped function changes the active rules. Keep the warning visible,
+				// but keep stdout available for machine-readable report output.
+				_, _ = fmt.Fprintln(os.Stderr, loadErr)
+				continue
 			}
-			// check if the function is valid
-			sErr := function.CheckScript()
-
-			if sErr != nil {
-				fmt.Printf("✗ Failed to load function '%s': %s\n", fName, sErr.Error())
-				continue // Skip registering invalid functions
-			} else {
-				if !silence {
-					fmt.Printf("✓ Successfully validated JavaScript function: '%s'\n", fName)
-				}
+			if !silence {
+				fmt.Printf("✓ Successfully validated JavaScript function: '%s'\n", fName)
 			}
 
 			// register core functions with this custom function.
@@ -91,6 +89,9 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 				fmt.Printf("● Registered custom function: '%s' -> available for use in rulesets\n", schemaName)
 			}
 		}
+	}
+	if pm.LoadedFunctionCount() == 0 && len(loadErrors) > 0 {
+		return nil, fmt.Errorf("no vacuum custom functions loaded: %w", errors.Join(loadErrors...))
 	}
 	return pm, nil
 }
