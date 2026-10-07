@@ -179,6 +179,7 @@ type ruleContext struct {
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
 	schemaPathCache    *sync.Map
+	messageUpdates     *sync.Map
 	ruleJSONPathCache  *sync.Map
 	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
 }
@@ -1250,6 +1251,15 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		// LocateModelsByKeyAndValue lookups.
 		var schemaPathCache sync.Map
 		var ruleJSONPathCache sync.Map
+		var messageUpdates *sync.Map
+		if execution.DrDocument != nil {
+			for _, rule := range applicableRules {
+				if strings.Contains(rule.Message, "{{") {
+					messageUpdates = &sync.Map{}
+					break
+				}
+			}
+		}
 
 		runResults, runIgnored, runFixed, runErrs := runRuleContexts(
 			execution,
@@ -1317,11 +1327,13 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					hasInlineIgnores:   specHasInlineIgnores,
 					ignoreIndex:        ignoreIdx,
 					schemaPathCache:    &schemaPathCache,
+					messageUpdates:     messageUpdates,
 					ruleJSONPathCache:  &ruleJSONPathCache,
 					expandedAliases:    resolvedAliases,
 				}
 			},
 		)
+		updateDoctorMessages(execution.DrDocument, messageUpdates)
 		ruleResults = append(ruleResults, runResults...)
 		ignoredResults = append(ignoredResults, runIgnored...)
 		fixedResults = append(fixedResults, runFixed...)
@@ -1545,7 +1557,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		}
 		// Keep the function's diagnostic available for {{error}}. The rule is
 		// shared by concurrent executions, so clear only this invocation's copy.
-		if ctx.rule.Message != "" {
+		if strings.Contains(ctx.rule.Message, "{{") {
 			rule := *ctx.rule
 			rule.Message = ""
 			rfc.Rule = &rule
@@ -1557,7 +1569,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				if messagePaths == nil && strings.Contains(ctx.rule.Message, "{{") {
 					messagePaths = vacuumUtils.BuildNodePathIndex(ctx.specNode)
 				}
-				formatRuleMessages(ctx.rule, ruleAction, selected, results, ctx.specNode, messagePaths)
+				formatRuleMessages(ctx.rule, ruleAction, selected, results, ctx.specNode, messagePaths, ctx.messageUpdates)
 			}
 			return results
 		}
