@@ -64,6 +64,9 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, ruleRemoteErr
 	}
 	defer ruleResp.Body.Close()
+	if ruleResp.StatusCode < 200 || ruleResp.StatusCode >= 300 {
+		return nil, fmt.Errorf("remote ruleset %q returned HTTP %d", location, ruleResp.StatusCode)
+	}
 
 	ruleBytes, bytesErr := io.ReadAll(ruleResp.Body)
 	if bytesErr != nil {
@@ -147,6 +150,7 @@ func SniffOutAllExternalRules(
 		if ctx.Err() != nil {
 			return
 		}
+		rs.addLoadError(fmt.Errorf("cannot open external ruleset %q: %w", location, err))
 		rsm.logger.Error("cannot open external ruleset",
 			"location", location, "error", err.Error())
 		return
@@ -258,6 +262,7 @@ func SniffOutAllExternalRules(
 				filepath.Ext(k) == ".yaml" ||
 				filepath.Ext(k) == ".json" {
 				if slices.Contains(visited, k) {
+					rs.addLoadError(fmt.Errorf("circular ruleset extension: %s", k))
 					rsm.logger.Warn("ruleset links to its self, circular rulesets are not permitted",
 						"extends", k)
 					return

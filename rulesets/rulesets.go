@@ -231,8 +231,26 @@ type RuleSet struct {
 	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
 	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
+	loadErrors       []error
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
+}
+
+// LoadError returns errors encountered while loading extended rulesets.
+// A ruleset with a load error is incomplete and must not be executed.
+func (rs *RuleSet) LoadError() error {
+	if rs == nil {
+		return nil
+	}
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+	return errors.Join(rs.loadErrors...)
+}
+
+func (rs *RuleSet) addLoadError(err error) {
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+	rs.loadErrors = append(rs.loadErrors, err)
 }
 
 //go:embed schemas/ruleset.schema.json
@@ -483,6 +501,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 	// download remote rulesets
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
+		// External loads must not poison a reusable built-in ruleset on failure.
+		if rs == rsm.openAPIRuleSet || rs == rsm.jsonSchemaSet || rs == rsm.asyncAPISet {
+			rs = cloneRuleSetForExternalLoad(rs)
+		}
 		rsm.loadExternalRulesetsWithTimeout(extends, rs, httpClient)
 	}
 

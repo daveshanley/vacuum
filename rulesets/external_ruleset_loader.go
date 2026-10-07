@@ -7,6 +7,7 @@ package rulesets
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -99,13 +100,18 @@ func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]stri
 			continue
 		}
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			rs.addLoadError(fmt.Errorf("external ruleset fetch timed out at %q: %w", location, ctx.Err()))
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
 			break
 		}
 
 		remote := strings.HasPrefix(location, "http")
 		if !rsm.loadExternalRulesetWithTimeout(ctx, location, rs, remote, httpClient) {
+			rs.addLoadError(fmt.Errorf("external ruleset fetch timed out at %q: %w", location, ctx.Err()))
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
+			break
+		}
+		if rs.LoadError() != nil {
 			break
 		}
 	}
@@ -164,6 +170,7 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 		Aliases:          cloneInterfaceMap(source.Aliases),
 		ParsedAliases:    cloneParsedAliasMap(source.ParsedAliases),
 		extendsMeta:      cloneStringMap(source.extendsMeta),
+		loadErrors:       append([]error(nil), source.loadErrors...),
 	}
 }
 
@@ -177,6 +184,7 @@ func copyRuleSetExternalState(target, source *RuleSet) {
 	target.mutex.Lock()
 	defer target.mutex.Unlock()
 
+	target.loadErrors = append([]error(nil), source.loadErrors...)
 	target.Description = source.Description
 	target.DocumentationURI = source.DocumentationURI
 	target.Formats = append([]string(nil), source.Formats...)

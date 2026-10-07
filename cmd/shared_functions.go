@@ -43,7 +43,8 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 		return nil, userErr
 
 	}
-	return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient), nil
+	generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient)
+	return generated, generated.LoadError()
 }
 
 // BuildRuleSetFromUserSuppliedLocation creates a ready to run ruleset from a location (file path or URL)
@@ -57,7 +58,8 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
+		generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
+		return generated, generated.LoadError()
 	} else {
 		// Handle local ruleset file
 		resolvedPath, err := ResolveConfigPath(rulesetFlag)

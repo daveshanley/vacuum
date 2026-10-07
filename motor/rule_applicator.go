@@ -457,6 +457,9 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 // ApplyRulesToRuleSetWithOptions applies a ruleset with explicit execution options.
 func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOptions *ExecutionOptions) *RuleSetExecutionResult {
+	if err := execution.RuleSet.LoadError(); err != nil {
+		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}
+	}
 
 	opts := ExecutionOptions{}
 	if executionOptions != nil {
