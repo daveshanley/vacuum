@@ -105,16 +105,16 @@ func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 func GetOWASPJWTBestPracticesRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "JWTs must explicitly declare support for `RFC8725`",
+		Name:         "JWT descriptions should reference `RFC8725`",
 		Id:           OwaspJWTBestPractices,
 		Formats:      model.OAS3AllFormat,
-		Description:  "JWTs must explicitly declare support for RFC8725 in the description",
+		Description:  "Explicitly declared JWTs should document RFC8725. This checks documentation, not runtime token validation.",
 		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityError,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "owaspJWTBestPractice",
 		},
@@ -159,7 +159,7 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityInfo,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "owaspCheckSecurity",
 			FunctionOptions: map[string]interface{}{
