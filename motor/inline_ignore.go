@@ -153,10 +153,11 @@ func checkInlineIgnoreByPathIndexed(idx *inlineIgnoreIndex, specNode *yaml.Node,
 	// Non-root ignores exist — must do JSONPath lookup for this path
 	nodes, err := utils.FindNodesWithoutDeserializingWithTimeout(specNode, path, time.Millisecond*500)
 	if err == nil && len(nodes) > 0 {
-		// check the node and its parent
-		node := nodes[0]
-		if idx.nodeIgnores[node][ruleId] || idx.nodeIgnores[idx.parents[node]][ruleId] {
-			return true
+		// A directive applies to all descendants, including flow and endpoint fields.
+		for node := nodes[0]; node != nil; node = idx.parents[node] {
+			if idx.nodeIgnores[node][ruleId] {
+				return true
+			}
 		}
 	}
 
