@@ -269,10 +269,13 @@ func useDefaultConfigFile() error {
 
 // Allow overriding specifying configuration from environment variables
 func useEnvironmentConfiguration() {
-	viper.SetEnvPrefix("VACUUM")
-	viper.AutomaticEnv()
-	// Environment variables can't have dashes in them
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	configureEnvironment(viper.GetViper())
+}
+
+func configureEnvironment(tree *viper.Viper) {
+	tree.SetEnvPrefix("VACUUM")
+	tree.AutomaticEnv()
+	tree.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 }
 
 func useUserSuppliedConfigFile(configFilePath string) error {
@@ -317,10 +320,7 @@ func setBoundFlag(flags *pflag.FlagSet, flag *pflag.Flag, value any) error {
 	if err != nil {
 		return err
 	}
-	sliceValue, ok := flag.Value.(pflag.SliceValue)
-	if !ok {
-		return fmt.Errorf("flag %s reports collection type without slice support", flag.Name)
-	}
+	sliceValue := flag.Value.(pflag.SliceValue)
 	if err := sliceValue.Replace(values); err != nil {
 		return err
 	}
@@ -353,18 +353,14 @@ func stringCollectionValues(value any) ([]string, error) {
 	}
 }
 
+// bindEnvironmentFlags uses a separate environment-only Viper because Sub does
+// not inherit the parent's environment configuration. Bind before command config
+// so explicit CLI flags win over environment, which wins over config values.
 func bindEnvironmentFlags(flags *pflag.FlagSet) error {
-	var bindErr error
-	flags.VisitAll(func(flag *pflag.Flag) {
-		if flag.Changed || bindErr != nil {
-			return
-		}
-		key := "VACUUM_" + strings.ToUpper(strings.ReplaceAll(flag.Name, "-", "_"))
-		if value, ok := os.LookupEnv(key); ok {
-			bindErr = setBoundFlag(flags, flag, value)
-		}
-	})
-	return bindErr
+	tree := viper.New()
+	configureEnvironment(tree)
+	tree.AllowEmptyEnv(true)
+	return bindFlags(flags, tree)
 }
 
 // expandUserPath expands environment variables and a leading ~ in a user-supplied path.

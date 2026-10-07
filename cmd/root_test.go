@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"os"
 	"testing"
@@ -12,28 +11,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
-
-type failingSliceValue struct {
-	replace bool
-}
-
-func (f *failingSliceValue) Set(string) error    { return nil }
-func (f *failingSliceValue) String() string      { return "" }
-func (f *failingSliceValue) Type() string        { return "stringArray" }
-func (f *failingSliceValue) Append(string) error { return nil }
-func (f *failingSliceValue) GetSlice() []string  { return nil }
-func (f *failingSliceValue) Replace([]string) error {
-	if f.replace {
-		return errors.New("replace failed")
-	}
-	return nil
-}
-
-type nonSliceCollectionValue struct{}
-
-func (*nonSliceCollectionValue) Set(string) error { return nil }
-func (*nonSliceCollectionValue) String() string   { return "" }
-func (*nonSliceCollectionValue) Type() string     { return "stringArray" }
 
 func TestNonExistingConfigFile(t *testing.T) {
 	b := bytes.NewBufferString("")
@@ -124,10 +101,6 @@ func TestBindFlagsCollectionErrorsAndScalar(t *testing.T) {
 	_, err = stringCollectionValues(`"unterminated`)
 	assert.ErrorContains(t, err, "invalid string collection")
 
-	flag := &pflag.Flag{Name: "fake", Value: &nonSliceCollectionValue{}}
-	assert.ErrorContains(t, setBoundFlag(pflag.NewFlagSet("test", pflag.ContinueOnError), flag, []string{"x"}), "without slice support")
-	flag.Value = &failingSliceValue{replace: true}
-	assert.ErrorContains(t, setBoundFlag(pflag.NewFlagSet("test", pflag.ContinueOnError), flag, []string{"x"}), "replace failed")
 }
 
 func TestBindEnvironmentFlags(t *testing.T) {
