@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	htmlreport "github.com/daveshanley/vacuum/html-report"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/testify/require"
 )
 
@@ -67,4 +68,13 @@ func TestRulesetConfigurationErrors(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestRulesetRelativeExtensions(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.yaml"), []byte("extends: [./child.yaml]\n"), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "child.yaml"), []byte("rules:\n  child-rule:\n    given: $.info.title\n    then: {function: falsy}\n"), 0600))
+	rs, err := BuildRuleSetFromUserSuppliedLocation(filepath.Join(dir, "main.yaml"), rulesets.BuildDefaultRuleSets(), false, nil)
+	require.NoError(t, err)
+	require.Contains(t, rs.Rules, "child-rule")
 }

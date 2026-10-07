@@ -378,11 +378,7 @@ func (s *ServerState) loadRulesetForDocument(rulesetLocation string, config *LSP
 	if err != nil {
 		return nil, err
 	}
-	rsBytes, err := os.ReadFile(resolvedRuleset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read ruleset %s: %w", resolvedRuleset, err)
-	}
-	userRS, err := rulesets.CreateRuleSetFromData(rsBytes)
+	userRS, err := rulesets.LoadLocalRuleSet(context.Background(), resolvedRuleset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ruleset: %w", err)
 	}

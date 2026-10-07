@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -66,11 +65,12 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve ruleset path '%s': %w", rulesetFlag, err)
 		}
-		rsBytes, rsErr := os.ReadFile(resolvedPath)
+		userRS, rsErr := rulesets.LoadLocalRuleSet(context.Background(), resolvedPath)
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, rs, httpClient)
+		generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient)
+		return generated, generated.LoadError()
 	}
 }
 
