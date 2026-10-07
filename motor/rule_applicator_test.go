@@ -2486,6 +2486,8 @@ func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
 	assert.NotNil(t, execution)
 	assert.NotNil(t, execution.DrDocument)
 
+	assert.Zero(t, execution.activeRuleWorkers.Load(), "completed rules must release ownership before results return")
+
 	results.Release()
 
 	assert.Nil(t, results.RuleSetExecution)
