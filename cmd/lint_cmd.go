@@ -482,6 +482,22 @@ func runLint(cmd *cobra.Command, args []string) error {
 		renderChangeFilterSummary(changeFilterStats, widths, flags.NoStyleFlag)
 	}
 
+	// severity failure
+	errs := resultSet.GetErrorCount()
+	warnings := resultSet.GetWarnCount()
+	informs := resultSet.GetInfoCount()
+	hints := resultSet.GetHintCount()
+
+	overallScore := 0
+	if stats != nil {
+		overallScore = stats.OverallScore
+	}
+	scoreFailed := flags.MinScore > 10 && overallScore > 0 && overallScore < flags.MinScore
+	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
+	if scoreFailed {
+		failErr = NewViolationError("score threshold failed, overall score is %d, and the threshold is %d", overallScore, flags.MinScore)
+	}
+
 	if !flags.GitHubAnnotations || flags.PipelineOutput {
 		renderFixedSummary(RenderSummaryOptions{
 			RuleResultSet:  resultSet,
@@ -493,6 +509,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			PipelineOutput: flags.PipelineOutput,
 			ShowRules:      flags.ShowRules,
 			FixesApplied:   fixesApplied,
+			Failed:         failErr != nil,
 		})
 	}
 
@@ -506,38 +523,23 @@ func runLint(cmd *cobra.Command, args []string) error {
 		renderFixedTiming(duration, fileSize)
 	}
 
-	// severity failure
-	errs := resultSet.GetErrorCount()
-	warnings := resultSet.GetWarnCount()
-	informs := resultSet.GetInfoCount()
-	hints := resultSet.GetHintCount()
-
-	overallScore := 0
-	if stats != nil {
-		overallScore = stats.OverallScore
-	}
-	if flags.MinScore > 10 && overallScore > 0 {
-		if overallScore < flags.MinScore {
-			if !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
-				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
-				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
-					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
-			} else if flags.PipelineOutput {
-				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
-			}
-			if flags.GitHubAnnotations {
-				RenderGitHubAnnotationError(
-					fmt.Errorf("score threshold failed: overall score is %d, but the threshold is %d",
-						overallScore, flags.MinScore),
-					displayFileName,
-				)
-			}
-			return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
-				overallScore, flags.MinScore)
+	if scoreFailed {
+		if !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
+			fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
+				color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
+		} else if flags.PipelineOutput {
+			fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
+		}
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(
+				fmt.Errorf("score threshold failed: overall score is %d, but the threshold is %d",
+					overallScore, flags.MinScore),
+				displayFileName,
+			)
 		}
 	}
 
-	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
 	if failErr != nil {
 		if flags.SilentFlag {
 			os.Exit(ExitCodeViolations)
@@ -843,10 +845,12 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 	errs := 0
 	warnings := 0
 	informs := 0
+	hints := 0
 	if rs != nil {
 		errs = rs.GetErrorCount()
 		warnings = rs.GetWarnCount()
 		informs = rs.GetInfoCount()
+		hints = rs.GetHintCount()
 	}
 
 	if !opts.NoStyle {
@@ -861,7 +865,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		renderQualityScore(stats.OverallScore)
 	}
 
-	renderResultBox(errs, warnings, informs, opts.FixesApplied)
+	renderResultBox(errs, warnings, informs, hints, opts.FixesApplied, opts.Failed)
 
 	if !opts.NoStyle {
 		fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)

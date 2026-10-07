@@ -381,44 +381,31 @@ func addFixCount(fixesApplied int) string {
 }
 
 // render result box
-func renderResultBox(errors, warnings, informs, fixesApplied int) {
+func renderResultBox(errors, warnings, informs, hints, fixesApplied int, failed bool) {
+	foreground, background := color2.RGBGreen, color2.RGBDarkGreen
+	message := "✓ A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!"
+	counts := fmt.Sprintf("%s errors, %s warnings and %s informs", humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)))
+	if hints > 0 {
+		counts += fmt.Sprintf(" and %s hints", humanize.Comma(int64(hints)))
+	}
+	switch {
+	case failed:
+		message = "✗ Failed with " + counts + "."
+		foreground, background = color2.RGBRed, color2.RGBDarkRed
+	case errors > 0 || warnings > 0:
+		message = "▲ Passed with " + counts + "."
+		foreground, background = color2.RGBYellow, color2.RGBDarkYellow
+	case informs > 0 || hints > 0:
+		message = "● Passed with " + counts + "."
+		foreground, background = color2.RGBBlue, color2.RGBDarkBlue
+	}
+	message += addFixCount(fixesApplied)
 	if color2.AreColorsDisabled() {
-		if errors > 0 {
-			fmt.Printf(" | \u2717 Failed with %s errors, %s warnings and %s informs.%s\n",
-				humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		} else if warnings > 0 {
-			fmt.Printf(" | \u25B2 Passed, but with %s warnings and %s informs.%s\n",
-				humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		} else if informs > 0 {
-			fmt.Printf(" | \u25CF Passed, with %s informs.%s\n", humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		} else {
-			fmt.Printf(" | \u2713 A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!%s\n", addFixCount(fixesApplied))
-		}
-		fmt.Println()
+		fmt.Printf(" | %s\n\n", message)
 		return
 	}
-
 	messageStyle := lipgloss.NewStyle().Padding(1, 1)
-
-	if errors > 0 {
-		message := fmt.Sprintf("\u2717 Failed with %s errors, %s warnings and %s informs.%s",
-			humanize.Comma(int64(errors)), humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		style := createResultBoxStyle(color2.RGBRed, color2.RGBDarkRed)
-		fmt.Println(style.Render(messageStyle.Render(message)))
-	} else if warnings > 0 {
-		message := fmt.Sprintf("\u25B2 Passed, but with %s warnings and %s informs.%s",
-			humanize.Comma(int64(warnings)), humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		style := createResultBoxStyle(color2.RGBYellow, color2.RGBDarkYellow)
-		fmt.Println(style.Render(messageStyle.Render(message)))
-	} else if informs > 0 {
-		message := fmt.Sprintf("\u25CF Passed, with %s informs.%s", humanize.Comma(int64(informs)), addFixCount(fixesApplied))
-		style := createResultBoxStyle(color2.RGBBlue, color2.RGBDarkBlue)
-		fmt.Println(style.Render(messageStyle.Render(message)))
-	} else {
-		message := fmt.Sprintf("\u2713 A perfect score! Like Mary Poppins, practically perfect in every way. Incredible, well done!%s", addFixCount(fixesApplied))
-		style := createResultBoxStyle(color2.RGBGreen, color2.RGBDarkGreen)
-		fmt.Println(style.Render(messageStyle.Render(message)))
-	}
+	fmt.Println(createResultBoxStyle(foreground, background).Render(messageStyle.Render(message)))
 	fmt.Println()
 }
 
