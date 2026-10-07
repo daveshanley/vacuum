@@ -1,0 +1,36 @@
+openapi: 3.1.0
+info:
+  title: Issue 937 bundled fixture
+  version: 1.0.0
+paths:
+  /first:
+    get:
+      responses:
+        '200':
+          description: first response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Base'
+              example:
+                id: not-an-integer
+  /second:
+    get:
+      responses:
+        '200':
+          description: second response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Base'
+              example:
+                id: not-an-integer
+components:
+  schemas:
+    Base:
+      type: object
+      properties:
+        id:
+          type: integer
+      required:
+        - id
