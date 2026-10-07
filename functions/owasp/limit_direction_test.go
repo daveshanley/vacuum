@@ -173,37 +173,46 @@ components:
         tags: {type: array, items: {type: string}}
         name: {type: string}
 `
-	document, err := libopenapi.NewDocument([]byte(spec))
-	require.NoError(t, err)
-	t.Cleanup(document.Release)
-	m, err := document.BuildV3Model()
-	require.NoError(t, err)
-	drDocument := drModel.NewDrDocument(m)
-	t.Cleanup(drDocument.Release)
-	for _, tc := range []struct {
-		name     string
-		function model.RuleFunction
-		suffixes []string
-	}{
-		{"array", ArrayLimit{}, []string{".properties['tags']"}},
-		{"string", StringLimit{}, []string{".properties['tags'].items", ".properties['name']"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			rule := buildOpenApiTestRuleAction("$", tc.name+"_limit", "", nil)
-			ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
-			ctx.Document, ctx.DrDocument, ctx.Rule = document, drDocument, &rule
-			results := tc.function.RunRule(nil, ctx)
-			var paths []string
-			for _, result := range results {
-				paths = append(paths, result.Path)
-				require.Greater(t, result.StartNode.Line, 0)
-				require.Equal(t, "type", result.StartNode.Value)
+	for _, withSibling := range []bool{false, true} {
+		t.Run(fmt.Sprintf("ref-sibling=%t", withSibling), func(t *testing.T) {
+			spec := spec
+			if withSibling {
+				spec = strings.Replace(spec, "schema: {$ref: '#/components/schemas/Widget'}", "schema: {$ref: '#/components/schemas/Widget', description: Request widget}", 1)
 			}
-			var expected []string
-			for _, suffix := range tc.suffixes {
-				expected = append(expected, "$.components.schemas['Widget'].properties['nested']"+suffix)
+
+			document, err := libopenapi.NewDocument([]byte(spec))
+			require.NoError(t, err)
+			t.Cleanup(document.Release)
+			m, err := document.BuildV3Model()
+			require.NoError(t, err)
+			drDocument := drModel.NewDrDocument(m)
+			t.Cleanup(drDocument.Release)
+			for _, tc := range []struct {
+				name     string
+				function model.RuleFunction
+				suffixes []string
+			}{
+				{"array", ArrayLimit{}, []string{".properties['tags']"}},
+				{"string", StringLimit{}, []string{".properties['tags'].items", ".properties['name']"}},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					rule := buildOpenApiTestRuleAction("$", tc.name+"_limit", "", nil)
+					ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+					ctx.Document, ctx.DrDocument, ctx.Rule = document, drDocument, &rule
+					results := tc.function.RunRule(nil, ctx)
+					var paths []string
+					for _, result := range results {
+						paths = append(paths, result.Path)
+						require.Greater(t, result.StartNode.Line, 0)
+						require.Equal(t, "type", result.StartNode.Value)
+					}
+					var expected []string
+					for _, suffix := range tc.suffixes {
+						expected = append(expected, "$.components.schemas['Widget'].properties['nested']"+suffix)
+					}
+					require.ElementsMatch(t, expected, paths)
+				})
 			}
-			require.ElementsMatch(t, expected, paths)
 		})
 	}
 }
