@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,16 +11,6 @@ import (
 )
 
 func TestLintOutcomeMatchesStatus(t *testing.T) {
-	if os.Getenv("VACUUM_TEST_OUTCOME") == "1" {
-		for i, arg := range os.Args {
-			if arg == "--" {
-				os.Args = append([]string{os.Args[0]}, os.Args[i+1:]...)
-				break
-			}
-		}
-		Execute("test", "test", "test")
-		os.Exit(0)
-	}
 	for _, tc := range []struct {
 		name, command, severity, threshold string
 		score                              int
@@ -47,7 +36,7 @@ func TestLintOutcomeMatchesStatus(t *testing.T) {
 				}
 				require.NoError(t, os.WriteFile(spec, []byte(contents), 0600))
 				require.NoError(t, os.WriteFile(rules, []byte(fmt.Sprintf("rules:\n  fail-title:\n    given: '$..title'\n    severity: %s\n    then: {function: falsy}\n", tc.severity)), 0600))
-				args := []string{"-test.run=^TestLintOutcomeMatchesStatus$", "--", tc.command, spec, "--ruleset", rules, "--fail-severity", tc.threshold, "--no-update-check"}
+				args := []string{tc.command, spec, "--ruleset", rules, "--fail-severity", tc.threshold, "--no-update-check"}
 				if tc.command == "lint" {
 					args = append(args, "--min-score", fmt.Sprint(tc.score), "--no-banner")
 				}
@@ -57,20 +46,14 @@ func TestLintOutcomeMatchesStatus(t *testing.T) {
 				if outputMode != "styled" {
 					args = append(args, "--no-style")
 				}
-				process := exec.Command(os.Args[0], args...)
-				process.Dir = dir
-				process.Env = append(os.Environ(), "VACUUM_TEST_OUTCOME=1", "XDG_CONFIG_HOME="+dir)
-				output, err := process.CombinedOutput()
+				output, code := runVacuum(t, args...)
+				require.Equal(t, tc.want, code, "%s", output)
 				if tc.want == 0 {
-					require.NoError(t, err, "%s", output)
-					require.Contains(t, string(output), "Passed")
-					require.NotContains(t, string(output), "Failed with")
+					require.Contains(t, strings.ToLower(string(output)), "passed")
+					require.NotContains(t, strings.ToLower(string(output)), "failed with")
 				} else {
-					var exit *exec.ExitError
-					require.ErrorAs(t, err, &exit, "%s", output)
-					require.Equal(t, tc.want, exit.ExitCode())
-					require.Contains(t, string(output), "Failed with")
-					require.False(t, strings.Contains(string(output), "Passed"), "%s", output)
+					require.Contains(t, strings.ToLower(string(output)), "failed with")
+					require.False(t, strings.Contains(strings.ToLower(string(output)), "passed"), "%s", output)
 				}
 			})
 		}

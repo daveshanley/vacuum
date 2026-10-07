@@ -352,7 +352,7 @@ You can use either **YAML** or **JSON**, vacuum supports both formats.
 
 ## Using vacuum with pre-commit
 
-Vacuum can be used with [pre-commit](https://pre-commit.com).
+vacuum can be used with [pre-commit](https://pre-commit.com).
 
 To do that, add to your `.pre-commit-config.yaml`:
 
@@ -445,7 +445,7 @@ The report file name is _optional_. The default report output name is `vacuum-sp
 
 ## Generate a `vacuum report`
 
-Vacuum reports are complete snapshots in time of a linting report for a specification. These reports can be 'replayed' 
+vacuum reports are complete snapshots in time of a linting report for a specification. These reports can be 'replayed'
 back through vacuum. Use the `dashboard` or the `html-report` commands to 'replay' the report and explore the results
 as they were when the report was generated.
 
@@ -503,7 +503,7 @@ if you're interested in seeing how things are progressing, it's available.
 ---
 ## Spectral migration
 
-Vacuum loads YAML and JSON rulesets. Resolve each relative `extends` path from the
+vacuum loads YAML and JSON rulesets. Resolve each relative `extends` path from the
 file that contains it, including on Windows. Keep sibling rulesets relative:
 
 ```yaml
@@ -513,8 +513,8 @@ extends:
   - [vacuum:owasp, all]
 ```
 
-Use `[vacuum:owasp, all]` for Vacuum's built-in OWASP checks instead of importing
-`@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use Vacuum's
+Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importing
+`@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use vacuum's
 rule names and behavior; they do not execute the Spectral package. JavaScript
 ruleset modules (`.js`, `.mjs`, `.cjs`) are not supported.
 
@@ -529,7 +529,7 @@ vacuum lint api.yaml --ruleset rules/main.yaml --functions ./functions
 ```
 
 It does not enable JavaScript ruleset modules. Omitting the directory reports an
-input error and exits with code 2. In the editor, Vacuum checks recognized ruleset
+input error and exits with code 2. In the editor, vacuum checks recognized ruleset
 buffers against its ruleset schema instead of reporting an unsupported API type.
 
 ## Supply your own Spectral compatible ruleset
