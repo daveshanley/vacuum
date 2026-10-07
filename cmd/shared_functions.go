@@ -48,7 +48,7 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 
 // BuildRuleSetFromUserSuppliedLocation creates a ready to run ruleset from a location (file path or URL)
 func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool, httpClient *http.Client) (*rulesets.RuleSet, error) {
-	if strings.HasPrefix(rulesetFlag, "http") {
+	if strings.HasPrefix(rulesetFlag, "http://") || strings.HasPrefix(rulesetFlag, "https://") {
 		// Handle remote ruleset URL directly
 		if !remote {
 			return nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")

@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/daveshanley/vacuum/model"
@@ -151,7 +150,7 @@ func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, loc
 }
 
 func isExternalRulesetLocation(location string) bool {
-	if strings.HasPrefix(location, "http") {
+	if isRemoteRulesetLocation(location) {
 		return true
 	}
 	path := location
