@@ -24,7 +24,8 @@ func checkComponentNames(root *yaml.Node, rule *model.Rule) []model.RuleFunction
 				continue
 			}
 			reason := fmt.Sprintf("component name %q does not match pattern `^[a-zA-Z0-9._-]+$`", key.Value)
-			results = append(results, propertyNameResult(root, []string{"components", category, key.Value}, reason, rule))
+			path := fmt.Sprintf("$.components.%s['%s']", category, escapeJSONPathSegment(key.Value))
+			results = append(results, componentNameResult(path, key, reason, rule))
 		}
 	}
 	return results
@@ -64,5 +65,9 @@ func propertyNameResult(root *yaml.Node, path []string, reason string, rule *mod
 		keyNode = &yaml.Node{Line: 1, Column: 1}
 	}
 	location := jsonPointerToJSONPath(pointer.String(), root)
-	return model.RuleFunctionResult{Message: "schema invalid: " + reason, StartNode: keyNode, EndNode: vacuumUtils.BuildEndNode(keyNode), Path: location, Paths: []string{location}, Rule: rule}
+	return componentNameResult(location, keyNode, reason, rule)
+}
+
+func componentNameResult(path string, key *yaml.Node, reason string, rule *model.Rule) model.RuleFunctionResult {
+	return model.RuleFunctionResult{Message: "schema invalid: " + reason, StartNode: key, EndNode: vacuumUtils.BuildEndNode(key), Path: path, Paths: []string{path}, Rule: rule}
 }
