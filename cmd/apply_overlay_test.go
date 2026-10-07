@@ -466,3 +466,46 @@ func BenchmarkIssue948ApplyOverlay(b *testing.B) {
 		}
 	})
 }
+
+func TestApplyOverlayPreservesLiveReferenceTargets(t *testing.T) {
+	for _, tc := range []struct {
+		fixture, section, name string
+		filter                 bool
+	}{
+		{"numeric-example.yaml", "examples", "Actual", false},
+		{"example-alias.yaml", "schemas", "User", false},
+		{"referenced-path.yaml", "parameters", "Trace", true},
+	} {
+		t.Run(tc.fixture, func(t *testing.T) {
+			dir := t.TempDir()
+			overlay := filepath.Join(dir, "overlay.yaml")
+			output := filepath.Join(dir, "output.yaml")
+			require.NoError(t, os.WriteFile(overlay, []byte("overlay: 1.0.0\ninfo: {title: Test, version: '1'}\nactions:\n  - target: $.info\n    update: {description: published}\n"), 0o600))
+			command := GetApplyOverlayCommand()
+			args := []string{filepath.Join("test_data", "issue_948", tc.fixture), overlay, output, "--prune-unused", "--no-style"}
+			if tc.filter {
+				args = append(args, "--include-tag", "public")
+			}
+			command.SetArgs(args)
+			_, _, err := captureProcessStreams(t, command.Execute)
+			require.NoError(t, err)
+			data, err := os.ReadFile(output)
+			require.NoError(t, err)
+			doc := normalizedYAML(t, data).(map[string]any)
+			components := doc["components"].(map[string]any)
+			require.Contains(t, components, tc.section)
+			assert.Contains(t, components[tc.section].(map[string]any), tc.name)
+			if tc.filter {
+				paths := doc["paths"].(map[string]any)
+				require.Contains(t, paths, "/source")
+				require.Contains(t, paths, "/bridge")
+				assert.Equal(t, "#/paths/~1bridge", paths["/public"].(map[string]any)["$ref"])
+				assert.Equal(t, "#/paths/~1source", paths["/bridge"].(map[string]any)["$ref"])
+				assert.Equal(t, "Shared metadata", paths["/source"].(map[string]any)["summary"])
+				assert.NotContains(t, paths["/source"].(map[string]any), "post")
+				assert.NotContains(t, paths, "/orphan-a")
+				assert.NotContains(t, paths, "/orphan-b")
+			}
+		})
+	}
+}

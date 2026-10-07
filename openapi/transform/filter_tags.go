@@ -66,6 +66,7 @@ func FilterOperationsByTags(root *yaml.Node, specVersion string, options TagFilt
 		ctx.filterReusable()
 	}
 	ctx.finalizeDeferredCallbacks()
+	ctx.removeEmptyRootItems()
 	afterIDs, afterRefs := snapshotOperationTargets(root, specVersion)
 	stats.Warnings = danglingLinkWarnings(root, beforeIDs, afterIDs, beforeRefs, afterRefs)
 	if root != original {
@@ -75,16 +76,17 @@ func FilterOperationsByTags(root *yaml.Node, specVersion string, options TagFilt
 }
 
 type filterContext struct {
-	root        *yaml.Node
-	version     string
-	included    map[string]struct{}
-	strategy    MatchStrategy
-	processed   map[*yaml.Node]bool
-	processing  map[*yaml.Node]bool
-	callbacks   map[*yaml.Node]bool
-	callbacking map[*yaml.Node]bool
-	deferred    map[*yaml.Node]struct{}
-	stats       *FilterStats
+	root           *yaml.Node
+	version        string
+	included       map[string]struct{}
+	strategy       MatchStrategy
+	processed      map[*yaml.Node]bool
+	processing     map[*yaml.Node]bool
+	callbacks      map[*yaml.Node]bool
+	callbacking    map[*yaml.Node]bool
+	deferred       map[*yaml.Node]struct{}
+	stats          *FilterStats
+	emptyRootItems map[*yaml.Node]bool
 }
 
 func (c *filterContext) filterRootMap(key string, webhook bool) {
@@ -92,22 +94,72 @@ func (c *filterContext) filterRootMap(key string, webhook bool) {
 	if container == nil || container.Kind != yaml.MappingNode {
 		return
 	}
-	for i := 0; i+1 < len(container.Content); {
+	for i := 0; i+1 < len(container.Content); i += 2 {
 		if !webhook && strings.HasPrefix(container.Content[i].Value, "x-") {
-			i += 2
 			continue
 		}
 		value := container.Content[i+1]
-		if c.filterPathItem(value) {
-			i += 2
+		if !c.filterPathItem(value) {
+			if c.emptyRootItems == nil {
+				c.emptyRootItems = make(map[*yaml.Node]bool)
+			}
+			c.emptyRootItems[value] = true
+		}
+	}
+}
+
+// removeEmptyRootItems retains a filtered Path Item when a surviving reference
+// needs its metadata. Defer removal so references resolve regardless of key
+// order, and follow chains without restoring any removed operations.
+func (c *filterContext) removeEmptyRootItems() {
+	if len(c.emptyRootItems) == 0 {
+		return
+	}
+	needed := make(map[*yaml.Node]bool)
+	visited := make(map[*yaml.Node]bool)
+	var visit func(*yaml.Node)
+	visit = func(node *yaml.Node) {
+		if node == nil || visited[node] || (c.emptyRootItems[node] && !needed[node]) {
+			return
+		}
+		visited[node] = true
+		if node.Kind == yaml.MappingNode {
+			if ref := mapValue(node, "$ref"); ref != nil && ref.Kind == yaml.ScalarNode {
+				tokens, err := localPointerTokens(ref.Value)
+				if err == nil && len(tokens) >= 2 && (tokens[0] == "paths" || tokens[0] == "webhooks") {
+					target := mapValue(mapValue(c.root, tokens[0]), tokens[1])
+					if c.emptyRootItems[target] && !needed[target] {
+						needed[target] = true
+						visit(target)
+					}
+				}
+			}
+		}
+		for _, child := range node.Content {
+			visit(child)
+		}
+	}
+	visit(c.root)
+	for _, key := range []string{"paths", "webhooks"} {
+		container := mapValue(c.root, key)
+		if container == nil || container.Kind != yaml.MappingNode {
 			continue
 		}
-		removeMapPair(container, i)
-		if webhook {
-			c.stats.WebhooksRemoved++
-		} else {
-			c.stats.PathItemsRemoved++
+		kept := container.Content[:0]
+		for i := 0; i+1 < len(container.Content); i += 2 {
+			value := container.Content[i+1]
+			if c.emptyRootItems[value] && !needed[value] {
+				if key == "webhooks" {
+					c.stats.WebhooksRemoved++
+				} else {
+					c.stats.PathItemsRemoved++
+				}
+				continue
+			}
+			kept = append(kept, container.Content[i], value)
 		}
+		clear(container.Content[len(kept):])
+		container.Content = kept
 	}
 }
 

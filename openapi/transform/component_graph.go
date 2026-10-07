@@ -189,7 +189,7 @@ func (g *ComponentGraph) walkNonComponents(root *yaml.Node, path []string, swagg
 }
 
 func (g *ComponentGraph) walkOwned(node *yaml.Node, path []string, owner *ComponentID, swagger bool, anchors map[string][]ComponentID) error {
-	if isWithinArbitraryExample(path) {
+	if isArbitraryData(node, path) {
 		return nil
 	}
 	inExtension := isWithinExtension(path)
@@ -250,9 +250,10 @@ func (g *ComponentGraph) walkOwned(node *yaml.Node, path []string, owner *Compon
 				}
 				g.adjacency[*owner][target] = struct{}{}
 			}
-		} else if node.Alias != nil {
-			// An alias can promote arbitrary example data into a schema. Scan
-			// it in the use site's context when no component owns its anchor.
+		}
+		if node.Alias != nil {
+			// An alias can promote arbitrary example data into a schema. Keep
+			// its anchor owner and scan its contents in the use site's context.
 			visit := aliasVisit{target: node.Alias, root: owner == nil}
 			if owner != nil {
 				visit.owner = *owner

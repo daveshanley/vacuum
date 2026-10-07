@@ -30,7 +30,7 @@ func ValidateBundled(root *yaml.Node) error {
 }
 
 func walkExternalReferences(node *yaml.Node, path []string) error {
-	if isWithinArbitraryExample(path) || isWithinExtension(path) {
+	if isArbitraryData(node, path) || isWithinExtension(path) {
 		return nil
 	}
 	switch node.Kind {
