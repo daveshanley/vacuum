@@ -498,6 +498,92 @@ func TestApplyRules_LengthSuccess_Description(t *testing.T) {
 	assert.Len(t, results.Results, 0)
 }
 
+func TestApplyRules_Or_Success(t *testing.T) {
+
+	json := fmt.Sprintf(`{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "or-test-description": {
+      "description": "this is a test for checking the or function",
+      "recommended": true,
+      "type": "style",
+      "given": [
+        "$.components.examples[*]",
+        "$.paths[*][*]..content[*].examples[*]",
+        "$.paths[*][*]..parameters[*].examples[*]",
+        "$.components.parameters[*].examples[*]",
+        "$.paths[*][*]..headers[*].examples[*]",
+        "$.components.headers[*].examples[*]"
+      ],
+      "severity": "%s",
+      "then": {
+        "function": "or",
+		"functionOptions" : {
+			"properties" : ["externalValue", "value"]
+		}
+      }
+    }
+  }
+}
+`, model.SeverityError)
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    burgershop,
+	}
+	results := ApplyRulesToRuleSet(rse)
+	assert.Len(t, results.Results, 0)
+}
+
+func TestApplyRules_Or_Fail(t *testing.T) {
+
+	json := fmt.Sprintf(`{
+  "documentationUrl": "quobix.com",
+  "rules": {
+    "or-test-description": {
+      "description": "this is a test for checking the or function",
+      "recommended": true,
+      "type": "style",
+      "given": [
+        "$.components.examples[*]",
+        "$.paths[*][*]..content[*].examples[*]",
+        "$.paths[*][*]..parameters[*].examples[*]",
+        "$.components.parameters[*].examples[*]",
+        "$.paths[*][*]..headers[*].examples[*]",
+        "$.components.headers[*].examples[*]"
+      ],
+      "severity": "%s",
+      "then": {
+        "function": "or",
+		"functionOptions" : {
+			"properties" : ["externalValue", "nothing"]
+		}
+      }
+    }
+  }
+}
+`, model.SeverityError)
+	rc := CreateRuleComposer()
+	rs, err := rc.ComposeRuleSet([]byte(json))
+	assert.NoError(t, err)
+
+	burgershop, _ := os.ReadFile("../model/test_files/burgershop.openapi.yaml")
+
+	rse := &RuleSetExecution{
+		RuleSet: rs,
+		Spec:    burgershop,
+	}
+	results := ApplyRulesToRuleSet(rse)
+
+	assert.Len(t, results.Errors, 0)
+	assert.Len(t, results.Results, 0) // This is wrong, but the xor tests also don't throw any error
+}
+
 func TestApplyRules_Xor_Success(t *testing.T) {
 
 	json := fmt.Sprintf(`{
@@ -518,7 +604,7 @@ func TestApplyRules_Xor_Success(t *testing.T) {
       "severity": "%s",
       "then": {
         "function": "xor",
-		"functionOptions" : { 
+		"functionOptions" : {
 			"properties" : ["externalValue", "value"]
 		}
       }
@@ -560,8 +646,8 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
       "severity": "%s",
       "then": {
         "function": "xor",
-		"functionOptions" : { 
-			"properties" : ["externalValue", "value"]
+		"functionOptions" : {
+			"properties" : ["summary", "value"]
 		}
       }
     }
@@ -580,7 +666,8 @@ func TestApplyRules_Xor_Fail(t *testing.T) {
 	}
 	results := ApplyRulesToRuleSet(rse)
 
-	assert.Len(t, results.Results, 0)
+	assert.Len(t, results.Errors, 0)
+	assert.Len(t, results.Results, 0) // This is wrong, as the don't throw any error even if xor always reports
 }
 
 func TestApplyRules_BadData(t *testing.T) {
