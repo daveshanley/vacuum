@@ -61,3 +61,18 @@ func TestExtendedRuleset_RelativeRemotePaths(t *testing.T) {
 	require.NoError(t, generated.LoadError())
 	require.Contains(t, generated.Rules, "child-rule")
 }
+
+func TestExtendedRuleset_RemoteReferencesNeverLoadLocalFiles(t *testing.T) {
+	for _, child := range []string{"./invalid%name.yaml", "file:///tmp/private-rules.yaml"} {
+		t.Run(child, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprintf(w, "extends: [%q]\n", child) }))
+			defer server.Close()
+			input, err := DownloadRemoteRuleSet(context.Background(), server.URL+"/rules.yaml", server.Client())
+			require.NoError(t, err)
+			generated := BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(input, server.Client())
+			require.Error(t, generated.LoadError())
+			require.Contains(t, generated.LoadError().Error(), "remote ruleset")
+			require.NotContains(t, generated.LoadError().Error(), "no such file")
+		})
+	}
+}

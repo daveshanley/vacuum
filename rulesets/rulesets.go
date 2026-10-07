@@ -231,7 +231,7 @@ type RuleSet struct {
 	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
 	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
-	sourceLocation   string                  // file or URL that contains this ruleset; empty for in-memory rulesets
+	sourceLocation   rulesetLocation         // file or URL that contains this ruleset; empty for in-memory rulesets
 	loadErrors       []error
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
