@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 	"github.com/pb33f/testify/require"
 )
 
@@ -188,4 +190,51 @@ components:
 	require.Empty(t, GetSchemaDirections(&m.Model))
 	require.Equal(t, DirectionNone, GetSchemaDirection(&m.Model, ""))
 	require.Equal(t, DirectionNone, GetSchemaDirection(&m.Model, "#/components/schemas/"))
+}
+
+func TestGetSchemaDirections_ProgrammaticCycle(t *testing.T) {
+	// A cycle without source nodes must terminate, while parsed descendants
+	// still receive their request direction.
+	doc, err := libopenapi.NewDocument([]byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Leaf: {type: string}"))
+	require.NoError(t, err)
+	defer doc.Release()
+	m, err := doc.BuildV3Model()
+	require.NoError(t, err)
+	leaf := m.Model.Components.Schemas.GetOrZero("Leaf")
+	schema := &base.Schema{Type: []string{"object"}}
+	proxy := base.CreateSchemaProxy(schema)
+	schema.AllOf = []*base.SchemaProxy{proxy, leaf}
+	paths := orderedmap.New[string, *v3.PathItem]()
+	paths.Set("/items", &v3.PathItem{Parameters: []*v3.Parameter{{Name: "filter", In: "query", Schema: proxy}}})
+	programmatic := &v3.Document{Paths: &v3.Paths{PathItems: paths}}
+	require.Equal(t, DirectionNone, GetSchemaDirection(programmatic, "missing"))
+	require.Equal(t, DirectionRequest, GetSchemaNodeDirections(programmatic)[leaf.Schema().GoLow().RootNode])
+}
+
+func TestGetSchemaDirections_RequestAndResponseEntryPoints(t *testing.T) {
+	const schema = "{$ref: '#/components/schemas/S'}"
+	content := "{application/json: {schema: " + schema + "}}"
+	request := "{requestBody: {content: " + content + "}}"
+	for _, tc := range []struct {
+		name, paths, webhooks string
+		want                  DirectionType
+	}{
+		{"parameter content", "{/items: {parameters: [{name: filter, in: query, content: " + content + "}]}}", "{}", DirectionRequest},
+		{"header content", "{/items: {get: {responses: {'200': {description: OK, headers: {X-Value: {content: " + content + "}}}}}}}", "{}", DirectionResponse},
+		{"callback", "{/items: {get: {callbacks: {event: {'{$request.body#/url}': {post: " + request + "}}}}}}", "{}", DirectionRequest},
+		{"webhook", "{}", "{event: {post: " + request + "}}", DirectionRequest},
+		{"query", "{/items: {query: " + request + "}}", "{}", DirectionRequest},
+		{"additional operation", "{/items: {additionalOperations: {CUSTOM: " + request + "}}}", "{}", DirectionRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc, err := libopenapi.NewDocument([]byte("openapi: 3.2.0\ninfo: {title: Entry points, version: '1'}\npaths: " + tc.paths + "\nwebhooks: " + tc.webhooks + "\ncomponents: {schemas: {S: {type: string}}}\n"))
+			require.NoError(t, err)
+			defer doc.Release()
+			m, err := doc.BuildV3Model()
+			require.NoError(t, err)
+			require.Equal(t, tc.want, GetSchemaDirection(&m.Model, "S"))
+			node := m.Model.Components.Schemas.GetOrZero("S").Schema().GoLow().RootNode
+			require.Equal(t, tc.want, GetSchemaNodeDirections(&m.Model)[node])
+		})
+	}
 }
