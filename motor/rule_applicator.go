@@ -50,23 +50,17 @@ type RuleLookupError struct {
 	Err    error
 }
 
-// ExecutionOptions configures optional behavior for one ruleset execution.
-// A nil Context uses context.Background. RunTimeout values greater than zero
-// apply a deadline from invocation start; an earlier caller cancellation or
-// deadline wins. Model preparation checks cancellation between synchronous
-// phases. An active upstream build or caller-supplied handler must return before
-// that phase can stop, so the deadline is not a hard bound on preparation time.
-// MaxRuleConcurrency limits motor workers that schedule or await rule
-// functions. Zero preserves the default ceiling of 32 and negative values are
-// rejected. Rule functions are not context-aware, so a running rule may finish
-// after cancellation and its incomplete output is discarded. Auto-fix
-// callbacks receive private target and document YAML clones; their edits are
-// published only after the complete rule succeeds. Other objects exposed through
-// RuleFunctionContext remain caller-owned and must not be mutated by callbacks.
+// ExecutionOptions configures one ruleset execution. Model preparation checks
+// cancellation between synchronous phases; an active upstream build or caller
+// handler must return before that phase can stop. Rule functions may finish
+// after cancellation, but incomplete output is discarded. Auto-fix target and
+// document edits remain private until the complete rule succeeds. Other objects
+// exposed through RuleFunctionContext remain caller-owned and must not be mutated.
 type ExecutionOptions struct {
 	// Context is the base context for the complete motor invocation; nil uses context.Background.
 	Context context.Context
-	// RunTimeout sets a deadline when positive. Synchronous model preparation stops between phases.
+	// RunTimeout sets a deadline when positive; earlier caller cancellation wins.
+	// Preparation stops between phases, so this is not a hard preparation-time bound.
 	RunTimeout time.Duration
 	// MaxRuleConcurrency caps active motor rule workers. Zero uses 32; negative values are invalid.
 	MaxRuleConcurrency int
@@ -142,7 +136,7 @@ type RuleSetExecutionResult struct {
 	Errors           []error                          // Any errors that were returned.
 	FilesProcessed   int                              // number of files extracted by the rolodex
 	FileSize         int64                            // total filesize loaded by the rolodex
-	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
+	DocumentConfig   *datamodel.DocumentConfiguration // Reusable document configuration, without the invocation-bound HTTP context.
 	AsyncAPI         *asyncapi_context.Context        // The AsyncAPI context created for AsyncAPI execution.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
 	ownedDocument    libopenapi.Document
@@ -539,6 +533,14 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	docConfigResolved.SpecFilePath = execution.SpecFileName
 	docConfigResolved.LocalFS = execution.RolodexFS
 	docConfigResolved.RemoteFS = execution.RolodexFS
+	// Returned configuration remains reusable after this invocation is cancelled.
+	// Only the internal model builders use the invocation-bound HTTP handler.
+	reusableRemoteURLHandler := docConfigResolved.RemoteURLHandler
+	documentConfigForReuse := func() *datamodel.DocumentConfiguration {
+		config := *docConfigResolved
+		config.RemoteURLHandler = reusableRemoteURLHandler
+		return &config
+	}
 
 	if execution.IgnoreCircularArrayRef {
 		docConfigResolved.IgnoreArrayCircularReferences = true
@@ -587,6 +589,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 		// Set the custom RemoteURLHandler for libopenapi
 		docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
+		reusableRemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 	}
 
 	if execution.Base != "" {
@@ -743,6 +746,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 		suppliedDocConfig := cloneDocumentConfiguration(docResolved.GetConfiguration())
 		docConfigResolved = cloneDocumentConfiguration(suppliedDocConfig)
+		reusableRemoteURLHandler = docConfigResolved.RemoteURLHandler
 		docConfigResolved.ResolveNestedRefsWithDocumentContext = suppliedDocConfig.ResolveNestedRefsWithDocumentContext || opts.NestedRefsDocContext
 		docConfigUnresolved = *cloneDocumentConfiguration(suppliedDocConfig)
 		docConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
@@ -782,11 +786,12 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	}
 
 	if controlErr := control.Err(); controlErr != nil {
-		result := appendContextError(&RuleSetExecutionResult{
+		result := &RuleSetExecutionResult{
 			RuleSetExecution: execution,
 			SpecInfo:         specInfo,
-			DocumentConfig:   docConfigResolved,
-		}, controlErr)
+			DocumentConfig:   documentConfigForReuse(),
+			Errors:           []error{controlErr},
+		}
 		ownedResources.transfer(result)
 		return result
 	}
@@ -856,10 +861,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
 	var specNodeResolved *yaml.Node
-	cancelledPreparation := func() *RuleSetExecutionResult {
-		if control.Err() == nil {
-			return nil
-		}
+	prepareIndexes := func() {
 		if rolodexResolved != nil {
 			indexResolved = rolodexResolved.GetRootIndex()
 		}
@@ -871,17 +873,28 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		}
 		execution.IndexResolved = indexResolved
 		execution.IndexUnresolved = indexUnresolved
+	}
+	preparedResult := func(errs []error) *RuleSetExecutionResult {
+		prepareIndexes()
 		filesProcessed, fileSize := rolodexMetrics(rolodexResolved)
-		result := appendContextError(&RuleSetExecutionResult{
+		result := &RuleSetExecutionResult{
 			RuleSetExecution: execution,
 			Index:            indexResolved,
 			SpecInfo:         specInfo,
 			FilesProcessed:   filesProcessed,
 			FileSize:         fileSize,
-			DocumentConfig:   docConfigResolved,
-		}, control.Err())
+			DocumentConfig:   documentConfigForReuse(),
+			Errors:           appendContextErrorToErrors(errs, control.Err()),
+		}
 		ownedResources.transfer(result)
+		resourcesTransferred = true
 		return result
+	}
+	cancelledPreparation := func() *RuleSetExecutionResult {
+		if control.Err() == nil {
+			return nil
+		}
+		return preparedResult(nil)
 	}
 
 	indexConfig.Logger.Debug("building document models")
@@ -1095,12 +1108,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	then := time.Since(nowModel).Milliseconds()
 	indexConfig.Logger.Debug("built model", "ms", then)
 
-	if version == "" || ownedResources.resolvedDocument != nil {
-		ownedResources.resolvedIndex = indexResolved
-	}
-
-	execution.IndexResolved = indexResolved
-	execution.IndexUnresolved = indexUnresolved
+	prepareIndexes()
 	if cancelled := cancelledPreparation(); cancelled != nil {
 		return cancelled
 	}
@@ -1441,9 +1449,6 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		then = time.Since(now).Milliseconds()
 		indexConfig.Logger.Debug("rules completed", "totalRules", totalRules, "ms", then)
 	}
-	errs = appendContextErrorToErrors(errs, control.Err())
-
-	filesProcessed, fileSize := rolodexMetrics(rolodexResolved)
 
 	if indexResolved != nil && rolodexResolved != nil {
 		//ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
@@ -1485,23 +1490,12 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			indexConfig.Logger.Debug("ModifiedSpec marshaled from CanonicalDocument")
 		}
 	}
-	errs = appendContextErrorToErrors(errs, control.Err())
 
-	result := &RuleSetExecutionResult{
-		RuleSetExecution: execution,
-		Results:          ruleResults,
-		IgnoredResults:   ignoredResults,
-		FixedResults:     fixedResults,
-		Index:            indexResolved,
-		SpecInfo:         specInfo,
-		Errors:           errs,
-		FilesProcessed:   filesProcessed,
-		FileSize:         fileSize,
-		DocumentConfig:   docConfigResolved,
-		ModifiedSpec:     modifiedSpec,
-	}
-	ownedResources.transfer(result)
-	resourcesTransferred = true
+	result := preparedResult(errs)
+	result.Results = ruleResults
+	result.IgnoredResults = ignoredResults
+	result.FixedResults = fixedResults
+	result.ModifiedSpec = modifiedSpec
 	return result
 }
 

@@ -22,18 +22,6 @@ import (
 	"github.com/pb33f/testify/require"
 )
 
-type atomicCounter struct {
-	value atomic.Int32
-}
-
-func (c *atomicCounter) Add(delta int32) int32 {
-	return c.value.Add(delta)
-}
-
-func (c *atomicCounter) Load() int32 {
-	return c.value.Load()
-}
-
 type channelRuleFunction struct {
 	releases map[string]<-chan struct{}
 	started  chan string
