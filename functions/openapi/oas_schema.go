@@ -310,6 +310,9 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
 	version := validationInfo.VersionNumeric
+	if version >= 3 && version < 3.1 {
+		results = append(results, checkComponentNames(validationInfo.RootNode, context.Rule)...)
+	}
 	if version >= 3.1 {
 		nullableResults := checkForNullableKeyword(context)
 		results = append(results, nullableResults...)
@@ -342,6 +345,16 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				continue
 			}
 			if validationErrors[i].SchemaValidationErrors[y].Reason == "if-then failed" {
+				continue
+			}
+			schemaFailure := validationErrors[i].SchemaValidationErrors[y]
+			// The validator already retains the offending key and its instance path.
+			// Child errors are relative to the key string, not the API document.
+			if strings.HasSuffix(schemaFailure.KeywordLocation, "/propertyNames") && len(schemaFailure.InstancePath) > 0 {
+				res := propertyNameResult(validationInfo.RootNode, schemaFailure.InstancePath, schemaFailure.Reason, context.Rule)
+				results = append(results, res)
+				seenSchemaFailures[hashResult(schemaFailure)] = schemaFailure
+				addResultToModelByLine(&res, context.DrDocument, res.StartNode.Line)
 				continue
 			}
 			_, location := utils.ConvertComponentIdIntoFriendlyPathSearch(validationErrors[i].SchemaValidationErrors[y].KeywordLocation)
