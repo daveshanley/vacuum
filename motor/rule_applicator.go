@@ -1566,8 +1566,8 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
 			results := ruleFunction.RunRule(selected, rfc)
 			if ctx.rule.Message != "" {
-				if messagePaths == nil && strings.Contains(ctx.rule.Message, "{{") {
-					messagePaths = vacuumUtils.BuildNodePathIndex(ctx.specNode)
+				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {
+					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
 				}
 				formatRuleMessages(ctx.rule, ruleAction, selected, results, ctx.specNode, messagePaths, ctx.messageUpdates)
 			}

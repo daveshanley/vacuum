@@ -2,14 +2,14 @@ package motor
 
 import (
 	"encoding/json"
-	doctorModel "github.com/pb33f/doctor/model"
-	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	doctorModel "github.com/pb33f/doctor/model"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
 )
@@ -17,6 +17,13 @@ import (
 // formatRuleMessages runs once for each function result, before auto-fixes can
 // change its value. Replacement text is never interpreted as another template.
 func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, root *yaml.Node, paths *vacuumUtils.NodePathIndex, updates *sync.Map) {
+	var selectedNodes map[*yaml.Node]struct{}
+	if len(selected) > 1 && ruleMessageNeedsLocation(rule.Message) {
+		selectedNodes = make(map[*yaml.Node]struct{}, len(selected))
+		for _, node := range selected {
+			selectedNodes[node] = struct{}{}
+		}
+	}
 	for i := range results {
 		result := &results[i]
 		result.Rule = rule
@@ -25,62 +32,72 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 			continue
 		}
 		original := doctorMessageKey{rule.Id, result.StartNode, result.Path, result.Message}
-		path := result.Path
-		target := result.StartNode
-		fallback := path == "" || path == "unknown" || resultPathHasSelectorSyntax(path)
-		for _, given := range resultGivenPaths(rule) {
-			fallback = fallback || path == given
-		}
-		if fallback {
-			located, found := paths.Lookup(target)
-			if found {
-				path = located
+		var property, pointer, value string
+		if ruleMessageNeedsLocation(rule.Message) {
+			path := result.Path
+			target := result.StartNode
+			_, targetIsValue := selectedNodes[target]
+			targetIsValue = targetIsValue || len(selected) == 1 && selected[0] == target
+			fallback := path == "" || path == "unknown" || resultPathHasSelectorSyntax(path)
+			for _, given := range resultGivenPaths(rule) {
+				fallback = fallback || path == given
 			}
-			if !found && len(selected) == 1 {
-				target = selected[0]
-				if located, ok := paths.Lookup(target); ok {
+			if fallback {
+				located, found := paths.Lookup(target)
+				if found {
 					path = located
 				}
-			}
-			isSelected := false
-			for _, node := range selected {
-				isSelected = isSelected || node == target
-			}
-			if action.Field != "" && isSelected {
-				if target != nil && target.Kind == yaml.DocumentNode && len(target.Content) > 0 {
-					target = target.Content[0]
-				}
-				if target != nil {
-					field := vacuumUtils.FindFieldPath(action.Field, target.Content, vacuumUtils.FieldPathOptions{ResolveSingleItemCombinators: rule.Resolved})
-					target = field.ValueNode
+				if !found && len(selected) == 1 {
+					target = selected[0]
+					targetIsValue = true
 					if located, ok := paths.Lookup(target); ok {
 						path = located
-					} else {
-						segments, _ := vacuumUtils.ParseFieldPath(action.Field)
-						for _, segment := range segments {
-							if segment.Type == vacuumUtils.SegmentArrayIndex {
-								path = vacuumUtils.AppendResultPathIndex(path, segment.Index)
-							} else {
-								path = vacuumUtils.AppendResultPathSegment(path, segment.Key)
+					}
+				}
+				_, isSelected := selectedNodes[target]
+				isSelected = isSelected || len(selected) == 1 && selected[0] == target
+				if action.Field != "" && isSelected {
+					if target != nil && target.Kind == yaml.DocumentNode && len(target.Content) > 0 {
+						target = target.Content[0]
+					}
+					if target != nil {
+						field := vacuumUtils.FindFieldPath(action.Field, target.Content, vacuumUtils.FieldPathOptions{ResolveSingleItemCombinators: rule.Resolved})
+						target = field.ValueNode
+						targetIsValue = field.Found
+						if located, ok := paths.Lookup(target); ok {
+							path = located
+						} else {
+							segments, _ := vacuumUtils.ParseFieldPath(action.Field)
+							for _, segment := range segments {
+								if segment.Type == vacuumUtils.SegmentArrayIndex {
+									path = vacuumUtils.AppendResultPathIndex(path, segment.Index)
+								} else {
+									path = vacuumUtils.AppendResultPathSegment(path, segment.Key)
+								}
 							}
 						}
 					}
 				}
 			}
-		}
-		property, pointer, valueNode := ruleMessageLocation(root, path)
-		if valueNode != nil {
-			target = valueNode
-		}
-		value := ""
-		if target != nil {
-			if target.Kind == yaml.ScalarNode {
-				value = target.Value
-			} else {
-				var decoded any
-				if target.Decode(&decoded) == nil {
-					if encoded, err := json.Marshal(decoded); err == nil {
-						value = string(encoded)
+			var valueNode *yaml.Node
+			valueRoot := root
+			knownPath, known := paths.Lookup(target)
+			if !strings.Contains(rule.Message, "{{value}}") || targetIsValue && known && knownPath == path {
+				valueRoot = nil
+			}
+			property, pointer, valueNode = ruleMessageLocation(valueRoot, path)
+			if valueNode != nil {
+				target = valueNode
+			}
+			if target != nil && strings.Contains(rule.Message, "{{value}}") {
+				if target.Kind == yaml.ScalarNode {
+					value = target.Value
+				} else {
+					var decoded any
+					if target.Decode(&decoded) == nil {
+						if encoded, err := json.Marshal(decoded); err == nil {
+							value = string(encoded)
+						}
 					}
 				}
 			}
@@ -185,4 +202,23 @@ func updateDoctorMessages(doc *doctorModel.DrDocument, updates *sync.Map) {
 			update(root)
 		}
 	}
+}
+
+func ruleMessageNeedsLocation(message string) bool {
+	return strings.Contains(message, "{{property}}") || strings.Contains(message, "{{path}}") || strings.Contains(message, "{{value}}")
+}
+
+type messagePathIndexKey struct{ root *yaml.Node }
+
+func messagePathIndex(root *yaml.Node, cache *sync.Map) *vacuumUtils.NodePathIndex {
+	if cache == nil {
+		return vacuumUtils.BuildNodePathIndex(root)
+	}
+	key := messagePathIndexKey{root}
+	if cached, ok := cache.Load(key); ok {
+		return cached.(func() *vacuumUtils.NodePathIndex)()
+	}
+	build := sync.OnceValue(func() *vacuumUtils.NodePathIndex { return vacuumUtils.BuildNodePathIndex(root) })
+	cached, _ := cache.LoadOrStore(key, build)
+	return cached.(func() *vacuumUtils.NodePathIndex)()
 }
