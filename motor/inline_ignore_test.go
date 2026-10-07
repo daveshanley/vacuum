@@ -567,6 +567,28 @@ rules:
 	}
 }
 
+func TestCheckInlineIgnoreByPathIndexed_DeepAncestor(t *testing.T) {
+	spec := `openapi: 3.1.0
+components:
+  securitySchemes:
+    auth:
+      x-lint-ignore: owasp-auth-urls-https
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: http://example.com/token
+    other:
+      type: openIdConnect
+      openIdConnectUrl: http://example.com/discovery
+`
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(spec), &node))
+	idx := buildInlineIgnoreIndex(&node)
+	assert.True(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.components.securitySchemes['auth'].flows.password.tokenUrl", "owasp-auth-urls-https"))
+	assert.False(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.components.securitySchemes['other'].openIdConnectUrl", "owasp-auth-urls-https"))
+	assert.False(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.components.securitySchemes['auth'].flows.password.tokenUrl", "owasp-oauth-no-password"))
+}
+
 func TestInlineIgnore_Integration_OWASPNoHttpBasic(t *testing.T) {
 	spec := `
 openapi: 3.0.0

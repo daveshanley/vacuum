@@ -123,3 +123,24 @@ components:
 	assert.True(t, found[rulesets.OwaspOAuthNoPassword])
 	assert.True(t, found[rulesets.OwaspAuthURLsHTTPS])
 }
+
+func TestRuleSet_OWASPOAuthInlineIgnore(t *testing.T) {
+	spec := `openapi: 3.1.0
+info: {title: Test, version: '1'}
+paths: {}
+components:
+  securitySchemes:
+    auth:
+      x-lint-ignore: [owasp-oauth-no-password, owasp-auth-urls-https]
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: http://example.com/token
+          scopes: {}
+`
+	a, b := rulesets.GetOWASPOAuthNoPasswordRule(), rulesets.GetOWASPAuthURLsHTTPSRule()
+	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{Spec: []byte(spec), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{a.Id: a, b.Id: b}}})
+	require.Empty(t, result.Errors)
+	assert.Empty(t, result.Results)
+	assert.Len(t, result.IgnoredResults, 2)
+}
