@@ -422,15 +422,6 @@ func forEachRuleActionValue(value interface{}, visit func(model.RuleAction) bool
 				return true
 			}
 		}
-	case map[string]interface{}:
-		mapped := model.RuleAction{FunctionOptions: action["functionOptions"]}
-		if field, ok := action["field"].(string); ok {
-			mapped.Field = field
-		}
-		if function, ok := action["function"].(string); ok {
-			mapped.Function = function
-		}
-		return visit(mapped)
 	case []interface{}:
 		for _, item := range action {
 			if forEachRuleActionValue(item, visit) {
