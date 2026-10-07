@@ -316,6 +316,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					NoStyle:        flags.NoStyleFlag,
 					PipelineOutput: flags.PipelineOutput,
 					ShowRules:      false,
+					Failed:         CheckFailureSeverity(flags.FailSeverityFlag, fr.errors, fr.warnings, fr.informs, fr.hints) != nil,
 				})
 			}
 

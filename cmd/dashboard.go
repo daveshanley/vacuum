@@ -385,7 +385,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			if resultSet == nil || len(resultSet.Results) == 0 {
 				if !silent {
-					renderResultBox(0, 0, 0, 0) // Perfect score
+					renderResultBox(0, 0, 0, 0, 0, false) // Perfect score
 				}
 				// If not in watch mode, exit early since there's nothing to show
 				if !watchFlag {
