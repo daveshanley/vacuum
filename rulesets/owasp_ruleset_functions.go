@@ -448,12 +448,12 @@ func GetOWASPIntegerFormatRule() *model.Rule {
 func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "If the additionalProperties keyword is used it must be set to false",
+		Name:         "Request objects should restrict additional properties",
 		Id:           OwaspNoAdditionalProperties,
 		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
 		Given:        `$`,
 		Resolved:     false,
-		Formats:      append(model.OAS2Format, model.OAS3Format...),
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -470,9 +470,9 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "Objects should not allow unconstrained additionalProperties",
+		Name:         "Request maps should limit their property count",
 		Id:           OwaspConstrainedAdditionalProperties,
-		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
+		Description:  "Request maps should declare maxProperties to limit resource consumption. This does not restrict which properties may be assigned.",
 		Given:        `$`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
@@ -483,7 +483,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspNoAdditionalPropertiesConstrained",
 		},
-		HowToFix: owaspNoAdditionalPropertiesFix,
+		HowToFix: owaspConstrainedAdditionalPropertiesFix,
 	}
 }
 
