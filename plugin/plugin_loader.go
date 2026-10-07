@@ -57,6 +57,9 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".js") {
 			fPath := filepath.Join(path, entry.Name())
 			fName := strings.Split(entry.Name(), ".")[0]
+			if !silence {
+				fmt.Printf("● Located custom function plugin: %s\n", fPath)
+			}
 
 			// let's try and read the file
 			p, e := os.ReadFile(fPath)
@@ -67,11 +70,8 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			function := javascript.NewJSRuleFunction(fName, string(p))
 
 			if err := function.CheckScript(); err != nil {
-				loadErr := fmt.Errorf("unable to load custom function %q: %w; vacuum custom functions use a plain script with runRule(input) and getSchema(); npm modules and ES module imports/exports are not supported", fPath, err)
+				loadErr := fmt.Errorf("unable to load custom function %q: %w; vacuum custom functions use a plain script with runRule(input) and getSchema(); check the script syntax and required function definitions", fPath, err)
 				loadErrors = append(loadErrors, loadErr)
-				// A skipped function changes the active rules. Keep the warning visible,
-				// but keep stdout available for machine-readable report output.
-				_, _ = fmt.Fprintln(os.Stderr, loadErr)
 				continue
 			}
 			if !silence {
@@ -92,6 +92,11 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 	}
 	if pm.LoadedFunctionCount() == 0 && len(loadErrors) > 0 {
 		return nil, fmt.Errorf("no vacuum custom functions loaded: %w", errors.Join(loadErrors...))
+	}
+	// Mixed directories still load valid functions. Report skipped scripts once
+	// on stderr; wholly invalid directories return their errors to the caller.
+	for _, loadErr := range loadErrors {
+		_, _ = fmt.Fprintln(os.Stderr, loadErr)
 	}
 	return pm, nil
 }
