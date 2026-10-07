@@ -87,6 +87,7 @@ func (c *executionControl) MaxRuleConcurrency() int {
 	return c.maxRuleConcurrency
 }
 
+// AutoFixGate returns the invocation gate, or nil when execution has no control.
 func (c *executionControl) AutoFixGate() chan struct{} {
 	if c == nil {
 		return nil
