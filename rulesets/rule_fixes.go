@@ -209,7 +209,9 @@ const (
 	owaspStringRestrictedFix        = "Ensure that strings have either a `format`, RegEx `pattern`, `enum`, or `const`."
 	owaspIntegerLimitFix            = "Use `minimum` and `maximum` properties for integer types: avoiding negative numbers when positive are expected, or reducing unreasonable iterations like doing something 1000 times when 10 is expected."
 	owaspIntegerFormatFix           = "Specify whether int32 or int64 is expected via `format`."
-	owaspNoAdditionalPropertiesFix  = "Disable additional properties by setting `additionalProperties` to `false` or add `maxProperties`."
+	owaspNoAdditionalPropertiesFix  = "Close request objects with `additionalProperties: false` (or `unevaluatedProperties: false` in OpenAPI 3.1+), or define a schema for deliberate map values. Composition may require closure on the enclosing schema."
 	owaspSecurityHostsHttpsOAS2Fix  = "Ensure that you are using the HTTPS protocol. Learn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html."
 	owaspSecurityHostsHttpsOAS3Fix  = "Prefix server URLs with the HTTPS protocol: `https://`. Learn more about the importance of TLS (over SSL) here: https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.html."
 )
+
+const owaspConstrainedAdditionalPropertiesFix = "Set maxProperties to bound request map size. It does not restrict which fields may be assigned."

@@ -8,12 +8,14 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/index"
 	"slices"
 )
 
+// NoAdditionalProperties checks request objects for unrestricted extra fields.
 type NoAdditionalProperties struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the NoAdditionalProperties rule.
 func (na NoAdditionalProperties) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "owaspNoAdditionalProperties"}
 }
@@ -23,45 +25,94 @@ func (na NoAdditionalProperties) GetCategory() string {
 	return model.FunctionCategoryOWASP
 }
 
-// RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule checks request object schemas for unrestricted additional properties.
 func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-
-	var results []model.RuleFunctionResult
-
-	if context.DrDocument == nil {
-		return results
+	if context.DrDocument == nil || context.DrDocument.V3Document == nil {
+		return nil
 	}
-
-	for _, schema := range context.DrDocument.Schemas {
-		if slices.Contains(schema.Value.Type, "object") {
-			if schema.Value.AdditionalProperties != nil {
-				// Flag if additionalProperties is true (IsB && B) or is a schema object (IsA)
-				if (schema.Value.AdditionalProperties.IsB() && schema.Value.AdditionalProperties.B) ||
-					schema.Value.AdditionalProperties.IsA() {
-					node := schema.Value.GoLow().Type.KeyNode
-					valueNode := schema.Value.GoLow().Type.ValueNode
-
-					// Find all locations where this schema appears
-					locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
-
-					result := model.RuleFunctionResult{
-						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							"`additionalProperties` should not be set, or set to `false`"),
-						StartNode: node,
-						EndNode:   vacuumUtils.BuildEndNode(node),
-						Path:      locatedPath,
-						Rule:      context.Rule,
+	// A referenced composition arm can be closed by its enclosing schema.
+	// Reuse indexed references rather than evaluating composed schemas.
+	composedOnly := make(map[*yaml.Node]bool)
+	if context.Index != nil {
+		indexes := []*index.SpecIndex{context.Index}
+		references := context.Index.GetAllReferences()
+		mapped := context.Index.GetMappedReferences()
+		if rolodex := context.Index.GetRolodex(); rolodex != nil {
+			indexes = append(indexes, rolodex.GetIndexes()...)
+			references = rolodex.GetAllReferences()
+			mapped = rolodex.GetAllMappedReferences()
+		}
+		for _, idx := range indexes {
+			for _, ref := range idx.GetPolyReferences() {
+				if references[ref.FullDefinition] == nil {
+					if target := mapped[ref.FullDefinition]; target != nil {
+						composedOnly[target.Node] = true
 					}
-
-					// Set the Paths array if there are multiple locations
-					if len(allPaths) > 1 {
-						result.Paths = allPaths
-					}
-					schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
-					results = append(results, result)
 				}
 			}
 		}
+	}
+	var results []model.RuleFunctionResult
+	var directions map[*yaml.Node]vacuumUtils.DirectionType
+	for _, schema := range context.DrDocument.Schemas {
+		value := schema.Value
+		if (!vacuumUtils.IsOAS30(context.SpecInfo) && value.Const != nil) || len(value.Enum) > 0 {
+			continue
+		}
+		if !slices.Contains(value.Type, "object") && !(len(value.Type) == 0 && (value.Properties != nil || value.AdditionalProperties != nil || value.UnevaluatedProperties != nil)) {
+			continue
+		}
+		properties := value.AdditionalProperties
+		if properties != nil && (properties.IsA() || !properties.B) {
+			continue
+		}
+		if properties == nil {
+			if composedOnly[value.GoLow().RootNode] {
+				continue
+			}
+			// An explicit unevaluatedProperties constraint can close an OAS 3.1 object.
+			if !vacuumUtils.IsOAS30(context.SpecInfo) && value.UnevaluatedProperties != nil && (value.UnevaluatedProperties.IsA() || !value.UnevaluatedProperties.B) {
+				continue
+			}
+			// Composition branches constrain the same instance. Missing closure here
+			// does not prove the complete object is open; do not require closure per arm.
+			if len(value.AllOf) > 0 || len(value.AnyOf) > 0 || len(value.OneOf) > 0 {
+				continue
+			}
+			if proxy, ok := schema.GetParent().(*v3.SchemaProxy); ok {
+				switch proxy.GetPathSegment() {
+				case "allOf", "anyOf", "oneOf", "if", "then", "else", "not", "dependentSchemas":
+					continue
+				}
+			}
+		}
+		if directions == nil {
+			directions = schemaNodeDirections(context)
+		}
+		direction := directions[value.GoLow().RootNode]
+		if direction != vacuumUtils.DirectionRequest && direction != vacuumUtils.DirectionBoth {
+			continue
+		}
+		node, valueNode := value.GoLow().Type.KeyNode, value.GoLow().Type.ValueNode
+		if node == nil {
+			node, valueNode = value.GoLow().Properties.KeyNode, value.GoLow().Properties.ValueNode
+		}
+		if node == nil {
+			node, valueNode = value.GoLow().AdditionalProperties.KeyNode, value.GoLow().AdditionalProperties.ValueNode
+		}
+		if node == nil {
+			node, valueNode = value.GoLow().UnevaluatedProperties.KeyNode, value.GoLow().UnevaluatedProperties.ValueNode
+		}
+		locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
+		result := model.RuleFunctionResult{
+			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "request objects should set `additionalProperties` to `false` or define a schema for additional values"),
+			StartNode: node, EndNode: vacuumUtils.BuildEndNode(node), Path: locatedPath, Rule: context.Rule,
+		}
+		if len(allPaths) > 1 {
+			result.Paths = allPaths
+		}
+		schema.AddRuleFunctionResult(v3.ConvertRuleResult(&result))
+		results = append(results, result)
 	}
 	return results
 }

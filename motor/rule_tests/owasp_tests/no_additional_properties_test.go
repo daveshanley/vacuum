@@ -20,6 +20,15 @@ func TestRuleSet_OWASPNoAdditionalProperties_Success(t *testing.T) {
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     Foo:
@@ -28,14 +37,25 @@ components:
 `,
 		},
 		{
-			name: "valid case: no additionalProperties defined",
+			name: "valid case: bounded map",
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     Foo:
       type: object
+      additionalProperties: {type: string}
+      maxProperties: 10
 `,
 		},
 	}
@@ -70,6 +90,15 @@ func TestRuleSet_OWASPNoAdditionalProperties_Error(t *testing.T) {
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     Foo:
@@ -78,21 +107,25 @@ components:
 `,
 		},
 		{
-			name: "invalid case: additionalProperties set to an object (oas3)",
+			name: "invalid case: additionalProperties true with a count limit (oas3)",
 			yml: `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Foo'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     Foo:
       type: object
-      additionalProperties:
-        type: object
-        properties:
-          code:
-            type: integer
-          text:
-            type: string
+      additionalProperties: true
+      maxProperties: 10
 `,
 		},
 	}

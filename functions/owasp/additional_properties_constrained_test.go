@@ -15,6 +15,15 @@ import (
 func TestAdditionalPropertiesConstrained_RunRule(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
@@ -50,13 +59,22 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "schema should also define `maxProperties` when `additionalProperties` is an object", res[0].Message)
+	assert.Equal(t, "request maps should define `maxProperties` to limit the number of properties", res[0].Message)
 	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }
 
 func TestAdditionalPropertiesConstrained_RunRule_Pass(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
@@ -98,6 +116,15 @@ components:
 func TestAdditionalPropertiesConstrained_RunRule_Pass_Bool(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
