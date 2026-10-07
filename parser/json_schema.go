@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
@@ -60,6 +61,10 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 	return highSch, nil
 }
 
+// Inline rendering mutates high-level schema metadata, including shared
+// references. Keep rendering serialized without retaining any schema graphs.
+var schemaValidationMu sync.Mutex
+
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
 func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
 	var validator schema_validation.SchemaValidator
@@ -110,5 +115,7 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	var decoded any
 	_ = json.Unmarshal(n, &decoded)
 
+	schemaValidationMu.Lock()
+	defer schemaValidationMu.Unlock()
 	return validator.ValidateSchemaObject(schema, decoded)
 }
