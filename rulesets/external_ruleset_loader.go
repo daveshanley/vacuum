@@ -92,7 +92,7 @@ func flushBufferedRuleSetLogs(logger *slog.Logger, records []bufferedRuleSetLogR
 	}
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, source string, rs *RuleSet, httpClient *http.Client) {
+func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, source rulesetLocation, rs *RuleSet, httpClient *http.Client) {
 	ctx, cancel := context.WithTimeout(context.Background(), externalRulesetFetchTimeout)
 	defer cancel()
 
@@ -106,9 +106,12 @@ func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]stri
 			break
 		}
 
-		location = resolveRulesetLocation(source, location)
-		remote := strings.HasPrefix(location, "http")
-		if !rsm.loadExternalRulesetWithTimeout(ctx, location, rs, remote, httpClient) {
+		target, err := resolveRulesetLocation(source, location)
+		if err != nil {
+			rs.addLoadError(err)
+			break
+		}
+		if !rsm.loadExternalRulesetWithTimeout(ctx, target, rs, httpClient) {
 			rs.addLoadError(fmt.Errorf("external ruleset fetch timed out at %q: %w", location, ctx.Err()))
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
 			break
@@ -119,7 +122,7 @@ func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]stri
 	}
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, location string, rs *RuleSet, remote bool, httpClient *http.Client) bool {
+func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, location rulesetLocation, rs *RuleSet, httpClient *http.Client) bool {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return false
 	}
@@ -132,7 +135,7 @@ func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, loc
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		SniffOutAllExternalRules(ctx, &workerRuleSets, location, nil, workingRuleSet, remote, httpClient)
+		sniffExternalRules(ctx, &workerRuleSets, location, nil, workingRuleSet, httpClient)
 	}()
 
 	select {
