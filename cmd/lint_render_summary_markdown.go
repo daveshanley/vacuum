@@ -269,9 +269,9 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 		return
 	}
 	if failed {
-		tui.RenderErrorString("Linting file '%s' Failed with %s errors, %s warnings, %s informs and %d hints", filename, errorsHuman, warningsHuman, informsHuman, hints)
+		tui.RenderErrorString("Linting file '%s' failed with %s errors, %s warnings, %s informs and %s hints", filename, errorsHuman, warningsHuman, informsHuman, humanize.Comma(int64(hints)))
 	} else if errs+warnings+informs+hints > 0 {
-		tui.RenderSuccess("Linting file '%s' Passed with %s errors, %s warnings, %s informs and %d hints", filename, errorsHuman, warningsHuman, informsHuman, hints)
+		tui.RenderSuccess("Linting file '%s' passed with %s errors, %s warnings, %s informs and %s hints", filename, errorsHuman, warningsHuman, informsHuman, humanize.Comma(int64(hints)))
 	} else {
 		tui.RenderSuccess("Linting passed, A perfect score! well done!")
 	}

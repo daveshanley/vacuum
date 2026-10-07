@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,16 +14,6 @@ import (
 // Exercise the real process exit contract, including commands that return a
 // plain error instead of an ExitError.
 func TestRulesetConfigurationErrors(t *testing.T) {
-	if os.Getenv("VACUUM_TEST_RULESET_EXIT") == "1" {
-		for i, arg := range os.Args {
-			if arg == "--" {
-				os.Args = append([]string{os.Args[0]}, os.Args[i+1:]...)
-				break
-			}
-		}
-		Execute("test", "test", "test")
-		os.Exit(0)
-	}
 	for _, failure := range []struct{ name, rules, message string }{
 		{"missing", "extends: ['./missing.yaml']\n", "missing.yaml"},
 		{"unknown-matching", "rules:\n  typo:\n    given: '$'\n    severity: info\n    then: {function: patternd}\n", "patternd"},
@@ -45,7 +34,7 @@ func TestRulesetConfigurationErrors(t *testing.T) {
 				rules := filepath.Join(dir, "rules.yaml")
 				require.NoError(t, os.WriteFile(rules, []byte(failure.rules), 0600))
 				output := filepath.Join(dir, "report-output")
-				args := []string{"-test.run=^TestRulesetConfigurationErrors$", "--", command, spec}
+				args := []string{command, spec}
 				if strings.Contains(command, "report") {
 					args = append(args, output)
 				}
@@ -53,13 +42,8 @@ func TestRulesetConfigurationErrors(t *testing.T) {
 				if command == "lint" || command == "schema" {
 					args = append(args, "--fail-severity", "none")
 				}
-				child := exec.Command(os.Args[0], args...)
-				child.Dir = dir
-				child.Env = append(os.Environ(), "VACUUM_TEST_RULESET_EXIT=1", "XDG_CONFIG_HOME="+dir)
-				out, err := child.CombinedOutput()
-				var exit *exec.ExitError
-				require.ErrorAs(t, err, &exit, "%s", out)
-				require.Equal(t, ExitCodeInputError, exit.ExitCode(), "%s", out)
+				out, code := runVacuum(t, args...)
+				require.Equal(t, ExitCodeInputError, code, "%s", out)
 				require.Contains(t, string(out), failure.message)
 				require.NotContains(t, string(out), "100/100")
 				matches, err := filepath.Glob(output + "*")
