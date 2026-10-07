@@ -27,16 +27,21 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 			fallback = fallback || path == given
 		}
 		if fallback {
-			if located, ok := paths.Lookup(target); ok {
+			located, found := paths.Lookup(target)
+			if found {
 				path = located
 			}
-			if len(selected) == 1 {
+			if !found && len(selected) == 1 {
 				target = selected[0]
 				if located, ok := paths.Lookup(target); ok {
 					path = located
 				}
 			}
-			if action.Field != "" {
+			isSelected := false
+			for _, node := range selected {
+				isSelected = isSelected || node == target
+			}
+			if action.Field != "" && isSelected {
 				if target != nil && target.Kind == yaml.DocumentNode && len(target.Content) > 0 {
 					target = target.Content[0]
 				}

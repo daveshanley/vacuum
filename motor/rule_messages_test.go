@@ -34,15 +34,18 @@ func TestRuleMessageTemplates(t *testing.T) {
 	}
 }
 
-type messageTestFunction struct{}
+type messageTestFunction struct{ child bool }
 
 func (messageTestFunction) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "messageTest"}
 }
 func (messageTestFunction) GetCategory() string { return model.FunctionCategoryCustomJS }
-func (messageTestFunction) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+func (f messageTestFunction) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	for _, node := range nodes {
+		if f.child {
+			node = node.Content[1]
+		}
 		results = append(results, model.RuleFunctionResult{Message: "original error", StartNode: node, EndNode: node})
 	}
 	return results
@@ -60,4 +63,25 @@ func TestRuleMessageTemplatesCustomAndBatch(t *testing.T) {
 		require.ElementsMatch(t, []string{"0=first: original error", "1=second: original error"}, messages)
 		result.Release()
 	}
+}
+
+func TestRuleMessageTemplatesPreserveCustomResultTarget(t *testing.T) {
+	rule := &model.Rule{Id: "template", Message: "{{property}}|{{value}}|{{path}}|{{error}}", Given: "$.object", Severity: "warn", Then: model.RuleAction{Function: "messageTest"}}
+	result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("object: {child: bad}\n"), SkipDocumentCheck: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"template": rule}}, CustomFunctions: map[string]model.RuleFunction{"messageTest": messageTestFunction{child: true}}})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "child|bad|/object/child|original error", result.Results[0].Message)
+}
+
+func TestRuleMessageTemplatesUseEachAction(t *testing.T) {
+	rule := &model.Rule{Id: "template", Message: "{{property}} at {{path}}", Given: "$.object", Severity: "warn", Then: []model.RuleAction{{Function: "truthy", Field: "first"}, {Function: "truthy", Field: "second"}}}
+	result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("object: {first: '', second: ''}\n"), SkipDocumentCheck: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"template": rule}}})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	var messages []string
+	for _, r := range result.Results {
+		messages = append(messages, r.Message)
+	}
+	require.ElementsMatch(t, []string{"first at /object/first", "second at /object/second"}, messages)
 }
