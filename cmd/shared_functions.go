@@ -134,6 +134,15 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 func LoadCustomFunctions(functionsFlag string, silence, annotations bool) (map[string]model.RuleFunction, error) {
 	// check custom functions
 	if functionsFlag != "" {
+		if strings.HasPrefix(functionsFlag, "-") {
+			err := fmt.Errorf("--functions requires a path, got %q (use ./ for a path starting with a dash)", functionsFlag)
+			if annotations {
+				RenderGitHubAnnotationError(err, "")
+			} else {
+				tui.RenderError(err)
+			}
+			return nil, err
+		}
 		resolvedFunctionsPath, err := ResolveConfigPath(functionsFlag)
 		if err != nil {
 			if annotations {
