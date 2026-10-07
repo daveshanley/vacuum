@@ -1,6 +1,7 @@
 package languageserver
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,5 +38,29 @@ func TestRunDiagnostic_RejectsInvalidRuleset(t *testing.T) {
 				t.Fatal("no diagnostic published for invalid ruleset")
 			}
 		})
+	}
+}
+
+func TestRunDiagnostic_DoesNotCacheInvalidWorkspaceFallback(t *testing.T) {
+	dir := t.TempDir()
+	rules := filepath.Join(dir, "rules.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte("extends: [./missing-workspace-extension.yaml]\n"), 0600))
+	state := newRuntimeConfigTestState()
+	state.baseConfig.Ruleset = rules
+	state.workspaceConfigurationSupported = true
+	state.setCallFunc(func(string, any, any) error { return errors.New("workspace configuration unavailable") })
+	uri := fileURI(filepath.Join(dir, "api.yaml"))
+	doc := &Document{URI: uri, Content: "openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"}
+	for range 2 {
+		published := make(chan protocol.PublishDiagnosticsParams, 1)
+		state.runDiagnostic(doc, func(_ string, params any) { published <- params.(protocol.PublishDiagnosticsParams) })
+		select {
+		case got := <-published:
+			require.Len(t, got.Diagnostics, 1)
+			require.Equal(t, "document-error", got.Diagnostics[0].Code.Value)
+			require.Contains(t, got.Diagnostics[0].Message, "missing-workspace-extension.yaml")
+		case <-time.After(5 * time.Second):
+			t.Fatal("no configuration diagnostic published")
+		}
 	}
 }
