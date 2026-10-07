@@ -1555,9 +1555,10 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			SchemaPathCache: ctx.schemaPathCache,
 			RuleTimeout:     ctx.ruleTimeout,
 		}
+		templated := strings.Contains(ctx.rule.Message, "{{")
 		// Keep the function's diagnostic available for {{error}}. The rule is
 		// shared by concurrent executions, so clear only this invocation's copy.
-		if strings.Contains(ctx.rule.Message, "{{") {
+		if templated {
 			rule := *ctx.rule
 			rule.Message = ""
 			rfc.Rule = &rule
@@ -1565,7 +1566,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		var messagePaths *vacuumUtils.NodePathIndex
 		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
 			results := ruleFunction.RunRule(selected, rfc)
-			if strings.Contains(ctx.rule.Message, "{{") {
+			if templated {
 				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {
 					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
 				}

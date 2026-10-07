@@ -6,6 +6,7 @@ package owasp
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -15,6 +16,7 @@ import (
 )
 
 func TestLimitRules_DirectionIsScopedToEachDocument(t *testing.T) {
+	var cache sync.Map
 	for _, ruleCase := range []struct {
 		name       string
 		schemaType string
@@ -87,6 +89,7 @@ components:
 					rule := buildOpenApiTestRuleAction("$", ruleCase.name+"_limit", "", nil)
 					ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
 					ctx.Document, ctx.DrDocument, ctx.Rule = document, drDocument, &rule
+					ctx.SchemaPathCache = &cache
 
 					candidates := 0
 					for _, schema := range drDocument.Schemas {
