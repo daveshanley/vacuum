@@ -4,10 +4,13 @@
 package utils
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/jsonpath/pkg/jsonpath"
 	openapiUtils "github.com/pb33f/libopenapi/utils"
 )
 
@@ -66,6 +69,7 @@ func NewIgnoreMatcher(ignored model.IgnoredItems, options IgnoreMatcherOptions) 
 				continue
 			}
 			literalSet[ignorePath] = struct{}{}
+			literalSet[canonicalIgnorePath(ignorePath)] = struct{}{}
 
 			if root == nil || pathIndex == nil {
 				continue
@@ -136,7 +140,7 @@ func resolveIgnoreExpressionPaths(
 	matches := make(map[string]struct{}, len(nodes))
 	for _, node := range nodes {
 		if path, ok := pathIndex.Lookup(node); ok && path != "" {
-			matches[path] = struct{}{}
+			matches[canonicalIgnorePath(path)] = struct{}{}
 		}
 	}
 
@@ -151,10 +155,41 @@ func matchesAnyPath(allowed map[string]struct{}, primary string, alternates []st
 	if _, ok := allowed[primary]; ok {
 		return true
 	}
+	if _, ok := allowed[canonicalIgnorePath(primary)]; ok {
+		return true
+	}
 	for _, path := range alternates {
 		if _, ok := allowed[path]; ok {
 			return true
 		}
+		if _, ok := allowed[canonicalIgnorePath(path)]; ok {
+			return true
+		}
 	}
 	return false
+}
+
+// Normalize singular paths with the same parser used for ignore expressions.
+// Keep selectors and malformed legacy literals unchanged; they are not concrete paths.
+func canonicalIgnorePath(path string) string {
+	parsed, err := jsonpath.NewPath(path)
+	if err != nil || !parsed.IsSingular() {
+		return path
+	}
+	segments, err := parsed.GetSegmentInfo()
+	if err != nil {
+		return path
+	}
+	var normalized strings.Builder
+	normalized.WriteByte('$')
+	for _, segment := range segments {
+		normalized.WriteByte('[')
+		if segment.Kind == jsonpath.SegmentKindArrayIndex {
+			normalized.WriteString(strconv.FormatInt(segment.Index, 10))
+		} else {
+			normalized.WriteString(strconv.Quote(segment.Key))
+		}
+		normalized.WriteByte(']')
+	}
+	return normalized.String()
 }
