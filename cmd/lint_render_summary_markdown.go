@@ -18,10 +18,8 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 
 	rs := rso.RuleResultSet
 	cats := rso.RuleCategories
-	totalFiles := rso.TotalFiles
 	filename := rso.Filename
 	silent := rso.Silent
-	sev := rso.Severity
 
 	// headers: a slice of column names
 	headers := []string{"Category", "Errors", "Warnings", "Info"}
@@ -46,6 +44,7 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 	errs := rs.GetErrorCount()
 	warnings := rs.GetWarnCount()
 	informs := rs.GetInfoCount()
+	hints := rs.GetHintCount()
 	errorsHuman := humanize.Comma(int64(rs.GetErrorCount()))
 	warningsHuman := humanize.Comma(int64(rs.GetWarnCount()))
 	informsHuman := humanize.Comma(int64(rs.GetInfoCount()))
@@ -229,17 +228,15 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 			}
 			buf.WriteString(fmt.Sprint("---\n\n"))
 		}
-		total := 0
-		if rso.ReportStats != nil {
-			total = rso.ReportStats.TotalErrors + rso.ReportStats.TotalWarnings + rso.ReportStats.TotalInfo
+		if rso.Failed {
+			buf.WriteString(fmt.Sprintf("❌ **Failed with %d errors, %d warnings, %d informs and %d hints.**\n\n", errs, warnings, informs, hints))
+		} else if errs+warnings+informs+hints > 0 {
+			buf.WriteString(fmt.Sprintf("✅ **Passed with %d errors, %d warnings, %d informs and %d hints.**\n\n", errs, warnings, informs, hints))
 		} else {
-			total = errs + warnings + informs
+			buf.WriteString("✅ You have a perfect score! **Congratulations, you're doing it right.**\n\n")
 		}
-
-		if total > 0 {
+		if errs+warnings+informs > 0 {
 			buf.WriteString(fmt.Sprintln(summaryTableMarkdown))
-		} else {
-			buf.WriteString(fmt.Sprint("✅ You have a perfect score! **Congratulations, you're doing it right.**\n\n"))
 		}
 
 		buf.WriteString(fmt.Sprintf("> learn more about vacuum at [quobix.com/vacuum](https://quobix/vacuum/)\n"))
@@ -263,62 +260,14 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 		fmt.Println()
 	}
 
-	// helper function to render styled messages using our new renderers
-	renderError := func(msg string, args ...interface{}) {
-		tui.RenderErrorString(msg, args...)
+	if silent {
+		return
 	}
-	renderSuccess := func(msg string, args ...interface{}) {
-		tui.RenderSuccess(msg, args...)
-	}
-	renderWarning := func(msg string, args ...interface{}) {
-		tui.RenderWarning(msg, args...)
-	}
-
-	if totalFiles <= 1 {
-
-		if errs > 0 {
-			renderError("Linting file '%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
-			return
-		}
-		if warnings > 0 {
-			msg := "passed, but with"
-			switch sev {
-			case model.SeverityWarn:
-				msg = "failed with"
-			}
-			renderWarning("Linting %s %v warnings and %v informs", msg, warningsHuman, informsHuman)
-			return
-		}
-
-		if informs > 0 {
-			renderSuccess("Linting passed, %v informs reported", informsHuman)
-			return
-		}
-
-		if silent {
-			return
-		}
-
-		renderSuccess("Linting passed, A perfect score! well done!")
-
+	if rso.Failed {
+		tui.RenderErrorString("Linting file '%s' Failed with %s errors, %s warnings, %s informs and %d hints", filename, errorsHuman, warningsHuman, informsHuman, hints)
+	} else if errs+warnings+informs+hints > 0 {
+		tui.RenderSuccess("Linting file '%s' Passed with %s errors, %s warnings, %s informs and %d hints", filename, errorsHuman, warningsHuman, informsHuman, hints)
 	} else {
-
-		if errs > 0 {
-			renderError("'%s' failed with %v errors, %v warnings and %v informs", filename, errorsHuman, warningsHuman, informsHuman)
-			return
-		}
-		if warnings > 0 {
-			renderWarning("'%s' passed, but with %v warnings and %v informs", filename, warningsHuman, informsHuman)
-			return
-		}
-
-		if informs > 0 {
-			renderSuccess("'%s' passed, %v informs reported", filename, informsHuman)
-			return
-		}
-
-		renderSuccess("'%s' passed, A perfect score! well done!", filename)
-
+		tui.RenderSuccess("Linting passed, A perfect score! well done!")
 	}
-
 }

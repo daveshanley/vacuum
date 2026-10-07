@@ -36,8 +36,8 @@ func TestLintOutcomeMatchesStatus(t *testing.T) {
 		{"schema failure", "schema", "warn", "warn", 10, 1},
 		{"schema allowed", "schema", "error", "none", 10, 0},
 	} {
-		for _, plain := range []bool{true, false} {
-			t.Run(fmt.Sprintf("%s/plain=%v", tc.name, plain), func(t *testing.T) {
+		for _, outputMode := range []string{"plain", "styled", "pipeline"} {
+			t.Run(fmt.Sprintf("%s/%s", tc.name, outputMode), func(t *testing.T) {
 				dir := t.TempDir()
 				spec := filepath.Join(dir, "spec.yaml")
 				rules := filepath.Join(dir, "rules.yaml")
@@ -51,7 +51,10 @@ func TestLintOutcomeMatchesStatus(t *testing.T) {
 				if tc.command == "lint" {
 					args = append(args, "--min-score", fmt.Sprint(tc.score), "--no-banner")
 				}
-				if plain {
+				if outputMode == "pipeline" && tc.command == "lint" {
+					args = append(args, "--pipeline-output")
+				}
+				if outputMode != "styled" {
 					args = append(args, "--no-style")
 				}
 				process := exec.Command(os.Args[0], args...)

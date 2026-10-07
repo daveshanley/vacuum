@@ -238,6 +238,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				ReportStats:    stats,
 				Filename:       fr.fileName,
 				TotalFiles:     len(filesToLint),
+				Failed:         CheckFailureSeverity(flags.FailSeverityFlag, fr.errors, fr.warnings, fr.informs, fr.hints) != nil,
 				Silent:         false,
 			})
 
