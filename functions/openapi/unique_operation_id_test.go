@@ -107,3 +107,47 @@ func TestUniqueOperationId_RunRule_Success(t *testing.T) {
 	assert.Len(t, res, 0)
 
 }
+
+func TestUniqueOperationId_RunRule_DuplicateId_SortedPaths(t *testing.T) {
+
+	yml := `paths:
+  /z-last:
+    get:
+      operationId: sharedId
+  /m-middle:
+    delete:
+      operationId: sharedId
+  /a-first:
+    post:
+      operationId: sharedId`
+
+	var rootNode yaml.Node
+	mErr := yaml.Unmarshal([]byte(yml), &rootNode)
+	assert.NoError(t, mErr)
+
+	rule := buildOpenApiTestRuleAction("$", "unique_operation_id", "", nil)
+	ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+	config := index.CreateOpenAPIIndexConfig()
+	ctx.Index = index.NewSpecIndexWithConfig(&rootNode, config)
+
+	want := []string{
+		"$.paths['/m-middle'].delete",
+		"$.paths['/z-last'].get",
+	}
+
+	def := UniqueOperationId{}
+	var first []string
+	for i := 0; i < 30; i++ {
+		res := def.RunRule(rootNode.Content, ctx)
+		assert.Len(t, res, 2)
+		got := []string{res[0].Path, res[1].Path}
+		if i == 0 {
+			assert.Equal(t, want, got)
+			assert.Equal(t, "the 'delete' operation at path '/m-middle' contains a duplicate operationId 'sharedId'", res[0].Message)
+			assert.Equal(t, "the 'get' operation at path '/z-last' contains a duplicate operationId 'sharedId'", res[1].Message)
+			first = append([]string(nil), got...)
+			continue
+		}
+		assert.Equal(t, first, got, "iteration %d", i)
+	}
+}
