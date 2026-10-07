@@ -1425,9 +1425,7 @@ func isJSONSchemaFormat(format string) bool {
 		format == model.JSONSchemaDraft07
 }
 
-func runRule(ctx ruleContext, doneChan chan struct{}) {
-	defer close(doneChan)
-
+func runRule(ctx ruleContext) {
 	// Check for missing auto-fix functions when --fix is enabled
 	if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
 		if _, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]; !exists {

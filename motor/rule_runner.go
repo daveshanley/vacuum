@@ -128,10 +128,12 @@ func executeRuleContext(
 	execution.activeRuleWorkers.Add(1)
 	go func() {
 		defer func() {
-			execution.ruleWaitGroup.Done()
+			// Publish completion only after the worker has released its ownership.
 			execution.activeRuleWorkers.Add(-1)
+			execution.ruleWaitGroup.Done()
+			close(doneChan)
 		}()
-		runRule(localCtx, doneChan)
+		runRule(localCtx)
 	}()
 	select {
 	case <-timeoutCtx.Done():
