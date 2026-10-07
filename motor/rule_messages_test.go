@@ -1,6 +1,7 @@
 package motor
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -101,5 +102,20 @@ func TestRuleMessageTemplatesMatchDoctorResults(t *testing.T) {
 		require.Equal(t, result.Results[0].Message, stored[0].Message)
 		require.Equal(t, message, stored[0].Rule.Message)
 		result.Release()
+	}
+}
+
+func TestRuleMessageTemplatesConcurrentRules(t *testing.T) {
+	rules := make(map[string]*model.Rule)
+	for i := 0; i < 32; i++ {
+		id := fmt.Sprintf("rule-%d", i)
+		rules[id] = &model.Rule{Id: id, Given: "$.values[*]", Message: "{{property}}={{value}} at {{path}}", Severity: "warn", Then: model.RuleAction{Function: "truthy"}}
+	}
+	result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("values: [0, false]\n"), SkipDocumentCheck: true, RuleSet: &rulesets.RuleSet{Rules: rules}})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 64)
+	for _, r := range result.Results {
+		require.Contains(t, []string{"0=0 at /values/0", "1=false at /values/1"}, r.Message)
 	}
 }
