@@ -508,3 +508,42 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 		HowToFix: owaspSecurityHostsHttpsOAS3Fix,
 	}
 }
+
+// GetOWASPOAuthNoPasswordRule rejects the OAuth password flow.
+func GetOWASPOAuthNoPasswordRule() *model.Rule {
+	return &model.Rule{
+		Name: "OAuth password flow should not be used", Id: OwaspOAuthNoPassword,
+		Description: "Use authorization code with PKCE for user authorization instead of the OAuth password flow.",
+		Given:       `$`, Formats: model.OAS3AllFormat, Resolved: false,
+		RuleCategory: model.RuleCategories[model.CategoryOWASP], Recommended: true,
+		Type: Validation, Severity: model.SeverityError,
+		Then:     model.RuleAction{Function: "owaspAuthInsecureSchemes", FunctionOptions: map[string]interface{}{"flow": "password"}},
+		HowToFix: owaspOAuthFlowFix,
+	}
+}
+
+// GetOWASPOAuthNoImplicitRule rejects the OAuth implicit flow.
+func GetOWASPOAuthNoImplicitRule() *model.Rule {
+	return &model.Rule{
+		Name: "OAuth implicit flow should not be used", Id: OwaspOAuthNoImplicit,
+		Description: "Use authorization code with PKCE for user authorization instead of the OAuth implicit flow.",
+		Given:       `$`, Formats: model.OAS3AllFormat, Resolved: false,
+		RuleCategory: model.RuleCategories[model.CategoryOWASP], Recommended: true,
+		Type: Validation, Severity: model.SeverityError,
+		Then:     model.RuleAction{Function: "owaspAuthInsecureSchemes", FunctionOptions: map[string]interface{}{"flow": "implicit"}},
+		HowToFix: owaspOAuthFlowFix,
+	}
+}
+
+// GetOWASPAuthURLsHTTPSRule checks OAuth and OpenID endpoint transport.
+func GetOWASPAuthURLsHTTPSRule() *model.Rule {
+	return &model.Rule{
+		Name: "Authentication endpoint URLs must use HTTPS", Id: OwaspAuthURLsHTTPS,
+		Description: "Explicit OAuth and OpenID endpoint URL schemes must use HTTPS. Relative URLs inherit their deployment transport.",
+		Given:       `$`, Formats: model.OAS3AllFormat, Resolved: false,
+		RuleCategory: model.RuleCategories[model.CategoryOWASP], Recommended: true,
+		Type: Validation, Severity: model.SeverityError,
+		Then:     model.RuleAction{Function: "owaspAuthURLsHTTPS"},
+		HowToFix: owaspAuthURLsHTTPSFix,
+	}
+}
