@@ -49,7 +49,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "JWT descriptions should reference `RFC8725`; this documents intent, not runtime validation", res[0].Message)
+	assert.Equal(t, "JWT description should reference `RFC8725`", res[0].Message)
 }
 
 func TestJWTBestPractice_RunRule_Valid(t *testing.T) {

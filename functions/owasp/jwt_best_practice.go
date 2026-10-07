@@ -47,7 +47,7 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 					}
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							"JWT descriptions should reference `RFC8725`; this documents intent, not runtime validation"),
+							"JWT description should reference `RFC8725`"),
 						StartNode: node,
 						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "description"),

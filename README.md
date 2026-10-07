@@ -523,6 +523,30 @@ if you're interested in seeing how things are progressing, it's available.
 ```
 
 ---
+## OWASP hard mode
+
+Run `vacuum lint --hard-mode api.yaml` to enable all built-in OpenAPI rules,
+including the OWASP rules. Hard mode checks:
+
+- OAuth [password](https://quobix.com/vacuum/rules/owasp/owasp-oauth-no-password/)
+  and [implicit](https://quobix.com/vacuum/rules/owasp/owasp-oauth-no-implicit/) flows.
+- [Authentication endpoint URLs](https://quobix.com/vacuum/rules/owasp/owasp-auth-urls-https/)
+  and server URLs for HTTPS, including overrides and server variables.
+- Request objects for unrestricted fields and maps for property-count limits.
+- Write operations for authenticated security requirements, without anonymous alternatives.
+- Declared JWTs for an RFC8725 reference in their description, as a warning.
+
+**Changes for existing users:** strict write security now reports an **error**,
+previously informational. A requirement such as `security: [{auth: []}, {}]` can
+now fail a build. Also, `x-lint-ignore` applies to the entire subtree beneath its
+location for every ruleset, rather than only the node and its immediate children.
+
+See the [OWASP guide](https://quobix.com/vacuum/rulesets/owasp/) for rule details
+and severity overrides, and [ignoring violations](https://quobix.com/vacuum/ignoring/)
+for scoped exceptions.
+
+---
+
 ## Spectral migration
 
 vacuum loads YAML and JSON rulesets. Resolve each relative `extends` path from the
@@ -539,29 +563,6 @@ Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importin
 `@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use vacuum's
 rule names and behavior; they do not execute the Spectral package. JavaScript
 ruleset modules (`.js`, `.mjs`, `.cjs`) are not supported.
-
-OpenAPI hard mode (`--hard-mode`) includes the OWASP rules. In addition to the
-existing checks, it rejects OAuth password and implicit flows, and explicit
-non-HTTPS authentication URLs. The server transport check covers root, path,
-operation, webhook, and callback servers, including variable defaults and enum
-values. Relative URLs inherit transport and are not rejected.
-
-Request-object checks warn when a simple object leaves additional properties
-unrestricted. Deliberate maps can define an `additionalProperties` schema and a
-`maxProperties` limit. The count limit controls size; it does not prevent mass
-assignment. Composition checks are conservative and do not prove that a composed
-schema is closed. Response-only schemas are excluded from these request checks.
-
-Strict write-operation security is an error, including anonymous alternatives
-such as `security: [{auth: []}, {}]`. Use the existing rule severity overrides or
-`x-lint-ignore` for documented public operations. The JWT rule applies only to
-`bearerFormat: JWT`; its RFC8725 description check is a warning about documentation,
-not proof of runtime token validation.
-
-These static checks support the [OWASP API Security Top 10](https://owasp.org/API-Security/editions/2023/en/0x11-t10/)
-and [OAuth guidance](https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html).
-Authorization, rate-limit enforcement, SSRF controls, and business-flow abuse
-still require runtime checks.
 
 Arazzo workflow linting and `spectral:arazzo` are not supported. Remove that entry
 from rulesets used to lint OpenAPI documents. Use an Arazzo-capable linter for
