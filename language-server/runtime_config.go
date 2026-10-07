@@ -115,7 +115,10 @@ func (s *ServerState) runtimeConfigForDocument(uri protocol.DocumentUri) (*docum
 				return nil, errors.Join(err, configErr)
 			}
 			if s.cacheDocumentRuntimeConfig(uri, fallback, generation) {
-				return nil, err
+				if fallback.logger != nil {
+					fallback.logger.Warn("workspace configuration unavailable; using validated local configuration", "error", err)
+				}
+				return fallback, nil
 			}
 			continue
 		}
