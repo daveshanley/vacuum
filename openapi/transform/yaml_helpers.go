@@ -2,7 +2,6 @@ package transform
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/pb33f/go-yaml"
@@ -89,12 +88,6 @@ func isWithinArbitraryExample(path []string) bool {
 			if !isNamedObjectMapEntry(path, i) {
 				return true
 			}
-		case "examples":
-			if i+1 < len(path) {
-				if _, err := strconv.Atoi(path[i+1]); err == nil {
-					return true
-				}
-			}
 		case "value":
 			if i >= 2 && path[i-2] == "examples" {
 				return true
@@ -102,6 +95,17 @@ func isWithinArbitraryExample(path []string) bool {
 		}
 	}
 	return false
+}
+
+// isArbitraryData distinguishes schema examples arrays from the named Example
+// Object maps used by media types and components. A numeric key is still a name.
+func isArbitraryData(node *yaml.Node, path []string) bool {
+	if isWithinArbitraryExample(path) {
+		return true
+	}
+	last := len(path) - 1
+	return node != nil && node.Kind == yaml.SequenceNode && last >= 0 &&
+		path[last] == "examples" && !isNamedObjectMapEntry(path, last)
 }
 
 // isWithinExtension reports whether path is inside an OpenAPI specification

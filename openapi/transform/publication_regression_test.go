@@ -1,6 +1,9 @@
 package transform
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pb33f/testify/assert"
@@ -270,5 +273,68 @@ webhooks:
 				assert.Equal(t, 1, stats.WebhooksRemoved)
 			}
 		})
+	}
+}
+
+func TestPrunePreservesNumericExampleAndComponentAliasTargets(t *testing.T) {
+	for _, tc := range []struct{ fixture, section, name string }{
+		{"numeric-example.yaml", "examples", "Actual"},
+		{"example-alias.yaml", "schemas", "User"},
+	} {
+		t.Run(tc.fixture, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", "cmd", "test_data", "issue_948", tc.fixture))
+			require.NoError(t, err)
+			root := parseTestYAML(t, string(data))
+			_, err = PruneUnusedComponents(root, "3.1.0")
+			require.NoError(t, err)
+			component := mapValue(mapValue(mapValue(documentRoot(root), "components"), tc.section), tc.name)
+			assert.NotNil(t, component)
+			if tc.fixture == "numeric-example.yaml" {
+				external := strings.ReplaceAll(string(data), "#/components/examples/Actual", "external.yaml#/Actual")
+				require.ErrorContains(t, ValidateBundled(parseTestYAML(t, external)), "external reference")
+			} else {
+				assert.NotNil(t, mapValue(mapValue(mapValue(documentRoot(root), "components"), "examples"), "Template"))
+			}
+		})
+	}
+}
+
+func TestFilterPreservesReferencedRootMetadataWithoutPrivateOperations(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "cmd", "test_data", "issue_948", "referenced-path.yaml"))
+	require.NoError(t, err)
+	for _, rootKey := range []string{"paths", "webhooks"} {
+		for _, order := range []string{"forward", "reverse"} {
+			t.Run(rootKey+"/"+order, func(t *testing.T) {
+				source := strings.ReplaceAll(string(data), "paths", rootKey)
+				root := parseTestYAML(t, source)
+				container := mapValue(documentRoot(root), rootKey)
+				if order == "reverse" {
+					for left, right := 0, len(container.Content)-2; left < right; left, right = left+2, right-2 {
+						container.Content[left], container.Content[right] = container.Content[right], container.Content[left]
+						container.Content[left+1], container.Content[right+1] = container.Content[right+1], container.Content[left+1]
+					}
+				}
+				stats, err := FilterOperationsByTags(root, "3.1.0", TagFilterOptions{IncludeTags: []string{"public"}})
+				require.NoError(t, err)
+				assert.Equal(t, 1, stats.OperationsKept)
+				assert.Equal(t, 1, stats.OperationsRemoved)
+				assert.Equal(t, 2, stats.PathItemsRemoved+stats.WebhooksRemoved)
+				_, err = PruneUnusedComponents(root, "3.1.0")
+				require.NoError(t, err)
+				for _, name := range []string{"/public", "/bridge"} {
+					ref := mapValue(mapValue(container, name), "$ref")
+					require.NotNil(t, ref)
+					assert.NotNil(t, resolveLocalNode(documentRoot(root), ref.Value))
+				}
+				shared := mapValue(container, "/source")
+				require.NotNil(t, shared)
+				assert.Nil(t, mapValue(shared, "post"))
+				assert.Equal(t, "Shared metadata", mapValue(shared, "summary").Value)
+				assert.NotNil(t, mapValue(shared, "parameters"))
+				assert.Nil(t, mapValue(container, "/orphan-a"))
+				assert.Nil(t, mapValue(container, "/orphan-b"))
+				assert.NotNil(t, mapValue(mapValue(mapValue(documentRoot(root), "components"), "parameters"), "Trace"))
+			})
+		}
 	}
 }

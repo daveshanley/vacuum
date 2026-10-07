@@ -1,0 +1,24 @@
+openapi: 3.1.0
+info: {title: Referenced path, version: '1'}
+paths:
+  /source:
+    summary: Shared metadata
+    parameters:
+      - $ref: '#/components/parameters/Trace'
+    post:
+      tags: [private]
+      responses: {'200': {description: private}}
+  /bridge:
+    $ref: '#/paths/~1source'
+  /public:
+    $ref: '#/paths/~1bridge'
+    get:
+      tags: [public]
+      responses: {'200': {description: ok}}
+  /orphan-a:
+    $ref: '#/paths/~1orphan-b'
+  /orphan-b:
+    $ref: '#/paths/~1orphan-a'
+components:
+  parameters:
+    Trace: {name: trace, in: header, schema: {type: string}}
