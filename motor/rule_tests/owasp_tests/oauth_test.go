@@ -144,3 +144,34 @@ components:
 	assert.Empty(t, result.Results)
 	assert.Len(t, result.IgnoredResults, 2)
 }
+
+func TestRuleSet_OWASPOAuthFlowRejectsInvalidOptions(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		options map[string]interface{}
+	}{
+		{"missing", nil},
+		{"unknown", map[string]interface{}{"flow": "foo"}},
+		{"empty", map[string]interface{}{"flow": ""}},
+		{"wrong type", map[string]interface{}{"flow": true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rule := &model.Rule{
+				Id:       "oauth-flow",
+				Given:    "$",
+				Severity: model.SeverityError,
+				Then: model.RuleAction{
+					Function:        "owaspOAuthFlow",
+					FunctionOptions: tc.options,
+				},
+			}
+			result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
+				Spec:    []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"),
+				RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{rule.Id: rule}},
+			})
+			require.Empty(t, result.Errors)
+			require.Len(t, result.Results, 1)
+			assert.Contains(t, result.Results[0].Message, "'flow' to be 'password' or 'implicit'")
+		})
+	}
+}
