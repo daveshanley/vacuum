@@ -3,6 +3,8 @@ package utils
 import (
 	"strings"
 
+	"github.com/pb33f/go-yaml"
+
 	base "github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
@@ -31,21 +33,55 @@ func GetSchemaDirection(doc *v3.Document, schemaName string) DirectionType {
 // Unused schemas are omitted; the returned map belongs to the caller.
 func GetSchemaDirections(doc *v3.Document) map[string]DirectionType {
 	directions := make(map[string]DirectionType)
-	if doc == nil || doc.Paths == nil || doc.Paths.PathItems == nil {
-		return directions
-	}
+	walkSchemaDirections(doc, func(proxy *base.SchemaProxy, schema *base.Schema, usage DirectionType) {
+		reference := proxy.GetReference()
+		if name := reference[strings.LastIndexByte(reference, '/')+1:]; name != "" {
+			directions[name] = mergeSchemaDirection(directions[name], usage)
+		}
+	})
+	return directions
+}
 
-	visited := make(map[string]bool)
+// GetSchemaNodeDirections indexes request and response uses by schema identity.
+// Inline schemas and schemas with equal names remain distinct. Each schema is
+// traversed at most once per direction; unused schemas are omitted.
+func GetSchemaNodeDirections(doc *v3.Document) map[*yaml.Node]DirectionType {
+	directions := make(map[*yaml.Node]DirectionType)
+	walkSchemaDirections(doc, func(_ *base.SchemaProxy, schema *base.Schema, usage DirectionType) {
+		if low := schema.GoLow(); low != nil && low.RootNode != nil {
+			directions[low.RootNode] = mergeSchemaDirection(directions[low.RootNode], usage)
+		}
+	})
+	return directions
+}
+
+func mergeSchemaDirection(previous, usage DirectionType) DirectionType {
+	if previous != "" && previous != usage {
+		return DirectionBoth
+	}
+	return usage
+}
+
+func walkSchemaDirections(doc *v3.Document, visit func(*base.SchemaProxy, *base.Schema, DirectionType)) {
+	if doc == nil {
+		return
+	}
+	visited := make(map[*yaml.Node]DirectionType)
 	mark := func(proxy *base.SchemaProxy, usage DirectionType) {
-		clear(visited)
-		collectSchemaDirections(proxy, visited, func(name string) {
-			previous := directions[name]
-			if previous != "" && previous != usage {
-				directions[name] = DirectionBoth
-			} else if previous == "" {
-				directions[name] = usage
+		collectSchemaDirections(proxy, usage, visited, visit)
+	}
+	markParameter := func(param *v3.Parameter) {
+		if param == nil {
+			return
+		}
+		mark(param.Schema, DirectionRequest)
+		if param.Content != nil {
+			for _, media := range param.Content.FromOldest() {
+				if media != nil {
+					mark(media.Schema, DirectionRequest)
+				}
 			}
-		})
+		}
 	}
 
 	markResponse := func(resp *v3.Response) {
@@ -63,28 +99,33 @@ func GetSchemaDirections(doc *v3.Document) map[string]DirectionType {
 			for pair := resp.Headers.First(); pair != nil; pair = pair.Next() {
 				if header := pair.Value(); header != nil {
 					mark(header.Schema, DirectionResponse)
+					if header.Content != nil {
+						for _, media := range header.Content.FromOldest() {
+							if media != nil {
+								mark(media.Schema, DirectionResponse)
+							}
+						}
+					}
 				}
 			}
 		}
 	}
 
-	for pathPair := doc.Paths.PathItems.First(); pathPair != nil; pathPair = pathPair.Next() {
-		pathItem := pathPair.Value()
-		if pathItem == nil {
-			continue
+	seenPaths := make(map[*v3.PathItem]bool)
+	var markPath func(*v3.PathItem)
+	markPath = func(pathItem *v3.PathItem) {
+		if pathItem == nil || seenPaths[pathItem] {
+			return
 		}
+		seenPaths[pathItem] = true
 		for _, param := range pathItem.Parameters {
-			if param != nil {
-				mark(param.Schema, DirectionRequest)
-			}
+			markParameter(param)
 		}
-		for _, op := range []*v3.Operation{
-			pathItem.Get, pathItem.Post, pathItem.Put, pathItem.Patch,
-			pathItem.Delete, pathItem.Options, pathItem.Head, pathItem.Trace,
-		} {
+		for _, op := range pathItem.GetOperations().FromOldest() {
 			if op == nil {
 				continue
 			}
+
 			if op.RequestBody != nil && op.RequestBody.Content != nil {
 				for pair := op.RequestBody.Content.First(); pair != nil; pair = pair.Next() {
 					if media := pair.Value(); media != nil {
@@ -93,8 +134,15 @@ func GetSchemaDirections(doc *v3.Document) map[string]DirectionType {
 				}
 			}
 			for _, param := range op.Parameters {
-				if param != nil {
-					mark(param.Schema, DirectionRequest)
+				markParameter(param)
+			}
+			if op.Callbacks != nil {
+				for _, callback := range op.Callbacks.FromOldest() {
+					if callback != nil && callback.Expression != nil {
+						for _, path := range callback.Expression.FromOldest() {
+							markPath(path)
+						}
+					}
 				}
 			}
 			if op.Responses != nil {
@@ -107,68 +155,76 @@ func GetSchemaDirections(doc *v3.Document) map[string]DirectionType {
 			}
 		}
 	}
-	return directions
+	if doc.Paths != nil && doc.Paths.PathItems != nil {
+		for _, path := range doc.Paths.PathItems.FromOldest() {
+			markPath(path)
+		}
+	}
+	if doc.Webhooks != nil {
+		for _, path := range doc.Webhooks.FromOldest() {
+			markPath(path)
+		}
+	}
 }
 
-// collectSchemaDirections tracks reference strings to retain the existing traversal semantics.
-// Inline schemas share the empty reference key within each root traversal.
-func collectSchemaDirections(proxy *base.SchemaProxy, visited map[string]bool, mark func(string)) {
+func collectSchemaDirections(proxy *base.SchemaProxy, usage DirectionType, visited map[*yaml.Node]DirectionType, mark func(*base.SchemaProxy, *base.Schema, DirectionType)) {
 	if proxy == nil {
 		return
 	}
-	reference := proxy.GetReference()
-	if visited[reference] {
-		return
-	}
-	visited[reference] = true
 	schema := proxy.Schema()
 	if schema == nil {
 		return
 	}
-	if name := reference[strings.LastIndexByte(reference, '/')+1:]; name != "" {
-		mark(name)
+	mark(proxy, schema, usage)
+	if low := schema.GoLow(); low != nil && low.RootNode != nil {
+		previous := visited[low.RootNode]
+		if previous == usage || previous == DirectionBoth {
+			return
+		}
+		visited[low.RootNode] = mergeSchemaDirection(previous, usage)
 	}
+
 	for _, child := range schema.AllOf {
-		collectSchemaDirections(child, visited, mark)
+		collectSchemaDirections(child, usage, visited, mark)
 	}
 	for _, child := range schema.AnyOf {
-		collectSchemaDirections(child, visited, mark)
+		collectSchemaDirections(child, usage, visited, mark)
 	}
 	for _, child := range schema.OneOf {
-		collectSchemaDirections(child, visited, mark)
+		collectSchemaDirections(child, usage, visited, mark)
 	}
-	collectSchemaDirections(schema.Not, visited, mark)
+	collectSchemaDirections(schema.Not, usage, visited, mark)
 	if schema.Properties != nil {
 		for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
-			collectSchemaDirections(pair.Value(), visited, mark)
+			collectSchemaDirections(pair.Value(), usage, visited, mark)
 		}
 	}
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.IsA() {
-		collectSchemaDirections(schema.AdditionalProperties.A, visited, mark)
+		collectSchemaDirections(schema.AdditionalProperties.A, usage, visited, mark)
 	}
 	if schema.PatternProperties != nil {
 		for pair := schema.PatternProperties.First(); pair != nil; pair = pair.Next() {
-			collectSchemaDirections(pair.Value(), visited, mark)
+			collectSchemaDirections(pair.Value(), usage, visited, mark)
 		}
 	}
 	if schema.Items != nil && schema.Items.IsA() {
-		collectSchemaDirections(schema.Items.A, visited, mark)
+		collectSchemaDirections(schema.Items.A, usage, visited, mark)
 	}
 	for _, child := range schema.PrefixItems {
-		collectSchemaDirections(child, visited, mark)
+		collectSchemaDirections(child, usage, visited, mark)
 	}
-	collectSchemaDirections(schema.Contains, visited, mark)
-	collectSchemaDirections(schema.If, visited, mark)
-	collectSchemaDirections(schema.Else, visited, mark)
-	collectSchemaDirections(schema.Then, visited, mark)
+	collectSchemaDirections(schema.Contains, usage, visited, mark)
+	collectSchemaDirections(schema.If, usage, visited, mark)
+	collectSchemaDirections(schema.Else, usage, visited, mark)
+	collectSchemaDirections(schema.Then, usage, visited, mark)
 	if schema.DependentSchemas != nil {
 		for pair := schema.DependentSchemas.First(); pair != nil; pair = pair.Next() {
-			collectSchemaDirections(pair.Value(), visited, mark)
+			collectSchemaDirections(pair.Value(), usage, visited, mark)
 		}
 	}
-	collectSchemaDirections(schema.PropertyNames, visited, mark)
-	collectSchemaDirections(schema.UnevaluatedItems, visited, mark)
+	collectSchemaDirections(schema.PropertyNames, usage, visited, mark)
+	collectSchemaDirections(schema.UnevaluatedItems, usage, visited, mark)
 	if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.IsA() {
-		collectSchemaDirections(schema.UnevaluatedProperties.A, visited, mark)
+		collectSchemaDirections(schema.UnevaluatedProperties.A, usage, visited, mark)
 	}
 }

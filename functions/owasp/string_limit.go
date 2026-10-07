@@ -34,11 +34,11 @@ func (st StringLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 	}
 
 	// Schema names recur across properties and references within one document.
-	directions := utils.GetSchemaDirections(context.DrDocument.V3Document.Document)
+	directions := utils.GetSchemaNodeDirections(context.DrDocument.V3Document.Document)
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "string") {
 			if schema.Value.MaxLength == nil && schema.Value.Const == nil && schema.Value.Enum == nil {
-				direction := directions[schema.Name]
+				direction := directions[schema.Value.GoLow().RootNode]
 				if direction != utils.DirectionRequest && direction != utils.DirectionBoth {
 					continue
 				}

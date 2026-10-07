@@ -131,3 +131,79 @@ func TestLimitRules_EmptyDocument(t *testing.T) {
 		require.Empty(t, rule.RunRule(nil, model.RuleFunctionContext{DrDocument: &drModel.DrDocument{}}))
 	}
 }
+
+// Issue 953: inline children have no reference name, and equal property names
+// in response-only or unused schemas must not inherit request usage.
+func TestLimitRules_NestedRequestSchemaIdentity(t *testing.T) {
+	const spec = `openapi: 3.1.0
+info: {title: Nested limits, version: "1"}
+paths:
+  /widgets:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Widget'}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Response'}
+components:
+  schemas:
+    Widget:
+      type: object
+      properties:
+        nested:
+          type: object
+          properties:
+            tags: {type: array, items: {type: string}}
+            name: {type: string}
+            bounded: {type: string, maxLength: 20}
+            parent: {$ref: '#/components/schemas/Widget'}
+    Response:
+      type: object
+      properties:
+        tags: {type: array, items: {type: string}}
+        name: {type: string}
+    Unused:
+      type: object
+      properties:
+        tags: {type: array, items: {type: string}}
+        name: {type: string}
+`
+	document, err := libopenapi.NewDocument([]byte(spec))
+	require.NoError(t, err)
+	t.Cleanup(document.Release)
+	m, err := document.BuildV3Model()
+	require.NoError(t, err)
+	drDocument := drModel.NewDrDocument(m)
+	t.Cleanup(drDocument.Release)
+	for _, tc := range []struct {
+		name     string
+		function model.RuleFunction
+		suffixes []string
+	}{
+		{"array", ArrayLimit{}, []string{".properties['tags']"}},
+		{"string", StringLimit{}, []string{".properties['tags'].items", ".properties['name']"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rule := buildOpenApiTestRuleAction("$", tc.name+"_limit", "", nil)
+			ctx := buildOpenApiTestContext(model.CastToRuleAction(rule.Then), nil)
+			ctx.Document, ctx.DrDocument, ctx.Rule = document, drDocument, &rule
+			results := tc.function.RunRule(nil, ctx)
+			var paths []string
+			for _, result := range results {
+				paths = append(paths, result.Path)
+				require.Greater(t, result.StartNode.Line, 0)
+				require.Equal(t, "type", result.StartNode.Value)
+			}
+			var expected []string
+			for _, suffix := range tc.suffixes {
+				expected = append(expected, "$.components.schemas['Widget'].properties['nested']"+suffix)
+			}
+			require.ElementsMatch(t, expected, paths)
+		})
+	}
+}
