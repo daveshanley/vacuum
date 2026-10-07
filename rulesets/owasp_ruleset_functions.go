@@ -492,9 +492,9 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "Server URLs MUST begin with `https`. No other protocol is permitted",
+		Name:         "Explicit server URL schemes must use HTTPS",
 		Id:           OwaspSecurityHostsHttpsOAS3,
-		Description:  "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.",
+		Description:  "Root, path, and operation server URLs must use HTTPS when an explicit scheme is declared. Relative URLs inherit their deployment transport.",
 		Given:        `$`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
