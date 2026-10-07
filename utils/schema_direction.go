@@ -20,7 +20,9 @@ const (
 )
 
 // GetSchemaDirection determines whether a schema is used in requests, responses, both, or neither.
-// Use GetSchemaDirections when checking multiple schemas in the same document.
+//
+// Deprecated: Use GetSchemaDirections once per document for name-based lookups,
+// or GetSchemaNodeDirections for identity-based lookups including inline schemas.
 func GetSchemaDirection(doc *v3.Document, schemaName string) DirectionType {
 	if direction := GetSchemaDirections(doc)[schemaName]; direction != "" {
 		return direction

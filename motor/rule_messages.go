@@ -18,8 +18,10 @@ import (
 // change its value. Replacement text is never interpreted as another template.
 func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, paths *vacuumUtils.NodePathIndex) {
 	rule, root, updates := ctx.rule, ctx.specNode, ctx.messageUpdates
+	needsLocation := ruleMessageNeedsLocation(rule.Message)
+	needsValue := strings.Contains(rule.Message, "{{value}}")
 	var selectedNodes map[*yaml.Node]struct{}
-	if len(selected) > 1 && ruleMessageNeedsLocation(rule.Message) {
+	if len(selected) > 1 && needsLocation {
 		selectedNodes = make(map[*yaml.Node]struct{}, len(selected))
 		for _, node := range selected {
 			selectedNodes[node] = struct{}{}
@@ -30,63 +32,19 @@ func formatRuleMessages(ctx ruleContext, action model.RuleAction, selected []*ya
 		result.Rule = rule
 		original := doctorMessageKey{rule.Id, result.StartNode, result.Path, result.Message}
 		var property, pointer, value string
-		if ruleMessageNeedsLocation(rule.Message) {
-			path := result.Path
-			target := result.StartNode
-			_, targetIsValue := selectedNodes[target]
-			targetIsValue = targetIsValue || len(selected) == 1 && selected[0] == target
-			fallback := path == "" || path == "unknown" || resultPathHasSelectorSyntax(path)
-			for _, given := range resultGivenPaths(rule) {
-				fallback = fallback || path == given
-			}
-			if fallback {
-				located, found := paths.Lookup(target)
-				if found {
-					path = located
-				}
-				if !found && len(selected) == 1 {
-					target = selected[0]
-					targetIsValue = true
-					if located, ok := paths.Lookup(target); ok {
-						path = located
-					}
-				}
-				_, isSelected := selectedNodes[target]
-				isSelected = isSelected || len(selected) == 1 && selected[0] == target
-				if action.Field != "" && isSelected {
-					if target != nil && target.Kind == yaml.DocumentNode && len(target.Content) > 0 {
-						target = target.Content[0]
-					}
-					if target != nil {
-						field := vacuumUtils.FindFieldPath(action.Field, target.Content, vacuumUtils.FieldPathOptions{ResolveSingleItemCombinators: rule.Resolved})
-						target = field.ValueNode
-						targetIsValue = field.Found
-						if located, ok := paths.Lookup(target); ok {
-							path = located
-						} else {
-							segments, _ := vacuumUtils.ParseFieldPath(action.Field)
-							for _, segment := range segments {
-								if segment.Type == vacuumUtils.SegmentArrayIndex {
-									path = vacuumUtils.AppendResultPathIndex(path, segment.Index)
-								} else {
-									path = vacuumUtils.AppendResultPathSegment(path, segment.Key)
-								}
-							}
-						}
-					}
-				}
-			}
+		if needsLocation {
+			path, target, targetIsValue := resolveMessageTarget(rule, action, selected, selectedNodes, result, paths)
 			var valueNode *yaml.Node
 			valueRoot := root
 			knownPath, known := paths.Lookup(target)
-			if !strings.Contains(rule.Message, "{{value}}") || targetIsValue && known && knownPath == path {
+			if !needsValue || targetIsValue && known && knownPath == path {
 				valueRoot = nil
 			}
 			property, pointer, valueNode = ruleMessageLocation(valueRoot, path, ctx.schemaPathCache)
 			if valueNode != nil {
 				target = valueNode
 			}
-			if target != nil && strings.Contains(rule.Message, "{{value}}") {
+			if target != nil && needsValue {
 				if target.Kind == yaml.ScalarNode {
 					value = target.Value
 				} else {
@@ -242,4 +200,54 @@ func messageMappingValue(node *yaml.Node, key string, cache *sync.Map) *yaml.Nod
 	})
 	cached, _ := cache.LoadOrStore(cacheKey, build)
 	return cached.(func() map[string]*yaml.Node)()[key]
+}
+
+func resolveMessageTarget(rule *model.Rule, action model.RuleAction, selected []*yaml.Node, selectedNodes map[*yaml.Node]struct{}, result *model.RuleFunctionResult, paths *vacuumUtils.NodePathIndex) (path string, target *yaml.Node, targetIsValue bool) {
+	path = result.Path
+	target = result.StartNode
+	_, targetIsValue = selectedNodes[target]
+	targetIsValue = targetIsValue || len(selected) == 1 && selected[0] == target
+	fallback := path == "" || path == "unknown" || resultPathHasSelectorSyntax(path)
+	for _, given := range resultGivenPaths(rule) {
+		fallback = fallback || path == given
+	}
+	if fallback {
+		located, found := paths.Lookup(target)
+		if found {
+			path = located
+		}
+		if !found && len(selected) == 1 {
+			target = selected[0]
+			targetIsValue = true
+			if located, ok := paths.Lookup(target); ok {
+				path = located
+			}
+		}
+		_, isSelected := selectedNodes[target]
+		isSelected = isSelected || len(selected) == 1 && selected[0] == target
+		if action.Field != "" && isSelected {
+			if target != nil && target.Kind == yaml.DocumentNode && len(target.Content) > 0 {
+				target = target.Content[0]
+			}
+			if target != nil {
+				field := vacuumUtils.FindFieldPath(action.Field, target.Content, vacuumUtils.FieldPathOptions{ResolveSingleItemCombinators: rule.Resolved})
+				target = field.ValueNode
+				targetIsValue = field.Found
+				if located, ok := paths.Lookup(target); ok {
+					path = located
+				} else {
+					segments, _ := vacuumUtils.ParseFieldPath(action.Field)
+					for _, segment := range segments {
+						if segment.Type == vacuumUtils.SegmentArrayIndex {
+							path = vacuumUtils.AppendResultPathIndex(path, segment.Index)
+						} else {
+							path = vacuumUtils.AppendResultPathSegment(path, segment.Key)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return
 }

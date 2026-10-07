@@ -112,10 +112,11 @@ func (m *IgnoreMatcher) Matches(result *model.RuleFunctionResult) bool {
 		return false
 	}
 
-	if matchesAnyPath(m.literalByRule[ruleID], result.Path, result.Paths) {
-		return true
+	literal, resolved := m.literalByRule[ruleID], m.resolvedByRule[ruleID]
+	if len(literal) == 0 && len(resolved) == 0 {
+		return false
 	}
-	return matchesAnyPath(m.resolvedByRule[ruleID], result.Path, result.Paths)
+	return matchesAnyPath(literal, resolved, result.Path, result.Paths)
 }
 
 func resolveIgnoreExpressionPaths(
@@ -148,21 +149,26 @@ func resolveIgnoreExpressionPaths(
 	return matches
 }
 
-func matchesAnyPath(allowed map[string]struct{}, primary string, alternates []string) bool {
-	if len(allowed) == 0 {
-		return false
+func matchesAnyPath(literal, resolved map[string]struct{}, primary string, alternates []string) bool {
+	matches := func(path string) bool {
+		if _, ok := literal[path]; ok {
+			return true
+		}
+		if _, ok := resolved[path]; ok {
+			return true
+		}
+		canonical := canonicalIgnorePath(path)
+		if _, ok := literal[canonical]; ok {
+			return true
+		}
+		_, ok := resolved[canonical]
+		return ok
 	}
-	if _, ok := allowed[primary]; ok {
-		return true
-	}
-	if _, ok := allowed[canonicalIgnorePath(primary)]; ok {
+	if matches(primary) {
 		return true
 	}
 	for _, path := range alternates {
-		if _, ok := allowed[path]; ok {
-			return true
-		}
-		if _, ok := allowed[canonicalIgnorePath(path)]; ok {
+		if path != primary && matches(path) {
 			return true
 		}
 	}

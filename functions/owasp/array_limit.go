@@ -33,11 +33,13 @@ func (ar ArrayLimit) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 		return results
 	}
 
-	// Schema names recur across properties and references within one document.
-	directions := utils.GetSchemaNodeDirections(context.DrDocument.V3Document.Document)
+	var directions map[*yaml.Node]utils.DirectionType
 	for _, schema := range context.DrDocument.Schemas {
 		if slices.Contains(schema.Value.Type, "array") {
 			if schema.Value.MaxItems == nil {
+				if directions == nil {
+					directions = schemaNodeDirections(context)
+				}
 				direction := directions[schema.Value.GoLow().RootNode]
 				if direction != utils.DirectionRequest && direction != utils.DirectionBoth {
 					continue
