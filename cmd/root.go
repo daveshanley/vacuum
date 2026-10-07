@@ -51,13 +51,6 @@ func Execute(version, commit, date string) {
 	rootCmd := GetRootCommand()
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		FlushUpdateNotice()
-		// Print unknown flag errors explicitly since commands have SilenceErrors: true
-		// This ensures users get feedback when they mistype a flag name
-		errStr := err.Error()
-		if strings.Contains(errStr, "unknown flag") ||
-			strings.Contains(errStr, "unknown shorthand flag") {
-			tui.RenderErrorString("%s", errStr)
-		}
 		// Use the exit code from ExitError if available.
 		// Otherwise default to exit 2 (input/tool error). Exit 1 represents
 		// either lint violations or the LSP-mandated exit-without-shutdown status.
@@ -109,6 +102,14 @@ func GetRootCommand() *cobra.Command {
 			return nil
 		},
 	}
+	rootCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		// Commands render execution errors themselves, but flag parsing happens
+		// before their handlers run. Keep those input errors visible too.
+		if cmd.SilenceErrors {
+			cmd.PrintErrln("Error:", err)
+		}
+		return err
+	})
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.conf.yaml) ")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Location of a vacuum (or Spectral) ruleset")
