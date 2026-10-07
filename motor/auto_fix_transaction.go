@@ -99,6 +99,8 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 	}
 }
 
+// acquireAutoFixGate serializes private auto-fix transactions and stops waiting
+// when the rule context expires. A successful acquisition must be released.
 func acquireAutoFixGate(ctx ruleContext) bool {
 	executionContext := ctx.executionContext
 	if executionContext == nil {
@@ -131,6 +133,8 @@ func releaseAutoFixes(ctx ruleContext) {
 	}
 }
 
+// commitAutoFixes publishes a successful rule transaction only after claiming
+// the run guard. Failed callbacks retain findings without publishing their edits.
 func commitAutoFixes(ctx ruleContext) {
 	s := ctx.autoFixState
 	if s == nil || !s.locked {
