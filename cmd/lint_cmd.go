@@ -821,6 +821,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 			ReportStats:    stats,
 			Filename:       fileName,
 			TotalFiles:     1,
+			Failed:         opts.Failed,
 			Silent:         false,
 		}
 
