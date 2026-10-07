@@ -410,6 +410,11 @@ func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
 		filteredResults := utils.FilterIgnoredResultsWithOptions(result.Results, ignoredResults, ignoreOptions)
 		result.Results = filteredResults
 		diagnostics := ConvertResultsIntoDiagnostics(result)
+		if !runtimeConfig.skipCheck && onlyUnsupportedDocumentErrors(result.Errors) {
+			if rulesetDiagnostics, ok := diagnosticsForRuleset(content); ok {
+				diagnostics = rulesetDiagnostics
+			}
+		}
 
 		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
 			URI:         uri,
@@ -544,11 +549,10 @@ func ConvertErrorIntoDiagnostic(err error) protocol.Diagnostic {
 			Start: protocol.Position{Line: 0, Character: 0},
 			End:   protocol.Position{Line: 0, Character: 1},
 		},
-		Severity:        &severity,
-		Source:          &serverName,
-		Code:            &protocol.IntegerOrString{Value: code},
-		CodeDescription: &protocol.CodeDescription{HRef: fmt.Sprintf("%s/rules/unknown", model.WebsiteUrl)},
-		Message:         err.Error(),
+		Severity: &severity,
+		Source:   &serverName,
+		Code:     &protocol.IntegerOrString{Value: code},
+		Message:  err.Error(),
 	}
 }
 
