@@ -76,3 +76,23 @@ func TestRuntimeConfig_RelativeRulesetExtensions(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, config.selectedRS.Rules, "child-rule")
 }
+
+func TestRunDiagnostic_UsesValidFallbackOnFirstWorkspaceFailure(t *testing.T) {
+	dir := t.TempDir()
+	rules := filepath.Join(dir, "rules.yaml")
+	require.NoError(t, os.WriteFile(rules, []byte("rules:\n  title-rule:\n    given: $.info.title\n    severity: warn\n    then: {function: falsy}\n"), 0600))
+	state := newRuntimeConfigTestState()
+	state.baseConfig.Ruleset = rules
+	state.workspaceConfigurationSupported = true
+	state.setCallFunc(func(string, any, any) error { return errors.New("workspace configuration unavailable") })
+	published := make(chan protocol.PublishDiagnosticsParams, 1)
+	uri := fileURI(filepath.Join(dir, "api.yaml"))
+	state.runDiagnostic(&Document{URI: uri, Content: "openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"}, func(_ string, params any) { published <- params.(protocol.PublishDiagnosticsParams) })
+	select {
+	case got := <-published:
+		require.Len(t, got.Diagnostics, 1)
+		require.Equal(t, "title-rule", got.Diagnostics[0].Code.Value)
+	case <-time.After(5 * time.Second):
+		t.Fatal("first lint did not publish fallback rule findings")
+	}
+}
