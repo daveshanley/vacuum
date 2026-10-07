@@ -1541,6 +1541,24 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			FetchConfig:     ctx.fetchConfig,
 			SchemaPathCache: ctx.schemaPathCache,
 		}
+		// Keep the function's diagnostic available for {{error}}. The rule is
+		// shared by concurrent executions, so clear only this invocation's copy.
+		if ctx.rule.Message != "" {
+			rule := *ctx.rule
+			rule.Message = ""
+			rfc.Rule = &rule
+		}
+		var messagePaths *vacuumUtils.NodePathIndex
+		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
+			results := ruleFunction.RunRule(selected, rfc)
+			if ctx.rule.Message != "" {
+				if messagePaths == nil && strings.Contains(ctx.rule.Message, "{{") {
+					messagePaths = vacuumUtils.BuildNodePathIndex(ctx.specNode)
+				}
+				formatRuleMessages(ctx.rule, ruleAction, selected, results, ctx.specNode, messagePaths)
+			}
+			return results
+		}
 		// Calls within one schema action are serial. Keep its compilation cache
 		// local so neither later documents nor timed-out workers share its lifetime.
 		if ruleAction.Function == "schema" {
@@ -1602,7 +1620,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				// Only run if we have nodes to process
 				if len(batchNodes) > 0 {
-					runRuleResults := ruleFunction.RunRule(batchNodes, rfc)
+					runRuleResults := runRule(batchNodes)
 
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
@@ -1660,7 +1678,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 						continue
 					}
 
-					runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
+					runRuleResults := runRule([]*yaml.Node{node})
 
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
