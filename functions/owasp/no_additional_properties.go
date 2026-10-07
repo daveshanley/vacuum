@@ -8,8 +8,6 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
-	"github.com/pb33f/libopenapi/index"
-	"slices"
 )
 
 // NoAdditionalProperties checks request objects for unrestricted extra fields.
@@ -30,36 +28,15 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 	if context.DrDocument == nil || context.DrDocument.V3Document == nil {
 		return nil
 	}
-	// A referenced composition arm can be closed by its enclosing schema.
-	// Reuse indexed references rather than evaluating composed schemas.
-	composedOnly := make(map[*yaml.Node]bool)
-	if context.Index != nil {
-		indexes := []*index.SpecIndex{context.Index}
-		references := context.Index.GetAllReferences()
-		mapped := context.Index.GetMappedReferences()
-		if rolodex := context.Index.GetRolodex(); rolodex != nil {
-			indexes = append(indexes, rolodex.GetIndexes()...)
-			references = rolodex.GetAllReferences()
-			mapped = rolodex.GetAllMappedReferences()
-		}
-		for _, idx := range indexes {
-			for _, ref := range idx.GetPolyReferences() {
-				if references[ref.FullDefinition] == nil {
-					if target := mapped[ref.FullDefinition]; target != nil {
-						composedOnly[target.Node] = true
-					}
-				}
-			}
-		}
-	}
+	composedOnly := composedOnlySchemas(context)
 	var results []model.RuleFunctionResult
 	var directions map[*yaml.Node]vacuumUtils.DirectionType
 	for _, schema := range context.DrDocument.Schemas {
 		value := schema.Value
-		if (!vacuumUtils.IsOAS30(context.SpecInfo) && value.Const != nil) || len(value.Enum) > 0 {
+		if schemaHasFiniteValues(value, context.SpecInfo) {
 			continue
 		}
-		if !slices.Contains(value.Type, "object") && !(len(value.Type) == 0 && (value.Properties != nil || value.AdditionalProperties != nil || value.UnevaluatedProperties != nil)) {
+		if !schemaIsObject(value) {
 			continue
 		}
 		properties := value.AdditionalProperties
@@ -93,20 +70,14 @@ func (na NoAdditionalProperties) RunRule(_ []*yaml.Node, context model.RuleFunct
 		if direction != vacuumUtils.DirectionRequest && direction != vacuumUtils.DirectionBoth {
 			continue
 		}
-		node, valueNode := value.GoLow().Type.KeyNode, value.GoLow().Type.ValueNode
-		if node == nil {
-			node, valueNode = value.GoLow().Properties.KeyNode, value.GoLow().Properties.ValueNode
-		}
-		if node == nil {
-			node, valueNode = value.GoLow().AdditionalProperties.KeyNode, value.GoLow().AdditionalProperties.ValueNode
-		}
-		if node == nil {
-			node, valueNode = value.GoLow().UnevaluatedProperties.KeyNode, value.GoLow().UnevaluatedProperties.ValueNode
-		}
+		node, valueNode := schemaObjectNodes(value)
 		locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
 		result := model.RuleFunctionResult{
 			Message:   vacuumUtils.SuppliedOrDefault(context.Rule.Message, "request objects should set `additionalProperties` to `false` or define a schema for additional values"),
-			StartNode: node, EndNode: vacuumUtils.BuildEndNode(node), Path: locatedPath, Rule: context.Rule,
+			StartNode: node,
+			EndNode:   vacuumUtils.BuildEndNode(node),
+			Path:      locatedPath,
+			Rule:      context.Rule,
 		}
 		if len(allPaths) > 1 {
 			result.Paths = allPaths

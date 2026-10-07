@@ -9,7 +9,6 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
-	"net/url"
 	"slices"
 	"strings"
 )
@@ -87,9 +86,7 @@ func (hh HostsHttps) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 			}
 		}
 		for _, candidate := range candidates {
-			parsed, err := url.Parse(candidate)
-			// Relative URLs inherit transport from their deployment location.
-			if err != nil || parsed.Scheme == "" || strings.EqualFold(parsed.Scheme, "https") {
+			if !explicitInsecureScheme(candidate) {
 				continue
 			}
 

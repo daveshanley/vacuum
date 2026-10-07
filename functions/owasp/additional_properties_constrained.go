@@ -8,7 +8,6 @@ import (
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
-	"slices"
 )
 
 // AdditionalPropertiesConstrained checks request maps for a property count limit.
@@ -33,10 +32,10 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 	var directions map[*yaml.Node]utils.DirectionType
 	for _, schema := range context.DrDocument.Schemas {
 		value := schema.Value
-		if (!utils.IsOAS30(context.SpecInfo) && value.Const != nil) || len(value.Enum) > 0 {
+		if schemaHasFiniteValues(value, context.SpecInfo) {
 			continue
 		}
-		if !slices.Contains(value.Type, "object") && !(len(value.Type) == 0 && (value.AdditionalProperties != nil || value.UnevaluatedProperties != nil)) {
+		if !schemaIsObject(value) {
 			continue
 		}
 		if value.MaxProperties != nil {
@@ -56,17 +55,14 @@ func (ad AdditionalPropertiesConstrained) RunRule(_ []*yaml.Node, context model.
 		if direction != utils.DirectionRequest && direction != utils.DirectionBoth {
 			continue
 		}
-		node, valueNode := value.GoLow().Type.KeyNode, value.GoLow().Type.ValueNode
-		if node == nil {
-			node, valueNode = value.GoLow().AdditionalProperties.KeyNode, value.GoLow().AdditionalProperties.ValueNode
-		}
-		if node == nil {
-			node, valueNode = value.GoLow().UnevaluatedProperties.KeyNode, value.GoLow().UnevaluatedProperties.ValueNode
-		}
+		node, valueNode := schemaObjectNodes(value)
 		locatedPath, allPaths := LocateSchemaPropertyPaths(context, schema, node, valueNode)
 		result := model.RuleFunctionResult{
 			Message:   utils.SuppliedOrDefault(context.Rule.Message, "request maps should define `maxProperties` to limit the number of properties"),
-			StartNode: node, EndNode: utils.BuildEndNode(node), Path: locatedPath, Rule: context.Rule,
+			StartNode: node,
+			EndNode:   utils.BuildEndNode(node),
+			Path:      locatedPath,
+			Rule:      context.Rule,
 		}
 		if len(allPaths) > 1 {
 			result.Paths = allPaths
