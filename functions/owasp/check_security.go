@@ -40,7 +40,7 @@ func (cd CheckSecurity) RunRule(nodes []*yaml.Node, context model.RuleFunctionCo
 
 	var results []model.RuleFunctionResult
 
-	if context.DrDocument == nil {
+	if context.DrDocument == nil || context.DrDocument.V3Document == nil {
 		return results
 	}
 	drDoc := context.DrDocument.V3Document

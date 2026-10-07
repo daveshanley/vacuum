@@ -12,9 +12,10 @@ import (
 	"strings"
 )
 
+// JWTBestPractice checks whether explicitly declared JWTs document RFC8725.
 type JWTBestPractice struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the JWTBestPractice rule.
 func (jwt JWTBestPractice) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "owaspJWTBestPractice"}
 }
@@ -24,7 +25,7 @@ func (jwt JWTBestPractice) GetCategory() string {
 	return model.FunctionCategoryOWASP
 }
 
-// RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule checks JWT documentation without inferring token format from OAuth.
 func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult
@@ -38,7 +39,7 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 		for schemePairs := ss.First(); schemePairs != nil; schemePairs = schemePairs.Next() {
 
 			scheme := schemePairs.Value()
-			if scheme.Value.Type == "oauth2" || strings.ToLower(scheme.Value.BearerFormat) == "jwt" {
+			if strings.EqualFold(scheme.Value.BearerFormat, "jwt") {
 				if !strings.Contains(scheme.Value.Description, "RFC8725") {
 					node := scheme.Value.GoLow().Description.KeyNode
 					if node == nil {
@@ -46,7 +47,7 @@ func (jwt JWTBestPractice) RunRule(_ []*yaml.Node, context model.RuleFunctionCon
 					}
 					result := model.RuleFunctionResult{
 						Message: vacuumUtils.SuppliedOrDefault(context.Rule.Message,
-							"JWTs must explicitly declare support for `RFC8725` in the description"),
+							"JWT descriptions should reference `RFC8725`; this documents intent, not runtime validation"),
 						StartNode: node,
 						EndNode:   vacuumUtils.BuildEndNode(node),
 						Path:      fmt.Sprintf("%s.%s", scheme.GenerateJSONPath(), "description"),

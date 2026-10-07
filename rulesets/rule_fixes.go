@@ -196,7 +196,7 @@ const (
 	owaspNoAPIKeysInURLFix          = "Make sure that the apiKey is not part of the URL (path or query): https://blog.stoplight.io/api-keys-best-practices-to-authenticate-apis"
 	owaspNoCredentialsInURLFix      = "Remove credentials from the URL."
 	owaspAuthInsecureSchemesFix     = "Use a different authorization scheme. Refer to https://www.iana.org/assignments/http-authschemes/ to know more about HTTP Authentication Schemes."
-	owaspJWTBestPracticesFix        = "Explicitly state, in the description of the security schemes, that it allows for support of the RFC8725: https://datatracker.ietf.org/doc/html/rfc8725."
+	owaspJWTBestPracticesFix        = "Document RFC8725 practices for JWTs: https://datatracker.ietf.org/doc/html/rfc8725. Verify token validation in runtime tests; this rule only checks documentation."
 	owaspRateLimitFix               = "Implement rate-limiting using HTTP headers: https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/ Customer headers like X-Rate-Limit-Limit (Twitter: https://developer.twitter.com/en/docs/twitter-api/rate-limits) or X-RateLimit-Limit (GitHub: https://docs.github.com/en/rest/overview/resources-in-the-rest-api)"
 	owaspRateLimitRetryAfterFix     = "Set the Retry-After header in the 429 response."
 	owaspProtectionFix              = "Make sure that all operations should be protected especially when they are not safe (methods that do not alter the state of the server) HTTP methods like `POST`, `PUT`, `PATCH`, and `DELETE`. This is done with one or more non-empty `security` rules. Security rules are defined in the `securityScheme` section."

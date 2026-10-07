@@ -20,7 +20,9 @@ info:
 components:
   securitySchemes:
     magicHerbs:
-      type: oauth2
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
       description: "This is a description"
 `
 
@@ -47,7 +49,7 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "JWTs must explicitly declare support for `RFC8725` in the description", res[0].Message)
+	assert.Equal(t, "JWT descriptions should reference `RFC8725`; this documents intent, not runtime validation", res[0].Message)
 }
 
 func TestJWTBestPractice_RunRule_Valid(t *testing.T) {
@@ -58,7 +60,9 @@ info:
 components:
   securitySchemes:
     magicHerbs:
-      type: oauth2
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
       description: "This is a description RFC8725"
 `
 
