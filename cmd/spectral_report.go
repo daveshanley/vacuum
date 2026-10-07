@@ -324,6 +324,12 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 					SpecFormat:                      specFormat,
 				}, executionOptions)
 
+				if err := ruleSetConfigurationError(ruleset); err != nil {
+					ruleset.ReleaseOwnedResources()
+					tui.RenderError(err)
+					return err
+				}
+
 				// Check for spec parsing errors before generating report
 				if ruleset.SpecInfo == nil {
 					tui.RenderErrorString("Failed to parse specification '%s'", specFile)
