@@ -581,3 +581,35 @@ func containsMiddle(s, substr string) bool {
 	}
 	return false
 }
+
+func TestMissingType_PropertyNamesContext(t *testing.T) {
+	yml := `openapi: 3.1.0
+info: {title: Test, version: '1'}
+paths: {}
+components:
+  schemas:
+    Metadata:
+      type: object
+      propertyNames:
+        maxLength: 32
+        not: {pattern: '^reserved'}
+      additionalProperties: {type: string}
+    Ordinary:
+      description: still needs a type
+    Object:
+      type: object
+      properties:
+        propertyNames: {maxLength: 32}
+`
+	document, err := libopenapi.NewDocument([]byte(yml))
+	assert.NoError(t, err)
+	defer document.Release()
+	m, err := document.BuildV3Model()
+	assert.NoError(t, err)
+	dr := drModel.NewDrDocument(m)
+	results := (MissingType{}).RunRule(nil, model.RuleFunctionContext{Rule: &model.Rule{Name: "missing-type"}, Document: document, DrDocument: dr})
+	assert.Len(t, results, 3) // ordinary component plus both existing ordinary-property checks
+	for _, result := range results {
+		assert.NotContains(t, result.Path, "Metadata")
+	}
+}

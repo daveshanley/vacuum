@@ -57,6 +57,10 @@ func (mt MissingType) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 
 func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+	// propertyNames and its logical subschemas always test string values.
+	if isPropertyNameSchema(schema) {
+		return nil
+	}
 
 	// Don't require type for polymorphic schemas themselves, but we check their nested schemas
 	// in checkSchemaRecursive
@@ -180,4 +184,22 @@ func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunc
 	}
 
 	return results
+}
+
+func isPropertyNameSchema(schema *v3.Schema) bool {
+	for schema != nil {
+		proxy, ok := schema.GetParent().(*v3.SchemaProxy)
+		if !ok {
+			return false
+		}
+		switch proxy.GetPathSegment() {
+		case "propertyNames":
+			return true
+		case "allOf", "anyOf", "oneOf", "not", "if", "then", "else":
+			schema, _ = proxy.GetParent().(*v3.Schema)
+		default:
+			return false
+		}
+	}
+	return false
 }
