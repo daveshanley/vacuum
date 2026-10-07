@@ -311,7 +311,11 @@ func (os OASSchema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 	// For OpenAPI 3.1+, check for nullable keyword usage which is not allowed
 	version := validationInfo.VersionNumeric
 	if version >= 3 && version < 3.1 {
-		results = append(results, checkComponentNames(validationInfo.RootNode, context.Rule)...)
+		nameResults := checkComponentNames(validationInfo.RootNode, context.Rule)
+		for i := range nameResults {
+			addResultToModelByLine(&nameResults[i], context.DrDocument, nameResults[i].StartNode.Line)
+		}
+		results = append(results, nameResults...)
 	}
 	if version >= 3.1 {
 		nullableResults := checkForNullableKeyword(context)
