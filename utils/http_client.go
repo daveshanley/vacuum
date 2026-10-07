@@ -4,6 +4,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -62,8 +63,17 @@ func CreateCustomHTTPClient(config HTTPClientConfig) (*http.Client, error) {
 // CreateRemoteURLHandler creates a RemoteURLHandler function for use with libopenapi
 // that uses the provided HTTP client for all remote requests.
 func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Response, error) {
+	return CreateRemoteURLHandlerWithContext(context.Background(), client)
+}
+
+// CreateRemoteURLHandlerWithContext binds remote requests to the supplied context.
+// Cancellation also interrupts response body reads. A nil context uses context.Background.
+func CreateRemoteURLHandlerWithContext(ctx context.Context, client *http.Client) func(url string) (*http.Response, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return func(url string) (*http.Response, error) {
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request for %s: %w", url, err)
 		}
