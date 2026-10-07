@@ -38,18 +38,24 @@ func TestExtendedRuleset_RelativeLocalPaths(t *testing.T) {
 func TestExtendedRuleset_RelativeRemotePaths(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/start.yaml":
+			http.Redirect(w, r, "/rules/main.yaml", http.StatusFound)
 		case "/rules/main.yaml":
 			fmt.Fprint(w, "extends: [./nested/parent.yaml]\n")
 		case "/rules/nested/parent.yaml":
-			fmt.Fprint(w, "extends: [../child.yaml]\n")
+			fmt.Fprint(w, "extends: [../child.yaml?rev=1]\n")
 		case "/rules/child.yaml":
+			if r.URL.Query().Get("rev") != "1" {
+				http.Error(w, "missing revision", 400)
+				return
+			}
 			fmt.Fprint(w, relativeChildRule)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	defer server.Close()
-	input, err := DownloadRemoteRuleSet(context.Background(), server.URL+"/rules/main.yaml", server.Client())
+	input, err := DownloadRemoteRuleSet(context.Background(), server.URL+"/start.yaml", server.Client())
 	require.NoError(t, err)
 	generated := BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(input, server.Client())
 	require.NoError(t, generated.LoadError())

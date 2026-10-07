@@ -31,9 +31,7 @@ func CheckForRemoteExtends(extends map[string]string) bool {
 // returns true if it does, false if it does not
 func CheckForLocalExtends(extends map[string]string) bool {
 	for k := range extends {
-		if filepath.Ext(k) == ".yml" ||
-			filepath.Ext(k) == ".yaml" ||
-			filepath.Ext(k) == ".json" {
+		if isExternalRulesetLocation(k) {
 			return true
 		}
 	}
@@ -87,6 +85,9 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 	}
 
 	downloadedRS.sourceLocation = location
+	if ruleResp.Request != nil && ruleResp.Request.URL != nil {
+		downloadedRS.sourceLocation = ruleResp.Request.URL.String()
+	}
 	return downloadedRS, nil
 }
 
@@ -264,10 +265,7 @@ func SniffOutAllExternalRules(
 			if ctx.Err() != nil {
 				return
 			}
-			if strings.HasPrefix(k, "http") ||
-				filepath.Ext(k) == ".yml" ||
-				filepath.Ext(k) == ".yaml" ||
-				filepath.Ext(k) == ".json" {
+			if isExternalRulesetLocation(k) {
 				k = resolveRulesetLocation(drs.sourceLocation, k)
 				if slices.Contains(visited, k) {
 					rs.addLoadError(fmt.Errorf("circular ruleset extension: %s", k))
