@@ -19,6 +19,8 @@ func TestRuleMessageTemplates(t *testing.T) {
 		{"numeric", `values: [0]`, "$.values[*]", "", "truthy", "{{property}}={{value}} at {{path}}", "0=0 at /values/0"},
 		{"no recursive replacement", `value: '{{property}}'`, "$.value", "", "falsy", "{{value}} {{unknown}}", "{{property}} {{unknown}}"},
 		{"escaped pointer", `'a/b~c': false`, "$['a/b~c']", "", "truthy", "{{property}}|{{value}}|{{path}}", "a/b~c|false|/a~1b~0c"},
+		{"apostrophe", `"a'b": false`, `$["a'b"]`, "", "truthy", "{{property}}|{{value}}|{{path}}", "a'b|false|/a'b"},
+		{"empty key", `"": false`, `$[""]`, "", "truthy", "{{property}}|{{value}}|{{path}}", "|false|/"},
 		{"plain message", `value: true`, "$.value", "", "falsy", "custom message", "custom message"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -84,4 +86,20 @@ func TestRuleMessageTemplatesUseEachAction(t *testing.T) {
 		messages = append(messages, r.Message)
 	}
 	require.ElementsMatch(t, []string{"first at /object/first", "second at /object/second"}, messages)
+}
+
+func TestRuleMessageTemplatesMatchDoctorResults(t *testing.T) {
+	for _, message := range []string{"custom error", "custom {{property}}: {{error}}"} {
+		rule := &model.Rule{Id: "template", Given: "$.info", Message: message, Description: "title rule", Severity: "error", Resolved: true, Then: model.RuleAction{Function: "truthy", Field: "description"}}
+		result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"template": rule}}})
+		require.Empty(t, result.Errors)
+		require.Len(t, result.Results, 1)
+		doc := result.RuleSetExecution.DrDocument
+		require.NotNil(t, doc)
+		stored := doc.V3Document.GetRuleFunctionResults()
+		require.Len(t, stored, 1)
+		require.Equal(t, result.Results[0].Message, stored[0].Message)
+		require.Equal(t, message, stored[0].Rule.Message)
+		result.Release()
+	}
 }

@@ -2,17 +2,21 @@ package motor
 
 import (
 	"encoding/json"
+	doctorModel "github.com/pb33f/doctor/model"
+	drV3 "github.com/pb33f/doctor/model/high/v3"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/jsonpath/pkg/jsonpath"
 )
 
 // formatRuleMessages runs once for each function result, before auto-fixes can
 // change its value. Replacement text is never interpreted as another template.
-func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, root *yaml.Node, paths *vacuumUtils.NodePathIndex) {
+func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*yaml.Node, results []model.RuleFunctionResult, root *yaml.Node, paths *vacuumUtils.NodePathIndex, updates *sync.Map) {
 	for i := range results {
 		result := &results[i]
 		result.Rule = rule
@@ -20,6 +24,7 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 			result.Message = rule.Message
 			continue
 		}
+		original := doctorMessageKey{rule.Id, result.StartNode, result.Path, result.Message}
 		path := result.Path
 		target := result.StartNode
 		fallback := path == "" || path == "unknown" || resultPathHasSelectorSyntax(path)
@@ -84,6 +89,9 @@ func formatRuleMessages(rule *model.Rule, action model.RuleAction, selected []*y
 			"{{property}}", property, "{{path}}", pointer, "{{value}}", value,
 			"{{description}}", rule.Description, "{{error}}", result.Message,
 		).Replace(rule.Message)
+		if updates != nil {
+			updates.Store(original, doctorMessageUpdate{result.Message, rule.Message})
+		}
 	}
 }
 
@@ -93,28 +101,32 @@ func ruleMessageLocation(root *yaml.Node, path string) (property, pointer string
 	if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 		node = node.Content[0]
 	}
-	steps, ok := parseResultPathSteps(path)
-	if !ok {
+	parsed, err := jsonpath.NewPath(path)
+	if err != nil || !parsed.IsSingular() {
+		return "", path, nil
+	}
+	steps, err := parsed.GetSegmentInfo()
+	if err != nil {
 		return "", path, nil
 	}
 	for _, step := range steps {
-		switch step.kind {
-		case resultPathStepName:
-			property = step.name
+		switch step.Kind {
+		case jsonpath.SegmentKindMemberName:
+			property = step.Key
 			var child *yaml.Node
 			if node != nil && node.Kind == yaml.MappingNode {
 				for i := 0; i+1 < len(node.Content); i += 2 {
-					if node.Content[i].Value == step.name {
+					if node.Content[i].Value == step.Key {
 						child = node.Content[i+1]
 						break
 					}
 				}
 			}
 			node = child
-		case resultPathStepIndex:
-			property = strconv.Itoa(step.index)
-			if node != nil && node.Kind == yaml.SequenceNode && step.index >= 0 && step.index < len(node.Content) {
-				node = node.Content[step.index]
+		case jsonpath.SegmentKindArrayIndex:
+			property = strconv.FormatInt(step.Index, 10)
+			if node != nil && node.Kind == yaml.SequenceNode && int(step.Index) >= 0 && int(step.Index) < len(node.Content) {
+				node = node.Content[int(step.Index)]
 			} else {
 				node = nil
 			}
@@ -124,4 +136,53 @@ func ruleMessageLocation(root *yaml.Node, path string) (property, pointer string
 		pointer += "/" + strings.ReplaceAll(strings.ReplaceAll(property, "~", "~0"), "/", "~1")
 	}
 	return
+}
+
+// Doctor keeps copies of findings on models and at their root. Update those
+// copies once after rule execution, using the original result identity.
+type doctorMessageKey struct {
+	rule          string
+	node          *yaml.Node
+	path, message string
+}
+type doctorMessageUpdate struct{ message, template string }
+
+func updateDoctorMessages(doc *doctorModel.DrDocument, updates *sync.Map) {
+	if doc == nil || updates == nil {
+		return
+	}
+	seen := make(map[*drV3.Foundation]bool)
+	update := func(f *drV3.Foundation) {
+		if f == nil || seen[f] {
+			return
+		}
+		seen[f] = true
+		f.Mutex.Lock()
+		defer f.Mutex.Unlock()
+		for _, result := range f.RuleResults {
+			if result == nil {
+				continue
+			}
+			if value, ok := updates.Load(doctorMessageKey{result.RuleId, result.StartNode, result.Path, result.Message}); ok {
+				message := value.(doctorMessageUpdate)
+				result.Message = message.message
+				if result.Rule != nil {
+					result.Rule.Message = message.template
+				}
+			}
+		}
+	}
+	if doc.V3Document != nil {
+		update(&doc.V3Document.Foundation)
+		return
+	}
+	for _, schema := range doc.Schemas {
+		if schema == nil {
+			continue
+		}
+		update(&schema.Foundation)
+		if root, ok := schema.GetRoot().(*drV3.Foundation); ok {
+			update(root)
+		}
+	}
 }

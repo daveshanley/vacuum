@@ -3,14 +3,19 @@
 
 package utils
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // AppendResultPathSegment appends a mapping key to a vacuum result path.
-// It intentionally mirrors the historical path formatting used across vacuum
-// and doctor, including bracket notation for non-simple keys.
+// It uses bracket notation for non-simple keys and escapes quoted keys.
 func AppendResultPathSegment(basePath, key string) string {
 	if IsSimpleResultPathKey(key) {
 		return basePath + "." + key
+	}
+	if strings.ContainsAny(key, "'\\\n\r\t") {
+		return basePath + "[" + strconv.Quote(key) + "]"
 	}
 	return basePath + "['" + key + "']"
 }
