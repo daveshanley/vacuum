@@ -150,14 +150,15 @@ func applyAsyncAPIRulesToRuleSet(
 
 	if controlErr := control.Err(); controlErr != nil {
 		filesProcessed, fileSize := rolodexMetrics(asyncCtx.Rolodex)
-		return appendContextError(&RuleSetExecutionResult{
+		return &RuleSetExecutionResult{
 			RuleSetExecution: execution,
 			Index:            asyncCtx.Index,
 			SpecInfo:         asyncCtx.SpecInfo,
 			FilesProcessed:   filesProcessed,
 			FileSize:         fileSize,
 			AsyncAPI:         asyncCtx,
-		}, controlErr), true
+			Errors:           []error{controlErr},
+		}, true
 	}
 
 	documentResults := asyncAPIDocumentErrorResults(asyncCtx, asyncAPIDocumentErrorRule(execution.RuleSet))

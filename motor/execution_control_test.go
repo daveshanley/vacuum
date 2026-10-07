@@ -7,6 +7,7 @@ package motor
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -98,12 +99,12 @@ func TestAppendContextErrorOnce(t *testing.T) {
 	wrappedCancellation := errors.Join(errors.New("worker stopped"), context.Canceled)
 	result := &RuleSetExecutionResult{Errors: []error{workErr, wrappedCancellation}}
 
-	appendContextError(result, context.Canceled)
+	result.Errors = appendContextErrorToErrors(result.Errors, context.Canceled)
 	require.Len(t, result.Errors, 2)
 	assert.Equal(t, workErr, result.Errors[0])
 	assert.ErrorIs(t, result.Errors[1], context.Canceled)
 
-	appendContextError(result, context.DeadlineExceeded)
+	result.Errors = appendContextErrorToErrors(result.Errors, context.DeadlineExceeded)
 	require.Len(t, result.Errors, 3)
 	assert.ErrorIs(t, result.Errors[2], context.DeadlineExceeded)
 }
@@ -689,7 +690,7 @@ func controlledExecution(
 }
 
 type countingRuleFunction struct {
-	calls atomicCounter
+	calls atomic.Int32
 }
 
 func (c *countingRuleFunction) GetSchema() model.RuleFunctionSchema {
@@ -740,5 +741,23 @@ func receiveExecutionResult(
 	case <-time.After(time.Second):
 		t.Fatal("execution did not return")
 		return nil
+	}
+}
+
+func TestExecutionControlCloseCancelsChildrenWithoutCancellingCaller(t *testing.T) {
+	for _, timeout := range []time.Duration{0, time.Hour} {
+		t.Run(timeout.String(), func(t *testing.T) {
+			caller, cancelCaller := context.WithCancel(context.Background())
+			defer cancelCaller()
+			control, err := newExecutionControl(&ExecutionOptions{Context: caller, RunTimeout: timeout})
+			require.NoError(t, err)
+			child, cancelChild := context.WithCancel(control.Context())
+			defer cancelChild()
+
+			control.Close()
+			control.Close()
+			require.ErrorIs(t, child.Err(), context.Canceled)
+			require.NoError(t, caller.Err())
+		})
 	}
 }

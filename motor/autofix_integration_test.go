@@ -1,13 +1,16 @@
 package motor
 
 import (
+	"bytes"
 	"io"
 	"log/slog"
 	"testing"
 
+	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
 )
 
@@ -281,6 +284,8 @@ func TestAutoFixResolvedRuleSkipsWithoutUnresolvedIndex(t *testing.T) {
 
 	rule := &model.Rule{
 		Id:              "no-index-autofix",
+		Given:           "$",
+		Then:            model.RuleAction{Function: "autofixUnmapped"},
 		Resolved:        true,
 		AutoFixFunction: "fixDescription",
 	}
@@ -289,6 +294,11 @@ func TestAutoFixResolvedRuleSkipsWithoutUnresolvedIndex(t *testing.T) {
 	var fixedResults []model.RuleFunctionResult
 	ctx := ruleContext{
 		rule:               rule,
+		specNode:           &yaml.Node{Kind: yaml.MappingNode},
+		applyAutoFixes:     true,
+		skipDocumentCheck:  true,
+		customFunctions:    map[string]model.RuleFunction{"autofixUnmapped": &testAutoFixUnmappedRule{}},
+		builtinFunctions:   functions.MapBuiltinFunctions(),
 		specNodeUnresolved: &yaml.Node{},
 		autoFixFunctions:   map[string]model.AutoFixFunction{"fixDescription": fixDescription},
 		ruleResults:        &ruleResults,
@@ -298,15 +308,55 @@ func TestAutoFixResolvedRuleSkipsWithoutUnresolvedIndex(t *testing.T) {
 		indexUnresolved:    nil,
 	}
 
-	applyAutoFixesToResults(ctx, []model.RuleFunctionResult{
-		{
-			Message:   "unmapped node",
-			StartNode: &yaml.Node{Kind: yaml.ScalarNode, Value: ""},
-			Path:      "$.info.description",
-		},
-	}, &model.RuleFunctionContext{})
+	runRule(ctx)
 
 	assert.False(t, autoFixCalled)
 	assert.Equal(t, 0, len(fixedResults))
 	assert.Equal(t, 1, len(ruleResults))
+}
+
+func TestAutoFixSkippedDiagnostics(t *testing.T) {
+	for _, missingIndex := range []bool{false, true} {
+		for _, silent := range []bool{false, true} {
+			var logs bytes.Buffer
+			root := &yaml.Node{}
+			assert.NoError(t, yaml.Unmarshal([]byte(executionOptionsOpenAPISpec), root))
+			var unresolvedIndex *index.SpecIndex
+			message := "Auto-fix skipped: unresolved index not available"
+			if !missingIndex {
+				unresolvedIndex = index.NewSpecIndex(root)
+				message = "Auto-fix skipped: unable to map resolved node to canonical document"
+			}
+			var findings, fixed []model.RuleFunctionResult
+			ctx := ruleContext{
+				rule: &model.Rule{
+					Id: "skip", Given: "$", Resolved: true, AutoFixFunction: "fix",
+					Then: model.RuleAction{Function: "autofixUnmapped"},
+				},
+				specNode:           root,
+				specNodeUnresolved: root,
+				indexUnresolved:    unresolvedIndex,
+				applyAutoFixes:     true,
+				skipDocumentCheck:  true,
+				builtinFunctions:   functions.MapBuiltinFunctions(),
+				customFunctions:    map[string]model.RuleFunction{"autofixUnmapped": &testAutoFixUnmappedRule{}},
+				autoFixFunctions: map[string]model.AutoFixFunction{"fix": func(node, _ *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
+					t.Fatal("unmapped node must not reach auto-fix callback")
+					return node, nil
+				}},
+				ruleResults:  &findings,
+				fixedResults: &fixed,
+				logger:       slog.New(slog.NewTextHandler(&logs, nil)),
+				silenceLogs:  silent,
+			}
+			runRule(ctx)
+			assert.Len(t, findings, 1)
+			assert.Empty(t, fixed)
+			if silent {
+				assert.Empty(t, logs.String())
+			} else {
+				assert.Contains(t, logs.String(), message)
+			}
+		}
+	}
 }

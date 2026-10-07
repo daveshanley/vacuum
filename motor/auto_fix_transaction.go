@@ -14,6 +14,8 @@ import (
 // autoFixState keeps callback changes private until the complete rule can publish.
 // One clone per rule preserves edits shared between findings without copying the
 // entire document for every finding. The gate serializes auto-fix transactions.
+// Each fixing rule still copies the complete document: this cost preserves
+// isolation when callbacks edit arbitrary nodes through their document argument.
 type autoFixState struct {
 	root      *yaml.Node
 	clones    map[*yaml.Node]*yaml.Node
@@ -21,9 +23,10 @@ type autoFixState struct {
 	results   []model.RuleFunctionResult
 	locked    bool
 	failed    bool
-	completed bool
 }
 
+// clone copies a graph once per original node, preserving cycles and aliases.
+// The reverse map lets publication update original nodes without replacing their identities.
 func (s *autoFixState) clone(node *yaml.Node) *yaml.Node {
 	if node == nil {
 		return nil
@@ -43,19 +46,10 @@ func (s *autoFixState) clone(node *yaml.Node) *yaml.Node {
 }
 
 func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
-	if ctx.autoFixState == nil {
-		ctx.autoFixState = &autoFixState{}
-		defer releaseAutoFixes(ctx)
-		defer func() {
-			if ctx.autoFixState.completed {
-				commitAutoFixes(ctx)
-			}
-		}()
-	}
 	state := ctx.autoFixState
 	resolved := ctx.resolvedExecution || (ctx.rule != nil && ctx.rule.Resolved)
+	callback, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]
 	for _, result := range results {
-		callback, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]
 		if result.StartNode == nil || !exists || state.failed {
 			*ctx.ruleResults = append(*ctx.ruleResults, result)
 			continue
@@ -63,11 +57,17 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 		target := result.StartNode
 		if resolved {
 			if ctx.indexUnresolved == nil {
+				if !ctx.silenceLogs && ctx.logger != nil {
+					ctx.logger.Warn("Auto-fix skipped: unresolved index not available", "ruleId", ctx.rule.Id)
+				}
 				*ctx.ruleResults = append(*ctx.ruleResults, result)
 				continue
 			}
 			origin := ctx.indexUnresolved.FindNodeOrigin(target)
 			if origin == nil || origin.Node == nil {
+				if !ctx.silenceLogs && ctx.logger != nil {
+					ctx.logger.Warn("Auto-fix skipped: unable to map resolved node to canonical document", "ruleId", ctx.rule.Id)
+				}
 				*ctx.ruleResults = append(*ctx.ruleResults, result)
 				continue
 			}
@@ -86,7 +86,8 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 			return
 		}
 		// A finding may refer to an external source outside the root graph.
-		if _, err := callback(state.clone(target), state.root, rfc); err != nil {
+		privateTarget := state.clone(target)
+		if _, err := callback(privateTarget, state.root, rfc); err != nil {
 			state.failed = true
 			if !ctx.silenceLogs && ctx.logger != nil {
 				ctx.logger.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
@@ -96,7 +97,6 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 		}
 		state.results = append(state.results, result)
 	}
-	state.completed = true
 }
 
 func acquireAutoFixGate(ctx ruleContext) bool {
@@ -189,6 +189,9 @@ func commitAutoFixes(ctx ruleContext) {
 	for _, result := range s.results {
 		result.AutoFixed = true
 		*ctx.fixedResults = append(*ctx.fixedResults, result)
+		if !ctx.silenceLogs && ctx.logger != nil {
+			ctx.logger.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", result.Path)
+		}
 	}
 }
 

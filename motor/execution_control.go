@@ -11,8 +11,12 @@ import (
 	"sync"
 )
 
+// Keep rule execution independent from GOMAXPROCS without flooding shared
+// spec/index lookup state with hundreds of concurrent rules.
 const defaultMaxRuleConcurrency = 32
 
+// executionControl owns cancellation, worker limits, and auto-fix serialization
+// for one invocation. Close ends its context without cancelling the caller.
 type executionControl struct {
 	context            context.Context
 	cancel             context.CancelFunc
@@ -21,6 +25,7 @@ type executionControl struct {
 	autoFixGate chan struct{}
 }
 
+// newExecutionControl validates options and derives an invocation-owned context.
 func newExecutionControl(options *ExecutionOptions) (*executionControl, error) {
 	if options == nil {
 		options = &ExecutionOptions{}
@@ -39,8 +44,7 @@ func newExecutionControl(options *ExecutionOptions) (*executionControl, error) {
 	if options.RunTimeout > 0 {
 		ctx, cancel = context.WithTimeout(parent, options.RunTimeout)
 	} else {
-		ctx = parent
-		cancel = func() {}
+		ctx, cancel = context.WithCancel(parent)
 	}
 
 	maxConcurrency := options.MaxRuleConcurrency
@@ -83,18 +87,17 @@ func (c *executionControl) MaxRuleConcurrency() int {
 	return c.maxRuleConcurrency
 }
 
+func (c *executionControl) AutoFixGate() chan struct{} {
+	if c == nil {
+		return nil
+	}
+	return c.autoFixGate
+}
+
 func (c *executionControl) Close() {
 	if c != nil && c.cancel != nil {
 		c.cancel()
 	}
-}
-
-func appendContextError(result *RuleSetExecutionResult, contextErr error) *RuleSetExecutionResult {
-	if result == nil || contextErr == nil {
-		return result
-	}
-	result.Errors = appendContextErrorToErrors(result.Errors, contextErr)
-	return result
 }
 
 func appendContextErrorToErrors(errs []error, contextErr error) []error {
@@ -118,9 +121,14 @@ func executionErrorResult(
 		RuleSetExecution: execution,
 		Errors:           errs,
 	}
-	return appendContextError(result, control.Err())
+	result.Errors = appendContextErrorToErrors(result.Errors, control.Err())
+	return result
 }
 
+// ruleRunGuard makes auto-fix publication and scheduler detachment mutually exclusive.
+// The commit calls beginSharedWork before touching caller-owned nodes. On timeout
+// or cancellation, abandon returns true if publication has started; the scheduler
+// must then wait for doneChan instead of returning while those nodes are changing.
 type ruleRunGuard struct {
 	mu         sync.Mutex
 	abandoned  bool

@@ -136,9 +136,6 @@ func ruleConcurrencyLimit(ruleCount, configuredMaximum int) int {
 	if ruleCount <= 0 {
 		return 0
 	}
-	if configuredMaximum <= 0 {
-		configuredMaximum = defaultMaxRuleConcurrency
-	}
 	if ruleCount < configuredMaximum {
 		return ruleCount
 	}
@@ -173,8 +170,16 @@ func executeRuleContext(
 	runGuard := &ruleRunGuard{}
 	localCtx.runGuard = runGuard
 	localCtx.executionContext = timeoutCtx
-	if control != nil {
-		localCtx.autoFixGate = control.autoFixGate
+	localCtx.autoFixGate = control.AutoFixGate()
+
+	completed := func() ruleContextResult {
+		return ruleContextResult{
+			outcome:        ruleContextCompleted,
+			ruleResults:    localResults,
+			ignoredResults: localIgnored,
+			fixedResults:   localFixed,
+			errors:         localErrs,
+		}
 	}
 
 	execution.ruleWaitGroup.Add(1)
@@ -194,26 +199,14 @@ func executeRuleContext(
 		// completion and cancellation become observable together.
 		select {
 		case <-doneChan:
-			return ruleContextResult{
-				outcome:        ruleContextCompleted,
-				ruleResults:    localResults,
-				ignoredResults: localIgnored,
-				fixedResults:   localFixed,
-				errors:         localErrs,
-			}
+			return completed()
 		default:
 		}
 		if runGuard.abandon() {
 			// Once the bounded auto-fix publication phase starts, wait for it to
 			// finish so returned fixed results and ModifiedSpec cannot diverge.
 			<-doneChan
-			return ruleContextResult{
-				outcome:        ruleContextCompleted,
-				ruleResults:    localResults,
-				ignoredResults: localIgnored,
-				fixedResults:   localFixed,
-				errors:         localErrs,
-			}
+			return completed()
 		}
 		if control.Err() != nil {
 			// runRule is not cancellable; it may finish after this call returns.
@@ -227,13 +220,7 @@ func executeRuleContext(
 		// writing only to these orphaned local slices.
 		return ruleContextResult{outcome: ruleContextTimedOut}
 	case <-doneChan:
-		return ruleContextResult{
-			outcome:        ruleContextCompleted,
-			ruleResults:    localResults,
-			ignoredResults: localIgnored,
-			fixedResults:   localFixed,
-			errors:         localErrs,
-		}
+		return completed()
 	}
 }
 

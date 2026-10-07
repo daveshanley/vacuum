@@ -21,7 +21,10 @@ func (repeatedFindingFunction) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "repeatedFinding"}
 }
 func (repeatedFindingFunction) RunRule(nodes []*yaml.Node, _ model.RuleFunctionContext) []model.RuleFunctionResult {
-	return []model.RuleFunctionResult{{StartNode: nodes[0], Path: "$.info.description", Message: "first"}, {StartNode: nodes[0], Path: "$.info.description", Message: "second"}}
+	return []model.RuleFunctionResult{
+		{StartNode: nodes[0], Path: "$.info.description", Message: "first"},
+		{StartNode: nodes[0], Path: "$.info.description", Message: "second"},
+	}
 }
 
 func TestAutoFixTransactionPreservesDocumentAndRepeatedTargetEdits(t *testing.T) {
@@ -29,8 +32,28 @@ func TestAutoFixTransactionPreservesDocumentAndRepeatedTargetEdits(t *testing.T)
 		t.Run("failure="+failure, func(t *testing.T) {
 			calls := 0
 			var recovered any
-			rule := &model.Rule{Id: "test", Given: "$.info.description", Severity: model.SeverityWarn, AutoFixFunction: "fix", Then: &model.RuleAction{Function: "repeatedFinding"}}
-			execution := &RuleSetExecution{Spec: []byte("openapi: 3.0.0\ninfo:\n  title: Test\n  version: 1.0.0\n  description: original\npaths: {}\n"), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"test": rule}}, CustomFunctions: map[string]model.RuleFunction{"repeatedFinding": repeatedFindingFunction{}}, ApplyAutoFixes: true, SilenceLogs: true, PanicFunction: func(p any) { recovered = p },
+			rule := &model.Rule{
+				Id:              "test",
+				Given:           "$.info.description",
+				Severity:        model.SeverityWarn,
+				AutoFixFunction: "fix",
+				Then:            &model.RuleAction{Function: "repeatedFinding"},
+			}
+			execution := &RuleSetExecution{
+				Spec: []byte(`openapi: 3.0.0
+info:
+  title: Test
+  version: 1.0.0
+  description: original
+paths: {}
+`),
+				RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"test": rule}},
+				CustomFunctions: map[string]model.RuleFunction{
+					"repeatedFinding": repeatedFindingFunction{},
+				},
+				ApplyAutoFixes: true,
+				SilenceLogs:    true,
+				PanicFunction:  func(p any) { recovered = p },
 				AutoFixFunctions: map[string]model.AutoFixFunction{"fix": func(node, document *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
 					calls++
 					node.Value += "X"
@@ -71,6 +94,9 @@ func TestAutoFixTransactionPreservesDocumentAndRepeatedTargetEdits(t *testing.T)
 					require.Len(t, result.Results, 2)
 				} else {
 					require.Equal(t, "cannot fix", recovered)
+					// A panicked rule never completes, so neither its staged fixes
+					// nor its incomplete findings are published.
+					require.Empty(t, result.Results)
 				}
 			}
 		})
