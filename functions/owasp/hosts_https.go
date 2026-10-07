@@ -38,12 +38,30 @@ func (hh HostsHttps) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) 
 
 	doc := context.DrDocument.V3Document
 	servers := slices.Clone(doc.Servers)
+	var paths []*v3.PathItem
 	if doc.Paths != nil {
 		for pair := doc.Paths.PathItems.First(); pair != nil; pair = pair.Next() {
-			path := pair.Value()
-			servers = append(servers, path.Servers...)
-			for operation := path.GetOperations().First(); operation != nil; operation = operation.Next() {
-				servers = append(servers, operation.Value().Servers...)
+			paths = append(paths, pair.Value())
+		}
+	}
+	for pair := doc.Webhooks.First(); pair != nil; pair = pair.Next() {
+		paths = append(paths, pair.Value())
+	}
+	seenPaths := make(map[*v3.PathItem]bool)
+	for len(paths) > 0 {
+		path := paths[len(paths)-1]
+		paths = paths[:len(paths)-1]
+		if path == nil || seenPaths[path] {
+			continue
+		}
+		seenPaths[path] = true
+		servers = append(servers, path.Servers...)
+		for operation := path.GetOperations().First(); operation != nil; operation = operation.Next() {
+			servers = append(servers, operation.Value().Servers...)
+			for callback := operation.Value().Callbacks.First(); callback != nil; callback = callback.Next() {
+				for expression := callback.Value().Expression.First(); expression != nil; expression = expression.Next() {
+					paths = append(paths, expression.Value())
+				}
 			}
 		}
 	}
