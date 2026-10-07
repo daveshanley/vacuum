@@ -51,6 +51,10 @@ func ApplyAsyncAPIRulesToRuleSet(
 		return nil, false
 	}
 
+	if err := execution.RuleSet.LoadError(); err != nil {
+		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}, true
+	}
+
 	if opts == nil {
 		opts = &ExecutionOptions{}
 	}

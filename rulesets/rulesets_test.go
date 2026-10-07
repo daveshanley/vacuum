@@ -6,6 +6,7 @@ package rulesets
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/testify/assert"
@@ -794,6 +795,7 @@ rules:
 	assert.NotNil(t, rs.Rules["ding"])
 	assert.Nil(t, rs.Rules["dong"])
 	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out")
+	assert.ErrorIs(t, override.LoadError(), context.DeadlineExceeded)
 }
 
 func TestRuleSet_GetExtendsRemoteSpec_TimeoutDoesNotWaitForNonContextAwareClient(t *testing.T) {
@@ -837,6 +839,7 @@ func TestRuleSet_GetExtendsRemoteSpec_TimeoutDoesNotWaitForNonContextAwareClient
 	assert.Len(t, override.Rules, 0)
 	assert.Len(t, override.RuleDefinitions, 0)
 	assert.Contains(t, logBuffer.String(), "external ruleset fetch timed out")
+	assert.ErrorIs(t, override.LoadError(), context.DeadlineExceeded)
 
 	select {
 	case <-transport.started:

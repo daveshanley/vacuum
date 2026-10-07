@@ -205,6 +205,10 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
 		}
 
+		if err := selectedRS.LoadError(); err != nil {
+			return relintErrorMsg{err: err}
+		}
+
 		// Merge OWASP rules if hard mode is enabled
 		if m.watchConfig.HardModeFlag {
 			owaspRules := rulesets.GetAllOWASPRules()
