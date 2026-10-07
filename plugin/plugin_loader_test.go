@@ -68,10 +68,10 @@ export default createRulesetFunction({}, () => []);`},
 			manager, err := LoadFunctions(dir, true)
 			require.ErrorContains(t, err, "no vacuum custom functions loaded")
 			require.ErrorContains(t, err, "invalid.js")
-			require.ErrorContains(t, err, "npm modules and ES module imports/exports are not supported")
+			require.ErrorContains(t, err, "check the script syntax and required function definitions")
 			require.Nil(t, manager)
 			assert.Empty(t, readFunctionLoaderOutput(t, stdout))
-			assert.Contains(t, readFunctionLoaderOutput(t, stderr), "unable to load custom function")
+			assert.Empty(t, readFunctionLoaderOutput(t, stderr), "caller renders the returned error once")
 		})
 	}
 }
