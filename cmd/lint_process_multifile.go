@@ -235,6 +235,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				RuleResultSet:  resultSet,
 				RuleCategories: model.RuleCategoriesOrdered,
 				PipelineOutput: true,
+				Severity:       flags.FailSeverityFlag,
 				ReportStats:    stats,
 				Filename:       fr.fileName,
 				TotalFiles:     len(filesToLint),

@@ -510,6 +510,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 			ShowRules:      flags.ShowRules,
 			FixesApplied:   fixesApplied,
 			Failed:         failErr != nil,
+			Severity:       flags.FailSeverityFlag,
 		})
 	}
 
@@ -822,6 +823,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 			Filename:       fileName,
 			TotalFiles:     1,
 			Failed:         opts.Failed,
+			Severity:       opts.Severity,
 			Silent:         false,
 		}
 

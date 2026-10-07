@@ -106,6 +106,8 @@ func TestRenderMarkdownSummary_Issue700(t *testing.T) {
 	io.Copy(&buf, r)
 	output := buf.String()
 
+	assert.Contains(t, output, "Failed with 4 errors")
+	assert.NotContains(t, output, "Passed")
 	// Verify that each rule shows only its own violations
 	// Split output by rule sections
 	sections := strings.Split(output, "🔴")

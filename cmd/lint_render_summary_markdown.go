@@ -45,6 +45,11 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 	warnings := rs.GetWarnCount()
 	informs := rs.GetInfoCount()
 	hints := rs.GetHintCount()
+	severity := rso.Severity
+	if severity == "" {
+		severity = model.SeverityError
+	}
+	failed := rso.Failed || CheckFailureSeverity(severity, errs, warnings, informs, hints) != nil
 	errorsHuman := humanize.Comma(int64(rs.GetErrorCount()))
 	warningsHuman := humanize.Comma(int64(rs.GetWarnCount()))
 	informsHuman := humanize.Comma(int64(rs.GetInfoCount()))
@@ -228,7 +233,7 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 			}
 			buf.WriteString(fmt.Sprint("---\n\n"))
 		}
-		if rso.Failed {
+		if failed {
 			buf.WriteString(fmt.Sprintf("❌ **Failed with %d errors, %d warnings, %d informs and %d hints.**\n\n", errs, warnings, informs, hints))
 		} else if errs+warnings+informs+hints > 0 {
 			buf.WriteString(fmt.Sprintf("✅ **Passed with %d errors, %d warnings, %d informs and %d hints.**\n\n", errs, warnings, informs, hints))
@@ -263,7 +268,7 @@ func RenderMarkdownSummary(rso RenderSummaryOptions) {
 	if silent {
 		return
 	}
-	if rso.Failed {
+	if failed {
 		tui.RenderErrorString("Linting file '%s' Failed with %s errors, %s warnings, %s informs and %d hints", filename, errorsHuman, warningsHuman, informsHuman, hints)
 	} else if errs+warnings+informs+hints > 0 {
 		tui.RenderSuccess("Linting file '%s' Passed with %s errors, %s warnings, %s informs and %d hints", filename, errorsHuman, warningsHuman, informsHuman, hints)
