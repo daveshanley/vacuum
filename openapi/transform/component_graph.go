@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -10,13 +14,14 @@ import (
 
 // ComponentGraph is a read-only reachability graph for reusable components.
 type ComponentGraph struct {
+	version     string
 	components  map[ComponentID]*yaml.Node
 	adjacency   map[ComponentID]map[ComponentID]struct{}
 	roots       map[ComponentID]struct{}
 	locations   map[ComponentID][]string
-	sections    map[string]bool
+	sections    map[string]struct{}
 	yamlAnchors map[*yaml.Node]ComponentID
-	aliasVisits map[aliasVisit]bool
+	aliasVisits map[aliasVisit]struct{}
 }
 
 type aliasVisit struct {
@@ -28,18 +33,17 @@ type aliasVisit struct {
 // BuildComponentGraph validates local component references and builds a graph
 // whose roots are references made by the retained, non-component document.
 func BuildComponentGraph(root *yaml.Node, specVersion string) (*ComponentGraph, error) {
-	root, err := requireMappingRoot(root)
+	root, err := prepareRoot(root, false)
 	if err != nil {
 		return nil, err
 	}
-	root, err = expandYAMLReferences(root, false)
-	if err != nil {
-		return nil, err
-	}
-	if err := ValidateBundled(root); err != nil {
-		return nil, err
-	}
+	return buildComponentGraph(root, specVersion)
+}
+
+func buildComponentGraph(root *yaml.Node, specVersion string) (*ComponentGraph, error) {
 	g := &ComponentGraph{
+		version:     specVersion,
+		aliasVisits: make(map[aliasVisit]struct{}),
 		components:  make(map[ComponentID]*yaml.Node),
 		adjacency:   make(map[ComponentID]map[ComponentID]struct{}),
 		roots:       make(map[ComponentID]struct{}),
@@ -47,7 +51,7 @@ func BuildComponentGraph(root *yaml.Node, specVersion string) (*ComponentGraph, 
 		sections:    openAPIComponentSectionSet(specVersion),
 		yamlAnchors: make(map[*yaml.Node]ComponentID),
 	}
-	swagger := strings.HasPrefix(specVersion, "2.")
+	swagger := isSwagger(specVersion)
 	g.registerComponents(root, swagger)
 	g.indexYAMLAnchors()
 	anchors := g.buildAnchorIndex()
@@ -172,7 +176,7 @@ func (g *ComponentGraph) walkNonComponents(root *yaml.Node, path []string, swagg
 		if !swagger && key == "components" && value.Kind == yaml.MappingNode {
 			for j := 0; j+1 < len(value.Content); j += 2 {
 				section := value.Content[j].Value
-				if g.sections[section] {
+				if _, known := g.sections[section]; known {
 					continue
 				}
 				if err := g.walkOwned(value.Content[j+1], []string{"components", section}, nil, swagger, anchors); err != nil {
@@ -195,7 +199,7 @@ func (g *ComponentGraph) walkOwned(node *yaml.Node, path []string, owner *Compon
 	inExtension := isWithinExtension(path)
 	switch node.Kind {
 	case yaml.MappingNode:
-		if isSecurityRequirementOwner(path, owner) {
+		if isSecurityRequirementOwner(path, owner, g.version) {
 			if err := g.addSecurityEdges(node, owner, swagger, path); err != nil {
 				return err
 			}
@@ -205,8 +209,7 @@ func (g *ComponentGraph) walkOwned(node *yaml.Node, path []string, owner *Compon
 			path = append(path, key)
 			next := path
 
-			if documentReferenceKeys[key] && (key != "operationRef" || (!inExtension && isLinkObjectPath(path[:len(path)-1]))) && value.Kind == yaml.ScalarNode &&
-				!(inExtension && isExternalReference(value.Value)) {
+			if isDocumentReference(key, value, path[:len(path)-1], inExtension, g.version) {
 				target, err := g.resolveReference(value.Value, key, owner, swagger, anchors)
 				if err != nil {
 					return fmt.Errorf("%s at %s", err, jsonPath(next))
@@ -258,11 +261,8 @@ func (g *ComponentGraph) walkOwned(node *yaml.Node, path []string, owner *Compon
 			if owner != nil {
 				visit.owner = *owner
 			}
-			if g.aliasVisits == nil {
-				g.aliasVisits = make(map[aliasVisit]bool)
-			}
-			if !g.aliasVisits[visit] {
-				g.aliasVisits[visit] = true
+			if _, seen := g.aliasVisits[visit]; !seen {
+				g.aliasVisits[visit] = struct{}{}
 				return g.walkOwned(node.Alias, path, owner, swagger, anchors)
 			}
 		}
@@ -299,10 +299,14 @@ func (g *ComponentGraph) resolveReference(value, keyword string, owner *Componen
 		return &id, nil
 	}
 	var id ComponentID
+	knownSection := false
+	if len(tokens) >= 2 {
+		_, knownSection = g.sections[tokens[1]]
+	}
 	switch {
 	case swagger && len(tokens) >= 2 && isSwaggerComponentSection(tokens[0]):
 		id = ComponentID{Section: tokens[0], Name: tokens[1]}
-	case !swagger && len(tokens) >= 3 && tokens[0] == "components" && g.sections[tokens[1]]:
+	case !swagger && len(tokens) >= 3 && tokens[0] == "components" && knownSection:
 		id = ComponentID{Section: tokens[1], Name: tokens[2]}
 	case !swagger && len(tokens) > 0 && tokens[0] == "components":
 		return nil, fmt.Errorf("invalid local component reference %q", value)
@@ -394,16 +398,16 @@ func (g *ComponentGraph) addSecurityEdges(node *yaml.Node, owner *ComponentID, s
 	return nil
 }
 
-func openAPIComponentSectionSet(version string) map[string]bool {
-	sections := make(map[string]bool, len(baseOpenAPIComponentSections)+2)
+func openAPIComponentSectionSet(version string) map[string]struct{} {
+	sections := make(map[string]struct{}, len(baseOpenAPIComponentSections)+2)
 	for _, section := range baseOpenAPIComponentSections {
-		sections[section] = true
+		sections[section] = struct{}{}
 	}
-	if strings.HasPrefix(version, "3.1") || strings.HasPrefix(version, "3.2") {
-		sections["pathItems"] = true
+	if supportsWebhooks(version) {
+		sections["pathItems"] = struct{}{}
 	}
-	if strings.HasPrefix(version, "3.2") {
-		sections["mediaTypes"] = true
+	if supportsQueryAndAdditionalOperations(version) {
+		sections["mediaTypes"] = struct{}{}
 	}
 	return sections
 }
@@ -417,7 +421,7 @@ func isSwaggerComponentSection(value string) bool {
 	}
 }
 
-func isSecurityRequirementOwner(path []string, owner *ComponentID) bool {
+func isSecurityRequirementOwner(path []string, owner *ComponentID, version string) bool {
 	if len(path) == 0 {
 		return false
 	}
@@ -431,13 +435,13 @@ func isSecurityRequirementOwner(path []string, owner *ComponentID) bool {
 		return false
 	}
 	last := path[len(path)-1]
-	if standardOperationKeys[last] || last == "query" {
+	if isOperationKey(last, version) {
 		return true
 	}
-	return len(path) > 1 && path[len(path)-2] == "additionalOperations"
+	return supportsQueryAndAdditionalOperations(version) && len(path) > 1 && path[len(path)-2] == "additionalOperations"
 }
 
-func isLinkObjectPath(path []string) bool {
+func isLinkObjectPath(path []string, version string) bool {
 	if len(path) == 3 && path[0] == "components" && path[1] == "links" {
 		return true
 	}
@@ -453,10 +457,10 @@ func isLinkObjectPath(path []string) bool {
 	}
 	operationPath := responsePath[:len(responsePath)-2]
 	last := operationPath[len(operationPath)-1]
-	if standardOperationKeys[last] || last == "query" {
+	if isOperationKey(last, version) {
 		return true
 	}
-	return len(operationPath) > 1 && operationPath[len(operationPath)-2] == "additionalOperations"
+	return supportsQueryAndAdditionalOperations(version) && len(operationPath) > 1 && operationPath[len(operationPath)-2] == "additionalOperations"
 }
 
 func walkYAML(node *yaml.Node, fn func(*yaml.Node)) {

@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package cmd
 
 import (
@@ -53,7 +57,7 @@ func normalizedYAML(t *testing.T, data []byte) any {
 }
 
 func TestApplyOverlayIssue948CombinedPublication(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	output := filepath.Join(t.TempDir(), "public.yaml")
 	cmd := GetApplyOverlayCommand()
 	cmd.SetArgs([]string{filepath.Join(dir, "spec.yaml"), filepath.Join(dir, "overlay.yaml"), output, "--include-tag", "public", "--prune-unused", "--no-style"})
@@ -73,7 +77,7 @@ func TestApplyOverlayIssue948CombinedPublication(t *testing.T) {
 }
 
 func TestApplyOverlayStdoutPurityAndFailOnWarnings(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	cmd := GetApplyOverlayCommand()
 	cmd.SetArgs([]string{filepath.Join(dir, "spec.yaml"), filepath.Join(dir, "overlay.yaml"), "--stdout", "--include-tag", "public", "--prune-unused", "--fail-on-warnings"})
 	stdout, stderr, err := captureProcessStreams(t, cmd.Execute)
@@ -87,7 +91,7 @@ func TestApplyOverlayStdoutPurityAndFailOnWarnings(t *testing.T) {
 }
 
 func TestApplyOverlayInputOutputCombinations(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	spec, err := os.ReadFile(filepath.Join(dir, "spec.yaml"))
 	require.NoError(t, err)
 	overlay := filepath.Join(dir, "overlay.yaml")
@@ -137,7 +141,7 @@ func TestApplyOverlayInputOutputCombinations(t *testing.T) {
 }
 
 func TestApplyOverlayDefaultPathPreservesOverlayBytes(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	spec, err := os.ReadFile(filepath.Join(dir, "spec.yaml"))
 	require.NoError(t, err)
 	overlay, err := os.ReadFile(filepath.Join(dir, "overlay.yaml"))
@@ -212,7 +216,7 @@ func TestApplyOverlayTransformValidationAndAtomicErrors(t *testing.T) {
 }
 
 func TestApplyOverlayZeroMatchWarningWritesOutput(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	output := filepath.Join(t.TempDir(), "empty.yaml")
 	cmd := GetApplyOverlayCommand()
 	cmd.SetArgs([]string{filepath.Join(dir, "spec.yaml"), filepath.Join(dir, "overlay.yaml"), output, "--include-tag", "nobody", "--prune-unused", "--no-style"})
@@ -287,7 +291,7 @@ func TestApplyOverlayStandardWarningFailOnWarningsParity(t *testing.T) {
 }
 
 func TestApplyOverlayMultipleTagsAllMode(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	output := filepath.Join(t.TempDir(), "all.yaml")
 	cmd := GetApplyOverlayCommand()
 	cmd.SetArgs([]string{filepath.Join(dir, "spec.yaml"), filepath.Join(dir, "overlay.yaml"), output, "--include-tag", "public", "--include-tag", "shared", "--tag-match", "all", "--no-style"})
@@ -352,7 +356,7 @@ func mustReadTestFile(t *testing.T, path string) []byte {
 }
 
 func TestApplyOverlayConfigurationAndEnvironmentCollections(t *testing.T) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	for _, tc := range []struct {
 		name      string
 		configure func(*testing.T) []string
@@ -428,7 +432,7 @@ func TestApplyOverlayHelpDocumentsTransforms(t *testing.T) {
 }
 
 func BenchmarkIssue948ApplyOverlay(b *testing.B) {
-	dir := filepath.Join("test_data", "issue_948")
+	dir := filepath.Join("..", "openapi", "transform", "test_data", "issue_948")
 	spec, err := os.ReadFile(filepath.Join(dir, "spec.yaml"))
 	if err != nil {
 		b.Fatal(err)
@@ -482,7 +486,7 @@ func TestApplyOverlayPreservesLiveReferenceTargets(t *testing.T) {
 			output := filepath.Join(dir, "output.yaml")
 			require.NoError(t, os.WriteFile(overlay, []byte("overlay: 1.0.0\ninfo: {title: Test, version: '1'}\nactions:\n  - target: $.info\n    update: {description: published}\n"), 0o600))
 			command := GetApplyOverlayCommand()
-			args := []string{filepath.Join("test_data", "issue_948", tc.fixture), overlay, output, "--prune-unused", "--no-style"}
+			args := []string{filepath.Join("..", "openapi", "transform", "test_data", "issue_948", tc.fixture), overlay, output, "--prune-unused", "--no-style"}
 			if tc.filter {
 				args = append(args, "--include-tag", "public")
 			}

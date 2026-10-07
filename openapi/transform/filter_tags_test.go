@@ -1,9 +1,11 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -389,21 +391,6 @@ func BenchmarkFilterOperationsByTags(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var root yaml.Node
 		_ = yaml.Unmarshal([]byte(data), &root)
-		_, _ = FilterOperationsByTags(&root, "3.0.3", TagFilterOptions{IncludeTags: []string{"public"}})
-	}
-}
-
-func BenchmarkIssue948GitHubFixture(b *testing.B) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "model", "test_files", "api.github.com.yaml"))
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var root yaml.Node
-		if err := yaml.Unmarshal(data, &root); err != nil {
-			b.Fatal(err)
-		}
 		_, _ = FilterOperationsByTags(&root, "3.0.3", TagFilterOptions{IncludeTags: []string{"public"}})
 	}
 }

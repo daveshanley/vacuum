@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -7,60 +11,53 @@ import (
 	"github.com/pb33f/go-yaml"
 )
 
-var standardOperationKeys = map[string]bool{
-	"get": true, "put": true, "post": true, "delete": true,
-	"options": true, "head": true, "patch": true, "trace": true,
-}
-
 // FilterOperationsByTags keeps only operations matching the inclusive tag
 // allow-list. An empty allow-list is a no-op.
 func FilterOperationsByTags(root *yaml.Node, specVersion string, options TagFilterOptions) (FilterStats, error) {
+	filter, _, err := Transform(root, specVersion, Options{TagFilter: options})
+	return filter, err
+}
+
+// ValidateTagFilterOptions checks the tag match strategy and rejects blank tags.
+func ValidateTagFilterOptions(options TagFilterOptions) error {
+	if options.MatchStrategy != "" && options.MatchStrategy != MatchAny && options.MatchStrategy != MatchAll {
+		return fmt.Errorf("invalid tag match strategy %q: expected any or all", options.MatchStrategy)
+	}
+	for _, tag := range options.IncludeTags {
+		if strings.TrimSpace(tag) == "" {
+			return fmt.Errorf("included tags must not be empty or whitespace")
+		}
+	}
+	return nil
+}
+
+func filterOperationsByTags(root *yaml.Node, specVersion string, options TagFilterOptions) FilterStats {
 	var stats FilterStats
-	root, err := requireMappingRoot(root)
-	if err != nil {
-		return stats, err
-	}
-	if len(options.IncludeTags) == 0 {
-		return stats, nil
-	}
 	strategy := options.MatchStrategy
 	if strategy == "" {
 		strategy = MatchAny
 	}
-	if strategy != MatchAny && strategy != MatchAll {
-		return stats, fmt.Errorf("invalid tag match strategy %q: expected any or all", strategy)
-	}
 	included := make(map[string]struct{}, len(options.IncludeTags))
 	for _, tag := range options.IncludeTags {
-		if strings.TrimSpace(tag) == "" {
-			return stats, fmt.Errorf("included tags must not be empty or whitespace")
-		}
 		included[tag] = struct{}{}
-	}
-	original := root
-	root, err = expandYAMLReferences(root, true)
-	if err != nil {
-		return stats, err
-	}
-	if err = ValidateBundled(root); err != nil {
-		return stats, err
 	}
 	beforeIDs, beforeRefs := snapshotOperationTargets(root, specVersion)
 	ctx := filterContext{
-		root:        root,
-		version:     specVersion,
-		included:    included,
-		strategy:    strategy,
-		processed:   make(map[*yaml.Node]bool),
-		processing:  make(map[*yaml.Node]bool),
-		callbacks:   make(map[*yaml.Node]bool),
-		callbacking: make(map[*yaml.Node]bool),
-		deferred:    make(map[*yaml.Node]struct{}),
-		stats:       &stats,
+		root:           root,
+		version:        specVersion,
+		included:       included,
+		strategy:       strategy,
+		processed:      make(map[*yaml.Node]bool),
+		processing:     make(map[*yaml.Node]bool),
+		callbacks:      make(map[*yaml.Node]bool),
+		callbacking:    make(map[*yaml.Node]bool),
+		deferred:       make(map[*yaml.Node]struct{}),
+		stats:          &stats,
+		emptyRootItems: make(map[*yaml.Node]bool),
 	}
 	ctx.filterRootMap("paths", false)
-	if !strings.HasPrefix(specVersion, "2.") {
-		if strings.HasPrefix(specVersion, "3.1") || strings.HasPrefix(specVersion, "3.2") {
+	if !isSwagger(specVersion) {
+		if supportsWebhooks(specVersion) {
 			ctx.filterRootMap("webhooks", true)
 		}
 		ctx.filterReusable()
@@ -68,11 +65,8 @@ func FilterOperationsByTags(root *yaml.Node, specVersion string, options TagFilt
 	ctx.finalizeDeferredCallbacks()
 	ctx.removeEmptyRootItems()
 	afterIDs, afterRefs := snapshotOperationTargets(root, specVersion)
-	stats.Warnings = danglingLinkWarnings(root, beforeIDs, afterIDs, beforeRefs, afterRefs)
-	if root != original {
-		*original = *root
-	}
-	return stats, nil
+	stats.Warnings = danglingLinkWarnings(root, specVersion, beforeIDs, afterIDs, beforeRefs, afterRefs)
+	return stats
 }
 
 type filterContext struct {
@@ -100,9 +94,6 @@ func (c *filterContext) filterRootMap(key string, webhook bool) {
 		}
 		value := container.Content[i+1]
 		if !c.filterPathItem(value) {
-			if c.emptyRootItems == nil {
-				c.emptyRootItems = make(map[*yaml.Node]bool)
-			}
 			c.emptyRootItems[value] = true
 		}
 	}
@@ -188,10 +179,10 @@ func HasReachableOperations(root *yaml.Node, specVersion string) bool {
 		}
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i].Value
-			if standardOperationKeys[key] || (key == "query" && strings.HasPrefix(specVersion, "3.2")) {
+			if isOperationKey(key, specVersion) {
 				return true
 			}
-			if key == "additionalOperations" && strings.HasPrefix(specVersion, "3.2") {
+			if key == "additionalOperations" && supportsQueryAndAdditionalOperations(specVersion) {
 				operations := node.Content[i+1]
 				if operations.Kind == yaml.MappingNode && len(operations.Content) > 0 {
 					return true
@@ -201,7 +192,7 @@ func HasReachableOperations(root *yaml.Node, specVersion string) bool {
 		return false
 	}
 	for _, key := range []string{"paths", "webhooks"} {
-		if key == "webhooks" && !strings.HasPrefix(specVersion, "3.1") && !strings.HasPrefix(specVersion, "3.2") {
+		if key == "webhooks" && !supportsWebhooks(specVersion) {
 			continue
 		}
 		container := mapValue(root, key)
@@ -225,7 +216,7 @@ func (c *filterContext) filterReusable() {
 	if components == nil || components.Kind != yaml.MappingNode {
 		return
 	}
-	if strings.HasPrefix(c.version, "3.1") || strings.HasPrefix(c.version, "3.2") {
+	if supportsWebhooks(c.version) {
 		if pathItems := mapValue(components, "pathItems"); pathItems != nil && pathItems.Kind == yaml.MappingNode {
 			for i := 1; i < len(pathItems.Content); i += 2 {
 				c.filterPathItem(pathItems.Content[i])
@@ -261,7 +252,7 @@ func (c *filterContext) filterPathItemState(node *yaml.Node) (bool, bool) {
 	complete := true
 	for i := 0; i+1 < len(node.Content); {
 		key, value := node.Content[i].Value, node.Content[i+1]
-		if c.isOperationKey(key) {
+		if isOperationKey(key, c.version) {
 			c.stats.OperationsSeen++
 			if c.matches(value) {
 				c.stats.OperationsKept++
@@ -274,7 +265,7 @@ func (c *filterContext) filterPathItemState(node *yaml.Node) (bool, bool) {
 			}
 			continue
 		}
-		if key == "additionalOperations" && strings.HasPrefix(c.version, "3.2") {
+		if key == "additionalOperations" && supportsQueryAndAdditionalOperations(c.version) {
 			if c.filterAdditionalOperations(value) {
 				hasOperation = true
 				i += 2
@@ -298,10 +289,6 @@ func (c *filterContext) filterPathItemState(node *yaml.Node) (bool, bool) {
 		return hasOperation, true
 	}
 	return false, false
-}
-
-func (c *filterContext) isOperationKey(key string) bool {
-	return standardOperationKeys[key] || (key == "query" && strings.HasPrefix(c.version, "3.2"))
 }
 
 func (c *filterContext) matches(operation *yaml.Node) bool {
@@ -506,12 +493,12 @@ func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struc
 		}
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i].Value
-			if standardOperationKeys[key] || (key == "query" && strings.HasPrefix(version, "3.2")) {
+			if isOperationKey(key, version) {
 				opPath := appendPath(path, key)
 				refs[pointerKey(opPath)] = struct{}{}
 				operation(node.Content[i+1], opPath)
 			}
-			if key == "additionalOperations" && strings.HasPrefix(version, "3.2") && node.Content[i+1].Kind == yaml.MappingNode {
+			if key == "additionalOperations" && supportsQueryAndAdditionalOperations(version) && node.Content[i+1].Kind == yaml.MappingNode {
 				additional := node.Content[i+1]
 				for j := 0; j+1 < len(additional.Content); j += 2 {
 					opPath := appendPath(appendPath(path, key), additional.Content[j].Value)
@@ -544,7 +531,7 @@ func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struc
 	return ids, refs
 }
 
-func danglingLinkWarnings(root *yaml.Node, beforeIDs, afterIDs, beforeRefs, afterRefs map[string]struct{}) []Warning {
+func danglingLinkWarnings(root *yaml.Node, version string, beforeIDs, afterIDs, beforeRefs, afterRefs map[string]struct{}) []Warning {
 	var warnings []Warning
 	var walk func(*yaml.Node, []string)
 	walk = func(node *yaml.Node, path []string) {
@@ -552,7 +539,7 @@ func danglingLinkWarnings(root *yaml.Node, beforeIDs, afterIDs, beforeRefs, afte
 			return
 		}
 		if node.Kind == yaml.MappingNode {
-			link := isLinkObjectPath(path)
+			link := isLinkObjectPath(path, version)
 			if id := mapValue(node, "operationId"); link && id != nil && id.Kind == yaml.ScalarNode {
 				if _, existed := beforeIDs[id.Value]; existed {
 					if _, remains := afterIDs[id.Value]; !remains {

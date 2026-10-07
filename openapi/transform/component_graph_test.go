@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -299,7 +303,7 @@ func TestLinkObjectPathClassification(t *testing.T) {
 		{[]string{"x-config", "links", "Link"}, false},
 		{[]string{"schemas", "responses", "links", "Link"}, false},
 	} {
-		assert.Equal(t, tc.want, isLinkObjectPath(tc.path))
+		assert.Equal(t, tc.want, isLinkObjectPath(tc.path, "3.2.0"))
 	}
 }
 

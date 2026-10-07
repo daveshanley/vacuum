@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -60,14 +64,34 @@ func jsonPath(parts []string) string {
 	var b strings.Builder
 	b.WriteByte('$')
 	for _, part := range parts {
-		if part == "" {
+		if isPathIdentifier(part) {
+			b.WriteByte('.')
+			b.WriteString(part)
 			continue
 		}
 		b.WriteString("['")
-		b.WriteString(strings.ReplaceAll(part, "'", "\\'"))
+		for _, char := range part {
+			if char == '\\' || char == '\'' {
+				b.WriteByte('\\')
+			}
+			b.WriteRune(char)
+		}
 		b.WriteString("']")
 	}
 	return b.String()
+}
+
+func isPathIdentifier(part string) bool {
+	if part == "" {
+		return false
+	}
+	for i, char := range part {
+		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char == '_' || char == '$' || i > 0 && char >= '0' && char <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func requireMappingRoot(root *yaml.Node) (*yaml.Node, error) {
@@ -128,26 +152,251 @@ func isNamedObjectMapEntry(path []string, index int) bool {
 	return ok
 }
 
-// expandYAMLReferences materializes merge keys and, for filtering, aliases.
-// Decode applies YAML merge precedence and rejects recursive or excessive
-// alias expansion. Work on a new root so a failed transform leaves input intact.
+// Expansion bounds limit malicious alias graphs without penalizing ordinary
+// documents, which take the no-copy path when no expansion is needed.
+const (
+	maxExpandedYAMLNodes  = 1_000_000
+	maxYAMLExpansionDepth = 1_000
+)
+
+// expandYAMLReferences expands merge keys on a private node tree. Filtering also
+// materializes aliases, giving each use site independent content. Pruning keeps
+// ordinary aliases connected to their cloned anchor owners for reachability.
+// Unlike decoding through Go maps, this preserves order, comments and styles.
 func expandYAMLReferences(root *yaml.Node, aliases bool) (*yaml.Node, error) {
-	needsExpansion := false
-	walkYAMLNodes(root, func(node *yaml.Node) {
-		if (aliases && node.Kind == yaml.AliasNode) || node.Tag == "!!merge" {
-			needsExpansion = true
-		}
-	})
-	if !needsExpansion {
-		return root, nil
+	inspection := yamlReferenceInspection{
+		expandAliases: aliases,
+		active:        make(map[*yaml.Node]bool),
+		heights:       make(map[*yaml.Node]int),
 	}
-	var value any
-	if err := root.Decode(&value); err != nil {
+	needed, err := inspection.inspect(root, 0)
+	if err != nil {
 		return nil, fmt.Errorf("cannot expand YAML aliases and merge keys: %w", err)
 	}
-	var expanded yaml.Node
-	if err := expanded.Encode(value); err != nil {
-		return nil, err
+	// Retained aliases still need a bounded traversal when reference validation
+	// follows them at each use site, even when no physical expansion is needed.
+	if inspection.hasAliases && expandedYAMLSize(root, make(map[*yaml.Node]int)) > maxExpandedYAMLNodes {
+		return nil, fmt.Errorf("cannot expand YAML aliases and merge keys: YAML expansion exceeds maximum node count %d", maxExpandedYAMLNodes)
 	}
-	return &expanded, nil
+	if !needed {
+		return root, nil
+	}
+	expander := yamlExpander{clones: make(map[*yaml.Node]*yaml.Node)}
+	expanded, err := expander.clone(root, aliases, 0)
+	if err != nil {
+		return nil, fmt.Errorf("cannot expand YAML aliases and merge keys: %w", err)
+	}
+	return expanded, nil
+}
+
+// yamlReferenceInspection checks each shared subtree once while tracking its
+// height. Active nodes detect cycles; cached heights still enforce depth limits
+// when a completed subtree is reached through a longer alias chain.
+type yamlReferenceInspection struct {
+	expandAliases bool
+	hasAliases    bool
+	active        map[*yaml.Node]bool
+	heights       map[*yaml.Node]int
+}
+
+func (v *yamlReferenceInspection) inspect(node *yaml.Node, depth int) (bool, error) {
+	if node == nil {
+		return false, fmt.Errorf("nil YAML node")
+	}
+	if v.active[node] {
+		return false, fmt.Errorf("recursive YAML alias or node graph")
+	}
+	if depth+v.heights[node] > maxYAMLExpansionDepth {
+		return false, fmt.Errorf("YAML expansion exceeds maximum depth %d", maxYAMLExpansionDepth)
+	}
+	if v.heights[node] != 0 {
+		return false, nil
+	}
+	v.active[node] = true
+	defer delete(v.active, node)
+	height := 1
+	needed := node.Tag == "!!merge" || v.expandAliases && node.Kind == yaml.AliasNode
+	if node.Kind == yaml.AliasNode {
+		v.hasAliases = true
+		more, err := v.inspect(node.Alias, depth+1)
+		if err != nil {
+			return false, err
+		}
+		needed = needed || more
+		height = max(height, v.heights[node.Alias]+1)
+	}
+	if node.Kind == yaml.MappingNode && len(node.Content)%2 != 0 {
+		return false, fmt.Errorf("YAML mapping has an unmatched key")
+	}
+	for _, child := range node.Content {
+		more, err := v.inspect(child, depth+1)
+		if err != nil {
+			return false, err
+		}
+		needed = needed || more
+		height = max(height, v.heights[child]+1)
+	}
+	v.heights[node] = height
+	return needed, nil
+}
+
+// expandedYAMLSize rejects exponentially expanding aliases before allocating
+// their copies. Counts saturate at the limit, so hostile graphs cannot overflow.
+func expandedYAMLSize(node *yaml.Node, sizes map[*yaml.Node]int) int {
+	if size := sizes[node]; size != 0 {
+		return size
+	}
+	size := 1
+	if node.Kind == yaml.AliasNode {
+		size += expandedYAMLSize(node.Alias, sizes)
+	}
+	for _, child := range node.Content {
+		size += expandedYAMLSize(child, sizes)
+		if size > maxExpandedYAMLNodes {
+			size = maxExpandedYAMLNodes + 1
+			break
+		}
+	}
+	sizes[node] = size
+	return size
+}
+
+// yamlExpander preserves alias identity only when aliases are retained. Expanded
+// aliases and merges must instead have independent nodes at every use site.
+type yamlExpander struct {
+	clones map[*yaml.Node]*yaml.Node
+	nodes  int
+}
+
+func (e *yamlExpander) clone(node *yaml.Node, aliases bool, depth int) (*yaml.Node, error) {
+	if depth > maxYAMLExpansionDepth {
+		return nil, fmt.Errorf("YAML expansion exceeds maximum depth %d", maxYAMLExpansionDepth)
+	}
+	if !aliases {
+		if clone := e.clones[node]; clone != nil {
+			return clone, nil
+		}
+	}
+	e.nodes++
+	if e.nodes > maxExpandedYAMLNodes {
+		return nil, fmt.Errorf("YAML expansion exceeds maximum node count %d", maxExpandedYAMLNodes)
+	}
+	if aliases && node.Kind == yaml.AliasNode {
+		clone, err := e.clone(node.Alias, true, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		clone.HeadComment = joinYAMLComments(clone.HeadComment, node.HeadComment)
+		clone.LineComment = joinYAMLComments(clone.LineComment, node.LineComment)
+		clone.FootComment = joinYAMLComments(clone.FootComment, node.FootComment)
+		return clone, nil
+	}
+	clone := *node
+	clone.Content = nil
+	clone.Alias = nil
+	if aliases {
+		// Copies of an anchored source must not emit duplicate anchor names.
+		clone.Anchor = ""
+	} else {
+		e.clones[node] = &clone
+	}
+	if node.Kind == yaml.AliasNode {
+		target, err := e.clone(node.Alias, false, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		clone.Alias = target
+	}
+	if node.Kind == yaml.MappingNode {
+		if err := e.cloneMapping(node, &clone, aliases, depth+1); err != nil {
+			return nil, err
+		}
+		return &clone, nil
+	}
+	for _, child := range node.Content {
+		copy, err := e.clone(child, aliases, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		clone.Content = append(clone.Content, copy)
+	}
+	return &clone, nil
+}
+
+// cloneMapping inserts inherited keys at the merge location. Local keys always
+// win; within a merge sequence the first source wins, as required by YAML.
+func (e *yamlExpander) cloneMapping(source, target *yaml.Node, aliases bool, depth int) error {
+	seen := make(map[string]struct{}, len(source.Content)/2)
+	for i := 0; i < len(source.Content); i += 2 {
+		key := source.Content[i]
+		if key.Kind != yaml.ScalarNode {
+			return fmt.Errorf("OpenAPI mappings require scalar keys")
+		}
+		if key.Tag != "!!merge" {
+			if _, exists := seen[key.Value]; exists {
+				return fmt.Errorf("duplicate YAML mapping key %q", key.Value)
+			}
+			seen[key.Value] = struct{}{}
+		}
+	}
+	for i := 0; i < len(source.Content); i += 2 {
+		key, value := source.Content[i], source.Content[i+1]
+		if key.Tag == "!!merge" {
+			merged, err := e.clone(value, true, depth)
+			if err != nil {
+				return err
+			}
+			start := len(target.Content)
+			if err := appendYAMLMerge(target, merged, seen); err != nil {
+				return err
+			}
+			// The merge directive disappears, but its comments remain attached
+			// to the inherited entries, or to the map when all were overridden.
+			comments := joinYAMLComments(key.HeadComment, key.LineComment, key.FootComment, value.HeadComment, value.LineComment, value.FootComment)
+			if len(target.Content) > start {
+				target.Content[start].HeadComment = joinYAMLComments(comments, target.Content[start].HeadComment)
+			} else {
+				target.FootComment = joinYAMLComments(target.FootComment, comments)
+			}
+			continue
+		}
+		for _, child := range []*yaml.Node{key, value} {
+			copy, err := e.clone(child, aliases, depth)
+			if err != nil {
+				return err
+			}
+			target.Content = append(target.Content, copy)
+		}
+	}
+	return nil
+}
+
+func appendYAMLMerge(target, source *yaml.Node, seen map[string]struct{}) error {
+	sources := []*yaml.Node{source}
+	if source.Kind == yaml.SequenceNode {
+		sources = source.Content
+	}
+	for _, mapping := range sources {
+		if mapping.Kind != yaml.MappingNode {
+			return fmt.Errorf("YAML merge source must be a mapping or sequence of mappings")
+		}
+		for i := 0; i < len(mapping.Content); i += 2 {
+			key := mapping.Content[i]
+			if _, exists := seen[key.Value]; !exists {
+				seen[key.Value] = struct{}{}
+				target.Content = append(target.Content, key, mapping.Content[i+1])
+			}
+		}
+	}
+	return nil
+}
+
+func joinYAMLComments(comments ...string) string {
+	var retained []string
+	for _, comment := range comments {
+		if comment != "" {
+			retained = append(retained, comment)
+		}
+	}
+	return strings.Join(retained, "\n")
 }

@@ -58,8 +58,9 @@ The resulting document is written with all Overlay actions applied. Optional
 inclusive tag filtering then removes every operation that lacks the requested,
 case-sensitive tags, and component pruning runs last. These transforms require
 a bundled, self-contained document. YAML aliases and merge keys are expanded
-when filtering. Pruning rejects schema $id scopes. Link Objects targeting filtered operations
-are retained and reported as warnings. Top-level Tag Objects are not pruned.`,
+when filtering, preserving mapping order, comments, and styles. Pruning rejects
+schema $id scopes. Link Objects targeting filtered operations are retained and
+reported as warnings. Top-level Tag Objects are not pruned.`,
 		Example: `  vacuum apply-overlay openapi.yaml overlay.yaml modified.yaml
   vacuum apply-overlay spec.yaml https://example.com/overlay.yaml output.yaml
   vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml --include-tag public --tag-match any --prune-unused
@@ -235,38 +236,29 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 			return NewInputError("%s", transformErr)
 		}
 		root := specInfo.RootNode
-		if transformErr := openapitransform.ValidateBundled(root); transformErr != nil {
+		var transformErr error
+		filterStats, pruneStats, transformErr = openapitransform.Transform(root, result.OverlayDocument.GetVersion(), openapitransform.Options{
+			TagFilter: openapitransform.TagFilterOptions{
+				IncludeTags:   includeTags,
+				MatchStrategy: openapitransform.MatchStrategy(tagMatch),
+			},
+			PruneUnused: pruneUnused,
+		})
+		if transformErr != nil {
 			renderApplyOverlayError(stdOut, transformErr)
 			return NewInputError("%s", transformErr)
 		}
-		if len(includeTags) > 0 {
-			filterStats, applyErr = openapitransform.FilterOperationsByTags(root, result.OverlayDocument.GetVersion(), openapitransform.TagFilterOptions{
-				IncludeTags:   includeTags,
-				MatchStrategy: openapitransform.MatchStrategy(tagMatch),
-			})
-			if applyErr != nil {
-				renderApplyOverlayError(stdOut, applyErr)
-				return NewInputError("%s", applyErr)
-			}
-		}
-		if pruneUnused {
-			pruneStats, applyErr = openapitransform.PruneUnusedComponents(root, result.OverlayDocument.GetVersion())
-			if applyErr != nil {
-				renderApplyOverlayError(stdOut, applyErr)
-				return NewInputError("%s", applyErr)
-			}
-		}
-		transformWarnings = append(transformWarnings, openapitransform.RetainWarningsForPrunedDocument(filterStats.Warnings, pruneStats)...)
+		transformWarnings = filterStats.Warnings
 		if len(includeTags) > 0 && !openapitransform.HasReachableOperations(root, result.OverlayDocument.GetVersion()) {
 			transformWarnings = append(transformWarnings, openapitransform.Warning{
 				Path:    "$",
 				Message: fmt.Sprintf("inclusive tag filtering kept zero operations for requested tags: %s", strings.Join(includeTags, ", ")),
 			})
 		}
-		result.Bytes, applyErr = yaml.Marshal(root)
-		if applyErr != nil {
-			renderApplyOverlayError(stdOut, applyErr)
-			return NewInputError("unable to render transformed OpenAPI document: %s", applyErr)
+		result.Bytes, transformErr = yaml.Marshal(root)
+		if transformErr != nil {
+			renderApplyOverlayError(stdOut, transformErr)
+			return NewInputError("unable to render transformed OpenAPI document: %s", transformErr)
 		}
 	}
 
@@ -342,20 +334,19 @@ func validateOverlayTransformFlags(tags []string, match string, matchExplicit bo
 	unique := make([]string, 0, len(tags))
 	seen := make(map[string]struct{}, len(tags))
 	for _, tag := range tags {
-		if strings.TrimSpace(tag) == "" {
-			return nil, errors.New("--include-tag values must not be empty or whitespace")
-		}
 		if _, ok := seen[tag]; ok {
 			continue
 		}
 		seen[tag] = struct{}{}
 		unique = append(unique, tag)
 	}
-	if match != string(openapitransform.MatchAny) && match != string(openapitransform.MatchAll) {
-		return nil, fmt.Errorf("invalid --tag-match %q: expected any or all", match)
-	}
 	if matchExplicit && len(unique) == 0 {
 		return nil, errors.New("--tag-match requires at least one --include-tag")
+	}
+	if err := openapitransform.ValidateTagFilterOptions(openapitransform.TagFilterOptions{
+		IncludeTags: unique, MatchStrategy: openapitransform.MatchStrategy(match),
+	}); err != nil {
+		return nil, err
 	}
 	return unique, nil
 }
@@ -370,21 +361,21 @@ func renderApplyOverlayError(stdout bool, err error) {
 
 func renderOverlayTransformSummary(filter openapitransform.FilterStats, prune openapitransform.PruneStats, filtered, pruned bool) {
 	if filtered {
-		fmt.Printf("Filtered %d operations: %d kept, %d removed; removed %d empty operation containers\n",
+		tui.RenderInfo("Filtered %d operations: %d kept, %d removed; removed %d empty operation containers",
 			filter.OperationsSeen, filter.OperationsKept, filter.OperationsRemoved,
 			filter.PathItemsRemoved+filter.WebhooksRemoved+filter.CallbackItemsRemoved)
 	}
 	if pruned {
-		fmt.Printf("Pruned %d unused components", prune.ComponentsRemoved)
+		summary := fmt.Sprintf("Pruned %d unused components", prune.ComponentsRemoved)
 		if prune.ComponentsRemoved > 0 {
 			sections := make([]string, 0, len(prune.RemovedBySection))
 			for section, count := range prune.RemovedBySection {
 				sections = append(sections, fmt.Sprintf("%d %s", count, section))
 			}
 			sort.Strings(sections)
-			fmt.Printf(": %s", strings.Join(sections, ", "))
+			summary += ": " + strings.Join(sections, ", ")
 		}
-		fmt.Println()
+		tui.RenderInfo("%s", summary)
 	}
 }
 
