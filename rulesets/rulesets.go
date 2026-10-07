@@ -377,6 +377,11 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		Rules:            ruleset.Rules,
 	}
 
+	if err := validateRulesetReferences(ruleset); err != nil {
+		rs.addLoadError(err)
+		return rs
+	}
+
 	// default and explicitly recommended
 	if extends[VacuumOpenAPI] == VacuumRecommended || extends[VacuumOpenAPI] == VacuumOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
@@ -935,6 +940,10 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	uErr := json.Unmarshal(jsonData, rs)
 	if uErr != nil {
 		return nil, uErr
+	}
+
+	if err := validateRulesetReferences(rs); err != nil {
+		return nil, err
 	}
 
 	// raw rules are unpacked, lets copy them over

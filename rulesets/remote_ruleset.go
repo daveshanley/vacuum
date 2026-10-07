@@ -49,6 +49,10 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, err
 	}
 
+	if err := unsupportedRulesetReference(location); err != nil {
+		return nil, err
+	}
+
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
@@ -65,6 +69,12 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 	defer ruleResp.Body.Close()
 	if ruleResp.StatusCode < 200 || ruleResp.StatusCode >= 300 {
 		return nil, fmt.Errorf("remote ruleset %q returned HTTP %d", location, ruleResp.StatusCode)
+	}
+
+	if ruleResp.Request != nil && ruleResp.Request.URL != nil {
+		if err := unsupportedRulesetReference(ruleResp.Request.URL.String()); err != nil {
+			return nil, err
+		}
 	}
 
 	ruleBytes, bytesErr := io.ReadAll(ruleResp.Body)
@@ -103,6 +113,10 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 		return nil, fmt.Errorf("cannot load ruleset, location is empty")
 	}
 	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := unsupportedRulesetReference(location); err != nil {
 		return nil, err
 	}
 
@@ -176,9 +190,9 @@ func sniffExternalRules(ctx context.Context, rsm *ruleSetsModel, location rulese
 		if ctx.Err() != nil {
 			return
 		}
-		rs.addLoadError(fmt.Errorf("cannot open external ruleset %q: %w", location, err))
+		rs.addLoadError(fmt.Errorf("cannot open external ruleset %q: %w", location.String(), err))
 		rsm.logger.Error("cannot open external ruleset",
-			"location", location, "error", err.Error())
+			"location", location.String(), "error", err.Error())
 		return
 	}
 	if ctx.Err() != nil {

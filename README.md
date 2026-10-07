@@ -15,7 +15,7 @@
 
 An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
 
-It's **fully compatible** with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
+It supports Spectral-style YAML and JSON rulesets. See [Spectral migration](#spectral-migration) for compatibility limits and built-in alternatives.
 
 ## Install using the official [homebrew](https://brew.sh) tap
 
@@ -501,6 +501,37 @@ if you're interested in seeing how things are progressing, it's available.
 ```
 
 ---
+## Spectral migration
+
+Vacuum loads YAML and JSON rulesets. Resolve each relative `extends` path from the
+file that contains it, including on Windows. Keep sibling rulesets relative:
+
+```yaml
+extends:
+  - ./ruleset.bank.yml
+  - ./ruleset.nlgov.yml
+  - [vacuum:owasp, all]
+```
+
+Use `[vacuum:owasp, all]` for Vacuum's built-in OWASP checks instead of importing
+`@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use Vacuum's
+rule names and behavior; they do not execute the Spectral package. JavaScript
+ruleset modules (`.js`, `.mjs`, `.cjs`) are not supported.
+
+Arazzo workflow linting and `spectral:arazzo` are not supported. Remove that entry
+from rulesets used to lint OpenAPI documents. Use an Arazzo-capable linter for
+Arazzo workflow documents.
+
+`--functions` takes a directory containing custom function files:
+
+```shell
+vacuum lint api.yaml --ruleset rules/main.yaml --functions ./functions
+```
+
+It does not enable JavaScript ruleset modules. Omitting the directory reports an
+input error and exits with code 2. In the editor, Vacuum checks recognized ruleset
+buffers against its ruleset schema instead of reporting an unsupported API type.
+
 ## Supply your own Spectral compatible ruleset
 
 If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
