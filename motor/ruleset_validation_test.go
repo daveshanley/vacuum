@@ -54,6 +54,7 @@ func TestUnknownFunction_ActionRepresentations(t *testing.T) {
 	for i, then := range []any{
 		action, &action, []model.RuleAction{action}, []*model.RuleAction{&action},
 		map[string]any{"function": "missing"}, []any{map[string]any{"function": "missing"}},
+		map[string]any{"Function": "missing"}, map[string]any{"FUNCTION": "missing"},
 		map[any]any{"function": "missing"}, []map[any]any{{"function": "missing"}},
 		map[string]string{"function": "missing"}, []map[string]string{{"function": "missing"}},
 	} {
@@ -122,4 +123,28 @@ func TestIncompleteRuleset_IsRejectedByEngine(t *testing.T) {
 	require.Len(t, result.Errors, 1)
 	require.Contains(t, result.Errors[0].Error(), "missing-ruleset-945.yaml")
 	require.Empty(t, result.Results)
+}
+
+func TestRuleFunctions_CaseInsensitiveActionMaps(t *testing.T) {
+	for _, key := range []string{"function", "Function", "FUNCTION"} {
+		for _, given := range []string{"$", "$.missing"} {
+			t.Run(key+given, func(t *testing.T) {
+				probe := &configurationProbe{}
+				rs := &rulesets.RuleSet{Rules: map[string]*model.Rule{
+					"probe": {Id: "probe", Given: given, Then: map[string]any{key: "probe"}},
+				}}
+				result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs,
+					Spec:            []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}"),
+					CustomFunctions: map[string]model.RuleFunction{"probe": probe},
+				})
+				defer result.Release()
+				require.Empty(t, result.Errors)
+				if given == "$" {
+					require.Equal(t, int32(1), probe.calls.Load())
+				} else {
+					require.Zero(t, probe.calls.Load())
+				}
+			})
+		}
+	}
 }
