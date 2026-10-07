@@ -5,6 +5,8 @@ package openapi
 
 import (
 	"fmt"
+	"sort"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
@@ -40,9 +42,24 @@ func (oId UniqueOperationId) RunRule(nodes []*yaml.Node, context model.RuleFunct
 	paths := context.Index.GetAllPaths()
 	seenIds := make(map[string]bool)
 
-	for path, methodMap := range paths {
+	// Map iteration order is random. Visit path, then method, lexicographically so
+	// the first operationId kept, and every duplicate reported, is stable.
+	pathNames := make([]string, 0, len(paths))
+	for path := range paths {
+		pathNames = append(pathNames, path)
+	}
+	sort.Strings(pathNames)
 
-		for method, methodNode := range methodMap {
+	for _, path := range pathNames {
+		methodMap := paths[path]
+		methods := make([]string, 0, len(methodMap))
+		for method := range methodMap {
+			methods = append(methods, method)
+		}
+		sort.Strings(methods)
+
+		for _, method := range methods {
+			methodNode := methodMap[method]
 
 			_, operationId := utils.FindKeyNode("operationId", methodNode.Node.Content)
 
