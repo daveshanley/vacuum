@@ -1,33 +1,26 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
-	"strings"
-
 	"github.com/pb33f/go-yaml"
 )
 
 // PruneUnusedComponents removes every reusable component that is unreachable
 // from retained non-component document content.
 func PruneUnusedComponents(root *yaml.Node, specVersion string) (PruneStats, error) {
+	_, prune, err := Transform(root, specVersion, Options{PruneUnused: true})
+	return prune, err
+}
+
+func pruneUnusedComponents(root *yaml.Node, specVersion string) (PruneStats, error) {
 	stats := PruneStats{RemovedBySection: make(map[string]int), removed: make(map[ComponentID]struct{})}
-	root, err := requireMappingRoot(root)
+	graph, err := buildComponentGraph(root, specVersion)
 	if err != nil {
 		return stats, err
 	}
-	original := root
-	root, err = expandYAMLReferences(root, false)
-	if err != nil {
-		return stats, err
-	}
-	graph, err := BuildComponentGraph(root, specVersion)
-	if err != nil {
-		return stats, err
-	}
-	defer func() {
-		if root != original {
-			*original = *root
-		}
-	}()
 	stats.ComponentsSeen = len(graph.components)
 	unreachable := graph.Unreachable()
 	remove := make(map[ComponentID]struct{}, len(unreachable))
@@ -39,7 +32,7 @@ func PruneUnusedComponents(root *yaml.Node, specVersion string) (PruneStats, err
 	stats.ComponentsRemoved = len(remove)
 	stats.ComponentsKept = stats.ComponentsSeen - stats.ComponentsRemoved
 
-	if strings.HasPrefix(specVersion, "2.") {
+	if isSwagger(specVersion) {
 		for _, section := range []string{"definitions", "parameters", "responses", "securityDefinitions"} {
 			pruneSection(root, section, section, remove)
 		}
@@ -53,7 +46,7 @@ func PruneUnusedComponents(root *yaml.Node, specVersion string) (PruneStats, err
 	for i := 0; i+1 < len(components.Content); {
 		section := components.Content[i].Value
 		value := components.Content[i+1]
-		if !knownSections[section] {
+		if _, known := knownSections[section]; !known {
 			i += 2
 			continue
 		}

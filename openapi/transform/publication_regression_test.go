@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -282,7 +286,7 @@ func TestPrunePreservesNumericExampleAndComponentAliasTargets(t *testing.T) {
 		{"example-alias.yaml", "schemas", "User"},
 	} {
 		t.Run(tc.fixture, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join("..", "..", "cmd", "test_data", "issue_948", tc.fixture))
+			data, err := os.ReadFile(filepath.Join("test_data", "issue_948", tc.fixture))
 			require.NoError(t, err)
 			root := parseTestYAML(t, string(data))
 			_, err = PruneUnusedComponents(root, "3.1.0")
@@ -300,7 +304,7 @@ func TestPrunePreservesNumericExampleAndComponentAliasTargets(t *testing.T) {
 }
 
 func TestFilterPreservesReferencedRootMetadataWithoutPrivateOperations(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "cmd", "test_data", "issue_948", "referenced-path.yaml"))
+	data, err := os.ReadFile(filepath.Join("test_data", "issue_948", "referenced-path.yaml"))
 	require.NoError(t, err)
 	for _, rootKey := range []string{"paths", "webhooks"} {
 		for _, order := range []string{"forward", "reverse"} {

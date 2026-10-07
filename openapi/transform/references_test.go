@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -100,7 +104,7 @@ func TestYAMLHelpers(t *testing.T) {
 	scalar := &yaml.Node{Kind: yaml.ScalarNode}
 	assert.Same(t, scalar, documentRoot(scalar))
 	assert.Nil(t, mapValue(scalar, "x"))
-	assert.Equal(t, "$['a']['b\\'c']", jsonPath([]string{"a", "b'c"}))
+	assert.Equal(t, "$.a['b\\'c']", jsonPath([]string{"a", "b'c"}))
 	assert.False(t, isExternalReference(""))
 	assert.False(t, isExternalReference("#/x"))
 	assert.True(t, isExternalReference("other.yaml#/x"))

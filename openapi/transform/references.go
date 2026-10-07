@@ -1,3 +1,7 @@
+// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// https://quobix.com/vacuum/ | https://pb33f.io
+// SPDX-License-Identifier: MIT
+
 package transform
 
 import (
@@ -6,27 +10,34 @@ import (
 	"strings"
 
 	"github.com/pb33f/go-yaml"
+	libutils "github.com/pb33f/libopenapi/utils"
 )
 
-var documentReferenceKeys = map[string]bool{
-	"$ref":          true,
-	"$dynamicRef":   true,
-	"$recursiveRef": true,
-	"operationRef":  true,
+func isDocumentReferenceKey(key string) bool {
+	switch key {
+	case "$ref", "$dynamicRef", "$recursiveRef", "operationRef":
+		return true
+	}
+	return false
+}
+
+// isDocumentReference accepts scalar reference keywords, limits operationRef to
+// Link Objects, and permits external reference-like metadata within extensions.
+func isDocumentReference(key string, value *yaml.Node, path []string, inExtension bool, version string) bool {
+	return isDocumentReferenceKey(key) && value.Kind == yaml.ScalarNode &&
+		(key != "operationRef" || (!inExtension && isLinkObjectPath(path, version))) &&
+		!(inExtension && isExternalReference(value.Value))
+}
+
+func externalReferenceError(path []string, value string) error {
+	return fmt.Errorf("inclusive filtering and unused-component pruning require a bundled OpenAPI document; external reference found at %s: %s", jsonPath(path), value)
 }
 
 // ValidateBundled rejects document references whose URI portion is external.
 // Runtime URLs such as Example Object externalValue values are ignored.
 func ValidateBundled(root *yaml.Node) error {
-	root, err := requireMappingRoot(root)
-	if err != nil {
-		return err
-	}
-	root, err = expandYAMLReferences(root, true)
-	if err != nil {
-		return err
-	}
-	return walkExternalReferences(root, nil)
+	_, err := prepareRoot(root, false)
+	return err
 }
 
 func walkExternalReferences(node *yaml.Node, path []string) error {
@@ -34,13 +45,17 @@ func walkExternalReferences(node *yaml.Node, path []string) error {
 		return nil
 	}
 	switch node.Kind {
+	case yaml.AliasNode:
+		if node.Alias != nil {
+			return walkExternalReferences(node.Alias, path)
+		}
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key, value := node.Content[i].Value, node.Content[i+1]
 			path = append(path, key)
 			next := path
-			if documentReferenceKeys[key] && value.Kind == yaml.ScalarNode && isExternalReference(value.Value) {
-				return fmt.Errorf("inclusive filtering and unused-component pruning require a bundled OpenAPI document; external reference found at %s: %s", jsonPath(next), value.Value)
+			if isDocumentReferenceKey(key) && value.Kind == yaml.ScalarNode && isExternalReference(value.Value) {
+				return externalReferenceError(next, value.Value)
 			}
 			if key == "discriminator" {
 				if err := validateDiscriminatorReferences(value, next); err != nil {
@@ -79,25 +94,19 @@ func validateDiscriminatorReferences(node *yaml.Node, path []string) error {
 				target := value.Content[j+1]
 				if target.Kind == yaml.ScalarNode && isExternalDiscriminatorReference(target.Value) {
 					p := appendPath(appendPath(path, key), value.Content[j].Value)
-					return fmt.Errorf("inclusive filtering and unused-component pruning require a bundled OpenAPI document; external reference found at %s: %s", jsonPath(p), target.Value)
+					return externalReferenceError(p, target.Value)
 				}
 			}
 		case "defaultMapping":
 			if value.Kind == yaml.ScalarNode && isExternalDiscriminatorReference(value.Value) {
-				return fmt.Errorf("inclusive filtering and unused-component pruning require a bundled OpenAPI document; external reference found at %s: %s", jsonPath(appendPath(path, key)), value.Value)
+				return externalReferenceError(appendPath(path, key), value.Value)
 			}
 		}
 	}
 	return nil
 }
 
-func isExternalReference(value string) bool {
-	if value == "" || strings.HasPrefix(value, "#") {
-		return false
-	}
-	u, err := url.Parse(value)
-	return err != nil || u.Scheme != "" || u.Host != "" || u.Path != ""
-}
+func isExternalReference(value string) bool { return libutils.IsExternalRef(value) }
 
 func isExternalDiscriminatorReference(value string) bool {
 	if value == "" || strings.HasPrefix(value, "#") {

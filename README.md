@@ -241,11 +241,12 @@ least one included tag and `all` requires every included tag. Untagged
 operations are removed. Filtering runs after Overlay actions and before
 reachability-based component pruning. These opt-in transforms require a
 bundled, self-contained OpenAPI document. Top-level Tag Objects are retained.
-YAML aliases and merge keys are expanded when filtering; comments and key
-order may change in these documents. Pruning rejects schema `$id` scopes
-that cannot be resolved safely. Link Objects targeting filtered operations are retained and reported as
-warnings. Document output remains pure on stdout; warnings are written to
-stderr.
+YAML aliases and merge keys are expanded when filtering. Retained mapping
+order, comments, and scalar styles are preserved. Pruning rejects schema
+`$id` scopes that cannot be resolved safely. Link Objects targeting filtered
+operations are retained and reported as warnings. Document output remains
+pure on stdout; warnings are written to stderr. The warning summary uses the `apply-overlay produced` prefix to
+cover both Overlay actions and publication transforms.
 
 ---
 
@@ -644,9 +645,14 @@ lint:
 
 ### Environment variables
 
-You can configure global vacuum flags using environment variables in the form of: `VACUUM_<flag>`
+You can configure global and command-local flags with `VACUUM_<FLAG>`
+environment variables. Use uppercase flag names and replace `-` with `_`.
+Explicit command-line flags take precedence over environment variables;
+environment variables take precedence over configuration files.
 
-If a flag, has a `-` in it, replace with `_`
+Collection flags accept comma-separated values. For example,
+`VACUUM_INCLUDE_TAG='public,partner'` sets the included tags for
+`apply-overlay`.
 
 
 ## Auto-fixing rule violations
