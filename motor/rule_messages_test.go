@@ -22,7 +22,7 @@ func TestRuleMessageTemplates(t *testing.T) {
 		{"escaped pointer", `'a/b~c': false`, "$['a/b~c']", "", "truthy", "{{property}}|{{value}}|{{path}}", "a/b~c|false|/a~1b~0c"},
 		{"apostrophe", `"a'b": false`, `$["a'b"]`, "", "truthy", "{{property}}|{{value}}|{{path}}", "a'b|false|/a'b"},
 		{"empty key", `"": false`, `$[""]`, "", "truthy", "{{property}}|{{value}}|{{path}}", "|false|/"},
-		{"plain message", `value: true`, "$.value", "", "falsy", "custom message", "custom message"},
+		{"plain message", `value: true`, "$.value", "", "falsy", "custom message", "custom message: `value` must be falsy"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rule := &model.Rule{Id: "template", Description: "required field", Message: tc.template, Given: tc.given, Severity: "warn", Then: model.RuleAction{Field: tc.field, Function: tc.function}}
@@ -37,7 +37,7 @@ func TestRuleMessageTemplates(t *testing.T) {
 	}
 }
 
-type messageTestFunction struct{ child bool }
+type messageTestFunction struct{ child, children, keys bool }
 
 func (messageTestFunction) GetSchema() model.RuleFunctionSchema {
 	return model.RuleFunctionSchema{Name: "messageTest"}
@@ -46,6 +46,16 @@ func (messageTestFunction) GetCategory() string { return model.FunctionCategoryC
 func (f messageTestFunction) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	for _, node := range nodes {
+		if f.children {
+			for i := 0; i+1 < len(node.Content); i += 2 {
+				target := node.Content[i+1]
+				if f.keys {
+					target = node.Content[i]
+				}
+				results = append(results, model.RuleFunctionResult{Message: "original error", StartNode: target, EndNode: target})
+			}
+			continue
+		}
 		if f.child {
 			node = node.Content[1]
 		}
@@ -90,18 +100,26 @@ func TestRuleMessageTemplatesUseEachAction(t *testing.T) {
 }
 
 func TestRuleMessageTemplatesMatchDoctorResults(t *testing.T) {
-	for _, message := range []string{"custom error", "custom {{property}}: {{error}}"} {
-		rule := &model.Rule{Id: "template", Given: "$.info", Message: message, Description: "title rule", Severity: "error", Resolved: true, Then: model.RuleAction{Function: "truthy", Field: "description"}}
-		result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"template": rule}}})
-		require.Empty(t, result.Errors)
-		require.Len(t, result.Results, 1)
-		doc := result.RuleSetExecution.DrDocument
-		require.NotNil(t, doc)
-		stored := doc.V3Document.GetRuleFunctionResults()
-		require.Len(t, stored, 1)
-		require.Equal(t, result.Results[0].Message, stored[0].Message)
-		require.Equal(t, message, stored[0].Rule.Message)
-		result.Release()
+	for _, function := range []string{"truthy", "falsy"} {
+		for _, message := range []string{"custom error", "custom {{property}}: {{error}}"} {
+			t.Run(function+"/"+message, func(t *testing.T) {
+				field := "description"
+				if function == "falsy" {
+					field = "title"
+				}
+				rule := &model.Rule{Id: "template", Given: "$.info", Message: message, Description: "title rule", Severity: "error", Resolved: true, Then: model.RuleAction{Function: function, Field: field}}
+				result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"), RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"template": rule}}})
+				defer result.Release()
+				require.Empty(t, result.Errors)
+				require.Len(t, result.Results, 1)
+				doc := result.RuleSetExecution.DrDocument
+				require.NotNil(t, doc)
+				stored := doc.V3Document.GetRuleFunctionResults()
+				require.Len(t, stored, 1)
+				require.Equal(t, result.Results[0].Message, stored[0].Message)
+				require.Equal(t, message, stored[0].Rule.Message)
+			})
+		}
 	}
 }
 
@@ -117,5 +135,22 @@ func TestRuleMessageTemplatesConcurrentRules(t *testing.T) {
 	require.Len(t, result.Results, 64)
 	for _, r := range result.Results {
 		require.Contains(t, []string{"0=0 at /values/0", "1=false at /values/1"}, r.Message)
+	}
+}
+
+func TestRuleMessageTemplatesConcurrentCustomTargets(t *testing.T) {
+	for _, keys := range []bool{false, true} {
+		rules := make(map[string]*model.Rule)
+		for i := 0; i < 32; i++ {
+			id := fmt.Sprintf("rule-%d", i)
+			rules[id] = &model.Rule{Id: id, Given: "$.object", Message: "{{property}}={{value}} at {{path}}", Severity: "warn", Then: model.RuleAction{Function: "messageTest"}}
+		}
+		result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("object: {first: one, second: two}\n"), SkipDocumentCheck: true, RuleSet: &rulesets.RuleSet{Rules: rules}, CustomFunctions: map[string]model.RuleFunction{"messageTest": messageTestFunction{children: true, keys: keys}}})
+		require.Empty(t, result.Errors)
+		require.Len(t, result.Results, 64)
+		for _, r := range result.Results {
+			require.Contains(t, []string{"first=one at /object/first", "second=two at /object/second"}, r.Message)
+		}
+		result.Release()
 	}
 }

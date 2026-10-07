@@ -1565,11 +1565,11 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		var messagePaths *vacuumUtils.NodePathIndex
 		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
 			results := ruleFunction.RunRule(selected, rfc)
-			if ctx.rule.Message != "" {
+			if strings.Contains(ctx.rule.Message, "{{") {
 				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {
 					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
 				}
-				formatRuleMessages(ctx.rule, ruleAction, selected, results, ctx.specNode, messagePaths, ctx.messageUpdates)
+				formatRuleMessages(ctx, ruleAction, selected, results, messagePaths)
 			}
 			return results
 		}
