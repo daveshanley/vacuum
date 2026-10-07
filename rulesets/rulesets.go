@@ -99,6 +99,9 @@ const (
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
 	OwaspNoCredentialsInURL              = "owasp-no-credentials-in-url"
+	OwaspOAuthNoPassword                 = "owasp-oauth-no-password"
+	OwaspOAuthNoImplicit                 = "owasp-oauth-no-implicit"
+	OwaspAuthURLsHTTPS                   = "owasp-auth-urls-https"
 	OwaspAuthInsecureSchemes             = "owasp-auth-insecure-schemes"
 	OwaspJWTBestPractices                = "owasp-jwt-best-practices"
 	OwaspProtectionGlobalUnsafe          = "owasp-protection-global-unsafe"
@@ -744,6 +747,9 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	rules[OwaspArrayLimit] = GetOWASPArrayLimitRule()
 	rules[OwaspJWTBestPractices] = GetOWASPJWTBestPracticesRule()
 	rules[OwaspAuthInsecureSchemes] = GetOWASPAuthInsecureSchemesRule()
+	rules[OwaspOAuthNoPassword] = GetOWASPOAuthNoPasswordRule()
+	rules[OwaspOAuthNoImplicit] = GetOWASPOAuthNoImplicitRule()
+	rules[OwaspAuthURLsHTTPS] = GetOWASPAuthURLsHTTPSRule()
 	rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
 	rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
 	rules[OwaspDefineErrorValidation] = GetOWASPDefineErrorValidationRule()

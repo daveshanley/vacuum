@@ -23,7 +23,7 @@ import (
 
 var totalRules = 69
 var totalRecommendedRules = 55
-var totalOwaspRules = 23
+var totalOwaspRules = 26
 
 type blockingRulesetTransport struct {
 	started  chan struct{}

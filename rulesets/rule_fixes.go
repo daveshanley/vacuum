@@ -189,6 +189,8 @@ const (
 )
 
 const (
+	owaspOAuthFlowFix               = "Use authorization code with PKCE for user authorization. See https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html."
+	owaspAuthURLsHTTPSFix           = "Use HTTPS for authorization, token, refresh, and OpenID discovery endpoints."
 	owaspNoNumericIDsFix            = "For any parameter which ends in id, use type string with uuid format instead of type integer."
 	owaspNoHttpBasicFix             = "Do not use basic authentication method, use a more secure authentication method (e.g., bearer)."
 	owaspNoAPIKeysInURLFix          = "Make sure that the apiKey is not part of the URL (path or query): https://blog.stoplight.io/api-keys-best-practices-to-authenticate-apis"

@@ -158,6 +158,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspNoAdditionalProperties"] = owasp.NoAdditionalProperties{}
 		funcs["owaspNoAdditionalPropertiesConstrained"] = owasp.AdditionalPropertiesConstrained{}
 		funcs["owaspHostsHttps"] = owasp.HostsHttps{}
+		funcs["owaspAuthURLsHTTPS"] = owasp.AuthURLsHTTPS{}
 	})
 
 	return functionsSingleton
