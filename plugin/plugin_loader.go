@@ -141,6 +141,7 @@ var length = loadFunc(&core.Length{})
 var pattern = loadFunc(&core.Pattern{})
 var undefined = loadFunc(&core.Undefined{})
 var xor = loadFunc(&core.Xor{})
+var or = loadFunc(&core.Or{})
 var blank = loadFunc(&core.Blank{})
 
 func RegisterCoreFunctions(rule javascript.JSEnabledRuleFunction) {
@@ -154,5 +155,6 @@ func RegisterCoreFunctions(rule javascript.JSEnabledRuleFunction) {
 	rule.RegisterCoreFunction("pattern", pattern)
 	rule.RegisterCoreFunction("undefined", undefined)
 	rule.RegisterCoreFunction("xor", xor)
+	rule.RegisterCoreFunction("or", or)
 	rule.RegisterCoreFunction("blank", blank)
 }

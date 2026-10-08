@@ -147,7 +147,7 @@ func BuildFunctionResultString(message string) RuleFunctionResult {
 }
 
 // extractOptionKeys extracts top-level keys from various option types.
-// supports map[string]interface{}, map[string]string, and []interface{} containing maps.
+// supports string-keyed option maps and []interface{} containing maps.
 func extractOptionKeys(options interface{}) []string {
 	switch opts := options.(type) {
 	case map[string]interface{}:
@@ -157,6 +157,12 @@ func extractOptionKeys(options interface{}) []string {
 		}
 		return keys
 	case map[string]string:
+		keys := make([]string, 0, len(opts))
+		for k := range opts {
+			keys = append(keys, k)
+		}
+		return keys
+	case map[string][]string:
 		keys := make([]string, 0, len(opts))
 		for k := range opts {
 			keys = append(keys, k)
@@ -285,6 +291,13 @@ func ValidateRuleFunctionContextAgainstSchema(ruleFunction RuleFunction, ctx Rul
 			valid = false
 			errs = append(errs, fmt.Sprintf("%s: property '%s' is not a valid property for '%s'",
 				schema.ErrorMessage, k, schema.Name))
+		}
+	}
+
+	if validator, ok := ruleFunction.(RuleFunctionOptionsValidator); ok && valid {
+		if err := validator.ValidateOptions(ctx.Options); err != nil {
+			valid = false
+			errs = append(errs, err.Error())
 		}
 	}
 
