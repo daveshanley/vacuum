@@ -143,8 +143,6 @@ func orProperties(options any) []string {
 		value = opts["properties"]
 	case map[string]string:
 		value = opts["properties"]
-	case map[string][]string:
-		value = opts["properties"]
 	}
 	switch properties := value.(type) {
 	case []string:

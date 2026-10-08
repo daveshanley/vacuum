@@ -147,7 +147,7 @@ func BuildFunctionResultString(message string) RuleFunctionResult {
 }
 
 // extractOptionKeys extracts top-level keys from various option types.
-// supports string-keyed option maps and []interface{} containing maps.
+// supports map[string]interface{}, map[string]string, and []interface{} containing maps.
 func extractOptionKeys(options interface{}) []string {
 	switch opts := options.(type) {
 	case map[string]interface{}:
@@ -157,12 +157,6 @@ func extractOptionKeys(options interface{}) []string {
 		}
 		return keys
 	case map[string]string:
-		keys := make([]string, 0, len(opts))
-		for k := range opts {
-			keys = append(keys, k)
-		}
-		return keys
-	case map[string][]string:
 		keys := make([]string, 0, len(opts))
 		for k := range opts {
 			keys = append(keys, k)

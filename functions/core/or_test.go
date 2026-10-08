@@ -66,7 +66,7 @@ func TestOr_OptionsAndMessages(t *testing.T) {
 		want    string
 	}{
 		{"array", map[string]any{"properties": []any{"title", "description"}}, `At least one of "title" or "description" must be defined`},
-		{"typed array", map[string][]string{"properties": {"title", "description"}}, `At least one of "title" or "description" must be defined`},
+		{"typed array", map[string]any{"properties": []string{"title", "description"}}, `At least one of "title" or "description" must be defined`},
 		{"comma string", map[string]any{"properties": "title, description"}, `At least one of "title" or "description" must be defined`},
 		{"typed string map", map[string]string{"properties": " title , description "}, `At least one of "title" or "description" must be defined`},
 		{"four properties", map[string]any{"properties": []string{"a", "b", "c", "d"}}, `At least one of "a" or "b" or "c" or "d" must be defined`},
@@ -119,7 +119,6 @@ func TestOr_Schema(t *testing.T) {
 		valid   bool
 	}{
 		{map[string]any{"properties": []any{"title", "description"}}, true},
-		{map[string][]string{"properties": {"title", "description"}}, true},
 		{map[string]any{"properties": []string{"title", "description"}}, true},
 		{map[string]any{"properties": "title, description"}, true},
 		{nil, false},
