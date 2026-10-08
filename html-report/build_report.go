@@ -189,7 +189,7 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 				return fmt.Sprintf("Oh My Stars! I cannot render the code: %v", err.Error())
 			}
 			if r.SourceContext != nil && r.Origin != nil {
-				return fmt.Sprintf("<p>Source: %s:%d</p>%s", stdhtml.EscapeString(r.Origin.AbsoluteLocation), r.StartNode.Line, b.String())
+				return fmt.Sprintf("<div><p>Source: %s:%d</p>%s</div>", stdhtml.EscapeString(r.Origin.AbsoluteLocation), r.StartNode.Line, b.String())
 			}
 			return b.String()
 		},
