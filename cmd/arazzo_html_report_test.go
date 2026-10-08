@@ -3,6 +3,8 @@
 package cmd
 
 import (
+	"bytes"
+	"golang.org/x/net/html"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,6 +46,47 @@ func TestArazzoHTMLReportUsesExternalSourceSnippet(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, string(data), "Source: "+filepath.Join(filepath.Dir(input), "other.yaml")+":6")
 		require.Contains(t, string(data), "$steps.missing.outputs.value")
+		snippet := firstReportSnippetText(t, data)
+		require.Contains(t, snippet, "other.yaml:6")
+		require.Contains(t, snippet, "$steps.missing.outputs.value")
 		require.NotContains(t, string(data), "This is the ROOT description.")
 	}
+}
+
+// The report component moves its first slotted element into the details pane.
+// Verify the visible element, not merely text elsewhere in the generated file.
+func firstReportSnippetText(t *testing.T, data []byte) string {
+	t.Helper()
+	document, err := html.Parse(bytes.NewReader(data))
+	require.NoError(t, err)
+	var find func(*html.Node) *html.Node
+	find = func(node *html.Node) *html.Node {
+		if node.Type == html.ElementNode && node.Data == "category-rule-result" {
+			for child := node.FirstChild; child != nil; child = child.NextSibling {
+				if child.Type == html.ElementNode {
+					return child
+				}
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			if found := find(child); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+	snippet := find(document)
+	require.NotNil(t, snippet)
+	var text strings.Builder
+	var collect func(*html.Node)
+	collect = func(node *html.Node) {
+		if node.Type == html.TextNode {
+			text.WriteString(node.Data)
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			collect(child)
+		}
+	}
+	collect(snippet)
+	return text.String()
 }
