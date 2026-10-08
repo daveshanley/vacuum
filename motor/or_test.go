@@ -68,7 +68,7 @@ components:
 }
 
 func TestIssue964OrInvalidOptions(t *testing.T) {
-	for _, options := range []string{`[]`, `[title]`, `[title, 42]`, `null`, `42`} {
+	for _, options := range []string{`[]`, `[title]`, `[title, 42]`, `null`, `42`, `"title,"`, `"title, "`, `"title,,"`, `", ,"`} {
 		t.Run(options, func(t *testing.T) {
 			rs, err := CreateRuleComposer().ComposeRuleSet([]byte(fmt.Sprintf(`rules:
   invalid-or:
