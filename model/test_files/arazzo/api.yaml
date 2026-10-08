@@ -1,0 +1,8 @@
+openapi: 3.1.0
+info: {title: Pets, version: '1.0'}
+paths:
+  /pets:
+    get:
+      operationId: read
+      responses:
+        '200': {description: A pet}

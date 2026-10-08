@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/functions"
@@ -162,8 +161,8 @@ func applyAsyncAPIRulesToRuleSet(
 	}
 
 	documentResults := asyncAPIDocumentErrorResults(asyncCtx, asyncAPIDocumentErrorRule(execution.RuleSet))
-	ruleResults, ignoredResults, fixedResults, errs := runAsyncAPIRules(
-		execution, opts, builtinFunctions, asyncCtx, logger, control,
+	ruleResults, ignoredResults, fixedResults, errs := runDocumentRules(
+		execution, opts, builtinFunctions, asyncCtx.SpecInfo, asyncCtx.Index, logger, control,
 	)
 	if len(documentResults) > 0 {
 		ruleResults = append(documentResults, ruleResults...)
@@ -283,77 +282,6 @@ func dedupeAsyncAPIResults(results []model.RuleFunctionResult) []model.RuleFunct
 		deduped = append(deduped, result)
 	}
 	return deduped
-}
-
-func runAsyncAPIRules(
-	execution *RuleSetExecution,
-	opts *ExecutionOptions,
-	builtinFunctions functions.Functions,
-	asyncCtx *asyncapi_context.Context,
-	logger *slog.Logger,
-	control *executionControl,
-) ([]model.RuleFunctionResult, []model.RuleFunctionResult, []model.RuleFunctionResult, []error) {
-	var ruleResults []model.RuleFunctionResult
-	var ignoredResults []model.RuleFunctionResult
-	var fixedResults []model.RuleFunctionResult
-	var errs []error
-	if execution.RuleSet == nil || asyncCtx.Index == nil {
-		return ruleResults, ignoredResults, fixedResults, errs
-	}
-
-	ignoreIdx := buildInlineIgnoreIndex(execution.CanonicalDocument)
-	specHasInlineIgnores := ignoreIdx != nil
-	resolvedAliases := resolveExecutionAliases(execution.RuleSet, asyncCtx.Format, logger)
-
-	applicableRules := applicableRulesForFormat(execution.RuleSet, asyncCtx.Format)
-	totalRules := len(applicableRules)
-	if totalRules == 0 {
-		return ruleResults, ignoredResults, fixedResults, errs
-	}
-
-	var schemaPathCache sync.Map
-	var ruleJSONPathCache sync.Map
-	runResults, runIgnored, runFixed, runErrs := runRuleContexts(
-		control,
-		execution,
-		applicableRules,
-		logger,
-		func(rule *model.Rule) ruleContext {
-			ruleResolved := opts.ResolveAllRefs || rule.Resolved
-			return ruleContext{
-				rule:               rule,
-				specNode:           asyncCtx.RootNode,
-				specNodeUnresolved: asyncCtx.RootNode,
-				builtinFunctions:   builtinFunctions,
-				specInfo:           asyncCtx.SpecInfo,
-				index:              asyncCtx.Index,
-				indexUnresolved:    asyncCtx.Index,
-				asyncAPI:           asyncCtx,
-				customFunctions:    execution.CustomFunctions,
-				autoFixFunctions:   execution.AutoFixFunctions,
-				panicFunc:          execution.PanicFunction,
-				silenceLogs:        execution.SilenceLogs,
-				skipDocumentCheck:  execution.SkipDocumentCheck,
-				logger:             logger,
-				nodeLookupTimeout:  execution.NodeLookupTimeout,
-				ruleTimeout:        execution.Timeout,
-				applyAutoFixes:     execution.ApplyAutoFixes,
-				resolvedExecution:  ruleResolved,
-				fetchConfig:        execution.FetchConfig,
-				turboMode:          execution.TurboMode,
-				hasInlineIgnores:   specHasInlineIgnores,
-				ignoreIndex:        ignoreIdx,
-				schemaPathCache:    &schemaPathCache,
-				ruleJSONPathCache:  &ruleJSONPathCache,
-				expandedAliases:    resolvedAliases,
-			}
-		},
-	)
-	ruleResults = append(ruleResults, runResults...)
-	ignoredResults = append(ignoredResults, runIgnored...)
-	fixedResults = append(fixedResults, runFixed...)
-	errs = append(errs, runErrs...)
-	return ruleResults, ignoredResults, fixedResults, errs
 }
 
 func asyncAPIIndexBuildRule() *model.Rule {

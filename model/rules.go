@@ -58,6 +58,12 @@ type AsyncAPIContext interface {
 	NodePath(node *yaml.Node) (string, bool)
 }
 
+// ArazzoContext exposes immutable findings from one Arazzo validation pass.
+type ArazzoContext interface {
+	Results(code string) []RuleFunctionResult
+	NodePath(node *yaml.Node) (string, bool)
+}
+
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
 	RuleAction  *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
@@ -69,6 +75,7 @@ type RuleFunctionContext struct {
 	Document    libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 	DrDocument  *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	AsyncAPI    AsyncAPIContext     `json:"-" yaml:"-"`                                       // AsyncAPI context, set only when linting AsyncAPI documents.
+	Arazzo      ArazzoContext       `json:"-" yaml:"-"`                                       // Arazzo findings, set only when linting Arazzo documents.
 	Logger      *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 	FetchConfig *config.FetchConfig `json:"-" yaml:"-"`                                       // Configuration for JavaScript fetch() requests
 

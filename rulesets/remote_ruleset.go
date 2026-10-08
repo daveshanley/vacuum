@@ -230,6 +230,19 @@ func sniffExternalRules(ctx context.Context, rsm *ruleSetsModel, location rulese
 
 	// iterate over the extends and extract everything
 	extends := drs.GetExtendsValue()
+	for _, name := range []string{VacuumArazzo, VacuumArazzoRecommended, SpectralArazzo} {
+		if mode, ok := extends[name]; ok && mode != VacuumOff {
+			selected := rsm.GenerateArazzoRecommendedRuleSet()
+			if mode == VacuumAll {
+				selected = rsm.GenerateArazzoDefaultRuleSet()
+			}
+			rs.mutex.Lock()
+			for id, rule := range selected.Rules {
+				rs.Rules[id] = rule
+			}
+			rs.mutex.Unlock()
+		}
+	}
 
 	// default and explicitly recommended
 	if (extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI) ||

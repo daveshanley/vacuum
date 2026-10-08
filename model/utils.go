@@ -23,6 +23,9 @@ const (
 	AsyncAPI3           = "asyncapi3"
 	AsyncAPI30          = "asyncapi3_0"
 	AsyncAPI31          = "asyncapi3_1"
+	Arazzo              = "arazzo"
+	Arazzo10            = "arazzo1_0"
+	Arazzo11            = "arazzo1_1"
 	JSONSchema          = "json-schema"
 	JSONSchemaDraft2020 = "json-schema-2020-12"
 	JSONSchemaDraft2019 = "json-schema-draft-2019-09"
@@ -38,6 +41,7 @@ var OAS3AllFormat = []string{OAS3, OAS31, OAS32}
 var OAS2Format = []string{OAS2}
 var AsyncAPI3Format = []string{AsyncAPI3}
 var AsyncAPI3AllFormats = []string{AsyncAPI3, AsyncAPI30, AsyncAPI31}
+var ArazzoAllFormats = []string{Arazzo, Arazzo10, Arazzo11}
 var AllFormats = []string{OAS3, OAS31, OAS32, OAS2}
 var JSONSchemaAllFormats = []string{JSONSchema, JSONSchemaDraft2020, JSONSchemaDraft2019, JSONSchemaDraft07}
 
@@ -59,6 +63,9 @@ func FormatMatches(ruleFormat, specFormat string) bool {
 		return true
 	}
 	if ruleFormat == AsyncAPI3 && (specFormat == AsyncAPI30 || specFormat == AsyncAPI31) {
+		return true
+	}
+	if ruleFormat == Arazzo && (specFormat == Arazzo10 || specFormat == Arazzo11) {
 		return true
 	}
 	if ruleFormat == JSONSchema && (specFormat == JSONSchemaDraft2020 ||

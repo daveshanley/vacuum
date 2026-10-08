@@ -9,9 +9,6 @@ import (
 
 func unsupportedRulesetReference(location string) error {
 	normalized := strings.ReplaceAll(location, `\`, "/")
-	if normalized == "spectral:arazzo" || (!strings.Contains(normalized, "://") && strings.HasSuffix(normalized, "/spectral:arazzo")) {
-		return fmt.Errorf("Arazzo ruleset %q is not supported; see https://github.com/daveshanley/vacuum#spectral-migration", location)
-	}
 	path := normalized
 	if parsed, err := url.Parse(location); err == nil && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https") {
 		path = parsed.Path

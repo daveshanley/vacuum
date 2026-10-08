@@ -1,0 +1,6 @@
+asyncapi: 3.1.0
+info: {title: Pet events, version: '1.0'}
+channels:
+  pets: {address: pets}
+operations:
+  publish: {action: send, channel: {$ref: '#/channels/pets'}}

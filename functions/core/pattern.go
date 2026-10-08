@@ -147,7 +147,9 @@ func (p Pattern) validatePatternOnNode(
 ) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
-	if locatedPath == "" {
+	if context.Arazzo != nil {
+		locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
+	} else if locatedPath == "" {
 		locatedPath, allPaths, locatedObjects = p.locateNode(node, context)
 	}
 

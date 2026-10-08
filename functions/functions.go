@@ -6,6 +6,7 @@
 package functions
 
 import (
+	arazzo_functions "github.com/daveshanley/vacuum/functions/arazzo"
 	"sync"
 
 	asyncapi_functions "github.com/daveshanley/vacuum/functions/asyncapi"
@@ -69,6 +70,7 @@ func MapBuiltinFunctions() Functions {
 		funcs["jsonSchemaRefValid"] = jsonschema_functions.RefValid{}
 
 		// add known AsyncAPI rules
+		funcs["arazzoDocument"] = arazzo_functions.Document{}
 		funcs["asyncApiDocument"] = asyncapi_functions.Document{}
 		funcs["asyncApiChannelParameters"] = asyncapi_functions.ChannelParameters{}
 		funcs["asyncApiChannelServers"] = asyncapi_functions.ChannelServers{}

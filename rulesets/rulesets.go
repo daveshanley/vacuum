@@ -214,6 +214,12 @@ type RuleSets interface {
 	// AsyncAPI rules supported by vacuum. The returned rules are scoped to AsyncAPI 3.x formats only.
 	GenerateAsyncAPIDefaultRuleSet() *RuleSet
 
+	// GenerateArazzoRecommendedRuleSet returns recommended Arazzo validation and authoring rules.
+	GenerateArazzoRecommendedRuleSet() *RuleSet
+
+	// GenerateArazzoDefaultRuleSet returns all built-in Arazzo rules.
+	GenerateArazzoDefaultRuleSet() *RuleSet
+
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
@@ -267,6 +273,7 @@ type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
 	jsonSchemaSet  *RuleSet
 	asyncAPISet    *RuleSet
+	arazzoSet      *RuleSet
 	logger         *slog.Logger
 }
 
@@ -284,6 +291,7 @@ func BuildDefaultRuleSetsWithLogger(logger *slog.Logger) RuleSets {
 		openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
 		jsonSchemaSet:  GenerateDefaultJSONSchemaRuleSet(),
 		asyncAPISet:    GenerateDefaultAsyncAPIRuleSet(),
+		arazzoSet:      GenerateDefaultArazzoRuleSet(),
 		logger:         logger,
 	}
 	return rulesetsSingleton
@@ -363,6 +371,20 @@ func cloneRuleSetMetadata(source *RuleSet) *RuleSet {
 	}
 }
 
+func (rsm ruleSetsModel) GenerateArazzoDefaultRuleSet() *RuleSet { return rsm.arazzoSet }
+
+func (rsm ruleSetsModel) GenerateArazzoRecommendedRuleSet() *RuleSet {
+	rs := cloneRuleSetMetadata(rsm.arazzoSet)
+	rs.Rules = make(map[string]*model.Rule)
+	for id, rule := range rsm.arazzoSet.Rules {
+		if rule.Recommended {
+			rs.Rules[id] = rule
+		}
+	}
+	rs.Description = "Recommended rules for Arazzo 1.0 and 1.1 workflows."
+	return rs
+}
+
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
 	return rsm.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(ruleset, nil)
 }
@@ -408,6 +430,18 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 	// default and explicitly recommended
 	if extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
+	}
+	for _, name := range []string{VacuumArazzo, VacuumArazzoRecommended, SpectralArazzo} {
+		if mode, ok := extends[name]; ok {
+			switch mode {
+			case VacuumAll:
+				rs = cloneRuleSetForExternalLoad(rsm.GenerateArazzoDefaultRuleSet())
+			case VacuumOff:
+				rs.Rules = make(map[string]*model.Rule)
+			default:
+				rs = rsm.GenerateArazzoRecommendedRuleSet()
+			}
+		}
 	}
 
 	// all rules

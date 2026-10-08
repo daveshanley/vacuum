@@ -85,7 +85,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				continue
 			}
 
-			if context.Index != nil {
+			if context.Index != nil && context.Arazzo == nil {
 				origin := context.Index.FindNodeOrigin(node)
 
 				if origin != nil && origin.Line > 1 {
@@ -110,7 +110,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			var locatedObjects []v3.Foundational
 			var allPaths []string
 			locatedPath := pathValue
-			if context.DrDocument != nil {
+			if context.DrDocument != nil || context.Arazzo != nil {
 				if context.RuleAction.Field == "" {
 					locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
 				} else if fieldNode == nil {

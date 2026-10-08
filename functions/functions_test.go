@@ -13,12 +13,13 @@ import (
 
 func TestMapBuiltinFunctions(t *testing.T) {
 	funcs := MapBuiltinFunctions()
-	assert.Len(t, funcs.GetAllFunctions(), 102)
+	assert.Len(t, funcs.GetAllFunctions(), 103)
 	assert.Contains(t, funcs.GetAllFunctions(), "or")
 	assert.Equal(t, "or", funcs.FindFunction("or").GetSchema().Name)
 	assert.Contains(t, funcs.GetAllFunctions(), "pathsSpecificityOrder")
 	assert.Contains(t, funcs.GetAllFunctions(), "requiredFieldsDefined")
 	assert.Contains(t, funcs.GetAllFunctions(), "asyncApiDocument")
+	assert.Contains(t, funcs.GetAllFunctions(), "arazzoDocument")
 	assert.Contains(t, funcs.GetAllFunctions(), "asyncApiChannelServers")
 	assert.Contains(t, funcs.GetAllFunctions(), "jsonSchemaValid")
 	assert.Contains(t, funcs.GetAllFunctions(), "jsonSchemaSanity")

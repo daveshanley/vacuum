@@ -14,7 +14,6 @@ import (
 
 func TestIssue941UnsupportedRulesetReferences(t *testing.T) {
 	for _, location := range []string{
-		"spectral:arazzo", "Specs.Ruleset/spectral:arazzo", `Specs.Ruleset\spectral:arazzo`,
 		"rules.mjs", "rules.js", "rules.cjs", "rules.MJS",
 		`C:\repo\rules.mjs`, `C:\repo\rules.js`, `C:\repo\rules.cjs`, `\\server\share\rules.mjs`,
 		"https://unpkg.com/@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs?version=1",
@@ -27,7 +26,7 @@ func TestIssue941UnsupportedRulesetReferences(t *testing.T) {
 			require.ErrorContains(t, rs.LoadError(), "not supported")
 		})
 	}
-	for _, location := range []string{"spectral:oas", "vacuum:owasp", "./child.yaml", "https://example.com/spectral:arazzo"} {
+	for _, location := range []string{"spectral:arazzo", "spectral:oas", "vacuum:owasp", "./child.yaml", "https://example.com/spectral:arazzo"} {
 		require.NoError(t, unsupportedRulesetReference(location), location)
 	}
 }
@@ -57,11 +56,11 @@ func TestIssue941NestedUnsupportedRulesetAndNativeMigration(t *testing.T) {
 	parent := filepath.Join(dir, "main.yaml")
 	child := filepath.Join(dir, "child.yaml")
 	require.NoError(t, os.WriteFile(parent, []byte("extends: [./child.yaml, [vacuum:owasp, all]]\n"), 0600))
-	require.NoError(t, os.WriteFile(child, []byte("extends: [spectral:arazzo]\n"), 0600))
+	require.NoError(t, os.WriteFile(child, []byte("extends: [rules.mjs]\n"), 0600))
 	loaded, err := LoadLocalRuleSet(context.Background(), parent)
 	require.NoError(t, err)
 	rs := BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(loaded)
-	require.ErrorContains(t, rs.LoadError(), "Arazzo")
+	require.ErrorContains(t, rs.LoadError(), "JavaScript ruleset")
 	require.NoError(t, os.WriteFile(child, []byte("extends: [spectral:oas]\nrules:\n  local-title:\n    given: $.info.title\n    then: {function: truthy}\n"), 0600))
 	loaded, err = LoadLocalRuleSet(context.Background(), parent)
 	require.NoError(t, err)

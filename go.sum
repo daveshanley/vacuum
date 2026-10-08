@@ -150,8 +150,8 @@ github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636 h1:uUhTvFiCwss
 github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636/go.mod h1:FWWmU6wdny1AJbjYlaavxoeqy4iVXnWRwX7ybYwFdbM=
 github.com/pb33f/libopenapi v0.41.3 h1:XfLiw0iHjl2mGBG51SSIU62etiHTYYmGUelFtI7at8M=
 github.com/pb33f/libopenapi v0.41.3/go.mod h1:mUldESjO6ownR1TCcywvoYp7e4v/bCdQyiiIqsgWne0=
-github.com/pb33f/libopenapi-validator v0.15.2 h1:9UHP62/adY48+hOgG90y+g3FuOKNXljcJ1/7c+wJlaI=
-github.com/pb33f/libopenapi-validator v0.15.2/go.mod h1:99hR+hRsOw8vg7UFL/72UxiMp+nud1O6G9N/qWLrMQA=
+github.com/pb33f/libopenapi-validator v0.16.0 h1:ow6Bij3fhApYsWxKAArf47Kb2TSVyawod5PofV9RdzI=
+github.com/pb33f/libopenapi-validator v0.16.0/go.mod h1:99hR+hRsOw8vg7UFL/72UxiMp+nud1O6G9N/qWLrMQA=
 github.com/pb33f/ordered-map/v2 v2.3.2 h1:wDyaZ2Pv9QLh64X4utCeD5Zoi9nIv2aW3lwv172O5PQ=
 github.com/pb33f/ordered-map/v2 v2.3.2/go.mod h1:1OhFrXu3OYw3kM+FXF+Ug3ugmmZ9LE8z0JfQMLvtV0w=
 github.com/pb33f/testify v0.1.1 h1:mnHe7uxKt8dyNYEGUspow72VjD264DB5rOJq4bz5tJw=
