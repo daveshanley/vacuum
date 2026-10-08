@@ -8,6 +8,7 @@ import (
 	"github.com/pb33f/go-yaml"
 	openapiUtils "github.com/pb33f/libopenapi/utils"
 	"strconv"
+	"sync"
 )
 
 func fieldLookupOptions(context model.RuleFunctionContext, recursiveFirstSegment bool) vacuumUtils.FieldPathOptions {
@@ -37,7 +38,61 @@ func givenPathValue(given interface{}) string {
 	return "unknown"
 }
 
-func locateNodePaths(context model.RuleFunctionContext, node *yaml.Node) (string, []string, []v3.Foundational) {
+func locateNodePaths(context *model.RuleFunctionContext, node *yaml.Node) (string, []string, []v3.Foundational) {
+	path, allPaths, objects := locateDoctorNodePaths(*context, node)
+	if context.Index == nil || node == nil {
+		return path, allPaths, objects
+	}
+	if context.SchemaPathCache == nil {
+		context.SchemaPathCache = new(sync.Map)
+	}
+	// Preserve Doctor's synthetic and shared locations for indexed references.
+	if extractReferenceValue(node) != "" && isIndexedReference(*context, node) {
+		return path, allPaths, objects
+	}
+	index := vacuumUtils.NodePathIndexForContext(*context, context.Index.GetRootNode())
+	exactPath, unique := index.LookupUnique(node)
+	if !unique {
+		return path, allPaths, objects
+	}
+	exactKey := vacuumUtils.CanonicalResultPath(exactPath)
+	for _, object := range objects {
+		objectPath := object.GenerateJSONPath()
+		if vacuumUtils.CanonicalResultPath(objectPath) != exactKey {
+			continue
+		}
+		// Keep Doctor's spelling and attach to the same model as the reported path.
+		// Resolved references can have other valid paths outside this source tree.
+		if context.Rule == nil || !context.Rule.Resolved {
+			allPaths = nil
+		}
+		return objectPath, allPaths, []v3.Foundational{object}
+	}
+	// Extensions and uncached aliases may have no corresponding Doctor model.
+	return vacuumUtils.CanonicalSchemaPath(exactPath), nil, nil
+}
+
+type referenceNodesCacheKey struct{ root *yaml.Node }
+
+func isIndexedReference(context model.RuleFunctionContext, node *yaml.Node) bool {
+	key := referenceNodesCacheKey{context.Index.GetRootNode()}
+	cached, ok := context.SchemaPathCache.Load(key)
+	if !ok {
+		build := sync.OnceValue(func() map[*yaml.Node]bool {
+			nodes := make(map[*yaml.Node]bool)
+			for _, ref := range context.Index.GetRawReferencesSequenced() {
+				if ref != nil && !ref.IsExtensionRef {
+					nodes[ref.Node] = true
+				}
+			}
+			return nodes
+		})
+		cached, _ = context.SchemaPathCache.LoadOrStore(key, build)
+	}
+	return cached.(func() map[*yaml.Node]bool)()[node]
+}
+
+func locateDoctorNodePaths(context model.RuleFunctionContext, node *yaml.Node) (string, []string, []v3.Foundational) {
 	fallbackPath := givenPathValue(context.Given)
 	if context.DrDocument == nil || node == nil {
 		return fallbackPath, nil, nil
@@ -172,7 +227,7 @@ func buildLocatedPaths(locatedObjects []v3.Foundational, fallbackPath string) (s
 }
 
 func locateExistingFieldPaths(
-	context model.RuleFunctionContext,
+	context *model.RuleFunctionContext,
 	containerNode *yaml.Node,
 	fieldPath string,
 	fieldResult vacuumUtils.FieldPathResult,

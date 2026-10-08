@@ -6,6 +6,8 @@ package utils
 import (
 	"strconv"
 	"strings"
+
+	"github.com/pb33f/jsonpath/pkg/jsonpath"
 )
 
 // AppendResultPathSegment appends a mapping key to a vacuum result path.
@@ -45,4 +47,58 @@ func IsSimpleResultPathKey(key string) bool {
 		return false
 	}
 	return true
+}
+
+// CanonicalResultPath normalizes a singular JSONPath for comparisons without changing literal keys.
+func CanonicalResultPath(path string) string {
+	parsed, err := jsonpath.NewPath(path)
+	if err != nil || !parsed.IsSingular() {
+		return path
+	}
+	segments, err := parsed.GetSegmentInfo()
+	if err != nil {
+		return path
+	}
+	var normalized strings.Builder
+	normalized.WriteByte('$')
+	for _, segment := range segments {
+		normalized.WriteByte('[')
+		if segment.Kind == jsonpath.SegmentKindArrayIndex {
+			normalized.WriteString(strconv.FormatInt(segment.Index, 10))
+		} else {
+			normalized.WriteString(strconv.Quote(segment.Key))
+		}
+		normalized.WriteByte(']')
+	}
+	return normalized.String()
+}
+
+// CanonicalSchemaPath uses Doctor bracket notation for schema names and property names.
+func CanonicalSchemaPath(path string) string {
+	if !strings.Contains(path, ".components.schemas.") && !strings.Contains(path, ".properties.") && !strings.Contains(path, ".patternProperties.") {
+		return path
+	}
+	parsed, err := jsonpath.NewPath(path)
+	if err != nil || !parsed.IsSingular() {
+		return path
+	}
+	segments, err := parsed.GetSegmentInfo()
+	if err != nil {
+		return path
+	}
+	normalized := "$"
+	for i, segment := range segments {
+		if segment.Kind == jsonpath.SegmentKindArrayIndex {
+			normalized = AppendResultPathIndex(normalized, int(segment.Index))
+			continue
+		}
+		schemaName := i == 2 && segments[0].Key == "components" && segments[1].Key == "schemas"
+		propertyName := i > 0 && (segments[i-1].Key == "properties" || segments[i-1].Key == "patternProperties")
+		if (schemaName || propertyName) && IsSimpleResultPathKey(segment.Key) {
+			normalized += "['" + segment.Key + "']"
+		} else {
+			normalized = AppendResultPathSegment(normalized, segment.Key)
+		}
+	}
+	return normalized
 }

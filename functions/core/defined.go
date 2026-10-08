@@ -50,7 +50,7 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 		if fieldNode == nil {
 
-			locatedPath, allPaths, locatedObjects := locateNodePaths(context, node)
+			locatedPath, allPaths, locatedObjects := locateNodePaths(&context, node)
 
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,

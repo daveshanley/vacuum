@@ -95,7 +95,7 @@ func TestIssue964OrField(t *testing.T) {
 		path  string
 	}{
 		{"info", 0, ""},
-		{"components.schemas.Missing", 1, "$.components.schemas.Missing"},
+		{"components.schemas.Missing", 1, "$.components.schemas['Missing']"},
 		{"components.schemas.Absent", 0, ""},
 		{"info.title", 0, ""},
 	} {
@@ -161,7 +161,11 @@ components:
 }
 
 func TestIssue964OrExtensionPaths(t *testing.T) {
-	for _, tc := range []struct{ given, field, path string }{{"$", "x-settings", "$['x-settings']"}, {"$['x-settings']", "", "$['x-settings']"}} {
+	for _, tc := range []struct{ given, field, path string }{
+		{"$", "x-settings", "$['x-settings']"},
+		{"$['x-settings']", "", "$['x-settings']"},
+		{"$['x-settings.properties.foo']", "", "$['x-settings.properties.foo']"},
+	} {
 		rs, err := CreateRuleComposer().ComposeRuleSet([]byte(fmt.Sprintf(`rules:
   descriptive-text:
     given: %s
@@ -172,11 +176,18 @@ func TestIssue964OrExtensionPaths(t *testing.T) {
         properties: [title, description]
 `, tc.given, tc.field)))
 		require.NoError(t, err)
-		result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo:\n  title: Present\n  version: '1.0'\npaths: {}\nx-settings:\n  version: '1.0'")})
+		execution := &RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo:\n  title: Present\n  version: '1.0'\npaths: {}\nx-settings:\n  version: '1.0'\nx-settings.properties.foo: {version: '1.0'}")}
+		result := ApplyRulesToRuleSet(execution)
+		defer result.Release()
 		require.Empty(t, result.Errors)
 		require.Len(t, result.Results, 1)
 		assert.Equal(t, tc.path, result.Results[0].Path)
-		assert.Equal(t, 7, result.Results[0].StartNode.Line)
+		require.Empty(t, execution.DrDocument.V3Document.GetRuleFunctionResults())
+		if tc.path == "$['x-settings.properties.foo']" {
+			assert.Equal(t, 8, result.Results[0].StartNode.Line)
+		} else {
+			assert.Equal(t, 7, result.Results[0].StartNode.Line)
+		}
 	}
 }
 
@@ -213,7 +224,7 @@ components:
 	for _, finding := range result.Results {
 		paths = append(paths, finding.Path)
 	}
-	assert.ElementsMatch(t, []string{"$.components.schemas.Missing", "$.components.schemas.AlsoMissing", "$.components.schemas.MergedMissing"}, paths)
+	assert.ElementsMatch(t, []string{"$.components.schemas['Missing']", "$.components.schemas['AlsoMissing']", "$.components.schemas['MergedMissing']"}, paths)
 }
 
 func TestIssue964OrSharedResponsePaths(t *testing.T) {
@@ -241,4 +252,73 @@ func TestIssue964OrSharedResponsePaths(t *testing.T) {
 		"$.paths['/v1/foo'].get.responses['400'].content['*/*'].schema.properties['error']",
 		"$.paths['/v1/foo'].post.responses['400'].content['*/*'].schema.properties['error']",
 	}, result.Results[0].Paths)
+}
+
+func TestCoreAliasResultLocations(t *testing.T) {
+	for _, function := range []string{"or", "defined", "truthy"} {
+		for _, resolved := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/resolved=%t", function, resolved), func(t *testing.T) {
+				action := "field: description\n      function: " + function
+				if function == "or" {
+					action = "function: or\n      functionOptions:\n        properties: [title, description]"
+				}
+				rs, err := CreateRuleComposer().ComposeRuleSet([]byte(fmt.Sprintf(`rules:
+  descriptive-text:
+    given: $.components.schemas.*
+    resolved: %t
+    then:
+      %s
+`, resolved, action)))
+				require.NoError(t, err)
+				execution := &RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo: {title: Aliases, version: '1.0'}\npaths: {}\ncomponents:\n  schemas:\n    Missing: &missing {type: string}\n    AlsoMissing: *missing\n")}
+				result := ApplyRulesToRuleSet(execution)
+				defer result.Release()
+				require.Empty(t, result.Errors)
+				require.Len(t, result.Results, 2)
+				var paths []string
+				for _, finding := range result.Results {
+					paths = append(paths, finding.Path)
+				}
+				suffix := ""
+				if function == "truthy" {
+					suffix = ".description"
+				}
+				require.ElementsMatch(t, []string{"$.components.schemas['Missing']" + suffix, "$.components.schemas['AlsoMissing']" + suffix}, paths)
+				for _, schema := range execution.DrDocument.Schemas {
+					for _, finding := range schema.GetRuleFunctionResults() {
+						require.Equal(t, schema.GenerateJSONPath()+suffix, finding.Path)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestOrCompactJSONExtensionLocation(t *testing.T) {
+	for _, resolved := range []bool{false, true} {
+		rs, err := CreateRuleComposer().ComposeRuleSet([]byte(fmt.Sprintf(`rules:
+  descriptive-text:
+    given: $['x-settings']
+    resolved: %t
+    then:
+      function: or
+      functionOptions:
+        properties: [title, description]
+`, resolved)))
+		require.NoError(t, err)
+		for _, spec := range []string{
+			`{"openapi":"3.0.3","info":{"title":"Test","version":"1.0"},"paths":{},"x-settings":{"version":"1.0"}}`,
+			`{"openapi":"3.0.3","info":{"title":"Test","version":"1.0"},"paths":{},"components":{"schemas":{"Shared":{"type":"string"}}},"x-settings":{"$ref":"#/components/schemas/Shared"}}`,
+		} {
+			execution := &RuleSetExecution{RuleSet: rs, Spec: []byte(spec)}
+			result := ApplyRulesToRuleSet(execution)
+			defer result.Release()
+			require.Empty(t, result.Errors)
+			require.Len(t, result.Results, 1)
+			require.Equal(t, "$['x-settings']", result.Results[0].Path)
+			require.Empty(t, result.Results[0].Paths)
+			require.Empty(t, execution.DrDocument.V3Document.GetRuleFunctionResults())
+			require.Empty(t, execution.DrDocument.V3Document.Info.GetRuleFunctionResults())
+		}
+	}
 }

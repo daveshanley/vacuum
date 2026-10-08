@@ -62,6 +62,8 @@ func (o Or) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mod
 		return []model.RuleFunctionResult{{Message: orOptionsError, Rule: context.Rule, Path: pathValue, StartNode: &yaml.Node{}, EndNode: &yaml.Node{}}}
 	}
 
+	fallbackPath := pathValue
+
 	var results []model.RuleFunctionResult
 	var message string
 	for _, node := range nodes {
@@ -96,6 +98,12 @@ func (o Or) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mod
 		if found {
 			continue
 		}
+		if results == nil {
+			if field != "" {
+				fallbackPath = joinJSONPath(pathValue, field)
+			}
+			context.Given = fallbackPath
+		}
 		if message == "" {
 			if context.Rule != nil {
 				message = context.Rule.Message
@@ -104,20 +112,7 @@ func (o Or) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mod
 				message = orMissingMessage(properties)
 			}
 		}
-		fallbackPath := pathValue
-		if field != "" {
-			fallbackPath = joinJSONPath(pathValue, field)
-		}
-		nodeContext := context
-		nodeContext.Given = fallbackPath
-		locatedPath, allPaths, locatedObjects := locateNodePaths(nodeContext, node)
-		// Use the selected object's exact path; Doctor can locate its parent or an alias.
-		if context.Index != nil {
-			paths := vacuumUtils.NodePathIndexForContext(context, context.Index.GetRootNode())
-			if exactPath, ok := paths.Lookup(node); ok {
-				locatedPath, allPaths = exactPath, nil
-			}
-		}
+		locatedPath, allPaths, locatedObjects := locateNodePaths(&context, node)
 
 		result := model.RuleFunctionResult{
 			Message:           message,
