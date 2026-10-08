@@ -50,9 +50,14 @@ for findings at that threshold, and `2` for input or tool errors.
 External source findings retain their source in reports. In the editor, they
 appear on the workflow's source declarations and link to the actual source
 line through related diagnostic information. Source findings use the inline
-ignore directives in their own document. `--original` rechecks both source
+ignore directives in their own document. CLI and HTML snippets retain up to
+seven authored source lines (16 KiB per finding), including in saved reports.
+If source text is unavailable or exceeds that bound, the root document is not
+used as a substitute. Redirected sources resolve child URLs from the final
+retrieval URL. `--original` rechecks both source
 graphs, so a changed API can produce a new finding even when the workflow
-document has not changed.
+document has not changed. Finding comparison is supported; OpenAPI structural
+change summaries and breaking-change classification do not apply to Arazzo.
 
 ## Rules and configuration
 

@@ -101,7 +101,7 @@ func TestArazzoLocationsPreserveEscapedKeysAndExternalSources(t *testing.T) {
 	var root yaml.Node
 	require.NoError(t, yaml.Unmarshal([]byte("outputs:\n  a/b~c: value\n"), &root))
 	c := &Context{RootNode: &root, results: make(map[string][]model.RuleFunctionResult)}
-	c.add("arazzo-expression", "invalid", validation.Location{URI: "file:///external.yaml", Pointer: "/outputs/a~1b~0c"}, "file:///main.yaml", map[string]*yaml.Node{"file:///external.yaml": &root})
+	c.add("arazzo-expression", "invalid", validation.Location{URI: "file:///external.yaml", Pointer: "/outputs/a~1b~0c"}, "file:///main.yaml", map[string]*SourceDocument{"file:///external.yaml": {Root: &root}})
 	result := c.Results("arazzo-expression")[0]
 	require.Equal(t, "$.outputs['a/b~c']", result.Path)
 	require.Equal(t, 2, result.StartNode.Line)
@@ -137,5 +137,15 @@ func TestArazzoDocumentURIHonorsExplicitBase(t *testing.T) {
 		got, err := DocumentURI(tc.filename, tc.base)
 		require.NoError(t, err)
 		require.Equal(t, tc.want, got)
+	}
+}
+
+func TestArazzoSourceContextIsBoundedAndAuthored(t *testing.T) {
+	source := &SourceDocument{Content: "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine"}
+	got := sourceContext(source, 5)
+	require.Equal(t, 2, got.StartLine)
+	require.Equal(t, []string{"two", "three", "four", "five", "six", "seven", "eight"}, got.Lines)
+	for _, source := range []*SourceDocument{nil, {Content: "minified"}, {Content: "large\n" + strings.Repeat("x", 16<<10)}} {
+		require.Empty(t, sourceContext(source, 1).Lines)
 	}
 }

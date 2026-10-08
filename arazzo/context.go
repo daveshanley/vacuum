@@ -138,12 +138,12 @@ func NewContext(spec []byte, filename string) (*Context, error) {
 
 // Validate runs libopenapi-validator once and maps its detached findings back to
 // source nodes. The optional sources map supplies nodes loaded by the resolver.
-func (c *Context) Validate(ctx context.Context, uri string, sources map[string]*yaml.Node, options ...validation.Option) error {
+func (c *Context) Validate(ctx context.Context, uri string, sources map[string]*SourceDocument, options ...validation.Option) error {
 	result, err := validation.Validate(ctx, validation.Document{Root: c.RootNode, URI: uri}, options...)
 	c.Validation = result
 	c.Sources = make(map[string]*yaml.Node, len(sources))
-	for sourceURI, root := range sources {
-		c.Sources[sourceOrigin(sourceURI)] = root
+	for sourceURI, document := range sources {
+		c.Sources[sourceOrigin(sourceURI)] = document.Root
 	}
 	if result == nil {
 		return err
@@ -170,10 +170,15 @@ func (c *Context) NodePath(node *yaml.Node) (string, bool) {
 	return c.paths.Lookup(node)
 }
 
-func (c *Context) add(code, message string, location validation.Location, uri string, sources map[string]*yaml.Node) {
+func (c *Context) add(code, message string, location validation.Location, uri string, sources map[string]*SourceDocument) {
 	root := c.RootNode
+	var source *SourceDocument
 	if location.URI != "" && location.URI != uri {
-		root = sources[location.URI]
+		source = sources[location.URI]
+		root = nil
+		if source != nil {
+			root = source.Root
+		}
 	}
 	node, path := locate(root, location.Pointer)
 	if node == nil {
@@ -187,6 +192,7 @@ func (c *Context) add(code, message string, location validation.Location, uri st
 	}
 	result := model.RuleFunctionResult{Message: message, Path: path, Paths: []string{path}, StartNode: node, EndNode: node}
 	if location.URI != "" && location.URI != uri {
+		result.SourceContext = sourceContext(source, node.Line)
 		origin := sourceOrigin(location.URI)
 		result.Origin = &index.NodeOrigin{AbsoluteLocation: origin, Node: node, Line: node.Line, Column: node.Column}
 	}
@@ -232,4 +238,34 @@ func locate(root *yaml.Node, pointer string) (*yaml.Node, string) {
 		}
 	}
 	return node, path
+}
+
+// Keep at most seven authored lines and 16 KiB per external finding. Clone the
+// lines so a small report does not retain a large source document through slices.
+func sourceContext(source *SourceDocument, line int) *model.ResultSourceContext {
+	result := &model.ResultSourceContext{}
+	if source == nil || source.Content == "" {
+		return result
+	}
+	if source.lines == nil {
+		source.lines = strings.Split(source.Content, "\n")
+	}
+	if line < 1 || line > len(source.lines) || len(source.lines) <= 1 {
+		return result
+	}
+	start, end := max(1, line-3), min(len(source.lines), line+3)
+	lines := source.lines[start-1 : end]
+	size := 0
+	for _, text := range lines {
+		size += len(text)
+	}
+	if size > 16<<10 {
+		return result
+	}
+	result.StartLine = start
+	result.Lines = make([]string, len(lines))
+	for i, text := range lines {
+		result.Lines[i] = strings.Clone(text)
+	}
+	return result
 }

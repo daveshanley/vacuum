@@ -26,6 +26,7 @@ type violationKey struct {
 type violationIdentity struct {
 	key          violationKey
 	paths        []string
+	sourceScoped bool
 	source       string
 	sourceLine   int
 	sourceColumn int
@@ -367,6 +368,9 @@ func originPathSuffixes(path string) []string {
 // inserted earlier in the document. Origin is still useful for pathless results.
 func extractIdentity(result model.RuleFunctionResult, originMapper *canonicalOriginMapper) string {
 	if pathIdentity := extractPath(result.Path, result.Paths); pathIdentity != "" {
+		if result.SourceContext != nil && result.Origin != nil {
+			return "source:" + originMapper.canonicalLocation(result.Origin.AbsoluteLocation) + "\x00path:" + pathIdentity
+		}
 		return "path:" + pathIdentity
 	}
 	if sourcePath := originMapper.sourcePathIdentity(result); sourcePath != "" {
@@ -408,6 +412,7 @@ func buildViolationIdentity(result model.RuleFunctionResult, originMapper *canon
 			Path:    extractIdentity(result, originMapper),
 			Message: result.Message,
 		},
+		sourceScoped: result.SourceContext != nil,
 		paths:        extractPathCandidates(result.Path, result.Paths),
 		source:       source,
 		sourceLine:   sourceLine,
@@ -511,6 +516,11 @@ func findAliasedOriginalViolationMatch(
 }
 
 func aliasedViolationIdentityMatches(original, next violationIdentity) bool {
+	// Authored source paths have no resolved aliases; their exact source/path
+	// identity was already compared before this fallback.
+	if original.sourceScoped || next.sourceScoped {
+		return false
+	}
 	if len(original.paths) == 0 || len(next.paths) == 0 {
 		return false
 	}

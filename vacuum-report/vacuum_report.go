@@ -46,6 +46,16 @@ func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
 		return nil, bytes, nil
 	}
 
+	vr.RestoreRuleResults()
+	return vr, bytes, nil
+}
+
+// RestoreRuleResults restores rule definitions and node positions after decoding
+// a saved report. It uses embedded rules before the built-in fallback.
+func (vr *VacuumReport) RestoreRuleResults() {
+	if vr == nil || vr.ResultSet == nil {
+		return
+	}
 	// ok so far, so good. next we have to convert each range into a *yaml.Node again. This is so the rest of the
 	// application has no idea that we're replaying and will perform normally. We want to go as fast as possible here,
 	// so for each result, run each re-build in a new thread.
@@ -86,7 +96,6 @@ func BuildVacuumReportFromFile(filePath string) (*VacuumReport, []byte, error) {
 		go rebuildNode(res, &wg, rulesMap)
 	}
 	wg.Wait()
-	return vr, bytes, nil
 }
 
 // CheckFileForVacuumReport will try to extract a vacuum report from a byte array. It checks if the

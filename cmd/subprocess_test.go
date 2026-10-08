@@ -24,7 +24,11 @@ func TestVacuumSubprocess(t *testing.T) {
 // Run the real exit path in an isolated working and configuration directory.
 func runVacuum(t *testing.T, args ...string) ([]byte, int) {
 	t.Helper()
-	dir := t.TempDir()
+	return runVacuumInDir(t, t.TempDir(), args...)
+}
+
+func runVacuumInDir(t *testing.T, dir string, args ...string) ([]byte, int) {
+	t.Helper()
 	process := exec.Command(os.Args[0], append([]string{"-test.run=^TestVacuumSubprocess$", "--"}, args...)...)
 	process.Dir = dir
 	process.Env = append(os.Environ(), "VACUUM_TEST_SUBPROCESS=1", "XDG_CONFIG_HOME="+dir)

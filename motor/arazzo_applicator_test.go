@@ -6,9 +6,13 @@ package motor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -230,4 +234,30 @@ func TestArazzoOperationPathHintKeepsExactPathAndIgnoreScope(t *testing.T) {
 	require.Equal(t, "arazzo-step-operationPath", result.Results[0].RuleId)
 	require.Equal(t, "$.workflows[0].steps[1].operationPath", result.Results[0].Path)
 	require.Len(t, result.IgnoredResults, 1)
+}
+
+func TestArazzoRedirectedSourcesUseFinalRetrievalBase(t *testing.T) {
+	var leafRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/alias/flows.yaml":
+			http.Redirect(w, r, "/v1/flows.yaml", http.StatusFound)
+		case "/v1/flows.yaml":
+			fmt.Fprint(w, "arazzo: 1.1.0\ninfo: {title: Other, version: '1'}\nsourceDescriptions: [{name: leaf, url: leaf.yaml, type: arazzo}]\nworkflows: [{workflowId: run, dependsOn: [$sourceDescriptions.leaf.run], steps: [{stepId: read, workflowId: $sourceDescriptions.leaf.run}]}]\n")
+		case "/v1/leaf.yaml":
+			leafRequests.Add(1)
+			fmt.Fprint(w, "arazzo: 1.1.0\ninfo: {title: Leaf, version: '1'}\nsourceDescriptions: []\nworkflows: [{workflowId: run, steps: [{stepId: read, operationId: read}]}]\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	execution := arazzoExecution(t, "workflow.yaml")
+	execution.SpecFileName = server.URL + "/main.yaml"
+	execution.Spec = []byte("arazzo: 1.1.0\ninfo: {title: Root, version: '1', description: Root., summary: Root.}\nsourceDescriptions: [{name: other, url: alias/flows.yaml, type: arazzo}]\nworkflows: [{workflowId: root, description: Run., summary: Run., steps: [{stepId: read, description: Read., workflowId: $sourceDescriptions.other.run}]}]\n")
+	result := ApplyRulesToRuleSet(execution)
+	require.Empty(t, result.Errors)
+	require.Equal(t, int32(1), leafRequests.Load())
+	require.Contains(t, result.Arazzo.Sources, server.URL+"/v1/flows.yaml")
+	require.Contains(t, result.Arazzo.Sources, server.URL+"/v1/leaf.yaml")
 }
