@@ -112,14 +112,14 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			locatedPath := pathValue
 			if context.DrDocument != nil {
 				if context.RuleAction.Field == "" {
-					locatedPath, allPaths, locatedObjects = locateNodePaths(context, node)
+					locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
 				} else if fieldNode == nil {
-					basePath, basePaths, baseObjects := locateNodePaths(context, node)
+					basePath, basePaths, baseObjects := locateNodePaths(&context, node)
 					locatedPath, allPaths, locatedObjects = appendFieldPathToLocatedPaths(
 						basePath, basePaths, baseObjects, context.RuleAction.Field,
 					)
 				} else {
-					locatedPath, allPaths, locatedObjects = locateExistingFieldPaths(context, node, context.RuleAction.Field, fieldResult)
+					locatedPath, allPaths, locatedObjects = locateExistingFieldPaths(&context, node, context.RuleAction.Field, fieldResult)
 				}
 			}
 			result := model.RuleFunctionResult{

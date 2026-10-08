@@ -94,7 +94,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 			fieldResult := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
 			if fieldResult.Found && fieldResult.ValueNode != nil {
-				locatedPath, allPaths, locatedObjects := locateExistingFieldPaths(context, node, context.RuleAction.Field, fieldResult)
+				locatedPath, allPaths, locatedObjects := locateExistingFieldPaths(&context, node, context.RuleAction.Field, fieldResult)
 				results = append(results, p.validatePatternOnNode(
 					fieldResult.ValueNode, locatedPath, allPaths, locatedObjects, message, ruleMessage,
 					match, notMatch, matchRx, notMatchRx, matchErr, notMatchErr, context)...)

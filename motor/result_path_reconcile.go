@@ -1746,25 +1746,7 @@ func normalizeSimpleBracketResultPath(path string) string {
 }
 
 func canonicalizeResultAliasPath(path string) string {
-	for _, marker := range []string{".components.schemas.", ".properties.", ".patternProperties."} {
-		for {
-			idx := strings.Index(path, marker)
-			if idx < 0 {
-				break
-			}
-			keyStart := idx + len(marker)
-			keyEnd := keyStart
-			for keyEnd < len(path) && path[keyEnd] != '.' && path[keyEnd] != '[' {
-				keyEnd++
-			}
-			if keyEnd == keyStart {
-				break
-			}
-			key := path[keyStart:keyEnd]
-			path = path[:idx+len(marker)-1] + "['" + key + "']" + path[keyEnd:]
-		}
-	}
-	return path
+	return vacuumUtils.CanonicalSchemaPath(path)
 }
 
 func resultPathHasPrefix(path, prefix string) bool {
