@@ -1764,15 +1764,16 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					for _, result := range runRuleResults {
 						if resultHasInlineIgnore(ctx, result) {
 							*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
-								Message:      "Rule ignored due to inline ignore directive",
-								RuleId:       ctx.rule.Id,
-								RuleSeverity: ctx.rule.Severity,
-								Rule:         ctx.rule,
-								StartNode:    result.StartNode,
-								EndNode:      result.EndNode,
-								Path:         result.Path,
-								Paths:        result.Paths,
-								Origin:       result.Origin,
+								Message:       "Rule ignored due to inline ignore directive",
+								RuleId:        ctx.rule.Id,
+								RuleSeverity:  ctx.rule.Severity,
+								Rule:          ctx.rule,
+								StartNode:     result.StartNode,
+								EndNode:       result.EndNode,
+								Path:          result.Path,
+								Paths:         result.Paths,
+								Origin:        result.Origin,
+								SourceContext: result.SourceContext,
 							})
 						} else {
 							filteredResults = append(filteredResults, result)
@@ -1824,15 +1825,16 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					for _, result := range runRuleResults {
 						if resultHasInlineIgnore(ctx, result) {
 							*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
-								Message:      "Rule ignored due to inline ignore directive",
-								RuleId:       ctx.rule.Id,
-								RuleSeverity: ctx.rule.Severity,
-								Rule:         ctx.rule,
-								StartNode:    result.StartNode,
-								EndNode:      result.EndNode,
-								Path:         result.Path,
-								Paths:        result.Paths,
-								Origin:       result.Origin,
+								Message:       "Rule ignored due to inline ignore directive",
+								RuleId:        ctx.rule.Id,
+								RuleSeverity:  ctx.rule.Severity,
+								Rule:          ctx.rule,
+								StartNode:     result.StartNode,
+								EndNode:       result.EndNode,
+								Path:          result.Path,
+								Paths:         result.Paths,
+								Origin:        result.Origin,
+								SourceContext: result.SourceContext,
 							})
 						} else {
 							filteredResults = append(filteredResults, result)

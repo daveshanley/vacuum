@@ -25,3 +25,25 @@ func TestArazzoHTMLReportIncludesFindings(t *testing.T) {
 	require.Contains(t, string(data), "workflows[0].steps[0].operationId")
 	require.NotContains(t, string(data), "failed to render:")
 }
+
+func TestArazzoHTMLReportUsesExternalSourceSnippet(t *testing.T) {
+	input := arazzoExternalSourceFixture(t)
+	output, code := runVacuum(t, "report", input, "--stdout", "--no-update-check")
+	require.Equal(t, 0, code, "%s", output)
+	dir := t.TempDir()
+	saved := filepath.Join(dir, "report.json")
+	require.NoError(t, os.WriteFile(saved, output, 0600))
+	for i, document := range []string{input, saved} {
+		if i == 1 {
+			require.NoError(t, os.Remove(filepath.Join(filepath.Dir(input), "other.yaml")))
+		}
+		report := filepath.Join(dir, "report.html")
+		output, code = runVacuum(t, "html-report", document, report, "--no-update-check")
+		require.Equal(t, 0, code, "%s", output)
+		data, err := os.ReadFile(report)
+		require.NoError(t, err)
+		require.Contains(t, string(data), "Source: "+filepath.Join(filepath.Dir(input), "other.yaml")+":6")
+		require.Contains(t, string(data), "$steps.missing.outputs.value")
+		require.NotContains(t, string(data), "This is the ROOT description.")
+	}
+}

@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	stdhtml "html"
 	"sort"
 	"strings"
 	"text/template"
@@ -171,17 +172,24 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 			b := new(strings.Builder)
 
 			l := r.StartNode.Line
+			firstLine := l - 2
+			if r.SourceContext != nil && len(r.SourceContext.Lines) > 0 {
+				firstLine = r.SourceContext.StartLine
+			}
 			lineRange := [][2]int{{l, l}}
 
 			formatter := html_format.New(
 				html_format.WithClasses(true),
 				html_format.WithLineNumbers(true),
-				html_format.BaseLineNumber(r.StartNode.Line-2),
+				html_format.BaseLineNumber(firstLine),
 				html_format.HighlightLines(lineRange))
 			err := formatter.Format(b, style, iterator)
 
 			if err != nil {
 				return fmt.Sprintf("Oh My Stars! I cannot render the code: %v", err.Error())
+			}
+			if r.SourceContext != nil && r.Origin != nil {
+				return fmt.Sprintf("<p>Source: %s:%d</p>%s", stdhtml.EscapeString(r.Origin.AbsoluteLocation), r.StartNode.Line, b.String())
 			}
 			return b.String()
 		},
@@ -255,6 +263,12 @@ func (html htmlReport) GenerateReport(test bool, version string) []byte {
 }
 
 func (html htmlReport) renderCodeSnippetForResult(r *model.RuleFunctionResult, specData []string, before, after int) string {
+	if r.SourceContext != nil {
+		if len(r.SourceContext.Lines) == 0 {
+			return "source snippet unavailable"
+		}
+		return strings.Join(r.SourceContext.Lines, "\n") + "\n"
+	}
 	if html.disableSnippets {
 		return "code snippets disabled due to single line spec"
 	}

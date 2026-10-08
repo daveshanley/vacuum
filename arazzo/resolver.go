@@ -19,6 +19,14 @@ import (
 	source "github.com/pb33f/libopenapi/arazzo"
 )
 
+// SourceDocument retains authored text and nodes from a resolved source.
+// It is used only during validation; findings retain small snippet copies.
+type SourceDocument struct {
+	Root    *yaml.Node
+	Content string
+	lines   []string
+}
+
 // Resolver retrieves source descriptions under the caller's lookup policy.
 // The validator owns deduplication and aggregate limits. A Resolver belongs to
 // one validation call and is not shared across executions.
@@ -28,7 +36,7 @@ type Resolver struct {
 	LocalFS     fs.FS
 	BasePath    string
 	Client      *http.Client
-	Sources     map[string]*yaml.Node
+	Sources     map[string]*SourceDocument
 	Files       int
 	Bytes       int64
 }
@@ -42,6 +50,7 @@ func (r *Resolver) Resolve(ctx context.Context, request source.SourceRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	retrievalURI := request.URL
 	var body io.ReadCloser
 	switch u.Scheme {
 	case "http", "https":
@@ -59,6 +68,9 @@ func (r *Resolver) Resolve(ctx context.Context, request source.SourceRequest) (*
 		response, err := client.Do(req)
 		if err != nil {
 			return nil, err
+		}
+		if response.Request != nil && response.Request.URL != nil {
+			retrievalURI = response.Request.URL.String()
 		}
 		body = response.Body
 		defer body.Close()
@@ -123,12 +135,14 @@ func (r *Resolver) Resolve(ctx context.Context, request source.SourceRequest) (*
 		return nil, fmt.Errorf("source %q: %w", request.URL, err)
 	}
 	if r.Sources == nil {
-		r.Sources = make(map[string]*yaml.Node)
+		r.Sources = make(map[string]*SourceDocument)
 	}
-	r.Sources[request.URL] = root
+	document := &SourceDocument{Root: root, Content: string(data)}
+	r.Sources[request.URL] = document
+	r.Sources[retrievalURI] = document
 	r.Files++
 	r.Bytes += int64(len(data))
-	return &source.ResolvedSource{Name: request.Name, RetrievalURI: request.URL, RootNode: root, SourceBytes: data}, nil
+	return &source.ResolvedSource{Name: request.Name, RetrievalURI: retrievalURI, RootNode: root, SourceBytes: data}, nil
 }
 
 // DocumentURI resolves a CLI filename against its explicit base. File names

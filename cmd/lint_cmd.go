@@ -266,7 +266,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 					documentChanges = emptyDocumentChanges()
 				} else {
 					// Use changerator for full tree support
-					changeResult, changesErr = utils.GenerateChangeReportWithTree(flags.OriginalFlag, specBytes, fileName)
+					changeResult, changesErr = generateOriginalChangeReport(flags.OriginalFlag, specBytes, fileName)
 					if changeResult != nil {
 						documentChanges = changeResult.DocumentChanges
 					}

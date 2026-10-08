@@ -176,7 +176,7 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 	}
 
 	if opts.Execution == nil {
-		changeResult, changeErr := utils.GenerateChangeReportWithTree(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
+		changeResult, changeErr := generateOriginalChangeReport(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
 		if changeErr != nil {
 			if opts.WarnChangeReportFailure != nil {
 				opts.WarnChangeReportFailure(changeErr)
@@ -214,7 +214,7 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 		filtered = true
 	}
 
-	changeResult, changeErr := utils.GenerateChangeReportWithTree(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
+	changeResult, changeErr := generateOriginalChangeReport(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
 	if changeErr != nil {
 		if opts.WarnChangeReportFailure != nil {
 			opts.WarnChangeReportFailure(changeErr)
@@ -432,4 +432,19 @@ func externalReferenceFile(ref string) (string, bool) {
 		return "", false
 	}
 	return refFile, true
+}
+
+// Arazzo supports finding comparisons, not OpenAPI structural change trees.
+func generateOriginalChangeReport(original string, current []byte, filename string) (*utils.ChangeResult, error) {
+	if format, _ := arazzo.DetectFormat(current); format != "" {
+		return nil, nil
+	}
+	return utils.GenerateChangeReportWithTree(original, current, filename)
+}
+
+func generateOriginalDocumentChanges(original string, current []byte, filename string) (*wcModel.DocumentChanges, error) {
+	if format, _ := arazzo.DetectFormat(current); format != "" {
+		return nil, nil
+	}
+	return utils.GenerateChangeReport(original, current, filename)
 }

@@ -17,11 +17,13 @@ import (
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/go-yaml"
 	validation "github.com/pb33f/libopenapi-validator/arazzo"
 )
 
 func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptions, builtins functions.Functions, control *executionControl) (*RuleSetExecutionResult, bool) {
+	if isJSONSchemaFormat(execution.SpecFormat) {
+		return nil, false
+	}
 	format, err := arazzo_context.DetectFormat(execution.Spec)
 	if format == "" && !model.FormatMatches(model.Arazzo, execution.SpecFormat) {
 		if err == nil || !bytes.Contains(execution.Spec, []byte("arazzo")) {
@@ -83,7 +85,7 @@ func arazzoValidationOptions(execution *RuleSetExecution) (*arazzo_context.Resol
 	}
 	baseURL, _ := url.Parse(uri)
 	resolver := &arazzo_context.Resolver{AllowFiles: execution.AllowLookup, AllowRemote: execution.AllowLookup,
-		LocalFS: execution.RolodexFS, Sources: make(map[string]*yaml.Node)}
+		LocalFS: execution.RolodexFS, Sources: make(map[string]*arazzo_context.SourceDocument)}
 	if baseURL != nil {
 		resolver.BasePath = filepath.Dir(filepath.FromSlash(baseURL.Path))
 	}

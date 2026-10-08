@@ -323,7 +323,7 @@ func GetDashboardCommand() *cobra.Command {
 					}
 
 					// Still load document changes for change stats and violation injection
-					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+					documentChanges, changesErr = generateOriginalDocumentChanges(originalFlag, specBytes, displayFileName)
 					if changesErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changesErr)
@@ -336,7 +336,7 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				} else if originalFlag != "" {
 					// Precompiled report mode: fall back to area-based filter
-					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+					documentChanges, changesErr = generateOriginalDocumentChanges(originalFlag, specBytes, displayFileName)
 					if changesErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to load changes: %v. Proceeding without change filtering.", changesErr)

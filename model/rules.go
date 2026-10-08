@@ -105,22 +105,31 @@ type RuleFunctionContext struct {
 	optionsCache map[string]string `json:"-" yaml:"-"`
 }
 
+// ResultSourceContext identifies a finding whose path is local to its Origin
+// document and retains a bounded, authored snippet for offline report rendering.
+// Empty Lines means that source text is unavailable or too large to include.
+type ResultSourceContext struct {
+	StartLine int      `json:"startLine" yaml:"startLine"`
+	Lines     []string `json:"lines,omitempty" yaml:"lines,omitempty"`
+}
+
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message           string            `json:"message" yaml:"message"`                                   // What failed and why?
-	Range             reports.Range     `json:"range" yaml:"range"`                                       // Where did it happen?
-	Path              string            `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
-	Paths             []string          `json:"paths,omitempty" yaml:"paths,omitempty"`                   // the JSONPath(s) to where it can be found, if there are multiple.
-	RuleId            string            `json:"ruleId" yaml:"ruleId"`                                     // The ID of the rule
-	RuleSeverity      string            `json:"ruleSeverity" yaml:"ruleSeverity"`                         // the severity of the rule used
-	Origin            *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"`                 // Where did the result come from (source)?
-	Rule              *Rule             `json:"-" yaml:"-"`                                               // The rule used
-	StartNode         *yaml.Node        `json:"-" yaml:"-"`                                               // Start of the violation
-	EndNode           *yaml.Node        `json:"-" yaml:"-"`                                               // end of the violation
-	Timestamp         *time.Time        `json:"-" yaml:"-"`                                               // When the result was created.
-	AutoFixed         bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"`           // Whether this violation was auto-fixed
-	PathsTruncated    bool              `json:"pathsTruncated,omitempty" yaml:"pathsTruncated,omitempty"` // Whether resolved aliases were limited by result-path reconciliation.
-	PathFromRuleGiven bool              `json:"-" yaml:"-"`                                               // Path was defaulted from the rule's given selector.
+	Message           string               `json:"message" yaml:"message"`                                   // What failed and why?
+	Range             reports.Range        `json:"range" yaml:"range"`                                       // Where did it happen?
+	Path              string               `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
+	Paths             []string             `json:"paths,omitempty" yaml:"paths,omitempty"`                   // the JSONPath(s) to where it can be found, if there are multiple.
+	RuleId            string               `json:"ruleId" yaml:"ruleId"`                                     // The ID of the rule
+	RuleSeverity      string               `json:"ruleSeverity" yaml:"ruleSeverity"`                         // the severity of the rule used
+	SourceContext     *ResultSourceContext `json:"sourceContext,omitempty" yaml:"sourceContext,omitempty"`   // Source-local path identity and authored snippet.
+	Origin            *index.NodeOrigin    `json:"origin,omitempty" yaml:"origin,omitempty"`                 // Where did the result come from (source)?
+	Rule              *Rule                `json:"-" yaml:"-"`                                               // The rule used
+	StartNode         *yaml.Node           `json:"-" yaml:"-"`                                               // Start of the violation
+	EndNode           *yaml.Node           `json:"-" yaml:"-"`                                               // end of the violation
+	Timestamp         *time.Time           `json:"-" yaml:"-"`                                               // When the result was created.
+	AutoFixed         bool                 `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"`           // Whether this violation was auto-fixed
+	PathsTruncated    bool                 `json:"pathsTruncated,omitempty" yaml:"pathsTruncated,omitempty"` // Whether resolved aliases were limited by result-path reconciliation.
+	PathFromRuleGiven bool                 `json:"-" yaml:"-"`                                               // Path was defaulted from the rule's given selector.
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
 	// populated, then this is a reference to the model that fired the rule. (not currently used yet)
