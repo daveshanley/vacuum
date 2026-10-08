@@ -2,13 +2,47 @@ package motor
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
+	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/require"
 )
+
+func TestMessagePathIndexSharesContextCache(t *testing.T) {
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte("info: {title: test}"), &root))
+	var cache sync.Map
+	ctx := model.RuleFunctionContext{SchemaPathCache: &cache}
+	const callers = 32
+	indexes := make([]*vacuumUtils.NodePathIndex, callers)
+	var workers sync.WaitGroup
+	for i := range indexes {
+		workers.Go(func() {
+			if i%2 == 0 {
+				indexes[i] = messagePathIndex(&root, &cache)
+			} else {
+				indexes[i] = vacuumUtils.NodePathIndexForContext(ctx, &root)
+			}
+		})
+	}
+	workers.Wait()
+	for _, index := range indexes {
+		require.Same(t, indexes[0], index)
+	}
+	entries := 0
+	cache.Range(func(_, _ any) bool { entries++; return true })
+	require.Equal(t, 1, entries)
+	path, ok := indexes[0].Lookup(root.Content[0].Content[1])
+	require.True(t, ok)
+	require.Equal(t, "$.info", path)
+	require.NotSame(t, indexes[0], messagePathIndex(&yaml.Node{Kind: yaml.MappingNode}, &cache))
+	require.NotNil(t, messagePathIndex(&root, nil))
+	require.Nil(t, messagePathIndex(nil, &cache))
+}
 
 func TestRuleMessageTemplates(t *testing.T) {
 	for _, tc := range []struct{ name, spec, given, field, function, template, want string }{
