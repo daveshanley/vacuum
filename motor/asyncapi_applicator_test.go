@@ -223,3 +223,42 @@ components:
         - payload:
             id: abc
 `
+
+func TestAsyncAPISchemaRulesExecuteWithoutOptionErrors(t *testing.T) {
+	for _, valid := range []bool{true, false} {
+		headerType := "object"
+		servers := "{production: {host: api.example.com, protocol: mqtt}}"
+		if !valid {
+			headerType, servers = "string", "{}"
+		}
+		spec := "asyncapi: 3.1.0\ninfo: {title: Events, version: '1'}\nservers: " + servers + "\nchannels: {}\noperations: {}\ncomponents:\n  messages:\n    event:\n      headers: {type: " + headerType + "}\n"
+		all := rulesets.GetAllAsyncAPIRules()
+		rs := &rulesets.RuleSet{Rules: map[string]*model.Rule{rulesets.AsyncAPI3HeadersSchemaTypeObject: all[rulesets.AsyncAPI3HeadersSchemaTypeObject], rulesets.AsyncAPIServers: all[rulesets.AsyncAPIServers]}}
+		result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte(spec), RuleSet: rs})
+		require.Empty(t, result.Errors)
+		if valid {
+			require.Empty(t, result.Results)
+		} else {
+			require.Len(t, result.Results, 2)
+			for _, finding := range result.Results {
+				require.NotContains(t, finding.Message, "not a valid property")
+			}
+		}
+	}
+}
+
+func TestAsyncAPIVersionAndMissingServersAreChecked(t *testing.T) {
+	all := rulesets.GetAllAsyncAPIRules()
+	rs := &rulesets.RuleSet{Rules: map[string]*model.Rule{
+		rulesets.AsyncAPILatestVersion: all[rulesets.AsyncAPILatestVersion],
+		rulesets.AsyncAPIServers:       all[rulesets.AsyncAPIServers],
+	}}
+	result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("asyncapi: 3.0.0\ninfo: {title: Events, version: '1'}\nchannels: {}\noperations: {}\n"), RuleSet: rs})
+	require.Empty(t, result.Errors)
+	ids := make(map[string]bool)
+	for _, finding := range result.Results {
+		ids[finding.RuleId] = true
+	}
+	require.True(t, ids[rulesets.AsyncAPILatestVersion])
+	require.True(t, ids[rulesets.AsyncAPIServers])
+}
