@@ -156,6 +156,13 @@ type RuleFunction interface {
 	GetCategory() string                                                          // Returns the category the function is a part of.
 }
 
+// RuleFunctionOptionsValidator optionally validates option values after the schema
+// checks required and allowed keys. It is called once per rule action, before execution.
+type RuleFunctionOptionsValidator interface {
+	// ValidateOptions returns an error when option values do not meet the function contract.
+	ValidateOptions(options any) error
+}
+
 // RuleAction is what to do, on what field, and what options are to be used.
 type RuleAction struct {
 	Field           string      `json:"field,omitempty" yaml:"field,omitempty"`

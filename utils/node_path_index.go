@@ -3,7 +3,10 @@
 
 package utils
 
-import "github.com/pb33f/go-yaml"
+import (
+	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
+)
 
 // NodePathIndex maps YAML nodes back to their exact vacuum JSONPath.
 // This is used when JSONPath expressions return nodes and vacuum needs to
@@ -69,4 +72,32 @@ func (i *NodePathIndex) indexNode(node *yaml.Node, path string) {
 			i.indexNode(child, childPath)
 		}
 	}
+}
+
+type nodePathIndexCacheKey struct {
+	root *yaml.Node
+}
+
+// NodePathIndexForContext returns an exact node path index, reusing the per-run cache when available.
+func NodePathIndexForContext(context model.RuleFunctionContext, root *yaml.Node) *NodePathIndex {
+	if root == nil {
+		return nil
+	}
+	if context.SchemaPathCache == nil {
+		return BuildNodePathIndex(root)
+	}
+
+	key := nodePathIndexCacheKey{root: root}
+	if cached, ok := context.SchemaPathCache.Load(key); ok {
+		if pathIndex, ok := cached.(*NodePathIndex); ok {
+			return pathIndex
+		}
+	}
+
+	pathIndex := BuildNodePathIndex(root)
+	cached, _ := context.SchemaPathCache.LoadOrStore(key, pathIndex)
+	if cachedPathIndex, ok := cached.(*NodePathIndex); ok {
+		return cachedPathIndex
+	}
+	return pathIndex
 }

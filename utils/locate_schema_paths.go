@@ -18,10 +18,6 @@ type schemaPathResult struct {
 	allPaths    []string
 }
 
-type schemaPathNodeIndexCacheKey struct {
-	root *yaml.Node
-}
-
 // LocateSchemaPropertyPaths finds all paths where a schema property appears in the document.
 // It uses DrDocument.LocateModelsByKeyAndValue to find all locations where the schema
 // is referenced, not just its definition location.
@@ -117,13 +113,13 @@ func locateSchemaReferenceAliasPaths(context model.RuleFunctionContext, schema *
 		return nil
 	}
 
-	targetPathIndex := nodePathIndexForSchemaContext(context, targetIndex.GetRootNode())
+	targetPathIndex := NodePathIndexForContext(context, targetIndex.GetRootNode())
 	targetSchemaPath, ok := targetPathIndex.Lookup(schema.Value.GoLow().RootNode)
 	if !ok || targetSchemaPath == "" {
 		return nil
 	}
 
-	sourcePathIndex := nodePathIndexForSchemaContext(context, sourceRoot)
+	sourcePathIndex := NodePathIndexForContext(context, sourceRoot)
 
 	var paths []string
 	for _, ref := range context.Index.GetAllSequencedReferences() {
@@ -291,29 +287,6 @@ func canonicalizeSchemaAliasPath(path string) string {
 		}
 	}
 	return path
-}
-
-func nodePathIndexForSchemaContext(context model.RuleFunctionContext, root *yaml.Node) *NodePathIndex {
-	if root == nil {
-		return nil
-	}
-	if context.SchemaPathCache == nil {
-		return BuildNodePathIndex(root)
-	}
-
-	key := schemaPathNodeIndexCacheKey{root: root}
-	if cached, ok := context.SchemaPathCache.Load(key); ok {
-		if pathIndex, ok := cached.(*NodePathIndex); ok {
-			return pathIndex
-		}
-	}
-
-	pathIndex := BuildNodePathIndex(root)
-	cached, _ := context.SchemaPathCache.LoadOrStore(key, pathIndex)
-	if cachedPathIndex, ok := cached.(*NodePathIndex); ok {
-		return cachedPathIndex
-	}
-	return pathIndex
 }
 
 func resultPathHasPrefix(path, prefix string) bool {
