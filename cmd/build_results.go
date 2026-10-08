@@ -134,8 +134,8 @@ func selectRuleSetForBuildResults(
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
-	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
-	if hardMode && !asyncDefault {
+	selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
+	if hardMode && !nonOpenAPIDefault {
 		// extract all OWASP Rules
 		owaspRules := rulesets.GetAllOWASPRules()
 		allRules := selectedRS.Rules

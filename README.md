@@ -564,9 +564,10 @@ Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importin
 rule names and behavior; they do not execute the Spectral package. JavaScript
 ruleset modules (`.js`, `.mjs`, `.cjs`) are not supported.
 
-Arazzo workflow linting and `spectral:arazzo` are not supported. Remove that entry
-from rulesets used to lint OpenAPI documents. Use an Arazzo-capable linter for
-Arazzo workflow documents.
+Arazzo 1.0 and 1.1 workflows use `vacuum lint workflows.yaml` and the normal
+report commands. `spectral:arazzo` selects Vacuum's native recommended rules.
+See [Arazzo linting](ARAZZO.md) for source lookup, rule IDs, incomplete checks
+and migration differences.
 
 `--functions` takes a directory containing custom function files:
 

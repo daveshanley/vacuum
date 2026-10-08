@@ -20,7 +20,7 @@ func TestRunDiagnostic_RulesetDocuments(t *testing.T) {
 		{"extends only", "extends: [./child.yml]\n", "", true},
 		{"invalid rules", "rules: []\n", "ruleset-error", false},
 		{"unsupported module", "extends: [rules.mjs]\n", "ruleset-error", false},
-		{"unsupported Arazzo", "extends: [spectral:arazzo]\n", "ruleset-error", false},
+		{"Arazzo", "extends: [spectral:arazzo]\n", "", true},
 		{"unsupported API with rules", "openapi: 9.0.0\nrules: {}\n", "build-index", false},
 		{"nested rules", "config:\n  rules: {}\n", "document-error", false},
 		{"malformed rules", "rules: [\n", "document-error", false},

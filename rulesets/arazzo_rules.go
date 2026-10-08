@@ -63,7 +63,8 @@ func GetAllArazzoRules() map[string]*model.Rule {
 
 func arazzoRule(id, description, given, field, function string, options any, severity string, recommended bool) *model.Rule {
 	return &model.Rule{Id: id, Name: id, Description: description, Message: "{{error}}",
-		Given: given, Formats: model.ArazzoAllFormats, Severity: severity, Recommended: recommended,
+		DocumentationURL: "https://github.com/daveshanley/vacuum/blob/main/ARAZZO.md#rules-and-configuration",
+		Given:            given, Formats: model.ArazzoAllFormats, Severity: severity, Recommended: recommended,
 		RuleCategory: model.RuleCategories[model.CategoryValidation], Type: "validation",
 		Then: model.RuleAction{Field: field, Function: function, FunctionOptions: options}}
 }

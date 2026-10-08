@@ -359,12 +359,12 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 }
 
 // LoadRulesetWithConfigForSpec loads and configures the ruleset based on flags
-// and selects an AsyncAPI default ruleset when specBytes are AsyncAPI 3.x.
+// and selects the default ruleset for OpenAPI, AsyncAPI or Arazzo documents.
 func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specBytes []byte) (*rulesets.RuleSet, string, error) {
 	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, flags.HardModeFlag)
+	selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, flags.HardModeFlag)
 
-	if flags.HardModeFlag && !asyncDefault {
+	if flags.HardModeFlag && !nonOpenAPIDefault {
 		owaspRules := rulesets.GetAllOWASPRules()
 		for k, v := range owaspRules {
 			selectedRS.Rules[k] = v

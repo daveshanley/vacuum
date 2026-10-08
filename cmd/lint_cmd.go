@@ -34,8 +34,8 @@ func GetLintCommand() *cobra.Command {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	cmd := &cobra.Command{
 		Use:           "lint <your-api-file.yaml>",
-		Short:         "Lint an OpenAPI or AsyncAPI specification",
-		Long:          `Lint an OpenAPI or AsyncAPI specification, the output of the response will be in the terminal`,
+		Short:         "Lint an OpenAPI, AsyncAPI or Arazzo specification",
+		Long:          `Lint an OpenAPI, AsyncAPI or Arazzo specification, the output of the response will be in the terminal`,
 		RunE:          runLint,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -124,10 +124,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 	if len(filesToLint) < 1 {
 		noFileErr := fmt.Errorf("no file supplied")
 		if flags.GitHubAnnotations {
-			RenderGitHubAnnotationError(fmt.Errorf("please supply an OpenAPI or AsyncAPI specification to lint"), "")
+			RenderGitHubAnnotationError(fmt.Errorf("please supply an OpenAPI, AsyncAPI or Arazzo specification to lint"), "")
 		}
 		if !flags.SilentFlag && !flags.GitHubAnnotations {
-			fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
+			fmt.Printf("🚨 %s%sPlease supply an OpenAPI, AsyncAPI or Arazzo specification to lint%s\n\n",
 				color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
 		}
 		return noFileErr

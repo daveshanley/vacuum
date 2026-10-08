@@ -113,7 +113,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 
 			// check for file args
 			if !stdIn && len(filesToProcess) == 0 {
-				errText := "please supply an OpenAPI or AsyncAPI specification to generate a report, or use the -i flag to use stdin"
+				errText := "please supply an OpenAPI, AsyncAPI or Arazzo specification to generate a report, or use the -i flag to use stdin"
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
@@ -302,9 +302,9 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				selectedRSForFile := selectedRS
 				specFormat := ""
 				if rulesetFlag == "" {
-					var asyncDefault bool
-					selectedRSForFile, specFormat, asyncDefault = prepareDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag, turboFlag)
-					if hardModeFlag && !asyncDefault && !hardModeBoxRendered && !stdIn && !stdOut {
+					var nonOpenAPIDefault bool
+					selectedRSForFile, specFormat, nonOpenAPIDefault = prepareDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag, turboFlag)
+					if hardModeFlag && !nonOpenAPIDefault && !hardModeBoxRendered && !stdIn && !stdOut {
 						tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
 						hardModeBoxRendered = true
 					}

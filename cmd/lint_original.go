@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/arazzo"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/utils"
@@ -132,6 +133,11 @@ func lintOriginalSpecForDiff(originalPath string, template *motor.RuleSetExecuti
 }
 
 func originalSpecCanReuseCurrentResults(originalPath string, currentBytes []byte, currentPath string, currentBase string, customFunctions map[string]model.RuleFunction) bool {
+	// Arazzo sources use sourceDescriptions, outside the $ref comparison below.
+	// Re-lint both source graphs even when the root document is unchanged.
+	if format, err := arazzo.DetectFormat(currentBytes); format != "" || err != nil {
+		return false
+	}
 	// Custom functions can observe runtime state or external inputs, so byte-equal
 	// specs do not guarantee byte-equal lint results.
 	if len(customFunctions) > 0 {
