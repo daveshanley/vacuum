@@ -159,10 +159,14 @@ func orProperties(options any) []string {
 		return names
 	case string:
 		names := strings.Split(properties, ",")
-		for i := range names {
-			names[i] = strings.TrimSpace(names[i])
+		count := 0
+		for _, name := range names {
+			if name = strings.TrimSpace(name); name != "" {
+				names[count] = name
+				count++
+			}
 		}
-		return names
+		return names[:count]
 	}
 	return nil
 }
