@@ -23,6 +23,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/sourcegraph/conc"
 
+	arazzo_context "github.com/daveshanley/vacuum/arazzo"
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/functions"
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
@@ -86,6 +87,7 @@ type RuleSetExecution struct {
 	AllowLookup                     bool                             // Allow remote lookup of files or links
 	Document                        libopenapi.Document              // a ready to render model.
 	DrDocument                      *doctorModel.DrDocument          // a high level, more powerful model, powered by the doctorModel.
+	Arazzo                          *arazzo_context.Context          // Arazzo context for this execution.
 	AsyncAPI                        *asyncapi_context.Context        // AsyncAPI context, populated only for AsyncAPI execution.
 	SkipDocumentCheck               bool                             // Skip the document check, useful for fragments and non openapi specs.
 	Logger                          *slog.Logger                     // A custom logger.
@@ -137,6 +139,7 @@ type RuleSetExecutionResult struct {
 	FilesProcessed   int                              // number of files extracted by the rolodex
 	FileSize         int64                            // total filesize loaded by the rolodex
 	DocumentConfig   *datamodel.DocumentConfiguration // Reusable document configuration, without the invocation-bound HTTP context.
+	Arazzo           *arazzo_context.Context          // Arazzo context and validation coverage.
 	AsyncAPI         *asyncapi_context.Context        // The AsyncAPI context created for AsyncAPI execution.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
 	ownedDocument    libopenapi.Document
@@ -179,6 +182,7 @@ type ruleContext struct {
 	silenceLogs        bool
 	document           libopenapi.Document
 	drDocument         *doctorModel.DrDocument
+	arazzo             *arazzo_context.Context
 	asyncAPI           *asyncapi_context.Context
 	skipDocumentCheck  bool
 	logger             *slog.Logger
@@ -190,6 +194,7 @@ type ruleContext struct {
 	turboMode          bool
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
+	sourceIgnores      map[string]sourceInlineIgnore
 	schemaPathCache    *sync.Map
 	messageUpdates     *sync.Map
 	ruleJSONPathCache  *sync.Map
@@ -343,6 +348,7 @@ func (r *RuleSetExecutionResult) release(clearCaches bool) {
 		r.DocumentConfig = nil
 		r.ModifiedSpec = nil
 		r.AsyncAPI = nil
+		r.Arazzo = nil
 		r.ownedDocument = nil
 		r.unresolvedDoc = nil
 		r.ownedIndex = nil
@@ -512,6 +518,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	var ignoredResults []model.RuleFunctionResult
 	var fixedResults []model.RuleFunctionResult
 
+	if arazzoResult, handled := applyArazzoRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
+		return arazzoResult
+	}
 	if asyncResult, handled := applyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
 		return asyncResult
 	}
@@ -1691,6 +1700,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			defer rfc.SchemaValidator.Release()
 		}
 
+		if ctx.arazzo != nil {
+			rfc.Arazzo = ctx.arazzo
+		}
 		if ctx.asyncAPI != nil {
 			rfc.AsyncAPI = ctx.asyncAPI
 		}
@@ -1728,7 +1740,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				var batchNodes []*yaml.Node
 				for _, node := range filteredNodes {
 					// Check inline ignore (skip entirely when no x-lint-ignore keys exist in spec)
-					if ctx.hasInlineIgnores && checkInlineIgnore(node, ctx.rule.Id) {
+					if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" && checkInlineIgnore(node, ctx.rule.Id) {
 						*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1750,7 +1762,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
-						if ctx.hasInlineIgnores && result.Path != "" && checkInlineIgnoreByPathIndexed(ctx.ignoreIndex, ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
+						if resultHasInlineIgnore(ctx, result) {
 							*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
 								Message:      "Rule ignored due to inline ignore directive",
 								RuleId:       ctx.rule.Id,
@@ -1759,6 +1771,8 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 								StartNode:    result.StartNode,
 								EndNode:      result.EndNode,
 								Path:         result.Path,
+								Paths:        result.Paths,
+								Origin:       result.Origin,
 							})
 						} else {
 							filteredResults = append(filteredResults, result)
@@ -1791,7 +1805,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				// (format already checked at rule level)
 				for _, node := range filteredNodes {
 
-					if ctx.hasInlineIgnores && checkInlineIgnore(node, ctx.rule.Id) {
+					if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" && checkInlineIgnore(node, ctx.rule.Id) {
 						*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1808,7 +1822,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
-						if ctx.hasInlineIgnores && result.Path != "" && checkInlineIgnoreByPathIndexed(ctx.ignoreIndex, ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
+						if resultHasInlineIgnore(ctx, result) {
 							*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
 								Message:      "Rule ignored due to inline ignore directive",
 								RuleId:       ctx.rule.Id,
@@ -1817,6 +1831,8 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 								StartNode:    result.StartNode,
 								EndNode:      result.EndNode,
 								Path:         result.Path,
+								Paths:        result.Paths,
+								Origin:       result.Origin,
 							})
 						} else {
 							filteredResults = append(filteredResults, result)

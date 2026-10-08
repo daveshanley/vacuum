@@ -75,7 +75,10 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 			var allPaths []string
 			var err error
 			locatedPath := pathValue
-			if context.DrDocument != nil {
+			if context.Arazzo != nil {
+				locatedPath, allPaths, locatedObjects = locateNodePaths(&context, targetNode)
+				node = targetNode
+			} else if context.DrDocument != nil {
 				if fieldNode != nil {
 					locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, targetNode)
 				} else {

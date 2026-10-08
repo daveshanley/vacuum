@@ -1,0 +1,18 @@
+arazzo: 1.1.0
+info:
+  title: Read and publish
+  version: '1.0'
+  description: Use HTTP, event, and shared workflow sources.
+  summary: Read and publish.
+sourceDescriptions:
+  - {name: api, url: api.yaml, type: openapi}
+  - {name: events, url: events.yaml, type: asyncapi}
+  - {name: flows, url: flows.yaml, type: arazzo}
+workflows:
+  - workflowId: run
+    description: Read a pet and publish its event.
+    summary: Process a pet.
+    steps:
+      - {stepId: read, description: Read a pet., operationId: $sourceDescriptions.api.read}
+      - {stepId: publish, description: Publish an event., operationId: $sourceDescriptions.events.publish, action: send}
+      - {stepId: remote, description: Run the shared workflow., workflowId: $sourceDescriptions.flows.remote}
