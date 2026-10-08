@@ -12,7 +12,6 @@ func TestRulesetMigrationErrorsAreVisible(t *testing.T) {
 	for _, tc := range []struct{ name, filename, contents, message string }{
 		{"local module", "rules.mjs", "export default {};", "JavaScript ruleset"},
 		{"remote module", "rules.yaml", "extends: [https://example.invalid/rules.mjs]\n", "#spectral-migration"},
-		{"Arazzo", "rules.yaml", "extends: [spectral:arazzo]\n", "Arazzo ruleset"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()

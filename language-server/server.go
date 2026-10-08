@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	arazzo_context "github.com/daveshanley/vacuum/arazzo"
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/language-server/internal/lsp"
 	"github.com/daveshanley/vacuum/language-server/protocol"
@@ -437,11 +438,20 @@ func (s *ServerState) defaultRuleSetForDocument(runtimeConfig *documentRuntimeCo
 	if format, err := asyncapi_context.DetectFormat(content); err == nil {
 		specFormat = format
 	}
+	if format, _ := arazzo_context.DetectFormat(content); format != "" {
+		specFormat = format
+	}
 	if runtimeConfig.config != nil && runtimeConfig.config.Ruleset != "" {
 		return runtimeConfig.selectedRS, specFormat
 	}
 
 	hardMode := runtimeConfig.config != nil && runtimeConfig.config.HardMode != nil && *runtimeConfig.config.HardMode
+	if model.FormatMatches(model.Arazzo, specFormat) {
+		if hardMode {
+			return defaultRuleSets.GenerateArazzoDefaultRuleSet(), specFormat
+		}
+		return defaultRuleSets.GenerateArazzoRecommendedRuleSet(), specFormat
+	}
 	if specFormat != "" {
 		if hardMode {
 			return defaultRuleSets.GenerateAsyncAPIDefaultRuleSet(), specFormat
@@ -465,7 +475,9 @@ func ConvertResultsIntoDiagnostics(result *motor.RuleSetExecutionResult) []proto
 	}
 
 	for _, vacuumResult := range result.Results {
-		diagnostics = append(diagnostics, ConvertResultIntoDiagnostic(&vacuumResult))
+		diagnostic := ConvertResultIntoDiagnostic(&vacuumResult)
+		anchorArazzoSourceDiagnostic(result, &vacuumResult, &diagnostic)
+		diagnostics = append(diagnostics, diagnostic)
 
 	}
 	for _, err := range result.Errors {
@@ -578,6 +590,8 @@ func GetDiagnosticSeverityFromRule(rule *model.Rule) protocol.DiagnosticSeverity
 		return protocol.DiagnosticSeverityWarning
 	case model.SeverityInfo:
 		return protocol.DiagnosticSeverityInformation
+	case model.SeverityHint:
+		return protocol.DiagnosticSeverityHint
 	}
 	return protocol.DiagnosticSeverityError
 }

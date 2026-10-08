@@ -40,7 +40,7 @@ func GetDashboardCommand() *cobra.Command {
 			PrintBanner()
 
 			if len(args) == 0 {
-				errText := "please supply an OpenAPI or AsyncAPI specification to generate a report"
+				errText := "please supply an OpenAPI, AsyncAPI or Arazzo specification to generate a report"
 				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(errText)))
@@ -169,10 +169,10 @@ func GetDashboardCommand() *cobra.Command {
 				logger = slog.New(handler)
 
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-				selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag)
+				selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag)
 				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent, false)
 
-				if hardModeFlag && !asyncDefault {
+				if hardModeFlag && !nonOpenAPIDefault {
 					MergeOWASPRulesToRuleSet(selectedRS, true)
 					if !silent {
 						renderHardModeBox(HardModeEnabled, false)

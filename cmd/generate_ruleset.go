@@ -21,12 +21,12 @@ func GetGenerateRulesetCommand() *cobra.Command {
 		SilenceErrors: true,
 		Use:           "generate-ruleset",
 		Short:         "Generate a vacuum RuleSet",
-		Long:          "Generate a YAML ruleset containing OpenAPI, AsyncAPI or OWASP built-in rules",
-		Example:       "vacuum generate-ruleset recommended | all | asyncapi-recommended | asyncapi-all <ruleset-output-name>",
+		Long:          "Generate a YAML ruleset containing OpenAPI, AsyncAPI, Arazzo or OWASP built-in rules",
+		Example:       "vacuum generate-ruleset recommended | all | asyncapi-recommended | asyncapi-all | arazzo-recommended | arazzo-all <ruleset-output-name>",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			switch len(args) {
 			case 0:
-				return []string{"recommended", "all", "owasp", "asyncapi-recommended", "asyncapi-all"}, cobra.ShellCompDirectiveNoFileComp
+				return []string{"recommended", "all", "owasp", "asyncapi-recommended", "asyncapi-all", "arazzo-recommended", "arazzo-all"}, cobra.ShellCompDirectiveNoFileComp
 			case 1:
 				return []string{"yaml", "yml"}, cobra.ShellCompDirectiveFilterFileExt
 			default:
@@ -39,13 +39,13 @@ func GetGenerateRulesetCommand() *cobra.Command {
 
 			// check for file args
 			if len(args) < 1 {
-				errText := "please supply 'recommended', 'owasp', 'all', 'asyncapi-recommended' or 'asyncapi-all' and a file path to output the ruleset"
+				errText := "please supply 'recommended', 'owasp', 'all', 'asyncapi-recommended', 'asyncapi-all', 'arazzo-recommended' or 'arazzo-all' and a file path to output the ruleset"
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
 
-			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" && args[0] != "asyncapi-recommended" && args[0] != "asyncapi-all" {
-				errText := fmt.Sprintf("please use 'all', 'owasp', 'recommended', 'asyncapi-recommended' or 'asyncapi-all'; your choice '%s' is not valid", args[0])
+			if args[0] != "recommended" && args[0] != "all" && args[0] != "owasp" && args[0] != "asyncapi-recommended" && args[0] != "asyncapi-all" && args[0] != "arazzo-recommended" && args[0] != "arazzo-all" {
+				errText := fmt.Sprintf("please use 'all', 'owasp', 'recommended', 'asyncapi-recommended', 'asyncapi-all', 'arazzo-recommended' or 'arazzo-all'; your choice '%s' is not valid", args[0])
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
@@ -77,6 +77,17 @@ func GetGenerateRulesetCommand() *cobra.Command {
 			}
 			if args[0] == "asyncapi-all" {
 				selectedRuleSet = defaultRuleSets.GenerateAsyncAPIDefaultRuleSet()
+			}
+
+			if args[0] == "arazzo-recommended" {
+				selectedRuleSet = defaultRuleSets.GenerateArazzoRecommendedRuleSet()
+			}
+			if args[0] == "arazzo-all" {
+				selectedRuleSet = defaultRuleSets.GenerateArazzoDefaultRuleSet()
+			}
+			if args[0] == "arazzo-recommended" || args[0] == "arazzo-all" {
+				// Generated rules are self-contained; do not re-enable omitted rules.
+				selectedRuleSet.Extends = []any{[]any{rulesets.VacuumArazzo, rulesets.VacuumOff}}
 			}
 
 			// this bit needs a re-think, but it works for now.

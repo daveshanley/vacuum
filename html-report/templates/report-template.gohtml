@@ -58,11 +58,11 @@
                         {{- $documentationUrlRule := .Rule.DocumentationURL -}}
                         <category-rule maxViolations="{{ $maxViolations }}"
                                        totalRulesViolated="{{ len $ruleResults.RuleResults }}"
-                                       ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id }}"
+                                       ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id | html }}"
                                        description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
                             {{- with sortResults .Results -}}
                             {{- range . }}
-                            <category-rule-result category="{{ $currentCat }}" howToFix="{{ $howToFixRule }}" documentationUrl="{{ $documentationUrlRule }}" slot="results" message="{{ .Message }}" ruleId="{{ .Rule.Id }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path }}">
+                            <category-rule-result category="{{ $currentCat | html }}" howToFix="{{ $howToFixRule | html }}" documentationUrl="{{ $documentationUrlRule | html }}" slot="results" message="{{ .Message | html }}" ruleId="{{ .Rule.Id | html }}" startLine='{{ .StartNode.Line }}' startCol='{{ .StartNode.Column }}' endLine='{{ .EndNode.Line }}' endCol='{{ .EndNode.Column }}' path="{{ .Path | html }}">
                                 {{- renderSource . $specString -}}
                             </category-rule-result>
                             {{- end -}}
