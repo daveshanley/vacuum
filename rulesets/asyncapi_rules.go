@@ -78,7 +78,7 @@ func asyncAPIDocumentRule(id, name string, resolved bool) *model.Rule {
 
 func asyncAPIHeadersSchemaRule() *model.Rule {
 	return asyncAPIRule(AsyncAPI3HeadersSchemaTypeObject, "Check AsyncAPI headers schema type", "Headers schema type must be `object`.", []string{"$.components.messageTraits.*.headers", "$.components.messages.*.headers", "$.channels.*.messages.*.headers", "$.channels.*.messages.*.traits[*].headers"}, "", "schema", map[string]any{
-		"allErrors": true,
+		"forceValidationOnCurrentNode": true,
 		"schema": map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -99,13 +99,14 @@ func asyncAPIContactPropertiesRule() *model.Rule {
 
 func asyncAPILatestVersionRule() *model.Rule {
 	return asyncAPIRule(AsyncAPILatestVersion, "Check AsyncAPI latest version", "The latest AsyncAPI version should be used.", "$.asyncapi", "", "schema", map[string]any{
-		"schema": map[string]any{"const": asyncAPILatestVersion},
+		"forceValidationOnCurrentNode": true,
+		"schema":                       map[string]any{"const": asyncAPILatestVersion},
 	}, model.SeverityInfo, true, model.CategoryValidation)
 }
 
 func asyncAPIServersRule() *model.Rule {
 	return asyncAPIRule(AsyncAPIServers, "Check AsyncAPI servers", "AsyncAPI object must have non-empty `servers` object.", "$", "servers", "schema", map[string]any{
-		"allErrors": true,
+		"forceValidation": true,
 		"schema": map[string]any{
 			"type":          "object",
 			"minProperties": 1,
