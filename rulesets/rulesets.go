@@ -589,6 +589,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 					rs.Rules[k] = rsm.jsonSchemaSet.Rules[k]
 				} else if rsm.asyncAPISet.Rules[k] != nil {
 					rs.Rules[k] = rsm.asyncAPISet.Rules[k]
+				} else if rsm.arazzoSet.Rules[k] != nil {
+					rs.Rules[k] = rsm.arazzoSet.Rules[k]
 				} else {
 					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
 					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||

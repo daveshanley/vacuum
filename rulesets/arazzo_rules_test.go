@@ -44,3 +44,20 @@ func TestArazzoNestedRuleset(t *testing.T) {
 	require.Contains(t, loaded.Rules, "arazzo-structure")
 	require.Equal(t, model.SeverityWarn, loaded.Rules["arazzo-reference"].Severity)
 }
+
+func TestArazzoRulesCanBeEnabledIndividually(t *testing.T) {
+	for _, name := range []string{VacuumArazzo, VacuumArazzoRecommended, SpectralArazzo} {
+		rs, err := CreateRuleSetFromData([]byte("extends: [[" + name + ", off]]\nrules:\n  arazzo-reference: true\n"))
+		require.NoError(t, err)
+		loaded := BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
+		require.NoError(t, loaded.LoadError())
+		require.Len(t, loaded.Rules, 1)
+		require.Contains(t, loaded.Rules, "arazzo-reference")
+	}
+	rs, err := CreateRuleSetFromData([]byte("extends: [vacuum:arazzo]\nrules:\n  arazzo-advisory: true\n  arazzo-reference: false\n"))
+	require.NoError(t, err)
+	loaded := BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(rs)
+	require.NoError(t, loaded.LoadError())
+	require.Contains(t, loaded.Rules, "arazzo-advisory")
+	require.NotContains(t, loaded.Rules, "arazzo-reference")
+}
