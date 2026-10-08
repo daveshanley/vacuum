@@ -154,19 +154,8 @@ func ruleMessageNeedsLocation(message string) bool {
 	return strings.Contains(message, "{{property}}") || strings.Contains(message, "{{path}}") || strings.Contains(message, "{{value}}")
 }
 
-type messagePathIndexKey struct{ root *yaml.Node }
-
 func messagePathIndex(root *yaml.Node, cache *sync.Map) *vacuumUtils.NodePathIndex {
-	if cache == nil {
-		return vacuumUtils.BuildNodePathIndex(root)
-	}
-	key := messagePathIndexKey{root}
-	if cached, ok := cache.Load(key); ok {
-		return cached.(func() *vacuumUtils.NodePathIndex)()
-	}
-	build := sync.OnceValue(func() *vacuumUtils.NodePathIndex { return vacuumUtils.BuildNodePathIndex(root) })
-	cached, _ := cache.LoadOrStore(key, build)
-	return cached.(func() *vacuumUtils.NodePathIndex)()
+	return vacuumUtils.NodePathIndexForContext(model.RuleFunctionContext{SchemaPathCache: cache}, root)
 }
 
 type messageMappingIndexKey struct{ node *yaml.Node }

@@ -4,6 +4,8 @@
 package utils
 
 import (
+	"sync"
+
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
 )
@@ -89,15 +91,10 @@ func NodePathIndexForContext(context model.RuleFunctionContext, root *yaml.Node)
 
 	key := nodePathIndexCacheKey{root: root}
 	if cached, ok := context.SchemaPathCache.Load(key); ok {
-		if pathIndex, ok := cached.(*NodePathIndex); ok {
-			return pathIndex
-		}
+		return cached.(func() *NodePathIndex)()
 	}
 
-	pathIndex := BuildNodePathIndex(root)
-	cached, _ := context.SchemaPathCache.LoadOrStore(key, pathIndex)
-	if cachedPathIndex, ok := cached.(*NodePathIndex); ok {
-		return cachedPathIndex
-	}
-	return pathIndex
+	build := sync.OnceValue(func() *NodePathIndex { return BuildNodePathIndex(root) })
+	cached, _ := context.SchemaPathCache.LoadOrStore(key, build)
+	return cached.(func() *NodePathIndex)()
 }
