@@ -20,8 +20,8 @@ require (
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/jsonpath v0.8.4
 	github.com/pb33f/jsonschema/v6 v6.0.3
-	github.com/pb33f/libasyncapi v0.0.3-0.20261006133119-e34489c04636
-	github.com/pb33f/libopenapi v0.41.3
+	github.com/pb33f/libasyncapi v0.0.3-0.20261010223259-f2dcb4879c25
+	github.com/pb33f/libopenapi v0.41.6
 	github.com/pb33f/libopenapi-validator v0.16.0
 	github.com/pb33f/testify v0.1.1
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
@@ -30,7 +30,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597
 	golang.org/x/net v0.56.0
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	golang.org/x/term v0.45.0
 	golang.org/x/text v0.42.0
 )
@@ -42,7 +42,7 @@ require (
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/basgys/goxml2json v1.1.1-0.20231018121955-e66ee54ceaad // indirect
-	github.com/buger/jsonparser v1.1.2 // indirect
+	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834 // indirect
