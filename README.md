@@ -4,7 +4,7 @@
 </picture>
 
 
-# The world's fastest OpenAPI, AsyncAPI and JSON Schema linter.
+# The world's fastest OpenAPI, AsyncAPI, Arazzo and JSON Schema linter.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
@@ -13,7 +13,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 
-An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
+An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI, Arazzo and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
 
 It supports Spectral-style YAML and JSON rulesets. See [Spectral migration](#spectral-migration) for compatibility limits and built-in alternatives.
 
@@ -139,7 +139,25 @@ come say hi!
 
 ## Documentation
 
-🔥 **New in** `v0.29` 🔥: **Lint AsyncAPI 3 documents in vacuum**
+🔥 **New in** `v0.33` 🔥: **Arazzo workflow linting and a new `or` function**
+
+Arazzo 1.0 and 1.1 workflows are now a first-class document type in vacuum, alongside OpenAPI, AsyncAPI and JSON Schema.
+Use `vacuum lint workflows.yaml` and vacuum will detect Arazzo automatically, with recommended rules for workflow structure,
+references, parameters, expressions and linked source documents. Results work in the normal reports, dashboard and editor diagnostics.
+
+The new `or` core function checks that **at least one of two or more properties exists**. Use
+`properties: [title, summary, description]` to require one of those fields. A property counts as present even when its
+value is `null`, `false`, `0` or an empty string.
+
+This release also fixes AsyncAPI header, server and version checks, and improves result locations for YAML aliases and shared references.
+
+- [Read more about Arazzo linting in vacuum](https://quobix.com/vacuum/arazzo/)
+- [See the default Arazzo ruleset](https://quobix.com/vacuum/rulesets/arazzo-recommended/)
+- [Read more about the new `or` function](https://quobix.com/vacuum/functions/core/or/)
+
+---
+
+`v0.29`: **Lint AsyncAPI 3 documents in vacuum**
 
 [AsyncAPI](https://www.asyncapi.com) is now a first-class document type in vacuum, alongside OpenAPI and JSON Schema.
 Use the normal `lint` command and vacuum will detect AsyncAPI 3 documents automatically.
@@ -152,7 +170,7 @@ Use the normal `lint` command and vacuum will detect AsyncAPI 3 documents automa
 
 ---
 
-🔥 **New in** `v0.28` 🔥: **Lint JSON Schema documents in vacuum**
+`v0.28`: **Lint JSON Schema documents in vacuum**
 
 A new `schema` command has been added that opens up vacuum to JSON Schema specific linting rules and checks! 
 With a whole new set of functions and rules, specifically for JSON Schema documents. 
