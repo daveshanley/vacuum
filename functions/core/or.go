@@ -1,4 +1,4 @@
-// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// Copyright 2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
 // https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
