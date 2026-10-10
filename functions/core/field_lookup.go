@@ -39,6 +39,11 @@ func givenPathValue(given interface{}) string {
 }
 
 func locateNodePaths(context *model.RuleFunctionContext, node *yaml.Node) (string, []string, []v3.Foundational) {
+	if context.Arazzo != nil {
+		if path, found := context.Arazzo.NodePath(node); found {
+			return path, nil, nil
+		}
+	}
 	path, allPaths, objects := locateDoctorNodePaths(*context, node)
 	if context.Index == nil || node == nil {
 		return path, allPaths, objects
@@ -94,11 +99,6 @@ func isIndexedReference(context model.RuleFunctionContext, node *yaml.Node) bool
 
 func locateDoctorNodePaths(context model.RuleFunctionContext, node *yaml.Node) (string, []string, []v3.Foundational) {
 	fallbackPath := givenPathValue(context.Given)
-	if context.Arazzo != nil {
-		if path, found := context.Arazzo.NodePath(node); found {
-			return path, nil, nil
-		}
-	}
 	if context.DrDocument == nil || node == nil {
 		return fallbackPath, nil, nil
 	}
