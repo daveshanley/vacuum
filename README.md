@@ -287,6 +287,26 @@ vs individually.
 
 ### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
 
+### Bundle AsyncAPI 3
+
+`vacuum bundle` detects AsyncAPI 3 documents and supports inline and composed output:
+
+```bash
+vacuum bundle events.asyncapi.yaml bundled.yaml
+vacuum bundle events.asyncapi.yaml bundled.json --composed --delimiter __
+cat events.asyncapi.yaml | vacuum bundle --stdin --stdout --base ./specs --format json
+```
+
+External objects are inlined by default. Composed mode stores them in AsyncAPI
+component sections. Both modes preserve the local references required by
+operations, messages, channels, and servers. Input-file references resolve from
+the input directory unless `--base` is supplied. Use `--remote=false` to disable
+remote loading; `--ext-refs` opts into resolving references inside extensions.
+Unresolved or ambiguous references return an error without writing an incomplete
+bundle. Schema resource IDs are resolved before relocation. Non-JSON schema
+content is preserved; language-specific imports and dynamic JSON Schema references
+are not bundled.
+
 See all the documentation at https://quobix.com/vacuum
 
 - [Installing vacuum](https://quobix.com/vacuum/installing/)
@@ -304,7 +324,7 @@ See all the documentation at https://quobix.com/vacuum
   - [docs](https://quobix.com/vacuum/commands/docs/)
   - [dashboard](https://quobix.com/vacuum/commands/dashboard/)
   - [html-report](https://quobix.com/vacuum/commands/html-report/)
-  - [bundle](https://quobix.com/vacuum/commands/bundle/)
+  - [bundle](https://quobix.com/vacuum/commands/bundle/) - OpenAPI and AsyncAPI 3, with inline and composed output.
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
   - [language-server](https://quobix.com/vacuum/commands/language-server/)
   - [upgrade](https://quobix.com/vacuum/commands/upgrade/)

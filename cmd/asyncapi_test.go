@@ -107,7 +107,7 @@ channels: {}
 	assert.Equal(t, 2, exitErr.Code)
 }
 
-func TestBundleAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
+func TestBundleAsyncAPIStdoutWritesDocument(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "asyncapi.yaml")
 	writeTestFile(t, specPath, cmdAsyncAPI31Fixture)
@@ -120,12 +120,12 @@ func TestBundleAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
 		err = cmd.Execute()
 	})
 
-	require.Error(t, err)
-	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "only supports OpenAPI")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "asyncapi: 3.1.0")
+	assert.Empty(t, stderr)
 }
 
-func TestBundleMalformedAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
+func TestBundleMalformedAsyncAPIStdoutWritesErrorToStderr(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "asyncapi.yaml")
 	writeTestFile(t, specPath, cmdMalformedAsyncAPI31Fixture)
@@ -140,7 +140,8 @@ func TestBundleMalformedAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Empty(t, stdout)
-	assert.Contains(t, stderr, "only supports OpenAPI")
+	assert.NotEmpty(t, stderr)
+	assert.NotContains(t, stderr, "only supports OpenAPI")
 }
 
 func TestApplyOverlayAsyncAPIStdoutWritesRejectionToStderr(t *testing.T) {
