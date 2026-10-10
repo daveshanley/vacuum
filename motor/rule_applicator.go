@@ -1001,11 +1001,14 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					if execution.BuildDeepGraph {
 						useCache = false
 					}
+					// The deep graph is concurrent unless the walk is synchronous, and
+					// ignore-file matching needs a stable path.
 					drDoc = doctorModel.NewDrDocumentWithConfig(mod, &doctorModel.DrConfig{
 						BuildGraph:         buildGraph,
 						UseSchemaCache:     useCache,
 						RenderChanges:      execution.RenderChanges,
 						DeterministicPaths: true,
+						SyncWalk:           execution.BuildDeepGraph,
 					})
 
 					execution.DrDocument = drDoc
