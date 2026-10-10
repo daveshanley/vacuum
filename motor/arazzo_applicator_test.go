@@ -118,6 +118,30 @@ func TestArazzoCustomRulesAndCancellation(t *testing.T) {
 	require.ErrorIs(t, result.Errors[0], context.Canceled)
 }
 
+func TestArazzoInputPropertyPathsRemainAuthored(t *testing.T) {
+	for _, test := range []struct {
+		action model.RuleAction
+		path   string
+	}{
+		{model.RuleAction{Field: "type", Function: "falsy"}, "$.workflows[0].inputs.properties.name.type"},
+		{model.RuleAction{Field: "description", Function: "truthy"}, "$.workflows[0].inputs.properties.name.description"},
+		{model.RuleAction{Field: "type", Function: "pattern", FunctionOptions: map[string]interface{}{"notMatch": "string"}}, "$.workflows[0].inputs.properties.name.type"},
+	} {
+		t.Run(test.action.Function, func(t *testing.T) {
+			execution := arazzoExecution(t, "workflow.yaml")
+			execution.Spec = []byte(strings.Replace(string(execution.Spec), "    steps:", "    inputs:\n      type: object\n      properties:\n        name:\n          type: string\n    steps:", 1))
+			execution.RuleSet = &rulesets.RuleSet{Rules: map[string]*model.Rule{
+				"custom": {Id: "custom", Severity: model.SeverityError, Formats: []string{model.Arazzo}, Given: "$.workflows[*].inputs.properties.*", Then: test.action},
+			}}
+			result := ApplyRulesToRuleSet(execution)
+			defer result.ReleaseOwnedResources()
+			require.Empty(t, result.Errors)
+			require.Len(t, result.Results, 1)
+			require.Equal(t, test.path, result.Results[0].Path)
+		})
+	}
+}
+
 func BenchmarkArazzoLint(b *testing.B) {
 	execution := arazzoExecution(b, "workflow.yaml")
 	b.ReportAllocs()
