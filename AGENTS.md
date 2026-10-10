@@ -134,7 +134,8 @@ When adding or changing flags, check every command surface that shares the behav
 
 - OpenAPI and AsyncAPI documents use `vacuum lint <input...>` plus the `report`, `dashboard`, `html-report`, and `spectral-report` report surfaces.
 - AsyncAPI 3 documents are auto-detected and use `asyncapi-recommended` by default, or the full AsyncAPI ruleset when hard mode is enabled.
-- OpenAPI-only commands such as `bundle`, `docs`, `apply-overlay`, and `open-collection` must reject AsyncAPI clearly instead of falling through an OpenAPI path.
+- `bundle` detects AsyncAPI 3 and uses `libasyncapi/bundler`, preserving required channel, message, and server references in both modes.
+- OpenAPI-only commands such as `apply-overlay` and `open-collection` must reject AsyncAPI clearly instead of falling through an OpenAPI path.
 
 ## Core Rules
 
