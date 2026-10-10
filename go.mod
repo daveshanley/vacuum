@@ -20,7 +20,7 @@ require (
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/jsonpath v0.8.4
 	github.com/pb33f/jsonschema/v6 v6.0.3
-	github.com/pb33f/libasyncapi v0.0.3-0.20261010223259-f2dcb4879c25
+	github.com/pb33f/libasyncapi v0.0.3-0.20261010232012-9218ddb610ff
 	github.com/pb33f/libopenapi v0.41.6
 	github.com/pb33f/libopenapi-validator v0.16.0
 	github.com/pb33f/testify v0.1.1
