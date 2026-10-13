@@ -92,6 +92,7 @@ func applyAsyncAPIRulesToRuleSet(
 	}
 
 	config := libasyncapi.NewDocumentConfiguration()
+	config.SpecFilePath = execution.SpecFileName
 	config.Logger = logger
 	config.LocalFS = execution.RolodexFS
 	config.AllowFileReferences = execution.AllowLookup
