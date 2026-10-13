@@ -6,8 +6,10 @@ package motor
 
 import (
 	"errors"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
+	"testing/fstest"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -170,6 +172,180 @@ channels:
 	assert.Contains(t, ruleIDs, rulesets.AsyncAPI3ServerNotExampleCom)
 }
 
+func TestAsyncAPIValidFixtureHasNoRecommendedRuleViolations(t *testing.T) {
+	result := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: rulesets.BuildDefaultRuleSets().GenerateAsyncAPIRecommendedRuleSet(),
+		Spec:    []byte(validAsyncAPI31Fixture),
+	})
+
+	require.Empty(t, result.Errors)
+	assert.Empty(t, result.Results)
+}
+
+func TestAsyncAPIChannelMessagesAndInlineSecuritySchemesAreValid(t *testing.T) {
+	result := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: asyncAPIReferenceRuleSet(),
+		Spec: []byte(`asyncapi: 3.0.0
+info:
+  title: Streetlights
+  version: 1.0.0
+servers:
+  scram-connections:
+    host: test.mykafkacluster.org:18092
+    protocol: kafka-secure
+    security:
+      - $ref: '#/components/securitySchemes/saslScram'
+      - type: scramSha256
+        description: Provide your username and password for SASL/SCRAM authentication
+channels:
+  lightingMeasured:
+    address: lighting/measured
+    messages:
+      lightMeasured:
+        $ref: '#/components/messages/lightMeasured'
+  lightTurnOn:
+    address: lighting/on
+    messages:
+      turnOn:
+        $ref: '#/components/messages/lightMeasured'
+operations:
+  receiveLightMeasurement:
+    action: receive
+    channel:
+      $ref: '#/channels/lightingMeasured'
+    security:
+      - type: scramSha256
+        description: Provide your username and password for SASL/SCRAM authentication
+    messages:
+      - $ref: '#/channels/lightingMeasured/messages/lightMeasured'
+    reply:
+      channel:
+        $ref: '#/channels/lightTurnOn'
+      messages:
+        - $ref: '#/channels/lightTurnOn/messages/turnOn'
+components:
+  messages:
+    lightMeasured:
+      payload:
+        type: object
+  securitySchemes:
+    saslScram:
+      type: scramSha256
+      description: Provide your username and password for SASL/SCRAM authentication
+`),
+	})
+
+	require.Empty(t, result.Errors)
+	assert.Empty(t, result.Results)
+}
+
+func TestAsyncAPIMessagesOutsideChannelAndInvalidSecurityAreReported(t *testing.T) {
+	result := ApplyRulesToRuleSet(&RuleSetExecution{
+		RuleSet: asyncAPIReferenceRuleSet(),
+		Spec: []byte(`asyncapi: 3.0.0
+info:
+  title: Streetlights
+  version: 1.0.0
+servers:
+  scram-connections:
+    host: test.mykafkacluster.org:18092
+    protocol: kafka-secure
+    security:
+      - saslScram: []
+channels:
+  lightingMeasured:
+    address: lighting/measured
+    messages:
+      lightMeasured:
+        $ref: '#/components/messages/lightMeasured'
+  lightTurnOn:
+    address: lighting/on
+    messages:
+      turnOn:
+        $ref: '#/components/messages/lightMeasured'
+operations:
+  receiveLightMeasurement:
+    action: receive
+    channel:
+      $ref: '#/channels/lightingMeasured'
+    security:
+      - description: A scheme without a type.
+    messages:
+      - $ref: '#/components/messages/lightMeasured'
+    reply:
+      channel:
+        $ref: '#/channels/lightTurnOn'
+      messages:
+        - $ref: '#/channels/lightingMeasured/messages/lightMeasured'
+components:
+  messages:
+    lightMeasured:
+      payload:
+        type: object
+  securitySchemes:
+    saslScram:
+      type: scramSha256
+`),
+	})
+
+	require.Empty(t, result.Errors)
+	messages := make(map[string]string, len(result.Results))
+	for _, finding := range result.Results {
+		messages[finding.RuleId] = finding.Message
+	}
+	assert.Equal(t, map[string]string{
+		rulesets.AsyncAPIServerSecurity:     "Security scheme must define a supported string `type`.",
+		rulesets.AsyncAPI3OperationSecurity: "Security scheme must define a supported string `type`.",
+		rulesets.AsyncAPIOperationMessages:  "Operation message `#/components/messages/lightMeasured` must reference a message of channel `#/channels/lightingMeasured`.",
+		rulesets.AsyncAPIOperationReply:     "Reply message `#/channels/lightingMeasured/messages/lightMeasured` must reference a message of channel `#/channels/lightTurnOn`.",
+	}, messages)
+	assert.Len(t, result.Results, 4)
+}
+
+func asyncAPIReferenceRuleSet() *rulesets.RuleSet {
+	allRules := rulesets.GetAllAsyncAPIRules()
+	return &rulesets.RuleSet{Rules: map[string]*model.Rule{
+		rulesets.AsyncAPI3DocumentResolved:  allRules[rulesets.AsyncAPI3DocumentResolved],
+		rulesets.AsyncAPIServerSecurity:     allRules[rulesets.AsyncAPIServerSecurity],
+		rulesets.AsyncAPI3OperationSecurity: allRules[rulesets.AsyncAPI3OperationSecurity],
+		rulesets.AsyncAPIOperationChannel:   allRules[rulesets.AsyncAPIOperationChannel],
+		rulesets.AsyncAPIOperationMessages:  allRules[rulesets.AsyncAPIOperationMessages],
+		rulesets.AsyncAPIOperationReply:     allRules[rulesets.AsyncAPIOperationReply],
+	}}
+}
+
+func TestAsyncAPISecurityOwnersAndExternalLocations(t *testing.T) {
+	for _, source := range []string{
+		"operations: {send: {action: send, channel: {$ref: '#/channels/c'}, traits: [{security: [{type: bogus}]}]}}",
+		"operations: {send: {$ref: 'remote.yaml#/operations/send'}}",
+		"servers: {production: {$ref: 'remote.yaml#/servers/production'}}",
+		"components: {securitySchemes: {unused: {type: bogus}}}",
+	} {
+		base := t.TempDir()
+		result := ApplyRulesToRuleSet(&RuleSetExecution{
+			RuleSet: asyncAPIReferenceRuleSet(),
+			Spec:    []byte("asyncapi: 3.1.0\nchannels: {c: {}}\n" + source),
+			Base:    base, SpecFileName: filepath.Join(base, "entry.yaml"), AllowLookup: true,
+			RolodexFS: fstest.MapFS{"remote.yaml": &fstest.MapFile{Data: []byte("channels: {c: {}}\noperations:\n  send:\n    action: send\n    channel: {$ref: '#/channels/c'}\n    security: [{type: bogus}]\nservers:\n  production: {host: localhost, protocol: kafka, security: [{type: bogus}]}\n")}},
+		})
+		require.Empty(t, result.Errors)
+		require.Len(t, result.Results, 1, source)
+		assert.Contains(t, result.Results[0].Message, "supported string `type`")
+		assert.NotEqual(t, "$", result.Results[0].Path)
+		assert.Positive(t, result.Results[0].StartNode.Line)
+	}
+}
+
+func TestAsyncAPISelfQualifiedReferences(t *testing.T) {
+	for _, channel := range []string{"#/channels/c", "entry.yaml#/channels/c"} {
+		base := t.TempDir()
+		spec := "asyncapi: 3.1.0\nchannels: {c: {messages: {m: {name: event}}}}\noperations: {send: {action: send, channel: {$ref: '" + channel + "'}, messages: [{$ref: './entry.yaml#/channels/c/messages/m'}]}}\n"
+		result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: asyncAPIReferenceRuleSet(), Spec: []byte(spec), Base: base, SpecFileName: filepath.Join(base, "entry.yaml"), AllowLookup: true, RolodexFS: fstest.MapFS{"entry.yaml": &fstest.MapFile{Data: []byte(spec)}}})
+		require.Empty(t, result.Errors)
+		assert.Empty(t, result.Results)
+	}
+}
+
 func asyncAPIRuleIDs(results []model.RuleFunctionResult) map[string]bool {
 	ruleIDs := make(map[string]bool, len(results))
 	for _, result := range results {
@@ -203,6 +379,9 @@ channels:
     parameters:
       userId:
         description: User identifier.
+    messages:
+      UserSignedUp:
+        $ref: '#/components/messages/UserSignedUp'
 operations:
   receiveUserSignedUp:
     action: receive
@@ -210,7 +389,7 @@ operations:
     channel:
       $ref: '#/channels/userSignedUp'
     messages:
-      - $ref: '#/components/messages/UserSignedUp'
+      - $ref: '#/channels/userSignedUp/messages/UserSignedUp'
 components:
   messages:
     UserSignedUp:

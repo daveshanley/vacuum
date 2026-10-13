@@ -10,6 +10,7 @@ package asyncapi
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -185,23 +186,9 @@ func hasAsyncAPIMarker(spec []byte) bool {
 }
 
 func detectVersion(spec []byte) (string, bool, error) {
-	var root yaml.Node
-	if err := yaml.Unmarshal(spec, &root); err != nil {
-		return "", false, err
-	}
-	if root.Kind != yaml.DocumentNode || len(root.Content) == 0 {
+	version, err := libasyncapi.DetectAsyncAPIVersion(spec)
+	if errors.Is(err, libasyncapi.ErrNoAsyncAPIVersion) {
 		return "", false, nil
 	}
-	node := root.Content[0]
-	if node.Kind != yaml.MappingNode {
-		return "", false, nil
-	}
-	for i := 0; i < len(node.Content)-1; i += 2 {
-		key := node.Content[i]
-		value := node.Content[i+1]
-		if key.Value == "asyncapi" {
-			return value.Value, true, nil
-		}
-	}
-	return "", false, nil
+	return version, err == nil, err
 }
