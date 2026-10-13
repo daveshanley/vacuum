@@ -124,3 +124,13 @@ channels:
 	}
 	return builder.String()
 }
+
+func TestDetectEscapedJSONMarker(t *testing.T) {
+	spec := []byte(`{"\u0061syncapi":"3.1.0","info":{"title":"\ud83c\udf03","version":"1"}}`)
+	format, err := DetectFormat(spec)
+	require.NoError(t, err)
+	assert.Equal(t, "asyncapi3_1", format)
+	document, err := IsDocument(spec)
+	require.NoError(t, err)
+	assert.True(t, document)
+}
