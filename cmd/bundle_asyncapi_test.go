@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
@@ -89,4 +92,42 @@ func TestBundleAsyncAPIFailurePreservesOutput(t *testing.T) {
 	b, err := os.ReadFile(output)
 	require.NoError(t, err)
 	assert.Equal(t, "keep me\n", string(b))
+}
+
+func TestAsyncAPIBundleOutputLintsWithoutSourceFiles(t *testing.T) {
+	for _, composed := range []bool{false, true} {
+		for _, format := range []string{"yaml", "json"} {
+			t.Run(fmt.Sprintf("composed=%t/%s", composed, format), func(t *testing.T) {
+				dir := t.TempDir()
+				input := filepath.Join(dir, "asyncapi.json")
+				writeTestFile(t, input, `{"asyncapi":"3.1.0","info":{"title":"Events \ud83c\udf03","version":"1"},"channels":{"events":{"$ref":"#/components/channels/events"}},"operations":{"send":{"action":"send","channel":{"$ref":"#/channels/events"},"messages":[{"$ref":"#/channels/events/messages/event"}],"security":[{"type":"scramSha256"}],"reply":{"$ref":"#/components/replies/reply"}}},"components":{"channels":{"events":{"$ref":"channel.yaml"}},"replies":{"reply":{"channel":{"$ref":"#/channels/events"},"messages":[{"$ref":"#/channels/events/messages/event"}]}}}}`)
+				writeTestFile(t, filepath.Join(dir, "channel.yaml"), "address: events\nmessages: {event: {$ref: message.yaml}}\n")
+				writeTestFile(t, filepath.Join(dir, "message.yaml"), "name: Event\npayload: {type: string}\n")
+				cmd := newBundleTestCommand()
+				args := []string{input, "--stdout", "--format", format}
+				if composed {
+					args = append(args, "--composed")
+				}
+				cmd.SetArgs(args)
+				var bundleErr error
+				output, stderr := captureOSStreams(t, func() { bundleErr = cmd.Execute() })
+				require.NoError(t, bundleErr)
+				assert.Empty(t, stderr)
+				require.NoError(t, os.RemoveAll(dir))
+				all := rulesets.GetAllAsyncAPIRules()
+				selected := &rulesets.RuleSet{Rules: make(map[string]*model.Rule)}
+				for _, id := range []string{rulesets.AsyncAPI3DocumentResolved, rulesets.AsyncAPIOperationChannel, rulesets.AsyncAPIOperationMessages, rulesets.AsyncAPIOperationReply, rulesets.AsyncAPI3OperationSecurity} {
+					selected.Rules[id] = all[id]
+				}
+				lint := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: selected, Spec: []byte(output)})
+				require.Empty(t, lint.Errors)
+				assert.Empty(t, lint.Results)
+				invalid := strings.ReplaceAll(output, "scramSha256", "bogus")
+				lint = motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{RuleSet: selected, Spec: []byte(invalid)})
+				require.Empty(t, lint.Errors)
+				require.Len(t, lint.Results, 1)
+				assert.Equal(t, rulesets.AsyncAPI3OperationSecurity, lint.Results[0].RuleId)
+			})
+		}
+	}
 }

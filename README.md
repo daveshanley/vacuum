@@ -297,7 +297,8 @@ vacuum bundle events.asyncapi.yaml bundled.json --composed --delimiter __
 cat events.asyncapi.yaml | vacuum bundle --stdin --stdout --base ./specs --format json
 ```
 
-External objects are inlined by default. Composed mode stores them in AsyncAPI
+External objects are inlined by default. Shared schemas are emitted once, with
+local references for later uses. Composed mode stores external objects in AsyncAPI
 component sections. Both modes preserve the local references required by
 operations, messages, channels, and servers. Input-file references resolve from
 the input directory unless `--base` is supplied. Use `--remote=false` to disable
