@@ -36,7 +36,7 @@ func (o OperationChannel) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionCont
 		}
 		_, channel := mappingValue(node, "channel")
 		if channel == nil {
-			results = append(results, result(ctx, node, "", "Operation must define a channel."))
+			results = append(results, result(scope, node, "", "Operation must define a channel."))
 			continue
 		}
 		results = append(results, channelResults(scope, node, channel, "Operation")...)
@@ -106,7 +106,7 @@ func (o OperationReply) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContex
 			continue
 		}
 		if reply.Kind != yaml.MappingNode {
-			results = append(results, result(ctx, reply, "", "Operation reply must be an object."))
+			results = append(results, result(scope, reply, "", "Operation reply must be an object."))
 			continue
 		}
 		_, channel := mappingValue(reply, "channel")

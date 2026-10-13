@@ -13,6 +13,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/testify/assert"
@@ -346,6 +347,33 @@ func TestAsyncAPISelfQualifiedReferences(t *testing.T) {
 	}
 }
 
+func TestAsyncAPIExternalOperationErrorPathsAndIgnores(t *testing.T) {
+	for _, tc := range []struct{ name, operation, ruleID, path string }{
+		{"missing channel", "action: send", rulesets.AsyncAPIOperationChannel, "$.operations.send"},
+		{"invalid reply", "action: send, channel: {$ref: '#/channels/c'}, reply: []", rulesets.AsyncAPIOperationReply, "$.operations.send.reply"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base := t.TempDir()
+			spec := []byte("asyncapi: 3.1.0\nchannels: {c: {}}\noperations: {send: {$ref: 'remote.yaml#/operations/send'}}\n")
+			outcome := ApplyRulesToRuleSet(&RuleSetExecution{
+				RuleSet: asyncAPIReferenceRuleSet(), Spec: spec,
+				Base: base, SpecFileName: filepath.Join(base, "entry.yaml"), AllowLookup: true,
+				RolodexFS: fstest.MapFS{"remote.yaml": &fstest.MapFile{Data: []byte("channels: {c: {}}\noperations:\n  send: {" + tc.operation + "}\n")}},
+			})
+			require.Empty(t, outcome.Errors)
+			require.Len(t, outcome.Results, 1)
+			finding := &outcome.Results[0]
+			assert.Equal(t, tc.ruleID, finding.RuleId)
+			assert.Equal(t, tc.path, finding.Path)
+			require.NotNil(t, finding.Origin)
+			assert.Equal(t, filepath.Join(base, "remote.yaml"), finding.Origin.AbsoluteLocation)
+			assert.Equal(t, 3, finding.StartNode.Line)
+			matcher := utils.NewIgnoreMatcher(model.IgnoredItems{tc.ruleID: {tc.path}}, utils.IgnoreMatcherOptions{SpecBytes: spec})
+			assert.True(t, matcher.Matches(finding))
+		})
+	}
+}
+
 func asyncAPIRuleIDs(results []model.RuleFunctionResult) map[string]bool {
 	ruleIDs := make(map[string]bool, len(results))
 	for _, result := range results {
@@ -365,10 +393,10 @@ info:
     email: api@example.com
   license:
     name: MIT
+  tags:
+    - name: events
+      description: Event APIs.
 defaultContentType: application/json
-tags:
-  - name: events
-    description: Event APIs.
 servers:
   production:
     host: api.example.com
@@ -440,4 +468,31 @@ func TestAsyncAPIVersionAndMissingServersAreChecked(t *testing.T) {
 	}
 	require.True(t, ids[rulesets.AsyncAPILatestVersion])
 	require.True(t, ids[rulesets.AsyncAPIServers])
+}
+
+func TestAsyncAPITagsUseInfoLocation(t *testing.T) {
+	all := rulesets.GetAllAsyncAPIRules()
+	selected := &rulesets.RuleSet{Rules: map[string]*model.Rule{}}
+	for _, id := range []string{rulesets.AsyncAPI3Tags, rulesets.AsyncAPI3TagsUniqueness, rulesets.AsyncAPI3TagsAlphabetical, rulesets.AsyncAPI3TagDescription} {
+		selected.Rules[id] = all[id]
+	}
+	for _, tc := range []struct{ name, tags, ruleID string }{
+		{"valid", "[{name: events, description: Events}]", ""},
+		{"duplicate", "[{name: events, description: Events}, {name: events, description: Events}]", rulesets.AsyncAPI3TagsUniqueness},
+		{"missing description", "[{name: events}]", rulesets.AsyncAPI3TagDescription},
+		{"unordered", "[{name: zebra, description: Z}, {name: alpha, description: A}]", rulesets.AsyncAPI3TagsAlphabetical},
+		{"empty", "[]", rulesets.AsyncAPI3Tags},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			outcome := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: selected, Spec: []byte("asyncapi: 3.1.0\ninfo: {title: Test, version: '1', tags: " + tc.tags + "}\n")})
+			require.Empty(t, outcome.Errors)
+			if tc.ruleID == "" {
+				assert.Empty(t, outcome.Results)
+			} else {
+				require.Len(t, outcome.Results, 1)
+				assert.Equal(t, tc.ruleID, outcome.Results[0].RuleId)
+				assert.Contains(t, outcome.Results[0].Path, "$.info")
+			}
+		})
+	}
 }

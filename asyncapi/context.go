@@ -10,6 +10,7 @@ package asyncapi
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -182,7 +183,18 @@ func (c *Context) NodePath(node *yaml.Node) (string, bool) {
 }
 
 func hasAsyncAPIMarker(spec []byte) bool {
-	return bytes.Contains(spec, asyncAPIMarker)
+	if bytes.Contains(spec, asyncAPIMarker) {
+		return true
+	}
+	// JSON permits escaped field names. Keep the usual detection path cheap.
+	if bytes.Contains(spec, []byte(`\u`)) {
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(spec, &fields) == nil {
+			_, ok := fields["asyncapi"]
+			return ok
+		}
+	}
+	return false
 }
 
 func detectVersion(spec []byte) (string, bool, error) {
