@@ -7,7 +7,6 @@ package asyncapi
 import (
 	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
@@ -161,11 +160,7 @@ func (s Security) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []m
 		}
 	}
 	for _, source := range nodes {
-		if strings.HasPrefix(nodePath(ctx, source, ""), "$.components.securitySchemes") {
-			results = append(results, validateSecuritySchemes([]*yaml.Node{source}, ctx)...)
-		} else {
-			visit(source, ctx)
-		}
+		visit(source, ctx)
 	}
 	return results
 }

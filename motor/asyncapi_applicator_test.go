@@ -320,7 +320,6 @@ func TestAsyncAPISecurityOwnersAndExternalLocations(t *testing.T) {
 		"operations: {send: {action: send, channel: {$ref: '#/channels/c'}, traits: [{security: [{type: bogus}]}]}}",
 		"operations: {send: {$ref: 'remote.yaml#/operations/send'}}",
 		"servers: {production: {$ref: 'remote.yaml#/servers/production'}}",
-		"components: {securitySchemes: {unused: {type: bogus}}}",
 	} {
 		base := t.TempDir()
 		result := ApplyRulesToRuleSet(&RuleSetExecution{
@@ -344,6 +343,28 @@ func TestAsyncAPISelfQualifiedReferences(t *testing.T) {
 		result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: asyncAPIReferenceRuleSet(), Spec: []byte(spec), Base: base, SpecFileName: filepath.Join(base, "entry.yaml"), AllowLookup: true, RolodexFS: fstest.MapFS{"entry.yaml": &fstest.MapFile{Data: []byte(spec)}}})
 		require.Empty(t, result.Errors)
 		assert.Empty(t, result.Results)
+	}
+}
+
+func TestAsyncAPISecurityRulesOnlyReportTheirOwners(t *testing.T) {
+	for _, tc := range []struct {
+		name, owners string
+		ruleIDs      []string
+	}{
+		{name: "unused scheme"},
+		{"server only", "servers: {broker: {host: localhost, protocol: kafka, security: [{$ref: '#/components/securitySchemes/shared'}]}}\n", []string{rulesets.AsyncAPIServerSecurity}},
+		{"operation only", "operations: {send: {action: send, channel: {$ref: '#/channels/c'}, security: [{$ref: '#/components/securitySchemes/shared'}]}}\n", []string{rulesets.AsyncAPI3OperationSecurity}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := "asyncapi: 3.1.0\nchannels: {c: {}}\n" + tc.owners + "components: {securitySchemes: {shared: {type: bogus}}}\n"
+			outcome := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: asyncAPIReferenceRuleSet(), Spec: []byte(spec)})
+			require.Empty(t, outcome.Errors)
+			var ids []string
+			for _, finding := range outcome.Results {
+				ids = append(ids, finding.RuleId)
+			}
+			assert.ElementsMatch(t, tc.ruleIDs, ids)
+		})
 	}
 }
 
