@@ -134,3 +134,35 @@ func TestDetectEscapedJSONMarker(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, document)
 }
+
+func TestHasMarkerEscapedJSONRootKeys(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		spec string
+		want bool
+	}{
+		{"escaped marker first", `{"\u0061syncapi":"3.1.0","info":{"title":"\u00e9"}}`, true},
+		{"escaped marker last", `{"info":{"title":"\u00e9"},"\u0061syncapi":"3.1.0"}`, true},
+		{"nested format names", `{"components":{"schemas":{"openapi":{},"swagger":{}}},"\u0061syncapi":"3.1.0"}`, true},
+		{"openapi", `{"openapi":"3.1.0","info":{"title":"\u00e9"}}`, false},
+		{"swagger", `{"swagger":"2.0","info":{"title":"\u00e9"}}`, false},
+		{"nested escaped marker", `{"schema":{"\u0061syncapi":"3.1.0"}}`, false},
+		{"malformed value", `{"info":[,"\u0061syncapi":"3.1.0"}`, false},
+		{"malformed after marker", `{"\u0061syncapi":"3.1.0","info":[`, true},
+		{"yaml without marker", `description: '\u00e9'`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) { assert.Equal(t, tc.want, HasMarker([]byte(tc.spec))) })
+	}
+}
+
+func BenchmarkHasMarkerEscapedOpenAPI(b *testing.B) {
+	const descriptionSize = 1 << 20
+	spec := []byte(`{"openapi":"3.1.0","info":{"description":"\u00e9` + strings.Repeat("x", descriptionSize) + `"}}`)
+	b.ReportAllocs()
+	b.SetBytes(int64(len(spec)))
+	for b.Loop() {
+		if HasMarker(spec) {
+			b.Fatal("OpenAPI document detected as AsyncAPI")
+		}
+	}
+}

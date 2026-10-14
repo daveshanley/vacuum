@@ -58,9 +58,8 @@ func DetectFormat(spec []byte) (string, error) {
 	return FormatForVersion(version)
 }
 
-// HasMarker reports whether the raw bytes contain an AsyncAPI root marker. It
-// is intentionally cheap and parse-independent so malformed AsyncAPI documents
-// can still be routed away from OpenAPI-only processing.
+// HasMarker checks for an AsyncAPI marker without building a document model.
+// Escaped JSON field names are decoded until a root format marker is found.
 func HasMarker(spec []byte) bool {
 	return hasAsyncAPIMarker(spec)
 }
@@ -186,16 +185,39 @@ func hasAsyncAPIMarker(spec []byte) bool {
 	if bytes.Contains(spec, asyncAPIMarker) {
 		return true
 	}
-	// JSON permits escaped field names. Keep the usual detection path cheap.
-	if bytes.Contains(spec, []byte(`\u`)) {
-		var fields map[string]json.RawMessage
-		if json.Unmarshal(spec, &fields) == nil {
-			_, ok := fields["asyncapi"]
-			return ok
+	// JSON permits escaped field names. Inspect root keys without copying all
+	// top-level values, and stop as soon as the document format is known.
+	if !bytes.Contains(spec, []byte(`\u`)) {
+		return false
+	}
+	decoder := json.NewDecoder(bytes.NewReader(spec))
+	first, err := decoder.Token()
+	if err != nil || first != json.Delim('{') {
+		return false
+	}
+	var discard discardedJSONValue
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return false
+		}
+		switch key {
+		case "asyncapi":
+			return true
+		case "openapi", "swagger":
+			return false
+		}
+		if decoder.Decode(&discard) != nil {
+			return false
 		}
 	}
 	return false
 }
+
+// discardedJSONValue lets the decoder skip a value without retaining a copy.
+type discardedJSONValue struct{}
+
+func (*discardedJSONValue) UnmarshalJSON([]byte) error { return nil }
 
 func detectVersion(spec []byte) (string, bool, error) {
 	version, err := libasyncapi.DetectAsyncAPIVersion(spec)
