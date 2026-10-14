@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,9 +37,10 @@ const (
 func GetBundleCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		SilenceUsage: true,
-		Use:          "bundle",
-		Short:        "Bundle an OpenAPI or AsyncAPI 3 specification into a single document.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "bundle",
+		Short:         "Bundle an OpenAPI or AsyncAPI 3 specification into a single document.",
 		Long: "Bundle an OpenAPI or AsyncAPI 3 specification with external references into a single document. " +
 			"Local references are preserved. AsyncAPI fields that require references keep local references to their targets.",
 		Example: "vacuum bundle <input-api.yaml> <bundled-api.yaml>",
@@ -78,8 +80,14 @@ func GetBundleCommand() *cobra.Command {
 
 			// check for file args
 			outputIndex := 1
-			if stdIn {
+			if stdIn && len(args) < 2 {
 				outputIndex = 0
+			}
+			// Preserve the legacy --stdin <ignored-input> <output> form.
+			if len(args) > 2 {
+				err := NewInputError("bundle accepts at most an input and an output document")
+				fmt.Fprintln(os.Stderr, err)
+				return err
 			}
 			if !stdOut && len(args) <= outputIndex {
 				err := NewInputError("please supply an output API document, or use --stdout")
@@ -88,7 +96,7 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			formatArgs := args
-			if stdIn {
+			if stdIn && outputIndex == 0 {
 				formatArgs = append([]string{"stdin"}, args...)
 			}
 			outputFormat, err := resolveBundleOutputFormat(formatFlag, stdOut, formatArgs)
@@ -121,7 +129,6 @@ func GetBundleCommand() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return NewInputError("%v", err)
 			}
-			explicitBase := baseFlag != ""
 			if baseFlag == "" {
 				baseFlag = "."
 				if isAsyncAPI && !stdIn {
@@ -144,17 +151,23 @@ func GetBundleCommand() *cobra.Command {
 			var bundled []byte
 			if isAsyncAPI {
 				config := &libasyncapi.DocumentConfiguration{
-					BasePath: baseFlag, AllowFileReferences: true, AllowRemoteReferences: remoteFlag,
+					AllowFileReferences: true, AllowRemoteReferences: remoteFlag,
 					ExcludeExtensionRefs: !extensionRefsFlag, Logger: logger,
+				}
+				if strings.HasPrefix(baseFlag, "http://") || strings.HasPrefix(baseFlag, "https://") {
+					config.BaseURL, err = url.Parse(baseFlag)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						return NewInputError("invalid base URL: %v", err)
+					}
+				} else {
+					config.BasePath = baseFlag
 				}
 				if !stdIn {
 					config.SpecFilePath, err = filepath.Abs(args[0])
 					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
 						return err
-					}
-					// An explicit base controls imports even when the input is elsewhere.
-					if explicitBase {
-						config.SpecFilePath = filepath.Base(args[0])
 					}
 				}
 				if composed {
@@ -173,13 +186,20 @@ func GetBundleCommand() *cobra.Command {
 			if err != nil {
 				if isAsyncAPI {
 					fmt.Fprintln(os.Stderr, err)
-					return NewInputError("%v", err)
+				} else {
+					tui.RenderError(err)
 				}
-				tui.RenderError(err)
 				// render any buffered logs
 				logOutput := bufferedLogger.RenderTree(noStyleFlag)
 				if logOutput != "" {
-					fmt.Print(logOutput)
+					if isAsyncAPI {
+						fmt.Fprint(os.Stderr, logOutput)
+					} else {
+						fmt.Print(logOutput)
+					}
+				}
+				if isAsyncAPI {
+					return NewInputError("%v", err)
 				}
 				if bundled == nil {
 					return err

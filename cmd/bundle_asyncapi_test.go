@@ -4,8 +4,11 @@
 package cmd
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +21,120 @@ import (
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 )
+
+func TestBundleStdinLegacyOutputArgument(t *testing.T) {
+	for _, spec := range []string{
+		"asyncapi: 3.0.0\ninfo: {title: Test, version: '1'}\nchannels: {}\n",
+		"openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}\n",
+	} {
+		t.Run(strings.Split(spec, ":")[0], func(t *testing.T) {
+			dir := t.TempDir()
+			input, output := filepath.Join(dir, "input.yaml"), filepath.Join(dir, "output.json")
+			writeTestFile(t, input, "preserve this file")
+			cmd := newBundleTestCommand()
+			cmd.SetIn(strings.NewReader(spec))
+			cmd.SetArgs([]string{"--stdin", input, output})
+			_, stderr := captureOSStreams(t, func() { require.NoError(t, cmd.Execute()) })
+			assert.Empty(t, stderr)
+			assert.Equal(t, "preserve this file\n", readOutputFile(t, input))
+			assert.True(t, strings.HasPrefix(strings.TrimSpace(readOutputFile(t, output)), "{"))
+		})
+	}
+}
+
+func TestBundleAsyncAPIBasePreservesRootIdentity(t *testing.T) {
+	for _, composed := range []bool{false, true} {
+		t.Run(fmt.Sprint(composed), func(t *testing.T) {
+			dir := t.TempDir()
+			input := filepath.Join(dir, "v2", "asyncapi.yaml")
+			base := filepath.Join(dir, "common")
+			writeTestFile(t, input, "asyncapi: 3.0.0\ninfo: {title: Test, version: '1'}\nchannels: {events: {$ref: 'ch.yaml'}}\ncomponents: {messages: {m: {payload: {type: string}}}}\n")
+			writeTestFile(t, filepath.Join(base, "ch.yaml"), "messages: {event: {$ref: './asyncapi.yaml#/components/messages/m'}}\n")
+			writeTestFile(t, filepath.Join(base, "asyncapi.yaml"), "components: {messages: {m: {payload: {type: integer}}}}\n")
+			cmd := newBundleTestCommand()
+			cmd.SetArgs([]string{input, "--stdout", "--base", base, fmt.Sprintf("--composed=%t", composed)})
+			out, stderr := captureOSStreams(t, func() { require.NoError(t, cmd.Execute()) })
+			assert.Empty(t, stderr)
+			assert.Contains(t, out, "type: integer")
+		})
+	}
+}
+
+func TestBundleAsyncAPIURLBase(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/specs/message.yaml" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprintln(w, "name: RemoteMessage\npayload: {type: integer}")
+	}))
+	defer server.Close()
+	spec := "asyncapi: 3.0.0\ninfo: {title: Test, version: '1'}\nchannels: {events: {messages: {event: {$ref: message.yaml}}}}\n"
+	for _, stdin := range []bool{false, true} {
+		for _, remote := range []bool{false, true} {
+			t.Run(fmt.Sprintf("stdin=%t/remote=%t", stdin, remote), func(t *testing.T) {
+				cmd := newBundleTestCommand()
+				args := []string{"--stdout", "--base", server.URL + "/specs", fmt.Sprintf("--remote=%t", remote)}
+				if stdin {
+					args = append(args, "--stdin")
+					cmd.SetIn(strings.NewReader(spec))
+				} else {
+					input := filepath.Join(t.TempDir(), "asyncapi.yaml")
+					writeTestFile(t, input, spec)
+					args = append(args, input)
+				}
+				cmd.SetArgs(args)
+				var err error
+				out, stderr := captureOSStreams(t, func() { err = cmd.Execute() })
+				if !remote {
+					require.Error(t, err)
+					assert.Empty(t, out)
+					assert.Contains(t, stderr, "message.yaml")
+					return
+				}
+				require.NoError(t, err)
+				assert.Empty(t, stderr)
+				assert.Contains(t, out, "RemoteMessage")
+			})
+		}
+	}
+}
+
+func TestBundleAsyncAPIStdinUsesWorkingDirectory(t *testing.T) {
+	dir := t.TempDir()
+	chdirForTest(t, dir)
+	writeTestFile(t, filepath.Join(dir, "message.yaml"), "name: LocalMessage\npayload: {type: string}")
+	cmd := newBundleTestCommand()
+	cmd.SetIn(strings.NewReader("asyncapi: 3.0.0\ninfo: {title: Test, version: '1'}\nchannels: {events: {messages: {event: {$ref: message.yaml}}}}"))
+	cmd.SetArgs([]string{"--stdin", "--stdout"})
+	out, stderr := captureOSStreams(t, func() { require.NoError(t, cmd.Execute()) })
+	assert.Empty(t, stderr)
+	assert.Contains(t, out, "LocalMessage")
+}
+
+func TestBundleErrorsPrintOnce(t *testing.T) {
+	cmd := newBundleTestCommand()
+	var cobraErrors bytes.Buffer
+	cmd.SetErr(&cobraErrors)
+	cmd.SetArgs([]string{"--stdin"})
+	_, stderr := captureOSStreams(t, func() { require.Error(t, cmd.Execute()) })
+	assert.Equal(t, 1, strings.Count(stderr+cobraErrors.String(), "please supply an output API document"))
+}
+
+func TestBundleAsyncAPIFailurePrintsLoaderLogs(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	defer server.Close()
+	cmd := newBundleTestCommand()
+	cmd.SetIn(strings.NewReader("asyncapi: 3.0.0\ninfo: {title: Test, version: '1'}\nchannels: {events: {$ref: missing.yaml}}"))
+	cmd.SetArgs([]string{"--stdin", "--stdout", "--no-style", "--base", server.URL})
+	var cobraErrors bytes.Buffer
+	cmd.SetErr(&cobraErrors)
+	out, stderr := captureOSStreams(t, func() { require.Error(t, cmd.Execute()) })
+	assert.Empty(t, out)
+	assert.Empty(t, cobraErrors.String())
+	assert.Contains(t, stderr, "ERR unable to fetch remote document")
+	assert.Contains(t, stderr, "404")
+}
 
 func TestBundleAsyncAPIModesAndStreams(t *testing.T) {
 	for _, composed := range []bool{false, true} {
