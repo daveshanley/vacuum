@@ -96,6 +96,8 @@ components:
     shared: {channel: {$ref: '#/components/channels/c'}, messages: [{$ref: '#/components/channels/c/messages/m'}]}
 `)
 	assert.Empty(t, OperationReply{}.RunRule(operationNodes(root), ctx))
-	_, replies := mappingValue(componentMap(root, "replies"), "shared")
-	assert.Empty(t, OperationReply{}.RunRule([]*yaml.Node{replies}, ctx))
+	_, components := mappingValue(root, "components")
+	_, replies := mappingValue(components, "replies")
+	_, shared := mappingValue(replies, "shared")
+	assert.Empty(t, OperationReply{}.RunRule([]*yaml.Node{shared}, ctx))
 }

@@ -304,7 +304,9 @@ func TestOperationMessagesAllowsComponentOperationsToUseChannelsAnywhere(t *test
         - $ref: '#/components/channels/dimLight/messages/dim'
         - $ref: '#/channels/dimLight/messages/dim'
 `)
-	operations := mappingValues(componentMap(root, "operations"))
+	_, components := mappingValue(root, "components")
+	_, operationMap := mappingValue(components, "operations")
+	operations := mappingValues(operationMap)
 	require.Len(t, operations, 2)
 
 	results := OperationMessages{}.RunRule(operations, context)
