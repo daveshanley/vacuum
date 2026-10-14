@@ -105,13 +105,6 @@ func mappingEntries(node *yaml.Node) [][2]*yaml.Node {
 	return entries
 }
 
-func scalarValue(node *yaml.Node) string {
-	if node == nil {
-		return ""
-	}
-	return node.Value
-}
-
 func refValue(node *yaml.Node) string {
 	_, value := mappingValue(node, "$ref")
 	if value != nil && value.Kind == yaml.ScalarNode && value.Tag == "!!str" {
@@ -202,14 +195,6 @@ func referenceDocument(ctx model.RuleFunctionContext, base string) string {
 	return filepath.Join(filepath.Dir(source), filepath.FromSlash(base))
 }
 
-func componentRefName(ref, location string) string {
-	prefix := "#/components/" + location + "/"
-	if !strings.HasPrefix(ref, prefix) {
-		return ""
-	}
-	return strings.TrimPrefix(ref, prefix)
-}
-
 func rootRefName(ref, location string) string {
 	prefix := "#/" + location + "/"
 	if !strings.HasPrefix(ref, prefix) {
@@ -293,13 +278,4 @@ func validateTemplateVariables(
 		}
 	}
 	return results
-}
-
-func componentMap(root *yaml.Node, location string) *yaml.Node {
-	_, components := mappingValue(root, "components")
-	if components == nil {
-		return nil
-	}
-	_, node := mappingValue(components, location)
-	return node
 }

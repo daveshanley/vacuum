@@ -195,8 +195,3 @@ func channelMessageResults(ctx model.RuleFunctionContext, channel, messages *yam
 	}
 	return results
 }
-
-func channelMap(root *yaml.Node) *yaml.Node {
-	_, channels := mappingValue(root, "channels")
-	return channels
-}
