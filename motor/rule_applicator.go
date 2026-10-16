@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -1683,6 +1684,17 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		if templated {
 			rule := *ctx.rule
 			rule.Message = ""
+			if ruleAction.Function == "schema" && strings.Contains(ctx.rule.Message, "{{error}}") {
+				// The schema function normally prefixes its diagnostic with the
+				// rule description. Preserve only the raw diagnostic here because
+				// the shared formatter owns expansion of the complete template.
+				rule.Message = "{{error}}"
+				if options, ok := ruleAction.FunctionOptions.(map[string]interface{}); ok {
+					options = maps.Clone(options)
+					options["interpolateErrorMessage"] = true
+					rfc.Options = options
+				}
+			}
 			rfc.Rule = &rule
 		}
 		var messagePaths *vacuumUtils.NodePathIndex
