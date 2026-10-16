@@ -274,7 +274,8 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 			if !valid {
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
-						result := buildResult(vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, err.Reason),
+						reason := formatExampleValidationReason(err)
+						result := buildResult(vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, reason),
 							path, keyNode, node, s)
 
 						banned := false
@@ -391,8 +392,9 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		var rx []model.RuleFunctionResult
 		for _, r := range validationErrors {
 			for _, err := range r.SchemaValidationErrors {
+				reason := formatExampleValidationReason(err)
 				result := buildResult(
-					vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, err.Reason),
+					vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, reason),
 					path, keyNode, valueNode, schema)
 
 				// check if this is a banned error
