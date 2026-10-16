@@ -1509,4 +1509,22 @@ components:
 	assert.Equal(t, "$.components.schemas['NoString'].example", res[0].Path)
 }
 
+func TestIssue976_NotValidationErrorMessage_CombinedConstraints(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    RestrictedRange:
+      not:
+        minimum: 10
+        maximum: 20
+      example: 15`
 
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", res[0].Message)
+	assert.Equal(t, "$.components.schemas['RestrictedRange'].example", res[0].Path)
+}
