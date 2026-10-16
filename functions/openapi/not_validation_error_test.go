@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/testify/assert"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/santhosh-tekuri/jsonschema/v6/kind"
-	"github.com/pb33f/testify/assert"
 )
 
 func TestIsNotValidationError(t *testing.T) {
@@ -76,7 +76,7 @@ not:
 		ReferenceSchema: refSchema,
 	}
 	msg := formatExampleValidationReason(err)
-	assert.Equal(t, "example violates `not`: properties `first`, `second` must not be present", msg)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
 }
 
 func TestFormatExampleValidationReason_TypeSingle(t *testing.T) {
@@ -148,6 +148,32 @@ not:
 	assert.Equal(t, "example violates `not`: value must not match pattern `^[0-9]+$`", msg)
 }
 
+func TestFormatExampleValidationReason_MinimumSingle(t *testing.T) {
+	refSchema := `
+not:
+  minimum: 10
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: value must not be >= `10`", msg)
+}
+
+func TestFormatExampleValidationReason_MaximumSingle(t *testing.T) {
+	refSchema := `
+not:
+  maximum: 20
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: value must not be <= `20`", msg)
+}
+
 func TestFormatExampleValidationReason_MinMax(t *testing.T) {
 	refSchema := `
 not:
@@ -159,8 +185,39 @@ not:
 		ReferenceSchema: refSchema,
 	}
 	msg := formatExampleValidationReason(err)
-	assert.Contains(t, msg, "value must not be >= `10`")
-	assert.Contains(t, msg, "value must not be <= `20`")
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
+}
+
+func TestFormatExampleValidationReason_CombinedTypeAndRequired(t *testing.T) {
+	refSchema := `
+not:
+  type: object
+  required:
+    - reason
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
+}
+
+func TestFormatExampleValidationReason_CombinedMultipleProperties(t *testing.T) {
+	refSchema := `
+not:
+  properties:
+    first:
+      type: string
+    second:
+      type: integer
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
 }
 
 func TestFormatExampleValidationReason_Properties(t *testing.T) {
