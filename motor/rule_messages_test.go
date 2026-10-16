@@ -112,6 +112,47 @@ func TestRuleMessageTemplatesCustomAndBatch(t *testing.T) {
 	}
 }
 
+func TestRuleMessageTemplateUsesRawSchemaError(t *testing.T) {
+	rule := &model.Rule{
+		Id:          "schema-template",
+		Description: "The value chain must use a supported value.",
+		Message:     "Invalid `info.x-value-chain`: {{error}}.",
+		Given:       "$.info",
+		Severity:    "error",
+		Then: model.RuleAction{
+			Field:    "x-value-chain",
+			Function: "schema",
+			FunctionOptions: map[string]interface{}{
+				"schema": map[string]interface{}{
+					"type": "string",
+					"enum": []interface{}{"prevent", "detect"},
+				},
+			},
+		},
+	}
+	result := ApplyRulesToRuleSet(&RuleSetExecution{
+		Spec: []byte(`openapi: 3.0.0
+info:
+  title: Example
+  version: 1.0.0
+  x-value-chain: wrong
+paths: {}
+`),
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{"schema-template": rule},
+		},
+	})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(
+		t,
+		"Invalid `info.x-value-chain`: value must be one of 'prevent', 'detect'.",
+		result.Results[0].Message,
+	)
+	require.Equal(t, "Invalid `info.x-value-chain`: {{error}}.", rule.Message)
+}
+
 func TestRuleMessageTemplatesPreserveCustomResultTarget(t *testing.T) {
 	rule := &model.Rule{Id: "template", Message: "{{property}}|{{value}}|{{path}}|{{error}}", Given: "$.object", Severity: "warn", Then: model.RuleAction{Function: "messageTest"}}
 	result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: []byte("object: {child: bad}\n"), SkipDocumentCheck: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"template": rule}}, CustomFunctions: map[string]model.RuleFunction{"messageTest": messageTestFunction{child: true}}})
