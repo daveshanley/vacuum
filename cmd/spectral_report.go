@@ -375,9 +375,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 							},
 						})
 						if originalErr != nil {
-							if ruleset != nil {
-								ruleset.ReleaseOwnedResources()
-							}
+							ruleset.ReleaseOwnedResources()
 							return originalErr
 						}
 					} else if changesFlag != "" {

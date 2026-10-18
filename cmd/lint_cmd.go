@@ -337,6 +337,26 @@ func runLint(cmd *cobra.Command, args []string) error {
 		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)
 		result := motor.ApplyRulesToRuleSetWithOptions(execution, executionOptions)
 
+		// render out buffered logs (chrome; suppressed in annotation mode so
+		// debug output does not contaminate the annotation stream on stdout)
+		if !flags.GitHubAnnotations {
+			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
+		}
+
+		if len(result.Errors) > 0 {
+			for _, err := range result.Errors {
+				if flags.GitHubAnnotations {
+					RenderGitHubAnnotationError(err, displayFileName)
+				}
+				if !flags.GitHubAnnotations {
+					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+				}
+			}
+			lintErr := NewInputError("linting failed due to %d issues", len(result.Errors))
+			result.ReleaseOwnedResources()
+			return lintErr
+		}
+
 		result.Results = utils.FilterIgnoredResultsWithOptions(
 			result.Results,
 			ignoredItems,
@@ -384,23 +404,6 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// render out buffered logs (chrome; suppressed in annotation mode so
-		// debug output does not contaminate the annotation stream on stdout)
-		if !flags.GitHubAnnotations {
-			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
-		}
-
-		if len(result.Errors) > 0 {
-			for _, err := range result.Errors {
-				if flags.GitHubAnnotations {
-					RenderGitHubAnnotationError(err, displayFileName)
-				}
-				if !flags.GitHubAnnotations {
-					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
-				}
-			}
-			return NewInputError("linting failed due to %d issues", len(result.Errors))
-		}
 		if result.HasTruncatedPaths() {
 			renderResultPathsTruncatedWarning(flags, "")
 		}

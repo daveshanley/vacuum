@@ -363,7 +363,10 @@ func TestPerRuleTimeoutDoesNotCancelRun(t *testing.T) {
 	receiveRuleIDs(t, function.finished, 2)
 
 	assert.NoError(t, control.Err())
-	assert.Empty(t, errs)
+	require.Len(t, errs, 1)
+	var timeout *RuleTimeoutError
+	require.ErrorAs(t, errs[0], &timeout)
+	assert.Equal(t, "a", timeout.RuleId)
 	require.Len(t, results, 1)
 	assert.Equal(t, "b", results[0].RuleId)
 }

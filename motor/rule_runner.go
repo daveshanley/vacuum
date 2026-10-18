@@ -6,6 +6,7 @@ package motor
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sort"
 	"sync"
@@ -14,6 +15,17 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
 )
+
+// RuleTimeoutError reports a rule whose incomplete output was discarded.
+type RuleTimeoutError struct {
+	RuleId  string
+	Timeout time.Duration
+}
+
+// Error identifies the rule and the time allowed for it to complete.
+func (e *RuleTimeoutError) Error() string {
+	return fmt.Sprintf("rule %s timed out after %v; increase --timeout to allow more time", e.RuleId, e.Timeout)
+}
 
 type ruleContextBuilder func(rule *model.Rule) ruleContext
 
@@ -87,12 +99,10 @@ func runRuleContexts(
 					default:
 					}
 					result := executeRuleContext(control, execution, job.rule, logger, buildContext)
-					if result.outcome != ruleContextCompleted {
-						if result.outcome == ruleContextCancelled {
-							return
-						}
-						continue
+					if result.outcome == ruleContextCancelled {
+						return
 					}
+
 					result.index = job.index
 					completedResults <- result
 				}
@@ -121,7 +131,7 @@ func runRuleContexts(
 		resultsByRule[result.index] = result
 	}
 	for _, result := range resultsByRule {
-		if result.outcome != ruleContextCompleted {
+		if result.outcome != ruleContextCompleted && result.outcome != ruleContextTimedOut {
 			continue
 		}
 		ruleResults = append(ruleResults, result.ruleResults...)
@@ -218,7 +228,10 @@ func executeRuleContext(
 		}
 		// runRule is not cancellable; on timeout its goroutine may finish later,
 		// writing only to these orphaned local slices.
-		return ruleContextResult{outcome: ruleContextTimedOut}
+		return ruleContextResult{
+			outcome: ruleContextTimedOut,
+			errors:  []error{&RuleTimeoutError{RuleId: rule.Id, Timeout: execution.Timeout}},
+		}
 	case <-doneChan:
 		return completed()
 	}
