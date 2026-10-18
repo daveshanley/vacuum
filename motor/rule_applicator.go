@@ -1582,19 +1582,9 @@ func runRule(ctx ruleContext) {
 
 			// Rule selectors use the safe Spectral dialect while preserving the
 			// bounded lookup behavior required for untrusted custom rulesets.
+			// A failed lookup must not change the rule's reference-resolution semantics.
 			nodes, err = findRuleGivenNodes(
 				ctx.specNode, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
-			if err != nil {
-				// Timeout or error — retry with unresolved spec
-				ctx.logger.Warn("timeout/error looking for nodes, retrying with unresolved spec",
-					"path", givenPath, "rule", ctx.rule.Id, "error", err)
-				nodes, err = findRuleGivenNodes(
-					ctx.specNodeUnresolved, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
-				if err != nil {
-					ctx.logger.Error("giving up on node lookup",
-						"path", givenPath, "rule", ctx.rule.Id, "error", err)
-				}
-			}
 
 		} else {
 			// if we're looking for the root, don't bother looking, we already have it.
