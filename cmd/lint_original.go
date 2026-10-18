@@ -5,6 +5,8 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,6 +32,7 @@ type originalDiffWarningFunc func(error)
 type originalResultSetDiffOptions struct {
 	OriginalPath            string
 	CurrentBytes            []byte
+	CurrentErrors           []error
 	CurrentPath             string
 	ResultSet               *model.RuleResultSet
 	Execution               *motor.RuleSetExecution
@@ -61,6 +64,7 @@ func (r *lintOriginalResult) releaseOwnedResources() {
 // All config fields (RuleSet, CustomFunctions, Timeout, etc.) are copied from the template
 // to guarantee exact config parity. Only Spec, SpecFileName, and Base are replaced.
 // Returns nil results (not an error) if the original spec has parse errors.
+// Rule lookup and execution failures return an error rather than an empty baseline.
 func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, executionOptions *motor.ExecutionOptions) ([]model.RuleFunctionResult, error) {
 	result, err := lintOriginalSpecForDiff(originalPath, template, executionOptions)
 	if result != nil {
@@ -120,9 +124,17 @@ func lintOriginalSpecForDiff(originalPath string, template *motor.RuleSetExecuti
 
 	result := motor.ApplyRulesToRuleSetWithOptions(exec, executionOptions)
 
-	// If original spec has parse errors, return nil — safe default means all new violations get reported
 	if len(result.Errors) > 0 {
-		result.ReleaseOwnedResources()
+		defer result.ReleaseOwnedResources()
+		// Preserve the invalid-original fallback, but never compare against an
+		// empty baseline after a rule lookup, configuration or execution failure.
+		var lookup *motor.RuleLookupError
+		executionErr := errors.Join(result.Errors...)
+		if result.SpecInfo != nil || errors.As(executionErr, &lookup) ||
+			ruleSetConfigurationError(result) != nil ||
+			errors.Is(executionErr, context.Canceled) || errors.Is(executionErr, context.DeadlineExceeded) {
+			return nil, NewInputError("failed to lint original spec %q: %v", originalPath, executionErr)
+		}
 		return nil, nil
 	}
 
@@ -159,9 +171,13 @@ func originalSpecCanReuseCurrentResults(originalPath string, currentBytes []byte
 	return externalReferenceFilesMatch(originalPath, currentPath, currentBytes)
 }
 
-func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.DocumentChanges, bool) {
+func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.DocumentChanges, bool, error) {
 	if opts.OriginalPath == "" || opts.ResultSet == nil {
-		return nil, false
+		return nil, false, nil
+	}
+
+	if len(opts.CurrentErrors) > 0 {
+		return nil, false, NewInputError("failed to lint current spec %q: %v", opts.CurrentPath, errors.Join(opts.CurrentErrors...))
 	}
 
 	var customFunctions map[string]model.RuleFunction
@@ -172,7 +188,7 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 	}
 	if originalSpecCanReuseCurrentResults(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath, currentBase, customFunctions) {
 		opts.ResultSet.Results = nil
-		return emptyDocumentChanges(), true
+		return emptyDocumentChanges(), true, nil
 	}
 
 	if opts.Execution == nil {
@@ -181,19 +197,23 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 			if opts.WarnChangeReportFailure != nil {
 				opts.WarnChangeReportFailure(changeErr)
 			}
-			return nil, false
+			return nil, false, nil
 		}
 		if changeResult == nil {
-			return nil, false
+			return nil, false, nil
 		}
 		changeFilter := utils.NewChangeFilter(changeResult.DocumentChanges, opts.DrDocument)
 		opts.ResultSet.Results = changeFilter.FilterResults(opts.ResultSet.Results)
-		return changeResult.DocumentChanges, true
+		return changeResult.DocumentChanges, true, nil
 	}
 
 	filtered := false
 	originalLint, lintErr := lintOriginalSpecForDiff(opts.OriginalPath, opts.Execution, opts.ExecutionOptions)
 	if lintErr != nil {
+		var fatal *ExitError
+		if errors.As(lintErr, &fatal) {
+			return nil, false, lintErr
+		}
 		if opts.WarnOriginalLintFailure != nil {
 			opts.WarnOriginalLintFailure(lintErr)
 		}
@@ -219,33 +239,38 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 		if opts.WarnChangeReportFailure != nil {
 			opts.WarnChangeReportFailure(changeErr)
 		}
-		return nil, filtered
+		return nil, filtered, nil
 	}
 	if changeResult == nil {
-		return nil, filtered
+		return nil, filtered, nil
 	}
-	return changeResult.DocumentChanges, filtered
+	return changeResult.DocumentChanges, filtered, nil
 }
 
-func applyOriginalDiffToValues(opts originalValueDiffOptions) ([]model.RuleFunctionResult, *utils.ChangeFilterStats) {
+func applyOriginalDiffToValues(opts originalValueDiffOptions) ([]model.RuleFunctionResult, *utils.ChangeFilterStats, error) {
 	if opts.OriginalPath == "" {
-		return opts.Results, nil
+		return opts.Results, nil, nil
 	}
 	if opts.ReuseCurrentResults {
 		// Current lint results are also the original results. Route through the
 		// canonical differ so filtering stats stay identical to the full path.
-		return utils.DiffViolationsValues(opts.Results, opts.Results)
+		filtered, stats := utils.DiffViolationsValues(opts.Results, opts.Results)
+		return filtered, stats, nil
 	}
 	if opts.Execution == nil {
-		return opts.Results, nil
+		return opts.Results, nil, nil
 	}
 
 	originalLint, lintErr := lintOriginalSpecForDiff(opts.OriginalPath, opts.Execution, opts.ExecutionOptions)
 	if lintErr != nil {
+		var fatal *ExitError
+		if errors.As(lintErr, &fatal) {
+			return nil, nil, lintErr
+		}
 		if opts.WarnOriginalLintFailure != nil {
 			opts.WarnOriginalLintFailure(lintErr)
 		}
-		return opts.Results, nil
+		return opts.Results, nil, nil
 	}
 
 	var originalResults []model.RuleFunctionResult
@@ -261,7 +286,7 @@ func applyOriginalDiffToValues(opts originalValueDiffOptions) ([]model.RuleFunct
 	if originalLint != nil {
 		originalLint.releaseOwnedResources()
 	}
-	return filteredResults, stats
+	return filteredResults, stats, nil
 }
 
 func currentSpecUsesDefaultBase(currentPath string, currentBase string) bool {

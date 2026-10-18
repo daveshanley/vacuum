@@ -354,9 +354,11 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
-						documentChanges, _ = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+						var originalErr error
+						documentChanges, _, originalErr = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
 							OriginalPath:     originalFlag,
 							CurrentBytes:     specBytes,
+							CurrentErrors:    ruleset.Errors,
 							CurrentPath:      specFile,
 							ResultSet:        resultSet,
 							Execution:        ruleset.RuleSetExecution,
@@ -372,6 +374,12 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 								}
 							},
 						})
+						if originalErr != nil {
+							if ruleset != nil {
+								ruleset.ReleaseOwnedResources()
+							}
+							return originalErr
+						}
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)
