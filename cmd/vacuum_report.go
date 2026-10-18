@@ -366,9 +366,11 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
-						documentChanges, filtered = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+						var originalErr error
+						documentChanges, filtered, originalErr = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
 							OriginalPath:     originalFlag,
 							CurrentBytes:     specBytes,
+							CurrentErrors:    ruleset.Errors,
 							CurrentPath:      specFile,
 							ResultSet:        resultSet,
 							Execution:        ruleset.RuleSetExecution,
@@ -384,6 +386,12 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 								}
 							},
 						})
+						if originalErr != nil {
+							if ruleset != nil {
+								ruleset.ReleaseOwnedResources()
+							}
+							return originalErr
+						}
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)

@@ -209,13 +209,14 @@ func TestApplyOriginalDiffToValues_ReuseCurrentResultsUsesCanonicalStats(t *test
 		{RuleId: "a-rule", Message: "same", Path: "$.a"},
 	}
 
-	filtered, stats := applyOriginalDiffToValues(originalValueDiffOptions{
+	filtered, stats, err := applyOriginalDiffToValues(originalValueDiffOptions{
 		OriginalPath:        "original.yaml",
 		CurrentPath:         "current.yaml",
 		Results:             results,
 		ReuseCurrentResults: true,
 	})
 
+	require.NoError(t, err)
 	assert.Empty(t, filtered)
 	require.NotNil(t, stats)
 	assert.Equal(t, len(results), stats.TotalResultsBefore)

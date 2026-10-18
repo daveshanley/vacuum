@@ -319,9 +319,15 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 							execution = ruleset.RuleSetExecution
 							executionOptions = newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 						}
-						documentChanges, filtered = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+						var originalCurrentErrors []error
+						if ruleset != nil {
+							originalCurrentErrors = ruleset.Errors
+						}
+						var originalErr error
+						documentChanges, filtered, originalErr = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
 							OriginalPath:     originalFlag,
 							CurrentBytes:     specBytes,
+							CurrentErrors:    originalCurrentErrors,
 							CurrentPath:      specFile,
 							ResultSet:        resultSet,
 							Execution:        execution,
@@ -342,6 +348,12 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 								}
 							},
 						})
+						if originalErr != nil {
+							if ruleset != nil {
+								ruleset.ReleaseOwnedResources()
+							}
+							return originalErr
+						}
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)

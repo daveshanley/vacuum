@@ -272,6 +272,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				RenderBufferedLogs(bufferedLogger, false)
 
+				defer result.ReleaseOwnedResources()
 				if len(result.Errors) > 0 {
 					if !silent {
 						// Create error box for each error
@@ -282,7 +283,7 @@ func GetDashboardCommand() *cobra.Command {
 							fmt.Println(style.Render(messageStyle.Render(message)))
 						}
 					}
-					return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+					return NewInputError("linting failed due to %d issues", len(result.Errors))
 				}
 
 				resultSet = model.NewRuleResultSet(result.Results)
@@ -300,6 +301,10 @@ func GetDashboardCommand() *cobra.Command {
 					// Live-spec mode: use violation-set diffing for accurate filtering
 					originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, execution, executionOptions)
 					if lintErr != nil {
+						var fatal *ExitError
+						if errors.As(lintErr, &fatal) {
+							return lintErr
+						}
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
 							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)

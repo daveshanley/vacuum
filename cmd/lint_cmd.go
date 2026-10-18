@@ -345,7 +345,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
-			result.Results, changeFilterStats = applyOriginalDiffToValues(originalValueDiffOptions{
+			var originalErr error
+			result.Results, changeFilterStats, originalErr = applyOriginalDiffToValues(originalValueDiffOptions{
 				OriginalPath:        flags.OriginalFlag,
 				CurrentPath:         fileName,
 				Results:             result.Results,
@@ -359,6 +360,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 					}
 				},
 			})
+			if originalErr != nil {
+				result.ReleaseOwnedResources()
+				return originalErr
+			}
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
 			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
