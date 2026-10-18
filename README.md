@@ -137,6 +137,20 @@ like our _very kind_ sponsors, past and present:
 Need help? Have a question? Want to share your work? [Join our discord](https://discord.gg/UAcUF78MQN) and
 come say hi!
 
+## Timeout behavior
+
+Resolved rule lookups no longer retry against unresolved documents after a timeout or query error.
+This applies to plain linting and dashboard commands, reports, and library callers as well as `--original` comparisons.
+`lint` and `dashboard` return exit code 2 when a lookup or rule execution times out.
+Without `--original`, `vacuum report` records these failures as execution errors; its findings can be incomplete.
+Spectral and HTML output retain their existing formats and can omit findings from failed rules.
+A comparison with `--original` stops with exit code 2 if either lint run fails and does not produce a comparison report.
+Library callers must check `RuleSetExecutionResult.Errors`, including `RuleLookupError` and `RuleTimeoutError`.
+
+For large documents, increase `--lookup-timeout` (milliseconds, default 500) if a JSONPath lookup needs more time,
+or `--timeout` (seconds, default 5) if the complete rule needs more time. The rule budget must also allow the lookup to finish.
+A timeout is an incomplete check, not evidence that the document is clean.
+
 ## Documentation
 
 🔥 **New in** `v0.33` 🔥: **Arazzo workflow linting and a new `or` function**

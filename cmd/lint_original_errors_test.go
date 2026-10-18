@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/daveshanley/vacuum/html-report"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
 )
@@ -31,15 +33,35 @@ func TestIssue955OriginalExecutionFailures(t *testing.T) {
 		{name: "canceled", given: "$", function: "truthy", options: &motor.ExecutionOptions{Context: canceled}},
 	} {
 		t.Run(failure.name, func(t *testing.T) {
-			execution := &motor.RuleSetExecution{RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"test": {Id: "test", Given: failure.given, Then: model.RuleAction{Function: failure.function}}}}, CustomFunctions: map[string]model.RuleFunction{"unused": originalShortcutTestFunction{}}}
+			execution := &motor.RuleSetExecution{
+				RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{
+					"test": {Id: "test", Given: failure.given, Then: model.RuleAction{Function: failure.function}},
+				}},
+				CustomFunctions: map[string]model.RuleFunction{"unused": originalShortcutTestFunction{}},
+			}
 			warned := false
 			warning := func(error) { warned = true }
 			current := []model.RuleFunctionResult{{Message: "current finding", RuleId: "test"}}
-			_, _, err := applyOriginalDiffToValues(originalValueDiffOptions{OriginalPath: original, CurrentPath: original, Results: current, Execution: execution, ExecutionOptions: failure.options, WarnOriginalLintFailure: warning})
+			_, _, err := applyOriginalDiffToValues(originalValueDiffOptions{
+				OriginalPath:            original,
+				CurrentPath:             original,
+				Results:                 current,
+				Execution:               execution,
+				ExecutionOptions:        failure.options,
+				WarnOriginalLintFailure: warning,
+			})
 			requireOriginalInputError(t, err)
 			require.Contains(t, err.Error(), "original spec")
 			resultSet := model.NewRuleResultSet(current)
-			_, filtered, err := applyOriginalDiffToResultSet(originalResultSetDiffOptions{OriginalPath: original, CurrentPath: original, CurrentBytes: spec, ResultSet: resultSet, Execution: execution, ExecutionOptions: failure.options, WarnOriginalLintFailure: warning})
+			_, filtered, err := applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+				OriginalPath:            original,
+				CurrentPath:             original,
+				CurrentBytes:            spec,
+				ResultSet:               resultSet,
+				Execution:               execution,
+				ExecutionOptions:        failure.options,
+				WarnOriginalLintFailure: warning,
+			})
 			requireOriginalInputError(t, err)
 			require.False(t, filtered)
 			require.Len(t, resultSet.Results, 1, "failed baseline must not be used for comparison")
@@ -111,7 +133,13 @@ func TestIssue955OriginalCommandsRejectIncompleteLint(t *testing.T) {
 					requireOriginalInputError(t, err)
 					if phase == "original" {
 						require.Contains(t, err.Error(), "original spec")
+					} else {
+						require.NotContains(t, err.Error(), "original spec", "current failure must be reported before running the baseline")
+						if surface.name == "lint" {
+							require.Contains(t, err.Error(), "1 issues")
+						}
 					}
+
 					if surface.output != "" {
 						files, err := filepath.Glob(outputPath + "*")
 						require.NoError(t, err)
@@ -121,4 +149,58 @@ func TestIssue955OriginalCommandsRejectIncompleteLint(t *testing.T) {
 			}
 		})
 	}
+}
+
+type originalBlockingFunction struct {
+	unblock <-chan struct{}
+}
+
+func (f originalBlockingFunction) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "blockOriginal"}
+}
+
+func (f originalBlockingFunction) GetCategory() string {
+	return model.CategoryValidation
+}
+
+func (f originalBlockingFunction) RunRule(_ []*yaml.Node, _ model.RuleFunctionContext) []model.RuleFunctionResult {
+	<-f.unblock
+	return nil
+}
+
+func TestIssue955OriginalRuleTimeoutIsFatal(t *testing.T) {
+	spec := []byte("openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}\n")
+	original := filepath.Join(t.TempDir(), "original.yaml")
+	require.NoError(t, os.WriteFile(original, spec, 0o600))
+	unblock := make(chan struct{})
+	defer close(unblock)
+	execution := &motor.RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{
+			"slow-original": {
+				Id: "slow-original", Given: "$",
+				Then: model.RuleAction{Function: "blockOriginal"},
+			},
+		}},
+		Timeout: 10 * time.Millisecond,
+		CustomFunctions: map[string]model.RuleFunction{
+			"blockOriginal": originalBlockingFunction{unblock: unblock},
+		},
+	}
+	_, _, err := applyOriginalDiffToValues(originalValueDiffOptions{
+		OriginalPath: original,
+		CurrentPath:  original,
+		Execution:    execution,
+	})
+	requireOriginalInputError(t, err)
+	require.Contains(t, err.Error(), "rule slow-original timed out")
+	_, filtered, err := applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+		OriginalPath: original,
+		CurrentPath:  original,
+		CurrentBytes: spec,
+		ResultSet:    model.NewRuleResultSet(nil),
+		Execution:    execution,
+	})
+	requireOriginalInputError(t, err)
+	require.False(t, filtered)
+	require.Contains(t, err.Error(), "rule slow-original timed out")
 }

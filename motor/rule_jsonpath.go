@@ -55,7 +55,7 @@ func findRuleGivenNodes(
 	case queryResult := <-result:
 		return queryResult.nodes, queryResult.err
 	case <-timer.C:
-		return nil, fmt.Errorf("node lookup timeout exceeded (%v)", timeout)
+		return nil, fmt.Errorf("node lookup timeout exceeded (%v); increase --lookup-timeout to allow more time", timeout)
 	}
 }
 

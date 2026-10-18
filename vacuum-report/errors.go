@@ -3,7 +3,10 @@
 
 package vacuum_report
 
-const ReportErrorTypeRuleLookup = "rule_lookup"
+const (
+	ReportErrorTypeRuleLookup  = "rule_lookup"
+	ReportErrorTypeRuleTimeout = "rule_timeout"
+)
 
 // ReportErrors contains non-fatal execution errors captured while building a
 // machine-readable report. When present, report consumers should treat results

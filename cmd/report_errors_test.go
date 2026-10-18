@@ -6,6 +6,7 @@ package cmd
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/daveshanley/vacuum/motor"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
@@ -35,4 +36,16 @@ func TestBuildReportErrors(t *testing.T) {
 func TestBuildReportErrors_Empty(t *testing.T) {
 	assert.Nil(t, buildReportErrors(nil))
 	assert.Nil(t, buildReportErrors([]error{nil}))
+}
+
+func TestBuildReportErrorsRuleTimeout(t *testing.T) {
+	report := buildReportErrors([]error{&motor.RuleTimeoutError{
+		RuleId:  "slow-rule",
+		Timeout: time.Second,
+	}})
+	if assert.NotNil(t, report) && assert.Len(t, report.Items, 1) {
+		assert.Equal(t, vacuum_report.ReportErrorTypeRuleTimeout, report.Items[0].Type)
+		assert.Equal(t, "slow-rule", report.Items[0].RuleId)
+		assert.Contains(t, report.Items[0].Message, "--timeout")
+	}
 }

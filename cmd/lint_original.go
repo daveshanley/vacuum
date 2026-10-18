@@ -128,9 +128,9 @@ func lintOriginalSpecForDiff(originalPath string, template *motor.RuleSetExecuti
 		defer result.ReleaseOwnedResources()
 		// Preserve the invalid-original fallback, but never compare against an
 		// empty baseline after a rule lookup, configuration or execution failure.
-		var lookup *motor.RuleLookupError
+		// Configuration and cancellation can fail before SpecInfo exists.
 		executionErr := errors.Join(result.Errors...)
-		if result.SpecInfo != nil || errors.As(executionErr, &lookup) ||
+		if result.SpecInfo != nil ||
 			ruleSetConfigurationError(result) != nil ||
 			errors.Is(executionErr, context.Canceled) || errors.Is(executionErr, context.DeadlineExceeded) {
 			return nil, NewInputError("failed to lint original spec %q: %v", originalPath, executionErr)

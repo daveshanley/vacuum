@@ -2004,7 +2004,7 @@ components:
 	results := ApplyRulesToRuleSet(ex)
 	assert.Len(t, results.Errors, 1)
 	assert.Nil(t, results.Results)
-	assert.Equal(t, "rule test lookup failed for given $..paths: node lookup timeout exceeded (1ns)", results.Errors[0].Error())
+	assert.Equal(t, "rule test lookup failed for given $..paths: node lookup timeout exceeded (1ns); increase --lookup-timeout to allow more time", results.Errors[0].Error())
 	assert.Equal(t, "rule lookup failed", (&RuleLookupError{}).Error())
 }
 

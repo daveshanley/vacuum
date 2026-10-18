@@ -387,9 +387,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 							},
 						})
 						if originalErr != nil {
-							if ruleset != nil {
-								ruleset.ReleaseOwnedResources()
-							}
+							ruleset.ReleaseOwnedResources()
 							return originalErr
 						}
 					} else if changesFlag != "" {
