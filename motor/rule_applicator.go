@@ -58,6 +58,9 @@ type RuleLookupError struct {
 // document edits remain private until the complete rule succeeds. Other objects
 // exposed through RuleFunctionContext remain caller-owned and must not be mutated.
 type ExecutionOptions struct {
+	// Evidence optionally collects bounded rule execution evidence. Do not share it between invocations.
+	Evidence *ExecutionEvidence
+
 	// Context is the base context for the complete motor invocation; nil uses context.Background.
 	Context context.Context
 	// RunTimeout sets a deadline when positive; earlier caller cancellation wins.
@@ -165,6 +168,9 @@ func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
 }
 
 type ruleContext struct {
+	evidence    *RuleEvidence
+	sampleLimit int
+
 	rule               *model.Rule
 	specNode           *yaml.Node
 	specNodeUnresolved *yaml.Node
@@ -1599,6 +1605,20 @@ func runRule(ctx ruleContext) {
 			})
 			return
 		}
+		if ctx.evidence != nil {
+			selector := SelectorEvidence{Given: givenPath, Matches: len(nodes)}
+			if ctx.sampleLimit > 0 {
+				for i, node := range nodes {
+					if i >= ctx.sampleLimit {
+						selector.Truncated = true
+						break
+					}
+					selector.Samples = append(selector.Samples, EvidenceLocation{Line: node.Line, Column: node.Column})
+				}
+			}
+			ctx.evidence.Selectors = append(ctx.evidence.Selectors, selector)
+			ctx.evidence.Matches += len(nodes)
+		}
 		if len(nodes) <= 0 {
 			continue
 		}
@@ -1677,6 +1697,9 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		}
 		var messagePaths *vacuumUtils.NodePathIndex
 		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
+			if ctx.evidence != nil {
+				ctx.evidence.Invocations++
+			}
 			results := ruleFunction.RunRule(selected, rfc)
 			if templated {
 				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {

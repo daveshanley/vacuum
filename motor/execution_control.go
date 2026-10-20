@@ -18,6 +18,8 @@ const defaultMaxRuleConcurrency = 32
 // executionControl owns cancellation, worker limits, and auto-fix serialization
 // for one invocation. Close ends its context without cancelling the caller.
 type executionControl struct {
+	evidence *ExecutionEvidence
+
 	context            context.Context
 	cancel             context.CancelFunc
 	maxRuleConcurrency int
@@ -34,6 +36,12 @@ func newExecutionControl(options *ExecutionOptions) (*executionControl, error) {
 		return nil, fmt.Errorf("max rule concurrency must be zero or greater, got %d", options.MaxRuleConcurrency)
 	}
 
+	if options.Evidence != nil {
+		if options.Evidence.SampleLimit < 0 || options.Evidence.SampleLimit > 100 {
+			return nil, fmt.Errorf("evidence sample limit must be between 0 and 100")
+		}
+		options.Evidence.Rules = []RuleEvidence{}
+	}
 	parent := options.Context
 	if parent == nil {
 		parent = context.Background()
@@ -52,6 +60,7 @@ func newExecutionControl(options *ExecutionOptions) (*executionControl, error) {
 		maxConcurrency = defaultMaxRuleConcurrency
 	}
 	control := &executionControl{
+		evidence:           options.Evidence,
 		context:            ctx,
 		cancel:             cancel,
 		maxRuleConcurrency: maxConcurrency,
