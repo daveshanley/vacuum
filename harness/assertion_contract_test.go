@@ -27,3 +27,9 @@ func TestDiagnosticPathsRoundTripRetainsEmptyAssertion(t *testing.T) {
 	require.NotNil(t, decoded.Cases[0].Expect.Diagnostics[0].Paths)
 	require.Equal(t, Run(s, path, RunOptions{}).ExitCode, Run(decoded, path, RunOptions{}).ExitCode)
 }
+
+func TestFixtureRejectsTrailingDocument(t *testing.T) {
+	s, path := testSuite(t)
+	fixture(t, "good.yaml", good+"---\nopenapi: broken\n", filepath.Dir(path))
+	require.Equal(t, 2, Run(s, path, RunOptions{}).ExitCode)
+}

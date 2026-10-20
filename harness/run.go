@@ -334,6 +334,11 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 			return out
 		}
 	}
+	var root yaml.Node
+	if err := decodeSingleDocument(b, &root); err != nil {
+		out.errs = append(out.errs, fmt.Sprintf("input %q: %v", path, err))
+		return out
+	}
 	o := effectiveOptions(r.suite.Options)
 	evidence := &motor.ExecutionEvidence{SampleLimit: r.opts.SampleLimit}
 	if fix {
@@ -349,11 +354,6 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	ex := &motor.RuleSetExecution{Spec: b, SpecFileName: r.path(path), Base: filepath.Dir(r.path(path)), RuleSet: rs, Logger: r.logger, SilenceLogs: true, CustomFunctions: r.functions, AutoFixFunctions: r.opts.AutoFixFunctions, ApplyAutoFixes: fix, AllowLookup: o.Remote, Timeout: time.Duration(o.TimeoutMS) * time.Millisecond, NodeLookupTimeout: time.Duration(o.LookupTimeoutMS) * time.Millisecond, SkipDocumentCheck: c.Format == "fragment"}
 	if c.Format == "json-schema" {
 		ex.SkipDocumentCheck = true
-		var root yaml.Node
-		if err := yaml.Unmarshal(b, &root); err != nil {
-			out.errs = append(out.errs, err.Error())
-			return out
-		}
 		ex.SpecFormat = schemautil.DetectDialect(&root).Format
 	}
 	var panicValue any
@@ -375,7 +375,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	if o.Remote {
 		r.limitations["remote document lookup enabled; external responses are not captured"] = true
 	}
-	r.trackDocumentPaths(ex.CanonicalDocument)
+	r.trackDocumentPaths(&root)
 	if ex.Arazzo != nil {
 		for source := range ex.Arazzo.Sources {
 			if strings.Contains(source, "://") {
