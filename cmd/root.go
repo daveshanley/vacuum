@@ -141,6 +141,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("nested-refs-doc-context", false, "Resolve nested relative refs from the referenced document during resolved execution")
 	rootCmd.PersistentFlags().Bool("no-update-check", false, "Disable checking for newer vacuum releases")
 	rootCmd.AddCommand(GetLintCommand())
+	rootCmd.AddCommand(GetTestCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
