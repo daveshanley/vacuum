@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 
@@ -9,8 +10,8 @@ import (
 )
 
 func (r *runner) runCase(c Case) CaseResult {
-	cr := CaseResult{ID: c.ID, Status: "passed", Failures: []Failure{}, Errors: []string{}}
-	before := r.execute(c, c.Input, nil, false)
+	cr := CaseResult{ID: c.ID, Status: "passed", Failures: []Failure{}, Errors: []ExecutionError{}}
+	before := r.execute(c, c.Input, nil, false, PhaseBefore)
 	cr.Before = before.snapshot
 	cr.Errors = append(cr.Errors, before.errs...)
 	if len(cr.Errors) > 0 {
@@ -19,7 +20,7 @@ func (r *runner) runCase(c Case) CaseResult {
 	}
 	cr.Failures = append(cr.Failures, assertSnapshot("expect", c.Expect, before.snapshot)...)
 	if c.After != "" {
-		after := r.execute(c, c.After, nil, false)
+		after := r.execute(c, c.After, nil, false, PhaseAfter)
 		cr.After = after.snapshot
 		cr.Errors = append(cr.Errors, after.errs...)
 		if len(after.errs) == 0 {
@@ -29,7 +30,7 @@ func (r *runner) runCase(c Case) CaseResult {
 			if c.Change != nil {
 				for _, d := range append(append([]Diagnostic{}, before.snapshot.Diagnostics...), after.snapshot.Diagnostics...) {
 					if d.PathsTruncated {
-						cr.Errors = append(cr.Errors, "change comparison requires complete diagnostic paths")
+						cr.Errors = append(cr.Errors, r.executionErrors(fmt.Errorf("change comparison requires complete diagnostic paths"), ErrorPaths, PhaseChange, c.ID, "")...)
 						break
 					}
 				}
@@ -59,7 +60,7 @@ func (r *runner) runCase(c Case) CaseResult {
 }
 
 func (r *runner) checkFix(c Case, cr *CaseResult) {
-	fixed := r.execute(c, c.Input, nil, true)
+	fixed := r.execute(c, c.Input, nil, true, PhaseFixed)
 	cr.Fixed = fixed.snapshot
 	cr.Errors = append(cr.Errors, fixed.errs...)
 	if len(fixed.errs) > 0 {
@@ -70,31 +71,31 @@ func (r *runner) checkFix(c Case, cr *CaseResult) {
 		var err error
 		modified, err = r.read(c.Input)
 		if err != nil {
-			cr.Errors = append(cr.Errors, err.Error())
+			cr.Errors = append(cr.Errors, r.executionErrors(err, ErrorInput, PhaseFixed, c.ID, c.Input)...)
 			return
 		}
 	}
 	expected, err := r.read(c.Fix.Output)
 	if err != nil {
-		cr.Errors = append(cr.Errors, err.Error())
+		cr.Errors = append(cr.Errors, r.executionErrors(err, ErrorInput, PhaseFixOutput, c.ID, c.Fix.Output)...)
 		return
 	}
 	equal, err := semanticEqual(expected, modified)
 	if err != nil {
-		cr.Errors = append(cr.Errors, err.Error())
+		cr.Errors = append(cr.Errors, r.executionErrors(err, ErrorDocument, PhaseFixOutput, c.ID, c.Fix.Output)...)
 		return
 	}
 	if !equal {
 		cr.Failures = append(cr.Failures, Failure{Assertion: "fix.output", Code: "document_mismatch", Expected: string(expected), Actual: string(modified)})
 	}
-	after := r.execute(c, c.Input, modified, false)
+	after := r.execute(c, c.Input, modified, false, PhaseAfter)
 	cr.After = after.snapshot
 	cr.Errors = append(cr.Errors, after.errs...)
 	if len(after.errs) > 0 {
 		return
 	}
 	cr.Failures = append(cr.Failures, assertSnapshot("fix.expect", c.Fix.Expect, after.snapshot)...)
-	again := r.execute(c, c.Input, modified, true)
+	again := r.execute(c, c.Input, modified, true, PhaseSecondFix)
 	cr.SecondFix = again.snapshot
 	cr.Errors = append(cr.Errors, again.errs...)
 	if len(again.errs) > 0 {
@@ -103,7 +104,7 @@ func (r *runner) checkFix(c Case, cr *CaseResult) {
 	if again.modified != nil {
 		equal, err = semanticEqual(modified, again.modified)
 		if err != nil {
-			cr.Errors = append(cr.Errors, err.Error())
+			cr.Errors = append(cr.Errors, r.executionErrors(err, ErrorDocument, PhaseSecondFix, c.ID, c.Input)...)
 		} else if !equal {
 			cr.Failures = append(cr.Failures, Failure{Assertion: "fix.idempotent", Code: "non_idempotent_fix", Expected: "no semantic change", Actual: string(again.modified)})
 		}

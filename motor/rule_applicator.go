@@ -1577,7 +1577,7 @@ func runRule(ctx ruleContext) {
 		defer func() {
 			if r := recover(); r != nil {
 				if ctx.reportFunctionErrors {
-					*ctx.errors = append(*ctx.errors, fmt.Errorf("rule %q panicked: %v", ctx.rule.Id, r))
+					*ctx.errors = append(*ctx.errors, &RuleExecutionError{Kind: RuleErrorPanic, RuleID: ctx.rule.Id, Err: fmt.Errorf("panicked: %v", r)})
 				}
 				if ctx.evidence != nil {
 					ctx.evidence.Status = "error"
@@ -1706,7 +1706,11 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		if ctx.reportFunctionErrors {
 			rfc.ReportError = func(err error) {
 				if err != nil {
-					*ctx.errors = append(*ctx.errors, fmt.Errorf("rule %q function %q: %w", ctx.rule.Id, ruleAction.Function, err))
+					var identified *RuleExecutionError
+					if !errors.As(err, &identified) {
+						err = &RuleExecutionError{Kind: RuleErrorFunction, RuleID: ctx.rule.Id, Function: ruleAction.Function, Err: err}
+					}
+					*ctx.errors = append(*ctx.errors, err)
 				}
 			}
 		}

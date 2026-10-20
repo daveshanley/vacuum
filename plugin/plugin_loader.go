@@ -15,6 +15,18 @@ import (
 	"time"
 )
 
+// FunctionLoadError retains the function and source that failed to load.
+type FunctionLoadError struct {
+	Function string
+	Source   string
+	Err      error
+}
+
+func (e *FunctionLoadError) Error() string {
+	return fmt.Sprintf("custom function %q (%s): %v", e.Function, e.Source, e.Err)
+}
+func (e *FunctionLoadError) Unwrap() error { return e.Err }
+
 // LoadFunctions will load custom functions found in the supplied path
 func LoadFunctions(path string, silence bool) (*Manager, error) {
 	return loadFunctions(path, silence, 0, false)
@@ -47,14 +59,14 @@ func loadFunctions(path string, silence bool, timeout time.Duration, strict bool
 			// let's try and open it.
 			p, e := plugin.Open(fPath)
 			if e != nil {
-				return nil, e
+				return nil, &FunctionLoadError{Source: fPath, Err: e}
 			}
 
 			// look up the Boot function and store as a Symbol
 			var bootFunc plugin.Symbol
 			bootFunc, err = p.Lookup("Boot")
 			if err != nil {
-				return nil, err
+				return nil, &FunctionLoadError{Source: fPath, Function: "Boot", Err: err}
 			}
 
 			// lets go pedro!
@@ -75,7 +87,7 @@ func loadFunctions(path string, silence bool, timeout time.Duration, strict bool
 			// let's try and read the file
 			p, e := os.ReadFile(fPath)
 			if e != nil {
-				return nil, e
+				return nil, &FunctionLoadError{Source: fPath, Function: fName, Err: e}
 			}
 
 			function := javascript.NewJSRuleFunction(fName, string(p))
@@ -83,7 +95,7 @@ func loadFunctions(path string, silence bool, timeout time.Duration, strict bool
 
 			if err := function.CheckScript(); err != nil {
 				loadErr := fmt.Errorf("unable to load custom function %q: %w; vacuum custom functions use a plain script with runRule(input) and getSchema(); check the script syntax and required function definitions", fPath, err)
-				loadErrors = append(loadErrors, loadErr)
+				loadErrors = append(loadErrors, &FunctionLoadError{Function: fName, Source: fPath, Err: loadErr})
 				continue
 			}
 			if !silence {
@@ -98,7 +110,7 @@ func loadFunctions(path string, silence bool, timeout time.Duration, strict bool
 			if strict {
 				schema, err := function.(*javascript.JSRuleFunction).GetSchemaWithError()
 				if err != nil {
-					loadErrors = append(loadErrors, fmt.Errorf("custom function %q schema: %w", fPath, err))
+					loadErrors = append(loadErrors, &FunctionLoadError{Function: fName, Source: fPath, Err: err})
 					continue
 				}
 				schemaName = schema.Name
@@ -112,7 +124,10 @@ func loadFunctions(path string, silence bool, timeout time.Duration, strict bool
 			}
 		}
 	}
-	if (strict || pm.LoadedFunctionCount() == 0) && len(loadErrors) > 0 {
+	if strict && len(loadErrors) > 0 {
+		return nil, errors.Join(loadErrors...)
+	}
+	if pm.LoadedFunctionCount() == 0 && len(loadErrors) > 0 {
 		return nil, fmt.Errorf("no vacuum custom functions loaded: %w", errors.Join(loadErrors...))
 	}
 	// Mixed directories still load valid functions. Report skipped scripts once

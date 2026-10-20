@@ -74,15 +74,15 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 
 		paths := resultGivenPaths(rule)
 		if len(paths) == 0 {
-			errs = append(errs, fmt.Errorf("rule %q requires at least one selector", key))
+			errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Err: fmt.Errorf("requires at least one selector")})
 		}
 		for _, path := range paths {
 			if strings.TrimSpace(path) == "" {
-				errs = append(errs, fmt.Errorf("rule %q has an empty selector", key))
+				errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Err: fmt.Errorf("empty selector")})
 			}
 		}
 		if values, ok := rule.Given.([]interface{}); ok && len(values) != len(paths) {
-			errs = append(errs, fmt.Errorf("rule %q selectors must be strings", key))
+			errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Err: fmt.Errorf("selectors must be strings")})
 		}
 		actions := 0
 		forEachRuleAction(rule, func(action model.RuleAction) bool {
@@ -96,12 +96,12 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 			}
 			valid, issues := validateFunctionSchema(f, model.RuleFunctionContext{Rule: rule, RuleAction: &action, Options: action.FunctionOptions})
 			if !valid || len(issues) > 0 {
-				errs = append(errs, fmt.Errorf("rule %q action %q: %v", key, action.Function, issues))
+				errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Function: action.Function, Err: fmt.Errorf("%v", issues)})
 			}
 			return false
 		})
 		if actions == 0 {
-			errs = append(errs, fmt.Errorf("rule %q requires at least one action", key))
+			errs = append(errs, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: key, Err: fmt.Errorf("requires at least one action")})
 		}
 	}
 	return errs

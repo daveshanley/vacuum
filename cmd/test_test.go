@@ -71,6 +71,8 @@ func TestHarnessCLIIntegration(t *testing.T) {
 	require.Equal(t, 1, r.ExitCode)
 	r, _ = run("suite.yaml", "--case", "missing")
 	require.Equal(t, 2, r.ExitCode)
+	require.Equal(t, harness.ErrorSelection, r.Errors[0].Code)
+	require.Equal(t, harness.PhaseLoad, r.Errors[0].Phase)
 	require.NoError(t, os.Mkdir(filepath.Join(dir, "functions"), 0700))
 	write("functions/noisy.js", `function getSchema(){return {name:"noisy"};} function runRule(input){console.log("plugin noise");return [];}`)
 	write("rules.yaml", "rules:\n  noisy:\n    given: $\n    severity: error\n    then: {function: noisy}\n")

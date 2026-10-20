@@ -90,7 +90,7 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 		if _, err := callback(privateTarget, state.root, rfc); err != nil {
 			state.failed = true
 			if rfc.ReportError != nil {
-				rfc.ReportError(err)
+				rfc.ReportError(&RuleExecutionError{Kind: RuleErrorAutoFix, RuleID: ctx.rule.Id, Function: ctx.rule.AutoFixFunction, Err: err})
 			}
 			if !ctx.silenceLogs && ctx.logger != nil {
 				ctx.logger.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)

@@ -157,7 +157,7 @@ func (j *JSRuleFunction) runMetadata(run func() error) error {
 	timeout := j.getTimeout(model.RuleFunctionContext{})
 	finished := make(chan struct{})
 	timer := time.AfterFunc(timeout, func() {
-		j.runtime.Interrupt(fmt.Errorf("JavaScript metadata timed out after %s", timeout))
+		j.runtime.Interrupt(fmt.Errorf("JavaScript metadata timed out after %s: %w", timeout, context.DeadlineExceeded))
 		close(finished)
 	})
 	defer func() {

@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
@@ -42,11 +41,11 @@ type runner struct {
 func RunFile(path string, opts RunOptions) *Report {
 	s, err := Load(path)
 	if err != nil {
-		return errorReport(err)
+		return errorReport(ErrorSuite, PhaseLoad, err)
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return errorReport(err)
+		return errorReport(ErrorSuite, PhaseLoad, err)
 	}
 	return Run(s, abs, opts)
 }
@@ -56,18 +55,18 @@ func RunFile(path string, opts RunOptions) *Report {
 func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 	defer func() {
 		if v := recover(); v != nil {
-			report = errorReport(fmt.Errorf("harness execution panicked: %v", v))
+			report = errorReport(ErrorInternal, PhaseLoad, fmt.Errorf("harness execution panicked: %v", v))
 		}
 	}()
 	if err := s.Validate(); err != nil {
-		return errorReport(err)
+		return errorReport(ErrorSuite, PhaseLoad, err)
 	}
 	if opts.SampleLimit < 0 || opts.SampleLimit > 100 {
-		return errorReport(fmt.Errorf("sample limit must be between 0 and 100"))
+		return errorReport(ErrorArguments, PhaseLoad, fmt.Errorf("sample limit must be between 0 and 100"))
 	}
 	abs, err := filepath.Abs(suitePath)
 	if err != nil {
-		return errorReport(err)
+		return errorReport(ErrorSuite, PhaseLoad, err)
 	}
 	r := &runner{base: filepath.Dir(abs), suite: s, opts: opts, ctx: opts.Context, logger: slog.New(slog.NewTextHandler(io.Discard, nil)), files: map[string]string{}, limitations: map[string]bool{}, functions: map[string]model.RuleFunction{}}
 	if r.ctx == nil {
@@ -83,7 +82,7 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 			r.trackAbsolutePath(c.Fix.Output)
 		}
 	}
-	report = &Report{Version: 1, Status: "passed", Cases: []CaseResult{}, Errors: []string{}, Manifest: Manifest{VacuumVersion: opts.Version, Suite: filepath.Base(abs), Options: effectiveOptions(s.Options), Files: []FileIdentity{}, Limitations: []string{}}}
+	report = &Report{Version: 1, Status: "passed", Cases: []CaseResult{}, Errors: []ExecutionError{}, Manifest: Manifest{VacuumVersion: opts.Version, Suite: filepath.Base(abs), Options: effectiveOptions(s.Options), Files: []FileIdentity{}, Limitations: []string{}}}
 	effective, _ := json.Marshal(s)
 	effectiveHash := sha256.Sum256(effective)
 	report.Manifest.SuiteSHA256 = hex.EncodeToString(effectiveHash[:])
@@ -111,18 +110,24 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 		dir := r.path(s.Functions)
 		entries, e := os.ReadDir(dir)
 		if e != nil {
-			return errorReport(e)
+			return errorReport(ErrorFunctionLoad, PhaseLoad, e)
 		}
 		for _, entry := range entries {
 			if !entry.IsDir() && (strings.HasSuffix(entry.Name(), ".js") || strings.HasSuffix(entry.Name(), ".so")) {
 				if _, e := r.read(filepath.Join(dir, entry.Name())); e != nil {
-					return errorReport(e)
+					return errorReport(ErrorFunctionLoad, PhaseLoad, e)
 				}
 			}
 		}
 		manager, e := plugin.LoadFunctionsStrict(dir, time.Duration(effectiveOptions(s.Options).TimeoutMS)*time.Millisecond)
 		if e != nil {
-			return errorReport(e)
+			report := errorReport(ErrorFunctionLoad, PhaseLoad, e)
+			for i := range report.Errors {
+				if report.Errors[i].Source != "" {
+					report.Errors[i].Source = r.relative(report.Errors[i].Source)
+				}
+			}
+			return report
 		}
 		for name, f := range manager.GetAutoFixFunctions() {
 			if r.opts.AutoFixFunctions == nil {
@@ -151,7 +156,7 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 	sort.Strings(selectedIDs)
 	for _, id := range selectedIDs {
 		if !selected[id] {
-			return errorReport(fmt.Errorf("unknown case %q", id))
+			return errorReport(ErrorSelection, PhaseLoad, fmt.Errorf("unknown case %q", id))
 		}
 	}
 	for _, c := range s.Cases {
@@ -183,8 +188,8 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 	report.Manifest.Reproducible = len(report.Manifest.Limitations) == 0
 	return report
 }
-func errorReport(err error) *Report {
-	return &Report{Version: 1, Status: "error", ExitCode: 2, Cases: []CaseResult{}, Errors: []string{err.Error()}, Manifest: Manifest{Files: []FileIdentity{}, Limitations: []string{"execution did not start"}}}
+func errorReport(code ErrorCode, phase Phase, err error) *Report {
+	return &Report{Version: 1, Status: "error", ExitCode: 2, Cases: []CaseResult{}, Errors: (&runner{}).executionErrors(err, code, phase, "", ""), Manifest: Manifest{Files: []FileIdentity{}, Limitations: []string{"execution did not start"}}}
 }
 func effectiveOptions(o Options) Options {
 	if o.TimeoutMS == 0 {
@@ -249,7 +254,7 @@ func (r *runner) loadRules(c Case) (*rulesets.RuleSet, error) {
 		for _, id := range c.Rules {
 			rule, ok := rs.Rules[id]
 			if !ok || rule == nil {
-				return nil, fmt.Errorf("unknown or disabled rule %q", id)
+				return nil, &motor.RuleExecutionError{Kind: motor.RuleErrorConfiguration, RuleID: id, Err: fmt.Errorf("rule is unknown or disabled")}
 			}
 			selected[id] = rule
 		}
@@ -312,31 +317,34 @@ type execution struct {
 	snapshot *Snapshot
 	values   []model.RuleFunctionResult
 	modified []byte
-	errs     []string
+	errs     []ExecutionError
 }
 
-func (r *runner) execute(c Case, path string, override []byte, fix bool) execution {
-	out := execution{errs: []string{}}
+func (r *runner) execute(c Case, path string, override []byte, fix bool, phase Phase) execution {
+	out := execution{errs: []ExecutionError{}}
+	fail := func(code ErrorCode, source string, err error) {
+		out.errs = append(out.errs, r.executionErrors(err, code, phase, c.ID, source)...)
+	}
 	if err := r.ctx.Err(); err != nil {
-		out.errs = append(out.errs, err.Error())
+		fail(ErrorCancelled, path, err)
 		return out
 	}
 	rs, err := r.loadRules(c)
 	if err != nil {
-		out.errs = append(out.errs, err.Error())
+		fail(ErrorRuleset, r.suite.Ruleset, err)
 		return out
 	}
 	b := override
 	if b == nil {
 		b, err = r.read(path)
 		if err != nil {
-			out.errs = append(out.errs, err.Error())
+			fail(ErrorInput, path, err)
 			return out
 		}
 	}
 	var root yaml.Node
 	if err := decodeSingleDocument(b, &root); err != nil {
-		out.errs = append(out.errs, fmt.Sprintf("input %q: %v", path, err))
+		fail(ErrorDocument, path, err)
 		return out
 	}
 	o := effectiveOptions(r.suite.Options)
@@ -344,7 +352,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	if fix {
 		for id, rule := range rs.Rules {
 			if rule.AutoFixFunction != "" && r.opts.AutoFixFunctions[rule.AutoFixFunction] == nil {
-				out.errs = append(out.errs, fmt.Sprintf("rule %q requires unregistered autofix %q", id, rule.AutoFixFunction))
+				fail(ErrorAutoFix, path, &motor.RuleExecutionError{Kind: motor.RuleErrorAutoFix, RuleID: id, Function: rule.AutoFixFunction, Err: fmt.Errorf("autofix is not registered")})
 			}
 		}
 		if len(out.errs) > 0 {
@@ -356,21 +364,13 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 		ex.SkipDocumentCheck = true
 		ex.SpecFormat = schemautil.DetectDialect(&root).Format
 	}
-	var panicValue any
-	var panicMu sync.Mutex
-	ex.PanicFunction = func(v any) { panicMu.Lock(); panicValue = v; panicMu.Unlock() }
 	result := motor.ApplyRulesToRuleSetWithOptions(ex, &motor.ExecutionOptions{ReportFunctionErrors: true, Context: r.ctx, RunTimeout: time.Duration(o.RunTimeoutMS) * time.Millisecond, MaxRuleConcurrency: o.MaxRuleConcurrency, ResolveAllRefs: o.ResolveAllRefs, NestedRefsDocContext: o.NestedRefsDocContext, Evidence: evidence})
 	defer result.ReleaseOwnedResources()
 	for _, e := range result.Errors {
-		out.errs = append(out.errs, e.Error())
+		fail(ErrorExecution, path, e)
 	}
-	panicMu.Lock()
-	if panicValue != nil {
-		out.errs = append(out.errs, fmt.Sprintf("rule panicked: %v", panicValue))
-	}
-	panicMu.Unlock()
 	if len(evidence.Rules) == 0 && len(rs.Rules) > 0 && len(out.errs) == 0 {
-		out.errs = append(out.errs, "rule execution evidence unavailable")
+		fail(ErrorEvidence, path, fmt.Errorf("rule execution evidence unavailable"))
 	}
 	if o.Remote {
 		r.limitations["remote document lookup enabled; external responses are not captured"] = true
@@ -381,7 +381,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 			if strings.Contains(source, "://") {
 				r.limitations["remote Arazzo sources are not captured"] = true
 			} else if _, err := r.read(source); err != nil {
-				out.errs = append(out.errs, err.Error())
+				fail(ErrorDependency, source, err)
 			}
 		}
 	}
@@ -402,7 +402,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 				continue
 			}
 			if _, err := r.read(source); err != nil {
-				out.errs = append(out.errs, err.Error())
+				fail(ErrorDependency, source, err)
 			}
 		}
 	}
@@ -410,11 +410,11 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	if r.suite.IgnoreFile != "" {
 		data, e := r.read(r.suite.IgnoreFile)
 		if e != nil {
-			out.errs = append(out.errs, e.Error())
+			fail(ErrorIgnoreFile, r.suite.IgnoreFile, e)
 		} else {
 			var ignored model.IgnoredItems
 			if e = yaml.Unmarshal(data, &ignored); e != nil {
-				out.errs = append(out.errs, e.Error())
+				fail(ErrorIgnoreFile, r.suite.IgnoreFile, e)
 			} else {
 				matcher := utils.NewIgnoreMatcher(ignored, utils.IgnoreMatcherOptions{RootNode: ex.CanonicalDocument, SpecBytes: b, LookupTimeout: time.Duration(o.LookupTimeoutMS) * time.Millisecond})
 				kept := make([]model.RuleFunctionResult, 0, len(values))

@@ -19,7 +19,7 @@ func TestJavaScriptCoreBridgePanicCannotPass(t *testing.T) {
 	fixture(t, "rules.yaml", "rules:\n  title-required:\n    given: $\n    severity: error\n    then: {function: broken}\n", dir)
 	r := Run(s, path, RunOptions{})
 	require.Equal(t, 2, r.ExitCode, "%+v", r.Cases)
-	require.Contains(t, r.Cases[0].Errors[0], "core function")
+	require.Contains(t, r.Cases[0].Errors[0].Message, "core function")
 	require.Equal(t, "error", r.Cases[0].Before.Evidence[0].Status)
 }
 
@@ -33,7 +33,7 @@ func TestAutoFixCallbackErrorCannotPass(t *testing.T) {
 		return nil, fmt.Errorf("repair failed")
 	}}})
 	require.Equal(t, 2, r.ExitCode, "%+v", r.Cases)
-	require.Contains(t, r.Cases[0].Errors[0], "repair failed")
+	require.Contains(t, r.Cases[0].Errors[0].Message, "repair failed")
 	require.Equal(t, "error", r.Cases[0].Fixed.Evidence[0].Status)
 }
 
@@ -47,7 +47,7 @@ func TestAutoFixPanicEvidenceCannotClaimCompletion(t *testing.T) {
 		panic("repair failed")
 	}}})
 	require.Equal(t, 2, r.ExitCode, "%+v", r.Cases)
-	require.Contains(t, r.Cases[0].Errors[0], "repair failed")
+	require.Contains(t, r.Cases[0].Errors[0].Message, "repair failed")
 	require.Equal(t, "error", r.Cases[0].Fixed.Evidence[0].Status)
 }
 

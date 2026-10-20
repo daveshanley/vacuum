@@ -275,6 +275,6 @@ func TestJavaScriptFailureCannotSatisfyExpectedDiagnostic(t *testing.T) {
 	s.Cases[0].Expect = Expectations{Diagnostics: []DiagnosticMatch{{Rule: "title-required"}}}
 	r := Run(s, path, RunOptions{})
 	require.Equal(t, 2, r.ExitCode)
-	require.Contains(t, r.Cases[0].Errors[0], "broken function")
+	require.Contains(t, r.Cases[0].Errors[0].Message, "broken function")
 	require.Equal(t, "error", r.Cases[0].Before.Evidence[0].Status)
 }
