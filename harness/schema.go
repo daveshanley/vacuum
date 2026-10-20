@@ -103,6 +103,7 @@ func contractSchema(t reflect.Type, defs map[string]any, root bool) map[string]a
 		case reflect.TypeFor[ExecutionMatch]():
 			props["status"] = map[string]any{"enum": []string{"completed", "excluded"}}
 		case reflect.TypeFor[DiagnosticMatch]():
+			s["required"] = []string{"rule"}
 			props["rule"].(map[string]any)["minLength"] = 1
 			props["severity"] = map[string]any{"enum": []string{"error", "warn", "info", "hint"}}
 		case reflect.TypeFor[Count]():
