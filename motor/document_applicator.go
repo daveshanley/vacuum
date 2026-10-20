@@ -43,10 +43,6 @@ func runDocumentRules(
 	resolvedAliases := resolveExecutionAliases(execution.RuleSet, specInfo.SpecFormat, logger)
 
 	applicableRules := applicableRulesForFormat(execution.RuleSet, specInfo.SpecFormat)
-	totalRules := len(applicableRules)
-	if totalRules == 0 {
-		return ruleResults, ignoredResults, fixedResults, errs
-	}
 
 	var schemaPathCache sync.Map
 	var ruleJSONPathCache sync.Map

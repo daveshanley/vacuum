@@ -39,6 +39,8 @@ const (
 )
 
 type ruleContextResult struct {
+	evidence *RuleEvidence
+
 	index          int
 	outcome        ruleContextOutcome
 	ruleResults    []model.RuleFunctionResult
@@ -64,6 +66,7 @@ func runRuleContexts(
 	var fixedResults []model.RuleFunctionResult
 	var errs []error
 
+	prepareEvidence(control, execution)
 	if execution == nil || len(rules) == 0 {
 		return ruleResults, ignoredResults, fixedResults, errs
 	}
@@ -130,6 +133,26 @@ func runRuleContexts(
 	for result := range completedResults {
 		resultsByRule[result.index] = result
 	}
+	if control.evidence != nil {
+		byID := make(map[string]int, len(control.evidence.Rules))
+		for i, item := range control.evidence.Rules {
+			byID[item.RuleID] = i
+		}
+		for i, rule := range rules {
+			item := RuleEvidence{RuleID: rule.Id, Status: "cancelled", Reason: "execution cancelled", Selectors: []SelectorEvidence{}}
+			result := resultsByRule[i]
+			if result.evidence != nil {
+				item = *result.evidence
+			}
+			if result.outcome == ruleContextTimedOut {
+				item.Status = "timed_out"
+				item.Reason = "rule timeout"
+			}
+			if pos, ok := byID[rule.Id]; ok {
+				control.evidence.Rules[pos] = item
+			}
+		}
+	}
 	for _, result := range resultsByRule {
 		if result.outcome != ruleContextCompleted && result.outcome != ruleContextTimedOut {
 			continue
@@ -173,6 +196,10 @@ func executeRuleContext(
 	localFixed := []model.RuleFunctionResult{}
 	localErrs := []error{}
 	localCtx := ctx
+	if control.evidence != nil {
+		localCtx.evidence = &RuleEvidence{RuleID: rule.Id, Status: "completed", Resolved: ctx.resolvedExecution, Selectors: []SelectorEvidence{}}
+		localCtx.sampleLimit = control.evidence.SampleLimit
+	}
 	localCtx.ruleResults = &localResults
 	localCtx.ignoredResults = &localIgnored
 	localCtx.fixedResults = &localFixed
@@ -183,8 +210,18 @@ func executeRuleContext(
 	localCtx.autoFixGate = control.AutoFixGate()
 
 	completed := func() ruleContextResult {
+		if localCtx.evidence != nil {
+			localCtx.evidence.Findings = len(localResults)
+			localCtx.evidence.Ignored = len(localIgnored)
+			localCtx.evidence.Fixed = len(localFixed)
+			if len(localErrs) > 0 {
+				localCtx.evidence.Status = "error"
+				localCtx.evidence.Reason = localErrs[0].Error()
+			}
+		}
 		return ruleContextResult{
 			outcome:        ruleContextCompleted,
+			evidence:       localCtx.evidence,
 			ruleResults:    localResults,
 			ignoredResults: localIgnored,
 			fixedResults:   localFixed,
