@@ -26,27 +26,27 @@ func GetTestCommand() *cobra.Command {
 		PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if format != "json" {
-				return writeHarnessError(cmd, fmt.Errorf("--format must be json"))
+				return writeHarnessError(cmd, harness.ErrorArguments, fmt.Errorf("--format must be json"))
 			}
 			if schema != "" {
 				if len(args) != 0 {
-					return writeHarnessError(cmd, fmt.Errorf("--schema does not accept a suite"))
+					return writeHarnessError(cmd, harness.ErrorArguments, fmt.Errorf("--schema does not accept a suite"))
 				}
 				data, err := harness.Schema(schema)
 				if err != nil {
-					return writeHarnessError(cmd, err)
+					return writeHarnessError(cmd, harness.ErrorArguments, err)
 				}
 				_, err = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 				return err
 			}
 			if len(args) != 1 {
-				return writeHarnessError(cmd, fmt.Errorf("provide one suite file"))
+				return writeHarnessError(cmd, harness.ErrorArguments, fmt.Errorf("provide one suite file"))
 			}
 			if evidence != "summary" && evidence != "detailed" {
-				return writeHarnessError(cmd, fmt.Errorf("--evidence must be summary or detailed"))
+				return writeHarnessError(cmd, harness.ErrorArguments, fmt.Errorf("--evidence must be summary or detailed"))
 			}
 			if sampleLimit < 0 || sampleLimit > 100 {
-				return writeHarnessError(cmd, fmt.Errorf("--sample-limit must be between 0 and 100"))
+				return writeHarnessError(cmd, harness.ErrorArguments, fmt.Errorf("--sample-limit must be between 0 and 100"))
 			}
 			samples := 0
 			if evidence == "detailed" {
@@ -64,13 +64,13 @@ func GetTestCommand() *cobra.Command {
 			// stdout and stderr both remain logs; only the parent writes JSON to stdout.
 			dir, err := os.MkdirTemp("", "vacuum-test-")
 			if err != nil {
-				return writeHarnessError(cmd, err)
+				return writeHarnessError(cmd, harness.ErrorWorker, err)
 			}
 			defer os.RemoveAll(dir)
 			resultPath := filepath.Join(dir, "result.json")
 			executable, err := os.Executable()
 			if err != nil {
-				return writeHarnessError(cmd, err)
+				return writeHarnessError(cmd, harness.ErrorWorker, err)
 			}
 			workerArgs := []string{"test", "--worker-result", resultPath, "--evidence", evidence, "--sample-limit", fmt.Sprint(sampleLimit)}
 			for _, id := range cases {
@@ -81,21 +81,24 @@ func GetTestCommand() *cobra.Command {
 			child.Stdout = cmd.ErrOrStderr()
 			child.Stderr = cmd.ErrOrStderr()
 			if err = child.Run(); err != nil {
-				return writeHarnessError(cmd, fmt.Errorf("test worker failed: %w", err))
+				if cmd.Context().Err() != nil {
+					err = cmd.Context().Err()
+				}
+				return writeHarnessError(cmd, harness.ErrorWorker, fmt.Errorf("test worker failed: %w", err))
 			}
 			data, err := os.ReadFile(resultPath)
 			if err != nil {
-				return writeHarnessError(cmd, err)
+				return writeHarnessError(cmd, harness.ErrorWorker, err)
 			}
 			var report harness.Report
 			if err = json.Unmarshal(data, &report); err != nil {
-				return writeHarnessError(cmd, fmt.Errorf("invalid worker result: %w", err))
+				return writeHarnessError(cmd, harness.ErrorWorker, fmt.Errorf("invalid worker result: %w", err))
 			}
 			if bundle != "" {
 				if err = harness.WriteBundle(&report, args[0], bundle); err != nil {
 					report.Status = "error"
 					report.ExitCode = 2
-					report.Errors = append(report.Errors, "bundle: "+err.Error())
+					report.Errors = append(report.Errors, harness.NewExecutionError(harness.ErrorBundle, harness.PhaseBundle, err))
 				}
 			}
 			return writeHarnessReport(cmd, &report)
@@ -111,8 +114,8 @@ func GetTestCommand() *cobra.Command {
 	_ = command.Flags().MarkHidden("worker-result")
 	return command
 }
-func writeHarnessError(cmd *cobra.Command, err error) error {
-	return writeHarnessReport(cmd, &harness.Report{Version: 1, Status: "error", ExitCode: 2, Cases: []harness.CaseResult{}, Errors: []string{err.Error()}})
+func writeHarnessError(cmd *cobra.Command, code harness.ErrorCode, err error) error {
+	return writeHarnessReport(cmd, &harness.Report{Version: 1, Status: "error", ExitCode: 2, Cases: []harness.CaseResult{}, Errors: []harness.ExecutionError{harness.NewExecutionError(code, harness.PhaseCommand, err)}})
 }
 func writeHarnessReport(cmd *cobra.Command, report *harness.Report) error {
 	encoder := json.NewEncoder(cmd.OutOrStdout())

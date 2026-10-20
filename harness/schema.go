@@ -40,6 +40,12 @@ func contractSchema(t reflect.Type, defs map[string]any, root bool) map[string]a
 	if t.Kind() == reflect.Pointer {
 		return map[string]any{"anyOf": []any{contractSchema(t.Elem(), defs, false), map[string]any{"type": "null"}}}
 	}
+	if t == reflect.TypeFor[ErrorCode]() {
+		return map[string]any{"enum": []ErrorCode{ErrorSuite, ErrorSelection, ErrorInput, ErrorDocument, ErrorRuleset, ErrorFunctionLoad, ErrorUnknownFunction, ErrorRuleConfiguration, ErrorFunction, ErrorAutoFix, ErrorRulePanic, ErrorRuleTimeout, ErrorLookup, ErrorCancelled, ErrorDeadline, ErrorExecution, ErrorEvidence, ErrorPaths, ErrorDependency, ErrorIgnoreFile, ErrorBundle, ErrorArguments, ErrorWorker, ErrorInternal}}
+	}
+	if t == reflect.TypeFor[Phase]() {
+		return map[string]any{"enum": []Phase{PhaseLoad, PhaseBefore, PhaseAfter, PhaseFixed, PhaseSecondFix, PhaseChange, PhaseFixOutput, PhaseBundle, PhaseCommand}}
+	}
 	s := map[string]any{}
 	switch t.Kind() {
 	case reflect.Interface:
