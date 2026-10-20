@@ -118,13 +118,15 @@ type Report struct {
 
 // CaseResult contains the evidence and assertion failures for one case.
 type CaseResult struct {
-	Fixed    *Snapshot `json:"fixed,omitempty"`
-	ID       string    `json:"id"`
-	Status   string    `json:"status"`
-	Failures []Failure `json:"failures"`
-	Errors   []string  `json:"errors"`
-	Before   *Snapshot `json:"before,omitempty"`
-	After    *Snapshot `json:"after,omitempty"`
+	// SecondFix records the repeated repair used to verify idempotence.
+	SecondFix *Snapshot `json:"secondFix,omitempty"`
+	Fixed     *Snapshot `json:"fixed,omitempty"`
+	ID        string    `json:"id"`
+	Status    string    `json:"status"`
+	Failures  []Failure `json:"failures"`
+	Errors    []string  `json:"errors"`
+	Before    *Snapshot `json:"before,omitempty"`
+	After     *Snapshot `json:"after,omitempty"`
 }
 
 // Failure identifies a stable assertion and its expected and actual values.
