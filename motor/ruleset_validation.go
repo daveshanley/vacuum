@@ -3,6 +3,7 @@ package motor
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/daveshanley/vacuum/functions"
 	"github.com/daveshanley/vacuum/model"
@@ -70,7 +71,22 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 		if rule == nil {
 			continue
 		}
+
+		paths := resultGivenPaths(rule)
+		if len(paths) == 0 {
+			errs = append(errs, fmt.Errorf("rule %q requires at least one selector", key))
+		}
+		for _, path := range paths {
+			if strings.TrimSpace(path) == "" {
+				errs = append(errs, fmt.Errorf("rule %q has an empty selector", key))
+			}
+		}
+		if values, ok := rule.Given.([]interface{}); ok && len(values) != len(paths) {
+			errs = append(errs, fmt.Errorf("rule %q selectors must be strings", key))
+		}
+		actions := 0
 		forEachRuleAction(rule, func(action model.RuleAction) bool {
+			actions++
 			f := builtin.FindFunction(action.Function)
 			if f == nil {
 				f = custom[action.Function]
@@ -84,6 +100,9 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 			}
 			return false
 		})
+		if actions == 0 {
+			errs = append(errs, fmt.Errorf("rule %q requires at least one action", key))
+		}
 	}
 	return errs
 }

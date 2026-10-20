@@ -116,15 +116,18 @@ var extractInput = func(input any) *yaml.Node {
 	}
 }
 
-var coreError = func() {
-	if r := recover(); r != nil {
-		fmt.Printf("✗ Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
-	}
-}
-
 var loadFunc = func(function model.RuleFunction) javascript.CoreFunction {
 	return func(input any, context model.RuleFunctionContext) []model.RuleFunctionResult {
-		defer coreError()
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				err := fmt.Errorf("core function %q panicked via JavaScript: %v", function.GetSchema().Name, recovered)
+				if context.ReportError != nil {
+					context.ReportError(err)
+				} else {
+					fmt.Printf("✗ %s\n", err)
+				}
+			}
+		}()
 		extracted := extractInput(input)
 		results := function.RunRule([]*yaml.Node{extracted}, context)
 		return results
