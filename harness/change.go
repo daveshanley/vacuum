@@ -1,15 +1,11 @@
 package harness
 
 import (
-	"bytes"
-	"fmt"
-	"io"
 	"reflect"
 	"sort"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
-	"github.com/pb33f/go-yaml"
 )
 
 func (r *runner) runCase(c Case) CaseResult {
@@ -114,16 +110,11 @@ func (r *runner) checkFix(c Case, cr *CaseResult) {
 }
 func semanticEqual(a, b []byte) (bool, error) {
 	decode := func(data []byte) (any, error) {
-		var v any
-		d := yaml.NewDecoder(bytes.NewReader(data))
-		if err := d.Decode(&v); err != nil {
-			return nil, fmt.Errorf("invalid fixed document: %w", err)
+		var value any
+		if err := decodeSingleDocument(data, &value); err != nil {
+			return nil, err
 		}
-		var extra any
-		if err := d.Decode(&extra); err != io.EOF {
-			return nil, fmt.Errorf("fixed document must contain exactly one YAML or JSON document")
-		}
-		return v, nil
+		return value, nil
 	}
 	x, err := decode(a)
 	if err != nil {
