@@ -1753,7 +1753,17 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		}
 
 		// validate the rule is configured correctly before running it.
-		res, errs := model.ValidateRuleFunctionContextAgainstSchema(ruleFunction, rfc)
+		validator := model.ValidateRuleFunctionContextAgainstSchema
+		if ctx.reportFunctionErrors {
+			validator = validateFunctionSchema
+		}
+		res, errs := validator(ruleFunction, rfc)
+		if ctx.reportFunctionErrors && len(errs) > 0 {
+			res = false
+			for _, err := range errs {
+				rfc.ReportError(fmt.Errorf("%s", err))
+			}
+		}
 		if !res {
 			for _, e := range errs {
 				*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{

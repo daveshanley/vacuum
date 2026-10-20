@@ -135,7 +135,7 @@ func (j *JSRuleFunction) RegisterCoreFunction(name string, function CoreFunction
 func (j *JSRuleFunction) RunScript() error {
 	j.l.Lock()
 	defer j.l.Unlock()
-	return j.runScriptUnsafe()
+	return j.runMetadata(j.runScriptUnsafe)
 }
 
 func (j *JSRuleFunction) runScriptUnsafe() error {
@@ -151,54 +151,77 @@ func (j *JSRuleFunction) GetCategory() string {
 	return model.FunctionCategoryCustomJS
 }
 
+// runMetadata runs while j.l is held. Join a fired timer before clearing its
+// interrupt so it cannot interrupt a later metadata call on the same runtime.
+func (j *JSRuleFunction) runMetadata(run func() error) error {
+	timeout := j.getTimeout(model.RuleFunctionContext{})
+	finished := make(chan struct{})
+	timer := time.AfterFunc(timeout, func() {
+		j.runtime.Interrupt(fmt.Errorf("JavaScript metadata timed out after %s", timeout))
+		close(finished)
+	})
+	defer func() {
+		if !timer.Stop() {
+			<-finished
+		}
+		j.runtime.ClearInterrupt()
+	}()
+	return run()
+}
+
 func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {
+	schema, err := j.GetSchemaWithError()
+	if err != nil {
+		return model.RuleFunctionSchema{Name: j.ruleName}
+	}
+	return schema
+}
+
+// GetSchemaWithError evaluates bounded metadata without hiding script failures.
+// Strict execution uses this method; GetSchema preserves its legacy fallback.
+func (j *JSRuleFunction) GetSchemaWithError() (model.RuleFunctionSchema, error) {
 	j.l.Lock()
 	defer j.l.Unlock()
-
-	var ok bool
-	var schemaFunc goja.Callable
-	basic := model.RuleFunctionSchema{
-		Name: j.ruleName,
-	}
-
-	if !j.scriptParsed {
-		err := j.runScriptUnsafe()
-		if err != nil {
-
-			return basic
-		}
-	}
-
-	if schemaFunc, ok = goja.AssertFunction(j.runtime.Get("getSchema")); !ok {
-		return basic
-	}
-	schema, sErr := schemaFunc(goja.Undefined())
-	if sErr != nil {
-		return basic
-	}
-
 	var decoded model.RuleFunctionSchema
-	err := mapstructure.Decode(schema.Export(), &decoded)
-	if err != nil {
-		return basic
-	}
-	return decoded
+	err := j.runMetadata(func() error {
+		if !j.scriptParsed {
+			if err := j.runScriptUnsafe(); err != nil {
+				return err
+			}
+		}
+		schemaFunc, ok := goja.AssertFunction(j.runtime.Get("getSchema"))
+		if !ok {
+			return fmt.Errorf("getSchema function not found")
+		}
+		schema, err := schemaFunc(goja.Undefined())
+		if err != nil {
+			return err
+		}
+		if err := mapstructure.Decode(schema.Export(), &decoded); err != nil {
+			return err
+		}
+		if decoded.Name == "" {
+			return fmt.Errorf("getSchema must return a nonempty name")
+		}
+		return nil
+	})
+	return decoded, err
 }
 
 func (j *JSRuleFunction) CheckScript() error {
 	j.l.Lock()
 	defer j.l.Unlock()
-
-	if !j.scriptParsed {
-		err := j.runScriptUnsafe()
-		if err != nil {
-			return err
+	return j.runMetadata(func() error {
+		if !j.scriptParsed {
+			if err := j.runScriptUnsafe(); err != nil {
+				return err
+			}
 		}
-	}
-	if _, ok := goja.AssertFunction(j.runtime.Get("runRule")); !ok {
-		return fmt.Errorf("runRule function not found")
-	}
-	return nil
+		if _, ok := goja.AssertFunction(j.runtime.Get("runRule")); !ok {
+			return fmt.Errorf("runRule function not found")
+		}
+		return nil
+	})
 }
 
 func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunctionContext) []model.RuleFunctionResult {

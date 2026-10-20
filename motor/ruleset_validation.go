@@ -94,7 +94,7 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 			if f == nil {
 				return false
 			}
-			valid, issues := model.ValidateRuleFunctionContextAgainstSchema(f, model.RuleFunctionContext{Rule: rule, RuleAction: &action, Options: action.FunctionOptions})
+			valid, issues := validateFunctionSchema(f, model.RuleFunctionContext{Rule: rule, RuleAction: &action, Options: action.FunctionOptions})
 			if !valid || len(issues) > 0 {
 				errs = append(errs, fmt.Errorf("rule %q action %q: %v", key, action.Function, issues))
 			}
@@ -105,4 +105,25 @@ func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction)
 		}
 	}
 	return errs
+}
+
+// schemaFunction reuses the model validator with already-evaluated metadata.
+type schemaFunction struct {
+	model.RuleFunction
+	schema model.RuleFunctionSchema
+}
+
+func (f schemaFunction) GetSchema() model.RuleFunctionSchema { return f.schema }
+
+func validateFunctionSchema(f model.RuleFunction, context model.RuleFunctionContext) (bool, []string) {
+	if provider, ok := f.(interface {
+		GetSchemaWithError() (model.RuleFunctionSchema, error)
+	}); ok {
+		schema, err := provider.GetSchemaWithError()
+		if err != nil {
+			return false, []string{err.Error()}
+		}
+		f = schemaFunction{RuleFunction: f, schema: schema}
+	}
+	return model.ValidateRuleFunctionContextAgainstSchema(f, context)
 }

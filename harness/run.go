@@ -120,7 +120,7 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 				}
 			}
 		}
-		manager, e := plugin.LoadFunctions(dir, true)
+		manager, e := plugin.LoadFunctionsStrict(dir, time.Duration(effectiveOptions(s.Options).TimeoutMS)*time.Millisecond)
 		if e != nil {
 			return errorReport(e)
 		}
