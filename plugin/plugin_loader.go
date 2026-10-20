@@ -12,10 +12,21 @@ import (
 	"plugin"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // LoadFunctions will load custom functions found in the supplied path
 func LoadFunctions(path string, silence bool) (*Manager, error) {
+	return loadFunctions(path, silence, 0, false)
+}
+
+// LoadFunctionsStrict loads functions for verification. JavaScript metadata uses
+// timeout and malformed schemas or scripts fail the entire load.
+func LoadFunctionsStrict(path string, timeout time.Duration) (*Manager, error) {
+	return loadFunctions(path, true, timeout, true)
+}
+
+func loadFunctions(path string, silence bool, timeout time.Duration, strict bool) (*Manager, error) {
 
 	dirEntries, err := os.ReadDir(path)
 	if err != nil {
@@ -68,6 +79,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			}
 
 			function := javascript.NewJSRuleFunction(fName, string(p))
+			function.(*javascript.JSRuleFunction).SetTimeout(timeout)
 
 			if err := function.CheckScript(); err != nil {
 				loadErr := fmt.Errorf("unable to load custom function %q: %w; vacuum custom functions use a plain script with runRule(input) and getSchema(); check the script syntax and required function definitions", fPath, err)
@@ -82,7 +94,17 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			RegisterCoreFunctions(function)
 
 			// register this function with the plugin manager using the schema name
-			schemaName := function.GetSchema().Name
+			var schemaName string
+			if strict {
+				schema, err := function.(*javascript.JSRuleFunction).GetSchemaWithError()
+				if err != nil {
+					loadErrors = append(loadErrors, fmt.Errorf("custom function %q schema: %w", fPath, err))
+					continue
+				}
+				schemaName = schema.Name
+			} else {
+				schemaName = function.GetSchema().Name
+			}
 			pm.RegisterFunction(schemaName, function)
 
 			if !silence {
@@ -90,7 +112,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			}
 		}
 	}
-	if pm.LoadedFunctionCount() == 0 && len(loadErrors) > 0 {
+	if (strict || pm.LoadedFunctionCount() == 0) && len(loadErrors) > 0 {
 		return nil, fmt.Errorf("no vacuum custom functions loaded: %w", errors.Join(loadErrors...))
 	}
 	// Mixed directories still load valid functions. Report skipped scripts once

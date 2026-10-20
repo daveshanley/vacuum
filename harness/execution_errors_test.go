@@ -60,3 +60,22 @@ func TestEmptyRuleWorkCannotPass(t *testing.T) {
 		})
 	}
 }
+
+func TestJavaScriptMetadataFailuresCannotPass(t *testing.T) {
+	for _, script := range []string{
+		`function getSchema(){while(true){}} function runRule(){return [];}`,
+		`while(true){} function getSchema(){return {name:"broken"};} function runRule(){return [];}`,
+		`function getSchema(){throw new Error("bad metadata");} function runRule(){return [];}`,
+	} {
+		t.Run(script, func(t *testing.T) {
+			s, path := testSuite(t)
+			s.Functions = "functions"
+			s.Options.TimeoutMS = 10
+			fixture(t, "functions/broken.js", script, filepath.Dir(path))
+			fixture(t, "rules.yaml", "rules:\n  title-required:\n    given: $\n    then: {function: broken}\n", filepath.Dir(path))
+			r := Run(s, path, RunOptions{})
+			require.Equal(t, 2, r.ExitCode)
+			require.NotEmpty(t, r.Errors)
+		})
+	}
+}
