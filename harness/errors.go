@@ -85,7 +85,16 @@ func NewExecutionError(code ErrorCode, phase Phase, err error) ExecutionError {
 		out.Function = load.Function
 		out.Source = load.Source
 	case errors.As(err, &rule):
-		out.Code = ErrorCode(rule.Kind)
+		switch rule.Kind {
+		case motor.RuleErrorConfiguration:
+			out.Code = ErrorRuleConfiguration
+		case motor.RuleErrorFunction:
+			out.Code = ErrorFunction
+		case motor.RuleErrorAutoFix:
+			out.Code = ErrorAutoFix
+		case motor.RuleErrorPanic:
+			out.Code = ErrorRulePanic
+		}
 		out.RuleID = rule.RuleID
 		out.Function = rule.Function
 	case errors.As(err, &unknown):

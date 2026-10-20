@@ -2,6 +2,7 @@ package harness
 
 import (
 	"encoding/json"
+	"fmt"
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/require"
@@ -10,7 +11,14 @@ import (
 
 func TestPublishedSchemasAcceptContracts(t *testing.T) {
 	s, path := testSuite(t)
-	for name, v := range map[string]any{"suite": s, "result": Run(s, path, RunOptions{})} {
+	for _, contract := range []struct {
+		name  string
+		value any
+	}{
+		{"suite", s}, {"result", Run(s, path, RunOptions{})},
+		{"result", errorReport(ErrorSuite, PhaseLoad, fmt.Errorf("invalid suite"))},
+	} {
+		name, v := contract.name, contract.value
 		raw, err := Schema(name)
 		require.NoError(t, err)
 		var root yaml.Node
