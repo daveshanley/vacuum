@@ -179,6 +179,8 @@ func TestAutoFixVerifiesOutputAndIdempotence(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, good, string(data))
 	require.False(t, r.Manifest.Reproducible)
+	require.NotNil(t, r.Cases[0].SecondFix)
+	require.Equal(t, 0, r.Cases[0].SecondFix.Evidence[0].Fixed)
 }
 func TestReportJSONIsStable(t *testing.T) {
 	s, path := testSuite(t)

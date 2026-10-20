@@ -3,6 +3,7 @@ package harness
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -78,4 +79,23 @@ func TestJavaScriptMetadataFailuresCannotPass(t *testing.T) {
 			require.NotEmpty(t, r.Errors)
 		})
 	}
+}
+
+func TestNonIdempotentFixRetainsSecondExecutionEvidence(t *testing.T) {
+	s, path := testSuite(t)
+	dir := filepath.Dir(path)
+	fixture(t, "rules.yaml", "rules:\n  title-required:\n    given: $.info.title\n    severity: error\n    autoFixFunction: append\n    then: {function: falsy}\n", dir)
+	fixture(t, "fixed.yaml", strings.Replace(good, "title: Test", "title: Test!", 1), dir)
+	expected := Expectations{Diagnostics: []DiagnosticMatch{{Rule: "title-required"}}}
+	s.Cases[0].Expect = expected
+	s.Cases[0].Fix = &FixExpectations{Output: "fixed.yaml", Expect: expected}
+	r := Run(s, path, RunOptions{AutoFixFunctions: map[string]model.AutoFixFunction{"append": func(node, doc *yaml.Node, context *model.RuleFunctionContext) (*yaml.Node, error) {
+		node.Value += "!"
+		return node, nil
+	}}})
+	require.Equal(t, 1, r.ExitCode, "%+v", r.Cases)
+	require.Equal(t, "fix.idempotent", r.Cases[0].Failures[0].Assertion)
+	require.NotNil(t, r.Cases[0].SecondFix)
+	require.Equal(t, "completed", r.Cases[0].SecondFix.Evidence[0].Status)
+	require.Equal(t, 1, r.Cases[0].SecondFix.Evidence[0].Fixed)
 }
