@@ -82,6 +82,10 @@ func Run(s *Suite, suitePath string, opts RunOptions) *Report {
 	if _, err := r.read(abs); err != nil {
 		r.limitations["suite supplied in memory; suite file unavailable"] = true
 	}
+	r.opts.AutoFixFunctions = make(map[string]model.AutoFixFunction, len(opts.AutoFixFunctions))
+	for name, f := range opts.AutoFixFunctions {
+		r.opts.AutoFixFunctions[name] = f
+	}
 	for name, f := range opts.CustomFunctions {
 		r.functions[name] = f
 	}
@@ -104,6 +108,12 @@ func Run(s *Suite, suitePath string, opts RunOptions) *Report {
 		manager, e := plugin.LoadFunctions(dir, true)
 		if e != nil {
 			return errorReport(e)
+		}
+		for name, f := range manager.GetAutoFixFunctions() {
+			if r.opts.AutoFixFunctions == nil {
+				r.opts.AutoFixFunctions = map[string]model.AutoFixFunction{}
+			}
+			r.opts.AutoFixFunctions[name] = f
 		}
 		for name, f := range manager.GetCustomFunctions() {
 			r.functions[name] = f
