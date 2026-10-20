@@ -58,6 +58,10 @@ type RuleLookupError struct {
 // document edits remain private until the complete rule succeeds. Other objects
 // exposed through RuleFunctionContext remain caller-owned and must not be mutated.
 type ExecutionOptions struct {
+	// ReportFunctionErrors asks supporting functions to report runtime failures as
+	// execution errors in addition to their legacy diagnostic output.
+	ReportFunctionErrors bool
+
 	// Evidence optionally collects bounded rule execution evidence. Do not share it between invocations.
 	Evidence *ExecutionEvidence
 
@@ -168,6 +172,8 @@ func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
 }
 
 type ruleContext struct {
+	reportFunctionErrors bool
+
 	evidence    *RuleEvidence
 	sampleLimit int
 
@@ -1686,6 +1692,13 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 			FetchConfig:     ctx.fetchConfig,
 			SchemaPathCache: ctx.schemaPathCache,
 			RuleTimeout:     ctx.ruleTimeout,
+		}
+		if ctx.reportFunctionErrors {
+			rfc.ReportError = func(err error) {
+				if err != nil {
+					*ctx.errors = append(*ctx.errors, fmt.Errorf("rule %q function %q: %w", ctx.rule.Id, ruleAction.Function, err))
+				}
+			}
 		}
 		templated := strings.Contains(ctx.rule.Message, "{{")
 		// Keep the function's diagnostic available for {{error}}. The rule is

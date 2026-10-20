@@ -212,3 +212,67 @@ func TestInvalidOptionsCannotBecomeExpectedDiagnostic(t *testing.T) {
 	r := Run(s, path, RunOptions{})
 	require.Equal(t, 2, r.ExitCode)
 }
+
+func TestPublishedAgentExample(t *testing.T) {
+	report := RunFile("testdata/agent/suite.yaml", RunOptions{SampleLimit: 10})
+	require.Equal(t, 0, report.ExitCode, "%+v", report.Cases)
+	require.True(t, report.Manifest.Reproducible)
+	require.Len(t, report.Cases, 3)
+}
+
+func TestExternalReferenceOriginAndBundle(t *testing.T) {
+	s, path := testSuite(t)
+	dir := filepath.Dir(path)
+	fixture(t, "good.yaml", "openapi: 3.1.0\ninfo: {title: Test, version: 1.0.0}\npaths: {}\ncomponents:\n  schemas:\n    Pet:\n      $ref: ./pet.yaml\n", dir)
+	fixture(t, "pet.yaml", "type: object\nproperties:\n  name: {type: string}\n", dir)
+	fixture(t, "rules.yaml", "rules:\n  title-required:\n    given: $.components.schemas.Pet.properties.name\n    resolved: true\n    severity: error\n    then: {function: defined, field: description}\n", dir)
+	s.Cases[0].Expect.Diagnostics = []DiagnosticMatch{{Rule: "title-required", Source: "pet.yaml"}}
+	b, e := json.Marshal(s)
+	require.NoError(t, e)
+	require.NoError(t, os.WriteFile(path, b, 0600))
+	r := RunFile(path, RunOptions{Version: "test"})
+	require.Equal(t, 0, r.ExitCode, "%+v", r.Cases[0])
+	found := false
+	for _, f := range r.Manifest.Files {
+		if f.Path == "pet.yaml" {
+			found = true
+		}
+	}
+	require.True(t, found)
+	dest := filepath.Join(t.TempDir(), "replay")
+	require.NoError(t, WriteBundle(r, path, dest))
+	r = RunFile(filepath.Join(dest, "suite.yaml"), RunOptions{Version: "test"})
+	require.Equal(t, 0, r.ExitCode, "%+v", r.Cases)
+}
+
+func TestChangeComparisonIncludesSeverity(t *testing.T) {
+	before := []model.RuleFunctionResult{{RuleId: "r", RuleSeverity: "warn", Path: "$.info", Message: "problem"}}
+	after := []model.RuleFunctionResult{{RuleId: "r", RuleSeverity: "error", Path: "$.info", Message: "problem"}}
+	added := diffBySeverity(before, after, "a.yaml", "b.yaml")
+	require.Len(t, added, 1)
+}
+func TestEmptyRulesetIsNotSuccessfulExecution(t *testing.T) {
+	s, path := testSuite(t)
+	fixture(t, "rules.yaml", "rules: {}\n", filepath.Dir(path))
+	s.Cases[0].Expect = Expectations{Diagnostics: []DiagnosticMatch{}}
+	require.Equal(t, 2, Run(s, path, RunOptions{}).ExitCode)
+}
+func TestMissingAutoFixIsExecutionError(t *testing.T) {
+	s, path := testSuite(t)
+	fixture(t, "rules.yaml", strings.Replace(testRules, "    given:", "    autoFixFunction: absent\n    given:", 1), filepath.Dir(path))
+	s.Cases[0].Fix = &FixExpectations{Output: "good.yaml", Expect: Expectations{Diagnostics: []DiagnosticMatch{}}}
+	require.Equal(t, 2, Run(s, path, RunOptions{}).ExitCode)
+}
+
+func TestJavaScriptFailureCannotSatisfyExpectedDiagnostic(t *testing.T) {
+	s, path := testSuite(t)
+	dir := filepath.Dir(path)
+	s.Functions = "functions"
+	fixture(t, "functions/fail.js", `function getSchema(){return {name:"fail"};} function runRule(input){throw new Error("broken function");}`, dir)
+	fixture(t, "rules.yaml", "rules:\n  title-required:\n    given: $\n    severity: error\n    then: {function: fail}\n", dir)
+	s.Cases[0].Expect = Expectations{Diagnostics: []DiagnosticMatch{{Rule: "title-required"}}}
+	r := Run(s, path, RunOptions{})
+	require.Equal(t, 2, r.ExitCode)
+	require.Contains(t, r.Cases[0].Errors[0], "broken function")
+	require.Equal(t, "error", r.Cases[0].Before.Evidence[0].Status)
+}

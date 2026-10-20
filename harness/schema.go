@@ -20,15 +20,25 @@ func Schema(name string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("unknown schema %q; use suite or result", name)
 	}
-	root := contractSchema(typ)
+	defs := map[string]any{}
+	root := contractSchema(typ, defs, true)
+	root["$defs"] = defs
 	root["$schema"] = "https://json-schema.org/draft/2020-12/schema"
 	root["$id"] = "https://quobix.com/vacuum/schemas/test-" + name + "-v1.json"
 	root["title"] = "vacuum test " + name + " v1"
 	return json.MarshalIndent(root, "", "  ")
 }
-func contractSchema(t reflect.Type) map[string]any {
+func contractSchema(t reflect.Type, defs map[string]any, root bool) map[string]any {
+	if t.Kind() == reflect.Struct && !root && t.Name() != "" {
+		name := t.Name()
+		if _, ok := defs[name]; !ok {
+			defs[name] = nil
+			defs[name] = contractSchema(t, defs, true)
+		}
+		return map[string]any{"$ref": "#/$defs/" + name}
+	}
 	if t.Kind() == reflect.Pointer {
-		return map[string]any{"anyOf": []any{contractSchema(t.Elem()), map[string]any{"type": "null"}}}
+		return map[string]any{"anyOf": []any{contractSchema(t.Elem(), defs, false), map[string]any{"type": "null"}}}
 	}
 	s := map[string]any{}
 	switch t.Kind() {
@@ -42,10 +52,10 @@ func contractSchema(t reflect.Type) map[string]any {
 		s["type"] = "integer"
 	case reflect.Slice:
 		s["type"] = []string{"array", "null"}
-		s["items"] = contractSchema(t.Elem())
+		s["items"] = contractSchema(t.Elem(), defs, false)
 	case reflect.Map:
 		s["type"] = "object"
-		s["additionalProperties"] = contractSchema(t.Elem())
+		s["additionalProperties"] = contractSchema(t.Elem(), defs, false)
 	case reflect.Struct:
 		props := map[string]any{}
 		required := []string{}
@@ -62,7 +72,7 @@ func contractSchema(t reflect.Type) map[string]any {
 			if name == "" {
 				name = f.Name
 			}
-			props[name] = contractSchema(f.Type)
+			props[name] = contractSchema(f.Type, defs, false)
 			if !strings.Contains(f.Tag.Get("json"), "omitempty") {
 				required = append(required, name)
 			}
@@ -84,6 +94,7 @@ func contractSchema(t reflect.Type) map[string]any {
 			for _, key := range []string{"id", "input"} {
 				props[key].(map[string]any)["minLength"] = 1
 			}
+			props["id"].(map[string]any)["pattern"] = `^[A-Za-z0-9][A-Za-z0-9_.-]*$`
 			props["format"] = map[string]any{"enum": []string{"auto", "json-schema", "fragment"}}
 			props["rules"].(map[string]any)["uniqueItems"] = true
 		case reflect.TypeFor[Expectations]():

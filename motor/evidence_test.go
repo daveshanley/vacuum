@@ -95,3 +95,15 @@ func BenchmarkExecutionEvidence(b *testing.B) {
 		})
 	}
 }
+
+func TestExecutionEvidenceUsesMapIDForAnonymousRule(t *testing.T) {
+	ex := evidenceExecution("$.info", nil)
+	ex.RuleSet.Rules["probe"].Id = ""
+	e := &ExecutionEvidence{}
+	r := ApplyRulesToRuleSetWithOptions(ex, &ExecutionOptions{Evidence: e})
+	defer r.ReleaseOwnedResources()
+	require.Empty(t, r.Errors)
+	require.Equal(t, "probe", e.Rules[0].RuleID)
+	require.Equal(t, "completed", e.Rules[0].Status)
+	require.Equal(t, 1, e.Rules[0].Invocations)
+}

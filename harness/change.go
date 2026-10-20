@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"sort"
 
+	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 )
@@ -34,8 +36,8 @@ func (r *runner) runCase(c Case) CaseResult {
 						break
 					}
 				}
-				added, _ := utils.DiffViolationsValuesWithOriginBases(before.values, after.values, r.path(c.Input), r.path(c.After))
-				removed, _ := utils.DiffViolationsValuesWithOriginBases(after.values, before.values, r.path(c.After), r.path(c.Input))
+				added := diffBySeverity(before.values, after.values, r.path(c.Input), r.path(c.After))
+				removed := diffBySeverity(after.values, before.values, r.path(c.After), r.path(c.Input))
 				addedD, removedD := r.diagnostics(added, c.After), r.diagnostics(removed, c.Input)
 				cr.Failures = append(cr.Failures, exactDiagnostics("change.added", c.Change.Added, addedD)...)
 				cr.Failures = append(cr.Failures, exactDiagnostics("change.removed", c.Change.Removed, removedD)...)
@@ -61,6 +63,7 @@ func (r *runner) runCase(c Case) CaseResult {
 
 func (r *runner) checkFix(c Case, cr *CaseResult) {
 	fixed := r.execute(c, c.Input, nil, true)
+	cr.Fixed = fixed.snapshot
 	cr.Errors = append(cr.Errors, fixed.errs...)
 	if len(fixed.errs) > 0 {
 		return
@@ -123,4 +126,27 @@ func semanticEqual(a, b []byte) (bool, error) {
 	}
 	y, err := decode(b)
 	return reflect.DeepEqual(x, y), err
+}
+
+// Keep vacuum's alias/source identity while treating severity changes as changes
+// in the test contract. The normal lint differ intentionally ignores severity.
+func diffBySeverity(before, after []model.RuleFunctionResult, beforePath, afterPath string) []model.RuleFunctionResult {
+	oldGroups, newGroups := map[string][]model.RuleFunctionResult{}, map[string][]model.RuleFunctionResult{}
+	for _, v := range before {
+		oldGroups[v.RuleSeverity] = append(oldGroups[v.RuleSeverity], v)
+	}
+	for _, v := range after {
+		newGroups[v.RuleSeverity] = append(newGroups[v.RuleSeverity], v)
+	}
+	keys := make([]string, 0, len(newGroups))
+	for key := range newGroups {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var results []model.RuleFunctionResult
+	for _, key := range keys {
+		added, _ := utils.DiffViolationsValuesWithOriginBases(oldGroups[key], newGroups[key], beforePath, afterPath)
+		results = append(results, added...)
+	}
+	return results
 }

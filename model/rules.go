@@ -66,6 +66,10 @@ type ArazzoContext interface {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
+	// ReportError optionally reports an execution failure separately from findings.
+	// Call it synchronously within RunRule, never after RunRule returns.
+	ReportError func(error) `json:"-" yaml:"-"`
+
 	RuleAction  *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
 	Rule        *Rule               `json:"rule,omitempty" yaml:"rule,omitempty"`             // A reference to the Rule being used for the function
 	Given       interface{}         `json:"given,omitempty" yaml:"given,omitempty"`           // Path/s being used by rule, multiple paths can be used

@@ -118,6 +118,7 @@ type Report struct {
 
 // CaseResult contains the evidence and assertion failures for one case.
 type CaseResult struct {
+	Fixed    *Snapshot `json:"fixed,omitempty"`
 	ID       string    `json:"id"`
 	Status   string    `json:"status"`
 	Failures []Failure `json:"failures"`
