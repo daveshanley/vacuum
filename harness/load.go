@@ -3,11 +3,16 @@ package harness
 import (
 	"bytes"
 	"fmt"
-	"github.com/pb33f/go-yaml"
 	"io"
+	"math"
 	"os"
-	"strings"
+	"regexp"
+	"time"
+
+	"github.com/pb33f/go-yaml"
 )
+
+var caseIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 
 // Load reads exactly one YAML or JSON suite and rejects unknown fields.
 func Load(path string) (*Suite, error) {
@@ -50,10 +55,15 @@ func (s *Suite) Validate() error {
 	if s.Options.TimeoutMS < 0 || s.Options.LookupTimeoutMS < 0 || s.Options.RunTimeoutMS < 0 || s.Options.MaxRuleConcurrency < 0 {
 		return fmt.Errorf("execution limits must not be negative")
 	}
+	for _, ms := range []int{s.Options.TimeoutMS, s.Options.LookupTimeoutMS, s.Options.RunTimeoutMS} {
+		if int64(ms) > math.MaxInt64/int64(time.Millisecond) {
+			return fmt.Errorf("timeout exceeds duration range")
+		}
+	}
 	ids := map[string]bool{}
 	for _, c := range s.Cases {
-		if strings.TrimSpace(c.ID) == "" || ids[c.ID] {
-			return fmt.Errorf("case ID must be nonempty and unique: %q", c.ID)
+		if !caseIDPattern.MatchString(c.ID) || ids[c.ID] {
+			return fmt.Errorf("case ID must be unique and match [A-Za-z0-9][A-Za-z0-9_.-]*: %q", c.ID)
 		}
 		ids[c.ID] = true
 		if c.Input == "" {

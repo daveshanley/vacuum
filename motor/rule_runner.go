@@ -139,7 +139,7 @@ func runRuleContexts(
 			byID[item.RuleID] = i
 		}
 		for i, rule := range rules {
-			item := RuleEvidence{RuleID: rule.Id, Status: "cancelled", Reason: "execution cancelled", Selectors: []SelectorEvidence{}}
+			item := RuleEvidence{RuleID: evidenceRuleID(execution, rule), Status: "cancelled", Reason: "execution cancelled", Selectors: []SelectorEvidence{}}
 			result := resultsByRule[i]
 			if result.evidence != nil {
 				item = *result.evidence
@@ -148,7 +148,7 @@ func runRuleContexts(
 				item.Status = "timed_out"
 				item.Reason = "rule timeout"
 			}
-			if pos, ok := byID[rule.Id]; ok {
+			if pos, ok := byID[item.RuleID]; ok {
 				control.evidence.Rules[pos] = item
 			}
 		}
@@ -196,8 +196,9 @@ func executeRuleContext(
 	localFixed := []model.RuleFunctionResult{}
 	localErrs := []error{}
 	localCtx := ctx
+	localCtx.reportFunctionErrors = control.reportFunctionErrors
 	if control.evidence != nil {
-		localCtx.evidence = &RuleEvidence{RuleID: rule.Id, Status: "completed", Resolved: ctx.resolvedExecution, Selectors: []SelectorEvidence{}}
+		localCtx.evidence = &RuleEvidence{RuleID: evidenceRuleID(execution, rule), Status: "completed", Resolved: ctx.resolvedExecution, Selectors: []SelectorEvidence{}}
 		localCtx.sampleLimit = control.evidence.SampleLimit
 	}
 	localCtx.ruleResults = &localResults

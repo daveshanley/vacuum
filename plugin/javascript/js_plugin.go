@@ -68,6 +68,9 @@ func (j *JSRuleFunction) getTimeout(ruleContext model.RuleFunctionContext) time.
 
 // createErrorResult creates a single error result with the given message
 func (j *JSRuleFunction) createErrorResult(message string, node *yaml.Node, ruleContext model.RuleFunctionContext) []model.RuleFunctionResult {
+	if ruleContext.ReportError != nil {
+		ruleContext.ReportError(fmt.Errorf("%s", message))
+	}
 	return []model.RuleFunctionResult{
 		{
 			Message:   message,
@@ -438,13 +441,7 @@ func (j *JSRuleFunction) extractBatchResults(
 	for itemIdx, item := range exportedArr {
 		itemMap, ok := item.(map[string]interface{})
 		if !ok {
-			functionResults = append(functionResults, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Batch result at position %d is not an object", itemIdx),
-				StartNode: nodeInfos[0].node,
-				EndNode:   nodeInfos[0].node,
-				Path:      fmt.Sprint(ruleContext.Given),
-				Rule:      ruleContext.Rule,
-			})
+			functionResults = append(functionResults, j.createErrorResult(fmt.Sprintf("Batch result at position %d is not an object", itemIdx), nodeInfos[0].node, ruleContext)...)
 			continue
 		}
 
@@ -466,25 +463,13 @@ func (j *JSRuleFunction) extractBatchResults(
 
 		// validate index
 		if nodeIdx < 0 || nodeIdx >= len(nodeInfos) {
-			functionResults = append(functionResults, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Batch result at position %d missing valid 'input' object with 'index' field (batch mode requires returning the input)", itemIdx),
-				StartNode: nodeInfos[0].node,
-				EndNode:   nodeInfos[0].node,
-				Path:      fmt.Sprint(ruleContext.Given),
-				Rule:      ruleContext.Rule,
-			})
+			functionResults = append(functionResults, j.createErrorResult(fmt.Sprintf("Batch result at position %d missing valid 'input' object with 'index' field (batch mode requires returning the input)", itemIdx), nodeInfos[0].node, ruleContext)...)
 			continue
 		}
 
 		var result model.RuleFunctionResult
 		if err := mapstructure.Decode(itemMap, &result); err != nil {
-			functionResults = append(functionResults, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Failed to decode batch result at position %d: %s", itemIdx, err.Error()),
-				StartNode: nodeInfos[0].node,
-				EndNode:   nodeInfos[0].node,
-				Path:      fmt.Sprint(ruleContext.Given),
-				Rule:      ruleContext.Rule,
-			})
+			functionResults = append(functionResults, j.createErrorResult(fmt.Sprintf("Failed to decode batch result at position %d: %s", itemIdx, err.Error()), nodeInfos[0].node, ruleContext)...)
 			continue
 		}
 

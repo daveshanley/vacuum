@@ -53,7 +53,12 @@ func RunFile(path string, opts RunOptions) *Report {
 
 // Run executes a validated suite using suitePath as its location. Settings are
 // explicit; no process environment or vacuum configuration is consulted.
-func Run(s *Suite, suitePath string, opts RunOptions) *Report {
+func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
+	defer func() {
+		if v := recover(); v != nil {
+			report = errorReport(fmt.Errorf("harness execution panicked: %v", v))
+		}
+	}()
 	if err := s.Validate(); err != nil {
 		return errorReport(err)
 	}
@@ -68,7 +73,7 @@ func Run(s *Suite, suitePath string, opts RunOptions) *Report {
 	if r.ctx == nil {
 		r.ctx = context.Background()
 	}
-	report := &Report{Version: 1, Status: "passed", Cases: []CaseResult{}, Errors: []string{}, Manifest: Manifest{VacuumVersion: opts.Version, Suite: filepath.Base(abs), Options: effectiveOptions(s.Options), Files: []FileIdentity{}, Limitations: []string{}}}
+	report = &Report{Version: 1, Status: "passed", Cases: []CaseResult{}, Errors: []string{}, Manifest: Manifest{VacuumVersion: opts.Version, Suite: filepath.Base(abs), Options: effectiveOptions(s.Options), Files: []FileIdentity{}, Limitations: []string{}}}
 	effective, _ := json.Marshal(s)
 	effectiveHash := sha256.Sum256(effective)
 	report.Manifest.SuiteSHA256 = hex.EncodeToString(effectiveHash[:])
@@ -129,8 +134,13 @@ func Run(s *Suite, suitePath string, opts RunOptions) *Report {
 			selected[c.ID] = true
 		}
 	}
-	for id, exists := range selected {
-		if !exists {
+	selectedIDs := make([]string, 0, len(selected))
+	for id := range selected {
+		selectedIDs = append(selectedIDs, id)
+	}
+	sort.Strings(selectedIDs)
+	for _, id := range selectedIDs {
+		if !selected[id] {
 			return errorReport(fmt.Errorf("unknown case %q", id))
 		}
 	}
@@ -220,6 +230,9 @@ func (r *runner) loadRules(c Case) (*rulesets.RuleSet, error) {
 	rs = rulesets.BuildDefaultRuleSetsWithLogger(r.logger).GenerateRuleSetFromSuppliedRuleSet(rs)
 	if err := rs.LoadError(); err != nil {
 		return nil, err
+	}
+	if len(rs.Rules) == 0 {
+		return nil, fmt.Errorf("ruleset contains no enabled rules")
 	}
 	if len(c.Rules) > 0 {
 		selected := make(map[string]*model.Rule, len(c.Rules))
@@ -335,7 +348,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	var panicValue any
 	var panicMu sync.Mutex
 	ex.PanicFunction = func(v any) { panicMu.Lock(); panicValue = v; panicMu.Unlock() }
-	result := motor.ApplyRulesToRuleSetWithOptions(ex, &motor.ExecutionOptions{Context: r.ctx, RunTimeout: time.Duration(o.RunTimeoutMS) * time.Millisecond, MaxRuleConcurrency: o.MaxRuleConcurrency, ResolveAllRefs: o.ResolveAllRefs, NestedRefsDocContext: o.NestedRefsDocContext, Evidence: evidence})
+	result := motor.ApplyRulesToRuleSetWithOptions(ex, &motor.ExecutionOptions{ReportFunctionErrors: true, Context: r.ctx, RunTimeout: time.Duration(o.RunTimeoutMS) * time.Millisecond, MaxRuleConcurrency: o.MaxRuleConcurrency, ResolveAllRefs: o.ResolveAllRefs, NestedRefsDocContext: o.NestedRefsDocContext, Evidence: evidence})
 	defer result.ReleaseOwnedResources()
 	for _, e := range result.Errors {
 		out.errs = append(out.errs, e.Error())
@@ -350,6 +363,15 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	}
 	if o.Remote {
 		r.limitations["remote document lookup enabled; external responses are not captured"] = true
+	}
+	if ex.Arazzo != nil {
+		for source := range ex.Arazzo.Sources {
+			if strings.Contains(source, "://") {
+				r.limitations["remote Arazzo sources are not captured"] = true
+			} else if _, err := r.read(source); err != nil {
+				out.errs = append(out.errs, err.Error())
+			}
+		}
 	}
 	for _, idx := range []*index.SpecIndex{ex.IndexResolved, ex.IndexUnresolved, result.Index} {
 		if idx == nil || idx.GetRolodex() == nil {

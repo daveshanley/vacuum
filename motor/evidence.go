@@ -1,6 +1,9 @@
 package motor
 
-import "sort"
+import (
+	"github.com/daveshanley/vacuum/model"
+	"sort"
+)
 
 // ExecutionEvidence records rule outcomes for one invocation. Supply a fresh
 // value through ExecutionOptions; read it only after execution returns.
@@ -56,4 +59,16 @@ func prepareEvidence(control *executionControl, execution *RuleSetExecution) {
 		control.evidence.Rules = append(control.evidence.Rules, RuleEvidence{RuleID: id, Status: "excluded", Reason: "format", Selectors: []SelectorEvidence{}})
 	}
 	sort.Slice(control.evidence.Rules, func(i, j int) bool { return control.evidence.Rules[i].RuleID < control.evidence.Rules[j].RuleID })
+}
+
+func evidenceRuleID(execution *RuleSetExecution, rule *model.Rule) string {
+	if rule.Id != "" {
+		return rule.Id
+	}
+	for id, candidate := range execution.RuleSet.Rules {
+		if candidate == rule {
+			return id
+		}
+	}
+	return ""
 }
