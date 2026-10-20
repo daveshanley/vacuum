@@ -1,0 +1,9 @@
+rules:
+  operation-id-required:
+    description: Every GET operation needs an operationId.
+    given: $.paths[*].get
+    severity: error
+    resolved: true
+    then:
+      function: defined
+      field: operationId
