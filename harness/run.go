@@ -73,6 +73,16 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 	if r.ctx == nil {
 		r.ctx = context.Background()
 	}
+	for _, dependency := range []string{s.Ruleset, s.Functions, s.IgnoreFile} {
+		r.trackAbsolutePath(dependency)
+	}
+	for _, c := range s.Cases {
+		r.trackAbsolutePath(c.Input)
+		r.trackAbsolutePath(c.After)
+		if c.Fix != nil {
+			r.trackAbsolutePath(c.Fix.Output)
+		}
+	}
 	report = &Report{Version: 1, Status: "passed", Cases: []CaseResult{}, Errors: []string{}, Manifest: Manifest{VacuumVersion: opts.Version, Suite: filepath.Base(abs), Options: effectiveOptions(s.Options), Files: []FileIdentity{}, Limitations: []string{}}}
 	effective, _ := json.Marshal(s)
 	effectiveHash := sha256.Sum256(effective)
@@ -279,6 +289,7 @@ func (r *runner) trackRules(path string, seen map[string]bool) error {
 		return err
 	}
 	for ref := range rs.GetExtendsValue() {
+		r.trackAbsolutePath(ref)
 		if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
 			r.limitations["remote ruleset extensions are not captured"] = true
 			continue
@@ -364,6 +375,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 	if o.Remote {
 		r.limitations["remote document lookup enabled; external responses are not captured"] = true
 	}
+	r.trackDocumentPaths(ex.CanonicalDocument)
 	if ex.Arazzo != nil {
 		for source := range ex.Arazzo.Sources {
 			if strings.Contains(source, "://") {
@@ -373,15 +385,18 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool) executi
 			}
 		}
 	}
+	seenDependencies := map[string]bool{}
 	for _, idx := range []*index.SpecIndex{ex.IndexResolved, ex.IndexUnresolved, result.Index} {
 		if idx == nil || idx.GetRolodex() == nil {
 			continue
 		}
 		for _, dep := range idx.GetRolodex().GetIndexes() {
 			source := dep.GetSpecAbsolutePath()
-			if source == "" {
+			if source == "" || seenDependencies[source] {
 				continue
 			}
+			seenDependencies[source] = true
+			r.trackDocumentPaths(dep.GetRootNode())
 			if strings.Contains(source, "://") {
 				r.limitations["remote document responses are not captured"] = true
 				continue
