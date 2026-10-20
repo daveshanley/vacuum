@@ -58,7 +58,7 @@ type DiagnosticMatch struct {
 	Rule     string   `json:"rule" yaml:"rule"`
 	Severity string   `json:"severity,omitempty" yaml:"severity,omitempty"`
 	Path     string   `json:"path,omitempty" yaml:"path,omitempty"`
-	Paths    []string `json:"paths,omitempty" yaml:"paths,omitempty"`
+	Paths    []string `json:"paths" yaml:"paths"`
 	Source   string   `json:"source,omitempty" yaml:"source,omitempty"`
 	Line     int      `json:"line,omitempty" yaml:"line,omitempty"`
 	Column   int      `json:"column,omitempty" yaml:"column,omitempty"`

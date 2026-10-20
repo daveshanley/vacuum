@@ -3,6 +3,7 @@ package harness
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"reflect"
 	"sort"
 
@@ -117,6 +118,10 @@ func semanticEqual(a, b []byte) (bool, error) {
 		d := yaml.NewDecoder(bytes.NewReader(data))
 		if err := d.Decode(&v); err != nil {
 			return nil, fmt.Errorf("invalid fixed document: %w", err)
+		}
+		var extra any
+		if err := d.Decode(&extra); err != io.EOF {
+			return nil, fmt.Errorf("fixed document must contain exactly one YAML or JSON document")
 		}
 		return v, nil
 	}
