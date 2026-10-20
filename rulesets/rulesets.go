@@ -949,13 +949,10 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 		return nil, errors.New("data is not JSON")
 	}
 
-	compiler := jsonschema.NewCompiler()
-
-	// schema needs to be parsed first
-	var parsed map[string]interface{}
-	_ = json.Unmarshal([]byte(RulesetSchema), &parsed)
-	_ = compiler.AddResource("schema.json", parsed)
-	jsch, _ := compiler.Compile("schema.json")
+	jsch, err := compiledRulesetSchema(RulesetSchema)
+	if err != nil {
+		return nil, err
+	}
 
 	var data map[string]interface{}
 	_ = json.Unmarshal(jsonData, &data)
