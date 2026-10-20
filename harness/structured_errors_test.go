@@ -93,6 +93,7 @@ func TestTypedExecutionErrorsPreserveCauseIdentity(t *testing.T) {
 		rule string
 	}{
 		{&motor.RuleTimeoutError{RuleId: "r"}, ErrorRuleTimeout, "r"},
+		{&motor.RuleExecutionError{Kind: "custom", RuleID: "r", Err: fmt.Errorf("custom failure")}, ErrorExecution, "r"},
 		{&motor.RuleLookupError{RuleId: "r", Err: fmt.Errorf("lookup")}, ErrorLookup, "r"},
 		{fmt.Errorf("wrapped: %w", context.Canceled), ErrorCancelled, ""},
 		{&motor.RuleExecutionError{Kind: motor.RuleErrorFunction, RuleID: "r", Err: context.DeadlineExceeded}, ErrorDeadline, "r"},
