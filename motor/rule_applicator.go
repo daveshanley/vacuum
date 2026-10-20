@@ -1573,10 +1573,19 @@ func runRule(ctx ruleContext) {
 		}
 	}
 
-	if ctx.panicFunc != nil {
+	if ctx.panicFunc != nil || ctx.evidence != nil || ctx.reportFunctionErrors {
 		defer func() {
 			if r := recover(); r != nil {
-				ctx.panicFunc(r)
+				if ctx.reportFunctionErrors {
+					*ctx.errors = append(*ctx.errors, fmt.Errorf("rule %q panicked: %v", ctx.rule.Id, r))
+				}
+				if ctx.evidence != nil {
+					ctx.evidence.Status = "error"
+					ctx.evidence.Reason = fmt.Sprintf("rule panicked: %v", r)
+				}
+				if ctx.panicFunc != nil {
+					ctx.panicFunc(r)
+				}
 			}
 		}()
 	}
