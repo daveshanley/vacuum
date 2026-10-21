@@ -553,9 +553,15 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 		}
 	}
 	for _, top := range []string{"paths", "webhooks"} {
+		if top == "webhooks" && !supportsWebhooks(version) {
+			continue
+		}
 		container := mapValue(root, top)
 		if container != nil && container.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(container.Content); i += 2 {
+				if top == "paths" && strings.HasPrefix(container.Content[i].Value, "x-") {
+					continue
+				}
 				pathItem(container.Content[i+1], []string{top, container.Content[i].Value})
 			}
 		}
