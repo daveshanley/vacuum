@@ -8,6 +8,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -259,6 +260,17 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		if transformErr != nil {
 			renderApplyOverlayError(stdOut, transformErr)
 			return NewInputError("unable to render transformed OpenAPI document: %s", transformErr)
+		}
+	}
+
+	// The overlay engine emits YAML. Preserve JSON input for both file and
+	// stdout output, and honor an explicitly named JSON destination.
+	if json.Valid(specBytes) || (!stdOut && strings.EqualFold(filepath.Ext(outputPath), ".json")) {
+		var renderErr error
+		result.Bytes, renderErr = renderBundledOutput(result.Bytes, bundleOutputFormatJSON)
+		if renderErr != nil {
+			renderApplyOverlayError(stdOut, renderErr)
+			return NewInputError("unable to render JSON output: %s", renderErr)
 		}
 	}
 
