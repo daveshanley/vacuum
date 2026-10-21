@@ -108,6 +108,16 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 // LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
 // returns an error if it cannot load the ruleset
 func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
+	return LoadLocalRuleSetWithReader(ctx, location, os.ReadFile)
+}
+
+// LoadLocalRuleSetWithReader loads a ruleset and its local extensions through
+// readFile. The reader receives absolute paths and must be safe for asynchronous
+// extension loading. This lets callers evaluate the same bytes they record.
+func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile func(string) ([]byte, error)) (*RuleSet, error) {
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot load ruleset, location is empty")
@@ -124,7 +134,7 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	ruleBytes, bytesErr := os.ReadFile(location)
+	ruleBytes, bytesErr := readFile(location)
 	if bytesErr != nil {
 		return nil, bytesErr
 	}
@@ -142,6 +152,7 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 	}
 
 	downloadedRS.sourceLocation = rulesetLocation{path: location}
+	downloadedRS.readLocalFile = readFile
 	return downloadedRS, nil
 }
 
@@ -184,7 +195,7 @@ func sniffExternalRules(ctx context.Context, rsm *ruleSetsModel, location rulese
 	if location.remoteURL != nil {
 		drs, err = DownloadRemoteRuleSet(ctx, location.remoteURL.String(), httpClient)
 	} else {
-		drs, err = LoadLocalRuleSet(ctx, location.path)
+		drs, err = LoadLocalRuleSetWithReader(ctx, location.path, rs.readLocalFile)
 	}
 	if err != nil {
 		if ctx.Err() != nil {

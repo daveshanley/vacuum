@@ -36,12 +36,20 @@ type runner struct {
 	files       map[string]string
 	limitations map[string]bool
 	functions   map[string]model.RuleFunction
+	rules       *rulesets.RuleSet
+	rulesErr    error
+	rulesLoaded bool
+	ruleFiles   map[string][]byte
 }
 
 // RunFile loads and executes a suite. All failures, including loading failures,
 // are returned in a serializable report with exit code 0, 1, or 2.
 func RunFile(path string, opts RunOptions) *Report {
-	s, err := Load(path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return errorReport(ErrorSuite, PhaseLoad, err)
+	}
+	s, err := Parse(data)
 	if err != nil {
 		return errorReport(ErrorSuite, PhaseLoad, err)
 	}
@@ -49,19 +57,25 @@ func RunFile(path string, opts RunOptions) *Report {
 	if err != nil {
 		return errorReport(ErrorSuite, PhaseLoad, err)
 	}
-	return Run(s, abs, opts)
+	return run(s, abs, opts, data)
 }
 
 // Run executes a validated suite using suitePath as its location. Settings are
 // explicit; no process environment or vacuum configuration is consulted.
-func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
+func Run(s *Suite, suitePath string, opts RunOptions) *Report {
+	return run(s, suitePath, opts, nil)
+}
+
+func run(s *Suite, suitePath string, opts RunOptions, suiteBytes []byte) (report *Report) {
 	defer func() {
 		if v := recover(); v != nil {
 			report = errorReport(ErrorInternal, PhaseLoad, fmt.Errorf("harness execution panicked: %v", v))
 		}
 	}()
-	if err := s.Validate(); err != nil {
-		return errorReport(ErrorSuite, PhaseLoad, err)
+	if suiteBytes == nil {
+		if err := s.Validate(); err != nil {
+			return errorReport(ErrorSuite, PhaseLoad, err)
+		}
 	}
 	if opts.SampleLimit < 0 || opts.SampleLimit > 100 {
 		return errorReport(ErrorArguments, PhaseLoad, fmt.Errorf("sample limit must be between 0 and 100"))
@@ -90,14 +104,16 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 	report.Manifest.SuiteSHA256 = hex.EncodeToString(effectiveHash[:])
 	report.Manifest.CaseIDs = append([]string{}, opts.CaseIDs...)
 	report.Manifest.SampleLimit = opts.SampleLimit
-	if disk, err := Load(abs); err != nil {
+	if suiteBytes != nil {
+		r.record(abs, suiteBytes)
+	} else if data, err := r.read(abs); err != nil {
+		r.limitations["suite supplied in memory; suite file unavailable"] = true
+	} else if disk, err := Parse(data); err != nil {
 		r.limitations["suite supplied in memory differs from its file"] = true
 	} else if b, _ := json.Marshal(disk); string(b) != string(effective) {
 		r.limitations["suite supplied in memory differs from its file"] = true
 	}
-	if _, err := r.read(abs); err != nil {
-		r.limitations["suite supplied in memory; suite file unavailable"] = true
-	}
+
 	r.opts.AutoFixFunctions = make(map[string]model.AutoFixFunction, len(opts.AutoFixFunctions))
 	for name, f := range opts.AutoFixFunctions {
 		r.opts.AutoFixFunctions[name] = f
@@ -132,9 +148,6 @@ func Run(s *Suite, suitePath string, opts RunOptions) (report *Report) {
 			return report
 		}
 		for name, f := range manager.GetAutoFixFunctions() {
-			if r.opts.AutoFixFunctions == nil {
-				r.opts.AutoFixFunctions = map[string]model.AutoFixFunction{}
-			}
 			r.opts.AutoFixFunctions[name] = f
 		}
 		for name, f := range manager.GetCustomFunctions() {
@@ -219,6 +232,11 @@ func (r *runner) relative(p string) string {
 	if err != nil {
 		return filepath.ToSlash(p)
 	}
+	if a == ".." || strings.HasPrefix(a, ".."+string(filepath.Separator)) {
+		if r.limitations != nil {
+			r.limitations["dependency escapes suite directory"] = true
+		}
+	}
 	return filepath.ToSlash(a)
 }
 func (r *runner) read(p string) ([]byte, error) {
@@ -227,30 +245,51 @@ func (r *runner) read(p string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := sha256.Sum256(b)
-	key := r.relative(p)
-	if old, ok := r.files[key]; ok && old != hex.EncodeToString(h[:]) {
-		return nil, fmt.Errorf("dependency changed during run: %s", key)
+	if err := r.record(p, b); err != nil {
+		return nil, err
 	}
-	r.files[key] = hex.EncodeToString(h[:])
 	return b, nil
 }
+func (r *runner) record(p string, b []byte) error {
+	h := sha256.Sum256(b)
+	key := r.relative(p)
+	hash := hex.EncodeToString(h[:])
+	if old, ok := r.files[key]; ok && old != hash {
+		return fmt.Errorf("dependency changed during run: %s", key)
+	}
+	r.files[key] = hash
+	return nil
+}
+
 func (r *runner) loadRules(c Case) (*rulesets.RuleSet, error) {
-	path := r.path(r.suite.Ruleset)
-	if err := r.trackRules(path, map[string]bool{}); err != nil {
-		return nil, err
+	if !r.rulesLoaded {
+		r.rulesLoaded = true
+		r.ruleFiles = map[string][]byte{}
+		r.rulesErr = r.trackRules(r.path(r.suite.Ruleset), map[string]bool{})
+		if r.rulesErr == nil {
+			captured := r.ruleFiles // frozen before the asynchronous extends loader starts
+			reader := func(path string) ([]byte, error) {
+				if data, ok := captured[filepath.Clean(path)]; ok {
+					return data, nil
+				}
+				return nil, fmt.Errorf("ruleset dependency was not captured: %s", path)
+			}
+			var loaded *rulesets.RuleSet
+			loaded, r.rulesErr = rulesets.LoadLocalRuleSetWithReader(r.ctx, r.path(r.suite.Ruleset), reader)
+			if r.rulesErr == nil {
+				r.rules = rulesets.BuildDefaultRuleSetsWithLogger(r.logger).GenerateRuleSetFromSuppliedRuleSet(loaded)
+				r.rulesErr = r.rules.LoadError()
+			}
+		}
 	}
-	rs, err := rulesets.LoadLocalRuleSet(r.ctx, path)
-	if err != nil {
-		return nil, err
+	if r.rulesErr != nil {
+		return nil, r.rulesErr
 	}
-	rs = rulesets.BuildDefaultRuleSetsWithLogger(r.logger).GenerateRuleSetFromSuppliedRuleSet(rs)
-	if err := rs.LoadError(); err != nil {
-		return nil, err
-	}
+	rs := copyExecutionRules(r.rules)
 	if len(rs.Rules) == 0 {
 		return nil, fmt.Errorf("ruleset contains no enabled rules")
 	}
+
 	if len(c.Rules) > 0 {
 		selected := make(map[string]*model.Rule, len(c.Rules))
 		for _, id := range c.Rules {
@@ -295,11 +334,12 @@ func (r *runner) trackRules(path string, seen map[string]bool) error {
 	if err != nil {
 		return err
 	}
+	r.ruleFiles[filepath.Clean(path)] = b
 	rs, err := rulesets.CreateRuleSetFromData(b)
 	if err != nil {
 		return err
 	}
-	for ref := range rs.GetExtendsValue() {
+	for _, ref := range slices.Sorted(maps.Keys(rs.GetExtendsValue())) {
 		r.trackAbsolutePath(ref)
 		if strings.HasPrefix(ref, "http://") || strings.HasPrefix(ref, "https://") {
 			r.limitations["remote ruleset extensions are not captured"] = true
@@ -326,7 +366,7 @@ type execution struct {
 	errs     []ExecutionError
 }
 
-func (r *runner) execute(c Case, path string, override []byte, fix bool, phase Phase) execution {
+func (r *runner) execute(c Case, path string, override []byte, fix bool, phase Phase, prepared *rulesets.RuleSet) execution {
 	out := execution{errs: []ExecutionError{}}
 	fail := func(code ErrorCode, source string, err error) {
 		out.errs = append(out.errs, r.executionErrors(err, code, phase, c.ID, source)...)
@@ -335,11 +375,8 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool, phase P
 		fail(ErrorCancelled, path, err)
 		return out
 	}
-	rs, err := r.loadRules(c)
-	if err != nil {
-		fail(ErrorRuleset, r.suite.Ruleset, err)
-		return out
-	}
+	rs := copyExecutionRules(prepared)
+	var err error
 	b := override
 	if b == nil {
 		b, err = r.read(path)
@@ -441,7 +478,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool, phase P
 			}
 		}
 	}
-	out.snapshot = &Snapshot{Diagnostics: r.diagnostics(values, path), Evidence: evidence.Rules, Rules: rs.Rules}
+	out.snapshot = &Snapshot{Diagnostics: r.diagnostics(values, path), Evidence: evidence.Rules}
 	out.values = detachedValues(out.snapshot.Diagnostics, r.base)
 	out.modified = append([]byte(nil), result.ModifiedSpec...)
 	return out
@@ -501,6 +538,19 @@ func detachedValues(ds []Diagnostic, base string) []model.RuleFunctionResult {
 			source = filepath.Join(base, source)
 		}
 		out = append(out, model.RuleFunctionResult{RuleId: d.Rule, RuleSeverity: d.Severity, Path: d.Path, Paths: d.Paths, Message: d.Message, PathsTruncated: d.PathsTruncated, Origin: &index.NodeOrigin{AbsoluteLocation: source, Line: d.Line, Column: d.Column}, StartNode: &yaml.Node{Line: d.Line, Column: d.Column}})
+	}
+	return out
+}
+
+// Each phase owns rule structs because motor may adjust rule messages. The
+// declarative action/alias values are read-only during normal rule execution.
+func copyExecutionRules(source *rulesets.RuleSet) *rulesets.RuleSet {
+	out := &rulesets.RuleSet{Description: source.Description, DocumentationURI: source.DocumentationURI, Formats: source.Formats, Aliases: source.Aliases, ParsedAliases: source.ParsedAliases, Rules: make(map[string]*model.Rule, len(source.Rules))}
+	for id, rule := range source.Rules {
+		if rule != nil {
+			value := *rule
+			out.Rules[id] = &value
+		}
 	}
 	return out
 }

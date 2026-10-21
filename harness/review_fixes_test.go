@@ -1,6 +1,8 @@
 package harness
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
@@ -42,4 +44,36 @@ func TestRepairEvidenceAndOutputAcrossFormats(t *testing.T) {
 			require.Contains(t, report.Cases[0].Errors[0].Message, "unselected rule")
 		})
 	}
+}
+
+func TestRulesCapturedOnceAndReportedOnce(t *testing.T) {
+	s, path := testSuite(t)
+	r := &runner{suite: s, base: filepath.Dir(path), ctx: context.Background(), files: map[string]string{}, limitations: map[string]bool{}}
+	first, err := r.loadRules(s.Cases[0])
+	require.NoError(t, err)
+	fixture(t, "rules.yaml", "not a valid ruleset", filepath.Dir(path))
+	second, err := r.loadRules(s.Cases[0])
+	require.NoError(t, err)
+	require.Equal(t, first.Rules, second.Rules)
+	first.Rules["title-required"].Message = "changed"
+	require.NotEqual(t, first.Rules["title-required"].Message, second.Rules["title-required"].Message)
+	fixture(t, "rules.yaml", testRules, filepath.Dir(path))
+	report := Run(s, path, RunOptions{})
+	require.Equal(t, 0, report.ExitCode)
+	data, err := json.Marshal(report)
+	require.NoError(t, err)
+	require.Equal(t, 1, strings.Count(string(data), `"rules":`))
+	require.NotEmpty(t, report.Cases[0].Rules)
+}
+
+func TestParentDependencyIsNotReproducible(t *testing.T) {
+	s, path := testSuite(t)
+	parent := filepath.Dir(path)
+	suitePath := fixture(t, "nested/suite.yaml", "", parent)
+	s.Ruleset = "../rules.yaml"
+	s.Cases[0].Input = "../good.yaml"
+	report := Run(s, suitePath, RunOptions{})
+	require.Equal(t, 0, report.ExitCode)
+	require.False(t, report.Manifest.Reproducible)
+	require.Contains(t, report.Manifest.Limitations, "dependency escapes suite directory")
 }

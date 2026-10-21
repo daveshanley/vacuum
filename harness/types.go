@@ -119,6 +119,8 @@ type Report struct {
 
 // CaseResult contains the evidence and assertion failures for one case.
 type CaseResult struct {
+	// Rules contains the selected rule definitions once for all execution phases.
+	Rules map[string]*model.Rule `json:"rules,omitempty"`
 	// SecondFix records the repeated repair used to verify idempotence.
 	SecondFix *Snapshot        `json:"secondFix,omitempty"`
 	Fixed     *Snapshot        `json:"fixed,omitempty"`
@@ -140,9 +142,8 @@ type Failure struct {
 
 // Snapshot is detached from motor resources before those resources are released.
 type Snapshot struct {
-	Diagnostics []Diagnostic           `json:"diagnostics"`
-	Evidence    []motor.RuleEvidence   `json:"evidence"`
-	Rules       map[string]*model.Rule `json:"rules"`
+	Diagnostics []Diagnostic         `json:"diagnostics"`
+	Evidence    []motor.RuleEvidence `json:"evidence"`
 }
 
 // Diagnostic exposes canonical source identity and one-based coordinates.

@@ -6,12 +6,20 @@ import (
 	"sort"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 )
 
 func (r *runner) runCase(c Case) CaseResult {
 	cr := CaseResult{ID: c.ID, Status: "passed", Failures: []Failure{}, Errors: []ExecutionError{}}
-	before := r.execute(c, c.Input, nil, false, PhaseBefore)
+	prepared, err := r.loadRules(c)
+	if err != nil {
+		cr.Status = "error"
+		cr.Errors = r.executionErrors(err, ErrorRuleset, PhaseBefore, c.ID, r.suite.Ruleset)
+		return cr
+	}
+	cr.Rules = prepared.Rules
+	before := r.execute(c, c.Input, nil, false, PhaseBefore, prepared)
 	cr.Before = before.snapshot
 	cr.Errors = append(cr.Errors, before.errs...)
 	if len(cr.Errors) > 0 {
@@ -20,7 +28,7 @@ func (r *runner) runCase(c Case) CaseResult {
 	}
 	cr.Failures = append(cr.Failures, assertSnapshot("expect", c.Expect, before.snapshot)...)
 	if c.After != "" {
-		after := r.execute(c, c.After, nil, false, PhaseAfter)
+		after := r.execute(c, c.After, nil, false, PhaseAfter, prepared)
 		cr.After = after.snapshot
 		cr.Errors = append(cr.Errors, after.errs...)
 		if len(after.errs) == 0 {
@@ -49,7 +57,7 @@ func (r *runner) runCase(c Case) CaseResult {
 		}
 	}
 	if c.Fix != nil {
-		r.checkFix(c, &cr)
+		r.checkFix(c, &cr, prepared)
 	}
 	if len(cr.Errors) > 0 {
 		cr.Status = "error"
@@ -59,8 +67,8 @@ func (r *runner) runCase(c Case) CaseResult {
 	return cr
 }
 
-func (r *runner) checkFix(c Case, cr *CaseResult) {
-	fixed := r.execute(c, c.Input, nil, true, PhaseFixed)
+func (r *runner) checkFix(c Case, cr *CaseResult, prepared *rulesets.RuleSet) {
+	fixed := r.execute(c, c.Input, nil, true, PhaseFixed, prepared)
 	cr.Fixed = fixed.snapshot
 	cr.Errors = append(cr.Errors, fixed.errs...)
 	if len(fixed.errs) > 0 {
@@ -88,14 +96,14 @@ func (r *runner) checkFix(c Case, cr *CaseResult) {
 	if !equal {
 		cr.Failures = append(cr.Failures, Failure{Assertion: "fix.output", Code: "document_mismatch", Expected: string(expected), Actual: string(modified)})
 	}
-	after := r.execute(c, c.Input, modified, false, PhaseAfter)
+	after := r.execute(c, c.Input, modified, false, PhaseAfter, prepared)
 	cr.After = after.snapshot
 	cr.Errors = append(cr.Errors, after.errs...)
 	if len(after.errs) > 0 {
 		return
 	}
 	cr.Failures = append(cr.Failures, assertSnapshot("fix.expect", c.Fix.Expect, &Snapshot{Diagnostics: after.snapshot.Diagnostics, Evidence: fixed.snapshot.Evidence})...)
-	again := r.execute(c, c.Input, modified, true, PhaseSecondFix)
+	again := r.execute(c, c.Input, modified, true, PhaseSecondFix, prepared)
 	cr.SecondFix = again.snapshot
 	cr.Errors = append(cr.Errors, again.errs...)
 	if len(again.errs) > 0 {

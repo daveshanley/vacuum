@@ -184,6 +184,7 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 		extendsMeta:      cloneStringMap(source.extendsMeta),
 		loadErrors:       append([]error(nil), source.loadErrors...),
 		sourceLocation:   source.sourceLocation,
+		readLocalFile:    source.readLocalFile,
 	}
 }
 
