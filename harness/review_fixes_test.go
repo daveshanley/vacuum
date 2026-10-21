@@ -77,3 +77,31 @@ func TestParentDependencyIsNotReproducible(t *testing.T) {
 	require.False(t, report.Manifest.Reproducible)
 	require.Contains(t, report.Manifest.Limitations, "dependency escapes suite directory")
 }
+
+type optionMutationProbe struct{ seen []any }
+
+func (p *optionMutationProbe) GetCategory() string { return model.FunctionCategoryCore }
+func (p *optionMutationProbe) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "probe", Properties: []model.RuleFunctionProperty{{Name: "flag"}}}
+}
+func (p *optionMutationProbe) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+	options := ctx.Options.(map[string]any)
+	p.seen = append(p.seen, options["flag"])
+	options["flag"] = "mutated"
+	return nil
+}
+func TestCachedRulesIsolateCallbackOptions(t *testing.T) {
+	s, path := testSuite(t)
+	fixture(t, "rules.yaml", "rules:\n  probe:\n    given: $\n    then:\n      function: probe\n      functionOptions: {flag: original}\n", filepath.Dir(path))
+	s.Cases = []Case{{ID: "first", Input: "good.yaml", Expect: Expectations{Diagnostics: []DiagnosticMatch{}}}, {ID: "second", Input: "good.yaml", Expect: Expectations{Diagnostics: []DiagnosticMatch{}}}}
+	probe := &optionMutationProbe{}
+	report := Run(s, path, RunOptions{CustomFunctions: map[string]model.RuleFunction{"probe": probe}})
+	require.Equal(t, 0, report.ExitCode)
+	require.Equal(t, []any{"original", "original"}, probe.seen)
+	for _, c := range report.Cases {
+		data, err := json.Marshal(c.Rules)
+		require.NoError(t, err)
+		require.Contains(t, string(data), "original")
+		require.NotContains(t, string(data), "mutated")
+	}
+}
