@@ -132,6 +132,14 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 // When annotations is true, all terminal chrome is suppressed and failures are reported as
 // GitHub Actions annotation lines instead.
 func LoadCustomFunctions(functionsFlag string, silence, annotations bool) (map[string]model.RuleFunction, error) {
+	pm, err := loadCustomFunctionManager(functionsFlag, silence, annotations)
+	if err != nil {
+		return nil, err
+	}
+	return pm.GetCustomFunctions(), nil
+}
+
+func loadCustomFunctionManager(functionsFlag string, silence, annotations bool) (*plugin.Manager, error) {
 	// check custom functions
 	if functionsFlag != "" {
 		if strings.HasPrefix(functionsFlag, "-") {
@@ -178,9 +186,9 @@ func LoadCustomFunctions(functionsFlag string, silence, annotations bool) (map[s
 			}
 		}
 
-		return customFunctions, nil
+		return pm, nil
 	}
-	return nil, nil
+	return plugin.CreatePluginManager(), nil
 }
 
 func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int, hints ...int) error {

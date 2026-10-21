@@ -34,7 +34,7 @@ func (pm *Manager) GetCustomFunctions() map[string]model.RuleFunction {
 }
 
 // RegisterAutoFixFunction registers a named repair for rules using autoFixFunction.
-// The harness runs repairs against private documents and verifies the result.
+// Repairs are available to lint --fix and the test harness.
 func (pm *Manager) RegisterAutoFixFunction(name string, function model.AutoFixFunction) {
 	if pm.autoFixFunctions == nil {
 		pm.autoFixFunctions = make(map[string]model.AutoFixFunction)
