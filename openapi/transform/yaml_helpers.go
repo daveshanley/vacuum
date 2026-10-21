@@ -400,3 +400,15 @@ func joinYAMLComments(comments ...string) string {
 	}
 	return strings.Join(retained, "\n")
 }
+
+// These helpers are used only after the YAML graph has passed cycle validation.
+func aliasTarget(node *yaml.Node) *yaml.Node {
+	for node != nil && node.Kind == yaml.AliasNode {
+		node = node.Alias
+	}
+	return node
+}
+
+func resolvedMapValue(node *yaml.Node, key string) *yaml.Node {
+	return aliasTarget(mapValue(aliasTarget(node), key))
+}

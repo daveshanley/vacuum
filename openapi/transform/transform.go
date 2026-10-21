@@ -14,6 +14,8 @@ import (
 type Options struct {
 	TagFilter   TagFilterOptions
 	PruneUnused bool
+	// PruneUnusedTags removes tag definitions unused by operations or documentation.
+	PruneUnusedTags bool
 }
 
 // Transform filters operations and prunes unused components with one YAML
@@ -30,18 +32,16 @@ func Transform(root *yaml.Node, specVersion string, options Options) (FilterStat
 		return filter, prune, err
 	}
 	filtering := options.TagFilter.Enabled()
-	if !filtering && !options.PruneUnused {
+	if !filtering && !options.PruneUnused && !options.PruneUnusedTags {
 		return filter, prune, nil
 	}
-	// Removing tag definitions can remove YAML anchor owners. Expand aliases
-	// before tag pruning so surviving uses remain self-contained.
-	root, err = prepareRoot(original, filtering || options.PruneUnused && mapValue(original, "tags") != nil)
+	root, err = prepareRoot(original, filtering)
 	if err != nil {
 		return filter, prune, err
 	}
 	// Filtering can succeed before pruning discovers an invalid local reference.
 	// Keep combined transforms atomic without repeating preparation or validation.
-	if filtering && options.PruneUnused && root == original {
+	if (filtering || options.PruneUnusedTags) && options.PruneUnused && root == original {
 		root = libutils.CloneYAMLNode(root)
 	}
 	if filtering {
@@ -52,9 +52,20 @@ func Transform(root *yaml.Node, specVersion string, options Options) (FilterStat
 		if err != nil {
 			return filter, prune, err
 		}
-		prune.TagsRemoved = pruneUnusedTags(root, specVersion)
 		filter.Warnings = RetainWarningsForPrunedDocument(filter.Warnings, prune)
 	}
+	if options.PruneUnusedTags {
+		unused := unusedTags(root, specVersion)
+		if unusedTagsOwnAnchors(unused) {
+			root, err = expandYAMLReferences(root, true)
+			if err != nil {
+				return filter, prune, err
+			}
+			unused = unusedTags(root, specVersion)
+		}
+		prune.TagsRemoved = pruneUnusedTags(root, unused)
+	}
+
 	if root != original {
 		*original = *root
 	}

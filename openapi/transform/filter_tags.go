@@ -302,7 +302,7 @@ func (c *filterContext) filterPathItemState(node *yaml.Node) (bool, bool) {
 func (c *filterContext) matches(operation *yaml.Node) bool {
 	id := mapValue(operation, "operationId")
 	operationID := ""
-	if id != nil && id.Kind == yaml.ScalarNode && id.Tag == "!!str" {
+	if id != nil && id.Kind == yaml.ScalarNode {
 		operationID = id.Value
 	}
 	if _, excluded := c.excludedIDs[operationID]; excluded {
@@ -323,7 +323,7 @@ func (c *filterContext) matches(operation *yaml.Node) bool {
 	operationTags := make(map[string]struct{}, len(tags.Content))
 	for _, tag := range tags.Content {
 		if tag.Kind != yaml.ScalarNode || tag.Tag != "!!str" {
-			return false
+			continue
 		}
 		operationTags[tag.Value] = struct{}{}
 	}
@@ -496,8 +496,9 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 	var callback func(*yaml.Node, []string)
 	var operation func(*yaml.Node, []string)
 	operation = func(node *yaml.Node, path []string) {
+		node = aliasTarget(node)
 		visit(node, path)
-		callbacks := mapValue(node, "callbacks")
+		callbacks := resolvedMapValue(node, "callbacks")
 		if callbacks != nil && callbacks.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(callbacks.Content); i += 2 {
 				callback(callbacks.Content[i+1], appendPath(appendPath(path, "callbacks"), callbacks.Content[i].Value))
@@ -505,6 +506,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 		}
 	}
 	callback = func(node *yaml.Node, path []string) {
+		node = aliasTarget(node)
 		if node == nil || node.Kind != yaml.MappingNode {
 			return
 		}
@@ -512,7 +514,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 			return
 		}
 		seenCallbacks[node] = struct{}{}
-		if ref := mapValue(node, "$ref"); ref != nil {
+		if ref := resolvedMapValue(node, "$ref"); ref != nil {
 			if target := resolveLocalNode(root, ref.Value); target != nil {
 				callback(target, localReferencePath(ref.Value))
 			}
@@ -525,6 +527,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 		}
 	}
 	pathItem = func(node *yaml.Node, path []string) {
+		node = aliasTarget(node)
 		if node == nil || node.Kind != yaml.MappingNode {
 			return
 		}
@@ -532,7 +535,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 			return
 		}
 		seen[node] = struct{}{}
-		if ref := mapValue(node, "$ref"); ref != nil {
+		if ref := resolvedMapValue(node, "$ref"); ref != nil {
 			if target := resolveLocalNode(root, ref.Value); target != nil {
 				pathItem(target, localReferencePath(ref.Value))
 			}
@@ -543,8 +546,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 				opPath := appendPath(path, key)
 				operation(node.Content[i+1], opPath)
 			}
-			if key == "additionalOperations" && supportsQueryAndAdditionalOperations(version) && node.Content[i+1].Kind == yaml.MappingNode {
-				additional := node.Content[i+1]
+			if additional := aliasTarget(node.Content[i+1]); key == "additionalOperations" && supportsQueryAndAdditionalOperations(version) && additional.Kind == yaml.MappingNode {
 				for j := 0; j+1 < len(additional.Content); j += 2 {
 					opPath := appendPath(appendPath(path, key), additional.Content[j].Value)
 					operation(additional.Content[j+1], opPath)
@@ -556,7 +558,7 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 		if top == "webhooks" && !supportsWebhooks(version) {
 			continue
 		}
-		container := mapValue(root, top)
+		container := resolvedMapValue(root, top)
 		if container != nil && container.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(container.Content); i += 2 {
 				if top == "paths" && strings.HasPrefix(container.Content[i].Value, "x-") {
@@ -566,13 +568,13 @@ func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []s
 			}
 		}
 	}
-	if components := mapValue(root, "components"); components != nil {
-		if items := mapValue(components, "pathItems"); items != nil && items.Kind == yaml.MappingNode {
+	if components := resolvedMapValue(root, "components"); components != nil {
+		if items := resolvedMapValue(components, "pathItems"); items != nil && items.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(items.Content); i += 2 {
 				pathItem(items.Content[i+1], []string{"components", "pathItems", items.Content[i].Value})
 			}
 		}
-		if callbacks := mapValue(components, "callbacks"); callbacks != nil && callbacks.Kind == yaml.MappingNode {
+		if callbacks := resolvedMapValue(components, "callbacks"); callbacks != nil && callbacks.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(callbacks.Content); i += 2 {
 				callback(callbacks.Content[i+1], []string{"components", "callbacks", callbacks.Content[i].Value})
 			}

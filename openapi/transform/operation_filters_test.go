@@ -83,3 +83,33 @@ components:
 	require.Nil(t, mapValue(item, "additionalOperations"))
 	require.Nil(t, mapValue(mapValue(item, "get"), "callbacks"))
 }
+
+func TestOperationFiltersMalformedTagsAndScalarIDs(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		options TagFilterOptions
+		want    int
+	}{
+		{"exclude absent tag", TagFilterOptions{ExcludeTags: []string{"internal"}}, 2},
+		{"exclude matching mixed tag", TagFilterOptions{ExcludeTags: []string{"public"}}, 1},
+		{"include matching mixed tag", TagFilterOptions{IncludeTags: []string{"public"}}, 1},
+		{"include numeric ID", TagFilterOptions{IncludeOperationIDs: []string{"123"}}, 1},
+		{"exclude numeric ID", TagFilterOptions{ExcludeOperationIDs: []string{"123"}}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := parseTestYAML(t, "openapi: 3.1.0\npaths:\n  /pets:\n    get: {operationId: 123, tags: [2024, {name: invalid}]}\n    post: {operationId: other, tags: [public, {name: invalid}]}\n")
+			stats, _, err := Transform(root, "3.1.0", Options{TagFilter: tc.options})
+			require.NoError(t, err)
+			require.Equal(t, tc.want, stats.OperationsKept)
+			item := mapValue(mapValue(documentRoot(root), "paths"), "/pets")
+			if tc.name == "include numeric ID" {
+				require.NotNil(t, mapValue(item, "get"))
+				require.Nil(t, mapValue(item, "post"))
+			}
+			if tc.name == "exclude numeric ID" {
+				require.Nil(t, mapValue(item, "get"))
+				require.NotNil(t, mapValue(item, "post"))
+			}
+		})
+	}
+}
