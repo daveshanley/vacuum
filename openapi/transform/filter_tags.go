@@ -11,14 +11,14 @@ import (
 	"github.com/pb33f/go-yaml"
 )
 
-// FilterOperationsByTags keeps only operations matching the inclusive tag
-// allow-list. An empty allow-list is a no-op.
+// FilterOperationsByTags applies the configured tag and operation-ID filters.
+// Empty filter lists are a no-op. Exclusions take precedence over inclusions.
 func FilterOperationsByTags(root *yaml.Node, specVersion string, options TagFilterOptions) (FilterStats, error) {
 	filter, _, err := Transform(root, specVersion, Options{TagFilter: options})
 	return filter, err
 }
 
-// ValidateTagFilterOptions checks the tag match strategy and rejects blank tags.
+// ValidateTagFilterOptions checks the tag match strategy and rejects blank values.
 func ValidateTagFilterOptions(options TagFilterOptions) error {
 	if options.MatchStrategy != "" && options.MatchStrategy != MatchAny && options.MatchStrategy != MatchAll {
 		return fmt.Errorf("invalid tag match strategy %q: expected any or all", options.MatchStrategy)

@@ -4,7 +4,7 @@
 
 package transform
 
-// MatchStrategy controls how operation tags are compared with included tags.
+// MatchStrategy controls how operation tags match each include/exclude list.
 type MatchStrategy string
 
 const (
@@ -39,7 +39,7 @@ type Warning struct {
 	owner   *ComponentID
 }
 
-// FilterStats summarizes inclusive operation filtering.
+// FilterStats summarizes operation filtering.
 type FilterStats struct {
 	OperationsSeen       int
 	OperationsKept       int
@@ -50,7 +50,7 @@ type FilterStats struct {
 	Warnings             []Warning
 }
 
-// PruneStats summarizes component reachability pruning.
+// PruneStats summarizes component reachability and unused-tag pruning.
 type PruneStats struct {
 	// TagsRemoved counts top-level tag definitions unused by retained operations.
 	TagsRemoved       int

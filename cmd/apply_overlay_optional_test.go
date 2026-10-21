@@ -59,3 +59,16 @@ func TestApplyOverlayRequiresActionAndRejectsExtraArguments(t *testing.T) {
 		require.Error(t, err)
 	}
 }
+
+func TestApplyOverlayWithoutOverlayInvalidInputKeepsStdoutClean(t *testing.T) {
+	cmd := GetApplyOverlayCommand()
+	cmd.SetArgs([]string{"--stdin", "--stdout", "--prune-unused"})
+	cmd.SetIn(strings.NewReader("[invalid"))
+	out, stderr, err := captureProcessStreams(t, cmd.Execute)
+	require.Error(t, err)
+	require.Empty(t, out)
+	require.NotEmpty(t, stderr)
+	var inputErr *ExitError
+	require.ErrorAs(t, err, &inputErr)
+	require.Equal(t, 2, inputErr.Code)
+}

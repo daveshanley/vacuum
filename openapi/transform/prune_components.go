@@ -8,8 +8,8 @@ import (
 	"github.com/pb33f/go-yaml"
 )
 
-// PruneUnusedComponents removes every reusable component that is unreachable
-// from retained non-component document content.
+// PruneUnusedComponents removes reusable components unreachable from retained
+// document content and tag definitions unused by the remaining operations.
 func PruneUnusedComponents(root *yaml.Node, specVersion string) (PruneStats, error) {
 	_, prune, err := Transform(root, specVersion, Options{PruneUnused: true})
 	return prune, err
