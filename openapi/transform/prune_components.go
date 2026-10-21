@@ -9,7 +9,7 @@ import (
 )
 
 // PruneUnusedComponents removes reusable components unreachable from retained
-// document content and tag definitions unused by the remaining operations.
+// document content. Top-level Tag Objects are not pruned.
 func PruneUnusedComponents(root *yaml.Node, specVersion string) (PruneStats, error) {
 	_, prune, err := Transform(root, specVersion, Options{PruneUnused: true})
 	return prune, err

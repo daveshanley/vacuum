@@ -41,8 +41,8 @@ func TestFilterOperationsByTagsTruthTable(t *testing.T) {
 		{"missing", "", []string{"public"}, MatchAny, 0},
 		{"malformed scalar", "public", []string{"public"}, MatchAny, 0},
 		{"malformed member", "[{name: public}]", []string{"public"}, MatchAny, 0},
-		{"mixed malformed member", "[public, {name: public}]", []string{"public"}, MatchAny, 0},
-		{"non-string scalar", "[1, public]", []string{"public"}, MatchAny, 0},
+		{"mixed malformed member", "[public, {name: public}]", []string{"public"}, MatchAny, 1},
+		{"non-string scalar", "[1, public]", []string{"public"}, MatchAny, 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

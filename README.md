@@ -299,14 +299,18 @@ no tags or IDs survive exclusion-only filtering. Filtering runs after Overlay
 actions and before pruning. `--prune-unused` removes unreachable components
 and unused tag definitions, retaining parents of used OpenAPI 3.2 tags.
 These opt-in transforms require a bundled, self-contained OpenAPI document.
-YAML aliases and merge keys are expanded when filtering or pruning tags. Retained mapping
+YAML merge keys are expanded. Aliases are expanded when filtering or when a removed tag owns an anchor. Retained mapping
 order, comments, and scalar styles are preserved. Pruning rejects schema
 `$id` scopes that cannot be resolved safely. Link Objects targeting filtered
 operations are retained and reported as warnings. Document output remains
 pure on stdout; warnings are written to stderr. The warning summary uses the `apply-overlay produced` prefix to
 cover both Overlay actions and publication transforms.
-JSON input retains JSON output, including stdout; a `.json` output filename
-also selects JSON for YAML input.
+A `.json`, `.yaml`, or `.yml` output extension selects the output format.
+Otherwise the input format is retained, including on stdout.
+An inferred output path containing an Overlay document is rejected to prevent accidental overwrites.
+Tag pruning retains `x-tagGroups` entries and `x-traitTag: true` narrative tags.
+Library callers opt into tag pruning with `Options.PruneUnusedTags`;
+`Options.PruneUnused` and `PruneUnusedComponents` continue to prune components only.
 
 ---
 

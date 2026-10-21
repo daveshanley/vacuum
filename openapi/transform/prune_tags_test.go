@@ -32,7 +32,7 @@ components:
     Unused:
       get: {tags: [unreferenced]}
 `)
-	_, stats, err := Transform(root, "3.2.0", Options{PruneUnused: true})
+	_, stats, err := Transform(root, "3.2.0", Options{PruneUnused: true, PruneUnusedTags: true})
 	require.NoError(t, err)
 	require.Equal(t, 2, stats.TagsRemoved)
 	tags := mapValue(documentRoot(root), "tags")
@@ -41,7 +41,7 @@ components:
 		require.Equal(t, name, mapValue(tags.Content[i], "name").Value)
 	}
 	require.Equal(t, "keep metadata", mapValue(tags.Content[1], "description").Value)
-	_, again, err := Transform(root, "3.2.0", Options{PruneUnused: true})
+	_, again, err := Transform(root, "3.2.0", Options{PruneUnused: true, PruneUnusedTags: true})
 	require.NoError(t, err)
 	require.Zero(t, again.TagsRemoved)
 }
@@ -59,7 +59,7 @@ paths:
       description: *description
       tags: *tags
 `)
-	_, stats, err := Transform(root, "3.1.0", Options{PruneUnused: true})
+	_, stats, err := Transform(root, "3.1.0", Options{PruneUnused: true, PruneUnusedTags: true})
 	require.NoError(t, err)
 	require.Equal(t, 1, stats.TagsRemoved)
 	raw, err := yaml.Marshal(root)
@@ -89,7 +89,7 @@ webhooks:
   x-event:
     post: {tags: [webhook]}
 `)
-			_, stats, err := Transform(root, version, Options{PruneUnused: true})
+			_, stats, err := Transform(root, version, Options{PruneUnused: true, PruneUnusedTags: true})
 			require.NoError(t, err)
 			doc := documentRoot(root)
 			extension := mapValue(mapValue(doc, "paths"), "x-example")
@@ -105,4 +105,84 @@ webhooks:
 			}
 		})
 	}
+}
+
+func TestPruneComponentsPreservesTagAPIContract(t *testing.T) {
+	for _, direct := range []bool{false, true} {
+		root := parseTestYAML(t, "openapi: 3.1.0\ntags: [{name: unused}]\npaths: {}\ncomponents: {schemas: {Unused: {type: string}}}\n")
+		if direct {
+			_, err := PruneUnusedComponents(root, "3.1.0")
+			require.NoError(t, err)
+		} else {
+			_, _, err := Transform(root, "3.1.0", Options{PruneUnused: true})
+			require.NoError(t, err)
+		}
+		require.Len(t, mapValue(documentRoot(root), "tags").Content, 1)
+		require.Nil(t, mapValue(documentRoot(root), "components"))
+	}
+}
+
+func TestPruneTagsPreservesDocumentationAndUnrelatedAliases(t *testing.T) {
+	root := parseTestYAML(t, `openapi: 3.2.0
+tags:
+  - {name: Pets}
+  - {name: Overview, parent: Parent}
+  - {name: Parent}
+  - {name: Narrative, x-traitTag: true}
+  - {name: UpperNarrative, x-traitTag: TRUE}
+  - {name: unused}
+x-tagGroups: [{name: Core, tags: [Pets, Overview]}]
+x-operation: &op {tags: [Pets]}
+paths:
+  /pets:
+    get: *op
+components: {schemas: {Unused: {type: string}}}
+`)
+	_, stats, err := Transform(root, "3.2.0", Options{PruneUnusedTags: true})
+	require.NoError(t, err)
+	require.Equal(t, 1, stats.TagsRemoved)
+	require.Len(t, mapValue(documentRoot(root), "tags").Content, 5)
+	require.NotNil(t, mapValue(documentRoot(root), "components"))
+	raw, err := yaml.Marshal(root)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), "&op")
+	require.Contains(t, string(raw), "*op")
+}
+
+func TestPruneTagsKeepsUsedAnchorAndAliasedTags(t *testing.T) {
+	root := parseTestYAML(t, `openapi: 3.1.0
+tags:
+  - name: active
+    description: &description Shared text
+x-tags: &tags [active]
+paths:
+  /pets:
+    get:
+      description: *description
+      tags: *tags
+`)
+	_, stats, err := Transform(root, "3.1.0", Options{PruneUnused: true, PruneUnusedTags: true})
+	require.NoError(t, err)
+	require.Zero(t, stats.TagsRemoved)
+	raw, err := yaml.Marshal(root)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), "&description")
+	require.Contains(t, string(raw), "*tags")
+}
+
+func TestPruneTagsCountsAliasedAdditionalOperations(t *testing.T) {
+	root := parseTestYAML(t, `openapi: 3.2.0
+tags: [{name: active}]
+x-ops: &ops {CUSTOM: {tags: [active]}}
+paths:
+  /pets:
+    additionalOperations: *ops
+`)
+	_, stats, err := Transform(root, "3.2.0", Options{PruneUnusedTags: true})
+	require.NoError(t, err)
+	require.Zero(t, stats.TagsRemoved)
+	require.Len(t, mapValue(documentRoot(root), "tags").Content, 1)
+	raw, err := yaml.Marshal(root)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), "*ops")
 }
