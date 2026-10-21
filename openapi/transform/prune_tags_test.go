@@ -76,3 +76,33 @@ func TestFilteringDoesNotPruneTagsWithoutFlag(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, mapValue(documentRoot(root), "tags").Content, 2)
 }
+
+func TestPruneTagsIgnoresExtensionDataAndUnsupportedWebhooks(t *testing.T) {
+	for _, version := range []string{"3.0.3", "3.1.0"} {
+		t.Run(version, func(t *testing.T) {
+			root := parseTestYAML(t, "openapi: "+version+`
+tags: [{name: extensionOnly}, {name: webhook}]
+paths:
+  x-example:
+    get: {tags: [extensionOnly]}
+webhooks:
+  x-event:
+    post: {tags: [webhook]}
+`)
+			_, stats, err := Transform(root, version, Options{PruneUnused: true})
+			require.NoError(t, err)
+			doc := documentRoot(root)
+			extension := mapValue(mapValue(doc, "paths"), "x-example")
+			require.Equal(t, "extensionOnly", mapValue(mapValue(extension, "get"), "tags").Content[0].Value)
+			tags := mapValue(doc, "tags")
+			if version == "3.0.3" {
+				require.Equal(t, 2, stats.TagsRemoved)
+				require.Empty(t, tags.Content)
+			} else {
+				require.Equal(t, 1, stats.TagsRemoved)
+				require.Len(t, tags.Content, 1)
+				require.Equal(t, "webhook", mapValue(tags.Content[0], "name").Value)
+			}
+		})
+	}
+}
