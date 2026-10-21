@@ -89,6 +89,7 @@ type ChangeExpectations struct {
 }
 
 // FixExpectations verifies semantic output, post-fix diagnostics, and idempotence.
+// Expect.Diagnostics checks the post-fix lint; Expect.Execution checks the repair pass.
 // Fixes execute in memory. Input files are never overwritten.
 type FixExpectations struct {
 	Output string       `json:"output" yaml:"output"`

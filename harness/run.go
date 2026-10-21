@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -266,9 +268,13 @@ func (r *runner) loadRules(c Case) (*rulesets.RuleSet, error) {
 			ids[id] = true
 		}
 	}
-	for _, e := range []*Expectations{&c.Expect, c.AfterExpect} {
+	expectations := []*Expectations{&c.Expect, c.AfterExpect}
+	if c.Fix != nil {
+		expectations = append(expectations, &c.Fix.Expect)
+	}
+	for _, e := range expectations {
 		if e != nil {
-			for id := range e.Execution {
+			for _, id := range slices.Sorted(maps.Keys(e.Execution)) {
 				if !ids[id] {
 					return nil, fmt.Errorf("execution assertion refers to unselected rule %q", id)
 				}
@@ -350,7 +356,8 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool, phase P
 	o := effectiveOptions(r.suite.Options)
 	evidence := &motor.ExecutionEvidence{SampleLimit: r.opts.SampleLimit}
 	if fix {
-		for id, rule := range rs.Rules {
+		for _, id := range slices.Sorted(maps.Keys(rs.Rules)) {
+			rule := rs.Rules[id]
 			if rule.AutoFixFunction != "" && r.opts.AutoFixFunctions[rule.AutoFixFunction] == nil {
 				fail(ErrorAutoFix, path, &motor.RuleExecutionError{Kind: motor.RuleErrorAutoFix, RuleID: id, Function: rule.AutoFixFunction, Err: fmt.Errorf("autofix is not registered")})
 			}
@@ -377,7 +384,7 @@ func (r *runner) execute(c Case, path string, override []byte, fix bool, phase P
 	}
 	r.trackDocumentPaths(&root)
 	if ex.Arazzo != nil {
-		for source := range ex.Arazzo.Sources {
+		for _, source := range slices.Sorted(maps.Keys(ex.Arazzo.Sources)) {
 			if strings.Contains(source, "://") {
 				r.limitations["remote Arazzo sources are not captured"] = true
 			} else if _, err := r.read(source); err != nil {

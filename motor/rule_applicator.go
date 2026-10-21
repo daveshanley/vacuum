@@ -1503,17 +1503,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
 
-	// Marshal modified spec if fixes were applied
-	var modifiedSpec []byte
-	if len(fixedResults) > 0 {
-		var err error
-		// Use the canonical document which contains all modifications
-		modifiedSpec, err = yaml.Marshal(execution.CanonicalDocument)
-		if err != nil {
-			indexConfig.Logger.Warn("failed to marshal modified spec", "error", err)
-		} else {
-			indexConfig.Logger.Debug("ModifiedSpec marshaled from CanonicalDocument")
-		}
+	modifiedSpec, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults))
+	if marshalErr != nil {
+		errs = append(errs, marshalErr)
 	}
 
 	result := preparedResult(errs)
@@ -1576,7 +1568,7 @@ func runRule(ctx ruleContext) {
 	if ctx.panicFunc != nil || ctx.evidence != nil || ctx.reportFunctionErrors {
 		defer func() {
 			if r := recover(); r != nil {
-				if ctx.reportFunctionErrors {
+				if ctx.reportFunctionErrors || ctx.evidence != nil {
 					*ctx.errors = append(*ctx.errors, &RuleExecutionError{Kind: RuleErrorPanic, RuleID: ctx.rule.Id, Err: fmt.Errorf("panicked: %v", r)})
 				}
 				if ctx.evidence != nil {
@@ -1777,7 +1769,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		if ctx.reportFunctionErrors && len(errs) > 0 {
 			res = false
 			for _, err := range errs {
-				rfc.ReportError(fmt.Errorf("%s", err))
+				*ctx.errors = append(*ctx.errors, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: ctx.rule.Id, Function: ruleAction.Function, Err: fmt.Errorf("%s", err)})
 			}
 		}
 		if !res {
