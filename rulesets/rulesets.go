@@ -241,6 +241,7 @@ type RuleSet struct {
 	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
 	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
 	sourceLocation   rulesetLocation         // file or URL that contains this ruleset; empty for in-memory rulesets
+	readLocalFile    func(string) ([]byte, error)
 	loadErrors       []error
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
@@ -541,6 +542,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 	if ruleset.Aliases != nil {
 		rs.Aliases = ruleset.Aliases
 	}
+
+	rs.readLocalFile = ruleset.readLocalFile
 
 	// download remote rulesets
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
