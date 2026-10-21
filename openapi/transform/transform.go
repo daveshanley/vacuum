@@ -33,7 +33,9 @@ func Transform(root *yaml.Node, specVersion string, options Options) (FilterStat
 	if !filtering && !options.PruneUnused {
 		return filter, prune, nil
 	}
-	root, err = prepareRoot(original, filtering)
+	// Removing tag definitions can remove YAML anchor owners. Expand aliases
+	// before tag pruning so surviving uses remain self-contained.
+	root, err = prepareRoot(original, filtering || options.PruneUnused && mapValue(original, "tags") != nil)
 	if err != nil {
 		return filter, prune, err
 	}
@@ -50,6 +52,7 @@ func Transform(root *yaml.Node, specVersion string, options Options) (FilterStat
 		if err != nil {
 			return filter, prune, err
 		}
+		prune.TagsRemoved = pruneUnusedTags(root, specVersion)
 		filter.Warnings = RetainWarningsForPrunedDocument(filter.Warnings, prune)
 	}
 	if root != original {

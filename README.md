@@ -283,17 +283,30 @@ vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml \
   --prune-unused
 ```
 
-Inclusive tags are exact and case-sensitive; `any` keeps operations with at
-least one included tag and `all` requires every included tag. Untagged
-operations are removed. Filtering runs after Overlay actions and before
-reachability-based component pruning. These opt-in transforms require a
-bundled, self-contained OpenAPI document. Top-level Tag Objects are retained.
-YAML aliases and merge keys are expanded when filtering. Retained mapping
+The overlay file is optional when a filter or `--prune-unused` is active:
+
+```bash
+vacuum apply-overlay internal.yaml public.json --exclude-tag internal --prune-unused
+vacuum apply-overlay internal.yaml selected.yaml --include-operation-id listPets
+```
+
+Tags and operation IDs are exact and case-sensitive. All four filter flags
+(`--include-tag`, `--exclude-tag`, `--include-operation-id`, and
+`--exclude-operation-id`) can be repeated. `--tag-match any` matches at least
+one tag; `all` requires every tag in each include/exclude list. Each active
+inclusion filter must match, and exclusions take precedence. Operations with
+no tags or IDs survive exclusion-only filtering. Filtering runs after Overlay
+actions and before pruning. `--prune-unused` removes unreachable components
+and unused tag definitions, retaining parents of used OpenAPI 3.2 tags.
+These opt-in transforms require a bundled, self-contained OpenAPI document.
+YAML aliases and merge keys are expanded when filtering or pruning tags. Retained mapping
 order, comments, and scalar styles are preserved. Pruning rejects schema
 `$id` scopes that cannot be resolved safely. Link Objects targeting filtered
 operations are retained and reported as warnings. Document output remains
 pure on stdout; warnings are written to stderr. The warning summary uses the `apply-overlay produced` prefix to
 cover both Overlay actions and publication transforms.
+JSON input retains JSON output, including stdout; a `.json` output filename
+also selects JSON for YAML input.
 
 ---
 
