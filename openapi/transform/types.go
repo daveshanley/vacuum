@@ -52,6 +52,8 @@ type FilterStats struct {
 
 // PruneStats summarizes component reachability pruning.
 type PruneStats struct {
+	// TagsRemoved counts top-level tag definitions unused by retained operations.
+	TagsRemoved       int
 	ComponentsSeen    int
 	ComponentsKept    int
 	ComponentsRemoved int

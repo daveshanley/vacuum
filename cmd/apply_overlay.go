@@ -409,6 +409,9 @@ func renderOverlayTransformSummary(filter openapitransform.FilterStats, prune op
 			summary += ": " + strings.Join(sections, ", ")
 		}
 		tui.RenderInfo("%s", summary)
+		if prune.TagsRemoved > 0 {
+			tui.RenderInfo("Pruned %d unused tags", prune.TagsRemoved)
+		}
 	}
 }
 
