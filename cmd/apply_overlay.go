@@ -65,7 +65,7 @@ a bundled, self-contained document. YAML aliases and merge keys are expanded
 when filtering, preserving mapping order, comments, and styles. Pruning rejects
 schema $id scopes. Link Objects targeting filtered operations are retained and
 reported as warnings. Pruning removes unused top-level Tag Objects and retains
-the parents of used OpenAPI 3.2 tags. JSON input retains JSON output.`,
+the parents of used OpenAPI 3.2 tags. Output extensions select JSON or YAML; otherwise the input format is retained.`,
 		Example: `  vacuum apply-overlay openapi.yaml overlay.yaml modified.yaml
   vacuum apply-overlay openapi.yaml public.json --exclude-tag internal --prune-unused
   vacuum apply-overlay openapi.yaml selected.yaml --include-operation-id listPets
@@ -150,7 +150,8 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	if stdOut {
 		requiredArgs--
 	}
-	withoutOverlay := (filterOptions.Enabled() || pruneUnused) && len(args) == requiredArgs-1
+	transformOnlyAllowed := filterOptions.Enabled() || pruneUnused
+	withoutOverlay := transformOnlyAllowed && len(args) == requiredArgs-1
 	if withoutOverlay {
 		requiredArgs--
 	}
@@ -163,6 +164,8 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		switch {
 		case !stdIn && len(args) == 0:
 			errText = "please supply input OpenAPI specification, or use -i flag for stdin"
+		case transformOnlyAllowed && !stdOut:
+			errText = "please supply output file path, or use -o flag for stdout"
 		case !stdIn && len(args) == 1:
 			errText = "please supply overlay file path or URL"
 		case stdIn && len(args) == 0:
@@ -190,6 +193,21 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	}
 	if !stdOut {
 		outputPath = args[argIdx]
+	}
+
+	// A missing output argument must not turn an existing overlay into the output.
+	if withoutOverlay && !stdOut {
+		if existing, err := os.ReadFile(outputPath); err == nil {
+			var document yaml.Node
+			if yaml.Unmarshal(existing, &document) == nil && len(document.Content) > 0 {
+				root := document.Content[0]
+				for i := 0; root.Kind == yaml.MappingNode && i+1 < len(root.Content); i += 2 {
+					if root.Content[i].Value == "overlay" {
+						return NewInputError("%q is an Overlay document; please supply output file path, or use -o flag for stdout", outputPath)
+					}
+				}
+			}
+		}
 	}
 
 	// Read spec bytes
@@ -271,8 +289,9 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		root := specInfo.RootNode
 		var transformErr error
 		filterStats, pruneStats, transformErr = openapitransform.Transform(root, result.OverlayDocument.GetVersion(), openapitransform.Options{
-			TagFilter:   filterOptions,
-			PruneUnused: pruneUnused,
+			TagFilter:       filterOptions,
+			PruneUnused:     pruneUnused,
+			PruneUnusedTags: pruneUnused,
 		})
 		if transformErr != nil {
 			renderApplyOverlayError(stdOut, transformErr)
@@ -292,14 +311,45 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// The overlay engine emits YAML. Preserve JSON input for both file and
-	// stdout output, and honor an explicitly named JSON destination.
-	if json.Valid(specBytes) || (!stdOut && strings.EqualFold(filepath.Ext(outputPath), ".json")) {
+	// Explicit output extensions take precedence over the input format.
+	jsonOutput := json.Valid(specBytes)
+	if !stdOut {
+		switch strings.ToLower(filepath.Ext(outputPath)) {
+		case ".json":
+			jsonOutput = true
+		case ".yaml", ".yml":
+			jsonOutput = false
+		}
+	}
+	if jsonOutput {
 		var renderErr error
 		result.Bytes, renderErr = renderBundledOutput(result.Bytes, bundleOutputFormatJSON)
 		if renderErr != nil {
 			renderApplyOverlayError(stdOut, renderErr)
 			return NewInputError("unable to render JSON output: %s", renderErr)
+		}
+	}
+
+	if !jsonOutput && json.Valid(result.Bytes) {
+		// JSON syntax is also YAML; clear its collection styles to emit block YAML.
+		var node yaml.Node
+		if err := yaml.Unmarshal(result.Bytes, &node); err != nil {
+			return NewInputError("unable to parse YAML output: %s", err)
+		}
+		var blockStyle func(*yaml.Node)
+		blockStyle = func(n *yaml.Node) {
+			if n.Kind == yaml.MappingNode || n.Kind == yaml.SequenceNode {
+				n.Style = 0
+			}
+			for _, child := range n.Content {
+				blockStyle(child)
+			}
+		}
+		blockStyle(&node)
+		var err error
+		result.Bytes, err = yaml.Marshal(&node)
+		if err != nil {
+			return NewInputError("unable to render YAML output: %s", err)
 		}
 	}
 
@@ -347,7 +397,9 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 			return writeErr
 		}
 
-		if warningCount > 0 {
+		if withoutOverlay {
+			tui.RenderSuccess("Transforms applied with %d warning(s), output written to '%s'", warningCount, outputPath)
+		} else if warningCount > 0 {
 			tui.RenderSuccess("Overlay applied with %d warning(s), output written to '%s'", warningCount, outputPath)
 		} else {
 			tui.RenderSuccess("Overlay applied successfully, output written to '%s'", outputPath)
