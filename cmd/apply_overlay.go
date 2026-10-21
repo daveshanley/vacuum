@@ -172,10 +172,8 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		default:
 			errText = "insufficient arguments provided"
 		}
-		tui.RenderErrorString("%s", errText)
-		fmt.Println("Usage: vacuum apply-overlay <spec> [overlay] <output>")
-		fmt.Println()
-		return errors.New(errText)
+		renderApplyOverlayError(stdOut, errors.New(errText))
+		return NewInputError("%s", errText)
 	}
 
 	// Determine argument positions based on flags
@@ -254,8 +252,8 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		result, applyErr = libopenapi.ApplyOverlayFromBytesToSpecBytes(specBytes, overlayBytes)
 	}
 	if applyErr != nil {
-		tui.RenderErrorString("Failed to apply overlay: %s", applyErr.Error())
-		return applyErr
+		renderApplyOverlayError(stdOut, applyErr)
+		return NewInputError("unable to prepare OpenAPI document: %s", applyErr)
 	}
 	defer result.OverlayDocument.Release()
 

@@ -46,3 +46,16 @@ func TestApplyOverlayIssue994JSON(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyOverlayYAMLInputToJSONDestination(t *testing.T) {
+	dir := t.TempDir()
+	input, output := filepath.Join(dir, "input.yaml"), filepath.Join(dir, "output.json")
+	require.NoError(t, os.WriteFile(input, []byte("openapi: 3.1.0\ninfo: {title: YAML input, version: '1'}\npaths: {}\n"), 0o600))
+	cmd := GetApplyOverlayCommand()
+	cmd.SetArgs([]string{input, output, "--prune-unused"})
+	_, _, err := captureProcessStreams(t, cmd.Execute)
+	require.NoError(t, err)
+	out, err := os.ReadFile(output)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"openapi":"3.1.0","info":{"title":"YAML input","version":"1"},"paths":{}}`, string(out))
+}
