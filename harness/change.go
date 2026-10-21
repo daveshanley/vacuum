@@ -94,7 +94,7 @@ func (r *runner) checkFix(c Case, cr *CaseResult) {
 	if len(after.errs) > 0 {
 		return
 	}
-	cr.Failures = append(cr.Failures, assertSnapshot("fix.expect", c.Fix.Expect, after.snapshot)...)
+	cr.Failures = append(cr.Failures, assertSnapshot("fix.expect", c.Fix.Expect, &Snapshot{Diagnostics: after.snapshot.Diagnostics, Evidence: fixed.snapshot.Evidence})...)
 	again := r.execute(c, c.Input, modified, true, PhaseSecondFix)
 	cr.SecondFix = again.snapshot
 	cr.Errors = append(cr.Errors, again.errs...)

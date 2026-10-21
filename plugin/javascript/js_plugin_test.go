@@ -1022,3 +1022,13 @@ function runRule(inputs) {
 	// Should return nil for empty inputs
 	assert.Nil(t, results)
 }
+
+func TestLegacyNamelessSchemaPreservesOptionConstraints(t *testing.T) {
+	f := NewJSRuleFunction("legacy", `function getSchema(){return {required:["value"], minProperties:1, properties:[{name:"value",type:"string"}]};} function runRule(){return [];}`)
+	strict, err := f.(*JSRuleFunction).GetSchemaWithError()
+	assert.Error(t, err)
+	legacy := f.GetSchema()
+	strict.Name = "legacy"
+	assert.Equal(t, strict, legacy)
+	assert.NotEmpty(t, legacy.Required)
+}

@@ -170,9 +170,9 @@ func (j *JSRuleFunction) runMetadata(run func() error) error {
 }
 
 func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {
-	schema, err := j.GetSchemaWithError()
-	if err != nil {
-		return model.RuleFunctionSchema{Name: j.ruleName}
+	schema, _ := j.GetSchemaWithError()
+	if schema.Name == "" {
+		schema.Name = j.ruleName
 	}
 	return schema
 }
