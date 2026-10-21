@@ -10,6 +10,7 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // MissingType will check that all schemas and their properties have a type defined
@@ -81,6 +82,11 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 		return results
 	}
 
+	// A parsed OpenAPI 3.1 reference exposes its siblings separately from its target.
+	if referenceProvidesType(schema.Value.ParentProxy, nil) {
+		return results
+	}
+
 	// Check if the schema has a type defined
 	if len(schema.Value.Type) == 0 {
 		// Check if this schema has properties, items, or additionalProperties
@@ -135,7 +141,11 @@ func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunc
 			continue
 		}
 
-		// Skip if this property is a reference or polymorphic schema
+		if referenceProvidesType(propSchemaProxy, nil) {
+			continue
+		}
+
+		// Skip polymorphic schemas
 		if propSchema.AllOf != nil || propSchema.OneOf != nil || propSchema.AnyOf != nil {
 			continue
 		}
@@ -202,4 +212,32 @@ func isPropertyNameSchema(schema *v3.Schema) bool {
 		}
 	}
 	return false
+}
+
+// referenceProvidesType checks the target of a $ref with siblings without changing
+// the authored schema view used for diagnostic paths and source locations.
+func referenceProvidesType(proxy *base.SchemaProxy, seen map[*base.SchemaProxy]bool) bool {
+	if proxy == nil || !proxy.IsTransformedRefWithSiblings() || seen[proxy] {
+		return false
+	}
+	if seen == nil {
+		seen = make(map[*base.SchemaProxy]bool)
+	}
+	seen[proxy] = true
+	semantic, err := proxy.BuildTransformedRefSemanticSchema(nil)
+	if err != nil || semantic == nil || len(semantic.AllOf) != 2 {
+		return false
+	}
+	targetProxy := semantic.AllOf[1]
+	target := targetProxy.Schema()
+	if target == nil {
+		return false
+	}
+	if len(target.Type) > 0 || target.Properties != nil || target.Items != nil ||
+		target.AdditionalProperties != nil || target.PatternProperties != nil ||
+		target.Const != nil || target.Enum != nil || target.AllOf != nil ||
+		target.OneOf != nil || target.AnyOf != nil {
+		return true
+	}
+	return referenceProvidesType(target.ParentProxy, seen)
 }
