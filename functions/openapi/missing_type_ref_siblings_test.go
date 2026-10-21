@@ -8,6 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/testify/require"
 )
 
@@ -45,6 +46,14 @@ components:
 				require.NoError(t, err)
 				m, err := document.BuildV3Model()
 				require.NoError(t, err)
+				proxy := m.Model.Components.Schemas.GetOrZero("Container").Schema().Properties.GetOrZero("value")
+				cache := make(map[*base.SchemaProxy]bool)
+				require.Equal(t, !target.missing, cachedReferenceProvidesType(proxy, cache))
+				// Both positive and negative cache hits must avoid semantic model allocations.
+				allocations := testing.AllocsPerRun(10, func() {
+					cachedReferenceProvidesType(proxy, cache)
+				})
+				require.Zero(t, allocations)
 				dr := drModel.NewDrDocument(m)
 				results := (MissingType{}).RunRule(nil, model.RuleFunctionContext{
 					Rule: &model.Rule{Name: "missing-type"}, Document: document, DrDocument: dr,

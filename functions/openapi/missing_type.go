@@ -37,18 +37,19 @@ func (mt MissingType) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 	}
 
 	var results []model.RuleFunctionResult
+	typeCache := make(map[*base.SchemaProxy]bool)
 
 	// Process all schemas in the document - DrDocument.Schemas contains ALL schemas including nested ones
 	schemas := context.DrDocument.Schemas
 
 	for _, schema := range schemas {
 		// Check if the schema itself has a type
-		schemaResults := mt.checkSchemaType(schema, &context)
+		schemaResults := mt.checkSchemaType(schema, &context, typeCache)
 		results = append(results, schemaResults...)
 
 		// Check properties of this schema (no recursion needed)
 		if schema.Value.Properties != nil {
-			propResults := mt.checkProperties(schema, &context)
+			propResults := mt.checkProperties(schema, &context, typeCache)
 			results = append(results, propResults...)
 		}
 	}
@@ -56,7 +57,7 @@ func (mt MissingType) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 	return results
 }
 
-func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunctionContext, typeCache map[*base.SchemaProxy]bool) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 	// propertyNames and its logical subschemas always test string values.
 	if isPropertyNameSchema(schema) {
@@ -83,7 +84,7 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 	}
 
 	// A parsed OpenAPI 3.1 reference exposes its siblings separately from its target.
-	if referenceProvidesType(schema.Value.ParentProxy, nil) {
+	if cachedReferenceProvidesType(schema.Value.ParentProxy, typeCache) {
 		return results
 	}
 
@@ -127,7 +128,7 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 	return results
 }
 
-func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunctionContext, typeCache map[*base.SchemaProxy]bool) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.Properties == nil {
@@ -141,7 +142,7 @@ func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunc
 			continue
 		}
 
-		if referenceProvidesType(propSchemaProxy, nil) {
+		if cachedReferenceProvidesType(propSchemaProxy, typeCache) {
 			continue
 		}
 
@@ -240,4 +241,17 @@ func referenceProvidesType(proxy *base.SchemaProxy, seen map[*base.SchemaProxy]b
 		return true
 	}
 	return referenceProvidesType(target.ParentProxy, seen)
+}
+
+// Cache both outcomes for this rule run; schema and property visits share proxies.
+func cachedReferenceProvidesType(proxy *base.SchemaProxy, cache map[*base.SchemaProxy]bool) bool {
+	if proxy == nil || !proxy.IsTransformedRefWithSiblings() {
+		return false
+	}
+	if provides, ok := cache[proxy]; ok {
+		return provides
+	}
+	provides := referenceProvidesType(proxy, nil)
+	cache[proxy] = provides
+	return provides
 }
