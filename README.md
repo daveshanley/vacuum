@@ -153,7 +153,22 @@ A timeout is an incomplete check, not evidence that the document is clean.
 
 ## Documentation
 
-🔥 **New in** `v0.33` 🔥: **Arazzo workflow linting and a new `or` function**
+🔥 **New in** `v0.34` 🔥: **Agent testing in vacuum**
+
+A new `test` command gives agents a way to test rules, check changes and verify repairs using vacuum's existing engine.
+Define a YAML or JSON suite, run `vacuum test suite.yaml`, and get structured results with evidence of what each rule actually did.
+
+Check expected findings, selector matches and function calls. Test before-and-after changes, verify autofix output,
+and check that running a fix again makes no further change. A clean result is only useful if the rule actually ran.
+
+- [Get started with agent testing](https://quobix.com/vacuum/agent-testing/)
+- [Read the `test` command reference](https://quobix.com/vacuum/commands/test/)
+- [Read more about execution evidence](https://quobix.com/vacuum/testing/evidence/)
+- [Use the test harness from Go](https://quobix.com/vacuum/api/test-harness/)
+
+---
+
+`v0.33`: **Arazzo workflow linting and a new `or` function**
 
 Arazzo 1.0 and 1.1 workflows are now a first-class document type in vacuum, alongside OpenAPI, AsyncAPI and JSON Schema.
 Use `vacuum lint workflows.yaml` and vacuum will detect Arazzo automatically, with recommended rules for workflow structure,
