@@ -227,7 +227,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// LoadCustomFunctions renders its own annotation/terminal output, so the error
 		// only needs propagating here to fail the run.
-		customFuncs, customFuncsErr := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
+		functionManager, customFuncsErr := loadCustomFunctionManager(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
 		if customFuncsErr != nil {
 			return customFuncsErr
 		}
@@ -261,7 +261,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		if flags.ChangesFlag != "" || flags.OriginalFlag != "" {
 			var changesErr error
 			if flags.OriginalFlag != "" {
-				unchangedOriginalSpec = originalSpecCanReuseCurrentResults(flags.OriginalFlag, specBytes, fileName, resolvedBase, customFuncs)
+				unchangedOriginalSpec = originalSpecCanReuseCurrentResults(flags.OriginalFlag, specBytes, fileName, resolvedBase, functionManager.GetCustomFunctions())
 				if unchangedOriginalSpec {
 					documentChanges = emptyDocumentChanges()
 				} else {
@@ -315,8 +315,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
 			SpecFileName:                    resolvedSpecPath,
-			CustomFunctions:                 customFuncs,
-			AutoFixFunctions:                make(map[string]model.AutoFixFunction),
+			CustomFunctions:                 functionManager.GetCustomFunctions(),
+			AutoFixFunctions:                functionManager.GetAutoFixFunctions(),
 			Base:                            resolvedBase,
 			AllowLookup:                     flags.RemoteFlag,
 			SkipDocumentCheck:               flags.SkipCheckFlag,
@@ -991,16 +991,23 @@ func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFi
 
 	// Create backup only if overwriting original file
 	if outputFile == fileName {
-		backupFileName := filepath.Join("/tmp", "vacuum-"+filepath.Base(fileName)+".bak")
 		originalContent, err := os.ReadFile(fileName)
 		if err != nil {
 			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
 		}
-
-		err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
+		backup, err := os.CreateTemp("", "vacuum-"+filepath.Base(fileName)+"-*.bak")
 		if err != nil {
-			return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)
+			return fmt.Errorf("failed to create backup for %s: %w", fileName, err)
 		}
+		_, writeErr := backup.Write(originalContent)
+		closeErr := backup.Close()
+		if writeErr != nil {
+			return fmt.Errorf("failed to write backup %s: %w", backup.Name(), writeErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("failed to close backup %s: %w", backup.Name(), closeErr)
+		}
+
 	}
 
 	err = os.WriteFile(outputFile, result.ModifiedSpec, fileInfo.Mode())

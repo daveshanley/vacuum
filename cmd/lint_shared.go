@@ -118,13 +118,14 @@ type LintFlags struct {
 
 // FileProcessingConfig contains all configuration needed to process a file
 type FileProcessingConfig struct {
-	Flags           *LintFlags
-	Logger          *slog.Logger
-	BufferedLogger  *logging.BufferedLogger
-	SelectedRuleset *rulesets.RuleSet
-	CustomFunctions map[string]model.RuleFunction
-	IgnoredItems    model.IgnoredItems
-	FetchConfig     *utils.FetchConfig
+	Flags            *LintFlags
+	Logger           *slog.Logger
+	BufferedLogger   *logging.BufferedLogger
+	SelectedRuleset  *rulesets.RuleSet
+	CustomFunctions  map[string]model.RuleFunction
+	AutoFixFunctions map[string]model.AutoFixFunction
+	IgnoredItems     model.IgnoredItems
+	FetchConfig      *utils.FetchConfig
 }
 
 // ReadLintFlags reads all lint-related flags from the command
@@ -568,7 +569,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Spec:                            specBytes,
 		SpecFileName:                    resolvedSpecPath,
 		CustomFunctions:                 config.CustomFunctions,
-		AutoFixFunctions:                make(map[string]model.AutoFixFunction),
+		AutoFixFunctions:                config.AutoFixFunctions,
 		Base:                            resolvedBase,
 		AllowLookup:                     config.Flags.RemoteFlag,
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,
@@ -603,6 +604,12 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			FileSize: fileSize,
 			Logs:     logs,
 			Error:    result.Errors[0],
+		}
+	}
+
+	if config.Flags.FixFlag && result.ModifiedSpec != nil {
+		if err := writeFixedFile(result, fileName, config.Flags.FixFileFlag); err != nil {
+			return &FileProcessingResult{FileSize: fileSize, Error: err}
 		}
 	}
 
