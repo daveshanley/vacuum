@@ -14,10 +14,22 @@ const (
 	MatchAll MatchStrategy = "all"
 )
 
-// TagFilterOptions configures inclusive operation filtering.
+// TagFilterOptions configures operation filtering. Active inclusion filters
+// must all match. Exclusions take precedence. Names are case-sensitive.
 type TagFilterOptions struct {
 	IncludeTags   []string
 	MatchStrategy MatchStrategy
+	// ExcludeTags removes operations matching these tags with MatchStrategy.
+	ExcludeTags []string
+	// IncludeOperationIDs keeps operations with any of these exact IDs.
+	IncludeOperationIDs []string
+	// ExcludeOperationIDs removes operations with any of these exact IDs.
+	ExcludeOperationIDs []string
+}
+
+// Enabled reports whether at least one operation filter is configured.
+func (o TagFilterOptions) Enabled() bool {
+	return len(o.IncludeTags)+len(o.ExcludeTags)+len(o.IncludeOperationIDs)+len(o.ExcludeOperationIDs) > 0
 }
 
 // Warning describes a non-fatal publication problem found by a transform.
