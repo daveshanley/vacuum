@@ -542,15 +542,71 @@ func detachedValues(ds []Diagnostic, base string) []model.RuleFunctionResult {
 	return out
 }
 
-// Each phase owns rule structs because motor may adjust rule messages. The
-// declarative action/alias values are read-only during normal rule execution.
+// Each phase owns its rule data: motor adjusts messages and callbacks can mutate options.
 func copyExecutionRules(source *rulesets.RuleSet) *rulesets.RuleSet {
 	out := &rulesets.RuleSet{Description: source.Description, DocumentationURI: source.DocumentationURI, Formats: source.Formats, Aliases: source.Aliases, ParsedAliases: source.ParsedAliases, Rules: make(map[string]*model.Rule, len(source.Rules))}
 	for id, rule := range source.Rules {
 		if rule != nil {
 			value := *rule
+			value.Given = copyRuleValue(rule.Given)
+			value.Then = copyRuleValue(rule.Then)
+			value.Formats = append([]string(nil), rule.Formats...)
+			if rule.RuleCategory != nil {
+				category := *rule.RuleCategory
+				value.RuleCategory = &category
+			}
 			out.Rules[id] = &value
 		}
 	}
 	return out
+}
+
+// Rules loaded from YAML contain maps, slices, and scalar values. Keep scalar
+// types intact so copying does not change function-option validation.
+func copyRuleValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for k, item := range v {
+			out[k] = copyRuleValue(item)
+		}
+		return out
+	case map[any]any:
+		out := make(map[any]any, len(v))
+		for k, item := range v {
+			out[k] = copyRuleValue(item)
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = copyRuleValue(item)
+		}
+		return out
+	case []string:
+		return append([]string(nil), v...)
+	case model.RuleAction:
+		v.FunctionOptions = copyRuleValue(v.FunctionOptions)
+		return v
+	case *model.RuleAction:
+		if v == nil {
+			return v
+		}
+		out := copyRuleValue(*v).(model.RuleAction)
+		return &out
+	case []model.RuleAction:
+		out := make([]model.RuleAction, len(v))
+		for i, item := range v {
+			out[i] = copyRuleValue(item).(model.RuleAction)
+		}
+		return out
+	case []*model.RuleAction:
+		out := make([]*model.RuleAction, len(v))
+		for i, item := range v {
+			out[i] = copyRuleValue(item).(*model.RuleAction)
+		}
+		return out
+	default:
+		return value
+	}
 }
