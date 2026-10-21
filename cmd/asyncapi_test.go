@@ -429,13 +429,15 @@ func captureOSStreams(t *testing.T, fn func()) (string, string) {
 
 	originalStdout := os.Stdout
 	originalStderr := os.Stderr
-	stdoutReader, stdoutWriter, err := os.Pipe()
+	stdoutFile, err := os.CreateTemp(t.TempDir(), "stdout")
 	require.NoError(t, err)
-	stderrReader, stderrWriter, err := os.Pipe()
+	defer stdoutFile.Close()
+	stderrFile, err := os.CreateTemp(t.TempDir(), "stderr")
 	require.NoError(t, err)
+	defer stderrFile.Close()
 
-	os.Stdout = stdoutWriter
-	os.Stderr = stderrWriter
+	os.Stdout = stdoutFile
+	os.Stderr = stderrFile
 	defer func() {
 		os.Stdout = originalStdout
 		os.Stderr = originalStderr
@@ -443,13 +445,11 @@ func captureOSStreams(t *testing.T, fn func()) (string, string) {
 
 	fn()
 
-	require.NoError(t, stdoutWriter.Close())
-	require.NoError(t, stderrWriter.Close())
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	_, _ = io.Copy(&stdout, stdoutReader)
-	_, _ = io.Copy(&stderr, stderrReader)
-	return stdout.String(), stderr.String()
+	stdout, err := os.ReadFile(stdoutFile.Name())
+	require.NoError(t, err)
+	stderr, err := os.ReadFile(stderrFile.Name())
+	require.NoError(t, err)
+	return string(stdout), string(stderr)
 }
 
 const cmdAsyncAPI31Fixture = `asyncapi: 3.1.0
@@ -478,3 +478,15 @@ const cmdMalformedAsyncAPI31Fixture = `asyncapi: 3.1.0
 info:
   title: [
 `
+
+func TestCaptureOSStreamsLargeOutput(t *testing.T) {
+	output := strings.Repeat("diagnostic\n", 64*1024)
+	stdout, stderr := captureOSStreams(t, func() {
+		_, err := io.WriteString(os.Stdout, output)
+		require.NoError(t, err)
+		_, err = io.WriteString(os.Stderr, output)
+		require.NoError(t, err)
+	})
+	assert.Equal(t, output, stdout)
+	assert.Equal(t, output, stderr)
+}
