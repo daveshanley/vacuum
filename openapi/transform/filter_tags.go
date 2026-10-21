@@ -23,9 +23,11 @@ func ValidateTagFilterOptions(options TagFilterOptions) error {
 	if options.MatchStrategy != "" && options.MatchStrategy != MatchAny && options.MatchStrategy != MatchAll {
 		return fmt.Errorf("invalid tag match strategy %q: expected any or all", options.MatchStrategy)
 	}
-	for _, tag := range options.IncludeTags {
-		if strings.TrimSpace(tag) == "" {
-			return fmt.Errorf("included tags must not be empty or whitespace")
+	for _, values := range [][]string{options.IncludeTags, options.ExcludeTags, options.IncludeOperationIDs, options.ExcludeOperationIDs} {
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("operation filter values must not be empty or whitespace")
+			}
 		}
 	}
 	return nil
@@ -46,6 +48,9 @@ func filterOperationsByTags(root *yaml.Node, specVersion string, options TagFilt
 		root:           root,
 		version:        specVersion,
 		included:       included,
+		excluded:       filterValueSet(options.ExcludeTags),
+		includedIDs:    filterValueSet(options.IncludeOperationIDs),
+		excludedIDs:    filterValueSet(options.ExcludeOperationIDs),
 		strategy:       strategy,
 		processed:      make(map[*yaml.Node]bool),
 		processing:     make(map[*yaml.Node]bool),
@@ -73,6 +78,9 @@ type filterContext struct {
 	root           *yaml.Node
 	version        string
 	included       map[string]struct{}
+	excluded       map[string]struct{}
+	includedIDs    map[string]struct{}
+	excludedIDs    map[string]struct{}
 	strategy       MatchStrategy
 	processed      map[*yaml.Node]bool
 	processing     map[*yaml.Node]bool
@@ -292,9 +300,25 @@ func (c *filterContext) filterPathItemState(node *yaml.Node) (bool, bool) {
 }
 
 func (c *filterContext) matches(operation *yaml.Node) bool {
+	id := mapValue(operation, "operationId")
+	operationID := ""
+	if id != nil && id.Kind == yaml.ScalarNode && id.Tag == "!!str" {
+		operationID = id.Value
+	}
+	if _, excluded := c.excludedIDs[operationID]; excluded {
+		return false
+	}
+	if len(c.includedIDs) > 0 {
+		if _, included := c.includedIDs[operationID]; !included {
+			return false
+		}
+	}
+	if len(c.included)+len(c.excluded) == 0 {
+		return true
+	}
 	tags := mapValue(operation, "tags")
 	if tags == nil || tags.Kind != yaml.SequenceNode {
-		return false
+		return len(c.included) == 0
 	}
 	operationTags := make(map[string]struct{}, len(tags.Content))
 	for _, tag := range tags.Content {
@@ -303,15 +327,28 @@ func (c *filterContext) matches(operation *yaml.Node) bool {
 		}
 		operationTags[tag.Value] = struct{}{}
 	}
+	return (len(c.included) == 0 || c.tagsMatch(operationTags, c.included)) &&
+		(len(c.excluded) == 0 || !c.tagsMatch(operationTags, c.excluded))
+}
+
+func filterValueSet(values []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
+}
+
+func (c *filterContext) tagsMatch(operationTags, requested map[string]struct{}) bool {
 	if c.strategy == MatchAll {
-		for tag := range c.included {
+		for tag := range requested {
 			if _, ok := operationTags[tag]; !ok {
 				return false
 			}
 		}
 		return true
 	}
-	for tag := range c.included {
+	for tag := range requested {
 		if _, ok := operationTags[tag]; ok {
 			return true
 		}
@@ -442,15 +479,24 @@ func resolveLocalNode(root *yaml.Node, ref string) *yaml.Node {
 func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struct{}, map[string]struct{}) {
 	ids := make(map[string]struct{})
 	refs := make(map[string]struct{})
+	visitOperations(root, version, func(node *yaml.Node, path []string) {
+		if id := mapValue(node, "operationId"); id != nil && id.Kind == yaml.ScalarNode {
+			ids[id.Value] = struct{}{}
+		}
+		refs[pointerKey(path)] = struct{}{}
+	})
+	return ids, refs
+}
+
+// visitOperations follows local Path Item and Callback references once per node.
+func visitOperations(root *yaml.Node, version string, visit func(*yaml.Node, []string)) {
 	seen := make(map[*yaml.Node]struct{})
 	seenCallbacks := make(map[*yaml.Node]struct{})
 	var pathItem func(*yaml.Node, []string)
 	var callback func(*yaml.Node, []string)
 	var operation func(*yaml.Node, []string)
 	operation = func(node *yaml.Node, path []string) {
-		if id := mapValue(node, "operationId"); id != nil && id.Kind == yaml.ScalarNode {
-			ids[id.Value] = struct{}{}
-		}
+		visit(node, path)
 		callbacks := mapValue(node, "callbacks")
 		if callbacks != nil && callbacks.Kind == yaml.MappingNode {
 			for i := 0; i+1 < len(callbacks.Content); i += 2 {
@@ -495,14 +541,12 @@ func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struc
 			key := node.Content[i].Value
 			if isOperationKey(key, version) {
 				opPath := appendPath(path, key)
-				refs[pointerKey(opPath)] = struct{}{}
 				operation(node.Content[i+1], opPath)
 			}
 			if key == "additionalOperations" && supportsQueryAndAdditionalOperations(version) && node.Content[i+1].Kind == yaml.MappingNode {
 				additional := node.Content[i+1]
 				for j := 0; j+1 < len(additional.Content); j += 2 {
 					opPath := appendPath(appendPath(path, key), additional.Content[j].Value)
-					refs[pointerKey(opPath)] = struct{}{}
 					operation(additional.Content[j+1], opPath)
 				}
 			}
@@ -528,7 +572,6 @@ func snapshotOperationTargets(root *yaml.Node, version string) (map[string]struc
 			}
 		}
 	}
-	return ids, refs
 }
 
 func danglingLinkWarnings(root *yaml.Node, version string, beforeIDs, afterIDs, beforeRefs, afterRefs map[string]struct{}) []Warning {

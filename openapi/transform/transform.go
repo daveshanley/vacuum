@@ -29,7 +29,7 @@ func Transform(root *yaml.Node, specVersion string, options Options) (FilterStat
 	if err != nil {
 		return filter, prune, err
 	}
-	filtering := len(options.TagFilter.IncludeTags) > 0
+	filtering := options.TagFilter.Enabled()
 	if !filtering && !options.PruneUnused {
 		return filter, prune, nil
 	}

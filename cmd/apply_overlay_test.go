@@ -175,10 +175,9 @@ func TestApplyOverlayTransformValidationAndAtomicErrors(t *testing.T) {
 		{"orphan mode", nil, "all", true, "requires at least one"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tags, err := validateOverlayTransformFlags(tc.tags, tc.mode, tc.set)
+			err := validateOverlayTransformFlags(openapitransform.TagFilterOptions{IncludeTags: tc.tags, MatchStrategy: openapitransform.MatchStrategy(tc.mode)}, tc.set)
 			if tc.want == "" {
 				require.NoError(t, err)
-				assert.Len(t, tags, 1)
 			} else {
 				assert.ErrorContains(t, err, tc.want)
 			}

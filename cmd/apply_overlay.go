@@ -48,21 +48,27 @@ func GetApplyOverlayCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Use:           "apply-overlay <spec> <overlay> <output>",
+		Use:           "apply-overlay <spec> [overlay] <output>",
 		Short:         "Apply an Overlay to an OpenAPI specification",
 		Long: `Apply an OpenAPI Overlay document to modify a specification without changing the original.
 
 The overlay file can be a local file path or a remote URL (http/https).
+It can be omitted when filtering operations or pruning unused content.
 All references in the overlay are resolved using JSONPath expressions.
 
 The resulting document is written with all Overlay actions applied. Optional
-inclusive tag filtering then removes every operation that lacks the requested,
-case-sensitive tags, and component pruning runs last. These transforms require
+filters then select operations by case-sensitive tags and operation IDs.
+All active inclusion filters must match; exclusions take precedence.
+The any/all tag mode applies separately to each tag list. Component and tag
+pruning runs last. These transforms require
 a bundled, self-contained document. YAML aliases and merge keys are expanded
 when filtering, preserving mapping order, comments, and styles. Pruning rejects
 schema $id scopes. Link Objects targeting filtered operations are retained and
-reported as warnings. Top-level Tag Objects are not pruned.`,
+reported as warnings. Pruning removes unused top-level Tag Objects and retains
+the parents of used OpenAPI 3.2 tags. JSON input retains JSON output.`,
 		Example: `  vacuum apply-overlay openapi.yaml overlay.yaml modified.yaml
+  vacuum apply-overlay openapi.yaml public.json --exclude-tag internal --prune-unused
+  vacuum apply-overlay openapi.yaml selected.yaml --include-operation-id listPets
   vacuum apply-overlay spec.yaml https://example.com/overlay.yaml output.yaml
   vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml --include-tag public --tag-match any --prune-unused
   cat spec.yaml | vacuum apply-overlay -i overlay.yaml output.yaml
@@ -81,8 +87,11 @@ reported as warnings. Top-level Tag Objects are not pruned.`,
 	cmd.Flags().BoolP("fail-on-warnings", "W", false, "Treat overlay warnings as errors (exit code 2)")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().StringArray("include-tag", nil, "Keep operations containing this exact tag; may be repeated")
-	cmd.Flags().String("tag-match", string(openapitransform.MatchAny), "Included tag matching mode: any or all")
-	cmd.Flags().Bool("prune-unused", false, "Remove reusable components unreachable from the retained document")
+	cmd.Flags().StringArray("exclude-tag", nil, "Remove operations containing this exact tag; may be repeated")
+	cmd.Flags().StringArray("include-operation-id", nil, "Keep operations with this exact operationId; may be repeated")
+	cmd.Flags().StringArray("exclude-operation-id", nil, "Remove operations with this exact operationId; may be repeated")
+	cmd.Flags().String("tag-match", string(openapitransform.MatchAny), "Tag matching mode for each include/exclude list: any or all")
+	cmd.Flags().Bool("prune-unused", false, "Remove unused reusable components and top-level tag definitions")
 	return cmd
 }
 
@@ -95,10 +104,18 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	failOnWarnings, _ := cmd.Flags().GetBool("fail-on-warnings")
 	noStyleFlag, _ := cmd.Flags().GetBool("no-style")
 	includeTags, _ := cmd.Flags().GetStringArray("include-tag")
+	excludeTags, _ := cmd.Flags().GetStringArray("exclude-tag")
+	includeIDs, _ := cmd.Flags().GetStringArray("include-operation-id")
+	excludeIDs, _ := cmd.Flags().GetStringArray("exclude-operation-id")
 	tagMatch, _ := cmd.Flags().GetString("tag-match")
 	pruneUnused, _ := cmd.Flags().GetBool("prune-unused")
 
-	includeTags, flagErr := validateOverlayTransformFlags(includeTags, tagMatch, cmd.Flags().Changed("tag-match"))
+	filterOptions := openapitransform.TagFilterOptions{
+		IncludeTags: includeTags, ExcludeTags: excludeTags,
+		IncludeOperationIDs: includeIDs, ExcludeOperationIDs: excludeIDs,
+		MatchStrategy: openapitransform.MatchStrategy(tagMatch),
+	}
+	flagErr := validateOverlayTransformFlags(filterOptions, cmd.Flags().Changed("tag-match"))
 	if flagErr != nil {
 		renderApplyOverlayError(stdOut, flagErr)
 		return NewInputError("%s", flagErr)
@@ -133,6 +150,13 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	if stdOut {
 		requiredArgs--
 	}
+	withoutOverlay := (filterOptions.Enabled() || pruneUnused) && len(args) == requiredArgs-1
+	if withoutOverlay {
+		requiredArgs--
+	}
+	if len(args) > requiredArgs {
+		return NewInputError("too many arguments for apply-overlay")
+	}
 
 	if len(args) < requiredArgs {
 		var errText string
@@ -149,7 +173,7 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 			errText = "insufficient arguments provided"
 		}
 		tui.RenderErrorString("%s", errText)
-		fmt.Println("Usage: vacuum apply-overlay <spec> <overlay> <output>")
+		fmt.Println("Usage: vacuum apply-overlay <spec> [overlay] <output>")
 		fmt.Println()
 		return errors.New(errText)
 	}
@@ -162,8 +186,10 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		specPath = args[argIdx]
 		argIdx++
 	}
-	overlayPath = args[argIdx]
-	argIdx++
+	if !withoutOverlay {
+		overlayPath = args[argIdx]
+		argIdx++
+	}
 	if !stdOut {
 		outputPath = args[argIdx]
 	}
@@ -211,14 +237,22 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	}
 
 	// Read overlay bytes (file or remote URL)
-	overlayBytes, overlayErr := fetchOverlay(overlayPath, httpClientConfig)
-	if overlayErr != nil {
-		tui.RenderErrorString("Unable to read overlay '%s': %s", overlayPath, overlayErr.Error())
-		return overlayErr
+	var overlayBytes []byte
+	var result *libopenapi.OverlayResult
+	var applyErr error
+	if withoutOverlay {
+		var document libopenapi.Document
+		document, applyErr = libopenapi.NewDocument(specBytes)
+		result = &libopenapi.OverlayResult{Bytes: specBytes, OverlayDocument: document}
+	} else {
+		var overlayErr error
+		overlayBytes, overlayErr = fetchOverlay(overlayPath, httpClientConfig)
+		if overlayErr != nil {
+			renderApplyOverlayError(stdOut, overlayErr)
+			return overlayErr
+		}
+		result, applyErr = libopenapi.ApplyOverlayFromBytesToSpecBytes(specBytes, overlayBytes)
 	}
-
-	// Apply the overlay
-	result, applyErr := libopenapi.ApplyOverlayFromBytesToSpecBytes(specBytes, overlayBytes)
 	if applyErr != nil {
 		tui.RenderErrorString("Failed to apply overlay: %s", applyErr.Error())
 		return applyErr
@@ -228,7 +262,7 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	var filterStats openapitransform.FilterStats
 	var pruneStats openapitransform.PruneStats
 	var transformWarnings []openapitransform.Warning
-	transformsEnabled := len(includeTags) > 0 || pruneUnused
+	transformsEnabled := filterOptions.Enabled() || pruneUnused
 	if transformsEnabled {
 		specInfo := result.OverlayDocument.GetSpecInfo()
 		if specInfo == nil || specInfo.RootNode == nil {
@@ -239,10 +273,7 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		root := specInfo.RootNode
 		var transformErr error
 		filterStats, pruneStats, transformErr = openapitransform.Transform(root, result.OverlayDocument.GetVersion(), openapitransform.Options{
-			TagFilter: openapitransform.TagFilterOptions{
-				IncludeTags:   includeTags,
-				MatchStrategy: openapitransform.MatchStrategy(tagMatch),
-			},
+			TagFilter:   filterOptions,
 			PruneUnused: pruneUnused,
 		})
 		if transformErr != nil {
@@ -250,10 +281,10 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 			return NewInputError("%s", transformErr)
 		}
 		transformWarnings = filterStats.Warnings
-		if len(includeTags) > 0 && !openapitransform.HasReachableOperations(root, result.OverlayDocument.GetVersion()) {
+		if filterOptions.Enabled() && !openapitransform.HasReachableOperations(root, result.OverlayDocument.GetVersion()) {
 			transformWarnings = append(transformWarnings, openapitransform.Warning{
 				Path:    "$",
-				Message: fmt.Sprintf("inclusive tag filtering kept zero operations for requested tags: %s", strings.Join(includeTags, ", ")),
+				Message: "operation filtering kept zero operations",
 			})
 		}
 		result.Bytes, transformErr = yaml.Marshal(root)
@@ -275,7 +306,11 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	}
 
 	// Parse overlay document to get actions for the table display
-	overlayDoc, overlayDocErr := libopenapi.NewOverlayDocument(overlayBytes)
+	var overlayDoc *highoverlay.Overlay
+	var overlayDocErr error
+	if !withoutOverlay {
+		overlayDoc, overlayDocErr = libopenapi.NewOverlayDocument(overlayBytes)
+	}
 	if overlayDocErr != nil {
 		// Non-fatal: we still applied the overlay, just can't show the table
 		tui.RenderWarning("Could not parse overlay for display: %s", overlayDocErr.Error())
@@ -319,7 +354,7 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		} else {
 			tui.RenderSuccess("Overlay applied successfully, output written to '%s'", outputPath)
 		}
-		renderOverlayTransformSummary(filterStats, pruneStats, len(includeTags) > 0, pruneUnused)
+		renderOverlayTransformSummary(filterStats, pruneStats, filterOptions.Enabled(), pruneUnused)
 	}
 
 	// Show timing if requested
@@ -342,25 +377,11 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateOverlayTransformFlags(tags []string, match string, matchExplicit bool) ([]string, error) {
-	unique := make([]string, 0, len(tags))
-	seen := make(map[string]struct{}, len(tags))
-	for _, tag := range tags {
-		if _, ok := seen[tag]; ok {
-			continue
-		}
-		seen[tag] = struct{}{}
-		unique = append(unique, tag)
+func validateOverlayTransformFlags(options openapitransform.TagFilterOptions, matchExplicit bool) error {
+	if matchExplicit && len(options.IncludeTags)+len(options.ExcludeTags) == 0 {
+		return errors.New("--tag-match requires at least one --include-tag or --exclude-tag")
 	}
-	if matchExplicit && len(unique) == 0 {
-		return nil, errors.New("--tag-match requires at least one --include-tag")
-	}
-	if err := openapitransform.ValidateTagFilterOptions(openapitransform.TagFilterOptions{
-		IncludeTags: unique, MatchStrategy: openapitransform.MatchStrategy(match),
-	}); err != nil {
-		return nil, err
-	}
-	return unique, nil
+	return openapitransform.ValidateTagFilterOptions(options)
 }
 
 func renderApplyOverlayError(stdout bool, err error) {
