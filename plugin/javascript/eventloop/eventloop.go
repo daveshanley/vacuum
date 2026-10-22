@@ -35,7 +35,8 @@ var (
 // EventLoop manages asynchronous JavaScript execution by processing
 // a job queue and handling Promise microtasks.
 type EventLoop struct {
-	vm *goja.Runtime
+	vm         *goja.Runtime
+	runContext context.Context
 
 	// job queue for callbacks - using a slice protected by mutex for simplicity
 	jobQueue     []func()
@@ -91,6 +92,7 @@ func (e *EventLoop) Run(ctx context.Context, fn func(*goja.Runtime) (goja.Value,
 	if !atomic.CompareAndSwapInt32(&e.running, 0, 1) {
 		return nil, ErrLoopAlreadyRunning
 	}
+	e.runContext = ctx
 	defer func() {
 		atomic.StoreInt32(&e.running, 0)
 		e.cancelAllTimers()
@@ -274,4 +276,12 @@ func (e *EventLoop) cancelAllTimers() {
 func (e *EventLoop) RegisterFetch(config *fetch.FetchConfig) {
 	module := fetch.NewFetchModule(e, config)
 	module.Register()
+}
+
+// Context returns the active invocation context. Call it only from the VM owner.
+func (e *EventLoop) Context() context.Context {
+	if e.runContext != nil {
+		return e.runContext
+	}
+	return context.Background()
 }

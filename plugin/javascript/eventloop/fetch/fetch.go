@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/daveshanley/vacuum/config"
-	"github.com/daveshanley/vacuum/utils"
 	"github.com/dop251/goja"
 )
 
@@ -66,8 +65,8 @@ func NewFetchModuleFromConfig(loop EventLoop, cfg *config.FetchConfig) (*Fetch, 
 		UserAgent:            DefaultUserAgent,
 	}
 
-	if utils.ShouldUseCustomHTTPClient(cfg.HTTPClientConfig) {
-		httpClient, err := utils.CreateCustomHTTPClient(cfg.HTTPClientConfig)
+	if config.ShouldUseCustomHTTPClient(cfg.HTTPClientConfig) {
+		httpClient, err := config.CreateCustomHTTPClient(cfg.HTTPClientConfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create HTTP client for fetch(): %w", err)
 		}
@@ -102,8 +101,12 @@ func (m *Fetch) fetch(call goja.FunctionCall) goja.Value {
 
 	callback := m.loop.RegisterCallback()
 
+	ctx := context.Background()
+	if owner, ok := m.loop.(interface{ Context() context.Context }); ok {
+		ctx = owner.Context()
+	}
 	go func() {
-		resp, err := m.executeRequest(url, opts)
+		resp, err := m.executeRequest(ctx, url, opts)
 
 		callback(func() {
 			if err != nil {
@@ -206,8 +209,7 @@ type httpResponse struct {
 	redirected bool
 }
 
-func (m *Fetch) executeRequest(url string, opts *fetchOptions) (*httpResponse, error) {
-	ctx := context.Background()
+func (m *Fetch) executeRequest(ctx context.Context, url string, opts *fetchOptions) (*httpResponse, error) {
 	var cancel context.CancelFunc
 
 	// only apply timeout if configured (0 means no timeout)
