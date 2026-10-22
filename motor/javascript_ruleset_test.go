@@ -139,3 +139,14 @@ func TestJavaScriptInheritedFormatIsolation(t *testing.T) {
 	require.Len(t, result.Results, 1)
 	require.Equal(t, "current", result.Results[0].Message)
 }
+
+func TestJavaScriptInheritedUnrestrictedFormats(t *testing.T) {
+	for _, parents := range []string{`extends:[any,old]`, `extends:[any],formats:[d=>d.swagger==='2.0'],rules:{child:{given:'$',then:{function:()=>[{message:'child'}]}}}`} {
+		rs := loadJSRules(t, `const any={rules:{any:{given:'$',then:{function:()=>[{message:'any'}]}}}};const old={formats:[d=>d.swagger==='2.0'],rules:{old:{given:'$',then:{function:()=>[{message:'old'}]}}}};export default {`+parents+`}`)
+		result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}"), SilenceLogs: true})
+		require.Empty(t, result.Errors)
+		require.Len(t, result.Results, 1)
+		require.Equal(t, "any", result.Results[0].Message)
+		result.Release()
+	}
+}
