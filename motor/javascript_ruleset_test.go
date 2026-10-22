@@ -33,7 +33,7 @@ func TestJavaScriptRulesetExecution(t *testing.T) {
 		require.Empty(t, result.Errors)
 		require.Len(t, result.Results, 1)
 		require.Equal(t, "api.yaml:Hello:1", result.Results[0].Message)
-		require.Equal(t, `$["info"]["title"]`, result.Results[0].Path)
+		require.Equal(t, "$.info.title", result.Results[0].Path)
 		result.Release()
 	}
 }
@@ -129,4 +129,13 @@ func TestJavaScriptFetchCancellation(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("fetch survived execution cancellation")
 	}
+}
+
+func TestJavaScriptInheritedFormatIsolation(t *testing.T) {
+	rs := loadJSRules(t, `const old={formats:[d=>d.swagger==='2.0'],rules:{old:{given:'$',then:{function:()=>[{message:'wrong format'}]}}}};const current={formats:[d=>d.openapi==='3.0.3'],rules:{current:{given:'$',then:{function:()=>[{message:'current'}]}}}};export default {extends:[old,current]}`)
+	result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}"), SilenceLogs: true})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "current", result.Results[0].Message)
 }

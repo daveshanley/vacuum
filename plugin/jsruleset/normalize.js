@@ -58,7 +58,7 @@
       const base=visit(parent);
       Object.assign(out.aliases,base.aliases);out.extends.push(...base.extends);
       for(const id of Object.keys(base.rules)) {
-        const r=base.rules[id];if(typeof r!=='object'){out.rules[id]=mode==='off'?false:r;continue;}out.rules[id]={...r};
+        const r=base.rules[id];if(typeof r!=='object'){out.rules[id]=mode==='off'?false:r;continue;}out.rules[id]={...r};if(!r.formats&&base.formats)out.rules[id].formats=base.formats;
         if(mode==='off'||(mode==='recommended'&&r.recommended===false)) out.rules[id].severity='off';
       }
       if(base.formats) out.formats=base.formats;

@@ -189,10 +189,9 @@ func resultPathString(parts []any) string {
 	for _, part := range parts {
 		switch p := part.(type) {
 		case string:
-			encoded, _ := json.Marshal(p)
-			path += "[" + string(encoded) + "]"
+			path = model.AppendResultPathSegment(path, p)
 		case int:
-			path += "[" + strconv.Itoa(p) + "]"
+			path = model.AppendResultPathIndex(path, p)
 		}
 	}
 	return path
