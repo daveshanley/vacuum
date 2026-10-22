@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/plugin/jsruleset"
 	"log/slog"
 	"net/http"
 	"os"
@@ -232,6 +233,11 @@ type RuleSets interface {
 
 // RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
+	// Executable holds immutable JavaScript code. Each execution opens a fresh runtime.
+	Executable *jsruleset.Prepared `json:"-" yaml:"-"`
+	// FormatMatches contains callable format results for one execution only.
+	FormatMatches map[string]bool `json:"-" yaml:"-"`
+
 	Description      string                  `json:"description,omitempty" yaml:"description,omitempty"`
 	DocumentationURI string                  `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
 	Formats          []string                `json:"formats,omitempty" yaml:"formats,omitempty"`
@@ -360,6 +366,7 @@ func cloneRuleSetMetadata(source *RuleSet) *RuleSet {
 		return &RuleSet{}
 	}
 	return &RuleSet{
+		Executable:       source.Executable,
 		Description:      source.Description,
 		DocumentationURI: source.DocumentationURI,
 		Formats:          append([]string(nil), source.Formats...),
@@ -658,10 +665,15 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		parsed, err := ParseAliases(rs.Aliases)
 		if err != nil {
 			rsm.logger.Error("invalid aliases", "error", err.Error())
+			if ruleset.Executable != nil {
+				rs.addLoadError(err)
+			}
 		} else {
 			rs.ParsedAliases = parsed
 		}
 	}
+
+	rs.Executable = ruleset.Executable
 
 	return rs
 }

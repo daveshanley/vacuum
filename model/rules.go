@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
 	"fmt"
@@ -66,6 +67,11 @@ type ArazzoContext interface {
 
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
+	// ExecutionContext carries the rule deadline, including time spent queued.
+	ExecutionContext context.Context `json:"-" yaml:"-"`
+	// ExecutionRoot is the tree used for selector evaluation in this invocation.
+	ExecutionRoot *yaml.Node `json:"-" yaml:"-"`
+
 	// ReportError optionally reports an execution failure separately from findings.
 	// Call it synchronously within RunRule, never after RunRule returns.
 	ReportError func(error) `json:"-" yaml:"-"`

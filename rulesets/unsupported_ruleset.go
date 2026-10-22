@@ -15,7 +15,7 @@ func unsupportedRulesetReference(location string) error {
 	}
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".js", ".mjs", ".cjs":
-		return fmt.Errorf("JavaScript ruleset %q is not supported; use YAML or JSON; see https://github.com/daveshanley/vacuum#spectral-migration", location)
+		return fmt.Errorf("JavaScript ruleset %q is not supported through remote loading or data ruleset extends; select a local JavaScript entry with -r and import its dependencies", location)
 	}
 	return nil
 }

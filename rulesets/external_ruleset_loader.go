@@ -173,6 +173,7 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 	defer source.mutex.Unlock()
 
 	return &RuleSet{
+		Executable:       source.Executable,
 		Description:      source.Description,
 		DocumentationURI: source.DocumentationURI,
 		Formats:          append([]string(nil), source.Formats...),
@@ -317,4 +318,15 @@ func replaceStringMap(target, source map[string]string) map[string]string {
 		target[key] = value
 	}
 	return target
+}
+
+// CopyForExecution returns an independent ruleset while retaining immutable module code.
+func (rs *RuleSet) CopyForExecution() *RuleSet { return cloneRuleSetForExternalLoad(rs) }
+
+// MatchesFormat handles native format names and invocation-local JavaScript predicates.
+func (rs *RuleSet) MatchesFormat(want, actual string) bool {
+	if match, ok := rs.FormatMatches[want]; ok {
+		return match
+	}
+	return model.FormatMatches(want, actual)
 }
