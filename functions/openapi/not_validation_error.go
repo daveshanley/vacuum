@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/pb33f/libopenapi-validator/errors"
-	"github.com/santhosh-tekuri/jsonschema/v6"
-	"github.com/santhosh-tekuri/jsonschema/v6/kind"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/jsonschema/v6"
+	"github.com/pb33f/jsonschema/v6/kind"
+	"github.com/pb33f/go-yaml"
 )
 
 // isNotValidationError checks whether a validation failure is caused by a failed 'not' keyword.
