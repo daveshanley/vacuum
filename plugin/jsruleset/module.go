@@ -69,13 +69,13 @@ func PrepareWithReader(ctx context.Context, entry string, readFile func(string) 
 	captured := map[string]string{}
 	var mu sync.Mutex
 	capture := func(path string) ([]byte, error) {
+		mu.Lock()
+		defer mu.Unlock()
 		b, e := readFile(path)
 		if e != nil {
 			return nil, e
 		}
 		hash := fmt.Sprintf("%x", sha256.Sum256(b))
-		mu.Lock()
-		defer mu.Unlock()
 		if old, ok := captured[path]; ok && old != hash {
 			return nil, fmt.Errorf("module changed during preparation: %s", path)
 		}

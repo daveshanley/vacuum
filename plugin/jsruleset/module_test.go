@@ -2,8 +2,11 @@ package jsruleset
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -89,4 +92,28 @@ func TestPrimitiveInheritedOverrides(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(p.Data()), `"info-contact":false`)
 	require.Contains(t, string(p.Data()), `"info-description":"error"`)
+}
+
+func TestModuleReaderCallsAreSerialized(t *testing.T) {
+	dir := t.TempDir()
+	var code strings.Builder
+	for i := 0; i < 20; i++ {
+		name := fmt.Sprintf("helper%d.mjs", i)
+		writeModule(t, dir, name, `export default ()=>[]`)
+		fmt.Fprintf(&code, "import f%d from './%s';\n", i, name)
+	}
+	code.WriteString("export default {rules:{x:{given:'$',then:{function:f0}}}}")
+	entry := writeModule(t, dir, "rules.mjs", code.String())
+	var active atomic.Int32
+	var concurrent atomic.Bool
+	_, err := PrepareWithReader(context.Background(), entry, func(path string) ([]byte, error) {
+		if active.Add(1) > 1 {
+			concurrent.Store(true)
+		}
+		defer active.Add(-1)
+		time.Sleep(time.Millisecond)
+		return os.ReadFile(path)
+	})
+	require.NoError(t, err)
+	require.False(t, concurrent.Load())
 }
