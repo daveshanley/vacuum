@@ -58,10 +58,9 @@
       const base=visit(parent);
       Object.assign(out.aliases,base.aliases);out.extends.push(...base.extends);
       for(const id of Object.keys(base.rules)) {
-        const r=base.rules[id];if(typeof r!=='object'){out.rules[id]=mode==='off'?false:r;continue;}out.rules[id]={...r};if(!r.formats&&base.formats)out.rules[id].formats=base.formats;
+        const r=base.rules[id];if(typeof r!=='object'){out.rules[id]=mode==='off'?false:r;continue;}out.rules[id]={...r};
         if(mode==='off'||(mode==='recommended'&&r.recommended===false)) out.rules[id].severity='off';
       }
-      if(base.formats) out.formats=base.formats;
     }
     if(value.aliases) {
       for(const name of Object.keys(value.aliases).sort()) {
@@ -72,8 +71,13 @@
         } else out.aliases[name]=alias;
       }
     }
-    if(value.formats) out.formats=formats(value.formats);
-    for(const id of Object.keys(value.rules||{}).sort()) out.rules[id]=rule(value.rules[id],out.rules[id]);
+    const defaults=value.formats ? formats(value.formats) : undefined;
+    for(const id of Object.keys(value.rules||{}).sort()) {
+      const inherited=out.rules[id];
+      const next=rule(value.rules[id],inherited);
+      if(next && typeof next==='object' && !next.formats && defaults) next.formats=defaults;
+      out.rules[id]=next;
+    }
     for(const key of ['description','documentationUrl']) if(value[key]!==undefined) out[key]=value[key];
     active.delete(value);return out;
   }
