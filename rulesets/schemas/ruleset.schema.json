@@ -1,6 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://quobix.com/vacuum/schemas/ruleset.schema.json",
+  "title": "Vacuum ruleset",
+  "description": "Defines a collection of lint rules and shared ruleset settings.",
+  "examples": [
+    {
+      "rules": {
+        "info-title": {
+          "given": "$.info",
+          "then": {
+            "field": "title",
+            "function": "defined"
+          }
+        }
+      }
+    }
+  ],
   "type": "object",
   "properties": {
     "description": {

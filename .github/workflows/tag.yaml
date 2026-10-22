@@ -10,47 +10,46 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7.0.1
 
-      - uses: actions-ecosystem/action-get-merged-pull-request@v1
+      - uses: actions-ecosystem/action-get-merged-pull-request@v1.0.1
         id: get-merged-pull-request
         with:
           github_token: ${{ secrets.GH_PAT }}
 
-      - uses: actions-ecosystem/action-release-label@v1
+      - uses: actions-ecosystem/action-release-label@v1.2.0
         id: release-label
         if: ${{ steps.get-merged-pull-request.outputs.title != null }}
         with:
-          github_token: ${{ secrets.GH_PAT }}
           labels: ${{ steps.get-merged-pull-request.outputs.labels }}
 
-      - uses: actions-ecosystem/action-get-latest-tag@v1
+      - uses: actions-ecosystem/action-get-latest-tag@v1.6.0
         id: get-latest-tag
         if: ${{ steps.release-label.outputs.level != null }}
         with:
           semver_only: true
 
-      - uses: actions-ecosystem/action-bump-semver@v1
+      - uses: actions-ecosystem/action-bump-semver@v1.0.0
         id: bump-semver
         if: ${{ steps.release-label.outputs.level != null }}
         with:
           current_version: ${{ steps.get-latest-tag.outputs.tag }}
           level: ${{ steps.release-label.outputs.level }}
 
-      - uses: actions-ecosystem/action-regex-match@v2
+      - uses: actions-ecosystem/action-regex-match@v2.0.2
         id: regex-match
         if: ${{ steps.bump-semver.outputs.new_version != null }}
         with:
           text: ${{ steps.get-merged-pull-request.outputs.body }}
           regex: '```release_note([\s\S]*)```'
 
-      - uses: actions-ecosystem/action-push-tag@v1
+      - uses: actions-ecosystem/action-push-tag@v1.0.0
         if: ${{ steps.bump-semver.outputs.new_version != null }}
         with:
           tag: ${{ steps.bump-semver.outputs.new_version }}
           message: "${{ steps.bump-semver.outputs.new_version }}: PR #${{ steps.get-merged-pull-request.outputs.number }} ${{ steps.get-merged-pull-request.outputs.title }}"
 
-      - uses: peter-evans/repository-dispatch@v1
+      - uses: peter-evans/repository-dispatch@v4.0.1
         if: ${{ steps.bump-semver.outputs.new_version != null }}
         with:
           token: ${{ secrets.GH_PAT }}

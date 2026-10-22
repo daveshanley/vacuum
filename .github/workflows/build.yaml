@@ -49,16 +49,16 @@ jobs:
           df -h /
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 50
           fetch-tags: true
           show-progress: true
 
       - name: Set up Go 1.x
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7.0.0
         with:
-          go-version: '1.26.10'
+          go-version: '1.27.3'
           cache: true
           cache-dependency-path: go.sum
         id: go
@@ -67,9 +67,9 @@ jobs:
         run: bash ./scripts/verify-direct-dependencies.sh
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7.1.0
         with:
-          node-version: 20
+          node-version: '26.12.1'
           cache: npm
           cache-dependency-path: html-report/ui/package-lock.json
 
