@@ -1,5 +1,6 @@
 (function normalize(root) {
   const active = new Set();
+  const enabledSeverities = new WeakMap();
   const ruleKeys = new Set(['description','documentationUrl','message','given','formats','resolved','recommended','type','severity','then','howToFix','autoFixFunction']);
   const setKeys = new Set(['rules','extends','formats','aliases','description','documentationUrl']);
   function checkKeys(value, allowed, where) {
@@ -32,13 +33,16 @@
   }
   function rule(value, inherited) {
     if (typeof value === 'boolean' || typeof value === 'string' || typeof value === 'number') {
-      if (!inherited) return typeof value==='number'?severity(value):value;
-      return {...inherited, severity: value === true ? inherited.severity : value === false ? 'off' : severity(value)};
+      if (!inherited || typeof inherited!=='object') return value===true && typeof inherited==='string' && inherited!=='off' ? inherited : typeof value==='number'?severity(value):value;
+      const enabled=enabledSeverities.get(inherited) || (inherited.severity==='off'?'warn':inherited.severity);
+      const out={...inherited,severity:value===true?enabled:value===false?'off':severity(value)};
+      enabledSeverities.set(out,out.severity==='off'?enabled:out.severity);return out;
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error('Invalid rule definition');
     checkKeys(value,ruleKeys,'rule');
     const out = {resolved:true, recommended:true, severity:'warn', type:'validation', ...inherited, ...value};
     out.severity=severity(out.severity);
+    enabledSeverities.set(out,out.severity==='off'?(inherited && enabledSeverities.get(inherited)) || 'warn':out.severity);
     if (out.formats) out.formats=formats(out.formats);
     if (out.then) out.then=Array.isArray(out.then)?out.then.map(action):action(out.then);
     return out;
@@ -58,7 +62,7 @@
       const base=visit(parent);
       Object.assign(out.aliases,base.aliases);out.extends.push(...base.extends);
       for(const id of Object.keys(base.rules)) {
-        const r=base.rules[id];if(typeof r!=='object'){out.rules[id]=mode==='off'?false:r;continue;}out.rules[id]={...r};
+        const r=base.rules[id];if(typeof r!=='object'){out.rules[id]=mode==='off'?false:r;continue;}out.rules[id]={...r};enabledSeverities.set(out.rules[id],enabledSeverities.get(r) || r.severity);
         if(mode==='off'||(mode==='recommended'&&r.recommended===false)) out.rules[id].severity='off';
       }
     }
