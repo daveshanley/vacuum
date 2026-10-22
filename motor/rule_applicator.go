@@ -522,6 +522,19 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if executionOptions != nil {
 		opts = *executionOptions
 	}
+	if execution.RuleSet != nil && execution.RuleSet.Executable != nil {
+		bound, closeScope, err := bindExecutableRuleset(execution, control)
+		if err != nil {
+			return executionErrorResult(execution, control, err)
+		}
+		defer closeScope()
+		execution = bound
+		opts.ReportFunctionErrors = true
+		control.reportFunctionErrors = true
+		if errs := ValidateRuleSet(execution.RuleSet, execution.CustomFunctions); len(errs) > 0 {
+			return executionErrorResult(execution, control, errs...)
+		}
+	}
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
 	if errs := validateRuleFunctions(execution.RuleSet, builtinFunctions, execution.CustomFunctions); len(errs) > 0 {
@@ -1682,18 +1695,20 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 	if ruleFunction != nil {
 
 		rfc := model.RuleFunctionContext{
-			Options:         ruleAction.FunctionOptions,
-			RuleAction:      &ruleAction,
-			Rule:            ctx.rule,
-			Given:           ctx.rule.Given,
-			Index:           ctx.index,
-			SpecInfo:        ctx.specInfo,
-			Document:        ctx.document,
-			DrDocument:      ctx.drDocument,
-			Logger:          ctx.logger,
-			FetchConfig:     ctx.fetchConfig,
-			SchemaPathCache: ctx.schemaPathCache,
-			RuleTimeout:     ctx.ruleTimeout,
+			ExecutionContext: ctx.executionContext,
+			ExecutionRoot:    ctx.specNode,
+			Options:          ruleAction.FunctionOptions,
+			RuleAction:       &ruleAction,
+			Rule:             ctx.rule,
+			Given:            ctx.rule.Given,
+			Index:            ctx.index,
+			SpecInfo:         ctx.specInfo,
+			Document:         ctx.document,
+			DrDocument:       ctx.drDocument,
+			Logger:           ctx.logger,
+			FetchConfig:      ctx.fetchConfig,
+			SchemaPathCache:  ctx.schemaPathCache,
+			RuleTimeout:      ctx.ruleTimeout,
 		}
 		if ctx.reportFunctionErrors {
 			rfc.ReportError = func(err error) {

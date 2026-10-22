@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin/jsruleset"
 	"io"
 	"net/http"
 	"net/url"
@@ -126,6 +127,24 @@ func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile f
 		return nil, err
 	}
 
+	if jsruleset.IsModule(location) {
+		prepared, err := jsruleset.PrepareWithReader(ctx, location, readFile)
+		if err != nil {
+			return nil, err
+		}
+		rs, err := CreateRuleSetFromData(prepared.Data())
+		if err != nil {
+			return nil, err
+		}
+		rs.Executable = prepared
+		absolute, err := filepath.Abs(location)
+		if err != nil {
+			return nil, err
+		}
+		rs.sourceLocation = rulesetLocation{path: absolute}
+		rs.readLocalFile = readFile
+		return rs, nil
+	}
 	if err := unsupportedRulesetReference(location); err != nil {
 		return nil, err
 	}

@@ -33,7 +33,7 @@ func TestIssue941UnsupportedRulesetReferences(t *testing.T) {
 
 func TestIssue941ScriptLoadersReportMigration(t *testing.T) {
 	_, err := LoadLocalRuleSet(context.Background(), filepath.Join(t.TempDir(), "rules.mjs"))
-	require.ErrorContains(t, err, "#spectral-migration")
+	require.ErrorContains(t, err, "rules.mjs")
 	_, err = DownloadRemoteRuleSet(context.Background(), "https://example.invalid/rules.mjs", nil)
 	require.ErrorContains(t, err, "JavaScript ruleset")
 	calls := 0

@@ -288,10 +288,10 @@ func applicableRulesForFormat(ruleSet *rulesets.RuleSet, format string) []*model
 		if len(ruleFormats) == 0 && model.FormatMatches(model.AsyncAPI3, format) {
 			continue
 		}
-		if len(ruleFormats) > 0 && format != "" {
+		if len(ruleFormats) > 0 && (format != "" || ruleSet.Executable != nil) {
 			matches := false
 			for _, ruleFormat := range ruleFormats {
-				if model.FormatMatches(ruleFormat, format) {
+				if ruleSet.MatchesFormat(ruleFormat, format) {
 					matches = true
 					break
 				}
@@ -322,7 +322,7 @@ func resolveExecutionAliases(ruleSet *rulesets.RuleSet, format string, logger *s
 	if ruleSet == nil || ruleSet.ParsedAliases == nil {
 		return nil
 	}
-	resolved := rulesets.ResolveAliasesForFormat(ruleSet.ParsedAliases, format)
+	resolved := rulesets.ResolveAliasesWithMatcher(ruleSet.ParsedAliases, format, ruleSet.MatchesFormat)
 	expanded, err := rulesets.ExpandAliasReferences(resolved)
 	if err != nil {
 		if logger != nil {

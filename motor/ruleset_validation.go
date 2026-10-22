@@ -56,6 +56,16 @@ func validateRuleFunctions(rs *rulesets.RuleSet, builtin functions.Functions, cu
 // Harnesses use this stricter preflight so an invalid action cannot pass merely
 // because its selector matched no nodes. Normal lint behavior is unchanged.
 func ValidateRuleSet(rs *rulesets.RuleSet, custom map[string]model.RuleFunction) []error {
+	if rs != nil && rs.Executable != nil {
+		copied := make(map[string]model.RuleFunction, len(custom))
+		for name, fn := range custom {
+			copied[name] = fn
+		}
+		for name, fn := range rs.Executable.Functions() {
+			copied[name] = fn
+		}
+		custom = copied
+	}
 	builtin := functions.MapBuiltinFunctions()
 	errs := validateRuleFunctions(rs, builtin, custom)
 	if rs == nil {
