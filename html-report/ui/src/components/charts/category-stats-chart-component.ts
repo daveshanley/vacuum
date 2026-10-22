@@ -21,7 +21,7 @@ Chart.register(
   BarElement,
   CategoryScale,
   LinearScale,
-  LogarithmicScale
+  LogarithmicScale,
 );
 
 export class CategoryStatsChartComponent extends LitElement {

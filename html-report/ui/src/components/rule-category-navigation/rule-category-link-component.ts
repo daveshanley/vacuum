@@ -38,7 +38,7 @@ export class RuleCategoryLinkComponent extends BaseComponent {
         composed: true,
       };
       this.dispatchEvent(
-        new CustomEvent<CategoryActivatedEvent>(CategoryActivated, options)
+        new CustomEvent<CategoryActivatedEvent>(CategoryActivated, options),
       );
     }
     this.requestUpdate();

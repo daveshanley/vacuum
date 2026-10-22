@@ -7,10 +7,19 @@
     "target": "es6",
     "jsx": "react",
     "allowJs": true,
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "rootDir": "./src",
+    "strict": false
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "./build",
-    "web-test-runner.config.mjs", "webpack.config.js", "**/*.test.ts"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "./build",
+    "web-test-runner.config.mjs",
+    "webpack.config.js",
+    "**/*.test.ts"
+  ]
 }
