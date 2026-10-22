@@ -30,11 +30,7 @@ func collectSchemaInputs(cmd *cobra.Command, args, globPatterns, includes, exclu
 		if _, err := buf.ReadFrom(cmd.InOrStdin()); err != nil {
 			return nil, err
 		}
-		base := baseFlag
-		if base == "" {
-			base = "."
-		}
-		resolvedBase, err := filepath.Abs(base)
+		resolvedBase, err := ResolveBasePathForFile("stdin", baseFlag)
 		if err != nil {
 			return nil, err
 		}
