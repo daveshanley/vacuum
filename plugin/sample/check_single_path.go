@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
-	yaml "go.yaml.in/yaml/v4"
+	yaml "github.com/pb33f/go-yaml"
 )
 
 // checkSinglePathExists is an example custom rule that checks only a single path exists.

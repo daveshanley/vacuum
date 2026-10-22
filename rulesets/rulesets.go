@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/plugin/jsruleset"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,8 +22,8 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/pb33f/jsonschema/v6"
 	"github.com/pb33f/libopenapi/utils"
-	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 const (
@@ -99,6 +100,9 @@ const (
 	OwaspNoHttpBasic                     = "owasp-no-http-basic"
 	OwaspNoAPIKeysInURL                  = "owasp-no-api-keys-in-url"
 	OwaspNoCredentialsInURL              = "owasp-no-credentials-in-url"
+	OwaspOAuthNoPassword                 = "owasp-oauth-no-password"
+	OwaspOAuthNoImplicit                 = "owasp-oauth-no-implicit"
+	OwaspAuthURLsHTTPS                   = "owasp-auth-urls-https"
 	OwaspAuthInsecureSchemes             = "owasp-auth-insecure-schemes"
 	OwaspJWTBestPractices                = "owasp-jwt-best-practices"
 	OwaspProtectionGlobalUnsafe          = "owasp-protection-global-unsafe"
@@ -211,6 +215,12 @@ type RuleSets interface {
 	// AsyncAPI rules supported by vacuum. The returned rules are scoped to AsyncAPI 3.x formats only.
 	GenerateAsyncAPIDefaultRuleSet() *RuleSet
 
+	// GenerateArazzoRecommendedRuleSet returns recommended Arazzo validation and authoring rules.
+	GenerateArazzoRecommendedRuleSet() *RuleSet
+
+	// GenerateArazzoDefaultRuleSet returns all built-in Arazzo rules.
+	GenerateArazzoDefaultRuleSet() *RuleSet
+
 	// GenerateRuleSetFromSuppliedRuleSet will generate a ready to run ruleset based on a supplied configuration. This
 	// will look for any extensions and apply all rules turned on, turned off and any custom rules.
 	GenerateRuleSetFromSuppliedRuleSet(config *RuleSet) *RuleSet
@@ -223,6 +233,11 @@ type RuleSets interface {
 
 // RuleSet represents a collection of Rule definitions.
 type RuleSet struct {
+	// Executable holds immutable JavaScript code. Each execution opens a fresh runtime.
+	Executable *jsruleset.Prepared `json:"-" yaml:"-"`
+	// FormatMatches contains callable format results for one execution only.
+	FormatMatches map[string]bool `json:"-" yaml:"-"`
+
 	Description      string                  `json:"description,omitempty" yaml:"description,omitempty"`
 	DocumentationURI string                  `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
 	Formats          []string                `json:"formats,omitempty" yaml:"formats,omitempty"`
@@ -231,8 +246,28 @@ type RuleSet struct {
 	Extends          interface{}             `json:"extends,omitempty" yaml:"extends,omitempty"` // can be string or tuple (again... why stoplight?)
 	Aliases          map[string]interface{}  `json:"aliases,omitempty" yaml:"aliases,omitempty"` // Spectral-compatible alias definitions
 	ParsedAliases    map[string]*ParsedAlias `json:"-" yaml:"-"`                                 // concrete parsed aliases, no interface boxing
+	sourceLocation   rulesetLocation         // file or URL that contains this ruleset; empty for in-memory rulesets
+	readLocalFile    func(string) ([]byte, error)
+	loadErrors       []error
 	extendsMeta      map[string]string
 	mutex            sync.Mutex
+}
+
+// LoadError returns errors encountered while loading extended rulesets.
+// A ruleset with a load error is incomplete and must not be executed.
+func (rs *RuleSet) LoadError() error {
+	if rs == nil {
+		return nil
+	}
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+	return errors.Join(rs.loadErrors...)
+}
+
+func (rs *RuleSet) addLoadError(err error) {
+	rs.mutex.Lock()
+	defer rs.mutex.Unlock()
+	rs.loadErrors = append(rs.loadErrors, err)
 }
 
 //go:embed schemas/ruleset.schema.json
@@ -245,6 +280,7 @@ type ruleSetsModel struct {
 	openAPIRuleSet *RuleSet
 	jsonSchemaSet  *RuleSet
 	asyncAPISet    *RuleSet
+	arazzoSet      *RuleSet
 	logger         *slog.Logger
 }
 
@@ -262,6 +298,7 @@ func BuildDefaultRuleSetsWithLogger(logger *slog.Logger) RuleSets {
 		openAPIRuleSet: GenerateDefaultOpenAPIRuleSet(),
 		jsonSchemaSet:  GenerateDefaultJSONSchemaRuleSet(),
 		asyncAPISet:    GenerateDefaultAsyncAPIRuleSet(),
+		arazzoSet:      GenerateDefaultArazzoRuleSet(),
 		logger:         logger,
 	}
 	return rulesetsSingleton
@@ -329,6 +366,7 @@ func cloneRuleSetMetadata(source *RuleSet) *RuleSet {
 		return &RuleSet{}
 	}
 	return &RuleSet{
+		Executable:       source.Executable,
 		Description:      source.Description,
 		DocumentationURI: source.DocumentationURI,
 		Formats:          append([]string(nil), source.Formats...),
@@ -339,6 +377,20 @@ func cloneRuleSetMetadata(source *RuleSet) *RuleSet {
 		ParsedAliases:    source.ParsedAliases,
 		extendsMeta:      source.extendsMeta,
 	}
+}
+
+func (rsm ruleSetsModel) GenerateArazzoDefaultRuleSet() *RuleSet { return rsm.arazzoSet }
+
+func (rsm ruleSetsModel) GenerateArazzoRecommendedRuleSet() *RuleSet {
+	rs := cloneRuleSetMetadata(rsm.arazzoSet)
+	rs.Rules = make(map[string]*model.Rule)
+	for id, rule := range rsm.arazzoSet.Rules {
+		if rule.Recommended {
+			rs.Rules[id] = rule
+		}
+	}
+	rs.Description = "Recommended rules for Arazzo 1.0 and 1.1 workflows."
+	return rs
 }
 
 func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSet(ruleset *RuleSet) *RuleSet {
@@ -356,6 +408,11 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		Description:      ruleset.Description,
 		RuleDefinitions:  ruleset.RuleDefinitions,
 		Rules:            ruleset.Rules,
+	}
+
+	if err := validateRulesetReferences(ruleset); err != nil {
+		rs.addLoadError(err)
+		return rs
 	}
 
 	// default and explicitly recommended
@@ -382,24 +439,36 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 	if extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI {
 		rs = rsm.GenerateOpenAPIRecommendedRuleSet()
 	}
+	for _, name := range []string{VacuumArazzo, VacuumArazzoRecommended, SpectralArazzo} {
+		if mode, ok := extends[name]; ok {
+			switch mode {
+			case VacuumAll:
+				rs = cloneRuleSetForExternalLoad(rsm.GenerateArazzoDefaultRuleSet())
+			case VacuumOff:
+				rs.Rules = make(map[string]*model.Rule)
+			default:
+				rs = rsm.GenerateArazzoRecommendedRuleSet()
+			}
+		}
+	}
 
 	// all rules
 	if extends[SpectralOpenAPI] == VacuumAll || extends[VacuumOpenAPI] == VacuumAll {
-		rs = rsm.openAPIRuleSet
+		rs = cloneRuleSetForExternalLoad(rsm.openAPIRuleSet)
 	}
 
 	if extends[VacuumJSONSchema] == VacuumAll {
-		rs = rsm.GenerateJSONSchemaDefaultRuleSet()
+		rs = cloneRuleSetForExternalLoad(rsm.GenerateJSONSchemaDefaultRuleSet())
 	}
 
 	if extends[VacuumAsyncAPI] == VacuumAll || extends[SpectralAsyncAPI] == VacuumAll {
-		rs = rsm.GenerateAsyncAPIDefaultRuleSet()
+		rs = cloneRuleSetForExternalLoad(rsm.GenerateAsyncAPIDefaultRuleSet())
 	}
 
 	// vacuum:all - combines both OpenAPI and OWASP rules
 	if extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets {
 		// Start with OpenAPI rules
-		rs = rsm.openAPIRuleSet
+		rs = cloneRuleSetForExternalLoad(rsm.openAPIRuleSet)
 		// Add all OWASP rules
 		for ruleName, rule := range GetAllOWASPRules() {
 			rs.Rules[ruleName] = rule
@@ -481,9 +550,11 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		rs.Aliases = ruleset.Aliases
 	}
 
+	rs.readLocalFile = ruleset.readLocalFile
+
 	// download remote rulesets
 	if CheckForRemoteExtends(extends) || CheckForLocalExtends(extends) {
-		rsm.loadExternalRulesetsWithTimeout(extends, rs, httpClient)
+		rsm.loadExternalRulesetsWithTimeout(extends, ruleset.sourceLocation, rs, httpClient)
 	}
 
 	// now all the base rules are in, let's run through the raw definitions and decide
@@ -505,7 +576,10 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 			switch evalStr {
 			case model.SeverityError, model.SeverityWarn, model.SeverityInfo, model.SeverityHint:
-				rs.Rules[k].Severity = evalStr
+				// Recommended sets also share rule definitions with their built-in source.
+				rule := *rs.Rules[k]
+				rule.Severity = evalStr
+				rs.Rules[k] = &rule
 			case VacuumOff:
 				delete(rs.Rules, k) // remove it completely
 			}
@@ -525,6 +599,8 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 					rs.Rules[k] = rsm.jsonSchemaSet.Rules[k]
 				} else if rsm.asyncAPISet.Rules[k] != nil {
 					rs.Rules[k] = rsm.asyncAPISet.Rules[k]
+				} else if rsm.arazzoSet.Rules[k] != nil {
+					rs.Rules[k] = rsm.arazzoSet.Rules[k]
 				} else {
 					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
 					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
@@ -589,10 +665,15 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 		parsed, err := ParseAliases(rs.Aliases)
 		if err != nil {
 			rsm.logger.Error("invalid aliases", "error", err.Error())
+			if ruleset.Executable != nil {
+				rs.addLoadError(err)
+			}
 		} else {
 			rs.ParsedAliases = parsed
 		}
 	}
+
+	rs.Executable = ruleset.Executable
 
 	return rs
 }
@@ -717,6 +798,9 @@ func GetAllOWASPRules() map[string]*model.Rule {
 	rules[OwaspArrayLimit] = GetOWASPArrayLimitRule()
 	rules[OwaspJWTBestPractices] = GetOWASPJWTBestPracticesRule()
 	rules[OwaspAuthInsecureSchemes] = GetOWASPAuthInsecureSchemesRule()
+	rules[OwaspOAuthNoPassword] = GetOWASPOAuthNoPasswordRule()
+	rules[OwaspOAuthNoImplicit] = GetOWASPOAuthNoImplicitRule()
+	rules[OwaspAuthURLsHTTPS] = GetOWASPAuthURLsHTTPSRule()
 	rules[OwaspNoNumericIDs] = GetOWASPNoNumericIDsRule()
 	rules[OwaspNoHttpBasic] = GetOWASPNoHttpBasicRule()
 	rules[OwaspDefineErrorValidation] = GetOWASPDefineErrorValidationRule()
@@ -880,13 +964,10 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 		return nil, errors.New("data is not JSON")
 	}
 
-	compiler := jsonschema.NewCompiler()
-
-	// schema needs to be parsed first
-	var parsed map[string]interface{}
-	_ = json.Unmarshal([]byte(RulesetSchema), &parsed)
-	_ = compiler.AddResource("schema.json", parsed)
-	jsch, _ := compiler.Compile("schema.json")
+	jsch, err := compiledRulesetSchema(RulesetSchema)
+	if err != nil {
+		return nil, err
+	}
 
 	var data map[string]interface{}
 	_ = json.Unmarshal(jsonData, &data)
@@ -912,6 +993,10 @@ func CreateRuleSetUsingJSON(jsonData []byte) (*RuleSet, error) {
 	uErr := json.Unmarshal(jsonData, rs)
 	if uErr != nil {
 		return nil, uErr
+	}
+
+	if err := validateRulesetReferences(rs); err != nil {
+		return nil, err
 	}
 
 	// raw rules are unpacked, lets copy them over

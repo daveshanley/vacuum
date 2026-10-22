@@ -1,6 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://quobix.com/vacuum/schemas/rule.schema.json",
+  "title": "Vacuum rule",
+  "description": "Defines a lint rule with a JSONPath selector and one or more rule functions",
+  "examples": [
+    {
+      "given": "$.info",
+      "then": {
+        "field": "title",
+        "function": "defined"
+      }
+    }
+  ],
   "type": "object",
   "required": [ "given", "then" ],
   "properties": {
@@ -28,7 +39,7 @@
       ]
     },
     "category": {
-      "oneOf": [
+      "anyOf": [
         {
           "type": "string"
         },
@@ -50,14 +61,14 @@
     },
     "documentationUrl": {
       "type": "string",
-      "format": "url",
+      "x-format": "url",
       "x-errorMessage": "must be a valid URL"
     },
     "formats": {
       "$ref": "#/definitions/Formats"
     },
     "given": {
-      "oneOf": [
+      "anyOf": [
         {
           "type": "string"
         },
@@ -109,13 +120,6 @@
       },
       "x-errorMessage": "must be an array of formats"
     },
-    "Functions": {
-      "x-$anchor": "functions",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
     "HumanReadableSeverity": {
       "enum": [ "error", "warn", "info", "hint", "off" ]
     },
@@ -136,15 +140,11 @@
       "properties": {
         "field": {
           "type": "string"
-        }
+        },
+        "function": true
       },
       "required": [ "function" ],
-      "x-spectral-runtime": "ruleset-function",
-      "allOf": [
-        {
-          "type": "object"
-        }
-      ]
+      "x-spectral-runtime": "ruleset-function"
     }
   }
 }

@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 func RootNode(node *yaml.Node) *yaml.Node {

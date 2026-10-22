@@ -18,9 +18,9 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 // WatchConfig holds configuration for file watching
@@ -194,15 +194,15 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 			}
 			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(downloadedRS)
 		} else {
-			rsBytes, rsErr := os.ReadFile(m.watchConfig.RulesetFlag)
-			if rsErr != nil {
-				return relintErrorMsg{err: fmt.Errorf("unable to read ruleset file '%s': %w", m.watchConfig.RulesetFlag, rsErr)}
-			}
-			userRS, userErr := rulesets.CreateRuleSetFromData(rsBytes)
+			userRS, userErr := rulesets.LoadLocalRuleSet(context.Background(), m.watchConfig.RulesetFlag)
 			if userErr != nil {
-				return relintErrorMsg{err: fmt.Errorf("unable to parse ruleset file '%s': %w", m.watchConfig.RulesetFlag, userErr)}
+				return relintErrorMsg{err: fmt.Errorf("unable to load ruleset file '%s': %w", m.watchConfig.RulesetFlag, userErr)}
 			}
 			selectedRS = defaultRuleSets.GenerateRuleSetFromSuppliedRuleSet(userRS)
+		}
+
+		if err := selectedRS.LoadError(); err != nil {
+			return relintErrorMsg{err: err}
 		}
 
 		// Merge OWASP rules if hard mode is enabled

@@ -13,11 +13,11 @@ import (
 
 	doctorModel "github.com/pb33f/doctor/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowbase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 const schemaDoctorPathRoot = "$"

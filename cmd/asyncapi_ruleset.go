@@ -5,11 +5,18 @@
 package cmd
 
 import (
+	arazzo_context "github.com/daveshanley/vacuum/arazzo"
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/rulesets"
 )
 
 func selectDefaultRuleSetForSpec(defaultRuleSets rulesets.RuleSets, specBytes []byte, hardMode bool) (*rulesets.RuleSet, string, bool) {
+	if format, _ := arazzo_context.DetectFormat(specBytes); format != "" {
+		if hardMode {
+			return defaultRuleSets.GenerateArazzoDefaultRuleSet(), format, true
+		}
+		return defaultRuleSets.GenerateArazzoRecommendedRuleSet(), format, true
+	}
 	if format, err := asyncapi_context.DetectFormat(specBytes); err == nil && format != "" {
 		if hardMode {
 			return defaultRuleSets.GenerateAsyncAPIDefaultRuleSet(), format, true
@@ -23,12 +30,12 @@ func selectDefaultRuleSetForSpec(defaultRuleSets rulesets.RuleSets, specBytes []
 }
 
 func prepareDefaultRuleSetForSpec(defaultRuleSets rulesets.RuleSets, specBytes []byte, hardMode, turbo bool) (*rulesets.RuleSet, string, bool) {
-	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
-	if hardMode && !asyncDefault {
+	selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
+	if hardMode && !nonOpenAPIDefault {
 		MergeOWASPRulesToRuleSet(selectedRS, true)
 	}
 	if turbo {
 		rulesets.FilterRulesForTurbo(selectedRS)
 	}
-	return selectedRS, specFormat, asyncDefault
+	return selectedRS, specFormat, nonOpenAPIDefault
 }

@@ -101,7 +101,7 @@ export class CategoryRuleResultComponent extends BaseComponent {
       composed: true,
     };
     this.dispatchEvent(
-      new CustomEvent<ViolationSelectedEvent>(ViolationSelected, options)
+      new CustomEvent<ViolationSelectedEvent>(ViolationSelected, options),
     );
   }
 }

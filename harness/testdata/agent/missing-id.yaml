@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info:
+  title: Pedro's pet shop
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      responses:
+        '200':
+          description: Here are your pets.

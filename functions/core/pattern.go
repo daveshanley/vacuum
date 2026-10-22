@@ -7,8 +7,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 	"regexp"
 )
 
@@ -94,7 +94,7 @@ func (p Pattern) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 			fieldResult := vacuumUtils.FindFieldPath(context.RuleAction.Field, node.Content, fieldLookupOptions(context, false))
 			if fieldResult.Found && fieldResult.ValueNode != nil {
-				locatedPath, allPaths, locatedObjects := locateExistingFieldPaths(context, node, context.RuleAction.Field, fieldResult)
+				locatedPath, allPaths, locatedObjects := locateExistingFieldPaths(&context, node, context.RuleAction.Field, fieldResult)
 				results = append(results, p.validatePatternOnNode(
 					fieldResult.ValueNode, locatedPath, allPaths, locatedObjects, message, ruleMessage,
 					match, notMatch, matchRx, notMatchRx, matchErr, notMatchErr, context)...)
@@ -147,7 +147,9 @@ func (p Pattern) validatePatternOnNode(
 ) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
-	if locatedPath == "" {
+	if context.Arazzo != nil {
+		locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
+	} else if locatedPath == "" {
 		locatedPath, allPaths, locatedObjects = p.locateNode(node, context)
 	}
 

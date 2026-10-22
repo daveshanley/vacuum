@@ -1,20 +1,44 @@
 package plugin
 
 import (
+	"errors"
 	"fmt"
 	"github.com/daveshanley/vacuum/functions/core"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/plugin/javascript"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 	"os"
 	"path/filepath"
 	"plugin"
 	"reflect"
 	"strings"
+	"time"
 )
+
+// FunctionLoadError retains the function and source that failed to load.
+type FunctionLoadError struct {
+	Function string
+	Source   string
+	Err      error
+}
+
+func (e *FunctionLoadError) Error() string {
+	return fmt.Sprintf("custom function %q (%s): %v", e.Function, e.Source, e.Err)
+}
+func (e *FunctionLoadError) Unwrap() error { return e.Err }
 
 // LoadFunctions will load custom functions found in the supplied path
 func LoadFunctions(path string, silence bool) (*Manager, error) {
+	return loadFunctions(path, silence, 0, false)
+}
+
+// LoadFunctionsStrict loads functions for verification. JavaScript metadata uses
+// timeout and malformed schemas or scripts fail the entire load.
+func LoadFunctionsStrict(path string, timeout time.Duration) (*Manager, error) {
+	return loadFunctions(path, true, timeout, true)
+}
+
+func loadFunctions(path string, silence bool, timeout time.Duration, strict bool) (*Manager, error) {
 
 	dirEntries, err := os.ReadDir(path)
 	if err != nil {
@@ -22,6 +46,7 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 	}
 
 	pm := CreatePluginManager()
+	var loadErrors []error
 
 	for _, entry := range dirEntries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".so") {
@@ -34,14 +59,14 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 			// let's try and open it.
 			p, e := plugin.Open(fPath)
 			if e != nil {
-				return nil, e
+				return nil, &FunctionLoadError{Source: fPath, Err: e}
 			}
 
 			// look up the Boot function and store as a Symbol
 			var bootFunc plugin.Symbol
 			bootFunc, err = p.Lookup("Boot")
 			if err != nil {
-				return nil, err
+				return nil, &FunctionLoadError{Source: fPath, Function: "Boot", Err: err}
 			}
 
 			// lets go pedro!
@@ -55,42 +80,60 @@ func LoadFunctions(path string, silence bool) (*Manager, error) {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".js") {
 			fPath := filepath.Join(path, entry.Name())
 			fName := strings.Split(entry.Name(), ".")[0]
+			if !silence {
+				fmt.Printf("● Located custom function plugin: %s\n", fPath)
+			}
 
 			// let's try and read the file
 			p, e := os.ReadFile(fPath)
 			if e != nil {
-				return nil, e
+				return nil, &FunctionLoadError{Source: fPath, Function: fName, Err: e}
 			}
 
 			function := javascript.NewJSRuleFunction(fName, string(p))
+			function.(*javascript.JSRuleFunction).SetTimeout(timeout)
 
-			// found something
-			if !silence {
-				fmt.Printf("● Located custom javascript function: '%s' from file: %s\n", function.GetSchema().Name, fPath)
+			if err := function.CheckScript(); err != nil {
+				loadErr := fmt.Errorf("unable to load custom function %q: %w; vacuum custom functions use a plain script with runRule(input) and getSchema(); check the script syntax and required function definitions", fPath, err)
+				loadErrors = append(loadErrors, &FunctionLoadError{Function: fName, Source: fPath, Err: loadErr})
+				continue
 			}
-			// check if the function is valid
-			sErr := function.CheckScript()
-
-			if sErr != nil {
-				fmt.Printf("✗ Failed to load function '%s': %s\n", fName, sErr.Error())
-				continue // Skip registering invalid functions
-			} else {
-				if !silence {
-					fmt.Printf("✓ Successfully validated JavaScript function: '%s'\n", fName)
-				}
+			if !silence {
+				fmt.Printf("✓ Successfully validated JavaScript function: '%s'\n", fName)
 			}
 
 			// register core functions with this custom function.
 			RegisterCoreFunctions(function)
 
 			// register this function with the plugin manager using the schema name
-			schemaName := function.GetSchema().Name
+			var schemaName string
+			if strict {
+				schema, err := function.(*javascript.JSRuleFunction).GetSchemaWithError()
+				if err != nil {
+					loadErrors = append(loadErrors, &FunctionLoadError{Function: fName, Source: fPath, Err: err})
+					continue
+				}
+				schemaName = schema.Name
+			} else {
+				schemaName = function.GetSchema().Name
+			}
 			pm.RegisterFunction(schemaName, function)
 
 			if !silence {
 				fmt.Printf("● Registered custom function: '%s' -> available for use in rulesets\n", schemaName)
 			}
 		}
+	}
+	if strict && len(loadErrors) > 0 {
+		return nil, errors.Join(loadErrors...)
+	}
+	if pm.LoadedFunctionCount() == 0 && len(loadErrors) > 0 {
+		return nil, fmt.Errorf("no vacuum custom functions loaded: %w", errors.Join(loadErrors...))
+	}
+	// Mixed directories still load valid functions. Report skipped scripts once
+	// on stderr; wholly invalid directories return their errors to the caller.
+	for _, loadErr := range loadErrors {
+		_, _ = fmt.Fprintln(os.Stderr, loadErr)
 	}
 	return pm, nil
 }
@@ -110,15 +153,18 @@ var extractInput = func(input any) *yaml.Node {
 	}
 }
 
-var coreError = func() {
-	if r := recover(); r != nil {
-		fmt.Printf("✗ Core function '%s' had a panic attack via JavaScript: %s\n", r, "truthy")
-	}
-}
-
 var loadFunc = func(function model.RuleFunction) javascript.CoreFunction {
 	return func(input any, context model.RuleFunctionContext) []model.RuleFunctionResult {
-		defer coreError()
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				err := fmt.Errorf("core function %q panicked via JavaScript: %v", function.GetSchema().Name, recovered)
+				if context.ReportError != nil {
+					context.ReportError(err)
+				} else {
+					fmt.Printf("✗ %s\n", err)
+				}
+			}
+		}()
 		extracted := extractInput(input)
 		results := function.RunRule([]*yaml.Node{extracted}, context)
 		return results
@@ -135,6 +181,7 @@ var length = loadFunc(&core.Length{})
 var pattern = loadFunc(&core.Pattern{})
 var undefined = loadFunc(&core.Undefined{})
 var xor = loadFunc(&core.Xor{})
+var or = loadFunc(&core.Or{})
 var blank = loadFunc(&core.Blank{})
 
 func RegisterCoreFunctions(rule javascript.JSEnabledRuleFunction) {
@@ -148,5 +195,6 @@ func RegisterCoreFunctions(rule javascript.JSEnabledRuleFunction) {
 	rule.RegisterCoreFunction("pattern", pattern)
 	rule.RegisterCoreFunction("undefined", undefined)
 	rule.RegisterCoreFunction("xor", xor)
+	rule.RegisterCoreFunction("or", or)
 	rule.RegisterCoreFunction("blank", blank)
 }

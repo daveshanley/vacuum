@@ -1,0 +1,9 @@
+overlay: 1.0.0
+info:
+  title: Promote a staging operation
+  version: 1.0.0
+actions:
+  - target: $.paths["/promoted"].get.tags
+    description: Publish the promoted operation before inclusive filtering
+    update:
+      - public

@@ -35,6 +35,9 @@ type FileProcessingResult struct {
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	flags := ReadLintFlags(cmd)
+	if flags.FixFlag && flags.FixFileFlag != "" && len(filesToLint) > 1 {
+		return fmt.Errorf("--fix-file requires a single input file")
+	}
 	bufferedLogger, _ := createLogger(flags.DebugFlag)
 
 	var selectedRS *rulesets.RuleSet
@@ -48,7 +51,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	// LoadCustomFunctions and LoadIgnoreFile render their own annotation/terminal output,
 	// so the error only needs propagating here to fail the run.
-	customFuncs, customFuncsErr := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
+	functionManager, customFuncsErr := loadCustomFunctionManager(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
 	if customFuncsErr != nil {
 		return customFuncsErr
 	}
@@ -159,12 +162,13 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 
 		processingConfig := &FileProcessingConfig{
-			Flags:           flags,
-			BufferedLogger:  bf,
-			SelectedRuleset: selectedRS,
-			CustomFunctions: customFuncs,
-			IgnoredItems:    ignoredItems,
-			FetchConfig:     fetchConfig,
+			Flags:            flags,
+			BufferedLogger:   bf,
+			SelectedRuleset:  selectedRS,
+			CustomFunctions:  functionManager.GetCustomFunctions(),
+			AutoFixFunctions: functionManager.GetAutoFixFunctions(),
+			IgnoredItems:     ignoredItems,
+			FetchConfig:      fetchConfig,
 		}
 
 		result := ProcessSingleFileOptimized(fileName, processingConfig)
@@ -235,9 +239,11 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				RuleResultSet:  resultSet,
 				RuleCategories: model.RuleCategoriesOrdered,
 				PipelineOutput: true,
+				Severity:       flags.FailSeverityFlag,
 				ReportStats:    stats,
 				Filename:       fr.fileName,
 				TotalFiles:     len(filesToLint),
+				Failed:         CheckFailureSeverity(flags.FailSeverityFlag, fr.errors, fr.warnings, fr.informs, fr.hints) != nil,
 				Silent:         false,
 			})
 
@@ -316,6 +322,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 					NoStyle:        flags.NoStyleFlag,
 					PipelineOutput: flags.PipelineOutput,
 					ShowRules:      false,
+					Failed:         CheckFailureSeverity(flags.FailSeverityFlag, fr.errors, fr.warnings, fr.informs, fr.hints) != nil,
 				})
 			}
 

@@ -12,9 +12,9 @@ import (
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/model"
 	doctorModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestSanityUsesECMA262Patterns(t *testing.T) {

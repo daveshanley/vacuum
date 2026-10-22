@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -43,12 +42,13 @@ func BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes []byte, rs rulesets.R
 		return nil, userErr
 
 	}
-	return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient), nil
+	generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient)
+	return generated, generated.LoadError()
 }
 
 // BuildRuleSetFromUserSuppliedLocation creates a ready to run ruleset from a location (file path or URL)
 func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSets, remote bool, httpClient *http.Client) (*rulesets.RuleSet, error) {
-	if strings.HasPrefix(rulesetFlag, "http") {
+	if strings.HasPrefix(rulesetFlag, "http://") || strings.HasPrefix(rulesetFlag, "https://") {
 		// Handle remote ruleset URL directly
 		if !remote {
 			return nil, fmt.Errorf("remote ruleset specified but remote flag is disabled (use --remote=true or -u=true)")
@@ -57,18 +57,20 @@ func BuildRuleSetFromUserSuppliedLocation(rulesetFlag string, rs rulesets.RuleSe
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
+		generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
+		return generated, generated.LoadError()
 	} else {
 		// Handle local ruleset file
 		resolvedPath, err := ResolveConfigPath(rulesetFlag)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve ruleset path '%s': %w", rulesetFlag, err)
 		}
-		rsBytes, rsErr := os.ReadFile(resolvedPath)
+		userRS, rsErr := rulesets.LoadLocalRuleSet(context.Background(), resolvedPath)
 		if rsErr != nil {
 			return nil, rsErr
 		}
-		return BuildRuleSetFromUserSuppliedSetWithHTTPClient(rsBytes, rs, httpClient)
+		generated := rs.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient)
+		return generated, generated.LoadError()
 	}
 }
 
@@ -130,8 +132,25 @@ func RenderTime(timeFlag bool, duration time.Duration, fi int64) {
 // When annotations is true, all terminal chrome is suppressed and failures are reported as
 // GitHub Actions annotation lines instead.
 func LoadCustomFunctions(functionsFlag string, silence, annotations bool) (map[string]model.RuleFunction, error) {
+	pm, err := loadCustomFunctionManager(functionsFlag, silence, annotations)
+	if err != nil {
+		return nil, err
+	}
+	return pm.GetCustomFunctions(), nil
+}
+
+func loadCustomFunctionManager(functionsFlag string, silence, annotations bool) (*plugin.Manager, error) {
 	// check custom functions
 	if functionsFlag != "" {
+		if strings.HasPrefix(functionsFlag, "-") {
+			err := fmt.Errorf("--functions requires a path, got %q (use ./ for a path starting with a dash)", functionsFlag)
+			if annotations {
+				RenderGitHubAnnotationError(err, "")
+			} else {
+				tui.RenderError(err)
+			}
+			return nil, err
+		}
 		resolvedFunctionsPath, err := ResolveConfigPath(functionsFlag)
 		if err != nil {
 			if annotations {
@@ -167,9 +186,9 @@ func LoadCustomFunctions(functionsFlag string, silence, annotations bool) (map[s
 			}
 		}
 
-		return customFunctions, nil
+		return pm, nil
 	}
-	return nil, nil
+	return plugin.CreatePluginManager(), nil
 }
 
 func CheckFailureSeverity(failSeverityFlag string, errors int, warnings int, informs int, hints ...int) error {

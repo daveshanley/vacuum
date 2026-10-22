@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestDetectDialectDefaultsTo202012(t *testing.T) {

@@ -15,6 +15,15 @@ import (
 func TestNoAdditionalProperties_RunRule(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
@@ -46,13 +55,22 @@ components:
 	res := def.RunRule(nil, ctx)
 
 	assert.Len(t, res, 1)
-	assert.Equal(t, "`additionalProperties` should not be set, or set to `false`", res[0].Message)
+	assert.Equal(t, "request objects should set `additionalProperties` to `false` or define a schema for additional values", res[0].Message)
 	assert.Equal(t, "$.components.schemas['thing']", res[0].Path)
 }
 
 func TestNoAdditionalProperties_RunRule_Schema(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
@@ -84,13 +102,21 @@ components:
 
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 1)
-	assert.Equal(t, "`additionalProperties` should not be set, or set to `false`", res[0].Message)
+	assert.Len(t, res, 0)
 }
 
 func TestNoAdditionalProperties_RunRule_Pass(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
@@ -123,9 +149,18 @@ components:
 	assert.Len(t, res, 0)
 }
 
-func TestNoAdditionalProperties_RunRule_Pass_Nothing(t *testing.T) {
+func TestNoAdditionalProperties_RunRule_Omitted(t *testing.T) {
 
 	yml := `openapi: "3.1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/thing'
+      responses: {'200': {description: OK}}
 components:
   schemas:
     thing:
@@ -151,8 +186,9 @@ components:
 	def := NoAdditionalProperties{}
 	ctx.Document = document
 	ctx.DrDocument = drDocument
+	ctx.Rule = &rule
 
 	res := def.RunRule(nil, ctx)
 
-	assert.Len(t, res, 0)
+	assert.Len(t, res, 1)
 }

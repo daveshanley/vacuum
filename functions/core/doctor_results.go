@@ -7,7 +7,7 @@ package core
 import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 func locateModelPaths(context model.RuleFunctionContext, node *yaml.Node, fallbackPath string) (string, []string, []v3.Foundational) {

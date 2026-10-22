@@ -10,13 +10,13 @@ import (
 	"sync"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 func ConvertYAMLIntoJSONSchema(str string, index *index.SpecIndex) (*highBase.Schema, error) {
@@ -61,31 +61,24 @@ func ConvertNodeIntoJSONSchema(node *yaml.Node, idx *index.SpecIndex) (*highBase
 	return highSch, nil
 }
 
-// Global validator instance and mutex to ensure thread-safe schema validation.
-var (
-	globalValidator     schema_validation.SchemaValidator
-	globalValidatorOnce sync.Once
-	globalValidatorMu   sync.Mutex
-)
-
-// getGlobalValidator returns a singleton validator instance
-func getGlobalValidator(ctx *model.RuleFunctionContext) schema_validation.SchemaValidator {
-	globalValidatorOnce.Do(func() {
-		if ctx != nil && ctx.Logger != nil {
-			globalValidator = schema_validation.NewSchemaValidatorWithLogger(ctx.Logger)
-		} else {
-			globalValidator = schema_validation.NewSchemaValidator()
-		}
-	})
-	return globalValidator
-}
+// Inline rendering mutates high-level schema metadata, including shared
+// references. Keep rendering serialized without retaining any schema graphs.
+var schemaValidationMu sync.Mutex
 
 // ValidateNodeAgainstSchema will accept a schema and a node and check it's valid and return the result, or error.
 func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.Schema, node *yaml.Node, isArray bool) (bool, []*validationErrors.ValidationError) {
-	validator := getGlobalValidator(ctx)
-
-	globalValidatorMu.Lock()
-	defer globalValidatorMu.Unlock()
+	var validator schema_validation.SchemaValidator
+	if ctx != nil {
+		validator = ctx.SchemaValidator
+	}
+	if validator == nil {
+		if ctx != nil && ctx.Logger != nil {
+			validator = schema_validation.NewSchemaValidatorWithLogger(ctx.Logger)
+		} else {
+			validator = schema_validation.NewSchemaValidator()
+		}
+		defer validator.Release()
+	}
 
 	// yaml.Marshal's desolver mutates node metadata while rendering. Marshal a
 	// deep clone so validation never changes caller-owned nodes.
@@ -122,5 +115,7 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	var decoded any
 	_ = json.Unmarshal(n, &decoded)
 
+	schemaValidationMu.Lock()
+	defer schemaValidationMu.Unlock()
 	return validator.ValidateSchemaObject(schema, decoded)
 }

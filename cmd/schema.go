@@ -23,9 +23,9 @@ import (
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 const (
@@ -243,12 +243,13 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	resultSet := model.NewRuleResultSet(aggregate)
 	resultSet.SortResultsByLineNumber()
 	prepareSchemaResults(resultSet)
+	failErr := CheckFailureSeverity(flags.FailSeverity, resultSet.GetErrorCount(), resultSet.GetWarnCount(), resultSet.GetInfoCount(), resultSet.GetHintCount())
 
 	if flags.Format == schemaOutputJSON {
 		if err := writeSchemaJSONReport(cmd, flags.Output, resultSet, firstSpecInfo, selectedRS); err != nil {
 			return err
 		}
-		return CheckFailureSeverity(flags.FailSeverity, resultSet.GetErrorCount(), resultSet.GetWarnCount(), resultSet.GetInfoCount(), resultSet.GetHintCount())
+		return failErr
 	}
 
 	if flags.Details && len(resultSet.Results) > 0 {
@@ -279,11 +280,12 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 		Silent:         flags.Silent,
 		NoStyle:        flags.NoStyle,
 		ShowRules:      flags.ShowRules,
+		Failed:         failErr != nil,
 	})
 	if flags.Time {
 		RenderTimeAndFiles(true, time.Since(start), totalSize, len(inputs))
 	}
-	return CheckFailureSeverity(flags.FailSeverity, resultSet.GetErrorCount(), resultSet.GetWarnCount(), resultSet.GetInfoCount(), resultSet.GetHintCount())
+	return failErr
 }
 
 func lintSchemaInput(

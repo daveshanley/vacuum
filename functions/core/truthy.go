@@ -7,8 +7,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 	"sort"
 )
 
@@ -85,7 +85,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				continue
 			}
 
-			if context.Index != nil {
+			if context.Index != nil && context.Arazzo == nil && context.AsyncAPI == nil {
 				origin := context.Index.FindNodeOrigin(node)
 
 				if origin != nil && origin.Line > 1 {
@@ -110,16 +110,16 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 			var locatedObjects []v3.Foundational
 			var allPaths []string
 			locatedPath := pathValue
-			if context.DrDocument != nil {
+			if context.DrDocument != nil || context.Arazzo != nil || context.AsyncAPI != nil {
 				if context.RuleAction.Field == "" {
-					locatedPath, allPaths, locatedObjects = locateNodePaths(context, node)
+					locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)
 				} else if fieldNode == nil {
-					basePath, basePaths, baseObjects := locateNodePaths(context, node)
+					basePath, basePaths, baseObjects := locateNodePaths(&context, node)
 					locatedPath, allPaths, locatedObjects = appendFieldPathToLocatedPaths(
 						basePath, basePaths, baseObjects, context.RuleAction.Field,
 					)
 				} else {
-					locatedPath, allPaths, locatedObjects = locateExistingFieldPaths(context, node, context.RuleAction.Field, fieldResult)
+					locatedPath, allPaths, locatedObjects = locateExistingFieldPaths(&context, node, context.RuleAction.Field, fieldResult)
 				}
 			}
 			result := model.RuleFunctionResult{

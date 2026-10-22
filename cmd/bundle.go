@@ -8,22 +8,25 @@ package cmd
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	asyncapiContext "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
+	"github.com/pb33f/libasyncapi"
+	asyncapiBundler "github.com/pb33f/libasyncapi/bundler"
 	"github.com/pb33f/libopenapi/bundler"
 	"github.com/pb33f/libopenapi/datamodel"
 	libopenapijson "github.com/pb33f/libopenapi/json"
 
 	"github.com/daveshanley/vacuum/tui"
+	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 const (
@@ -34,12 +37,13 @@ const (
 func GetBundleCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
-		SilenceUsage: true,
-		Use:          "bundle",
-		Short:        "Bundle an OpenAPI specification with external references into a single document.",
-		Long: "Bundle an OpenAPI specification with external references into a single document. All references will be resolved and " +
-			"the resulting document will be a valid OpenAPI specification, containing no external references. It can then be used by any tool that does not support references.",
-		Example: "vacuum bundle <my-exploded-openapi-spec.yaml> <bundled-openapi-spec.yaml>",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Use:           "bundle",
+		Short:         "Bundle an OpenAPI or AsyncAPI 3 specification into a single document.",
+		Long: "Bundle an OpenAPI or AsyncAPI 3 specification with external references into a single document. " +
+			"Local references are preserved. AsyncAPI fields that require references keep local references to their targets.",
+		Example: "vacuum bundle <input-api.yaml> <bundled-api.yaml>",
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				return []string{"yaml", "yml", "json"}, cobra.ShellCompDirectiveFilterFileExt
@@ -69,23 +73,33 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if !stdIn && len(args) == 0 {
-				errText := "please supply input (unbundled) OpenAPI document, or use the -i flag to use stdin"
-				tui.RenderErrorString("%s", errText)
-				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
-				fmt.Println()
-				return errors.New(errText)
+				err := NewInputError("please supply an input API document, or use --stdin")
+				fmt.Fprintln(os.Stderr, err)
+				return err
 			}
 
 			// check for file args
-			if !stdOut && len(args) == 1 {
-				errText := "please supply output (bundled) OpenAPI document, or use the -o flag to use stdout"
-				tui.RenderErrorString("%s", errText)
-				fmt.Println("Usage: vacuum bundle <input-openapi-spec.yaml> <output-bundled-openapi-spec.yaml>")
-				fmt.Println()
-				return errors.New(errText)
+			outputIndex := 1
+			if stdIn && len(args) < 2 {
+				outputIndex = 0
+			}
+			// Preserve the legacy --stdin <ignored-input> <output> form.
+			if len(args) > 2 {
+				err := NewInputError("bundle accepts at most an input and an output document")
+				fmt.Fprintln(os.Stderr, err)
+				return err
+			}
+			if !stdOut && len(args) <= outputIndex {
+				err := NewInputError("please supply an output API document, or use --stdout")
+				fmt.Fprintln(os.Stderr, err)
+				return err
 			}
 
-			outputFormat, err := resolveBundleOutputFormat(formatFlag, stdOut, args)
+			formatArgs := args
+			if stdIn && outputIndex == 0 {
+				formatArgs = append([]string{"stdin"}, args...)
+			}
+			outputFormat, err := resolveBundleOutputFormat(formatFlag, stdOut, formatArgs)
 			if err != nil {
 				tui.RenderErrorString("%s", err.Error())
 				return err
@@ -107,19 +121,19 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if fileError != nil {
-				tui.RenderErrorString("Unable to read file '%s': %s", args[0], fileError.Error())
+				fmt.Fprintln(os.Stderr, fileError)
 				return fileError
 			}
-			if err := rejectAsyncAPIForOpenAPICommand("bundle", specBytes); err != nil {
-				if stdOut {
-					fmt.Fprintln(os.Stderr, err.Error())
-				} else {
-					tui.RenderErrorString("%s", err.Error())
-				}
-				return err
+			isAsyncAPI, err := asyncapiContext.IsDocument(specBytes)
+			if err != nil && asyncapiContext.HasMarker(specBytes) {
+				fmt.Fprintln(os.Stderr, err)
+				return NewInputError("%v", err)
 			}
 			if baseFlag == "" {
 				baseFlag = "."
+				if isAsyncAPI && !stdIn {
+					baseFlag = filepath.Dir(args[0])
+				}
 			}
 
 			// setup logging
@@ -135,7 +149,33 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			var bundled []byte
-			if !composed {
+			if isAsyncAPI {
+				config := &libasyncapi.DocumentConfiguration{
+					AllowFileReferences: true, AllowRemoteReferences: remoteFlag,
+					ExcludeExtensionRefs: !extensionRefsFlag, Logger: logger,
+				}
+				if strings.HasPrefix(baseFlag, "http://") || strings.HasPrefix(baseFlag, "https://") {
+					config.BaseURL, err = url.Parse(baseFlag)
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						return NewInputError("invalid base URL: %v", err)
+					}
+				} else {
+					config.BasePath = baseFlag
+				}
+				if !stdIn {
+					config.SpecFilePath, err = filepath.Abs(args[0])
+					if err != nil {
+						fmt.Fprintln(os.Stderr, err)
+						return err
+					}
+				}
+				if composed {
+					bundled, err = asyncapiBundler.BundleBytesComposed(specBytes, config, &asyncapiBundler.BundleCompositionConfig{Delimiter: delimiter})
+				} else {
+					bundled, err = asyncapiBundler.BundleBytes(specBytes, config)
+				}
+			} else if !composed {
 				bundled, err = bundler.BundleBytes(specBytes, docConfig)
 			} else {
 				bundled, err = bundler.BundleBytesComposed(specBytes, docConfig, &bundler.BundleCompositionConfig{
@@ -144,11 +184,22 @@ func GetBundleCommand() *cobra.Command {
 			}
 
 			if err != nil {
-				tui.RenderError(err)
+				if isAsyncAPI {
+					fmt.Fprintln(os.Stderr, err)
+				} else {
+					tui.RenderError(err)
+				}
 				// render any buffered logs
 				logOutput := bufferedLogger.RenderTree(noStyleFlag)
 				if logOutput != "" {
-					fmt.Print(logOutput)
+					if isAsyncAPI {
+						fmt.Fprint(os.Stderr, logOutput)
+					} else {
+						fmt.Print(logOutput)
+					}
+				}
+				if isAsyncAPI {
+					return NewInputError("%v", err)
 				}
 				if bundled == nil {
 					return err
@@ -166,14 +217,14 @@ func GetBundleCommand() *cobra.Command {
 				return nil
 			}
 
-			err = os.WriteFile(args[1], bundled, 0664)
+			err = os.WriteFile(args[outputIndex], bundled, 0664)
 
 			if err != nil {
-				tui.RenderErrorString("Unable to write bundled file: '%s': %s", args[1], err.Error())
+				tui.RenderErrorString("Unable to write bundled file: '%s': %s", args[outputIndex], err.Error())
 				return err
 			}
 
-			tui.RenderSuccess("Bundled OpenAPI document written to '%s'", args[1])
+			tui.RenderSuccess("Bundled API document written to '%s'", args[outputIndex])
 
 			return nil
 		},

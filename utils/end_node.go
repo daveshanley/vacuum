@@ -3,7 +3,7 @@
 
 package utils
 
-import "go.yaml.in/yaml/v4"
+import "github.com/pb33f/go-yaml"
 
 // BuildEndNode will return a new yaml.Node with the same line as the input node, but with a column
 // that is the sum of the input node's column and the length of the input node's value.

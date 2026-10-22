@@ -17,10 +17,10 @@ import (
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
 	vacuum_report "github.com/daveshanley/vacuum/vacuum-report"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
 	"github.com/spf13/cobra"
-	"go.yaml.in/yaml/v4"
 )
 
 // registerPersistentFlags registers the persistent flags normally set on the root command.
@@ -209,13 +209,14 @@ func TestApplyOriginalDiffToValues_ReuseCurrentResultsUsesCanonicalStats(t *test
 		{RuleId: "a-rule", Message: "same", Path: "$.a"},
 	}
 
-	filtered, stats := applyOriginalDiffToValues(originalValueDiffOptions{
+	filtered, stats, err := applyOriginalDiffToValues(originalValueDiffOptions{
 		OriginalPath:        "original.yaml",
 		CurrentPath:         "current.yaml",
 		Results:             results,
 		ReuseCurrentResults: true,
 	})
 
+	require.NoError(t, err)
 	assert.Empty(t, filtered)
 	require.NotNil(t, stats)
 	assert.Equal(t, len(results), stats.TotalResultsBefore)

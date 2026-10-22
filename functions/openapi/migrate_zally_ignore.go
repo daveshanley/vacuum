@@ -6,7 +6,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // MigrateZallyIgnore will check for x-zally-ignore keys and suggest migration to x-lint-ignore

@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"os"
@@ -51,13 +52,6 @@ func Execute(version, commit, date string) {
 	rootCmd := GetRootCommand()
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		FlushUpdateNotice()
-		// Print unknown flag errors explicitly since commands have SilenceErrors: true
-		// This ensures users get feedback when they mistype a flag name
-		errStr := err.Error()
-		if strings.Contains(errStr, "unknown flag") ||
-			strings.Contains(errStr, "unknown shorthand flag") {
-			tui.RenderErrorString("%s", errStr)
-		}
 		// Use the exit code from ExitError if available.
 		// Otherwise default to exit 2 (input/tool error). Exit 1 represents
 		// either lint violations or the LSP-mandated exit-without-shutdown status.
@@ -109,6 +103,14 @@ func GetRootCommand() *cobra.Command {
 			return nil
 		},
 	}
+	rootCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		// Commands render execution errors themselves, but flag parsing happens
+		// before their handlers run. Keep those input errors visible too.
+		if cmd.SilenceErrors {
+			cmd.PrintErrln("Error:", err)
+		}
+		return err
+	})
 	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "config file (defaults to ./vacuum.conf.yaml) ")
 	rootCmd.PersistentFlags().BoolP("time", "t", false, "Show how long vacuum took to run")
 	rootCmd.PersistentFlags().StringP("ruleset", "r", "", "Location of a vacuum (or Spectral) ruleset")
@@ -139,6 +141,7 @@ func GetRootCommand() *cobra.Command {
 	rootCmd.PersistentFlags().Bool("nested-refs-doc-context", false, "Resolve nested relative refs from the referenced document during resolved execution")
 	rootCmd.PersistentFlags().Bool("no-update-check", false, "Disable checking for newer vacuum releases")
 	rootCmd.AddCommand(GetLintCommand())
+	rootCmd.AddCommand(GetTestCommand())
 	rootCmd.AddCommand(GetVacuumReportCommand())
 	rootCmd.AddCommand(GetSpectralReportCommand())
 	rootCmd.AddCommand(GetHTMLReportCommand())
@@ -237,9 +240,13 @@ func useConfigFile(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	// bind command specific flags
-	if viperSubTree := viper.Sub(cmd.Name()); viperSubTree != nil {
-		err = bindFlags(cmd.LocalFlags(), viperSubTree)
+	// Bind command environment values before config so pflag's Changed marker
+	// preserves CLI > environment > config precedence.
+	err = bindEnvironmentFlags(cmd.LocalFlags())
+	if err == nil {
+		if viperSubTree := viper.Sub(cmd.Name()); viperSubTree != nil {
+			err = bindFlags(cmd.LocalFlags(), viperSubTree)
+		}
 	}
 	return err
 }
@@ -263,10 +270,13 @@ func useDefaultConfigFile() error {
 
 // Allow overriding specifying configuration from environment variables
 func useEnvironmentConfiguration() {
-	viper.SetEnvPrefix("VACUUM")
-	viper.AutomaticEnv()
-	// Environment variables can't have dashes in them
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	configureEnvironment(viper.GetViper())
+}
+
+func configureEnvironment(tree *viper.Viper) {
+	tree.SetEnvPrefix("VACUUM")
+	tree.AutomaticEnv()
+	tree.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 }
 
 func useUserSuppliedConfigFile(configFilePath string) error {
@@ -295,12 +305,63 @@ func getXdgConfigHome() string {
 func bindFlags(flags *pflag.FlagSet, viperTree *viper.Viper) error {
 	var err error
 	flags.VisitAll(func(f *pflag.Flag) {
-		if !f.Changed && viperTree.IsSet(f.Name) {
+		if err == nil && !f.Changed && viperTree.IsSet(f.Name) {
 			val := viperTree.Get(f.Name)
-			err = flags.Set(f.Name, fmt.Sprintf("%v", val))
+			err = setBoundFlag(flags, f, val)
 		}
 	})
 	return err
+}
+
+func setBoundFlag(flags *pflag.FlagSet, flag *pflag.Flag, value any) error {
+	if flag.Value.Type() != "stringArray" && flag.Value.Type() != "stringSlice" {
+		return flags.Set(flag.Name, fmt.Sprintf("%v", value))
+	}
+	values, err := stringCollectionValues(value)
+	if err != nil {
+		return err
+	}
+	sliceValue := flag.Value.(pflag.SliceValue)
+	if err := sliceValue.Replace(values); err != nil {
+		return err
+	}
+	flag.Changed = true
+	return nil
+}
+
+func stringCollectionValues(value any) ([]string, error) {
+	switch values := value.(type) {
+	case []string:
+		return values, nil
+	case []any:
+		result := make([]string, len(values))
+		for i, item := range values {
+			text, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string collection item at index %d, got %T", i, item)
+			}
+			result[i] = text
+		}
+		return result, nil
+	case string:
+		records, err := csv.NewReader(strings.NewReader(values)).Read()
+		if err != nil {
+			return nil, fmt.Errorf("invalid string collection %q: %w", values, err)
+		}
+		return records, nil
+	default:
+		return nil, fmt.Errorf("expected a string collection, got %T", value)
+	}
+}
+
+// bindEnvironmentFlags uses a separate environment-only Viper because Sub does
+// not inherit the parent's environment configuration. Bind before command config
+// so explicit CLI flags win over environment, which wins over config values.
+func bindEnvironmentFlags(flags *pflag.FlagSet) error {
+	tree := viper.New()
+	configureEnvironment(tree)
+	tree.AllowEmptyEnv(true)
+	return bindFlags(flags, tree)
 }
 
 // expandUserPath expands environment variables and a leading ~ in a user-supplied path.

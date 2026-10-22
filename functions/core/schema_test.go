@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
@@ -11,7 +12,6 @@ import (
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 	"testing"
 )
 

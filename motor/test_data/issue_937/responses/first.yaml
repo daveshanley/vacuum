@@ -1,0 +1,9 @@
+# Whitespace and ordering are part of the issue #937 regression fixture.
+# Keep both response files byte-identical so media types share coordinates.
+description: first response
+content:
+  application/json:
+    schema:
+      $ref: './schemas/base.yaml'
+    example:
+      id: not-an-integer

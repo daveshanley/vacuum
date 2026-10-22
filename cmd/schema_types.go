@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/datamodel"
-	"go.yaml.in/yaml/v4"
 )
 
 type schemaLintFlags struct {

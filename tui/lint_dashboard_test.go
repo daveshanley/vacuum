@@ -6,9 +6,9 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestUIState_Initialization(t *testing.T) {

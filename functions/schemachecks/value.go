@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 func constNodeValidForType(node *yaml.Node, schemaType string) bool {

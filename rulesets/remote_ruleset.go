@@ -7,8 +7,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/plugin/jsruleset"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,7 +21,7 @@ import (
 // returns true if it does, false if it does not
 func CheckForRemoteExtends(extends map[string]string) bool {
 	for k := range extends {
-		if strings.HasPrefix(k, "http") {
+		if isRemoteRulesetLocation(k) {
 			return true
 		}
 	}
@@ -30,9 +32,7 @@ func CheckForRemoteExtends(extends map[string]string) bool {
 // returns true if it does, false if it does not
 func CheckForLocalExtends(extends map[string]string) bool {
 	for k := range extends {
-		if filepath.Ext(k) == ".yml" ||
-			filepath.Ext(k) == ".yaml" ||
-			filepath.Ext(k) == ".json" {
+		if isExternalRulesetLocation(k) {
 			return true
 		}
 	}
@@ -50,6 +50,10 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, err
 	}
 
+	if err := unsupportedRulesetReference(location); err != nil {
+		return nil, err
+	}
+
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
@@ -64,6 +68,15 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, ruleRemoteErr
 	}
 	defer ruleResp.Body.Close()
+	if ruleResp.StatusCode < 200 || ruleResp.StatusCode >= 300 {
+		return nil, fmt.Errorf("remote ruleset %q returned HTTP %d", location, ruleResp.StatusCode)
+	}
+
+	if ruleResp.Request != nil && ruleResp.Request.URL != nil {
+		if err := unsupportedRulesetReference(ruleResp.Request.URL.String()); err != nil {
+			return nil, err
+		}
+	}
 
 	ruleBytes, bytesErr := io.ReadAll(ruleResp.Body)
 	if bytesErr != nil {
@@ -82,12 +95,30 @@ func DownloadRemoteRuleSet(ctx context.Context, location string, httpClient *htt
 		return nil, rsErr
 	}
 
+	finalURL := req.URL
+	if ruleResp.Request != nil && ruleResp.Request.URL != nil {
+		finalURL = ruleResp.Request.URL
+	}
+	if finalURL.Scheme != "http" && finalURL.Scheme != "https" {
+		return nil, fmt.Errorf("unsupported remote ruleset scheme %q", finalURL.Scheme)
+	}
+	downloadedRS.sourceLocation = rulesetLocation{remoteURL: finalURL}
 	return downloadedRS, nil
 }
 
 // LoadLocalRuleSet loads a local ruleset and returns a *RuleSet
 // returns an error if it cannot load the ruleset
 func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
+	return LoadLocalRuleSetWithReader(ctx, location, os.ReadFile)
+}
+
+// LoadLocalRuleSetWithReader loads a ruleset and its local extensions through
+// readFile. The reader receives absolute paths and must be safe for asynchronous
+// extension loading. This lets callers evaluate the same bytes they record.
+func LoadLocalRuleSetWithReader(ctx context.Context, location string, readFile func(string) ([]byte, error)) (*RuleSet, error) {
+	if readFile == nil {
+		readFile = os.ReadFile
+	}
 
 	if location == "" {
 		return nil, fmt.Errorf("cannot load ruleset, location is empty")
@@ -96,7 +127,33 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 		return nil, err
 	}
 
-	ruleBytes, bytesErr := os.ReadFile(location)
+	if jsruleset.IsModule(location) {
+		prepared, err := jsruleset.PrepareWithReader(ctx, location, readFile)
+		if err != nil {
+			return nil, err
+		}
+		rs, err := CreateRuleSetFromData(prepared.Data())
+		if err != nil {
+			return nil, err
+		}
+		rs.Executable = prepared
+		absolute, err := filepath.Abs(location)
+		if err != nil {
+			return nil, err
+		}
+		rs.sourceLocation = rulesetLocation{path: absolute}
+		rs.readLocalFile = readFile
+		return rs, nil
+	}
+	if err := unsupportedRulesetReference(location); err != nil {
+		return nil, err
+	}
+
+	location, err := filepath.Abs(location)
+	if err != nil {
+		return nil, err
+	}
+	ruleBytes, bytesErr := readFile(location)
 	if bytesErr != nil {
 		return nil, bytesErr
 	}
@@ -113,6 +170,8 @@ func LoadLocalRuleSet(ctx context.Context, location string) (*RuleSet, error) {
 		return nil, rsErr
 	}
 
+	downloadedRS.sourceLocation = rulesetLocation{path: location}
+	downloadedRS.readLocalFile = readFile
 	return downloadedRS, nil
 }
 
@@ -128,6 +187,20 @@ func SniffOutAllExternalRules(
 	remote bool,
 	httpClient *http.Client) {
 
+	target := rulesetLocation{path: location}
+	if remote {
+		parsed, err := url.Parse(location)
+		if err != nil {
+			rs.addLoadError(err)
+			return
+		}
+		target = rulesetLocation{remoteURL: parsed}
+	}
+	sniffExternalRules(ctx, rsm, target, visited, rs, httpClient)
+}
+
+func sniffExternalRules(ctx context.Context, rsm *ruleSetsModel, location rulesetLocation, visited []string, rs *RuleSet, httpClient *http.Client) {
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -138,17 +211,18 @@ func SniffOutAllExternalRules(
 	var drs *RuleSet
 	var err error
 
-	if remote {
-		drs, err = DownloadRemoteRuleSet(ctx, location, httpClient)
+	if location.remoteURL != nil {
+		drs, err = DownloadRemoteRuleSet(ctx, location.remoteURL.String(), httpClient)
 	} else {
-		drs, err = LoadLocalRuleSet(ctx, location)
+		drs, err = LoadLocalRuleSetWithReader(ctx, location.path, rs.readLocalFile)
 	}
 	if err != nil {
 		if ctx.Err() != nil {
 			return
 		}
+		rs.addLoadError(fmt.Errorf("cannot open external ruleset %q: %w", location.String(), err))
 		rsm.logger.Error("cannot open external ruleset",
-			"location", location, "error", err.Error())
+			"location", location.String(), "error", err.Error())
 		return
 	}
 	if ctx.Err() != nil {
@@ -182,10 +256,23 @@ func SniffOutAllExternalRules(
 		rs.mutex.Unlock()
 	}
 
-	visited = append(visited, location)
+	visited = append(visited, location.String())
 
 	// iterate over the extends and extract everything
 	extends := drs.GetExtendsValue()
+	for _, name := range []string{VacuumArazzo, VacuumArazzoRecommended, SpectralArazzo} {
+		if mode, ok := extends[name]; ok && mode != VacuumOff {
+			selected := rsm.GenerateArazzoRecommendedRuleSet()
+			if mode == VacuumAll {
+				selected = rsm.GenerateArazzoDefaultRuleSet()
+			}
+			rs.mutex.Lock()
+			for id, rule := range selected.Rules {
+				rs.Rules[id] = rule
+			}
+			rs.mutex.Unlock()
+		}
+	}
 
 	// default and explicitly recommended
 	if (extends[SpectralOpenAPI] == VacuumRecommended || extends[SpectralOpenAPI] == SpectralOpenAPI) ||
@@ -253,19 +340,61 @@ func SniffOutAllExternalRules(
 			if ctx.Err() != nil {
 				return
 			}
-			if strings.HasPrefix(k, "http") ||
-				filepath.Ext(k) == ".yml" ||
-				filepath.Ext(k) == ".yaml" ||
-				filepath.Ext(k) == ".json" {
-				if slices.Contains(visited, k) {
+			if isExternalRulesetLocation(k) {
+				child, err := resolveRulesetLocation(drs.sourceLocation, k)
+				if err != nil {
+					rs.addLoadError(err)
+					return
+				}
+				if slices.Contains(visited, child.String()) {
+					rs.addLoadError(fmt.Errorf("circular ruleset extension: %s", k))
 					rsm.logger.Warn("ruleset links to its self, circular rulesets are not permitted",
 						"extends", k)
 					return
 				}
 
 				// do down the rabbit hole.
-				SniffOutAllExternalRules(ctx, rsm, k, visited, rs, strings.HasPrefix(k, "http"), httpClient)
+				sniffExternalRules(ctx, rsm, child, visited, rs, httpClient)
 			}
 		}
 	}
+}
+
+// Keep filesystem paths separate from remote URLs so a remote extension can
+// never fall through to the local loader, including malformed references.
+type rulesetLocation struct {
+	path      string
+	remoteURL *url.URL
+}
+
+func (l rulesetLocation) String() string {
+	if l.remoteURL != nil {
+		return l.remoteURL.String()
+	}
+	return l.path
+}
+
+// In-memory rulesets keep the existing working-directory behavior.
+func resolveRulesetLocation(source rulesetLocation, location string) (rulesetLocation, error) {
+	if source.remoteURL != nil || isRemoteRulesetLocation(location) {
+		target, err := url.Parse(location)
+		if err != nil {
+			return rulesetLocation{}, fmt.Errorf("invalid remote ruleset reference %q: %w", location, err)
+		}
+		if source.remoteURL != nil {
+			target = source.remoteURL.ResolveReference(target)
+		}
+		if target.Scheme != "http" && target.Scheme != "https" {
+			return rulesetLocation{}, fmt.Errorf("unsupported remote ruleset scheme %q", target.Scheme)
+		}
+		return rulesetLocation{remoteURL: target}, nil
+	}
+	if source.path != "" && !filepath.IsAbs(location) {
+		location = filepath.Join(filepath.Dir(source.path), location)
+	}
+	return rulesetLocation{path: filepath.Clean(location)}, nil
+}
+
+func isRemoteRulesetLocation(location string) bool {
+	return strings.HasPrefix(location, "http://") || strings.HasPrefix(location, "https://")
 }

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	_ "embed" // embedding is not supported by golint,
 	"encoding/json"
 	"fmt"
@@ -12,10 +13,11 @@ import (
 	"github.com/daveshanley/vacuum/config"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 const (
@@ -57,8 +59,23 @@ type AsyncAPIContext interface {
 	NodePath(node *yaml.Node) (string, bool)
 }
 
+// ArazzoContext exposes immutable findings from one Arazzo validation pass.
+type ArazzoContext interface {
+	Results(code string) []RuleFunctionResult
+	NodePath(node *yaml.Node) (string, bool)
+}
+
 // RuleFunctionContext defines a RuleAction, Rule and Options for a RuleFunction being run.
 type RuleFunctionContext struct {
+	// ExecutionContext carries the rule deadline, including time spent queued.
+	ExecutionContext context.Context `json:"-" yaml:"-"`
+	// ExecutionRoot is the tree used for selector evaluation in this invocation.
+	ExecutionRoot *yaml.Node `json:"-" yaml:"-"`
+
+	// ReportError optionally reports an execution failure separately from findings.
+	// Call it synchronously within RunRule, never after RunRule returns.
+	ReportError func(error) `json:"-" yaml:"-"`
+
 	RuleAction  *RuleAction         `json:"ruleAction,omitempty" yaml:"ruleAction,omitempty"` // A reference to the action defined configured by the rule
 	Rule        *Rule               `json:"rule,omitempty" yaml:"rule,omitempty"`             // A reference to the Rule being used for the function
 	Given       interface{}         `json:"given,omitempty" yaml:"given,omitempty"`           // Path/s being used by rule, multiple paths can be used
@@ -68,6 +85,7 @@ type RuleFunctionContext struct {
 	Document    libopenapi.Document `json:"-" yaml:"-"`                                       // A reference to the document being parsed
 	DrDocument  *model.DrDocument   `json:"-" yaml:"-"`                                       // A high level, more powerful representation of the document being parsed. Powered by the doctor.
 	AsyncAPI    AsyncAPIContext     `json:"-" yaml:"-"`                                       // AsyncAPI context, set only when linting AsyncAPI documents.
+	Arazzo      ArazzoContext       `json:"-" yaml:"-"`                                       // Arazzo findings, set only when linting Arazzo documents.
 	Logger      *slog.Logger        `json:"-" yaml:"-"`                                       // Custom logger
 	FetchConfig *config.FetchConfig `json:"-" yaml:"-"`                                       // Configuration for JavaScript fetch() requests
 
@@ -79,31 +97,49 @@ type RuleFunctionContext struct {
 	// (e.g., oasExampleSchema). Default is 10 seconds if not set or 0.
 	ValidationTimeout time.Duration `json:"-" yaml:"-"`
 
+	// RuleTimeout is RuleSetExecution.Timeout for the run this invocation belongs to; custom
+	// JavaScript functions use it instead of their own default. Zero means fall back to that default.
+	RuleTimeout time.Duration `json:"-" yaml:"-"`
+
 	// SchemaPathCache is a shared cache for LocateSchemaPropertyPaths results,
 	// keyed by schema pointer. Avoids redundant LocateModelsByKeyAndValue calls
 	// when multiple OWASP rules check the same schema. May be nil.
 	SchemaPathCache *sync.Map `json:"-" yaml:"-"`
 
+	// SchemaValidator reuses compiled schemas during one rule action. The owner
+	// must release it after all calls finish and must not share it concurrently.
+	// When nil, schema validation uses a call-scoped validator.
+	SchemaValidator schema_validation.SchemaValidator `json:"-" yaml:"-"`
+
 	// optionsCache caches the converted options map to avoid repeated interface conversions
 	optionsCache map[string]string `json:"-" yaml:"-"`
 }
 
+// ResultSourceContext identifies a finding whose path is local to its Origin
+// document and retains a bounded, authored snippet for offline report rendering.
+// Empty Lines means that source text is unavailable or too large to include.
+type ResultSourceContext struct {
+	StartLine int      `json:"startLine" yaml:"startLine"`
+	Lines     []string `json:"lines,omitempty" yaml:"lines,omitempty"`
+}
+
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
-	Message           string            `json:"message" yaml:"message"`                                   // What failed and why?
-	Range             reports.Range     `json:"range" yaml:"range"`                                       // Where did it happen?
-	Path              string            `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
-	Paths             []string          `json:"paths,omitempty" yaml:"paths,omitempty"`                   // the JSONPath(s) to where it can be found, if there are multiple.
-	RuleId            string            `json:"ruleId" yaml:"ruleId"`                                     // The ID of the rule
-	RuleSeverity      string            `json:"ruleSeverity" yaml:"ruleSeverity"`                         // the severity of the rule used
-	Origin            *index.NodeOrigin `json:"origin,omitempty" yaml:"origin,omitempty"`                 // Where did the result come from (source)?
-	Rule              *Rule             `json:"-" yaml:"-"`                                               // The rule used
-	StartNode         *yaml.Node        `json:"-" yaml:"-"`                                               // Start of the violation
-	EndNode           *yaml.Node        `json:"-" yaml:"-"`                                               // end of the violation
-	Timestamp         *time.Time        `json:"-" yaml:"-"`                                               // When the result was created.
-	AutoFixed         bool              `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"`           // Whether this violation was auto-fixed
-	PathsTruncated    bool              `json:"pathsTruncated,omitempty" yaml:"pathsTruncated,omitempty"` // Whether resolved aliases were limited by result-path reconciliation.
-	PathFromRuleGiven bool              `json:"-" yaml:"-"`                                               // Path was defaulted from the rule's given selector.
+	Message           string               `json:"message" yaml:"message"`                                   // What failed and why?
+	Range             reports.Range        `json:"range" yaml:"range"`                                       // Where did it happen?
+	Path              string               `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
+	Paths             []string             `json:"paths,omitempty" yaml:"paths,omitempty"`                   // the JSONPath(s) to where it can be found, if there are multiple.
+	RuleId            string               `json:"ruleId" yaml:"ruleId"`                                     // The ID of the rule
+	RuleSeverity      string               `json:"ruleSeverity" yaml:"ruleSeverity"`                         // the severity of the rule used
+	SourceContext     *ResultSourceContext `json:"sourceContext,omitempty" yaml:"sourceContext,omitempty"`   // Source-local path identity and authored snippet.
+	Origin            *index.NodeOrigin    `json:"origin,omitempty" yaml:"origin,omitempty"`                 // Where did the result come from (source)?
+	Rule              *Rule                `json:"-" yaml:"-"`                                               // The rule used
+	StartNode         *yaml.Node           `json:"-" yaml:"-"`                                               // Start of the violation
+	EndNode           *yaml.Node           `json:"-" yaml:"-"`                                               // end of the violation
+	Timestamp         *time.Time           `json:"-" yaml:"-"`                                               // When the result was created.
+	AutoFixed         bool                 `json:"autoFixed,omitempty" yaml:"autoFixed,omitempty"`           // Whether this violation was auto-fixed
+	PathsTruncated    bool                 `json:"pathsTruncated,omitempty" yaml:"pathsTruncated,omitempty"` // Whether resolved aliases were limited by result-path reconciliation.
+	PathFromRuleGiven bool                 `json:"-" yaml:"-"`                                               // Path was defaulted from the rule's given selector.
 
 	// ModelContext may or may nor be populated, depending on the rule used and the context of the rule. If it is
 	// populated, then this is a reference to the model that fired the rule. (not currently used yet)
@@ -144,6 +180,13 @@ type RuleFunction interface {
 	RunRule(nodes []*yaml.Node, context RuleFunctionContext) []RuleFunctionResult // The place where logic is run
 	GetSchema() RuleFunctionSchema                                                // How to use the function and its details.
 	GetCategory() string                                                          // Returns the category the function is a part of.
+}
+
+// RuleFunctionOptionsValidator optionally validates option values after the schema
+// checks required and allowed keys. It is called once per rule action, before execution.
+type RuleFunctionOptionsValidator interface {
+	// ValidateOptions returns an error when option values do not meet the function contract.
+	ValidateOptions(options any) error
 }
 
 // RuleAction is what to do, on what field, and what options are to be used.

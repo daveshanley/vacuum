@@ -16,7 +16,7 @@ func TestGetLintCommand(t *testing.T) {
 	cmd := GetLintCommand()
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "lint <your-api-file.yaml>", cmd.Use)
-	assert.Contains(t, cmd.Short, "Lint an OpenAPI or AsyncAPI")
+	assert.Contains(t, cmd.Short, "Lint an OpenAPI, AsyncAPI or Arazzo")
 }
 
 func TestGetLintCommand_NoSpec(t *testing.T) {
@@ -1025,7 +1025,7 @@ func TestGetLintCommand_GitHubAnnotations_NoFileEmitsAnnotation(t *testing.T) {
 	require.Error(t, err)
 	output := stdout + stderr
 	assert.Contains(t, output, "::error")
-	assert.Contains(t, output, "please supply an OpenAPI or AsyncAPI specification")
+	assert.Contains(t, output, "please supply an OpenAPI, AsyncAPI or Arazzo specification")
 	assert.NotContains(t, output, "🚨")
 }
 

@@ -5,18 +5,20 @@ If you would like to try out this custom golang plugin, there are a few steps yo
 First, make sure you have the code checked out.
 
 ```bash
-git clone https://github.com/daveshanley/vacuum.git && cd vacuum/plugin/sample 
+git clone https://github.com/daveshanley/vacuum.git && cd vacuum/plugin/sample
 ```
+
+The sample uses the root module so its dependencies match the host. Build both with the same Go toolchain. Custom plugins must use `github.com/pb33f/go-yaml` for `RunRule` nodes and must be rebuilt after upgrading Vacuum.
 
 Once checked out, compile the plugin.
 
 ```bash
-go build -buildmode=plugin boot.go check_single_path.go useless_func.go
+GOWORK=off go build -buildmode=plugin -o sample.so .
 ```
 Go back up into the vacuum directory and compile vacuum
 
 ```bash
-cd ../../ && go build vacuum.go 
+cd ../../ && GOWORK=off go build -o vacuum .
 ```
 
 Now we can run the sample ruleset that uses custom functions, with an OpenAPI specification. Use the -f flag to specify the path to the sample plugin.

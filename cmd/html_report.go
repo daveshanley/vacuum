@@ -112,7 +112,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 
 			// check for file args
 			if len(filesToProcess) == 0 {
-				errText := "please supply an OpenAPI or AsyncAPI specification to generate an HTML Report"
+				errText := "please supply an OpenAPI, AsyncAPI or Arazzo specification to generate an HTML Report"
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
@@ -231,9 +231,6 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 						})
 					if err != nil {
 						tui.RenderError(err)
-						if isMultiFile {
-							continue
-						}
 						return err
 					}
 					specIndex = ruleset.Index
@@ -322,9 +319,15 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 							execution = ruleset.RuleSetExecution
 							executionOptions = newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag)
 						}
-						documentChanges, filtered = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+						var originalCurrentErrors []error
+						if ruleset != nil {
+							originalCurrentErrors = ruleset.Errors
+						}
+						var originalErr error
+						documentChanges, filtered, originalErr = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
 							OriginalPath:     originalFlag,
 							CurrentBytes:     specBytes,
+							CurrentErrors:    originalCurrentErrors,
 							CurrentPath:      specFile,
 							ResultSet:        resultSet,
 							Execution:        execution,
@@ -345,6 +348,12 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 								}
 							},
 						})
+						if originalErr != nil {
+							if ruleset != nil {
+								ruleset.ReleaseOwnedResources()
+							}
+							return originalErr
+						}
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)

@@ -8,15 +8,16 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 	"strings"
 )
 
+// AuthInsecureSchemes checks legacy HTTP authentication schemes.
 type AuthInsecureSchemes struct{}
 
-// GetSchema returns a model.RuleFunctionSchema defining the schema of the DefineError rule.
+// GetSchema returns a model.RuleFunctionSchema defining the schema of the AuthInsecureSchemes rule.
 func (is AuthInsecureSchemes) GetSchema() model.RuleFunctionSchema {
-	return model.RuleFunctionSchema{Name: "owaspJWTBestPractice"}
+	return model.RuleFunctionSchema{Name: "owaspAuthInsecureSchemes"}
 }
 
 // GetCategory returns the category of the AuthInsecureSchemes rule.
@@ -24,7 +25,7 @@ func (is AuthInsecureSchemes) GetCategory() string {
 	return model.FunctionCategoryOWASP
 }
 
-// RunRule will execute the DefineError rule, based on supplied context and a supplied []*yaml.Node slice.
+// RunRule reports legacy HTTP authentication schemes.
 func (is AuthInsecureSchemes) RunRule(_ []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	var results []model.RuleFunctionResult

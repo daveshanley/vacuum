@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pb33f/go-yaml"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 // DefaultBreakingConfigFile is the default filename for breaking rules configuration

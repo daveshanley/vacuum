@@ -12,11 +12,11 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	doctorModel "github.com/pb33f/doctor/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
+	"github.com/pb33f/go-yaml"
 	highbase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestRunSchemaSanityCheckTypeConstraints(t *testing.T) {

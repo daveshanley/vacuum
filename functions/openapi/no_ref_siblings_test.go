@@ -6,11 +6,11 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestNoRefSiblings_GetSchema(t *testing.T) {

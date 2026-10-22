@@ -2,14 +2,15 @@ package plugin
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 type FunctionSchema func() model.RuleFunctionSchema
 type FunctionHook func(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult
 
 type Manager struct {
-	customFunctions map[string]model.RuleFunction
+	autoFixFunctions map[string]model.AutoFixFunction
+	customFunctions  map[string]model.RuleFunction
 }
 
 func CreatePluginManager() *Manager {
@@ -30,4 +31,18 @@ func (pm *Manager) LoadedFunctionCount() int {
 
 func (pm *Manager) GetCustomFunctions() map[string]model.RuleFunction {
 	return pm.customFunctions
+}
+
+// RegisterAutoFixFunction registers a named repair for rules using autoFixFunction.
+// Repairs are available to lint --fix and the test harness.
+func (pm *Manager) RegisterAutoFixFunction(name string, function model.AutoFixFunction) {
+	if pm.autoFixFunctions == nil {
+		pm.autoFixFunctions = make(map[string]model.AutoFixFunction)
+	}
+	pm.autoFixFunctions[name] = function
+}
+
+// GetAutoFixFunctions returns repairs registered by a Go plugin's Boot function.
+func (pm *Manager) GetAutoFixFunctions() map[string]model.AutoFixFunction {
+	return pm.autoFixFunctions
 }

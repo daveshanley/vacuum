@@ -8,7 +8,7 @@ Operational guide for AI agents working in `github.com/daveshanley/vacuum`.
 - Main entry point: `vacuum.go` -> `cmd.Execute(...)` -> `cmd.GetRootCommand()`.
 - The default OpenAPI and AsyncAPI user path is `vacuum lint <api-description>`. JSON Schema linting uses `vacuum schema <schema>` or `vacuum schema lint <schema>`.
 - OpenAPI and AsyncAPI lint/report commands share helpers in `cmd/build_results.go`, `cmd/lint_shared.go`, and `motor/`. AsyncAPI context and default-ruleset wiring lives in `asyncapi/`, `cmd/asyncapi_ruleset.go`, `motor/asyncapi_applicator.go`, and `rulesets/asyncapi_rules.go`. JSON Schema command wiring lives in `cmd/schema*.go` and still executes rules through `motor/`.
-- Go version is `1.26.0`. Node is only needed for the HTML report UI and npm package wrapper.
+- Go version is `1.27.3`. Node is only needed for the HTML report UI and npm package wrapper.
 - The interactive HTML report is compiled only when UI assets exist and builds use `-tags html_report_ui`.
 - Release/CI-shaped Go checks should usually run with `GOWORK=off` so local sibling checkouts do not hide committed module problems.
 - Keep changes narrow. Do not rewrite generated assets, dependency locks, or docs unless the task requires it.
@@ -134,14 +134,15 @@ When adding or changing flags, check every command surface that shares the behav
 
 - OpenAPI and AsyncAPI documents use `vacuum lint <input...>` plus the `report`, `dashboard`, `html-report`, and `spectral-report` report surfaces.
 - AsyncAPI 3 documents are auto-detected and use `asyncapi-recommended` by default, or the full AsyncAPI ruleset when hard mode is enabled.
-- OpenAPI-only commands such as `bundle`, `docs`, `apply-overlay`, and `open-collection` must reject AsyncAPI clearly instead of falling through an OpenAPI path.
+- `bundle` detects AsyncAPI 3 and uses `libasyncapi/bundler`, preserving required channel, message, and server references in both modes.
+- OpenAPI-only commands such as `apply-overlay` and `open-collection` must reject AsyncAPI clearly instead of falling through an OpenAPI path.
 
 ## Core Rules
 
 - Prefer existing command helpers in `cmd/` over creating parallel execution paths.
 - Keep shared lint behavior in `BuildResults*`, `LintLoadedSpec`, `motor.RuleSetExecution`, or `motor.ExecutionOptions` when multiple commands need it.
 - Preserve the exit-code contract: `0` clean, `1` violations at or above threshold, `2` parse/input/tool error.
-- Use `go.yaml.in/yaml/v4` where current code does; do not casually mix YAML libraries.
+- Use `github.com/pb33f/go-yaml` for YAML nodes shared with libopenapi, Doctor, and libasyncapi; do not mix YAML node types.
 - Keep rule IDs, categories, and built-in rule constants centralized in `rulesets/` and `model/`.
 - For result paths, preserve both `Path` and `Paths` semantics. Many report and diff workflows depend on stable path output.
 - For AsyncAPI, preserve `RuleFunctionContext.AsyncAPI`, libasyncapi diagnostics, node-path mapping, and the default ruleset selection path. Reports, stats, snippets, and diagnostics should remain first-class outputs.
@@ -231,7 +232,7 @@ Check `git status --short` before editing. Preserve unrelated user changes.
 - GoReleaser config is `.goreleaser.yaml`.
 - Release builds run `./scripts/build-ui-assets.sh` before compiling.
 - Release binaries include HTML report UI assets with `-tags html_report_ui`.
-- Docker builds use Node 20 for UI assets and Go 1.26 for the binary.
+- Docker builds use Node 26.12.1 for UI assets and Go 1.27.3 for the binary.
 - npm publish uses trusted publishing in `.github/workflows/publish.yaml`.
 - `go install github.com/daveshanley/vacuum@<version>` does not include HTML report UI bundles. This is expected.
 - Do not add `replace` directives to released module state; they break `go install module@version` and `go run module@version`.

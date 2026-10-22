@@ -7,9 +7,9 @@ import (
 	"github.com/daveshanley/vacuum/language-server/protocol"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestConvertResultsIntoDiagnosticsIncludesExecutionErrors(t *testing.T) {

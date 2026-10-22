@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/sourcegraph/conc"
 
+	arazzo_context "github.com/daveshanley/vacuum/arazzo"
 	asyncapi_context "github.com/daveshanley/vacuum/asyncapi"
 	"github.com/daveshanley/vacuum/functions"
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
@@ -30,11 +32,12 @@ import (
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/go-viper/mapstructure/v2"
 	doctorModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 // todo: move copy into virtual file system or some kind of map.
@@ -49,9 +52,28 @@ type RuleLookupError struct {
 	Err    error
 }
 
-// ExecutionOptions configures optional execution behavior without extending
-// RuleSetExecution's public struct surface.
+// ExecutionOptions configures one ruleset execution. Model preparation checks
+// cancellation between synchronous phases; an active upstream build or caller
+// handler must return before that phase can stop. Rule functions may finish
+// after cancellation, but incomplete output is discarded. Auto-fix target and
+// document edits remain private until the complete rule succeeds. Other objects
+// exposed through RuleFunctionContext remain caller-owned and must not be mutated.
 type ExecutionOptions struct {
+	// ReportFunctionErrors asks supporting functions to report runtime failures as
+	// execution errors in addition to their legacy diagnostic output.
+	ReportFunctionErrors bool
+
+	// Evidence optionally collects bounded rule execution evidence. Do not share it between invocations.
+	Evidence *ExecutionEvidence
+
+	// Context is the base context for the complete motor invocation; nil uses context.Background.
+	Context context.Context
+	// RunTimeout sets a deadline when positive; earlier caller cancellation wins.
+	// Preparation stops between phases, so this is not a hard preparation-time bound.
+	RunTimeout time.Duration
+	// MaxRuleConcurrency caps active motor rule workers. Zero uses 32; negative values are invalid.
+	MaxRuleConcurrency int
+
 	ResolveAllRefs       bool // Force resolved document/index selection for all rules
 	NestedRefsDocContext bool // Resolve nested relative refs from the referenced document's path/index in resolved execution
 }
@@ -73,6 +95,7 @@ type RuleSetExecution struct {
 	AllowLookup                     bool                             // Allow remote lookup of files or links
 	Document                        libopenapi.Document              // a ready to render model.
 	DrDocument                      *doctorModel.DrDocument          // a high level, more powerful model, powered by the doctorModel.
+	Arazzo                          *arazzo_context.Context          // Arazzo context for this execution.
 	AsyncAPI                        *asyncapi_context.Context        // AsyncAPI context, populated only for AsyncAPI execution.
 	SkipDocumentCheck               bool                             // Skip the document check, useful for fragments and non openapi specs.
 	Logger                          *slog.Logger                     // A custom logger.
@@ -123,7 +146,8 @@ type RuleSetExecutionResult struct {
 	Errors           []error                          // Any errors that were returned.
 	FilesProcessed   int                              // number of files extracted by the rolodex
 	FileSize         int64                            // total filesize loaded by the rolodex
-	DocumentConfig   *datamodel.DocumentConfiguration // The document configuration used to create the document.
+	DocumentConfig   *datamodel.DocumentConfiguration // Reusable document configuration, without the invocation-bound HTTP context.
+	Arazzo           *arazzo_context.Context          // Arazzo context and validation coverage.
 	AsyncAPI         *asyncapi_context.Context        // The AsyncAPI context created for AsyncAPI execution.
 	ModifiedSpec     []byte                           // The spec with autofix changes applied (if any fixes were made).
 	ownedDocument    libopenapi.Document
@@ -149,6 +173,11 @@ func (r *RuleSetExecutionResult) HasTruncatedPaths() bool {
 }
 
 type ruleContext struct {
+	reportFunctionErrors bool
+
+	evidence    *RuleEvidence
+	sampleLimit int
+
 	rule               *model.Rule
 	specNode           *yaml.Node
 	specNodeUnresolved *yaml.Node
@@ -166,19 +195,27 @@ type ruleContext struct {
 	silenceLogs        bool
 	document           libopenapi.Document
 	drDocument         *doctorModel.DrDocument
+	arazzo             *arazzo_context.Context
 	asyncAPI           *asyncapi_context.Context
 	skipDocumentCheck  bool
 	logger             *slog.Logger
 	nodeLookupTimeout  time.Duration
+	ruleTimeout        time.Duration
 	applyAutoFixes     bool
 	resolvedExecution  bool
 	fetchConfig        *vacuumUtils.FetchConfig
 	turboMode          bool
 	hasInlineIgnores   bool
 	ignoreIndex        *inlineIgnoreIndex
+	sourceIgnores      map[string]sourceInlineIgnore
 	schemaPathCache    *sync.Map
+	messageUpdates     *sync.Map
 	ruleJSONPathCache  *sync.Map
 	expandedAliases    map[string][]string // all aliases resolved for this spec's format; nil when no aliases
+	runGuard           *ruleRunGuard
+	executionContext   context.Context
+	autoFixGate        chan struct{}
+	autoFixState       *autoFixState
 }
 
 func (e *RuleLookupError) Error() string {
@@ -324,6 +361,7 @@ func (r *RuleSetExecutionResult) release(clearCaches bool) {
 		r.DocumentConfig = nil
 		r.ModifiedSpec = nil
 		r.AsyncAPI = nil
+		r.Arazzo = nil
 		r.ownedDocument = nil
 		r.unresolvedDoc = nil
 		r.ownedIndex = nil
@@ -389,7 +427,8 @@ func (r *RuleSetExecutionResult) ReleaseOwnedResources() {
 // The cache reset is global, not scoped to this result. Calling Release can
 // affect other concurrent linting or document-processing routines running in the
 // same process. Prefer ReleaseOwnedResources for long-lived or concurrent
-// workflows. Caller-supplied documents are never released by vacuum.
+// workflows. Resource destruction and cache reset are deferred when a detached
+// rule is still running. Caller-supplied documents are never released by vacuum.
 func (r *RuleSetExecutionResult) Release() {
 	r.release(true)
 }
@@ -421,21 +460,28 @@ func forEachRuleActionValue(value interface{}, visit func(model.RuleAction) bool
 				return true
 			}
 		}
-	case map[string]interface{}:
-		mapped := model.RuleAction{FunctionOptions: action["functionOptions"]}
-		if field, ok := action["field"].(string); ok {
-			mapped.Field = field
-		}
-		if function, ok := action["function"].(string); ok {
-			mapped.Function = function
-		}
-		return visit(mapped)
 	case []interface{}:
 		for _, item := range action {
 			if forEachRuleActionValue(item, visit) {
 				return true
 			}
 		}
+	default:
+		// Match runRule's decoding contract for library-supplied map and slice
+		// types, including YAML maps with interface keys.
+		var decoded model.RuleAction
+		if err := mapstructure.Decode(value, &decoded); err == nil {
+			return visit(decoded)
+		}
+		var decodedActions []model.RuleAction
+		if err := mapstructure.Decode(value, &decodedActions); err == nil {
+			for _, decoded := range decodedActions {
+				if visit(decoded) {
+					return true
+				}
+			}
+		}
+
 	}
 	return false
 }
@@ -456,18 +502,56 @@ func ApplyRulesToRuleSet(execution *RuleSetExecution) *RuleSetExecutionResult {
 
 // ApplyRulesToRuleSetWithOptions applies a ruleset with explicit execution options.
 func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOptions *ExecutionOptions) *RuleSetExecutionResult {
+	control, controlErr := newExecutionControl(executionOptions)
+	if controlErr != nil {
+		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{controlErr}}
+	}
+	defer control.Close()
+
+	if execution == nil {
+		return executionErrorResult(nil, control, errors.New("ruleset execution cannot be nil"))
+	}
+	if controlErr := control.Err(); controlErr != nil {
+		return executionErrorResult(execution, control)
+	}
+	if err := execution.RuleSet.LoadError(); err != nil {
+		return executionErrorResult(execution, control, err)
+	}
+
 	opts := ExecutionOptions{}
 	if executionOptions != nil {
 		opts = *executionOptions
 	}
-
+	if execution.RuleSet != nil && execution.RuleSet.Executable != nil {
+		bound, closeScope, err := bindExecutableRuleset(execution, control)
+		if err != nil {
+			return executionErrorResult(execution, control, err)
+		}
+		defer closeScope()
+		execution = bound
+		opts.ReportFunctionErrors = true
+		control.reportFunctionErrors = true
+		if errs := ValidateRuleSet(execution.RuleSet, execution.CustomFunctions); len(errs) > 0 {
+			return executionErrorResult(execution, control, errs...)
+		}
+	}
 	now := time.Now()
 	builtinFunctions := functions.MapBuiltinFunctions()
+	if errs := validateRuleFunctions(execution.RuleSet, builtinFunctions, execution.CustomFunctions); len(errs) > 0 {
+		return &RuleSetExecutionResult{RuleSetExecution: execution, Errors: errs}
+	}
 	var ruleResults []model.RuleFunctionResult
 	var ignoredResults []model.RuleFunctionResult
 	var fixedResults []model.RuleFunctionResult
-	if asyncResult, handled := ApplyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions); handled {
+
+	if arazzoResult, handled := applyArazzoRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
+		return arazzoResult
+	}
+	if asyncResult, handled := applyAsyncAPIRulesToRuleSet(execution, &opts, builtinFunctions, control); handled {
 		return asyncResult
+	}
+	if controlErr := control.Err(); controlErr != nil {
+		return executionErrorResult(execution, control)
 	}
 
 	// create new configurations
@@ -484,6 +568,14 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	docConfigResolved.SpecFilePath = execution.SpecFileName
 	docConfigResolved.LocalFS = execution.RolodexFS
 	docConfigResolved.RemoteFS = execution.RolodexFS
+	// Returned configuration remains reusable after this invocation is cancelled.
+	// Only the internal model builders use the invocation-bound HTTP handler.
+	reusableRemoteURLHandler := docConfigResolved.RemoteURLHandler
+	documentConfigForReuse := func() *datamodel.DocumentConfiguration {
+		config := *docConfigResolved
+		config.RemoteURLHandler = reusableRemoteURLHandler
+		return &config
+	}
 
 	if execution.IgnoreCircularArrayRef {
 		docConfigResolved.IgnoreArrayCircularReferences = true
@@ -523,11 +615,16 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
 		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
 		if httpErr != nil {
-			return &RuleSetExecutionResult{Errors: []error{fmt.Errorf("failed to create custom HTTP client: %w", httpErr)}}
+			return executionErrorResult(
+				execution,
+				control,
+				fmt.Errorf("failed to create custom HTTP client: %w", httpErr),
+			)
 		}
 
 		// Set the custom RemoteURLHandler for libopenapi
-		docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+		docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
+		reusableRemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 	}
 
 	if execution.Base != "" {
@@ -670,7 +767,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 		if resolvedErr != nil || unresolvedErr != nil {
 			// Done here, we can't do anything else.
-			return &RuleSetExecutionResult{Errors: []error{errors.Join(resolvedErr, unresolvedErr)}}
+			return executionErrorResult(execution, control, errors.Join(resolvedErr, unresolvedErr))
 		}
 
 		docResolved = builtResolvedDoc
@@ -684,6 +781,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 		suppliedDocConfig := cloneDocumentConfiguration(docResolved.GetConfiguration())
 		docConfigResolved = cloneDocumentConfiguration(suppliedDocConfig)
+		reusableRemoteURLHandler = docConfigResolved.RemoteURLHandler
 		docConfigResolved.ResolveNestedRefsWithDocumentContext = suppliedDocConfig.ResolveNestedRefsWithDocumentContext || opts.NestedRefsDocContext
 		docConfigUnresolved = *cloneDocumentConfiguration(suppliedDocConfig)
 		docConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
@@ -698,7 +796,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		if opts.NestedRefsDocContext && !suppliedDocConfig.ResolveNestedRefsWithDocumentContext {
 			rebuiltResolvedDoc, rErr := libopenapi.NewDocumentWithConfiguration(specBytes, docConfigResolved)
 			if rErr != nil {
-				return &RuleSetExecutionResult{Errors: []error{rErr}}
+				return executionErrorResult(execution, control, rErr)
 			}
 			docResolved = rebuiltResolvedDoc
 			ownedResources.resolvedDocument = rebuiltResolvedDoc
@@ -707,7 +805,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		unresolvedDoc, uErr := libopenapi.NewDocumentWithConfiguration(specBytes, &docConfigUnresolved)
 		if uErr != nil {
 			// Done here, we can't do anything else.
-			return &RuleSetExecutionResult{Errors: []error{uErr}}
+			return executionErrorResult(execution, control, uErr)
 		}
 		docUnresolved = unresolvedDoc
 		ownedResources.unresolvedDocument = unresolvedDoc
@@ -720,6 +818,17 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		indexConfig.SpecInfo = specInfo
 		syncIndexConfigFromDocumentConfig(indexConfigUnresolved, &docConfigUnresolved)
 		indexConfigUnresolved.SpecInfo = specInfoUnresolved
+	}
+
+	if controlErr := control.Err(); controlErr != nil {
+		result := &RuleSetExecutionResult{
+			RuleSetExecution: execution,
+			SpecInfo:         specInfo,
+			DocumentConfig:   documentConfigForReuse(),
+			Errors:           []error{controlErr},
+		}
+		ownedResources.transfer(result)
+		return result
 	}
 
 	timeTaken := time.Since(nowDocs).Milliseconds()
@@ -787,6 +896,41 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 	var rolodexResolved, rolodexUnresolved *index.Rolodex
 	var specNodeResolved *yaml.Node
+	prepareIndexes := func() {
+		if rolodexResolved != nil {
+			indexResolved = rolodexResolved.GetRootIndex()
+		}
+		if rolodexUnresolved != nil {
+			indexUnresolved = rolodexUnresolved.GetRootIndex()
+		}
+		if version == "" || ownedResources.resolvedDocument != nil {
+			ownedResources.resolvedIndex = indexResolved
+		}
+		execution.IndexResolved = indexResolved
+		execution.IndexUnresolved = indexUnresolved
+	}
+	preparedResult := func(errs []error) *RuleSetExecutionResult {
+		prepareIndexes()
+		filesProcessed, fileSize := rolodexMetrics(rolodexResolved)
+		result := &RuleSetExecutionResult{
+			RuleSetExecution: execution,
+			Index:            indexResolved,
+			SpecInfo:         specInfo,
+			FilesProcessed:   filesProcessed,
+			FileSize:         fileSize,
+			DocumentConfig:   documentConfigForReuse(),
+			Errors:           appendContextErrorToErrors(errs, control.Err()),
+		}
+		ownedResources.transfer(result)
+		resourcesTransferred = true
+		return result
+	}
+	cancelledPreparation := func() *RuleSetExecutionResult {
+		if control.Err() == nil {
+			return nil
+		}
+		return preparedResult(nil)
+	}
 
 	indexConfig.Logger.Debug("building document models")
 	nowModel := time.Now()
@@ -801,9 +945,15 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		case '2':
 			_, resolvedModelErrors = docResolved.BuildV2Model()
 			rolodexResolved = docResolved.GetRolodex()
+			if cancelled := cancelledPreparation(); cancelled != nil {
+				return cancelled
+			}
 
 			docUnresolved.BuildV2Model()
 			rolodexUnresolved = docUnresolved.GetRolodex()
+			if cancelled := cancelledPreparation(); cancelled != nil {
+				return cancelled
+			}
 
 			if rolodexUnresolved != nil && rolodexUnresolved.GetRootIndex() != nil {
 				indexUnresolved = rolodexUnresolved.GetRootIndex()
@@ -811,7 +961,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			}
 			if rolodexResolved != nil {
 				indexResolved = rolodexResolved.GetRootIndex()
-				if !execution.SkipResolve {
+				if !execution.SkipResolve && control.Err() == nil {
 					rolodexResolved.Resolve()
 				}
 				if rolodexResolved.GetRootIndex() != nil {
@@ -829,6 +979,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			_, resolvedModelErrors = docResolved.BuildV3Model()
 
 			rolodexResolved = docResolved.GetRolodex()
+			if cancelled := cancelledPreparation(); cancelled != nil {
+				return cancelled
+			}
 
 			then := time.Since(now).Milliseconds()
 			indexConfig.Logger.Debug("built resolved model", "ms", then)
@@ -844,6 +997,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				}
 			}
 			rolodexUnresolved = docUnresolved.GetRolodex()
+			if cancelled := cancelledPreparation(); cancelled != nil {
+				return cancelled
+			}
 
 			then = time.Since(now).Milliseconds()
 			indexConfig.Logger.Debug("built unresolved model", "ms", then)
@@ -857,7 +1013,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 
 			wg := conc.WaitGroup{}
 			wg.Go(func() {
-				if v3DocumentModel != nil {
+				if v3DocumentModel != nil && control.Err() == nil {
 					var drDoc *doctorModel.DrDocument
 					if execution.StorageRoot != "" {
 						mod.Model.GoLow().StorageRoot = execution.StorageRoot
@@ -871,11 +1027,14 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					if execution.BuildDeepGraph {
 						useCache = false
 					}
+					// The deep graph is concurrent unless the walk is synchronous, and
+					// ignore-file matching needs a stable path.
 					drDoc = doctorModel.NewDrDocumentWithConfig(mod, &doctorModel.DrConfig{
 						BuildGraph:         buildGraph,
 						UseSchemaCache:     useCache,
 						RenderChanges:      execution.RenderChanges,
 						DeterministicPaths: true,
+						SyncWalk:           execution.BuildDeepGraph,
 					})
 
 					execution.DrDocument = drDoc
@@ -883,7 +1042,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 				}
 			})
 			wg.Go(func() {
-				if !execution.SkipResolve && rolodexResolved != nil {
+				if !execution.SkipResolve && rolodexResolved != nil && control.Err() == nil {
 					// we only resolve one.
 					resolvedTime := time.Now()
 					rolodexResolved.Resolve()
@@ -923,8 +1082,8 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			}
 			rolodexResolved.SetRootNode(resRoloConfig.SpecInfo.RootNode)
 
-			_ = rolodexResolved.IndexTheRolodex(context.Background())
-			if !execution.SkipResolve {
+			_ = rolodexResolved.IndexTheRolodex(control.Context())
+			if !execution.SkipResolve && control.Err() == nil {
 				rolodexResolved.Resolve()
 			}
 		})
@@ -937,7 +1096,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 			}
 			if unResInfo != nil {
 				rolodexUnresolved.SetRootNode(unResInfo.RootNode)
-				_ = rolodexUnresolved.IndexTheRolodex(context.Background())
+				_ = rolodexUnresolved.IndexTheRolodex(control.Context())
 			}
 		})
 		wg.Wait()
@@ -959,6 +1118,9 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		}
 		if rolodexResolved != nil {
 			circularReferences = rolodexResolved.GetSafeCircularReferences()
+		}
+		if cancelled := cancelledPreparation(); cancelled != nil {
+			return cancelled
 		}
 		if isJSONSchemaFormat(execution.SpecFormat) && indexUnresolved != nil {
 			// JSON Schema Doctor models are inseparable from libopenapi's rolodex/index pipeline.
@@ -984,12 +1146,11 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	then := time.Since(nowModel).Milliseconds()
 	indexConfig.Logger.Debug("built model", "ms", then)
 
-	if version == "" || ownedResources.resolvedDocument != nil {
-		ownedResources.resolvedIndex = indexResolved
+	prepareIndexes()
+	if cancelled := cancelledPreparation(); cancelled != nil {
+		return cancelled
 	}
 
-	execution.IndexResolved = indexResolved
-	execution.IndexUnresolved = indexUnresolved
 	r := utils.UnwrapErrors(resolvedModelErrors)
 	for i := range r {
 		var m *index.ResolvingError
@@ -1208,7 +1369,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		ruleResults = append(ruleResults, res)
 	}
 
-	if execution.RuleSet != nil && indexUnresolved != nil {
+	if execution.RuleSet != nil && indexUnresolved != nil && control.Err() == nil {
 
 		// One-time scan for x-lint-ignore presence. Builds an index of node -> ignored rule IDs
 		// so per-result checks are O(1) map lookups instead of JSONPath queries.
@@ -1235,8 +1396,18 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		// LocateModelsByKeyAndValue lookups.
 		var schemaPathCache sync.Map
 		var ruleJSONPathCache sync.Map
+		var messageUpdates *sync.Map
+		if execution.DrDocument != nil {
+			for _, rule := range applicableRules {
+				if strings.Contains(rule.Message, "{{") {
+					messageUpdates = &sync.Map{}
+					break
+				}
+			}
+		}
 
 		runResults, runIgnored, runFixed, runErrs := runRuleContexts(
+			control,
 			execution,
 			applicableRules,
 			docConfigResolved.Logger,
@@ -1294,6 +1465,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					skipDocumentCheck:  execution.SkipDocumentCheck,
 					logger:             docConfigResolved.Logger,
 					nodeLookupTimeout:  execution.NodeLookupTimeout,
+					ruleTimeout:        execution.Timeout,
 					applyAutoFixes:     execution.ApplyAutoFixes,
 					resolvedExecution:  ruleResolved,
 					fetchConfig:        execution.FetchConfig,
@@ -1301,11 +1473,13 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 					hasInlineIgnores:   specHasInlineIgnores,
 					ignoreIndex:        ignoreIdx,
 					schemaPathCache:    &schemaPathCache,
+					messageUpdates:     messageUpdates,
 					ruleJSONPathCache:  &ruleJSONPathCache,
 					expandedAliases:    resolvedAliases,
 				}
 			},
 		)
+		updateDoctorMessages(execution.DrDocument, messageUpdates)
 		ruleResults = append(ruleResults, runResults...)
 		ignoredResults = append(ignoredResults, runIgnored...)
 		fixedResults = append(fixedResults, runFixed...)
@@ -1314,12 +1488,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 		indexConfig.Logger.Debug("rules completed", "totalRules", totalRules, "ms", then)
 	}
 
-	filesProcessed := 0
-	fileSize := int64(0)
-
 	if indexResolved != nil && rolodexResolved != nil {
-		filesProcessed = rolodexResolved.RolodexTotalFiles()
-		fileSize = rolodexResolved.RolodexFileSize()
 		//ruleResults = *removeDuplicates(&ruleResults, execution, indexResolved)
 
 		// Populate Origin for multi-file specs using pointer-based disambiguation
@@ -1347,35 +1516,24 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
 
-	// Marshal modified spec if fixes were applied
-	var modifiedSpec []byte
-	if len(fixedResults) > 0 {
-		var err error
-		// Use the canonical document which contains all modifications
-		modifiedSpec, err = yaml.Marshal(execution.CanonicalDocument)
-		if err != nil {
-			indexConfig.Logger.Warn("failed to marshal modified spec", "error", err)
-		} else {
-			indexConfig.Logger.Debug("ModifiedSpec marshaled from CanonicalDocument")
-		}
+	modifiedSpec, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults))
+	if marshalErr != nil {
+		errs = append(errs, marshalErr)
 	}
 
-	result := &RuleSetExecutionResult{
-		RuleSetExecution: execution,
-		Results:          ruleResults,
-		IgnoredResults:   ignoredResults,
-		FixedResults:     fixedResults,
-		Index:            indexResolved,
-		SpecInfo:         specInfo,
-		Errors:           errs,
-		FilesProcessed:   filesProcessed,
-		FileSize:         fileSize,
-		DocumentConfig:   docConfigResolved,
-		ModifiedSpec:     modifiedSpec,
-	}
-	ownedResources.transfer(result)
-	resourcesTransferred = true
+	result := preparedResult(errs)
+	result.Results = ruleResults
+	result.IgnoredResults = ignoredResults
+	result.FixedResults = fixedResults
+	result.ModifiedSpec = modifiedSpec
 	return result
+}
+
+func rolodexMetrics(rolodex *index.Rolodex) (int, int64) {
+	if rolodex == nil {
+		return 0, 0
+	}
+	return rolodex.RolodexTotalFiles(), rolodex.RolodexFileSize()
 }
 
 func applySpecFormatOverride(specInfo, specInfoUnresolved *datamodel.SpecInfo, override string) {
@@ -1397,8 +1555,17 @@ func isJSONSchemaFormat(format string) bool {
 		format == model.JSONSchemaDraft07
 }
 
-func runRule(ctx ruleContext, doneChan chan struct{}) {
-	defer close(doneChan)
+func runRule(ctx ruleContext) {
+	completed := false
+	if ctx.applyAutoFixes {
+		ctx.autoFixState = &autoFixState{}
+		defer func() {
+			if completed {
+				commitAutoFixes(ctx)
+			}
+			releaseAutoFixes(ctx)
+		}()
+	}
 
 	// Check for missing auto-fix functions when --fix is enabled
 	if ctx.applyAutoFixes && ctx.rule.AutoFixFunction != "" {
@@ -1411,10 +1578,19 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 		}
 	}
 
-	if ctx.panicFunc != nil {
+	if ctx.panicFunc != nil || ctx.evidence != nil || ctx.reportFunctionErrors {
 		defer func() {
 			if r := recover(); r != nil {
-				ctx.panicFunc(r)
+				if ctx.reportFunctionErrors || ctx.evidence != nil {
+					*ctx.errors = append(*ctx.errors, &RuleExecutionError{Kind: RuleErrorPanic, RuleID: ctx.rule.Id, Err: fmt.Errorf("panicked: %v", r)})
+				}
+				if ctx.evidence != nil {
+					ctx.evidence.Status = "error"
+					ctx.evidence.Reason = fmt.Sprintf("rule panicked: %v", r)
+				}
+				if ctx.panicFunc != nil {
+					ctx.panicFunc(r)
+				}
 			}
 		}()
 	}
@@ -1433,19 +1609,9 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 
 			// Rule selectors use the safe Spectral dialect while preserving the
 			// bounded lookup behavior required for untrusted custom rulesets.
+			// A failed lookup must not change the rule's reference-resolution semantics.
 			nodes, err = findRuleGivenNodes(
 				ctx.specNode, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
-			if err != nil {
-				// Timeout or error — retry with unresolved spec
-				ctx.logger.Warn("timeout/error looking for nodes, retrying with unresolved spec",
-					"path", givenPath, "rule", ctx.rule.Id, "error", err)
-				nodes, err = findRuleGivenNodes(
-					ctx.specNodeUnresolved, givenPath, ctx.nodeLookupTimeout, ctx.ruleJSONPathCache)
-				if err != nil {
-					ctx.logger.Error("giving up on node lookup",
-						"path", givenPath, "rule", ctx.rule.Id, "error", err)
-				}
-			}
 
 		} else {
 			// if we're looking for the root, don't bother looking, we already have it.
@@ -1459,6 +1625,20 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 				Err:    err,
 			})
 			return
+		}
+		if ctx.evidence != nil {
+			selector := SelectorEvidence{Given: givenPath, Matches: len(nodes)}
+			if ctx.sampleLimit > 0 {
+				for i, node := range nodes {
+					if i >= ctx.sampleLimit {
+						selector.Truncated = true
+						break
+					}
+					selector.Samples = append(selector.Samples, EvidenceLocation{Line: node.Line, Column: node.Column})
+				}
+			}
+			ctx.evidence.Selectors = append(ctx.evidence.Selectors, selector)
+			ctx.evidence.Matches += len(nodes)
 		}
 		if len(nodes) <= 0 {
 			continue
@@ -1485,6 +1665,7 @@ func runRule(ctx ruleContext, doneChan chan struct{}) {
 			}
 		}
 	}
+	completed = true
 }
 
 func resolveRuleGivenPaths(rule *model.Rule, expandedAliases map[string][]string) ([]string, error) {
@@ -1514,17 +1695,74 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 	if ruleFunction != nil {
 
 		rfc := model.RuleFunctionContext{
-			Options:         ruleAction.FunctionOptions,
-			RuleAction:      &ruleAction,
-			Rule:            ctx.rule,
-			Given:           ctx.rule.Given,
-			Index:           ctx.index,
-			SpecInfo:        ctx.specInfo,
-			Document:        ctx.document,
-			DrDocument:      ctx.drDocument,
-			Logger:          ctx.logger,
-			FetchConfig:     ctx.fetchConfig,
-			SchemaPathCache: ctx.schemaPathCache,
+			ExecutionContext: ctx.executionContext,
+			ExecutionRoot:    ctx.specNode,
+			Options:          ruleAction.FunctionOptions,
+			RuleAction:       &ruleAction,
+			Rule:             ctx.rule,
+			Given:            ctx.rule.Given,
+			Index:            ctx.index,
+			SpecInfo:         ctx.specInfo,
+			Document:         ctx.document,
+			DrDocument:       ctx.drDocument,
+			Logger:           ctx.logger,
+			FetchConfig:      ctx.fetchConfig,
+			SchemaPathCache:  ctx.schemaPathCache,
+			RuleTimeout:      ctx.ruleTimeout,
+		}
+		if ctx.reportFunctionErrors {
+			rfc.ReportError = func(err error) {
+				if err != nil {
+					var identified *RuleExecutionError
+					if !errors.As(err, &identified) {
+						err = &RuleExecutionError{Kind: RuleErrorFunction, RuleID: ctx.rule.Id, Function: ruleAction.Function, Err: err}
+					}
+					*ctx.errors = append(*ctx.errors, err)
+				}
+			}
+		}
+		templated := strings.Contains(ctx.rule.Message, "{{")
+		// Keep the function's diagnostic available for {{error}}. The rule is
+		// shared by concurrent executions, so clear only this invocation's copy.
+		if templated {
+			rule := *ctx.rule
+			rule.Message = ""
+			if ruleAction.Function == "schema" && strings.Contains(ctx.rule.Message, "{{error}}") {
+				// The schema function normally prefixes its diagnostic with the
+				// rule description. Preserve only the raw diagnostic here because
+				// the shared formatter owns expansion of the complete template.
+				rule.Message = "{{error}}"
+				if options, ok := ruleAction.FunctionOptions.(map[string]interface{}); ok {
+					options = maps.Clone(options)
+					options["interpolateErrorMessage"] = true
+					rfc.Options = options
+				}
+			}
+			rfc.Rule = &rule
+		}
+		var messagePaths *vacuumUtils.NodePathIndex
+		runRule := func(selected []*yaml.Node) []model.RuleFunctionResult {
+			if ctx.evidence != nil {
+				ctx.evidence.Invocations++
+			}
+			results := ruleFunction.RunRule(selected, rfc)
+			if templated {
+				if len(results) > 0 && messagePaths == nil && ruleMessageNeedsLocation(ctx.rule.Message) {
+					messagePaths = messagePathIndex(ctx.specNode, ctx.schemaPathCache)
+				}
+				formatRuleMessages(ctx, ruleAction, selected, results, messagePaths)
+			}
+			return results
+		}
+		// Calls within one schema action are serial. Keep its compilation cache
+		// local so neither later documents nor timed-out workers share its lifetime.
+		if ruleAction.Function == "schema" {
+			rfc.SchemaValidator = schema_validation.NewSchemaValidatorWithLogger(ctx.logger)
+			defer rfc.SchemaValidator.Release()
+		}
+
+		if ctx.arazzo != nil {
+			rfc.Arazzo = ctx.arazzo
 		}
 		if ctx.asyncAPI != nil {
 			rfc.AsyncAPI = ctx.asyncAPI
@@ -1538,7 +1776,17 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 		}
 
 		// validate the rule is configured correctly before running it.
-		res, errs := model.ValidateRuleFunctionContextAgainstSchema(ruleFunction, rfc)
+		validator := model.ValidateRuleFunctionContextAgainstSchema
+		if ctx.reportFunctionErrors {
+			validator = validateFunctionSchema
+		}
+		res, errs := validator(ruleFunction, rfc)
+		if ctx.reportFunctionErrors && len(errs) > 0 {
+			res = false
+			for _, err := range errs {
+				*ctx.errors = append(*ctx.errors, &RuleExecutionError{Kind: RuleErrorConfiguration, RuleID: ctx.rule.Id, Function: ruleAction.Function, Err: fmt.Errorf("%s", err)})
+			}
+		}
 		if !res {
 			for _, e := range errs {
 				*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
@@ -1563,7 +1811,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				var batchNodes []*yaml.Node
 				for _, node := range filteredNodes {
 					// Check inline ignore (skip entirely when no x-lint-ignore keys exist in spec)
-					if ctx.hasInlineIgnores && checkInlineIgnore(node, ctx.rule.Id) {
+					if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" && checkInlineIgnore(node, ctx.rule.Id) {
 						*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1580,20 +1828,23 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 				// Only run if we have nodes to process
 				if len(batchNodes) > 0 {
-					runRuleResults := ruleFunction.RunRule(batchNodes, rfc)
+					runRuleResults := runRule(batchNodes)
 
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
-						if ctx.hasInlineIgnores && result.Path != "" && checkInlineIgnoreByPathIndexed(ctx.ignoreIndex, ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
+						if resultHasInlineIgnore(ctx, result) {
 							*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
-								Message:      "Rule ignored due to inline ignore directive",
-								RuleId:       ctx.rule.Id,
-								RuleSeverity: ctx.rule.Severity,
-								Rule:         ctx.rule,
-								StartNode:    result.StartNode,
-								EndNode:      result.EndNode,
-								Path:         result.Path,
+								Message:       "Rule ignored due to inline ignore directive",
+								RuleId:        ctx.rule.Id,
+								RuleSeverity:  ctx.rule.Severity,
+								Rule:          ctx.rule,
+								StartNode:     result.StartNode,
+								EndNode:       result.EndNode,
+								Path:          result.Path,
+								Paths:         result.Paths,
+								Origin:        result.Origin,
+								SourceContext: result.SourceContext,
 							})
 						} else {
 							filteredResults = append(filteredResults, result)
@@ -1626,7 +1877,7 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 				// (format already checked at rule level)
 				for _, node := range filteredNodes {
 
-					if ctx.hasInlineIgnores && checkInlineIgnore(node, ctx.rule.Id) {
+					if ctx.hasInlineIgnores && ruleAction.Function != "arazzoDocument" && checkInlineIgnore(node, ctx.rule.Id) {
 						*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
 							Message:      "Rule ignored due to inline ignore directive",
 							RuleId:       ctx.rule.Id,
@@ -1638,20 +1889,23 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 						continue
 					}
 
-					runRuleResults := ruleFunction.RunRule([]*yaml.Node{node}, rfc)
+					runRuleResults := runRule([]*yaml.Node{node})
 
 					// Filter out results that should be ignored due to inline ignore directives
 					var filteredResults []model.RuleFunctionResult
 					for _, result := range runRuleResults {
-						if ctx.hasInlineIgnores && result.Path != "" && checkInlineIgnoreByPathIndexed(ctx.ignoreIndex, ctx.specNodeUnresolved, result.Path, ctx.rule.Id) {
+						if resultHasInlineIgnore(ctx, result) {
 							*ctx.ignoredResults = append(*ctx.ignoredResults, model.RuleFunctionResult{
-								Message:      "Rule ignored due to inline ignore directive",
-								RuleId:       ctx.rule.Id,
-								RuleSeverity: ctx.rule.Severity,
-								Rule:         ctx.rule,
-								StartNode:    result.StartNode,
-								EndNode:      result.EndNode,
-								Path:         result.Path,
+								Message:       "Rule ignored due to inline ignore directive",
+								RuleId:        ctx.rule.Id,
+								RuleSeverity:  ctx.rule.Severity,
+								Rule:          ctx.rule,
+								StartNode:     result.StartNode,
+								EndNode:       result.EndNode,
+								Path:          result.Path,
+								Paths:         result.Paths,
+								Origin:        result.Origin,
+								SourceContext: result.SourceContext,
 							})
 						} else {
 							filteredResults = append(filteredResults, result)
@@ -1680,92 +1934,11 @@ func buildResults(ctx ruleContext, ruleAction model.RuleAction, nodes []*yaml.No
 
 		}
 	} else {
-		// Function not found - report detailed error
-		if !ctx.silenceLogs {
-			// Build list of available custom functions for debugging
-			var availableCustomFuncs []string
-			if ctx.customFunctions != nil {
-				for funcName := range ctx.customFunctions {
-					availableCustomFuncs = append(availableCustomFuncs, funcName)
-				}
-			}
-
-			if len(availableCustomFuncs) > 0 {
-				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. Available custom functions: %v\n",
-					ctx.rule.Id, ruleAction.Function, availableCustomFuncs)
-			} else {
-				fmt.Printf("✗ Rule '%s' uses unknown function '%s'. No custom functions loaded. Use --functions flag to load custom functions.\n",
-					ctx.rule.Id, ruleAction.Function)
-			}
+		if ctx.errors != nil {
+			*ctx.errors = append(*ctx.errors, &UnknownFunctionError{RuleID: ctx.rule.Id, Function: ruleAction.Function})
 		}
-
-		*ctx.ruleResults = append(*ctx.ruleResults, model.RuleFunctionResult{
-			Message:      fmt.Sprintf("Unknown function '%s' in rule '%s'", ruleAction.Function, ctx.rule.Id),
-			Rule:         ctx.rule,
-			StartNode:    &yaml.Node{},
-			EndNode:      &yaml.Node{},
-			RuleId:       ctx.rule.Id,
-			RuleSeverity: "error",
-			Path:         fmt.Sprint(ctx.rule.Given),
-		})
 	}
 	return ctx.ruleResults
-}
-
-func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult, rfc *model.RuleFunctionContext) {
-	// Preserve legacy behavior for direct/internal callers that construct ruleContext
-	// manually and only set rule.Resolved.
-	resolvedExecution := ctx.resolvedExecution || (ctx.rule != nil && ctx.rule.Resolved)
-
-	for i := range results {
-		if results[i].StartNode == nil {
-			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
-			continue
-		}
-
-		autoFixFunc, exists := ctx.autoFixFunctions[ctx.rule.AutoFixFunction]
-		if !exists {
-			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
-			continue
-		}
-
-		nodeToFix := results[i].StartNode
-		if resolvedExecution {
-			if ctx.indexUnresolved != nil {
-				origin := ctx.indexUnresolved.FindNodeOrigin(results[i].StartNode)
-				if origin == nil || origin.Node == nil {
-					if !ctx.silenceLogs {
-						ctx.logger.Warn("Auto-fix skipped: unable to map resolved node to canonical document",
-							"ruleId", ctx.rule.Id, "path", results[i].Path)
-					}
-					*ctx.ruleResults = append(*ctx.ruleResults, results[i])
-					continue
-				}
-				nodeToFix = origin.Node
-			} else {
-				if !ctx.silenceLogs {
-					ctx.logger.Warn("Auto-fix skipped: unresolved index not available",
-						"ruleId", ctx.rule.Id, "path", results[i].Path)
-				}
-				*ctx.ruleResults = append(*ctx.ruleResults, results[i])
-				continue
-			}
-		}
-
-		_, err := autoFixFunc(nodeToFix, ctx.specNodeUnresolved, rfc)
-		if err != nil {
-			if !ctx.silenceLogs {
-				ctx.logger.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
-			}
-			*ctx.ruleResults = append(*ctx.ruleResults, results[i])
-		} else {
-			results[i].AutoFixed = true
-			*ctx.fixedResults = append(*ctx.fixedResults, results[i])
-			if !ctx.silenceLogs {
-				ctx.logger.Debug("Auto-fix applied", "ruleId", ctx.rule.Id, "path", results[i].Path)
-			}
-		}
-	}
 }
 
 // buildNodeOwnerCache creates a reverse lookup from yaml.Node pointers to the

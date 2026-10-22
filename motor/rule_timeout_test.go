@@ -10,8 +10,8 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 )
 
 type slowRule struct {
@@ -122,6 +122,12 @@ paths: {}`
 	}
 
 	results := ApplyRulesToRuleSet(ex)
+	defer results.ReleaseOwnedResources()
+	assert.Len(t, results.Errors, 1)
+	var timeout *RuleTimeoutError
+	assert.ErrorAs(t, results.Errors[0], &timeout)
+	assert.Equal(t, "slow", timeout.RuleId)
+	assert.Equal(t, ex.Timeout, timeout.Timeout)
 	assert.Len(t, results.Results, 0)
 
 	time.Sleep(150 * time.Millisecond)

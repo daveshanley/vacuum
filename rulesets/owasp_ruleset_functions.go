@@ -105,16 +105,16 @@ func GetOWASPAuthInsecureSchemesRule() *model.Rule {
 func GetOWASPJWTBestPracticesRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "JWTs must explicitly declare support for `RFC8725`",
+		Name:         "JWT descriptions should reference `RFC8725`",
 		Id:           OwaspJWTBestPractices,
 		Formats:      model.OAS3AllFormat,
-		Description:  "JWTs must explicitly declare support for RFC8725 in the description",
+		Description:  "Explicitly declared JWTs should document RFC8725. This checks documentation, not runtime token validation.",
 		Given:        `$`,
 		Resolved:     false,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityError,
+		Severity:     model.SeverityWarn,
 		Then: model.RuleAction{
 			Function: "owaspJWTBestPractice",
 		},
@@ -159,7 +159,7 @@ func GetOWASPProtectionGlobalUnsafeStrictRule() *model.Rule {
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
-		Severity:     model.SeverityInfo,
+		Severity:     model.SeverityError,
 		Then: model.RuleAction{
 			Function: "owaspCheckSecurity",
 			FunctionOptions: map[string]interface{}{
@@ -448,12 +448,12 @@ func GetOWASPIntegerFormatRule() *model.Rule {
 func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "If the additionalProperties keyword is used it must be set to false",
+		Name:         "Request objects should restrict additional properties",
 		Id:           OwaspNoAdditionalProperties,
 		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
 		Given:        `$`,
 		Resolved:     false,
-		Formats:      append(model.OAS2Format, model.OAS3Format...),
+		Formats:      model.OAS3AllFormat,
 		RuleCategory: model.RuleCategories[model.CategoryOWASP],
 		Recommended:  true,
 		Type:         Validation,
@@ -470,9 +470,9 @@ func GetOWASPNoAdditionalPropertiesRule() *model.Rule {
 func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "Objects should not allow unconstrained additionalProperties",
+		Name:         "Request maps should limit their property count",
 		Id:           OwaspConstrainedAdditionalProperties,
-		Description:  "By default JSON Schema allows additional properties, which can potentially lead to mass assignment issues.",
+		Description:  "Request maps should declare maxProperties to limit resource consumption. This does not restrict which properties may be assigned.",
 		Given:        `$`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
@@ -483,7 +483,7 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 		Then: model.RuleAction{
 			Function: "owaspNoAdditionalPropertiesConstrained",
 		},
-		HowToFix: owaspNoAdditionalPropertiesFix,
+		HowToFix: owaspConstrainedAdditionalPropertiesFix,
 	}
 }
 
@@ -492,9 +492,9 @@ func GetOWASPConstrainedAdditionalPropertiesRule() *model.Rule {
 func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 
 	return &model.Rule{
-		Name:         "Server URLs MUST begin with `https`. No other protocol is permitted",
+		Name:         "Explicit server URL schemes must use HTTPS",
 		Id:           OwaspSecurityHostsHttpsOAS3,
-		Description:  "All server interactions MUST use the https protocol, meaning server URLs should begin `https://`.",
+		Description:  "Root, path, and operation server URLs must use HTTPS when an explicit scheme is declared. Relative URLs inherit their deployment transport.",
 		Given:        `$`,
 		Resolved:     false,
 		Formats:      model.OAS3AllFormat,
@@ -506,5 +506,71 @@ func GetOWASPSecurityHostsHttpsOAS3Rule() *model.Rule {
 			Function: "owaspHostsHttps",
 		},
 		HowToFix: owaspSecurityHostsHttpsOAS3Fix,
+	}
+}
+
+// GetOWASPOAuthNoPasswordRule rejects the OAuth password flow.
+func GetOWASPOAuthNoPasswordRule() *model.Rule {
+	return &model.Rule{
+		Name:         "OAuth password flow should not be used",
+		Id:           OwaspOAuthNoPassword,
+		Description:  "Use authorization code with PKCE for user authorization instead of the OAuth password flow.",
+		Given:        `$`,
+		Formats:      model.OAS3AllFormat,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "owaspOAuthFlow",
+			FunctionOptions: map[string]interface{}{
+				"flow": "password",
+			},
+		},
+		HowToFix: owaspOAuthFlowFix,
+	}
+}
+
+// GetOWASPOAuthNoImplicitRule rejects the OAuth implicit flow.
+func GetOWASPOAuthNoImplicitRule() *model.Rule {
+	return &model.Rule{
+		Name:         "OAuth implicit flow should not be used",
+		Id:           OwaspOAuthNoImplicit,
+		Description:  "Use authorization code with PKCE for user authorization instead of the OAuth implicit flow.",
+		Given:        `$`,
+		Formats:      model.OAS3AllFormat,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "owaspOAuthFlow",
+			FunctionOptions: map[string]interface{}{
+				"flow": "implicit",
+			},
+		},
+		HowToFix: owaspOAuthFlowFix,
+	}
+}
+
+// GetOWASPAuthURLsHTTPSRule checks OAuth and OpenID endpoint transport.
+func GetOWASPAuthURLsHTTPSRule() *model.Rule {
+	return &model.Rule{
+		Name:         "Authentication endpoint URLs must use HTTPS",
+		Id:           OwaspAuthURLsHTTPS,
+		Description:  "Explicit OAuth and OpenID endpoint URL schemes must use HTTPS. Relative URLs inherit their deployment transport.",
+		Given:        `$`,
+		Formats:      model.OAS3AllFormat,
+		Resolved:     false,
+		RuleCategory: model.RuleCategories[model.CategoryOWASP],
+		Recommended:  true,
+		Type:         Validation,
+		Severity:     model.SeverityError,
+		Then: model.RuleAction{
+			Function: "owaspAuthURLsHTTPS",
+		},
+		HowToFix: owaspAuthURLsHTTPSFix,
 	}
 }

@@ -116,6 +116,11 @@ func parseTargetedAlias(name string, m map[string]interface{}) (*ParsedAlias, er
 // Simple aliases pass through as-is (format-independent).
 // Targeted aliases collect paths from matching format targets.
 func ResolveAliasesForFormat(parsed map[string]*ParsedAlias, specFormat string) map[string][]string {
+	return ResolveAliasesWithMatcher(parsed, specFormat, model.FormatMatches)
+}
+
+// ResolveAliasesWithMatcher resolves targets using a document-specific format matcher.
+func ResolveAliasesWithMatcher(parsed map[string]*ParsedAlias, specFormat string, matches func(string, string) bool) map[string][]string {
 	result := make(map[string][]string, len(parsed))
 	for name, pa := range parsed {
 		if pa.Simple != nil {
@@ -123,7 +128,14 @@ func ResolveAliasesForFormat(parsed map[string]*ParsedAlias, specFormat string) 
 		} else if pa.Targeted != nil {
 			var paths []string
 			for _, target := range pa.Targeted.Targets {
-				if formatMatchesAny(target.Formats, specFormat) {
+				match := len(target.Formats) == 0
+				for _, format := range target.Formats {
+					if matches(format, specFormat) {
+						match = true
+						break
+					}
+				}
+				if match {
 					paths = append(paths, target.Given...)
 				}
 			}

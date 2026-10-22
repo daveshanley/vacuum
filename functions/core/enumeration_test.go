@@ -328,3 +328,12 @@ func TestEnumeration_RunRule_Array_default_Success(t *testing.T) {
 
 	assert.Len(t, res, 0)
 }
+
+func TestEnumeration_RejectsUnsupportedOptionMap(t *testing.T) {
+	valid, errs := model.ValidateRuleFunctionContextAgainstSchema(Enumeration{}, model.RuleFunctionContext{
+		Options: map[string][]string{"values": {"allowed"}},
+	})
+	require.False(t, valid)
+	require.NotEmpty(t, errs)
+	assert.Contains(t, errs[0], "missing required property: values")
+}

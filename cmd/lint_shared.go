@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"go.yaml.in/yaml/v4"
 
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/logging"
@@ -118,13 +118,14 @@ type LintFlags struct {
 
 // FileProcessingConfig contains all configuration needed to process a file
 type FileProcessingConfig struct {
-	Flags           *LintFlags
-	Logger          *slog.Logger
-	BufferedLogger  *logging.BufferedLogger
-	SelectedRuleset *rulesets.RuleSet
-	CustomFunctions map[string]model.RuleFunction
-	IgnoredItems    model.IgnoredItems
-	FetchConfig     *utils.FetchConfig
+	Flags            *LintFlags
+	Logger           *slog.Logger
+	BufferedLogger   *logging.BufferedLogger
+	SelectedRuleset  *rulesets.RuleSet
+	CustomFunctions  map[string]model.RuleFunction
+	AutoFixFunctions map[string]model.AutoFixFunction
+	IgnoredItems     model.IgnoredItems
+	FetchConfig      *utils.FetchConfig
 }
 
 // ReadLintFlags reads all lint-related flags from the command
@@ -359,12 +360,12 @@ func LoadRulesetWithConfig(flags *LintFlags, logger *slog.Logger) (*rulesets.Rul
 }
 
 // LoadRulesetWithConfigForSpec loads and configures the ruleset based on flags
-// and selects an AsyncAPI default ruleset when specBytes are AsyncAPI 3.x.
+// and selects the default ruleset for OpenAPI, AsyncAPI or Arazzo documents.
 func LoadRulesetWithConfigForSpec(flags *LintFlags, logger *slog.Logger, specBytes []byte) (*rulesets.RuleSet, string, error) {
 	defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, flags.HardModeFlag)
+	selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, flags.HardModeFlag)
 
-	if flags.HardModeFlag && !asyncDefault {
+	if flags.HardModeFlag && !nonOpenAPIDefault {
 		owaspRules := rulesets.GetAllOWASPRules()
 		for k, v := range owaspRules {
 			selectedRS.Rules[k] = v
@@ -568,7 +569,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Spec:                            specBytes,
 		SpecFileName:                    resolvedSpecPath,
 		CustomFunctions:                 config.CustomFunctions,
-		AutoFixFunctions:                make(map[string]model.AutoFixFunction),
+		AutoFixFunctions:                config.AutoFixFunctions,
 		Base:                            resolvedBase,
 		AllowLookup:                     config.Flags.RemoteFlag,
 		SkipDocumentCheck:               config.Flags.SkipCheckFlag,
@@ -603,6 +604,12 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			FileSize: fileSize,
 			Logs:     logs,
 			Error:    result.Errors[0],
+		}
+	}
+
+	if config.Flags.FixFlag && result.ModifiedSpec != nil {
+		if err := writeFixedFile(result, fileName, config.Flags.FixFileFlag); err != nil {
+			return &FileProcessingResult{FileSize: fileSize, Error: err}
 		}
 	}
 

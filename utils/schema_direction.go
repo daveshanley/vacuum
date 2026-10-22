@@ -3,6 +3,8 @@ package utils
 import (
 	"strings"
 
+	"github.com/pb33f/go-yaml"
+
 	base "github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
@@ -17,259 +19,241 @@ const (
 	DirectionNone     DirectionType = "none"
 )
 
-// GetSchemaDirection determines if a schema is used in requests, responses, or both.
-// Returns one of: "both", "request", "response", or "none"
+// GetSchemaDirection determines whether a schema is used in requests, responses, both, or neither.
+//
+// Deprecated: Use GetSchemaDirections once per document for name-based lookups,
+// or GetSchemaNodeDirections for identity-based lookups including inline schemas.
 func GetSchemaDirection(doc *v3.Document, schemaName string) DirectionType {
-	if doc == nil || doc.Paths == nil {
-		return DirectionNone
+	if direction := GetSchemaDirections(doc)[schemaName]; direction != "" {
+		return direction
 	}
+	return DirectionNone
+}
 
-	usedInRequest := false
-	usedInResponse := false
-
-	// Iterate over all paths and operations
-	for pathPairs := doc.Paths.PathItems.First(); pathPairs != nil; pathPairs = pathPairs.Next() {
-		pathItem := pathPairs.Value()
-		if pathItem == nil {
-			continue
+// GetSchemaDirections indexes the request and response uses of every referenced schema.
+// It avoids walking the whole document once for each schema checked by a rule.
+// Unused schemas are omitted; the returned map belongs to the caller.
+func GetSchemaDirections(doc *v3.Document) map[string]DirectionType {
+	directions := make(map[string]DirectionType)
+	walkSchemaDirections(doc, func(proxy *base.SchemaProxy, schema *base.Schema, usage DirectionType) {
+		reference := proxy.GetReference()
+		if name := reference[strings.LastIndexByte(reference, '/')+1:]; name != "" {
+			directions[name] = mergeSchemaDirection(directions[name], usage)
 		}
+	})
+	return directions
+}
 
-		// Check path-level parameters
-		for _, param := range pathItem.Parameters {
-			if param != nil && param.Schema != nil {
-				if refMatches(param.Schema, schemaName) {
-					usedInRequest = true
+// GetSchemaNodeDirections indexes request and response uses by schema identity.
+// Inline schemas and schemas with equal names remain distinct. Each schema is
+// traversed at most once per direction; unused schemas are omitted.
+func GetSchemaNodeDirections(doc *v3.Document) map[*yaml.Node]DirectionType {
+	directions := make(map[*yaml.Node]DirectionType)
+	walkSchemaDirections(doc, func(_ *base.SchemaProxy, schema *base.Schema, usage DirectionType) {
+		if low := schema.GoLow(); low != nil && low.RootNode != nil {
+			directions[low.RootNode] = mergeSchemaDirection(directions[low.RootNode], usage)
+		}
+	})
+	return directions
+}
+
+func mergeSchemaDirection(previous, usage DirectionType) DirectionType {
+	if previous != "" && previous != usage {
+		return DirectionBoth
+	}
+	return usage
+}
+
+func walkSchemaDirections(doc *v3.Document, visit func(*base.SchemaProxy, *base.Schema, DirectionType)) {
+	if doc == nil {
+		return
+	}
+	visited := &schemaDirectionVisits{nodes: make(map[*yaml.Node]DirectionType)}
+	mark := func(proxy *base.SchemaProxy, usage DirectionType) {
+		collectSchemaDirections(proxy, usage, visited, visit)
+	}
+	markParameter := func(param *v3.Parameter) {
+		if param == nil {
+			return
+		}
+		mark(param.Schema, DirectionRequest)
+		if param.Content != nil {
+			for _, media := range param.Content.FromOldest() {
+				if media != nil {
+					mark(media.Schema, DirectionRequest)
 				}
 			}
 		}
+	}
 
-		for _, op := range []*v3.Operation{
-			pathItem.Get, pathItem.Post, pathItem.Put, pathItem.Patch,
-			pathItem.Delete, pathItem.Options, pathItem.Head, pathItem.Trace,
-		} {
+	markResponse := func(resp *v3.Response) {
+		if resp == nil {
+			return
+		}
+		if resp.Content != nil {
+			for pair := resp.Content.First(); pair != nil; pair = pair.Next() {
+				if media := pair.Value(); media != nil {
+					mark(media.Schema, DirectionResponse)
+				}
+			}
+		}
+		if resp.Headers != nil {
+			for pair := resp.Headers.First(); pair != nil; pair = pair.Next() {
+				if header := pair.Value(); header != nil {
+					mark(header.Schema, DirectionResponse)
+					if header.Content != nil {
+						for _, media := range header.Content.FromOldest() {
+							if media != nil {
+								mark(media.Schema, DirectionResponse)
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	seenPaths := make(map[*v3.PathItem]bool)
+	var markPath func(*v3.PathItem)
+	markPath = func(pathItem *v3.PathItem) {
+		if pathItem == nil || seenPaths[pathItem] {
+			return
+		}
+		seenPaths[pathItem] = true
+		for _, param := range pathItem.Parameters {
+			markParameter(param)
+		}
+		for _, op := range pathItem.GetOperations().FromOldest() {
 			if op == nil {
 				continue
 			}
 
-			// Check requestBody
 			if op.RequestBody != nil && op.RequestBody.Content != nil {
-				for mediaPairs := op.RequestBody.Content.First(); mediaPairs != nil; mediaPairs = mediaPairs.Next() {
-					media := mediaPairs.Value()
-					if media.Schema != nil && refMatches(media.Schema, schemaName) {
-						usedInRequest = true
+				for pair := op.RequestBody.Content.First(); pair != nil; pair = pair.Next() {
+					if media := pair.Value(); media != nil {
+						mark(media.Schema, DirectionRequest)
 					}
 				}
 			}
-
-			// Check operation parameters
 			for _, param := range op.Parameters {
-				if param != nil && param.Schema != nil {
-					if refMatches(param.Schema, schemaName) {
-						usedInRequest = true
+				markParameter(param)
+			}
+			if op.Callbacks != nil {
+				for _, callback := range op.Callbacks.FromOldest() {
+					if callback != nil && callback.Expression != nil {
+						for _, path := range callback.Expression.FromOldest() {
+							markPath(path)
+						}
 					}
 				}
 			}
-
-			// Check responses
 			if op.Responses != nil {
-				// Check default response
-				if op.Responses.Default != nil {
-					checkResponse(op.Responses.Default, &usedInResponse, schemaName)
-				}
-
-				// Check coded responses
+				markResponse(op.Responses.Default)
 				if op.Responses.Codes != nil {
-					for pairs := op.Responses.Codes.First(); pairs != nil; pairs = pairs.Next() {
-						resp := pairs.Value()
-						checkResponse(resp, &usedInResponse, schemaName)
+					for pair := op.Responses.Codes.First(); pair != nil; pair = pair.Next() {
+						markResponse(pair.Value())
 					}
 				}
 			}
 		}
 	}
-
-	switch {
-	case usedInRequest && usedInResponse:
-		return DirectionBoth
-	case usedInRequest:
-		return DirectionRequest
-	case usedInResponse:
-		return DirectionResponse
-	default:
-		return DirectionNone
+	if doc.Paths != nil && doc.Paths.PathItems != nil {
+		for _, path := range doc.Paths.PathItems.FromOldest() {
+			markPath(path)
+		}
+	}
+	if doc.Webhooks != nil {
+		for _, path := range doc.Webhooks.FromOldest() {
+			markPath(path)
+		}
 	}
 }
 
-func checkResponse(resp *v3.Response, usedInResponse *bool, schemaRef string) {
-	if resp == nil {
+type schemaDirectionVisits struct {
+	nodes     map[*yaml.Node]DirectionType
+	synthetic map[*base.Schema]DirectionType
+}
+
+func collectSchemaDirections(proxy *base.SchemaProxy, usage DirectionType, visited *schemaDirectionVisits, mark func(*base.SchemaProxy, *base.Schema, DirectionType)) {
+	if proxy == nil {
 		return
 	}
-	// Check content
-	if resp.Content != nil {
-		for mediaPairs := resp.Content.First(); mediaPairs != nil; mediaPairs = mediaPairs.Next() {
-			media := mediaPairs.Value()
-			if media.Schema != nil && refMatches(media.Schema, schemaRef) {
-				*usedInResponse = true
-			}
-		}
-	}
-	// Check headers
-	if resp.Headers != nil {
-		for headerPairs := resp.Headers.First(); headerPairs != nil; headerPairs = headerPairs.Next() {
-			header := headerPairs.Value()
-			if header != nil && header.Schema != nil {
-				if refMatches(header.Schema, schemaRef) {
-					*usedInResponse = true
-				}
-			}
-		}
-	}
-}
-
-// refMatches checks if the schema or any of its nested schemas matches the given ref.
-func refMatches(schemaProxy *base.SchemaProxy, name string) bool {
-	return refMatchesInternal(schemaProxy, name, make(map[string]bool))
-}
-
-// refMatchesInternal recursively checks if a schema matches the given name, tracking visited schemas to avoid circular references.
-func refMatchesInternal(schemaProxy *base.SchemaProxy, name string, visited map[string]bool) bool {
-	if schemaProxy == nil || name == "" {
-		return false
-	}
-
-	reference := schemaProxy.GetReference()
-	parts := strings.Split(reference, "/")
-	actualName := parts[len(parts)-1]
-
-	// Check for circular reference - if we've already visited this schema, skip it
-	if visited[reference] {
-		return false
-	}
-	visited[reference] = true
-
-	schema := schemaProxy.Schema()
+	schema := proxy.Schema()
 	if schema == nil {
-		return false
+		return
+	}
+	mark(proxy, schema, usage)
+	if low := schema.GoLow(); low != nil && low.RootNode != nil {
+		previous := visited.nodes[low.RootNode]
+		if previous == usage || previous == DirectionBoth {
+			return
+		}
+		visited.nodes[low.RootNode] = mergeSchemaDirection(previous, usage)
+	} else {
+		// Programmatic schemas have no source node. Their high-level identity
+		// still bounds recursion without merging unrelated inline schemas.
+		if visited.synthetic == nil {
+			visited.synthetic = make(map[*base.Schema]DirectionType)
+		}
+		previous := visited.synthetic[schema]
+		if previous == usage || previous == DirectionBoth {
+			return
+		}
+		visited.synthetic[schema] = mergeSchemaDirection(previous, usage)
 	}
 
-	if name == actualName {
-		return true
-	}
-
-	// Check composition schemas
-	for _, s := range append(append(schema.AllOf, schema.AnyOf...), schema.OneOf...) {
-		if refMatchesInternal(s, name, visited) {
-			return true
+	// In OpenAPI 3.1, Schema() exposes the authored siblings of a $ref.
+	// Visit its semantic target as well; the node index still keeps the sibling
+	// schema and target distinct and bounds circular traversal.
+	if proxy.IsTransformedRefWithSiblings() {
+		if semantic, err := proxy.BuildTransformedRefSemanticSchema(schema); err == nil && semantic != nil {
+			for _, child := range semantic.AllOf {
+				collectSchemaDirections(child, usage, visited, mark)
+			}
 		}
 	}
 
-	// Check not
-	if schema.Not != nil {
-		if refMatchesInternal(schema.Not, name, visited) {
-			return true
-		}
+	for _, child := range schema.AllOf {
+		collectSchemaDirections(child, usage, visited, mark)
 	}
-
-	// Check properties
+	for _, child := range schema.AnyOf {
+		collectSchemaDirections(child, usage, visited, mark)
+	}
+	for _, child := range schema.OneOf {
+		collectSchemaDirections(child, usage, visited, mark)
+	}
+	collectSchemaDirections(schema.Not, usage, visited, mark)
 	if schema.Properties != nil {
-		for pairs := schema.Properties.First(); pairs != nil; pairs = pairs.Next() {
-			if refMatchesInternal(pairs.Value(), name, visited) {
-				return true
-			}
+		for pair := schema.Properties.First(); pair != nil; pair = pair.Next() {
+			collectSchemaDirections(pair.Value(), usage, visited, mark)
 		}
 	}
-
-	// Check additionalProperties
-	if schema.AdditionalProperties != nil {
-		if schema.AdditionalProperties.IsA() {
-			if refMatchesInternal(schema.AdditionalProperties.A, name, visited) {
-				return true
-			}
-		}
-		// Ignore bool case
+	if schema.AdditionalProperties != nil && schema.AdditionalProperties.IsA() {
+		collectSchemaDirections(schema.AdditionalProperties.A, usage, visited, mark)
 	}
-
-	// Check patternProperties
 	if schema.PatternProperties != nil {
-		for pairs := schema.PatternProperties.First(); pairs != nil; pairs = pairs.Next() {
-			if refMatchesInternal(pairs.Value(), name, visited) {
-				return true
-			}
+		for pair := schema.PatternProperties.First(); pair != nil; pair = pair.Next() {
+			collectSchemaDirections(pair.Value(), usage, visited, mark)
 		}
 	}
-
-	// Check items
-	if schema.Items != nil {
-		if schema.Items.IsA() {
-			if refMatchesInternal(schema.Items.A, name, visited) {
-				return true
-			}
-		}
-		// Ignore bool case
+	if schema.Items != nil && schema.Items.IsA() {
+		collectSchemaDirections(schema.Items.A, usage, visited, mark)
 	}
-
-	// Check prefixItems
-	for _, pi := range schema.PrefixItems {
-		if refMatchesInternal(pi, name, visited) {
-			return true
-		}
+	for _, child := range schema.PrefixItems {
+		collectSchemaDirections(child, usage, visited, mark)
 	}
-
-	// Check contains
-	if schema.Contains != nil {
-		if refMatchesInternal(schema.Contains, name, visited) {
-			return true
-		}
-	}
-
-	// Check if, else, then
-	if schema.If != nil {
-		if refMatchesInternal(schema.If, name, visited) {
-			return true
-		}
-	}
-	if schema.Else != nil {
-		if refMatchesInternal(schema.Else, name, visited) {
-			return true
-		}
-	}
-	if schema.Then != nil {
-		if refMatchesInternal(schema.Then, name, visited) {
-			return true
-		}
-	}
-
-	// Check dependentSchemas
+	collectSchemaDirections(schema.Contains, usage, visited, mark)
+	collectSchemaDirections(schema.If, usage, visited, mark)
+	collectSchemaDirections(schema.Else, usage, visited, mark)
+	collectSchemaDirections(schema.Then, usage, visited, mark)
 	if schema.DependentSchemas != nil {
-		for pairs := schema.DependentSchemas.First(); pairs != nil; pairs = pairs.Next() {
-			if refMatchesInternal(pairs.Value(), name, visited) {
-				return true
-			}
+		for pair := schema.DependentSchemas.First(); pair != nil; pair = pair.Next() {
+			collectSchemaDirections(pair.Value(), usage, visited, mark)
 		}
 	}
-
-	// Check propertyNames
-	if schema.PropertyNames != nil {
-		if refMatchesInternal(schema.PropertyNames, name, visited) {
-			return true
-		}
+	collectSchemaDirections(schema.PropertyNames, usage, visited, mark)
+	collectSchemaDirections(schema.UnevaluatedItems, usage, visited, mark)
+	if schema.UnevaluatedProperties != nil && schema.UnevaluatedProperties.IsA() {
+		collectSchemaDirections(schema.UnevaluatedProperties.A, usage, visited, mark)
 	}
-
-	// Check unevaluatedItems
-	if schema.UnevaluatedItems != nil {
-		if refMatchesInternal(schema.UnevaluatedItems, name, visited) {
-			return true
-		}
-	}
-
-	// Check unevaluatedProperties
-	if schema.UnevaluatedProperties != nil {
-		if schema.UnevaluatedProperties.IsA() {
-			if refMatchesInternal(schema.UnevaluatedProperties.A, name, visited) {
-				return true
-			}
-		}
-	}
-
-	return false
 }

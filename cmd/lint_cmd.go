@@ -34,8 +34,8 @@ func GetLintCommand() *cobra.Command {
 	validFileExtensions := []string{"yaml", "yml", "json"}
 	cmd := &cobra.Command{
 		Use:           "lint <your-api-file.yaml>",
-		Short:         "Lint an OpenAPI or AsyncAPI specification",
-		Long:          `Lint an OpenAPI or AsyncAPI specification, the output of the response will be in the terminal`,
+		Short:         "Lint an OpenAPI, AsyncAPI or Arazzo specification",
+		Long:          `Lint an OpenAPI, AsyncAPI or Arazzo specification, the output of the response will be in the terminal`,
 		RunE:          runLint,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -124,10 +124,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 	if len(filesToLint) < 1 {
 		noFileErr := fmt.Errorf("no file supplied")
 		if flags.GitHubAnnotations {
-			RenderGitHubAnnotationError(fmt.Errorf("please supply an OpenAPI or AsyncAPI specification to lint"), "")
+			RenderGitHubAnnotationError(fmt.Errorf("please supply an OpenAPI, AsyncAPI or Arazzo specification to lint"), "")
 		}
 		if !flags.SilentFlag && !flags.GitHubAnnotations {
-			fmt.Printf("🚨 %s%sPlease supply an OpenAPI or AsyncAPI specification to lint%s\n\n",
+			fmt.Printf("🚨 %s%sPlease supply an OpenAPI, AsyncAPI or Arazzo specification to lint%s\n\n",
 				color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
 		}
 		return noFileErr
@@ -227,7 +227,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// LoadCustomFunctions renders its own annotation/terminal output, so the error
 		// only needs propagating here to fail the run.
-		customFuncs, customFuncsErr := LoadCustomFunctions(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
+		functionManager, customFuncsErr := loadCustomFunctionManager(flags.FunctionsFlag, flags.SilentFlag, flags.GitHubAnnotations)
 		if customFuncsErr != nil {
 			return customFuncsErr
 		}
@@ -261,12 +261,12 @@ func runLint(cmd *cobra.Command, args []string) error {
 		if flags.ChangesFlag != "" || flags.OriginalFlag != "" {
 			var changesErr error
 			if flags.OriginalFlag != "" {
-				unchangedOriginalSpec = originalSpecCanReuseCurrentResults(flags.OriginalFlag, specBytes, fileName, resolvedBase, customFuncs)
+				unchangedOriginalSpec = originalSpecCanReuseCurrentResults(flags.OriginalFlag, specBytes, fileName, resolvedBase, functionManager.GetCustomFunctions())
 				if unchangedOriginalSpec {
 					documentChanges = emptyDocumentChanges()
 				} else {
 					// Use changerator for full tree support
-					changeResult, changesErr = utils.GenerateChangeReportWithTree(flags.OriginalFlag, specBytes, fileName)
+					changeResult, changesErr = generateOriginalChangeReport(flags.OriginalFlag, specBytes, fileName)
 					if changeResult != nil {
 						documentChanges = changeResult.DocumentChanges
 					}
@@ -315,8 +315,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 			RuleSet:                         selectedRS,
 			Spec:                            specBytes,
 			SpecFileName:                    resolvedSpecPath,
-			CustomFunctions:                 customFuncs,
-			AutoFixFunctions:                make(map[string]model.AutoFixFunction),
+			CustomFunctions:                 functionManager.GetCustomFunctions(),
+			AutoFixFunctions:                functionManager.GetAutoFixFunctions(),
 			Base:                            resolvedBase,
 			AllowLookup:                     flags.RemoteFlag,
 			SkipDocumentCheck:               flags.SkipCheckFlag,
@@ -337,6 +337,26 @@ func runLint(cmd *cobra.Command, args []string) error {
 		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)
 		result := motor.ApplyRulesToRuleSetWithOptions(execution, executionOptions)
 
+		// render out buffered logs (chrome; suppressed in annotation mode so
+		// debug output does not contaminate the annotation stream on stdout)
+		if !flags.GitHubAnnotations {
+			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
+		}
+
+		if len(result.Errors) > 0 {
+			for _, err := range result.Errors {
+				if flags.GitHubAnnotations {
+					RenderGitHubAnnotationError(err, displayFileName)
+				}
+				if !flags.GitHubAnnotations {
+					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
+				}
+			}
+			lintErr := NewInputError("linting failed due to %d issues", len(result.Errors))
+			result.ReleaseOwnedResources()
+			return lintErr
+		}
+
 		result.Results = utils.FilterIgnoredResultsWithOptions(
 			result.Results,
 			ignoredItems,
@@ -345,7 +365,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// Apply change-based filtering using violation-set diffing when --original is used
 		if flags.OriginalFlag != "" {
-			result.Results, changeFilterStats = applyOriginalDiffToValues(originalValueDiffOptions{
+			var originalErr error
+			result.Results, changeFilterStats, originalErr = applyOriginalDiffToValues(originalValueDiffOptions{
 				OriginalPath:        flags.OriginalFlag,
 				CurrentPath:         fileName,
 				Results:             result.Results,
@@ -359,6 +380,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 					}
 				},
 			})
+			if originalErr != nil {
+				result.ReleaseOwnedResources()
+				return originalErr
+			}
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
 			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
@@ -379,23 +404,6 @@ func runLint(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// render out buffered logs (chrome; suppressed in annotation mode so
-		// debug output does not contaminate the annotation stream on stdout)
-		if !flags.GitHubAnnotations {
-			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
-		}
-
-		if len(result.Errors) > 0 {
-			for _, err := range result.Errors {
-				if flags.GitHubAnnotations {
-					RenderGitHubAnnotationError(err, displayFileName)
-				}
-				if !flags.GitHubAnnotations {
-					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
-				}
-			}
-			return NewInputError("linting failed due to %d issues", len(result.Errors))
-		}
 		if result.HasTruncatedPaths() {
 			renderResultPathsTruncatedWarning(flags, "")
 		}
@@ -482,6 +490,22 @@ func runLint(cmd *cobra.Command, args []string) error {
 		renderChangeFilterSummary(changeFilterStats, widths, flags.NoStyleFlag)
 	}
 
+	// severity failure
+	errs := resultSet.GetErrorCount()
+	warnings := resultSet.GetWarnCount()
+	informs := resultSet.GetInfoCount()
+	hints := resultSet.GetHintCount()
+
+	overallScore := 0
+	if stats != nil {
+		overallScore = stats.OverallScore
+	}
+	scoreFailed := flags.MinScore > 10 && overallScore > 0 && overallScore < flags.MinScore
+	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
+	if scoreFailed {
+		failErr = NewViolationError("score threshold failed, overall score is %d, and the threshold is %d", overallScore, flags.MinScore)
+	}
+
 	if !flags.GitHubAnnotations || flags.PipelineOutput {
 		renderFixedSummary(RenderSummaryOptions{
 			RuleResultSet:  resultSet,
@@ -493,6 +517,8 @@ func runLint(cmd *cobra.Command, args []string) error {
 			PipelineOutput: flags.PipelineOutput,
 			ShowRules:      flags.ShowRules,
 			FixesApplied:   fixesApplied,
+			Failed:         failErr != nil,
+			Severity:       flags.FailSeverityFlag,
 		})
 	}
 
@@ -506,38 +532,23 @@ func runLint(cmd *cobra.Command, args []string) error {
 		renderFixedTiming(duration, fileSize)
 	}
 
-	// severity failure
-	errs := resultSet.GetErrorCount()
-	warnings := resultSet.GetWarnCount()
-	informs := resultSet.GetInfoCount()
-	hints := resultSet.GetHintCount()
-
-	overallScore := 0
-	if stats != nil {
-		overallScore = stats.OverallScore
-	}
-	if flags.MinScore > 10 && overallScore > 0 {
-		if overallScore < flags.MinScore {
-			if !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
-				fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
-				fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
-					color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
-			} else if flags.PipelineOutput {
-				fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
-			}
-			if flags.GitHubAnnotations {
-				RenderGitHubAnnotationError(
-					fmt.Errorf("score threshold failed: overall score is %d, but the threshold is %d",
-						overallScore, flags.MinScore),
-					displayFileName,
-				)
-			}
-			return NewViolationError("score threshold failed, overall score is %d, and the threshold is %d",
-				overallScore, flags.MinScore)
+	if scoreFailed {
+		if !flags.PipelineOutput && !flags.SilentFlag && !flags.GitHubAnnotations {
+			fmt.Printf("\n%s🚨 SCORE THRESHOLD FAILED 🚨%s\n", color.ASCIIRed, color.ASCIIReset)
+			fmt.Printf("%sOverall score is %d, but the threshold is %d%s\n\n",
+				color.ASCIIRed, overallScore, flags.MinScore, color.ASCIIReset)
+		} else if flags.PipelineOutput {
+			fmt.Printf("\n> 🚨 SCORE THRESHOLD FAILED, PIPELINE WILL FAIL 🚨\n\n")
+		}
+		if flags.GitHubAnnotations {
+			RenderGitHubAnnotationError(
+				fmt.Errorf("score threshold failed: overall score is %d, but the threshold is %d",
+					overallScore, flags.MinScore),
+				displayFileName,
+			)
 		}
 	}
 
-	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
 	if failErr != nil {
 		if flags.SilentFlag {
 			os.Exit(ExitCodeViolations)
@@ -819,6 +830,8 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 			ReportStats:    stats,
 			Filename:       fileName,
 			TotalFiles:     1,
+			Failed:         opts.Failed,
+			Severity:       opts.Severity,
 			Silent:         false,
 		}
 
@@ -843,10 +856,12 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 	errs := 0
 	warnings := 0
 	informs := 0
+	hints := 0
 	if rs != nil {
 		errs = rs.GetErrorCount()
 		warnings = rs.GetWarnCount()
 		informs = rs.GetInfoCount()
+		hints = rs.GetHintCount()
 	}
 
 	if !opts.NoStyle {
@@ -861,7 +876,7 @@ func renderFixedSummary(opts RenderSummaryOptions) {
 		renderQualityScore(stats.OverallScore)
 	}
 
-	renderResultBox(errs, warnings, informs, opts.FixesApplied)
+	renderResultBox(errs, warnings, informs, hints, opts.FixesApplied, opts.Failed)
 
 	if !opts.NoStyle {
 		fmt.Printf(" %suse --debug if you want to enable developer logging%s\n\n", color.ASCIILightGreyItalic, color.ASCIIReset)
@@ -976,16 +991,23 @@ func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFi
 
 	// Create backup only if overwriting original file
 	if outputFile == fileName {
-		backupFileName := filepath.Join("/tmp", "vacuum-"+filepath.Base(fileName)+".bak")
 		originalContent, err := os.ReadFile(fileName)
 		if err != nil {
 			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
 		}
-
-		err = os.WriteFile(backupFileName, originalContent, fileInfo.Mode())
+		backup, err := os.CreateTemp("", "vacuum-"+filepath.Base(fileName)+"-*.bak")
 		if err != nil {
-			return fmt.Errorf("failed to create backup file %s: %w", backupFileName, err)
+			return fmt.Errorf("failed to create backup for %s: %w", fileName, err)
 		}
+		_, writeErr := backup.Write(originalContent)
+		closeErr := backup.Close()
+		if writeErr != nil {
+			return fmt.Errorf("failed to write backup %s: %w", backup.Name(), writeErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("failed to close backup %s: %w", backup.Name(), closeErr)
+		}
+
 	}
 
 	err = os.WriteFile(outputFile, result.ModifiedSpec, fileInfo.Mode())

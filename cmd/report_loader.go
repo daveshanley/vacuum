@@ -80,6 +80,7 @@ func LoadFileAsReportOrSpecWithClient(filePath string, httpClient *http.Client) 
 
 	// Check if it's actually a report
 	if vacuumReport != nil && vacuumReport.ResultSet != nil {
+		vacuumReport.RestoreRuleResults()
 		result.IsReport = true
 		result.Report = vacuumReport
 		result.ResultSet = vacuumReport.ResultSet

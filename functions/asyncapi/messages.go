@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // MessageExamples validates basic message example shape.

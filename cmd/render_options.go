@@ -40,4 +40,5 @@ type RenderSummaryOptions struct {
 	TotalFiles     int
 	Severity       string
 	FixesApplied   int
+	Failed         bool // Failed is the command outcome after severity and score thresholds.
 }

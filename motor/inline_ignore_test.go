@@ -6,9 +6,9 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
-	"go.yaml.in/yaml/v4"
 )
 
 func TestCheckInlineIgnore_SingleRule(t *testing.T) {
@@ -565,6 +565,28 @@ rules:
 			assert.True(t, foundIgnored, "%s should be in ignored results", spec.rule)
 		})
 	}
+}
+
+func TestCheckInlineIgnoreByPathIndexed_DeepAncestor(t *testing.T) {
+	spec := `openapi: 3.1.0
+components:
+  securitySchemes:
+    auth:
+      x-lint-ignore: owasp-auth-urls-https
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: http://example.com/token
+    other:
+      type: openIdConnect
+      openIdConnectUrl: http://example.com/discovery
+`
+	var node yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(spec), &node))
+	idx := buildInlineIgnoreIndex(&node)
+	assert.True(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.components.securitySchemes['auth'].flows.password.tokenUrl", "owasp-auth-urls-https"))
+	assert.False(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.components.securitySchemes['other'].openIdConnectUrl", "owasp-auth-urls-https"))
+	assert.False(t, checkInlineIgnoreByPathIndexed(idx, &node, "$.components.securitySchemes['auth'].flows.password.tokenUrl", "owasp-oauth-no-password"))
 }
 
 func TestInlineIgnore_Integration_OWASPNoHttpBasic(t *testing.T) {

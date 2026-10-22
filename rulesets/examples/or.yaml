@@ -1,0 +1,14 @@
+# At least one listed property must exist; null and empty values count as present.
+# See https://github.com/stoplightio/spectral/blob/develop/docs/reference/functions.md#or
+rules:
+  schema-descriptive-text:
+    description: Schemas must have a title, summary, or description.
+    given: $.components.schemas.*
+    severity: warn
+    then:
+      function: or
+      functionOptions:
+        properties:
+          - title
+          - summary
+          - description

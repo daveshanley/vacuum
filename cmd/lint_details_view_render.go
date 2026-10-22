@@ -766,7 +766,14 @@ func calculateCodeSnippetHighlightWidth(lineNumWidth int) int {
 func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []string, fileName string) {
 	tui.InitSyntaxStyles()
 
-	if specData == nil {
+	firstLine := 1
+	if r.SourceContext != nil {
+		specData, firstLine = r.SourceContext.Lines, r.SourceContext.StartLine
+		if r.Origin != nil {
+			fileName = r.Origin.AbsoluteLocation
+		}
+	}
+	if len(specData) == 0 {
 		return
 	}
 
@@ -778,7 +785,7 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 	if r.Origin != nil {
 		targetLine = r.Origin.Line
 	}
-	if targetLine <= 0 || targetLine > len(specData) {
+	if targetLine <= 0 || targetLine > firstLine+len(specData)-1 {
 		return
 	}
 
@@ -788,11 +795,11 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 	startLine := targetLine - 2
 	endLine := targetLine + 2
 
-	if startLine < 1 {
-		startLine = 1
+	if startLine < firstLine {
+		startLine = firstLine
 	}
-	if endLine > len(specData) {
-		endLine = len(specData)
+	if endLine > firstLine+len(specData)-1 {
+		endLine = firstLine + len(specData) - 1
 	}
 
 	// calculate line number width
@@ -813,8 +820,8 @@ func renderCodeSnippetWithHighlight(r *model.RuleFunctionResult, specData []stri
 	for i := startLine; i <= endLine; i++ {
 		lineNum := fmt.Sprintf("%*d", lineNumWidth, i)
 		line := ""
-		if i-1 >= 0 && i-1 < len(specData) {
-			line = specData[i-1]
+		if i-firstLine >= 0 && i-firstLine < len(specData) {
+			line = specData[i-firstLine]
 		}
 
 		// apply syntax highlighting

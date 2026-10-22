@@ -40,7 +40,7 @@ func GetDashboardCommand() *cobra.Command {
 			PrintBanner()
 
 			if len(args) == 0 {
-				errText := "please supply an OpenAPI or AsyncAPI specification to generate a report"
+				errText := "please supply an OpenAPI, AsyncAPI or Arazzo specification to generate a report"
 				style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
 				messageStyle := lipgloss.NewStyle().Padding(1, 1)
 				fmt.Println(style.Render(messageStyle.Render(errText)))
@@ -169,10 +169,10 @@ func GetDashboardCommand() *cobra.Command {
 				logger = slog.New(handler)
 
 				defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
-				selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag)
+				selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag)
 				customFuncs, _ := LoadCustomFunctions(functionsFlag, silent, false)
 
-				if hardModeFlag && !asyncDefault {
+				if hardModeFlag && !nonOpenAPIDefault {
 					MergeOWASPRulesToRuleSet(selectedRS, true)
 					if !silent {
 						renderHardModeBox(HardModeEnabled, false)
@@ -272,6 +272,7 @@ func GetDashboardCommand() *cobra.Command {
 
 				RenderBufferedLogs(bufferedLogger, false)
 
+				defer result.ReleaseOwnedResources()
 				if len(result.Errors) > 0 {
 					if !silent {
 						// Create error box for each error
@@ -282,7 +283,7 @@ func GetDashboardCommand() *cobra.Command {
 							fmt.Println(style.Render(messageStyle.Render(message)))
 						}
 					}
-					return fmt.Errorf("linting failed due to %d issues", len(result.Errors))
+					return NewInputError("linting failed due to %d issues", len(result.Errors))
 				}
 
 				resultSet = model.NewRuleResultSet(result.Results)
@@ -300,6 +301,10 @@ func GetDashboardCommand() *cobra.Command {
 					// Live-spec mode: use violation-set diffing for accurate filtering
 					originalLint, lintErr := lintOriginalSpecForDiff(originalFlag, execution, executionOptions)
 					if lintErr != nil {
+						var fatal *ExitError
+						if errors.As(lintErr, &fatal) {
+							return lintErr
+						}
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to lint original spec: %v. Proceeding without change filtering.", lintErr)
 							style := createResultBoxStyle(color.RGBRed, color.RGBDarkRed)
@@ -323,7 +328,7 @@ func GetDashboardCommand() *cobra.Command {
 					}
 
 					// Still load document changes for change stats and violation injection
-					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+					documentChanges, changesErr = generateOriginalDocumentChanges(originalFlag, specBytes, displayFileName)
 					if changesErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to generate change report: %v. --warn-on-changes/--error-on-breaking will not take effect.", changesErr)
@@ -336,7 +341,7 @@ func GetDashboardCommand() *cobra.Command {
 					}
 				} else if originalFlag != "" {
 					// Precompiled report mode: fall back to area-based filter
-					documentChanges, changesErr = utils.GenerateChangeReport(originalFlag, specBytes, displayFileName)
+					documentChanges, changesErr = generateOriginalDocumentChanges(originalFlag, specBytes, displayFileName)
 					if changesErr != nil {
 						if !silent {
 							message := fmt.Sprintf("Warning: Failed to load changes: %v. Proceeding without change filtering.", changesErr)
@@ -385,7 +390,7 @@ func GetDashboardCommand() *cobra.Command {
 
 			if resultSet == nil || len(resultSet.Results) == 0 {
 				if !silent {
-					renderResultBox(0, 0, 0, 0) // Perfect score
+					renderResultBox(0, 0, 0, 0, 0, false) // Perfect score
 				}
 				// If not in watch mode, exit early since there's nothing to show
 				if !watchFlag {

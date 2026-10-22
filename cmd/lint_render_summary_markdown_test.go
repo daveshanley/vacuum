@@ -10,8 +10,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 )
 
 // TestRenderMarkdownSummary_Issue700 tests that each rule displays only its own violations
@@ -106,6 +106,8 @@ func TestRenderMarkdownSummary_Issue700(t *testing.T) {
 	io.Copy(&buf, r)
 	output := buf.String()
 
+	assert.Contains(t, output, "Failed with 4 errors")
+	assert.NotContains(t, output, "Passed")
 	// Verify that each rule shows only its own violations
 	// Split output by rule sections
 	sections := strings.Split(output, "🔴")

@@ -20,8 +20,8 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 // DefaultRuleTimeout is the default timeout for JavaScript rule execution
@@ -54,8 +54,12 @@ func (j *JSRuleFunction) SetTimeout(timeout time.Duration) {
 	j.ruleTimeout = timeout
 }
 
-// getTimeout returns the configured timeout or the default
-func (j *JSRuleFunction) getTimeout() time.Duration {
+// getTimeout returns this invocation's timeout: the read-only rule context wins (so concurrent runs
+// cannot see each other's value), then any timeout configured on the function, then the default.
+func (j *JSRuleFunction) getTimeout(ruleContext model.RuleFunctionContext) time.Duration {
+	if ruleContext.RuleTimeout > 0 {
+		return ruleContext.RuleTimeout
+	}
 	if j.ruleTimeout > 0 {
 		return j.ruleTimeout
 	}
@@ -64,6 +68,9 @@ func (j *JSRuleFunction) getTimeout() time.Duration {
 
 // createErrorResult creates a single error result with the given message
 func (j *JSRuleFunction) createErrorResult(message string, node *yaml.Node, ruleContext model.RuleFunctionContext) []model.RuleFunctionResult {
+	if ruleContext.ReportError != nil {
+		ruleContext.ReportError(fmt.Errorf("%s", message))
+	}
 	return []model.RuleFunctionResult{
 		{
 			Message:   message,
@@ -128,7 +135,7 @@ func (j *JSRuleFunction) RegisterCoreFunction(name string, function CoreFunction
 func (j *JSRuleFunction) RunScript() error {
 	j.l.Lock()
 	defer j.l.Unlock()
-	return j.runScriptUnsafe()
+	return j.runMetadata(j.runScriptUnsafe)
 }
 
 func (j *JSRuleFunction) runScriptUnsafe() error {
@@ -144,54 +151,77 @@ func (j *JSRuleFunction) GetCategory() string {
 	return model.FunctionCategoryCustomJS
 }
 
+// runMetadata runs while j.l is held. Join a fired timer before clearing its
+// interrupt so it cannot interrupt a later metadata call on the same runtime.
+func (j *JSRuleFunction) runMetadata(run func() error) error {
+	timeout := j.getTimeout(model.RuleFunctionContext{})
+	finished := make(chan struct{})
+	timer := time.AfterFunc(timeout, func() {
+		j.runtime.Interrupt(fmt.Errorf("JavaScript metadata timed out after %s: %w", timeout, context.DeadlineExceeded))
+		close(finished)
+	})
+	defer func() {
+		if !timer.Stop() {
+			<-finished
+		}
+		j.runtime.ClearInterrupt()
+	}()
+	return run()
+}
+
 func (j *JSRuleFunction) GetSchema() model.RuleFunctionSchema {
+	schema, _ := j.GetSchemaWithError()
+	if schema.Name == "" {
+		schema.Name = j.ruleName
+	}
+	return schema
+}
+
+// GetSchemaWithError evaluates bounded metadata without hiding script failures.
+// Strict execution uses this method; GetSchema preserves its legacy fallback.
+func (j *JSRuleFunction) GetSchemaWithError() (model.RuleFunctionSchema, error) {
 	j.l.Lock()
 	defer j.l.Unlock()
-
-	var ok bool
-	var schemaFunc goja.Callable
-	basic := model.RuleFunctionSchema{
-		Name: j.ruleName,
-	}
-
-	if !j.scriptParsed {
-		err := j.runScriptUnsafe()
-		if err != nil {
-
-			return basic
-		}
-	}
-
-	if schemaFunc, ok = goja.AssertFunction(j.runtime.Get("getSchema")); !ok {
-		return basic
-	}
-	schema, sErr := schemaFunc(goja.Undefined())
-	if sErr != nil {
-		return basic
-	}
-
 	var decoded model.RuleFunctionSchema
-	err := mapstructure.Decode(schema.Export(), &decoded)
-	if err != nil {
-		return basic
-	}
-	return decoded
+	err := j.runMetadata(func() error {
+		if !j.scriptParsed {
+			if err := j.runScriptUnsafe(); err != nil {
+				return err
+			}
+		}
+		schemaFunc, ok := goja.AssertFunction(j.runtime.Get("getSchema"))
+		if !ok {
+			return fmt.Errorf("getSchema function not found")
+		}
+		schema, err := schemaFunc(goja.Undefined())
+		if err != nil {
+			return err
+		}
+		if err := mapstructure.Decode(schema.Export(), &decoded); err != nil {
+			return err
+		}
+		if decoded.Name == "" {
+			return fmt.Errorf("getSchema must return a nonempty name")
+		}
+		return nil
+	})
+	return decoded, err
 }
 
 func (j *JSRuleFunction) CheckScript() error {
 	j.l.Lock()
 	defer j.l.Unlock()
-
-	if !j.scriptParsed {
-		err := j.runScriptUnsafe()
-		if err != nil {
-			return err
+	return j.runMetadata(func() error {
+		if !j.scriptParsed {
+			if err := j.runScriptUnsafe(); err != nil {
+				return err
+			}
 		}
-	}
-	if _, ok := goja.AssertFunction(j.runtime.Get("runRule")); !ok {
-		return fmt.Errorf("runRule function not found")
-	}
-	return nil
+		if _, ok := goja.AssertFunction(j.runtime.Get("runRule")); !ok {
+			return fmt.Errorf("runRule function not found")
+		}
+		return nil
+	})
 }
 
 func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunctionContext) []model.RuleFunctionResult {
@@ -226,7 +256,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 
 	for _, node := range nodes {
 		// create a fresh timeout for each node - prevents cumulative timeout across all nodes
-		ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
+		ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout(ruleContext))
 
 		enc := decodeNodeForJS(node)
 
@@ -266,7 +296,7 @@ func (j *JSRuleFunction) RunRule(nodes []*yaml.Node, ruleContext model.RuleFunct
 			cancel()
 			if errors.Is(rErr, context.DeadlineExceeded) {
 				return j.createErrorResult(
-					fmt.Sprintf("JavaScript function '%s' timed out after %v", j.ruleName, j.getTimeout()),
+					fmt.Sprintf("JavaScript function '%s' timed out after %v", j.ruleName, j.getTimeout(ruleContext)),
 					node, ruleContext)
 			}
 			var jsErr *goja.Exception
@@ -332,7 +362,7 @@ func (j *JSRuleFunction) runBatch(nodes []*yaml.Node, ruleContext model.RuleFunc
 	}
 	fetchModule.Register()
 
-	ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout())
+	ctx, cancel := context.WithTimeout(context.Background(), j.getTimeout(ruleContext))
 	defer cancel()
 
 	// build batch input with tracking for result mapping
@@ -392,7 +422,7 @@ func (j *JSRuleFunction) runBatch(nodes []*yaml.Node, ruleContext model.RuleFunc
 	if rErr != nil {
 		if errors.Is(rErr, context.DeadlineExceeded) {
 			return j.createErrorResult(
-				fmt.Sprintf("Batch function timed out after %v", j.getTimeout()),
+				fmt.Sprintf("Batch function timed out after %v", j.getTimeout(ruleContext)),
 				nodes[0], ruleContext)
 		}
 		return j.createErrorResult(
@@ -434,13 +464,7 @@ func (j *JSRuleFunction) extractBatchResults(
 	for itemIdx, item := range exportedArr {
 		itemMap, ok := item.(map[string]interface{})
 		if !ok {
-			functionResults = append(functionResults, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Batch result at position %d is not an object", itemIdx),
-				StartNode: nodeInfos[0].node,
-				EndNode:   nodeInfos[0].node,
-				Path:      fmt.Sprint(ruleContext.Given),
-				Rule:      ruleContext.Rule,
-			})
+			functionResults = append(functionResults, j.createErrorResult(fmt.Sprintf("Batch result at position %d is not an object", itemIdx), nodeInfos[0].node, ruleContext)...)
 			continue
 		}
 
@@ -462,25 +486,13 @@ func (j *JSRuleFunction) extractBatchResults(
 
 		// validate index
 		if nodeIdx < 0 || nodeIdx >= len(nodeInfos) {
-			functionResults = append(functionResults, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Batch result at position %d missing valid 'input' object with 'index' field (batch mode requires returning the input)", itemIdx),
-				StartNode: nodeInfos[0].node,
-				EndNode:   nodeInfos[0].node,
-				Path:      fmt.Sprint(ruleContext.Given),
-				Rule:      ruleContext.Rule,
-			})
+			functionResults = append(functionResults, j.createErrorResult(fmt.Sprintf("Batch result at position %d missing valid 'input' object with 'index' field (batch mode requires returning the input)", itemIdx), nodeInfos[0].node, ruleContext)...)
 			continue
 		}
 
 		var result model.RuleFunctionResult
 		if err := mapstructure.Decode(itemMap, &result); err != nil {
-			functionResults = append(functionResults, model.RuleFunctionResult{
-				Message:   fmt.Sprintf("Failed to decode batch result at position %d: %s", itemIdx, err.Error()),
-				StartNode: nodeInfos[0].node,
-				EndNode:   nodeInfos[0].node,
-				Path:      fmt.Sprint(ruleContext.Given),
-				Rule:      ruleContext.Rule,
-			})
+			functionResults = append(functionResults, j.createErrorResult(fmt.Sprintf("Failed to decode batch result at position %d: %s", itemIdx, err.Error()), nodeInfos[0].node, ruleContext)...)
 			continue
 		}
 

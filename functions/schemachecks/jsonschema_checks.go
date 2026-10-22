@@ -11,7 +11,7 @@ import (
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/model"
 	drV3 "github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 func validatePatternKeywords(schema *drV3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {

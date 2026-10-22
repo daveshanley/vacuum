@@ -1,10 +1,12 @@
-// Copyright 2020-2026 Dave Shanley / Quobix / Princess Beef Heavy Industries, LLC
+// Copyright 2020-2026 Dave Shanley / Quobix
+// Copyright 2022-2026 Princess Beef Heavy Industries, LLC
 // https://quobix.com/vacuum/ | https://pb33f.io
 // SPDX-License-Identifier: MIT
 
 package functions
 
 import (
+	arazzo_functions "github.com/daveshanley/vacuum/functions/arazzo"
 	"sync"
 
 	asyncapi_functions "github.com/daveshanley/vacuum/functions/asyncapi"
@@ -61,12 +63,14 @@ func MapBuiltinFunctions() Functions {
 		funcs["pattern"] = core.Pattern{}
 		funcs["length"] = core.Length{}
 		funcs["xor"] = core.Xor{}
+		funcs["or"] = core.Or{}
 		funcs["schema"] = core.Schema{}
 		funcs["jsonSchemaValid"] = jsonschema_functions.Valid{}
 		funcs["jsonSchemaSanity"] = jsonschema_functions.Sanity{}
 		funcs["jsonSchemaRefValid"] = jsonschema_functions.RefValid{}
 
 		// add known AsyncAPI rules
+		funcs["arazzoDocument"] = arazzo_functions.Document{}
 		funcs["asyncApiDocument"] = asyncapi_functions.Document{}
 		funcs["asyncApiChannelParameters"] = asyncapi_functions.ChannelParameters{}
 		funcs["asyncApiChannelServers"] = asyncapi_functions.ChannelServers{}
@@ -156,6 +160,8 @@ func MapBuiltinFunctions() Functions {
 		funcs["owaspNoAdditionalProperties"] = owasp.NoAdditionalProperties{}
 		funcs["owaspNoAdditionalPropertiesConstrained"] = owasp.AdditionalPropertiesConstrained{}
 		funcs["owaspHostsHttps"] = owasp.HostsHttps{}
+		funcs["owaspAuthURLsHTTPS"] = owasp.AuthURLsHTTPS{}
+		funcs["owaspOAuthFlow"] = owasp.OAuthFlow{}
 	})
 
 	return functionsSingleton

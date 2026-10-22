@@ -117,7 +117,7 @@ export class CategoryRuleComponent extends BaseComponent {
         bubbles: true,
         composed: true,
         detail: { id: this.ruleId },
-      })
+      }),
     );
     this.requestUpdate();
   }

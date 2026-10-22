@@ -14,3 +14,10 @@ func TestPluginManager_RegisterFunction(t *testing.T) {
 	assert.Len(t, pm.GetCustomFunctions(), 1)
 
 }
+
+func TestManagerAutoFixRegistration(t *testing.T) {
+	pm := CreatePluginManager()
+	pm.RegisterAutoFixFunction("repair", nil)
+	_, ok := pm.GetAutoFixFunctions()["repair"]
+	assert.True(t, ok)
+}

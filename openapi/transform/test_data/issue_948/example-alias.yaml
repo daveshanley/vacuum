@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info: {title: Example alias, version: '1'}
+components:
+  examples:
+    Template:
+      value: &schema {$ref: '#/components/schemas/User'}
+  schemas:
+    User: {type: string}
+paths:
+  /x:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: *schema

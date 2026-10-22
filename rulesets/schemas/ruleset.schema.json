@@ -1,6 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://quobix.com/vacuum/schemas/ruleset.schema.json",
+  "title": "Vacuum ruleset",
+  "description": "Defines a collection of lint rules and shared ruleset settings",
+  "examples": [
+    {
+      "rules": {
+        "info-title": {
+          "given": "$.info",
+          "then": {
+            "field": "title",
+            "function": "defined"
+          }
+        }
+      }
+    }
+  ],
   "type": "object",
   "properties": {
     "description": {
@@ -61,7 +76,7 @@
     },
     "documentationUrl": {
       "type": "string",
-      "format": "url",
+      "x-format": "url",
       "x-errorMessage": "must be a valid URL"
     },
     "formats": {
@@ -134,15 +149,20 @@
           },
           "anyOf": [
             {
-              "required": [ "extends" ]
+              "required": [ "extends" ],
+              "properties": {
+                "extends": true
+              }
             },
             {
-              "required": [ "rules" ]
+              "required": [ "rules" ],
+              "properties": {
+                "rules": true
+              }
             }
           ],
           "allOf": [
             {
-              "type": "object",
               "properties": {
                 "extends": {
                   "$ref": "#/properties/extends"
@@ -212,7 +232,7 @@
                 ]
               },
               "category": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "type": "string"
                   },
@@ -234,14 +254,14 @@
               },
               "documentationUrl": {
                 "type": "string",
-                "format": "url",
+                "x-format": "url",
                 "x-errorMessage": "must be a valid URL"
               },
               "formats": {
                 "$ref": "#/definitions/Formats"
               },
               "given": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "type": "string"
                   },
@@ -300,14 +320,14 @@
     },
     "Extends": {
       "x-$anchor": "extends",
-      "oneOf": [
+      "anyOf": [
         {
           "type": "string"
         },
         {
           "type": "array",
           "items": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "string"
               },
@@ -342,16 +362,6 @@
         "$ref": "#/definitions/Format"
       },
       "x-errorMessage": "must be an array of formats"
-    },
-    "Function": {
-      "x-$anchor": "function",
-      "type": "object",
-      "required": [ "function" ],
-      "properties": {
-        "function": {
-          "type": "string"
-        }
-      }
     },
     "Functions": {
       "x-$anchor": "functions",
@@ -413,15 +423,11 @@
         },
         "autoFixFunction": {
           "type": "string"
-        }
+        },
+        "function": true
       },
       "required": [ "function" ],
-      "x-spectral-runtime": "ruleset-function",
-      "allOf": [
-        {
-          "type": "object"
-        }
-      ]
+      "x-spectral-runtime": "ruleset-function"
     }
   }
 }

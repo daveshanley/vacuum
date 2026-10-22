@@ -2,7 +2,7 @@ package openapi
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // OASNoRefSiblings validates that no properties other than `description` and `summary` are added alongside a `$ref`.

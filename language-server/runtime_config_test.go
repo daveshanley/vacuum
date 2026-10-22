@@ -215,8 +215,8 @@ func TestRuntimeConfigForDocument_CachesWorkspaceCallFailureUntilGenerationChang
 	})
 
 	runtimeConfig, err := state.runtimeConfigForDocument(specURI)
-	assert.Nil(t, runtimeConfig)
-	require.ErrorIs(t, err, callFailure)
+	require.NotNil(t, runtimeConfig)
+	require.NoError(t, err)
 	require.NotNil(t, state.cachedDocumentRuntimeConfig(specURI))
 
 	runtimeConfig, err = state.runtimeConfigForDocument(specURI)
@@ -226,8 +226,8 @@ func TestRuntimeConfigForDocument_CachesWorkspaceCallFailureUntilGenerationChang
 
 	state.bumpConfigGeneration()
 	runtimeConfig, err = state.runtimeConfigForDocument(specURI)
-	assert.Nil(t, runtimeConfig)
-	require.ErrorIs(t, err, callFailure)
+	require.NotNil(t, runtimeConfig)
+	require.NoError(t, err)
 	assert.Equal(t, 2, calls)
 }
 

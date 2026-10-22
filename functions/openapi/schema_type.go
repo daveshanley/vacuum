@@ -7,7 +7,7 @@ package openapi
 import (
 	"github.com/daveshanley/vacuum/functions/schemachecks"
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // SchemaTypeCheck determines if document schemas contain compatible type, constraint and value definitions.

@@ -5,14 +5,18 @@
 package asyncapi
 
 import (
+	"context"
 	"fmt"
+	"net/url"
+	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 var templateExpression = regexp.MustCompile(`\{([^{}]+)\}`)
@@ -31,6 +35,11 @@ func rootNode(context model.RuleFunctionContext) *yaml.Node {
 func nodePath(context model.RuleFunctionContext, node *yaml.Node, fallback string) string {
 	if context.AsyncAPI != nil {
 		if path, ok := context.AsyncAPI.NodePath(node); ok {
+			return path
+		}
+	}
+	if context.Index != nil {
+		if path, ok := vacuumUtils.NodePathIndexForContext(context, context.Index.GetRootNode()).Lookup(node); ok {
 			return path
 		}
 	}
@@ -96,24 +105,94 @@ func mappingEntries(node *yaml.Node) [][2]*yaml.Node {
 	return entries
 }
 
-func scalarValue(node *yaml.Node) string {
-	if node == nil {
-		return ""
-	}
-	return node.Value
-}
-
 func refValue(node *yaml.Node) string {
 	_, value := mappingValue(node, "$ref")
-	return scalarValue(value)
+	if value != nil && value.Kind == yaml.ScalarNode && value.Tag == "!!str" {
+		return value.Value
+	}
+	return ""
 }
 
-func componentRefName(ref, location string) string {
-	prefix := "#/components/" + location + "/"
-	if !strings.HasPrefix(ref, prefix) {
-		return ""
+// resolveObject uses the document index and retains the target's reference scope.
+func resolveObject(node *yaml.Node, ctx model.RuleFunctionContext) (*yaml.Node, model.RuleFunctionContext) {
+	seen := make(map[*yaml.Node]bool)
+	for node != nil {
+		_, ref := mappingValue(node, "$ref")
+		if ref == nil {
+			return node, ctx
+		}
+		if seen[node] || refValue(node) == "" || ctx.Index == nil {
+			return nil, ctx
+		}
+		seen[node] = true
+		target, owner, _ := ctx.Index.SearchIndexForReferenceWithContext(context.Background(), ref.Value)
+		if target == nil {
+			return nil, ctx
+		}
+		node = target.Node
+		if owner != nil {
+			ctx.Index = owner
+		}
 	}
-	return strings.TrimPrefix(ref, prefix)
+	return nil, ctx
+}
+
+// referenceTokens decodes the URI fragment before splitting JSON Pointer tokens.
+func referenceTokens(ref string) (string, []string, bool) {
+	u, err := url.Parse(ref)
+	if err != nil || ref == "" || (u.Fragment != "" && !strings.HasPrefix(u.Fragment, "/")) {
+		return "", nil, false
+	}
+	var parts []string
+	if u.Fragment != "" {
+		parts = strings.Split(u.Fragment[1:], "/")
+	}
+	for j, part := range parts {
+		for i := 0; i < len(part); i++ {
+			if part[i] == '~' {
+				if i+1 == len(part) || (part[i+1] != '0' && part[i+1] != '1') {
+					return "", nil, false
+				}
+				i++
+			}
+		}
+		parts[j] = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
+	}
+	u.Fragment, u.RawFragment = "", ""
+	if u.Path != "" {
+		u.Path, u.RawPath = path.Clean(u.Path), ""
+	}
+	return u.String(), parts, true
+}
+
+func referenceDocument(ctx model.RuleFunctionContext, base string) string {
+	if ctx.Index == nil {
+		return base
+	}
+	source := ctx.Index.GetSpecAbsolutePath()
+	if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
+		origin, _ := url.Parse(source)
+		relative, err := url.Parse(base)
+		if err == nil {
+			return origin.ResolveReference(relative).String()
+		}
+	}
+	if base == "" {
+		return source
+	}
+	if address, err := url.Parse(base); err == nil && address.IsAbs() {
+		if address.Scheme != "file" {
+			return address.String()
+		}
+		base = filepath.FromSlash(address.Path)
+		if len(base) > 2 && base[0] == filepath.Separator && filepath.VolumeName(base[1:]) != "" {
+			base = base[1:]
+		}
+	}
+	if filepath.IsAbs(base) {
+		return filepath.Clean(base)
+	}
+	return filepath.Join(filepath.Dir(source), filepath.FromSlash(base))
 }
 
 func rootRefName(ref, location string) string {
@@ -199,13 +278,4 @@ func validateTemplateVariables(
 		}
 	}
 	return results
-}
-
-func componentMap(root *yaml.Node, location string) *yaml.Node {
-	_, components := mappingValue(root, "components")
-	if components == nil {
-		return nil
-	}
-	_, node := mappingValue(components, location)
-	return node
 }

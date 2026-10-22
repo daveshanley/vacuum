@@ -7,10 +7,11 @@ package rulesets
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/daveshanley/vacuum/model"
@@ -90,7 +91,7 @@ func flushBufferedRuleSetLogs(logger *slog.Logger, records []bufferedRuleSetLogR
 	}
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, rs *RuleSet, httpClient *http.Client) {
+func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]string, source rulesetLocation, rs *RuleSet, httpClient *http.Client) {
 	ctx, cancel := context.WithTimeout(context.Background(), externalRulesetFetchTimeout)
 	defer cancel()
 
@@ -99,19 +100,28 @@ func (rsm ruleSetsModel) loadExternalRulesetsWithTimeout(extends map[string]stri
 			continue
 		}
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			rs.addLoadError(fmt.Errorf("external ruleset fetch timed out at %q: %w", location, ctx.Err()))
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
 			break
 		}
 
-		remote := strings.HasPrefix(location, "http")
-		if !rsm.loadExternalRulesetWithTimeout(ctx, location, rs, remote, httpClient) {
+		target, err := resolveRulesetLocation(source, location)
+		if err != nil {
+			rs.addLoadError(err)
+			break
+		}
+		if !rsm.loadExternalRulesetWithTimeout(ctx, target, rs, httpClient) {
+			rs.addLoadError(fmt.Errorf("external ruleset fetch timed out at %q: %w", location, ctx.Err()))
 			rsm.logger.Error("external ruleset fetch timed out", "timeout", externalRulesetFetchTimeout)
+			break
+		}
+		if rs.LoadError() != nil {
 			break
 		}
 	}
 }
 
-func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, location string, rs *RuleSet, remote bool, httpClient *http.Client) bool {
+func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, location rulesetLocation, rs *RuleSet, httpClient *http.Client) bool {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return false
 	}
@@ -124,7 +134,7 @@ func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, loc
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		SniffOutAllExternalRules(ctx, &workerRuleSets, location, nil, workingRuleSet, remote, httpClient)
+		sniffExternalRules(ctx, &workerRuleSets, location, nil, workingRuleSet, httpClient)
 	}()
 
 	select {
@@ -140,10 +150,18 @@ func (rsm ruleSetsModel) loadExternalRulesetWithTimeout(ctx context.Context, loc
 }
 
 func isExternalRulesetLocation(location string) bool {
-	return strings.HasPrefix(location, "http") ||
-		filepath.Ext(location) == ".yml" ||
-		filepath.Ext(location) == ".yaml" ||
-		filepath.Ext(location) == ".json"
+	if isRemoteRulesetLocation(location) {
+		return true
+	}
+	path := location
+	if parsed, err := url.Parse(location); err == nil {
+		path = parsed.Path
+	}
+	switch filepath.Ext(path) {
+	case ".yml", ".yaml", ".json":
+		return true
+	}
+	return false
 }
 
 func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
@@ -155,6 +173,7 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 	defer source.mutex.Unlock()
 
 	return &RuleSet{
+		Executable:       source.Executable,
 		Description:      source.Description,
 		DocumentationURI: source.DocumentationURI,
 		Formats:          append([]string(nil), source.Formats...),
@@ -164,6 +183,9 @@ func cloneRuleSetForExternalLoad(source *RuleSet) *RuleSet {
 		Aliases:          cloneInterfaceMap(source.Aliases),
 		ParsedAliases:    cloneParsedAliasMap(source.ParsedAliases),
 		extendsMeta:      cloneStringMap(source.extendsMeta),
+		loadErrors:       append([]error(nil), source.loadErrors...),
+		sourceLocation:   source.sourceLocation,
+		readLocalFile:    source.readLocalFile,
 	}
 }
 
@@ -177,6 +199,7 @@ func copyRuleSetExternalState(target, source *RuleSet) {
 	target.mutex.Lock()
 	defer target.mutex.Unlock()
 
+	target.loadErrors = append([]error(nil), source.loadErrors...)
 	target.Description = source.Description
 	target.DocumentationURI = source.DocumentationURI
 	target.Formats = append([]string(nil), source.Formats...)
@@ -295,4 +318,15 @@ func replaceStringMap(target, source map[string]string) map[string]string {
 		target[key] = value
 	}
 	return target
+}
+
+// CopyForExecution returns an independent ruleset while retaining immutable module code.
+func (rs *RuleSet) CopyForExecution() *RuleSet { return cloneRuleSetForExternalLoad(rs) }
+
+// MatchesFormat handles native format names and invocation-local JavaScript predicates.
+func (rs *RuleSet) MatchesFormat(want, actual string) bool {
+	if match, ok := rs.FormatMatches[want]; ok {
+		return match
+	}
+	return model.FormatMatches(want, actual)
 }

@@ -7,7 +7,7 @@ package openapi
 import (
 	"github.com/daveshanley/vacuum/functions/schemachecks"
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // RequiredFieldsDefined checks that explicitly required fields are declared in schema properties.

@@ -10,16 +10,18 @@ package asyncapi
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
 
 	vacuumModel "github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/pb33f/libopenapi/index"
-	"go.yaml.in/yaml/v4"
 )
 
 var asyncAPIMarker = []byte("asyncapi")
@@ -56,9 +58,8 @@ func DetectFormat(spec []byte) (string, error) {
 	return FormatForVersion(version)
 }
 
-// HasMarker reports whether the raw bytes contain an AsyncAPI root marker. It
-// is intentionally cheap and parse-independent so malformed AsyncAPI documents
-// can still be routed away from OpenAPI-only processing.
+// HasMarker checks for an AsyncAPI marker without building a document model.
+// Escaped JSON field names are decoded until a root format marker is found.
 func HasMarker(spec []byte) bool {
 	return hasAsyncAPIMarker(spec)
 }
@@ -181,27 +182,47 @@ func (c *Context) NodePath(node *yaml.Node) (string, bool) {
 }
 
 func hasAsyncAPIMarker(spec []byte) bool {
-	return bytes.Contains(spec, asyncAPIMarker)
-}
-
-func detectVersion(spec []byte) (string, bool, error) {
-	var root yaml.Node
-	if err := yaml.Unmarshal(spec, &root); err != nil {
-		return "", false, err
+	if bytes.Contains(spec, asyncAPIMarker) {
+		return true
 	}
-	if root.Kind != yaml.DocumentNode || len(root.Content) == 0 {
-		return "", false, nil
+	// JSON permits escaped field names. Inspect root keys without copying all
+	// top-level values, and stop as soon as the document format is known.
+	if !bytes.Contains(spec, []byte(`\u`)) {
+		return false
 	}
-	node := root.Content[0]
-	if node.Kind != yaml.MappingNode {
-		return "", false, nil
+	decoder := json.NewDecoder(bytes.NewReader(spec))
+	first, err := decoder.Token()
+	if err != nil || first != json.Delim('{') {
+		return false
 	}
-	for i := 0; i < len(node.Content)-1; i += 2 {
-		key := node.Content[i]
-		value := node.Content[i+1]
-		if key.Value == "asyncapi" {
-			return value.Value, true, nil
+	var discard discardedJSONValue
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			return false
+		}
+		switch key {
+		case "asyncapi":
+			return true
+		case "openapi", "swagger":
+			return false
+		}
+		if decoder.Decode(&discard) != nil {
+			return false
 		}
 	}
-	return "", false, nil
+	return false
+}
+
+// discardedJSONValue lets the decoder skip a value without retaining a copy.
+type discardedJSONValue struct{}
+
+func (*discardedJSONValue) UnmarshalJSON([]byte) error { return nil }
+
+func detectVersion(spec []byte) (string, bool, error) {
+	version, err := libasyncapi.DetectAsyncAPIVersion(spec)
+	if errors.Is(err, libasyncapi.ErrNoAsyncAPIVersion) {
+		return "", false, nil
+	}
+	return version, err == nil, err
 }

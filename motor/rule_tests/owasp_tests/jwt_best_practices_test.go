@@ -69,6 +69,7 @@ components:
 			Spec:    []byte(yml),
 		}
 		results := motor.ApplyRulesToRuleSet(rse)
-		assert.Len(t, results.Results, 2)
+		assert.Len(t, results.Results, 1)
+		assert.Equal(t, model.SeverityWarn, results.Results[0].Rule.Severity)
 	})
 }

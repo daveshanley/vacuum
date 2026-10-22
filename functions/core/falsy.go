@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // Falsy is a rule that will determine if something is seen as 'false' (could be a 0 or missing, or actually 'false')
@@ -75,7 +75,10 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 			var allPaths []string
 			var err error
 			locatedPath := pathValue
-			if context.DrDocument != nil {
+			if context.Arazzo != nil {
+				locatedPath, allPaths, locatedObjects = locateNodePaths(&context, targetNode)
+				node = targetNode
+			} else if context.DrDocument != nil {
 				if fieldNode != nil {
 					locatedObjects, err = context.DrDocument.LocateModelsByKeyAndValue(fieldNode, targetNode)
 				} else {

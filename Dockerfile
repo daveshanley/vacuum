@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim AS ui-builder
+FROM node:26.12.1-trixie-slim AS ui-builder
 
 WORKDIR /opt/vacuum
 
@@ -6,7 +6,7 @@ COPY . ./
 
 RUN ./scripts/build-ui-assets.sh
 
-FROM --platform=$BUILDPLATFORM golang:1.26 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.3 AS builder
 
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -ldflags="-w -s -X 'main.version=$(git describe --tags --abbrev=0)' -X 'main.date=$(date +%Y-%m-%dT%TZ)'" \
     -v -o vacuum vacuum.go
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 WORKDIR /work
 

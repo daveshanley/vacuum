@@ -9,7 +9,8 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // MissingType will check that all schemas and their properties have a type defined
@@ -36,18 +37,19 @@ func (mt MissingType) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 	}
 
 	var results []model.RuleFunctionResult
+	typeCache := make(map[*base.SchemaProxy]bool)
 
 	// Process all schemas in the document - DrDocument.Schemas contains ALL schemas including nested ones
 	schemas := context.DrDocument.Schemas
 
 	for _, schema := range schemas {
 		// Check if the schema itself has a type
-		schemaResults := mt.checkSchemaType(schema, &context)
+		schemaResults := mt.checkSchemaType(schema, &context, typeCache)
 		results = append(results, schemaResults...)
 
 		// Check properties of this schema (no recursion needed)
 		if schema.Value.Properties != nil {
-			propResults := mt.checkProperties(schema, &context)
+			propResults := mt.checkProperties(schema, &context, typeCache)
 			results = append(results, propResults...)
 		}
 	}
@@ -55,8 +57,12 @@ func (mt MissingType) RunRule(_ []*yaml.Node, context model.RuleFunctionContext)
 	return results
 }
 
-func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunctionContext, typeCache map[*base.SchemaProxy]bool) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
+	// propertyNames and its logical subschemas always test string values.
+	if isPropertyNameSchema(schema) {
+		return nil
+	}
 
 	// Don't require type for polymorphic schemas themselves, but we check their nested schemas
 	// in checkSchemaRecursive
@@ -74,6 +80,11 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 
 	// Skip if this is a boolean schema or has a const/enum (these don't require explicit type)
 	if schema.Value.Const != nil || schema.Value.Enum != nil {
+		return results
+	}
+
+	// A parsed OpenAPI 3.1 reference exposes its siblings separately from its target.
+	if cachedReferenceProvidesType(schema.Value.ParentProxy, typeCache) {
 		return results
 	}
 
@@ -117,7 +128,7 @@ func (mt MissingType) checkSchemaType(schema *v3.Schema, context *model.RuleFunc
 	return results
 }
 
-func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunctionContext) []model.RuleFunctionResult {
+func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunctionContext, typeCache map[*base.SchemaProxy]bool) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
 
 	if schema.Value.Properties == nil {
@@ -131,7 +142,11 @@ func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunc
 			continue
 		}
 
-		// Skip if this property is a reference or polymorphic schema
+		if cachedReferenceProvidesType(propSchemaProxy, typeCache) {
+			continue
+		}
+
+		// Skip polymorphic schemas
 		if propSchema.AllOf != nil || propSchema.OneOf != nil || propSchema.AnyOf != nil {
 			continue
 		}
@@ -180,4 +195,63 @@ func (mt MissingType) checkProperties(schema *v3.Schema, context *model.RuleFunc
 	}
 
 	return results
+}
+
+func isPropertyNameSchema(schema *v3.Schema) bool {
+	for schema != nil {
+		proxy, ok := schema.GetParent().(*v3.SchemaProxy)
+		if !ok {
+			return false
+		}
+		switch proxy.GetPathSegment() {
+		case "propertyNames":
+			return true
+		case "allOf", "anyOf", "oneOf", "not", "if", "then", "else":
+			schema, _ = proxy.GetParent().(*v3.Schema)
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// referenceProvidesType checks the target of a $ref with siblings without changing
+// the authored schema view used for diagnostic paths and source locations.
+func referenceProvidesType(proxy *base.SchemaProxy, seen map[*base.SchemaProxy]bool) bool {
+	if proxy == nil || !proxy.IsTransformedRefWithSiblings() || seen[proxy] {
+		return false
+	}
+	if seen == nil {
+		seen = make(map[*base.SchemaProxy]bool)
+	}
+	seen[proxy] = true
+	semantic, err := proxy.BuildTransformedRefSemanticSchema(nil)
+	if err != nil || semantic == nil || len(semantic.AllOf) != 2 {
+		return false
+	}
+	targetProxy := semantic.AllOf[1]
+	target := targetProxy.Schema()
+	if target == nil {
+		return false
+	}
+	if len(target.Type) > 0 || target.Properties != nil || target.Items != nil ||
+		target.AdditionalProperties != nil || target.PatternProperties != nil ||
+		target.Const != nil || target.Enum != nil || target.AllOf != nil ||
+		target.OneOf != nil || target.AnyOf != nil {
+		return true
+	}
+	return referenceProvidesType(target.ParentProxy, seen)
+}
+
+// Cache both outcomes for this rule run; schema and property visits share proxies.
+func cachedReferenceProvidesType(proxy *base.SchemaProxy, cache map[*base.SchemaProxy]bool) bool {
+	if proxy == nil || !proxy.IsTransformedRefWithSiblings() {
+		return false
+	}
+	if provides, ok := cache[proxy]; ok {
+		return provides
+	}
+	provides := referenceProvidesType(proxy, nil)
+	cache[proxy] = provides
+	return provides
 }

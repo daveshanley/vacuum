@@ -37,7 +37,7 @@ export class HtmlReportComponent extends BaseComponent {
     const categoryRuleGroup = document.querySelectorAll('category-rules');
 
     const violationDrawer = document.querySelector(
-      'violation-drawer'
+      'violation-drawer',
     ) as ViolationDrawerComponent;
 
     const slot = this.shadowRoot
@@ -80,7 +80,7 @@ export class HtmlReportComponent extends BaseComponent {
 
   _violationSelectedListener() {
     const violationDrawer = document.querySelector(
-      'violation-drawer'
+      'violation-drawer',
     ) as ViolationDrawerComponent;
     violationDrawer.show();
   }

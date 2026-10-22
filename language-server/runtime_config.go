@@ -5,6 +5,7 @@ package languageserver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -18,7 +19,7 @@ import (
 	"github.com/daveshanley/vacuum/plugin"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 const lspConfigurationSection = "vacuum"
@@ -109,9 +110,15 @@ func (s *ServerState) runtimeConfigForDocument(uri protocol.DocumentUri) (*docum
 		config, snapshot, generation := s.baseEffectiveConfig(!s.workspaceConfigurationSupported)
 		workspaceConfig, ok, err := s.pullWorkspaceConfiguration(uri)
 		if err != nil {
-			fallback := s.defaultRuntimeConfigFrom(config, snapshot, uri)
+			fallback, configErr := s.buildDocumentRuntimeConfig(config, uri, snapshot)
+			if configErr != nil {
+				return nil, errors.Join(err, configErr)
+			}
 			if s.cacheDocumentRuntimeConfig(uri, fallback, generation) {
-				return nil, err
+				if fallback.logger != nil {
+					fallback.logger.Warn("workspace configuration unavailable; using validated local configuration", "error", err)
+				}
+				return fallback, nil
 			}
 			continue
 		}
@@ -127,66 +134,6 @@ func (s *ServerState) runtimeConfigForDocument(uri protocol.DocumentUri) (*docum
 		if s.cacheDocumentRuntimeConfig(uri, runtimeConfig, generation) {
 			return runtimeConfig, nil
 		}
-	}
-}
-
-func (s *ServerState) defaultRuntimeConfig(uri protocol.DocumentUri) *documentRuntimeConfig {
-	config, snapshot, _ := s.baseEffectiveConfig(!s.workspaceConfigurationSupported)
-	return s.defaultRuntimeConfigFrom(config, snapshot, uri)
-}
-
-func (s *ServerState) defaultRuntimeConfigFrom(
-	config *LSPConfig,
-	snapshot lintRequestSnapshot,
-	uri protocol.DocumentUri,
-) *documentRuntimeConfig {
-	runtimeConfig, err := s.buildDocumentRuntimeConfig(config, uri, snapshot)
-	if err == nil {
-		return runtimeConfig
-	}
-	return s.fallbackRuntimeConfig(config, snapshot)
-}
-
-func (s *ServerState) fallbackRuntimeConfig(config *LSPConfig, snapshot lintRequestSnapshot) *documentRuntimeConfig {
-	defaultRuleSets := snapshot.defaultRuleSets
-	if defaultRuleSets == nil {
-		defaultRuleSets = rulesets.BuildDefaultRuleSetsWithLogger(s.logger)
-	}
-	selectedRS := snapshot.selectedRS
-	if config != nil && config.HardMode != nil {
-		if *config.HardMode {
-			selectedRS = generateHardModeRuleSet(defaultRuleSets)
-		} else if config.Ruleset == "" {
-			defaultRuleSets = rulesets.BuildDefaultRuleSetsWithLogger(s.logger)
-			selectedRS = defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-		}
-	}
-	if selectedRS == nil {
-		selectedRS = defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
-	}
-	if config == nil {
-		config = &LSPConfig{
-			Remote:        boolPtr(snapshot.remote),
-			SkipCheck:     boolPtr(snapshot.skipCheck),
-			Timeout:       intPtr(nonZeroInt(snapshot.timeoutFlag, 5)),
-			LookupTimeout: intPtr(nonZeroInt(snapshot.lookupTimeoutFlag, 500)),
-		}
-	}
-	return &documentRuntimeConfig{
-		config:                         config,
-		defaultRuleSets:                defaultRuleSets,
-		selectedRS:                     selectedRS,
-		functions:                      snapshot.functions,
-		ignoredResults:                 snapshot.ignoredResults,
-		httpClientConfig:               snapshot.httpClientConfig,
-		logger:                         snapshot.logger,
-		remote:                         boolValue(config.Remote, snapshot.remote),
-		skipCheck:                      boolValue(config.SkipCheck, snapshot.skipCheck),
-		ignoreArrayCircleRef:           boolValue(config.IgnoreArrayCircleRef, snapshot.ignoreArrayCircleRef),
-		ignorePolymorphCircleRef:       boolValue(config.IgnorePolymorphCircleRef, snapshot.ignorePolymorphCircleRef),
-		extensionRefs:                  boolValue(config.ExtensionRefs, snapshot.extensionRefs),
-		timeoutSecondsValue:            intValue(config.Timeout, nonZeroInt(snapshot.timeoutFlag, 5)),
-		lookupTimeoutMillisecondsValue: intValue(config.LookupTimeout, nonZeroInt(snapshot.lookupTimeoutFlag, 500)),
 	}
 }
 
@@ -426,22 +373,20 @@ func (s *ServerState) loadRulesetForDocument(rulesetLocation string, config *LSP
 		if err != nil {
 			return nil, err
 		}
-		return defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient), nil
+		generated := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(downloadedRS, httpClient)
+		return generated, generated.LoadError()
 	}
 
 	resolvedRuleset, err := s.resolveDocumentConfigPath(rulesetLocation, uri)
 	if err != nil {
 		return nil, err
 	}
-	rsBytes, err := os.ReadFile(resolvedRuleset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read ruleset %s: %w", resolvedRuleset, err)
-	}
-	userRS, err := rulesets.CreateRuleSetFromData(rsBytes)
+	userRS, err := rulesets.LoadLocalRuleSet(context.Background(), resolvedRuleset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ruleset: %w", err)
 	}
-	return defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient), nil
+	generated := defaultRuleSets.GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(userRS, httpClient)
+	return generated, generated.LoadError()
 }
 
 func loadIgnoreFileForLSP(ignoreFile string) (model.IgnoredItems, error) {

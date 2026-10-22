@@ -113,7 +113,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 
 			// check for file args
 			if !stdIn && len(filesToProcess) == 0 {
-				errText := "please supply an OpenAPI or AsyncAPI specification to generate a report, or use the -i flag to use stdin"
+				errText := "please supply an OpenAPI, AsyncAPI or Arazzo specification to generate a report, or use the -i flag to use stdin"
 				tui.RenderErrorString("%s", errText)
 				return errors.New(errText)
 			}
@@ -302,9 +302,9 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				selectedRSForFile := selectedRS
 				specFormat := ""
 				if rulesetFlag == "" {
-					var asyncDefault bool
-					selectedRSForFile, specFormat, asyncDefault = prepareDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag, turboFlag)
-					if hardModeFlag && !asyncDefault && !hardModeBoxRendered && !stdIn && !stdOut {
+					var nonOpenAPIDefault bool
+					selectedRSForFile, specFormat, nonOpenAPIDefault = prepareDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardModeFlag, turboFlag)
+					if hardModeFlag && !nonOpenAPIDefault && !hardModeBoxRendered && !stdIn && !stdOut {
 						tui.RenderStyledBox(HardModeEnabled, tui.BoxTypeHard, noStyleFlag)
 						hardModeBoxRendered = true
 					}
@@ -335,6 +335,12 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 					SpecFormat:                      specFormat,
 				}, executionOptions)
 
+				if err := ruleSetConfigurationError(ruleset); err != nil {
+					ruleset.ReleaseOwnedResources()
+					tui.RenderError(err)
+					return err
+				}
+
 				// Check for spec parsing errors before generating report
 				if ruleset.SpecInfo == nil {
 					tui.RenderErrorString("Failed to parse specification '%s'", specFile)
@@ -360,9 +366,11 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				if !isMultiFile && ruleset != nil && ruleset.RuleSetExecution != nil {
 					// Use violation-set diffing when --original is specified
 					if originalFlag != "" {
-						documentChanges, filtered = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
+						var originalErr error
+						documentChanges, filtered, originalErr = applyOriginalDiffToResultSet(originalResultSetDiffOptions{
 							OriginalPath:     originalFlag,
 							CurrentBytes:     specBytes,
+							CurrentErrors:    ruleset.Errors,
 							CurrentPath:      specFile,
 							ResultSet:        resultSet,
 							Execution:        ruleset.RuleSetExecution,
@@ -378,6 +386,10 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 								}
 							},
 						})
+						if originalErr != nil {
+							ruleset.ReleaseOwnedResources()
+							return originalErr
+						}
 					} else if changesFlag != "" {
 						var loadErr error
 						documentChanges, loadErr = utils.LoadChangeReportFromFile(changesFlag)

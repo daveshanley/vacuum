@@ -28,6 +28,11 @@ func buildReportErrors(errs []error) *vacuum_report.ReportErrors {
 			item.Given = lookupErr.Given
 			item.Message = lookupErr.Error()
 		}
+		var timeoutErr *motor.RuleTimeoutError
+		if errors.As(err, &timeoutErr) {
+			item.Type = vacuum_report.ReportErrorTypeRuleTimeout
+			item.RuleId = timeoutErr.RuleId
+		}
 		items = append(items, item)
 	}
 	if len(items) == 0 {

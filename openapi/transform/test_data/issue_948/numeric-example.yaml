@@ -1,0 +1,18 @@
+openapi: 3.1.0
+info: {title: Numeric example, version: '1'}
+paths:
+  /x:
+    get:
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              examples:
+                '200': {$ref: '#/components/examples/Actual'}
+components:
+  examples:
+    Actual: {value: hello}
+  schemas:
+    Unused:
+      examples: [{$ref: '#/components/examples/NotAnExampleReference'}]

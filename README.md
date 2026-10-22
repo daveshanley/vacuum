@@ -4,7 +4,7 @@
 </picture>
 
 
-# The world's fastest OpenAPI, AsyncAPI and JSON Schema linter.
+# The world's fastest OpenAPI, AsyncAPI, Arazzo and JSON Schema linter.
 
 ![build](https://github.com/daveshanley/vacuum/workflows/Build/badge.svg)
 [![discord](https://img.shields.io/discord/923258363540815912)](https://discord.gg/UAcUF78MQN)
@@ -13,9 +13,9 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/dshanley/vacuum?style=flat-square)](https://hub.docker.com/r/dshanley/vacuum)
 [![Mentioned in Awesome Go](https://awesome.re/mentioned-badge-flat.svg)](https://github.com/avelino/awesome-go)
 
-An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
+An **ultra-super-fast**, lightweight OpenAPI, AsyncAPI, Arazzo and JSON Schema linter and quality checking tool inspired by [Spectral](https://github.com/stoplightio/spectral).
 
-It's **fully compatible** with existing [Spectral](https://github.com/stoplightio/spectral) rulesets.
+It supports Spectral-style YAML and JSON rulesets. See [Spectral migration](#spectral-migration) for compatibility limits and built-in alternatives.
 
 ## Install using the official [homebrew](https://brew.sh) tap
 
@@ -87,7 +87,7 @@ To do that, replace `dshanley/vacuum` with `ghcr.io/daveshanley/vacuum` in the a
 
 ## Run with Go
 
-If you have Go 1.26 or newer installed, you can use `go run` to build and run it:
+If you have Go 1.27.3 or newer installed, you can use `go run` to build and run it:
 
 ```
 go run github.com/daveshanley/vacuum@latest lint <your-openapi-spec.yaml>
@@ -137,9 +137,56 @@ like our _very kind_ sponsors, past and present:
 Need help? Have a question? Want to share your work? [Join our discord](https://discord.gg/UAcUF78MQN) and
 come say hi!
 
+## Timeout behavior
+
+Resolved rule lookups no longer retry against unresolved documents after a timeout or query error.
+This applies to plain linting and dashboard commands, reports, and library callers as well as `--original` comparisons.
+`lint` and `dashboard` return exit code 2 when a lookup or rule execution times out.
+Without `--original`, `vacuum report` records these failures as execution errors; its findings can be incomplete.
+Spectral and HTML output retain their existing formats and can omit findings from failed rules.
+A comparison with `--original` stops with exit code 2 if either lint run fails and does not produce a comparison report.
+Library callers must check `RuleSetExecutionResult.Errors`, including `RuleLookupError` and `RuleTimeoutError`.
+
+For large documents, increase `--lookup-timeout` (milliseconds, default 500) if a JSONPath lookup needs more time,
+or `--timeout` (seconds, default 5) if the complete rule needs more time. The rule budget must also allow the lookup to finish.
+A timeout is an incomplete check, not evidence that the document is clean.
+
 ## Documentation
 
-🔥 **New in** `v0.29` 🔥: **Lint AsyncAPI 3 documents in vacuum**
+🔥 **New in** `v0.34` 🔥: **Agent testing in vacuum**
+
+A new `test` command gives agents a way to test rules, check changes and verify repairs using vacuum's existing engine.
+Define a YAML or JSON suite, run `vacuum test suite.yaml`, and get structured results with evidence of what each rule actually did.
+
+Check expected findings, selector matches and function calls. Test before-and-after changes, verify autofix output,
+and check that running a fix again makes no further change. A clean result is only useful if the rule actually ran.
+
+- [Get started with agent testing](https://quobix.com/vacuum/agent-testing/)
+- [Read the `test` command reference](https://quobix.com/vacuum/commands/test/)
+- [Read more about execution evidence](https://quobix.com/vacuum/testing/evidence/)
+- [Use the test harness from Go](https://quobix.com/vacuum/api/test-harness/)
+
+---
+
+`v0.33`: **Arazzo workflow linting and a new `or` function**
+
+Arazzo 1.0 and 1.1 workflows are now a first-class document type in vacuum, alongside OpenAPI, AsyncAPI and JSON Schema.
+Use `vacuum lint workflows.yaml` and vacuum will detect Arazzo automatically, with recommended rules for workflow structure,
+references, parameters, expressions and linked source documents. Results work in the normal reports, dashboard and editor diagnostics.
+
+The new `or` core function checks that **at least one of two or more properties exists**. Use
+`properties: [title, summary, description]` to require one of those fields. A property counts as present even when its
+value is `null`, `false`, `0` or an empty string.
+
+This release also fixes AsyncAPI header, server and version checks, and improves result locations for YAML aliases and shared references.
+
+- [Read more about Arazzo linting in vacuum](https://quobix.com/vacuum/arazzo/)
+- [See the default Arazzo ruleset](https://quobix.com/vacuum/rulesets/arazzo-recommended/)
+- [Read more about the new `or` function](https://quobix.com/vacuum/functions/core/or/)
+
+---
+
+`v0.29`: **Lint AsyncAPI 3 documents in vacuum**
 
 [AsyncAPI](https://www.asyncapi.com) is now a first-class document type in vacuum, alongside OpenAPI and JSON Schema.
 Use the normal `lint` command and vacuum will detect AsyncAPI 3 documents automatically.
@@ -152,7 +199,7 @@ Use the normal `lint` command and vacuum will detect AsyncAPI 3 documents automa
 
 ---
 
-🔥 **New in** `v0.28` 🔥: **Lint JSON Schema documents in vacuum**
+`v0.28`: **Lint JSON Schema documents in vacuum**
 
 A new `schema` command has been added that opens up vacuum to JSON Schema specific linting rules and checks! 
 With a whole new set of functions and rules, specifically for JSON Schema documents. 
@@ -226,6 +273,45 @@ target exactly what we want to change. vacuum now supports a new `apply-overlay`
 
 - [Learn more about the apply-overlay command](https://quobix.com/vacuum/commands/apply-overlay)
 
+`apply-overlay` can also build a fail-closed publication document after applying
+the standard Overlay actions:
+
+```bash
+vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml \
+  --include-tag public \
+  --tag-match any \
+  --prune-unused
+```
+
+The overlay file is optional when a filter or `--prune-unused` is active:
+
+```bash
+vacuum apply-overlay internal.yaml public.json --exclude-tag internal --prune-unused
+vacuum apply-overlay internal.yaml selected.yaml --include-operation-id listPets
+```
+
+Tags and operation IDs are exact and case-sensitive. All four filter flags
+(`--include-tag`, `--exclude-tag`, `--include-operation-id`, and
+`--exclude-operation-id`) can be repeated. `--tag-match any` matches at least
+one tag; `all` requires every tag in each include/exclude list. Each active
+inclusion filter must match, and exclusions take precedence. Operations with
+no tags or IDs survive exclusion-only filtering. Filtering runs after Overlay
+actions and before pruning. `--prune-unused` removes unreachable components
+and unused tag definitions, retaining parents of used OpenAPI 3.2 tags.
+These opt-in transforms require a bundled, self-contained OpenAPI document.
+YAML merge keys are expanded. Aliases are expanded when filtering or when a removed tag owns an anchor. Retained mapping
+order, comments, and scalar styles are preserved. Pruning rejects schema
+`$id` scopes that cannot be resolved safely. Link Objects targeting filtered
+operations are retained and reported as warnings. Document output remains
+pure on stdout; warnings are written to stderr. The warning summary uses the `apply-overlay produced` prefix to
+cover both Overlay actions and publication transforms.
+A `.json`, `.yaml`, or `.yml` output extension selects the output format.
+Otherwise the input format is retained, including on stdout.
+An inferred output path containing an Overlay document is rejected to prevent accidental overwrites.
+Tag pruning retains `x-tagGroups` entries and `x-traitTag: true` narrative tags.
+Library callers opt into tag pruning with `Options.PruneUnusedTags`;
+`Options.PruneUnused` and `PruneUnusedComponents` continue to prune components only.
+
 ---
 
 
@@ -247,6 +333,27 @@ vs individually.
 
 ### [Quick Start Guide 🚀](https://quobix.com/vacuum/start)
 
+### Bundle AsyncAPI 3
+
+`vacuum bundle` detects AsyncAPI 3 documents and supports inline and composed output:
+
+```bash
+vacuum bundle events.asyncapi.yaml bundled.yaml
+vacuum bundle events.asyncapi.yaml bundled.json --composed --delimiter __
+cat events.asyncapi.yaml | vacuum bundle --stdin --stdout --base ./specs --format json
+```
+
+External objects are inlined by default. Shared schemas are emitted once, with
+local references for later uses. Composed mode stores external objects in AsyncAPI
+component sections. Both modes preserve the local references required by
+operations, messages, channels, and servers. Input-file references resolve from
+the input directory unless `--base` is supplied. Use `--remote=false` to disable
+remote loading; `--ext-refs` opts into resolving references inside extensions.
+Unresolved or ambiguous references return an error without writing an incomplete
+bundle. Schema resource IDs are resolved before relocation. Non-JSON schema
+content is preserved; language-specific imports and dynamic JSON Schema references
+are not bundled.
+
 See all the documentation at https://quobix.com/vacuum
 
 - [Installing vacuum](https://quobix.com/vacuum/installing/)
@@ -264,7 +371,7 @@ See all the documentation at https://quobix.com/vacuum
   - [docs](https://quobix.com/vacuum/commands/docs/)
   - [dashboard](https://quobix.com/vacuum/commands/dashboard/)
   - [html-report](https://quobix.com/vacuum/commands/html-report/)
-  - [bundle](https://quobix.com/vacuum/commands/bundle/)
+  - [bundle](https://quobix.com/vacuum/commands/bundle/) - OpenAPI and AsyncAPI 3, with inline and composed output.
   - [spectral-report](https://quobix.com/vacuum/commands/spectral-report/)
   - [language-server](https://quobix.com/vacuum/commands/language-server/)
   - [upgrade](https://quobix.com/vacuum/commands/upgrade/)
@@ -352,7 +459,7 @@ You can use either **YAML** or **JSON**, vacuum supports both formats.
 
 ## Using vacuum with pre-commit
 
-Vacuum can be used with [pre-commit](https://pre-commit.com).
+vacuum can be used with [pre-commit](https://pre-commit.com).
 
 To do that, add to your `.pre-commit-config.yaml`:
 
@@ -445,7 +552,7 @@ The report file name is _optional_. The default report output name is `vacuum-sp
 
 ## Generate a `vacuum report`
 
-Vacuum reports are complete snapshots in time of a linting report for a specification. These reports can be 'replayed' 
+vacuum reports are complete snapshots in time of a linting report for a specification. These reports can be 'replayed'
 back through vacuum. Use the `dashboard` or the `html-report` commands to 'replay' the report and explore the results
 as they were when the report was generated.
 
@@ -501,6 +608,71 @@ if you're interested in seeing how things are progressing, it's available.
 ```
 
 ---
+## OWASP hard mode
+
+Run `vacuum lint --hard-mode api.yaml` to enable all built-in OpenAPI rules,
+including the OWASP rules. Hard mode checks:
+
+- OAuth [password](https://quobix.com/vacuum/rules/owasp/owasp-oauth-no-password/)
+  and [implicit](https://quobix.com/vacuum/rules/owasp/owasp-oauth-no-implicit/) flows.
+- [Authentication endpoint URLs](https://quobix.com/vacuum/rules/owasp/owasp-auth-urls-https/)
+  and server URLs for HTTPS, including overrides and server variables.
+- Request objects for unrestricted fields and maps for property-count limits.
+- Write operations for authenticated security requirements, without anonymous alternatives.
+- Declared JWTs for an RFC8725 reference in their description, as a warning.
+
+**Changes for existing users:** strict write security now reports an **error**,
+previously informational. A requirement such as `security: [{auth: []}, {}]` can
+now fail a build. Also, `x-lint-ignore` applies to the entire subtree beneath its
+location for every ruleset, rather than only the node and its immediate children.
+
+See the [OWASP guide](https://quobix.com/vacuum/rulesets/owasp/) for rule details
+and severity overrides, and [ignoring violations](https://quobix.com/vacuum/ignoring/)
+for scoped exceptions.
+
+---
+
+## Spectral migration
+
+vacuum loads YAML, JSON, and local JavaScript rulesets. Resolve each relative `extends` path from the
+file that contains it, including on Windows. Keep sibling rulesets relative:
+
+```yaml
+extends:
+  - ./ruleset.bank.yml
+  - ./ruleset.nlgov.yml
+  - [vacuum:owasp, all]
+```
+
+Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importing
+`@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use vacuum's
+rule names and behavior; they do not execute the Spectral package.
+
+For JavaScript rulesets, export an object from a local `.js`, `.mjs`, or `.cjs` file:
+
+```shell
+vacuum lint api.yaml -r rules.mjs
+```
+
+Functions, static imports, Promises, and callable formats run in an isolated runtime
+for each document. See [JavaScript rulesets](https://quobix.com/vacuum/rulesets/javascript/)
+for supported imports, context, and migration limits.
+
+Arazzo 1.0 and 1.1 workflows use `vacuum lint workflows.yaml` and the normal
+report commands. `spectral:arazzo` selects Vacuum's native recommended rules.
+See [Arazzo linting](ARAZZO.md) for source lookup, rule IDs, incomplete checks
+and migration differences.
+
+`--functions` takes a directory containing custom function files:
+
+```shell
+vacuum lint api.yaml --ruleset rules/main.yaml --functions ./functions
+```
+
+JavaScript ruleset functions do not need this directory. Omitting the directory after `--functions` reports an
+input error and exits with code 2. In the editor, vacuum checks recognized ruleset
+buffers against its ruleset schema instead of reporting an unsupported API type.
+
 ## Supply your own Spectral compatible ruleset
 
 If you're already using Spectral and you have your own [custom ruleset](https://meta.stoplight.io/docs/spectral/e5b9616d6d50c-custom-rulesets#custom-rulesets),
@@ -592,9 +764,14 @@ lint:
 
 ### Environment variables
 
-You can configure global vacuum flags using environment variables in the form of: `VACUUM_<flag>`
+You can configure global and command-local flags with `VACUUM_<FLAG>`
+environment variables. Use uppercase flag names and replace `-` with `_`.
+Explicit command-line flags take precedence over environment variables;
+environment variables take precedence over configuration files.
 
-If a flag, has a `-` in it, replace with `_`
+Collection flags accept comma-separated values. For example,
+`VACUUM_INCLUDE_TAG='public,partner'` sets the included tags for
+`apply-overlay`.
 
 
 ## Auto-fixing rule violations

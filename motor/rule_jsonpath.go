@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
 	jsonpathConfig "github.com/pb33f/jsonpath/pkg/jsonpath/config"
 	openapiUtils "github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 type cachedRuleJSONPath struct {
@@ -55,7 +55,7 @@ func findRuleGivenNodes(
 	case queryResult := <-result:
 		return queryResult.nodes, queryResult.err
 	case <-timer.C:
-		return nil, fmt.Errorf("node lookup timeout exceeded (%v)", timeout)
+		return nil, fmt.Errorf("node lookup timeout exceeded (%v); increase --lookup-timeout to allow more time", timeout)
 	}
 }
 

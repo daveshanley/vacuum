@@ -8,7 +8,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // Defined is a rule that will determine if a field has been set on a node slice.
@@ -50,7 +50,7 @@ func (d Defined) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 
 		if fieldNode == nil {
 
-			locatedPath, allPaths, locatedObjects := locateNodePaths(context, node)
+			locatedPath, allPaths, locatedObjects := locateNodePaths(&context, node)
 
 			result := model.RuleFunctionResult{
 				Message: vacuumUtils.SuppliedOrDefault(message,

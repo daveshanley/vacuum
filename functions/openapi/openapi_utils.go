@@ -6,8 +6,8 @@ package openapi
 import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"go.yaml.in/yaml/v4"
 )
 
 // GetAllOperationsJSONPath wil return a string that can be used as a query for extracting all OpenAPI operations.

@@ -11,7 +11,7 @@ import (
 	schemautil "github.com/daveshanley/vacuum/jsonschema"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // Valid validates a JSON Schema document against its declared metaschema.

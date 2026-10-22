@@ -6,9 +6,10 @@ package asyncapi
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // ChannelParameters validates channel address parameter declarations.
@@ -129,28 +130,95 @@ func (s Security) GetCategory() string {
 	return model.FunctionCategoryAsyncAPI
 }
 
-// RunRule checks each security entry against components.securitySchemes.
-func (s Security) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
-	root := rootNode(context)
-	knownSchemes := mappingKeys(componentMap(root, "securitySchemes"))
+// RunRule validates inline and referenced Security Scheme Objects.
+func (s Security) RunRule(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+	if ctx.GetOptionsStringMap()["source"] != "owner" {
+		return validateSecuritySchemes(nodes, ctx)
+	}
 	var results []model.RuleFunctionResult
-	for _, node := range nodes {
-		if ref := refValue(node); ref != "" {
-			name := componentRefName(ref, "securitySchemes")
-			if name == "" {
-				results = append(results, result(context, node, nodePath(context, node, ""), "Security scheme references must target `#/components/securitySchemes`."))
-				continue
+	seen := make(map[*yaml.Node]bool)
+	var visit func(*yaml.Node, model.RuleFunctionContext)
+	visit = func(source *yaml.Node, scope model.RuleFunctionContext) {
+		node, scope := resolveObject(source, scope)
+		if node == nil || seen[node] {
+			return
+		}
+		seen[node] = true
+		_, security := mappingValue(node, "security")
+		if security != nil {
+			if security.Kind != yaml.SequenceNode {
+				results = append(results, result(scope, security, "", "Security must be an array of Security Scheme Objects or references."))
+			} else {
+				results = append(results, validateSecuritySchemes(security.Content, scope)...)
 			}
-			if knownSchemes[name] == nil {
-				results = append(results, result(context, node, nodePath(context, node, ""), fmt.Sprintf("Security scheme `%s` is not defined.", name)))
+		}
+		_, traits := mappingValue(node, "traits")
+		if traits != nil && traits.Kind == yaml.SequenceNode {
+			for _, trait := range traits.Content {
+				visit(trait, scope)
 			}
+		}
+	}
+	for _, source := range nodes {
+		visit(source, ctx)
+	}
+	return results
+}
+
+func validateSecuritySchemes(nodes []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+	var results []model.RuleFunctionResult
+	for _, source := range nodes {
+		node, scope := resolveObject(source, ctx)
+		if node == nil {
+			results = append(results, result(ctx, source, "", fmt.Sprintf("Security scheme `%s` is not defined.", refValue(source))))
 			continue
 		}
-
-		for _, entry := range mappingEntries(node) {
-			name := entry[0].Value
-			if knownSchemes[name] == nil {
-				results = append(results, result(context, entry[0], nodePath(context, entry[0], ""), fmt.Sprintf("Security scheme `%s` is not defined.", name)))
+		add := func(field, message string) {
+			_, target := mappingValue(node, field)
+			if target == nil {
+				target = node
+			}
+			results = append(results, result(scope, target, "", message))
+		}
+		text := func(field string) string {
+			_, value := mappingValue(node, field)
+			if value == nil || value.Kind != yaml.ScalarNode || value.Tag != "!!str" {
+				return ""
+			}
+			return value.Value
+		}
+		kind := text("type")
+		switch kind {
+		case "userPassword", "apiKey", "X509", "symmetricEncryption", "asymmetricEncryption", "httpApiKey", "http", "oauth2", "openIdConnect", "plain", "scramSha256", "scramSha512", "gssapi":
+		default:
+			add("type", "Security scheme must define a supported string `type`.")
+			continue
+		}
+		switch kind {
+		case "apiKey":
+			if location := text("in"); location != "user" && location != "password" {
+				add("in", "API key security scheme `in` must be `user` or `password`.")
+			}
+		case "httpApiKey":
+			if text("name") == "" {
+				add("name", "HTTP API key security scheme must define `name`.")
+			}
+			if location := text("in"); location != "header" && location != "query" && location != "cookie" {
+				add("in", "HTTP API key security scheme `in` must be `header`, `query` or `cookie`.")
+			}
+		case "http":
+			if text("scheme") == "" {
+				add("scheme", "HTTP security scheme must define `scheme`.")
+			}
+		case "oauth2":
+			_, flows := mappingValue(node, "flows")
+			if flows == nil || flows.Kind != yaml.MappingNode {
+				add("flows", "OAuth2 security scheme must define a `flows` object.")
+			}
+		case "openIdConnect":
+			address, err := url.Parse(text("openIdConnectUrl"))
+			if err != nil || address == nil || !address.IsAbs() {
+				add("openIdConnectUrl", "OpenID Connect security scheme must define an absolute `openIdConnectUrl`.")
 			}
 		}
 	}

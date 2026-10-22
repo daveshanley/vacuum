@@ -7,6 +7,10 @@ package model
 const FunctionCategoryCore = "core"
 const FunctionCategoryOpenAPI = "openapi"
 const FunctionCategoryAsyncAPI = "asyncapi"
+const FunctionCategoryArazzo = "arazzo"
+
+// ArazzoValidationIncomplete identifies findings for checks that could not run.
+const ArazzoValidationIncomplete = "arazzo-validation-incomplete"
 const FunctionCategoryJSONSchema = "jsonschema"
 const FunctionCategoryOWASP = "owasp"
 const FunctionCategoryCustomJS = "customjs"

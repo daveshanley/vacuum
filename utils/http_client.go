@@ -4,11 +4,9 @@
 package utils
 
 import (
-	"crypto/tls"
-	"crypto/x509"
+	"context"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/daveshanley/vacuum/config"
 )
@@ -19,51 +17,25 @@ type HTTPClientConfig = config.HTTPClientConfig
 // FetchConfig is an alias for config.FetchConfig for backwards compatibility.
 type FetchConfig = config.FetchConfig
 
-// CreateCustomHTTPClient creates an HTTP client with custom TLS configuration
-// for certificate-based authentication and custom CA certificates.
-func CreateCustomHTTPClient(config HTTPClientConfig) (*http.Client, error) {
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: config.Insecure,
-	}
-
-	// Load client certificate if both cert and key files are provided
-	if config.CertFile != "" && config.KeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(config.CertFile, config.KeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load client certificate: %w", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-	} else if config.CertFile != "" || config.KeyFile != "" {
-		// Only one of cert or key file is provided - this is an error
-		return nil, fmt.Errorf("both cert-file and key-file must be provided together")
-	}
-
-	// Load custom CA certificate if provided
-	if config.CAFile != "" {
-		caCert, err := os.ReadFile(config.CAFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read CA certificate file: %w", err)
-		}
-
-		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, fmt.Errorf("failed to parse CA certificate from file: %s", config.CAFile)
-		}
-		tlsConfig.RootCAs = caCertPool
-	}
-
-	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
-	}, nil
+// CreateCustomHTTPClient creates a client using the shared TLS configuration.
+func CreateCustomHTTPClient(cfg HTTPClientConfig) (*http.Client, error) {
+	return config.CreateCustomHTTPClient(cfg)
 }
 
 // CreateRemoteURLHandler creates a RemoteURLHandler function for use with libopenapi
 // that uses the provided HTTP client for all remote requests.
 func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Response, error) {
+	return CreateRemoteURLHandlerWithContext(context.Background(), client)
+}
+
+// CreateRemoteURLHandlerWithContext binds remote requests to the supplied context.
+// Cancellation also interrupts response body reads. A nil context uses context.Background.
+func CreateRemoteURLHandlerWithContext(ctx context.Context, client *http.Client) func(url string) (*http.Response, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return func(url string) (*http.Response, error) {
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request for %s: %w", url, err)
 		}
@@ -71,9 +43,9 @@ func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Respons
 	}
 }
 
-// ShouldUseCustomHTTPClient returns true if any TLS-related configuration is provided
-func ShouldUseCustomHTTPClient(config HTTPClientConfig) bool {
-	return config.CertFile != "" || config.KeyFile != "" || config.CAFile != "" || config.Insecure
+// ShouldUseCustomHTTPClient reports whether custom TLS settings are present.
+func ShouldUseCustomHTTPClient(cfg HTTPClientConfig) bool {
+	return config.ShouldUseCustomHTTPClient(cfg)
 }
 
 // CreateHTTPClientIfNeeded creates a custom HTTP client only if TLS configuration is provided.

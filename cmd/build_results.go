@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -133,8 +134,8 @@ func selectRuleSetForBuildResults(
 	// read spec and parse
 	defaultRuleSets := rulesets.BuildDefaultRuleSets()
 
-	selectedRS, specFormat, asyncDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
-	if hardMode && !asyncDefault {
+	selectedRS, specFormat, nonOpenAPIDefault := selectDefaultRuleSetForSpec(defaultRuleSets, specBytes, hardMode)
+	if hardMode && !nonOpenAPIDefault {
 		// extract all OWASP Rules
 		owaspRules := rulesets.GetAllOWASPRules()
 		allRules := selectedRS.Rules
@@ -225,6 +226,11 @@ func executeBuildResults(
 
 	ruleset := motor.ApplyRulesToRuleSetWithOptions(exec, newMotorExecutionOptionsFromExecutionFlags(executionFlags))
 
+	if err := ruleSetConfigurationError(ruleset); err != nil {
+		ruleset.ReleaseOwnedResources()
+		return nil, nil, err
+	}
+
 	resultSet := model.NewRuleResultSet(ruleset.Results)
 	resultSet.SortResultsByLineNumber()
 	resultSet.Results = utils.FilterIgnoredResultsPtrWithOptions(
@@ -233,4 +239,21 @@ func executeBuildResults(
 		buildIgnoreFilterOptions(specBytes, ruleset, int(lookupTimeout/time.Millisecond)),
 	)
 	return resultSet, ruleset, nil
+}
+
+// Reports can include ordinary execution errors, but an invalid ruleset must
+// stop the command rather than produce a report from a partial rule set.
+func ruleSetConfigurationError(result *motor.RuleSetExecutionResult) error {
+	if result.RuleSetExecution != nil {
+		if err := result.RuleSetExecution.RuleSet.LoadError(); err != nil {
+			return err
+		}
+	}
+	for _, err := range result.Errors {
+		var unknown *motor.UnknownFunctionError
+		if errors.As(err, &unknown) {
+			return errors.Join(result.Errors...)
+		}
+	}
+	return nil
 }

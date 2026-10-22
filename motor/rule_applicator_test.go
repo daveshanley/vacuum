@@ -19,13 +19,13 @@ import (
 	jsplugin "github.com/daveshanley/vacuum/plugin/javascript"
 	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	v2high "github.com/pb33f/libopenapi/datamodel/high/v2"
 	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/testify/assert"
-	"go.yaml.in/yaml/v4"
 )
 
 type stubDocument struct {
@@ -2004,7 +2004,7 @@ components:
 	results := ApplyRulesToRuleSet(ex)
 	assert.Len(t, results.Errors, 1)
 	assert.Nil(t, results.Results)
-	assert.Equal(t, "rule test lookup failed for given $..paths: node lookup timeout exceeded (1ns)", results.Errors[0].Error())
+	assert.Equal(t, "rule test lookup failed for given $..paths: node lookup timeout exceeded (1ns); increase --lookup-timeout to allow more time", results.Errors[0].Error())
 	assert.Equal(t, "rule lookup failed", (&RuleLookupError{}).Error())
 }
 
@@ -2485,6 +2485,8 @@ func TestRuleSetExecutionResultRelease_ReleasesOwnedResources(t *testing.T) {
 	execution := results.RuleSetExecution
 	assert.NotNil(t, execution)
 	assert.NotNil(t, execution.DrDocument)
+
+	assert.Zero(t, execution.activeRuleWorkers.Load(), "completed rules must release ownership before results return")
 
 	results.Release()
 
@@ -4789,4 +4791,89 @@ func filterResultsByRuleId(results []model.RuleFunctionResult, ruleId string) []
 		}
 	}
 	return filtered
+}
+
+const timeoutTestSpec = "openapi: 3.0.0\ninfo:\n  title: t\n  version: 1.0.0\npaths: {}\n"
+
+// timeoutRecordingFunction records the timeout carried by every rule context it is invoked with.
+// Safe to share between concurrent executions, exactly as the language server shares its functions.
+type timeoutRecordingFunction struct {
+	l    sync.Mutex
+	seen []time.Duration // one entry per invocation, in completion order
+}
+
+func (s *timeoutRecordingFunction) RunRule(_ []*yaml.Node, ctx model.RuleFunctionContext) []model.RuleFunctionResult {
+	s.l.Lock()
+	s.seen = append(s.seen, ctx.RuleTimeout)
+	s.l.Unlock()
+	return nil
+}
+
+func (s *timeoutRecordingFunction) GetSchema() model.RuleFunctionSchema {
+	return model.RuleFunctionSchema{Name: "recordTimeout"}
+}
+
+func (s *timeoutRecordingFunction) GetCategory() string {
+	return model.FunctionCategoryCustomJS
+}
+
+func (s *timeoutRecordingFunction) timeouts() []time.Duration {
+	s.l.Lock()
+	defer s.l.Unlock()
+	return append([]time.Duration(nil), s.seen...)
+}
+
+func timeoutRecordingExecution(fn model.RuleFunction, timeout time.Duration) *RuleSetExecution {
+	return &RuleSetExecution{
+		RuleSet: &rulesets.RuleSet{
+			Rules: map[string]*model.Rule{
+				"record-timeout": {
+					Id:           "record-timeout",
+					Given:        "$",
+					RuleCategory: model.RuleCategories[model.CategoryValidation],
+					Type:         rulesets.Validation,
+					Severity:     model.SeverityInfo,
+					Then:         model.RuleAction{Function: "recordTimeout"},
+				},
+			},
+		},
+		Spec:            []byte(timeoutTestSpec),
+		Timeout:         timeout,
+		SilenceLogs:     true,
+		CustomFunctions: map[string]model.RuleFunction{"recordTimeout": fn},
+	}
+}
+
+func TestApplyRulesToRuleSet_CarriesExecutionTimeoutInRuleContext(t *testing.T) {
+	fn := &timeoutRecordingFunction{}
+	ApplyRulesToRuleSet(timeoutRecordingExecution(fn, 9*time.Second))
+	assert.Equal(t, []time.Duration{9 * time.Second}, fn.timeouts())
+}
+
+func TestApplyRulesToRuleSet_CarriesDefaultTimeoutWhenExecutionHasNone(t *testing.T) {
+	fn := &timeoutRecordingFunction{}
+	ApplyRulesToRuleSet(timeoutRecordingExecution(fn, 0))
+	// the rule runner normalises an unset execution timeout to 5s; rules see the same value.
+	assert.Equal(t, []time.Duration{5 * time.Second}, fn.timeouts())
+}
+
+// TestApplyRulesToRuleSet_ConcurrentExecutionsDoNotShareTimeout guards the language server case:
+// one custom function instance, several documents linted at once with different timeouts. Each
+// execution invokes the shared instance exactly once, so the recorded timeouts must be exactly the
+// executions' timeouts - a value leaking between executions shows up as a duplicate. Run with -race.
+func TestApplyRulesToRuleSet_ConcurrentExecutionsDoNotShareTimeout(t *testing.T) {
+	shared := &timeoutRecordingFunction{}
+	timeouts := []time.Duration{time.Second, 30 * time.Second, 7 * time.Second}
+
+	var wg sync.WaitGroup
+	for _, timeout := range timeouts {
+		wg.Add(1)
+		go func(timeout time.Duration) {
+			defer wg.Done()
+			ApplyRulesToRuleSet(timeoutRecordingExecution(shared, timeout))
+		}(timeout)
+	}
+	wg.Wait()
+
+	assert.ElementsMatch(t, timeouts, shared.timeouts())
 }

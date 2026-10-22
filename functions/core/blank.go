@@ -2,7 +2,7 @@ package core
 
 import (
 	"github.com/daveshanley/vacuum/model"
-	"go.yaml.in/yaml/v4"
+	"github.com/pb33f/go-yaml"
 )
 
 // Blank is a pass through function that does nothing. Use this if you want a rig a rule, but don't want to check

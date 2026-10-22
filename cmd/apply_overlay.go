@@ -8,6 +8,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,8 +21,10 @@ import (
 
 	"charm.land/bubbles/v2/table"
 	"github.com/daveshanley/vacuum/color"
+	openapitransform "github.com/daveshanley/vacuum/openapi/transform"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/daveshanley/vacuum/utils"
+	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi"
 	highoverlay "github.com/pb33f/libopenapi/datamodel/high/overlay"
 	"github.com/pb33f/libopenapi/overlay"
@@ -38,24 +41,36 @@ type warningsError struct {
 }
 
 func (e *warningsError) Error() string {
-	return fmt.Sprintf("overlay produced %d warning(s) and --fail-on-warnings is set", e.count)
+	return fmt.Sprintf("apply-overlay produced %d warning(s) and --fail-on-warnings is set", e.count)
 }
 
 func GetApplyOverlayCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		Use:           "apply-overlay <spec> <overlay> <output>",
+		Use:           "apply-overlay <spec> [overlay] <output>",
 		Short:         "Apply an Overlay to an OpenAPI specification",
 		Long: `Apply an OpenAPI Overlay document to modify a specification without changing the original.
 
 The overlay file can be a local file path or a remote URL (http/https).
+It can be omitted when filtering operations or pruning unused content.
 All references in the overlay are resolved using JSONPath expressions.
 
-The resulting document is written to the output file with all overlay
-actions (updates and removals) applied.`,
+The resulting document is written with all Overlay actions applied. Optional
+filters then select operations by case-sensitive tags and operation IDs.
+All active inclusion filters must match; exclusions take precedence.
+The any/all tag mode applies separately to each tag list. Component and tag
+pruning runs last. These transforms require
+a bundled, self-contained document. YAML aliases and merge keys are expanded
+when filtering, preserving mapping order, comments, and styles. Pruning rejects
+schema $id scopes. Link Objects targeting filtered operations are retained and
+reported as warnings. Pruning removes unused top-level Tag Objects and retains
+the parents of used OpenAPI 3.2 tags. Output extensions select JSON or YAML; otherwise the input format is retained.`,
 		Example: `  vacuum apply-overlay openapi.yaml overlay.yaml modified.yaml
+  vacuum apply-overlay openapi.yaml public.json --exclude-tag internal --prune-unused
+  vacuum apply-overlay openapi.yaml selected.yaml --include-operation-id listPets
   vacuum apply-overlay spec.yaml https://example.com/overlay.yaml output.yaml
+  vacuum apply-overlay internal.yaml public.overlay.yaml public.yaml --include-tag public --tag-match any --prune-unused
   cat spec.yaml | vacuum apply-overlay -i overlay.yaml output.yaml
   vacuum apply-overlay spec.yaml overlay.yaml -o > modified.yaml
   cat spec.yaml | vacuum apply-overlay -i overlay.yaml -o > modified.yaml`,
@@ -71,6 +86,12 @@ actions (updates and removals) applied.`,
 	cmd.Flags().BoolP("stdout", "o", false, "Write output to stdout instead of a file")
 	cmd.Flags().BoolP("fail-on-warnings", "W", false, "Treat overlay warnings as errors (exit code 2)")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
+	cmd.Flags().StringArray("include-tag", nil, "Keep operations containing this exact tag; may be repeated")
+	cmd.Flags().StringArray("exclude-tag", nil, "Remove operations containing this exact tag; may be repeated")
+	cmd.Flags().StringArray("include-operation-id", nil, "Keep operations with this exact operationId; may be repeated")
+	cmd.Flags().StringArray("exclude-operation-id", nil, "Remove operations with this exact operationId; may be repeated")
+	cmd.Flags().String("tag-match", string(openapitransform.MatchAny), "Tag matching mode for each include/exclude list: any or all")
+	cmd.Flags().Bool("prune-unused", false, "Remove unused reusable components and top-level tag definitions")
 	return cmd
 }
 
@@ -82,6 +103,23 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	stdOut, _ := cmd.Flags().GetBool("stdout")
 	failOnWarnings, _ := cmd.Flags().GetBool("fail-on-warnings")
 	noStyleFlag, _ := cmd.Flags().GetBool("no-style")
+	includeTags, _ := cmd.Flags().GetStringArray("include-tag")
+	excludeTags, _ := cmd.Flags().GetStringArray("exclude-tag")
+	includeIDs, _ := cmd.Flags().GetStringArray("include-operation-id")
+	excludeIDs, _ := cmd.Flags().GetStringArray("exclude-operation-id")
+	tagMatch, _ := cmd.Flags().GetString("tag-match")
+	pruneUnused, _ := cmd.Flags().GetBool("prune-unused")
+
+	filterOptions := openapitransform.TagFilterOptions{
+		IncludeTags: includeTags, ExcludeTags: excludeTags,
+		IncludeOperationIDs: includeIDs, ExcludeOperationIDs: excludeIDs,
+		MatchStrategy: openapitransform.MatchStrategy(tagMatch),
+	}
+	flagErr := validateOverlayTransformFlags(filterOptions, cmd.Flags().Changed("tag-match"))
+	if flagErr != nil {
+		renderApplyOverlayError(stdOut, flagErr)
+		return NewInputError("%s", flagErr)
+	}
 
 	// Read global flags
 	timeFlag, _ := cmd.Flags().GetBool("time")
@@ -112,12 +150,22 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	if stdOut {
 		requiredArgs--
 	}
+	transformOnlyAllowed := filterOptions.Enabled() || pruneUnused
+	withoutOverlay := transformOnlyAllowed && len(args) == requiredArgs-1
+	if withoutOverlay {
+		requiredArgs--
+	}
+	if len(args) > requiredArgs {
+		return NewInputError("too many arguments for apply-overlay")
+	}
 
 	if len(args) < requiredArgs {
 		var errText string
 		switch {
 		case !stdIn && len(args) == 0:
 			errText = "please supply input OpenAPI specification, or use -i flag for stdin"
+		case transformOnlyAllowed && !stdOut:
+			errText = "please supply output file path, or use -o flag for stdout"
 		case !stdIn && len(args) == 1:
 			errText = "please supply overlay file path or URL"
 		case stdIn && len(args) == 0:
@@ -127,10 +175,8 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		default:
 			errText = "insufficient arguments provided"
 		}
-		tui.RenderErrorString("%s", errText)
-		fmt.Println("Usage: vacuum apply-overlay <spec> <overlay> <output>")
-		fmt.Println()
-		return errors.New(errText)
+		renderApplyOverlayError(stdOut, errors.New(errText))
+		return NewInputError("%s", errText)
 	}
 
 	// Determine argument positions based on flags
@@ -141,10 +187,27 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		specPath = args[argIdx]
 		argIdx++
 	}
-	overlayPath = args[argIdx]
-	argIdx++
+	if !withoutOverlay {
+		overlayPath = args[argIdx]
+		argIdx++
+	}
 	if !stdOut {
 		outputPath = args[argIdx]
+	}
+
+	// A missing output argument must not turn an existing overlay into the output.
+	if withoutOverlay && !stdOut {
+		if existing, err := os.ReadFile(outputPath); err == nil {
+			var document yaml.Node
+			if yaml.Unmarshal(existing, &document) == nil && len(document.Content) > 0 {
+				root := document.Content[0]
+				for i := 0; root.Kind == yaml.MappingNode && i+1 < len(root.Content); i += 2 {
+					if root.Content[i].Value == "overlay" {
+						return NewInputError("%q is an Overlay document; please supply output file path, or use -o flag for stdout", outputPath)
+					}
+				}
+			}
+		}
 	}
 
 	// Read spec bytes
@@ -190,28 +253,119 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 	}
 
 	// Read overlay bytes (file or remote URL)
-	overlayBytes, overlayErr := fetchOverlay(overlayPath, httpClientConfig)
-	if overlayErr != nil {
-		tui.RenderErrorString("Unable to read overlay '%s': %s", overlayPath, overlayErr.Error())
-		return overlayErr
+	var overlayBytes []byte
+	var result *libopenapi.OverlayResult
+	var applyErr error
+	if withoutOverlay {
+		var document libopenapi.Document
+		document, applyErr = libopenapi.NewDocument(specBytes)
+		result = &libopenapi.OverlayResult{Bytes: specBytes, OverlayDocument: document}
+	} else {
+		var overlayErr error
+		overlayBytes, overlayErr = fetchOverlay(overlayPath, httpClientConfig)
+		if overlayErr != nil {
+			renderApplyOverlayError(stdOut, overlayErr)
+			return overlayErr
+		}
+		result, applyErr = libopenapi.ApplyOverlayFromBytesToSpecBytes(specBytes, overlayBytes)
+	}
+	if applyErr != nil {
+		renderApplyOverlayError(stdOut, applyErr)
+		return NewInputError("unable to prepare OpenAPI document: %s", applyErr)
+	}
+	defer result.OverlayDocument.Release()
+
+	var filterStats openapitransform.FilterStats
+	var pruneStats openapitransform.PruneStats
+	var transformWarnings []openapitransform.Warning
+	transformsEnabled := filterOptions.Enabled() || pruneUnused
+	if transformsEnabled {
+		specInfo := result.OverlayDocument.GetSpecInfo()
+		if specInfo == nil || specInfo.RootNode == nil {
+			transformErr := errors.New("applied Overlay did not produce an OpenAPI document root")
+			renderApplyOverlayError(stdOut, transformErr)
+			return NewInputError("%s", transformErr)
+		}
+		root := specInfo.RootNode
+		var transformErr error
+		filterStats, pruneStats, transformErr = openapitransform.Transform(root, result.OverlayDocument.GetVersion(), openapitransform.Options{
+			TagFilter:       filterOptions,
+			PruneUnused:     pruneUnused,
+			PruneUnusedTags: pruneUnused,
+		})
+		if transformErr != nil {
+			renderApplyOverlayError(stdOut, transformErr)
+			return NewInputError("%s", transformErr)
+		}
+		transformWarnings = filterStats.Warnings
+		if filterOptions.Enabled() && !openapitransform.HasReachableOperations(root, result.OverlayDocument.GetVersion()) {
+			transformWarnings = append(transformWarnings, openapitransform.Warning{
+				Path:    "$",
+				Message: "operation filtering kept zero operations",
+			})
+		}
+		result.Bytes, transformErr = yaml.Marshal(root)
+		if transformErr != nil {
+			renderApplyOverlayError(stdOut, transformErr)
+			return NewInputError("unable to render transformed OpenAPI document: %s", transformErr)
+		}
 	}
 
-	// Apply the overlay
-	result, applyErr := libopenapi.ApplyOverlayFromBytesToSpecBytes(specBytes, overlayBytes)
-	if applyErr != nil {
-		tui.RenderErrorString("Failed to apply overlay: %s", applyErr.Error())
-		return applyErr
+	// Explicit output extensions take precedence over the input format.
+	jsonOutput := json.Valid(specBytes)
+	if !stdOut {
+		switch strings.ToLower(filepath.Ext(outputPath)) {
+		case ".json":
+			jsonOutput = true
+		case ".yaml", ".yml":
+			jsonOutput = false
+		}
+	}
+	if jsonOutput {
+		var renderErr error
+		result.Bytes, renderErr = renderBundledOutput(result.Bytes, bundleOutputFormatJSON)
+		if renderErr != nil {
+			renderApplyOverlayError(stdOut, renderErr)
+			return NewInputError("unable to render JSON output: %s", renderErr)
+		}
+	}
+
+	if !jsonOutput && json.Valid(result.Bytes) {
+		// JSON syntax is also YAML; clear its collection styles to emit block YAML.
+		var node yaml.Node
+		if err := yaml.Unmarshal(result.Bytes, &node); err != nil {
+			return NewInputError("unable to parse YAML output: %s", err)
+		}
+		var blockStyle func(*yaml.Node)
+		blockStyle = func(n *yaml.Node) {
+			if n.Kind == yaml.MappingNode || n.Kind == yaml.SequenceNode {
+				n.Style = 0
+			}
+			for _, child := range n.Content {
+				blockStyle(child)
+			}
+		}
+		blockStyle(&node)
+		var err error
+		result.Bytes, err = yaml.Marshal(&node)
+		if err != nil {
+			return NewInputError("unable to render YAML output: %s", err)
+		}
 	}
 
 	// Parse overlay document to get actions for the table display
-	overlayDoc, overlayDocErr := libopenapi.NewOverlayDocument(overlayBytes)
+	var overlayDoc *highoverlay.Overlay
+	var overlayDocErr error
+	if !withoutOverlay {
+		overlayDoc, overlayDocErr = libopenapi.NewOverlayDocument(overlayBytes)
+	}
 	if overlayDocErr != nil {
 		// Non-fatal: we still applied the overlay, just can't show the table
 		tui.RenderWarning("Could not parse overlay for display: %s", overlayDocErr.Error())
 	}
 
 	// Count warnings
-	warningCount := len(result.Warnings)
+	warningCount := len(result.Warnings) + len(transformWarnings)
 
 	// Display actions table (unless stdout mode or overlay parsing failed)
 	if !stdOut && overlayDoc != nil && len(overlayDoc.Actions) > 0 {
@@ -223,6 +377,13 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		for _, warning := range result.Warnings {
 			// Write warnings to stderr when using stdout for output
 			fmt.Fprintf(os.Stderr, "Warning: target '%s' - %s\n", warning.Target, warning.Message)
+		}
+		for _, warning := range transformWarnings {
+			fmt.Fprintf(os.Stderr, "Warning: %s - %s\n", warning.Path, warning.Message)
+		}
+	} else if !stdOut {
+		for _, warning := range transformWarnings {
+			tui.RenderWarning("%s - %s", warning.Path, warning.Message)
 		}
 	}
 
@@ -236,11 +397,14 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 			return writeErr
 		}
 
-		if warningCount > 0 {
+		if withoutOverlay {
+			tui.RenderSuccess("Transforms applied with %d warning(s), output written to '%s'", warningCount, outputPath)
+		} else if warningCount > 0 {
 			tui.RenderSuccess("Overlay applied with %d warning(s), output written to '%s'", warningCount, outputPath)
 		} else {
 			tui.RenderSuccess("Overlay applied successfully, output written to '%s'", outputPath)
 		}
+		renderOverlayTransformSummary(filterStats, pruneStats, filterOptions.Enabled(), pruneUnused)
 	}
 
 	// Show timing if requested
@@ -257,12 +421,48 @@ func runApplyOverlay(cmd *cobra.Command, args []string) error {
 		} else {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", wErr.Error())
 		}
-		// Exit with code 2 for warnings (distinct from code 1 for fatal errors)
-		// We need to exit directly because Cobra only supports exit code 1
-		os.Exit(WarningsExitCode)
+		return &ExitError{Code: WarningsExitCode, Message: wErr.Error()}
 	}
 
 	return nil
+}
+
+func validateOverlayTransformFlags(options openapitransform.TagFilterOptions, matchExplicit bool) error {
+	if matchExplicit && len(options.IncludeTags)+len(options.ExcludeTags) == 0 {
+		return errors.New("--tag-match requires at least one --include-tag or --exclude-tag")
+	}
+	return openapitransform.ValidateTagFilterOptions(options)
+}
+
+func renderApplyOverlayError(stdout bool, err error) {
+	if stdout {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+		return
+	}
+	tui.RenderErrorString("%s", err)
+}
+
+func renderOverlayTransformSummary(filter openapitransform.FilterStats, prune openapitransform.PruneStats, filtered, pruned bool) {
+	if filtered {
+		tui.RenderInfo("Filtered %d operations: %d kept, %d removed; removed %d empty operation containers",
+			filter.OperationsSeen, filter.OperationsKept, filter.OperationsRemoved,
+			filter.PathItemsRemoved+filter.WebhooksRemoved+filter.CallbackItemsRemoved)
+	}
+	if pruned {
+		summary := fmt.Sprintf("Pruned %d unused components", prune.ComponentsRemoved)
+		if prune.ComponentsRemoved > 0 {
+			sections := make([]string, 0, len(prune.RemovedBySection))
+			for section, count := range prune.RemovedBySection {
+				sections = append(sections, fmt.Sprintf("%d %s", count, section))
+			}
+			sort.Strings(sections)
+			summary += ": " + strings.Join(sections, ", ")
+		}
+		tui.RenderInfo("%s", summary)
+		if prune.TagsRemoved > 0 {
+			tui.RenderInfo("Pruned %d unused tags", prune.TagsRemoved)
+		}
+	}
 }
 
 // maxOverlaySize is the maximum size for remote overlay downloads (1 GiB)

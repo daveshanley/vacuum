@@ -76,6 +76,13 @@ func TestRuleSet_OWASPConstrainedAdditionalProperties_Error_NoBuildFail(t *testi
 	yml := `openapi: "3.0.0"
 info:
   version: "1.0"
+paths:
+  /items:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Foo'}
 components:
   schemas:
     Foo:
@@ -97,7 +104,7 @@ components:
 		}
 		results := motor.ApplyRulesToRuleSet(rse)
 		assert.Len(t, results.Results, 1)
-		assert.Equal(t, "schema should also define `maxProperties` when `additionalProperties` is an object", results.Results[0].Message)
+		assert.Equal(t, "request maps should define `maxProperties` to limit the number of properties", results.Results[0].Message)
 		assert.Equal(t, "$.components.schemas['Foo']", results.Results[0].Path)
 
 	})

@@ -5,18 +5,21 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/daveshanley/vacuum/arazzo"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/utils"
 	drModel "github.com/pb33f/doctor/model"
+	"github.com/pb33f/go-yaml"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
-	"go.yaml.in/yaml/v4"
 )
 
 type lintOriginalResult struct {
@@ -29,6 +32,7 @@ type originalDiffWarningFunc func(error)
 type originalResultSetDiffOptions struct {
 	OriginalPath            string
 	CurrentBytes            []byte
+	CurrentErrors           []error
 	CurrentPath             string
 	ResultSet               *model.RuleResultSet
 	Execution               *motor.RuleSetExecution
@@ -60,6 +64,7 @@ func (r *lintOriginalResult) releaseOwnedResources() {
 // All config fields (RuleSet, CustomFunctions, Timeout, etc.) are copied from the template
 // to guarantee exact config parity. Only Spec, SpecFileName, and Base are replaced.
 // Returns nil results (not an error) if the original spec has parse errors.
+// Rule lookup and execution failures return an error rather than an empty baseline.
 func LintOriginalSpec(originalPath string, template *motor.RuleSetExecution, executionOptions *motor.ExecutionOptions) ([]model.RuleFunctionResult, error) {
 	result, err := lintOriginalSpecForDiff(originalPath, template, executionOptions)
 	if result != nil {
@@ -119,9 +124,17 @@ func lintOriginalSpecForDiff(originalPath string, template *motor.RuleSetExecuti
 
 	result := motor.ApplyRulesToRuleSetWithOptions(exec, executionOptions)
 
-	// If original spec has parse errors, return nil — safe default means all new violations get reported
 	if len(result.Errors) > 0 {
-		result.ReleaseOwnedResources()
+		defer result.ReleaseOwnedResources()
+		// Preserve the invalid-original fallback, but never compare against an
+		// empty baseline after a rule lookup, configuration or execution failure.
+		// Configuration and cancellation can fail before SpecInfo exists.
+		executionErr := errors.Join(result.Errors...)
+		if result.SpecInfo != nil ||
+			ruleSetConfigurationError(result) != nil ||
+			errors.Is(executionErr, context.Canceled) || errors.Is(executionErr, context.DeadlineExceeded) {
+			return nil, NewInputError("failed to lint original spec %q: %v", originalPath, executionErr)
+		}
 		return nil, nil
 	}
 
@@ -132,6 +145,11 @@ func lintOriginalSpecForDiff(originalPath string, template *motor.RuleSetExecuti
 }
 
 func originalSpecCanReuseCurrentResults(originalPath string, currentBytes []byte, currentPath string, currentBase string, customFunctions map[string]model.RuleFunction) bool {
+	// Arazzo sources use sourceDescriptions, outside the $ref comparison below.
+	// Re-lint both source graphs even when the root document is unchanged.
+	if format, err := arazzo.DetectFormat(currentBytes); format != "" || err != nil {
+		return false
+	}
 	// Custom functions can observe runtime state or external inputs, so byte-equal
 	// specs do not guarantee byte-equal lint results.
 	if len(customFunctions) > 0 {
@@ -153,9 +171,13 @@ func originalSpecCanReuseCurrentResults(originalPath string, currentBytes []byte
 	return externalReferenceFilesMatch(originalPath, currentPath, currentBytes)
 }
 
-func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.DocumentChanges, bool) {
+func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.DocumentChanges, bool, error) {
 	if opts.OriginalPath == "" || opts.ResultSet == nil {
-		return nil, false
+		return nil, false, nil
+	}
+
+	if len(opts.CurrentErrors) > 0 {
+		return nil, false, NewInputError("failed to lint current spec %q: %v", opts.CurrentPath, errors.Join(opts.CurrentErrors...))
 	}
 
 	var customFunctions map[string]model.RuleFunction
@@ -166,28 +188,32 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 	}
 	if originalSpecCanReuseCurrentResults(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath, currentBase, customFunctions) {
 		opts.ResultSet.Results = nil
-		return emptyDocumentChanges(), true
+		return emptyDocumentChanges(), true, nil
 	}
 
 	if opts.Execution == nil {
-		changeResult, changeErr := utils.GenerateChangeReportWithTree(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
+		changeResult, changeErr := generateOriginalChangeReport(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
 		if changeErr != nil {
 			if opts.WarnChangeReportFailure != nil {
 				opts.WarnChangeReportFailure(changeErr)
 			}
-			return nil, false
+			return nil, false, nil
 		}
 		if changeResult == nil {
-			return nil, false
+			return nil, false, nil
 		}
 		changeFilter := utils.NewChangeFilter(changeResult.DocumentChanges, opts.DrDocument)
 		opts.ResultSet.Results = changeFilter.FilterResults(opts.ResultSet.Results)
-		return changeResult.DocumentChanges, true
+		return changeResult.DocumentChanges, true, nil
 	}
 
 	filtered := false
 	originalLint, lintErr := lintOriginalSpecForDiff(opts.OriginalPath, opts.Execution, opts.ExecutionOptions)
 	if lintErr != nil {
+		var fatal *ExitError
+		if errors.As(lintErr, &fatal) {
+			return nil, false, lintErr
+		}
 		if opts.WarnOriginalLintFailure != nil {
 			opts.WarnOriginalLintFailure(lintErr)
 		}
@@ -208,38 +234,43 @@ func applyOriginalDiffToResultSet(opts originalResultSetDiffOptions) (*wcModel.D
 		filtered = true
 	}
 
-	changeResult, changeErr := utils.GenerateChangeReportWithTree(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
+	changeResult, changeErr := generateOriginalChangeReport(opts.OriginalPath, opts.CurrentBytes, opts.CurrentPath)
 	if changeErr != nil {
 		if opts.WarnChangeReportFailure != nil {
 			opts.WarnChangeReportFailure(changeErr)
 		}
-		return nil, filtered
+		return nil, filtered, nil
 	}
 	if changeResult == nil {
-		return nil, filtered
+		return nil, filtered, nil
 	}
-	return changeResult.DocumentChanges, filtered
+	return changeResult.DocumentChanges, filtered, nil
 }
 
-func applyOriginalDiffToValues(opts originalValueDiffOptions) ([]model.RuleFunctionResult, *utils.ChangeFilterStats) {
+func applyOriginalDiffToValues(opts originalValueDiffOptions) ([]model.RuleFunctionResult, *utils.ChangeFilterStats, error) {
 	if opts.OriginalPath == "" {
-		return opts.Results, nil
+		return opts.Results, nil, nil
 	}
 	if opts.ReuseCurrentResults {
 		// Current lint results are also the original results. Route through the
 		// canonical differ so filtering stats stay identical to the full path.
-		return utils.DiffViolationsValues(opts.Results, opts.Results)
+		filtered, stats := utils.DiffViolationsValues(opts.Results, opts.Results)
+		return filtered, stats, nil
 	}
 	if opts.Execution == nil {
-		return opts.Results, nil
+		return opts.Results, nil, nil
 	}
 
 	originalLint, lintErr := lintOriginalSpecForDiff(opts.OriginalPath, opts.Execution, opts.ExecutionOptions)
 	if lintErr != nil {
+		var fatal *ExitError
+		if errors.As(lintErr, &fatal) {
+			return nil, nil, lintErr
+		}
 		if opts.WarnOriginalLintFailure != nil {
 			opts.WarnOriginalLintFailure(lintErr)
 		}
-		return opts.Results, nil
+		return opts.Results, nil, nil
 	}
 
 	var originalResults []model.RuleFunctionResult
@@ -255,7 +286,7 @@ func applyOriginalDiffToValues(opts originalValueDiffOptions) ([]model.RuleFunct
 	if originalLint != nil {
 		originalLint.releaseOwnedResources()
 	}
-	return filteredResults, stats
+	return filteredResults, stats, nil
 }
 
 func currentSpecUsesDefaultBase(currentPath string, currentBase string) bool {
@@ -426,4 +457,19 @@ func externalReferenceFile(ref string) (string, bool) {
 		return "", false
 	}
 	return refFile, true
+}
+
+// Arazzo supports finding comparisons, not OpenAPI structural change trees.
+func generateOriginalChangeReport(original string, current []byte, filename string) (*utils.ChangeResult, error) {
+	if format, _ := arazzo.DetectFormat(current); format != "" {
+		return nil, nil
+	}
+	return utils.GenerateChangeReportWithTree(original, current, filename)
+}
+
+func generateOriginalDocumentChanges(original string, current []byte, filename string) (*wcModel.DocumentChanges, error) {
+	if format, _ := arazzo.DetectFormat(current); format != "" {
+		return nil, nil
+	}
+	return utils.GenerateChangeReport(original, current, filename)
 }

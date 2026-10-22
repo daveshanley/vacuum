@@ -12,7 +12,7 @@ function hydrate() {
   // when we need to hydrate post render.
   // chart needs data
   const catChart = document.querySelector(
-    'category-piechart'
+    'category-piechart',
   ) as CategoryStatsChartComponent;
   if (catChart) {
     catChart.setChartData(window.statistics);
