@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/plugin/jsruleset"
 	"io"
 	"log/slog"
 	"maps"
@@ -269,6 +270,9 @@ func (r *runner) loadRules(c Case) (*rulesets.RuleSet, error) {
 		if r.rulesErr == nil {
 			captured := r.ruleFiles // frozen before the asynchronous extends loader starts
 			reader := func(path string) ([]byte, error) {
+				if jsruleset.IsModule(r.path(r.suite.Ruleset)) {
+					return r.read(path)
+				}
 				if data, ok := captured[filepath.Clean(path)]; ok {
 					return data, nil
 				}
@@ -277,6 +281,24 @@ func (r *runner) loadRules(c Case) (*rulesets.RuleSet, error) {
 			var loaded *rulesets.RuleSet
 			loaded, r.rulesErr = rulesets.LoadLocalRuleSetWithReader(r.ctx, r.path(r.suite.Ruleset), reader)
 			if r.rulesErr == nil {
+				if loaded.Executable != nil {
+					r.limitations["executable rulesets can use runtime inputs not captured in bundles"] = true
+					for _, file := range loaded.Executable.Files() {
+						data, err := r.read(file.Path)
+						if err != nil {
+							r.rulesErr = err
+							break
+						}
+						hash := fmt.Sprintf("%x", sha256.Sum256(data))
+						if hash != file.SHA256 {
+							r.rulesErr = fmt.Errorf("module changed during preparation: %s", file.Path)
+							break
+						}
+					}
+					if r.rulesErr != nil {
+						return nil, r.rulesErr
+					}
+				}
 				r.rules = rulesets.BuildDefaultRuleSetsWithLogger(r.logger).GenerateRuleSetFromSuppliedRuleSet(loaded)
 				r.rulesErr = r.rules.LoadError()
 			}
@@ -335,6 +357,9 @@ func (r *runner) trackRules(path string, seen map[string]bool) error {
 		return err
 	}
 	r.ruleFiles[filepath.Clean(path)] = b
+	if jsruleset.IsModule(path) {
+		return nil
+	}
 	rs, err := rulesets.CreateRuleSetFromData(b)
 	if err != nil {
 		return err
@@ -544,7 +569,7 @@ func detachedValues(ds []Diagnostic, base string) []model.RuleFunctionResult {
 
 // Each phase owns its rule data: motor adjusts messages and callbacks can mutate options.
 func copyExecutionRules(source *rulesets.RuleSet) *rulesets.RuleSet {
-	out := &rulesets.RuleSet{Description: source.Description, DocumentationURI: source.DocumentationURI, Formats: source.Formats, Aliases: source.Aliases, ParsedAliases: source.ParsedAliases, Rules: make(map[string]*model.Rule, len(source.Rules))}
+	out := &rulesets.RuleSet{Executable: source.Executable, Description: source.Description, DocumentationURI: source.DocumentationURI, Formats: source.Formats, Aliases: source.Aliases, ParsedAliases: source.ParsedAliases, Rules: make(map[string]*model.Rule, len(source.Rules))}
 	for id, rule := range source.Rules {
 		if rule != nil {
 			value := *rule

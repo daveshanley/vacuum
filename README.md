@@ -634,7 +634,7 @@ for scoped exceptions.
 
 ## Spectral migration
 
-vacuum loads YAML and JSON rulesets. Resolve each relative `extends` path from the
+vacuum loads YAML, JSON, and local JavaScript rulesets. Resolve each relative `extends` path from the
 file that contains it, including on Windows. Keep sibling rulesets relative:
 
 ```yaml
@@ -646,8 +646,17 @@ extends:
 
 Use `[vacuum:owasp, all]` for vacuum's built-in OWASP checks instead of importing
 `@stoplight/spectral-owasp-ruleset/dist/ruleset.mjs`. The native rules use vacuum's
-rule names and behavior; they do not execute the Spectral package. JavaScript
-ruleset modules (`.js`, `.mjs`, `.cjs`) are not supported.
+rule names and behavior; they do not execute the Spectral package.
+
+For JavaScript rulesets, export an object from a local `.js`, `.mjs`, or `.cjs` file:
+
+```shell
+vacuum lint api.yaml -r rules.mjs
+```
+
+Functions, static imports, Promises, and callable formats run in an isolated runtime
+for each document. See [JavaScript rulesets](https://quobix.com/vacuum/rulesets/javascript/)
+for supported imports, context, and migration limits.
 
 Arazzo 1.0 and 1.1 workflows use `vacuum lint workflows.yaml` and the normal
 report commands. `spectral:arazzo` selects Vacuum's native recommended rules.
@@ -660,7 +669,7 @@ and migration differences.
 vacuum lint api.yaml --ruleset rules/main.yaml --functions ./functions
 ```
 
-It does not enable JavaScript ruleset modules. Omitting the directory reports an
+JavaScript ruleset functions do not need this directory. Omitting the directory after `--functions` reports an
 input error and exits with code 2. In the editor, vacuum checks recognized ruleset
 buffers against its ruleset schema instead of reporting an unsupported API type.
 
