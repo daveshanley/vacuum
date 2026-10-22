@@ -150,3 +150,22 @@ func TestJavaScriptInheritedUnrestrictedFormats(t *testing.T) {
 		result.Release()
 	}
 }
+
+func TestJavaScriptReenableInheritedRule(t *testing.T) {
+	rs := loadJSRules(t, `const parent={rules:{check:{given:'$',severity:'error',then:{function:()=>[{message:'enabled'}]}}}};export default {extends:[[parent,'off']],rules:{check:true}}`)
+	result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}"), SilenceLogs: true})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "enabled", result.Results[0].Message)
+	require.Equal(t, "error", result.Results[0].Rule.Severity)
+}
+
+func TestJavaScriptReenableOverriddenSeverity(t *testing.T) {
+	rs := loadJSRules(t, `const parent={rules:{check:{given:'$',severity:'error',then:{function:()=>[{message:'enabled'}]}}}};const middle={extends:[parent],rules:{check:'info'}};export default {extends:[[middle,'off']],rules:{check:true}}`)
+	result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs, Spec: []byte("openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}"), SilenceLogs: true})
+	defer result.Release()
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Results, 1)
+	require.Equal(t, "info", result.Results[0].Rule.Severity)
+}
