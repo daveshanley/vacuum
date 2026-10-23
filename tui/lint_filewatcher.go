@@ -367,9 +367,7 @@ func loadWatchIgnoreFiles(config *WatchConfig) (model.IgnoredItems, error) {
 		if err := yaml.Unmarshal(raw, &items); err != nil {
 			return nil, fmt.Errorf("parse ignore file %q: %w", path, err)
 		}
-		for rule, entries := range items {
-			merged[rule] = append(merged[rule], entries...)
-		}
+		merged = merged.Merge(items)
 	}
 	return merged, nil
 }
