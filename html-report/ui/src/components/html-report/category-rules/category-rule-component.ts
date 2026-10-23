@@ -95,13 +95,6 @@ export class CategoryRuleComponent extends BaseComponent {
       if (this.violations) {
         this.violations.style.display = 'block';
       }
-      // use some intelligence to resize this in a responsive way.
-      const heightCalc =
-        this.parentElement.parentElement.offsetHeight -
-        this.totalRulesViolated * 60;
-      if (this.violations) {
-        this.violations.style.maxHeight = heightCalc + 'px';
-      }
       this._expandState = true;
     } else {
       if (this.violations) {
