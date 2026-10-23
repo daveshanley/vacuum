@@ -56,7 +56,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		return customFuncsErr
 	}
 
-	ignoredItems, ignoreErr := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
+	ignoredItems, ignoreErr := LoadIgnoreFiles(flags.ignoreFiles(), flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
 	if ignoreErr != nil {
 		return ignoreErr
 	}

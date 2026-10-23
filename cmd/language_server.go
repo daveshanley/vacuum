@@ -67,7 +67,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
-			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreFiles, _ := cmd.Flags().GetStringArray("ignore-file")
 
 			defaultRuleSets := rulesets.BuildDefaultRuleSetsWithLogger(logger)
 			selectedRS := defaultRuleSets.GenerateOpenAPIRecommendedRuleSet()
@@ -117,7 +117,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				}
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, true, false, false, false)
+			ignoredItems, err := LoadIgnoreFiles(ignoreFiles, true, false, false, false)
 			if err != nil {
 				return err
 			}
@@ -144,6 +144,6 @@ IDE and start linting your OpenAPI documents in real-time.`,
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	return cmd
 }

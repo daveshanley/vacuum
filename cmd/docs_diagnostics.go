@@ -116,7 +116,7 @@ func newDocsDiagnosticsContext(flags *LintFlags, httpClientConfig utils.HTTPClie
 	if err != nil {
 		return nil, fmt.Errorf("unable to load custom functions: %w", err)
 	}
-	ignoredItems, err := LoadIgnoreFile(clonedFlags.IgnoreFile, true, true, false, true)
+	ignoredItems, err := LoadIgnoreFiles(clonedFlags.ignoreFiles(), true, true, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,11 @@ func docsDiagnosticsFingerprint(enabled bool, flags *LintFlags, selectedRS *rule
 			payload["asyncapiFallbackRuleset"] = docsCanonicalRuleSet(family[1].asyncAPI)
 		}
 		if flags != nil {
-			payload["ignoreFile"] = docsPathFingerprint(flags.IgnoreFile)
+			ignoreFiles := make([]any, 0, len(flags.ignoreFiles()))
+			for _, path := range flags.ignoreFiles() {
+				ignoreFiles = append(ignoreFiles, docsPathFingerprint(path))
+			}
+			payload["ignoreFiles"] = ignoreFiles
 			payload["functions"] = docsPathFingerprint(flags.FunctionsFlag)
 		}
 	}

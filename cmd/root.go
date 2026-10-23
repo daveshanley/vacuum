@@ -317,6 +317,13 @@ func setBoundFlag(flags *pflag.FlagSet, flag *pflag.Flag, value any) error {
 	if flag.Value.Type() != "stringArray" && flag.Value.Type() != "stringSlice" {
 		return flags.Set(flag.Name, fmt.Sprintf("%v", value))
 	}
+	// A scalar ignore-file is one path, including spaces and commas.
+	// Lists are used for multiple paths in configuration files.
+	if flag.Name == "ignore-file" {
+		if path, ok := value.(string); ok {
+			value = []string{path}
+		}
+	}
 	values, err := stringCollectionValues(value)
 	if err != nil {
 		return err

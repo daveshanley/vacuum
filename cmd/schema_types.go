@@ -30,7 +30,7 @@ type schemaLintFlags struct {
 	NoClip               bool
 	ShowRules            bool
 	FailSeverity         string
-	IgnoreFile           string
+	IgnoreFiles          []string
 	Base                 string
 	Remote               bool
 	Timeout              int

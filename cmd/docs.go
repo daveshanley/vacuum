@@ -93,7 +93,7 @@ The source API contract is not shipped in generated output by default. Use
 	cmd.Flags().BoolVar(&opts.serve, "serve", false, "Serve the rendered output after building")
 	cmd.Flags().BoolVar(&opts.metrics, "metrics", false, "Show live aggregate runtime metrics while rendering")
 	cmd.Flags().IntVar(&opts.port, "port", 9090, "Port to use with --serve")
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 
