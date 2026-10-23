@@ -280,11 +280,9 @@ func LoadIgnoreFiles(paths []string, silent, pipeline, annotations, noStyle bool
 	for _, path := range paths {
 		items, err := LoadIgnoreFile(path, silent, pipeline, annotations, noStyle)
 		if err != nil {
-			return nil, fmt.Errorf("ignore file %q: %w", path, err)
+			return nil, err
 		}
-		for rule, entries := range items {
-			merged[rule] = append(merged[rule], entries...)
-		}
+		merged = merged.Merge(items)
 	}
 	return merged, nil
 }
@@ -306,7 +304,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bo
 			fmt.Printf("%sError: Failed to resolve ignore file path '%s': %v%s\n\n",
 				color.ASCIIRed, ignoreFile, err, color.ASCIIReset)
 		}
-		return ignoredItems, fmt.Errorf("failed to resolve ignore file path: %w", err)
+		return ignoredItems, fmt.Errorf("failed to resolve ignore file path %q: %w", ignoreFile, err)
 	}
 
 	raw, err := os.ReadFile(resolvedPath)
@@ -345,7 +343,7 @@ func LoadIgnoreFile(ignoreFile string, silent, pipeline, annotations, noStyle bo
 			fmt.Printf("%sError: Failed to parse ignore file '%s': %v%s\n\n",
 				color.ASCIIRed, resolvedPath, err, color.ASCIIReset)
 		}
-		return ignoredItems, fmt.Errorf("failed to parse ignore file: %w", err)
+		return ignoredItems, fmt.Errorf("failed to parse ignore file %q: %w", resolvedPath, err)
 	}
 
 	if !silent && !pipeline && !annotations {

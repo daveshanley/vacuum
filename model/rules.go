@@ -149,6 +149,18 @@ type RuleFunctionResult struct {
 // IgnoredItems is a map of the rule ID to an array of violation paths
 type IgnoredItems map[string][]string
 
+// Merge appends other paths by rule and returns the combined map. A nil receiver
+// is allocated when needed. Callers must retain the returned map.
+func (items IgnoredItems) Merge(other IgnoredItems) IgnoredItems {
+	if items == nil {
+		items = make(IgnoredItems, len(other))
+	}
+	for rule, paths := range other {
+		items[rule] = append(items[rule], paths...)
+	}
+	return items
+}
+
 // RuleResultSet contains all the results found during a linting run, and all the methods required to
 // filter, sort and calculate counts.
 type RuleResultSet struct {
