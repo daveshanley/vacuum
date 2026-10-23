@@ -2,11 +2,11 @@
 <footer>
     <!-- do something in here -->
 </footer>
-{{- if not .TestMode -}}
 <script>
   // statistics
   window.statistics = {{ renderJSON .Statistics }}
 </script>
+{{- if not .TestMode -}}
 <script>
     {{ .HydrateJS }}
 </script>

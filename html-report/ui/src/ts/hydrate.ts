@@ -1,22 +1,25 @@
-import { CategoryStatsChartComponent } from '../components/charts/category-stats-chart-component';
+import type { CategoryStatsChartComponent } from '../components/charts/category-stats-chart-component';
+import type { ReportStatistics } from '../model/chart-data';
 
 declare global {
   interface Window {
-    statistics: never;
+    statistics: ReportStatistics;
   }
 }
 
-// give the browser a few ms to breathe after setting up every component
-setTimeout(hydrate, 200);
-function hydrate() {
-  // when we need to hydrate post render.
-  // chart needs data
-  const catChart = document.querySelector(
-    'category-piechart',
-  ) as CategoryStatsChartComponent;
-  if (catChart) {
-    catChart.setChartData(window.statistics);
-  } else {
-    //alert('Something went really wrong.');
-  }
+async function hydrate() {
+  const chart =
+    document.querySelector<CategoryStatsChartComponent>('category-piechart');
+  if (!chart || !window.statistics) return;
+  await customElements.whenDefined('category-piechart');
+  await chart.updateComplete;
+  chart.setChartData(window.statistics);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => void hydrate(), {
+    once: true,
+  });
+} else {
+  void hydrate();
 }

@@ -19,7 +19,12 @@ body {
 
 .vacuum-container {
     padding-bottom: 0;
-    height: calc(100% - 100px);
+    height: auto;
+}
+
+html-report {
+    display: block;
+    height: max(400px, calc(100vh - 240px));
 }
 
 header-statistic {
@@ -112,6 +117,9 @@ sl-tab-group {
 
 
 category-piechart {
+    display: block;
+    flex: 1 1 400px;
+    min-width: 0;
     margin-right: 20px;
 }
 
@@ -147,7 +155,7 @@ category-piechart {
     border-spacing: 0;
     border-color: transparent!important;
 
-    max-width: 200px;
+    max-width: 100%;
     width: fit-content;
     margin: 0 0 0 10px;
     font-size: var(--sl-font-size-small);
@@ -234,6 +242,11 @@ category-report {
 }
 
 @media only screen and (max-width: 600px) {
+
+    html-report {
+        height: auto;
+    }
+
 
     .generated {
         padding: 3px;

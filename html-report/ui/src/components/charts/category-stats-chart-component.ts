@@ -8,7 +8,6 @@ import {
   Filler,
   Legend,
   LinearScale,
-  LogarithmicScale,
   Tooltip,
 } from 'chart.js';
 import { ReportStatistics } from '../../model/chart-data';
@@ -21,7 +20,6 @@ Chart.register(
   BarElement,
   CategoryScale,
   LinearScale,
-  LogarithmicScale,
 );
 
 export class CategoryStatsChartComponent extends LitElement {
@@ -33,13 +31,15 @@ export class CategoryStatsChartComponent extends LitElement {
     const errorData: Array<number> = [];
     const warnData: Array<number> = [];
     const infoData: Array<number> = [];
+    const hintData: Array<number> = [];
 
     const labels = [];
-    for (let x = 0; x < data.categoryStatistics.length; x++) {
+    for (let x = 0; x < (data.categoryStatistics ?? []).length; x++) {
       labels.push(data.categoryStatistics[x].categoryName);
       errorData.push(data.categoryStatistics[x].errors);
       warnData.push(data.categoryStatistics[x].warnings);
       infoData.push(data.categoryStatistics[x].info);
+      hintData.push(data.categoryStatistics[x].hints);
     }
 
     chartData.datasets = [
@@ -64,12 +64,20 @@ export class CategoryStatsChartComponent extends LitElement {
         borderColor: ['rgb(0,162,255)'],
         borderWidth: 1,
       },
+      {
+        label: 'Hints',
+        data: hintData,
+        backgroundColor: ['rgba(26,255,0,0.2)'],
+        borderColor: ['rgb(26,255,0)'],
+        borderWidth: 1,
+      },
     ];
 
     chartData.labels = labels;
     return chartData;
   }
 
+  /** Render category counts after the component has completed its first update. */
   public setChartData(data: ReportStatistics) {
     const chartData = this._buildChartDataFromReport(data);
 
@@ -80,30 +88,34 @@ export class CategoryStatsChartComponent extends LitElement {
       this.chart = new Chart(ctx, {
         type: 'bar',
         options: {
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#e8e9ed' } } },
           scales: {
             x: {
               stacked: true,
+              ticks: { color: '#a3abba' },
             },
             y: {
               stacked: true,
-              type: 'logarithmic',
+              beginAtZero: true,
+              ticks: { color: '#a3abba', precision: 0 },
+              grid: { color: '#3d3d3d' },
             },
           },
         },
         data: chartData,
       });
+    } else {
+      this.chart.data = chartData;
+      this.chart.update();
     }
   }
 
-  /**
-   * Called when the dom first time updated. init chart.js data, add observe, and add resize listener
-   */
-  public firstUpdated(): void {
-    window.addEventListener('resize', () => {
-      if (this.chart) {
-        this.chart.resize();
-      }
-    });
+  /** Release canvas observers and event handlers when the component is removed. */
+  public disconnectedCallback(): void {
+    this.chart?.destroy();
+    this.chart = undefined;
+    super.disconnectedCallback();
   }
 
   public render() {
@@ -111,11 +123,15 @@ export class CategoryStatsChartComponent extends LitElement {
       <style>
         .chart-size {
           position: relative;
-          width: 450px;
+          width: 100%;
+          height: 300px;
         }
       </style>
       <div class="chart-size">
-        <canvas></canvas>
+        <canvas
+          role="img"
+          aria-label="Violations by category and severity"
+        ></canvas>
       </div>
     `;
   }
