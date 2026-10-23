@@ -568,6 +568,23 @@ recognizes a compressed report file and will deal with it automatically when rea
 
 > When using compression, the file name will be `vacuum-report-MM-DD-YY-HH_MM_SS.json.gz`. vacuum uses gzip internally.
 
+## Selecting property names in custom rules
+
+Use quoted bracket notation for JSONPath property names with special characters, for example `['$ref']` and `['application/json']`. vacuum does not support JSONPath-Plus backtick escapes.
+
+To inspect a `$ref` property itself, set `resolved: false`. With `resolved: true`, rules inspect the referenced schema after resolution.
+
+```yaml
+rules:
+  no-request-body-refs:
+    description: Request body schemas must be inline.
+    given: "$.paths.*.*.requestBody.content['application/json'].schema['$ref']"
+    resolved: false
+    severity: warn
+    then:
+      function: falsy
+```
+
 ## Ignoring specific linting errors
 
 You can ignore specific linting errors by providing an `--ignore-file` argument to commands that run or replay lint results, including `lint`, `report`, `spectral-report`, `html-report`, `dashboard`, `docs`, `schema`, and `language-server`.

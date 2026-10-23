@@ -6,6 +6,7 @@ package motor
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,6 +73,9 @@ func compileRuleGivenPath(expression string, cache *sync.Map) (*jsonpath.JSONPat
 		jsonpathConfig.WithSpectralCompatibility(),
 		jsonpathConfig.WithLazyContextTracking(),
 	)
+	if err != nil && strings.Contains(expression, "`") {
+		err = fmt.Errorf("%w; backtick escapes are not supported: use bracket notation such as ['$ref'] or ['application/json']; set resolved: false to inspect $ref properties", err)
+	}
 	if cache != nil {
 		actual, _ := cache.LoadOrStore(cleaned, cachedRuleJSONPath{path: path, err: err})
 		entry := actual.(cachedRuleJSONPath)
