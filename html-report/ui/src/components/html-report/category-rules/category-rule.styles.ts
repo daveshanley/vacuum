@@ -55,6 +55,7 @@ export default css`
 
   .details > div.violations {
     font-size: var(--sl-font-size-x-small);
+    max-height: 50vh;
     overflow-y: auto;
     overflow-x: hidden;
     border: 1px solid var(--card-bordercolor);
@@ -127,12 +128,5 @@ export default css`
     padding: var(--global-padding);
     margin-bottom: 1px;
     margin-right: 1px;
-  }
-
-  @media only screen and (max-width: 600px) {
-    .details {
-      max-height: 300px;
-      overflow-y: hidden;
-    }
   }
 `;
