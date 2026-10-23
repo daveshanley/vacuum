@@ -89,6 +89,9 @@ type htmlReport struct {
 func (html htmlReport) GenerateReport(test bool, version string) []byte {
 
 	templateFuncs := template.FuncMap{
+		"totalIssues": func(stats *reports.ReportStatistics) int {
+			return stats.TotalErrors + stats.TotalWarnings + stats.TotalInfo + stats.TotalHints
+		},
 		"renderJSON": func(data interface{}) string {
 			b, _ := json.Marshal(data)
 			return string(b)
