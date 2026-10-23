@@ -80,6 +80,21 @@
     </html-report>
 </div>
 <div class="container">
+    {{- if .Statistics -}}
+    <section class="report-statistics" aria-label="Report scores">
+        <category-piechart></category-piechart>
+        <table class="category-scores">
+            <caption>Quality scores</caption>
+            <thead><tr><th scope="col">Category</th><th scope="col">Score</th><th scope="col">Issues</th></tr></thead>
+            <tbody>
+                <tr><th scope="row">Overall</th><td>{{ .Statistics.OverallScore }}%</td><td></td></tr>
+                {{- range .Statistics.CategoryStatistics }}
+                <tr><th scope="row">{{ .CategoryName | html }}</th><td>{{ .Score }}%</td><td>{{ .NumIssues }}</td></tr>
+                {{- end }}
+            </tbody>
+        </table>
+    </section>
+    {{- end }}
 {{- template "footer" . -}}
 </div>
 </body>
