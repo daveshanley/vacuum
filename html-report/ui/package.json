@@ -11,14 +11,15 @@
     "build": "webpack --mode=production",
     "lint": "eslint src/ && prettier \"src/**/*.ts\" --check",
     "format": "eslint src/ --fix && prettier \"src/**/*.ts\" --write",
-    "test": "echo \"no tests configured\"",
-    "test:watch": "echo \"no tests configured\""
+    "test": "node --test tests/*.test.mjs",
+    "test:watch": "node --test --watch tests/*.test.mjs"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^14.0.0",
     "eslint": "^10.13.0",
     "lint-staged": "^17.6.0",
     "mini-css-extract-plugin": "^2.10.2",
+    "playwright": "^1.64.1",
     "prettier": "^3.9.10",
     "typescript-eslint": "^8.72.0",
     "webpack": "^5.112.0",

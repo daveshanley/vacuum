@@ -81,6 +81,10 @@ jobs:
         env:
           KEEP_NODE_MODULES: "1"
 
+      - name: Install Chromium for HTML report tests
+        run: npx playwright install --with-deps chromium
+        working-directory: html-report/ui
+
       - name: Test HTML report UI
         run: npm test
         working-directory: html-report/ui
