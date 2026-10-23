@@ -16,9 +16,6 @@ export class CategoryRuleComponent extends BaseComponent {
   static styles = categoryRuleStyles;
 
   @property()
-  totalRulesViolated: number;
-
-  @property()
   maxViolations: number;
 
   @property()

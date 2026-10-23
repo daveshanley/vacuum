@@ -34,12 +34,13 @@ export class CategoryStatsChartComponent extends LitElement {
     const hintData: Array<number> = [];
 
     const labels = [];
-    for (let x = 0; x < (data.categoryStatistics ?? []).length; x++) {
-      labels.push(data.categoryStatistics[x].categoryName);
-      errorData.push(data.categoryStatistics[x].errors);
-      warnData.push(data.categoryStatistics[x].warnings);
-      infoData.push(data.categoryStatistics[x].info);
-      hintData.push(data.categoryStatistics[x].hints);
+    const stats = data.categoryStatistics ?? [];
+    for (const category of stats) {
+      labels.push(category.categoryName);
+      errorData.push(category.errors);
+      warnData.push(category.warnings);
+      infoData.push(category.info);
+      hintData.push(category.hints);
     }
 
     chartData.datasets = [

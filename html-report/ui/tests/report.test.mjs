@@ -89,6 +89,24 @@ test('generated report renders scores and hydrates its chart without a timer', a
     };
   });
   assert.ok(result.canvasWidth > 0);
+  const overallCells = await page
+    .locator('.category-scores tbody tr')
+    .first()
+    .locator('td')
+    .allTextContents();
+  const stats = result.statistics;
+  assert.equal(
+    Number(overallCells[1]),
+    (stats.totalErrors ?? 0) +
+      (stats.totalWarnings ?? 0) +
+      (stats.totalInfo ?? 0) +
+      (stats.totalHints ?? 0),
+  );
+  assert.equal(
+    await page.locator('category-rule[totalrulesviolated]').count(),
+    0,
+  );
+
   assert.ok(result.scores.includes(`${result.statistics.overallScore ?? 0}%`));
   for (const [i, category] of result.statistics.categoryStatistics.entries()) {
     assert.equal(result.labels[i], category.categoryName);

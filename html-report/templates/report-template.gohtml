@@ -57,7 +57,6 @@
                         {{- $howToFixRule := .Rule.HowToFix -}}
                         {{- $documentationUrlRule := .Rule.DocumentationURL -}}
                         <category-rule maxViolations="{{ $maxViolations }}"
-                                       totalRulesViolated="{{ len $ruleResults.RuleResults }}"
                                        ruleIcon="{{ ruleSeverityIcon .Rule.Severity }}" ruleId="{{ .Rule.Id | html }}"
                                        description="{{ .Rule.Description }}" numResults={{ .Seen }} {{ if .Truncated }}truncated=true{{end}}>
                             {{- with sortResults .Results -}}
@@ -87,7 +86,7 @@
             <caption>Quality scores</caption>
             <thead><tr><th scope="col">Category</th><th scope="col">Score</th><th scope="col">Issues</th></tr></thead>
             <tbody>
-                <tr><th scope="row">Overall</th><td>{{ .Statistics.OverallScore }}%</td><td></td></tr>
+                <tr><th scope="row">Overall</th><td>{{ .Statistics.OverallScore }}%</td><td>{{ totalIssues .Statistics }}</td></tr>
                 {{- range .Statistics.CategoryStatistics }}
                 <tr><th scope="row">{{ .CategoryName | html }}</th><td>{{ .Score }}%</td><td>{{ .NumIssues }}</td></tr>
                 {{- end }}
