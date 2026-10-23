@@ -712,6 +712,8 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	docConfigUnresolved := *docConfigResolved
 	docConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
 	indexConfig.ResolveNestedRefsWithDocumentContext = docConfigResolved.ResolveNestedRefsWithDocumentContext
+	indexConfig.IgnoreArrayCircularReferences = docConfigResolved.IgnoreArrayCircularReferences
+	indexConfig.IgnorePolymorphicCircularReferences = docConfigResolved.IgnorePolymorphicCircularReferences
 	indexConfigUnresolved.ResolveNestedRefsWithDocumentContext = false
 
 	docResolved := execution.Document
