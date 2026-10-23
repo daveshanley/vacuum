@@ -477,7 +477,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner output")
-	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
+	pathArrayFlag(cmd.Flags(), "ignore-file", "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to process (e.g., 'specs/*.yaml')")

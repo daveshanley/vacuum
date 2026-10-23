@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -82,10 +83,10 @@ type ServerState struct {
 	logger *slog.Logger
 
 	// Cached resource paths to detect changes and avoid reloading
-	loadedRulesetPath    string
-	loadedFunctionsPath  string
-	loadedIgnoreFilePath string
-	loadedHardMode       bool
+	loadedRulesetPath     string
+	loadedFunctionsPath   string
+	loadedIgnoreFilePaths []string
+	loadedHardMode        bool
 
 	workspaceConfigurationSupported                    bool
 	didChangeConfigurationDynamicRegistrationSupported bool
@@ -120,6 +121,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	// Create base config from initial lintRequest values (command-line flags)
 	baseConfig := &LSPConfig{
 		Base:          lintRequest.BaseFlag,
+		IgnoreFiles:   slices.Clone(lintRequest.IgnoreFiles),
 		Remote:        boolPtr(lintRequest.Remote),
 		SkipCheck:     boolPtr(lintRequest.SkipCheckFlag),
 		Timeout:       intPtr(lintRequest.TimeoutFlag),
@@ -653,8 +655,10 @@ func (s *ServerState) applyEffectiveConfigLocked() error {
 	}
 
 	// Apply layers in order of increasing priority
-	MergeConfig(effective, s.baseConfig)    // Command-line flags
-	MergeConfig(effective, s.fileConfig)    // vacuum.conf.yaml
+	MergeConfig(effective, s.baseConfig) // Command-line flags
+	MergeConfig(effective, s.fileConfig) // vacuum.conf.yaml
+	// Explicit CLI ignore files override disk config; editor settings can override both.
+	mergeIgnoreFilesConfig(effective, s.baseConfig)
 	MergeConfig(effective, s.initConfig)    // InitializationOptions
 	MergeConfig(effective, s.runtimeConfig) // didChangeConfiguration
 
@@ -780,27 +784,17 @@ func (s *ServerState) loadFunctionsIfChanged(cfg *LSPConfig) error {
 }
 
 func (s *ServerState) loadIgnoreFileIfChanged(cfg *LSPConfig) error {
-	effectiveIgnoreFile := cfg.IgnoreFile
-
-	if effectiveIgnoreFile == s.loadedIgnoreFilePath {
+	paths := cfg.ignoreFiles()
+	if slices.Equal(paths, s.loadedIgnoreFilePaths) && (paths == nil) == (s.loadedIgnoreFilePaths == nil) {
 		return nil
 	}
-
-	if effectiveIgnoreFile != "" {
-		resolvedIgnoreFile, err := s.resolveDocumentConfigPath(effectiveIgnoreFile, "")
-		if err != nil {
-			return err
-		}
-		ignoredResults, err := loadIgnoreFileForLSP(resolvedIgnoreFile)
-		if err != nil {
-			return err
-		}
-		s.lintRequest.IgnoredResults = ignoredResults
-	} else {
-		s.lintRequest.IgnoredResults = model.IgnoredItems{}
+	ignored, err := s.loadIgnoreFilesForDocument(paths, "")
+	if err != nil {
+		return err
 	}
+	s.lintRequest.IgnoredResults = ignored
+	s.loadedIgnoreFilePaths = slices.Clone(paths)
 
-	s.loadedIgnoreFilePath = effectiveIgnoreFile
 	return nil
 }
 

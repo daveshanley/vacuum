@@ -605,6 +605,8 @@ Repeat `--ignore-file` to combine waivers from multiple files. Paths for the sam
 
 In `vacuum.conf.yaml`, `ignore-file` accepts either one path or a YAML list of paths. A scalar value, including `VACUUM_IGNORE_FILE`, is always one path; commas are part of the filename.
 
+Language-server editor settings accept `ignoreFiles: ["one.yaml", "two.yaml"]`; the legacy `ignoreFile` string still works. An empty `ignoreFiles` list clears waivers. Explicit CLI ignore files override disk config; editor initialization and workspace settings can override the CLI defaults.
+
 The ignore-file should point to a `.yaml` file that contains exact result paths or JSONPath expressions to be ignored by vacuum. The structure of the YAML file is as follows:
 
 ```

@@ -148,6 +148,7 @@ func (s *ServerState) baseEffectiveConfig(includeRuntime bool) (*LSPConfig, lint
 	snapshot := s.lintRequestSnapshotLocked()
 	MergeConfig(effective, s.baseConfig)
 	MergeConfig(effective, s.fileConfig)
+	mergeIgnoreFilesConfig(effective, s.baseConfig)
 	MergeConfig(effective, s.initConfig)
 	if includeRuntime {
 		MergeConfig(effective, s.runtimeConfig)
@@ -330,12 +331,9 @@ func (s *ServerState) buildDocumentRuntimeConfig(config *LSPConfig, uri protocol
 	}
 
 	ignoredResults := snapshot.ignoredResults
-	if config.IgnoreFile != "" {
-		resolvedIgnoreFile, err := s.resolveDocumentConfigPath(config.IgnoreFile, uri)
-		if err != nil {
-			return nil, err
-		}
-		ignoredResults, err = loadIgnoreFileForLSP(resolvedIgnoreFile)
+	if paths := config.ignoreFiles(); paths != nil {
+		var err error
+		ignoredResults, err = s.loadIgnoreFilesForDocument(paths, uri)
 		if err != nil {
 			return nil, err
 		}
@@ -625,4 +623,23 @@ func (s *ServerState) getCallFunc() lsp.CallFunc {
 	s.callMu.RLock()
 	defer s.callMu.RUnlock()
 	return s.callFunc
+}
+
+func (s *ServerState) loadIgnoreFilesForDocument(paths []string, uri protocol.DocumentUri) (model.IgnoredItems, error) {
+	merged := model.IgnoredItems{}
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		resolved, err := s.resolveDocumentConfigPath(path, uri)
+		if err != nil {
+			return nil, err
+		}
+		items, err := loadIgnoreFileForLSP(resolved)
+		if err != nil {
+			return nil, err
+		}
+		merged = merged.Merge(items)
+	}
+	return merged, nil
 }

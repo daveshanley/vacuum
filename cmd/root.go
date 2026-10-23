@@ -308,6 +308,9 @@ func bindFlags(flags *pflag.FlagSet, viperTree *viper.Viper) error {
 		if err == nil && !f.Changed && viperTree.IsSet(f.Name) {
 			val := viperTree.Get(f.Name)
 			err = setBoundFlag(flags, f, val)
+			if err == nil {
+				_ = flags.SetAnnotation(f.Name, configBoundAnnotation, []string{"true"})
+			}
 		}
 	})
 	return err
@@ -317,9 +320,9 @@ func setBoundFlag(flags *pflag.FlagSet, flag *pflag.Flag, value any) error {
 	if flag.Value.Type() != "stringArray" && flag.Value.Type() != "stringSlice" {
 		return flags.Set(flag.Name, fmt.Sprintf("%v", value))
 	}
-	// A scalar ignore-file is one path, including spaces and commas.
+	// A scalar path or glob is one value, including spaces and commas.
 	// Lists are used for multiple paths in configuration files.
-	if flag.Name == "ignore-file" {
+	if _, isPath := flag.Annotations[pathFlagAnnotation]; isPath {
 		if path, ok := value.(string); ok {
 			value = []string{path}
 		}
@@ -448,4 +451,13 @@ func ResolveConfigPath(raw string) (string, error) {
 
 	// Default to CWD path (will fail later with appropriate error)
 	return cwdPath, nil
+}
+
+const pathFlagAnnotation = "vacuum.path"
+const configBoundAnnotation = "vacuum.config-bound"
+
+// pathArrayFlag declares a repeatable path or glob with literal scalar config values.
+func pathArrayFlag(flags *pflag.FlagSet, name, usage string) {
+	flags.StringArray(name, nil, usage)
+	_ = flags.SetAnnotation(name, pathFlagAnnotation, []string{"true"})
 }

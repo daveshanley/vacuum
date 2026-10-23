@@ -4,8 +4,10 @@
 package languageserver
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
@@ -29,7 +31,7 @@ func (s *ServerState) initializeConfig() {
 	_ = viper.ReadInConfig()
 
 	// Parse file config and apply it
-	if err := s.setFileConfig(s.parseViperConfig(), configDirectoryFromViper()); err != nil {
+	if err := s.applyViperConfig(); err != nil {
 		s.logger.Warn("failed to apply initial config", "error", err)
 	}
 }
@@ -48,7 +50,7 @@ func getXdgConfigHome() string {
 }
 
 // parseViperConfig extracts configuration from viper into an LSPConfig struct
-func (s *ServerState) parseViperConfig() *LSPConfig {
+func (s *ServerState) parseViperConfig() (*LSPConfig, error) {
 	cfg := &LSPConfig{}
 
 	if viper.IsSet("ruleset") {
@@ -85,7 +87,23 @@ func (s *ServerState) parseViperConfig() *LSPConfig {
 		cfg.ExtensionRefs = boolPtr(viper.GetBool("ext-refs"))
 	}
 	if viper.IsSet("ignore-file") {
-		cfg.IgnoreFile = viper.GetString("ignore-file")
+		switch value := viper.Get("ignore-file").(type) {
+		case string:
+			cfg.IgnoreFiles = []string{value}
+		case []string:
+			cfg.IgnoreFiles = slices.Clone(value)
+		case []any:
+			cfg.IgnoreFiles = make([]string, len(value))
+			for i, item := range value {
+				path, ok := item.(string)
+				if !ok {
+					return nil, fmt.Errorf("ignore-file item %d must be a path string, got %T", i, item)
+				}
+				cfg.IgnoreFiles[i] = path
+			}
+		default:
+			return nil, fmt.Errorf("ignore-file must be a path or list of paths, got %T", value)
+		}
 	}
 	if viper.IsSet("cert-file") {
 		cfg.CertFile = viper.GetString("cert-file")
@@ -100,7 +118,7 @@ func (s *ServerState) parseViperConfig() *LSPConfig {
 		cfg.Insecure = boolPtr(viper.GetBool("insecure"))
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 // onConfigChange is called when the config file changes on disk
@@ -108,7 +126,7 @@ func (s *ServerState) onConfigChange(e fsnotify.Event) {
 	s.logger.Info("config file changed, reloading", "file", e.Name)
 
 	// Re-parse the config from viper
-	if err := s.setFileConfig(s.parseViperConfig(), configDirectoryFromViper()); err != nil {
+	if err := s.applyViperConfig(); err != nil {
 		s.logger.Warn("failed to apply config change", "error", err)
 		return
 	}
@@ -129,4 +147,12 @@ func configDirectoryFromViper() string {
 		}
 	}
 	return ""
+}
+
+func (s *ServerState) applyViperConfig() error {
+	config, err := s.parseViperConfig()
+	if err != nil {
+		return err
+	}
+	return s.setFileConfig(config, configDirectoryFromViper())
 }

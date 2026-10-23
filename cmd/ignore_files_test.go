@@ -101,6 +101,7 @@ func TestLanguageServerMultipleIgnoreFiles(t *testing.T) {
 	called := false
 	runLanguageServer = func(_ string, request *utils.LintFileRequest, _ *motor.ExecutionOptions) error {
 		called = true
+		require.Equal(t, []string{first, second}, request.IgnoreFiles)
 		require.Equal(t, model.IgnoredItems{"rule": {"one", "two"}}, request.IgnoredResults)
 		return nil
 	}
@@ -118,4 +119,40 @@ func TestDocsDiagnosticsFingerprintMultipleIgnoreFiles(t *testing.T) {
 	before := docsDiagnosticsFingerprint(true, flags, nil)
 	require.NoError(t, os.WriteFile(second, []byte("rule: [three]\n"), 0600))
 	require.NotEqual(t, before, docsDiagnosticsFingerprint(true, flags, nil))
+}
+
+func TestPathArrayConfigKeepsCommaGlobs(t *testing.T) {
+	for _, name := range []string{"globbed-files", "include", "exclude"} {
+		for _, value := range []any{"specs/{pets,stores}/*.yaml", []any{"specs/{pets,stores}/*.yaml", "other/*.json"}} {
+			cmd := GetSchemaCommand()
+			tree := viper.New()
+			tree.Set(name, value)
+			require.NoError(t, bindFlags(cmd.Flags(), tree))
+			got, err := cmd.Flags().GetStringArray(name)
+			require.NoError(t, err)
+			require.Equal(t, "specs/{pets,stores}/*.yaml", got[0])
+			if _, ok := value.(string); ok {
+				require.Len(t, got, 1)
+			} else {
+				require.Len(t, got, 2)
+			}
+		}
+	}
+}
+
+func TestLanguageServerConfigPathsAreNotCLIOverrides(t *testing.T) {
+	original := runLanguageServer
+	t.Cleanup(func() { runLanguageServer = original })
+	path := writeIgnoreFixture(t, "one.yaml", "rule: [one]\n")
+	runLanguageServer = func(_ string, request *utils.LintFileRequest, _ *motor.ExecutionOptions) error {
+		require.Nil(t, request.IgnoreFiles)
+		require.Equal(t, model.IgnoredItems{"rule": {"one"}}, request.IgnoredResults)
+		return nil
+	}
+	cmd := GetLanguageServerCommand()
+	registerPersistentFlags(cmd)
+	tree := viper.New()
+	tree.Set("ignore-file", path)
+	require.NoError(t, bindFlags(cmd.Flags(), tree))
+	require.NoError(t, cmd.Execute())
 }
