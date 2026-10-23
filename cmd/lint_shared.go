@@ -86,7 +86,8 @@ type LintFlags struct {
 	FunctionsFlag            string
 	TimeFlag                 bool
 	HardModeFlag             bool
-	IgnoreFile               string
+	IgnoreFile               string   // Legacy single-file input; combined with IgnoreFiles.
+	IgnoreFiles              []string // Ignore files merged in order.
 	NoClipFlag               bool
 	ExtRefsFlag              bool
 	IgnoreArrayCircleRef     bool
@@ -181,7 +182,7 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("hard-mode") && viper.IsSet("lint.hard-mode") {
 		flags.HardModeFlag = viper.GetBool("lint.hard-mode")
 	}
-	flags.IgnoreFile, _ = cmd.Flags().GetString("ignore-file")
+	flags.IgnoreFiles, _ = cmd.Flags().GetStringArray("ignore-file")
 	flags.NoClipFlag, _ = cmd.Flags().GetBool("no-clip")
 	flags.ExtRefsFlag, _ = cmd.Flags().GetBool("ext-refs")
 	if !cmd.Flags().Changed("ext-refs") && viper.IsSet("lint.ext-refs") {
@@ -263,6 +264,29 @@ func SetupVacuumEnvironment(flags *LintFlags) {
 	if !flags.SilentFlag && !flags.NoBannerFlag && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		PrintBanner(flags.NoStyleFlag)
 	}
+}
+
+// ignoreFiles preserves the single-file library input alongside repeatable CLI inputs.
+func (flags *LintFlags) ignoreFiles() []string {
+	if flags.IgnoreFile == "" {
+		return flags.IgnoreFiles
+	}
+	return append([]string{flags.IgnoreFile}, flags.IgnoreFiles...)
+}
+
+// LoadIgnoreFiles merges rule paths from all supplied files. Any invalid file fails the load.
+func LoadIgnoreFiles(paths []string, silent, pipeline, annotations, noStyle bool) (model.IgnoredItems, error) {
+	merged := model.IgnoredItems{}
+	for _, path := range paths {
+		items, err := LoadIgnoreFile(path, silent, pipeline, annotations, noStyle)
+		if err != nil {
+			return nil, fmt.Errorf("ignore file %q: %w", path, err)
+		}
+		for rule, entries := range items {
+			merged[rule] = append(merged[rule], entries...)
+		}
+	}
+	return merged, nil
 }
 
 // LoadIgnoreFile loads and parses the ignore file if specified

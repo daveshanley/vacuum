@@ -81,7 +81,7 @@ func addSchemaLintFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("no-message", "m", false, "Hide message output when using -d")
 	cmd.Flags().BoolP("all-results", "a", false, "Render all results when using -d")
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (error, warn, info, hint, none)")
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths")
 	cmd.Flags().Bool("show-rules", false, "Show which rules are being used when linting")
 	cmd.Flags().StringArray("globbed-files", nil, "Glob pattern of schema files to lint; may be repeated")
@@ -115,7 +115,7 @@ func readSchemaLintFlags(cmd *cobra.Command) (*schemaLintFlags, error) {
 	flags.NoClip, _ = cmd.Flags().GetBool("no-clip")
 	flags.ShowRules, _ = cmd.Flags().GetBool("show-rules")
 	flags.FailSeverity, _ = cmd.Flags().GetString("fail-severity")
-	flags.IgnoreFile, _ = cmd.Flags().GetString("ignore-file")
+	flags.IgnoreFiles, _ = cmd.Flags().GetStringArray("ignore-file")
 	flags.Base, _ = cmd.Flags().GetString("base")
 	flags.Remote, _ = cmd.Flags().GetBool("remote")
 	flags.Timeout, _ = cmd.Flags().GetInt("timeout")
@@ -198,7 +198,7 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.Silent, false, false, flags.NoStyle)
+	ignoredItems, err := LoadIgnoreFiles(flags.IgnoreFiles, flags.Silent, false, false, flags.NoStyle)
 	if err != nil {
 		return err
 	}

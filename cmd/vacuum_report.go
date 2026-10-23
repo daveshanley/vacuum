@@ -60,7 +60,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			timeoutFlag, _ := cmd.Flags().GetInt("timeout")
 			lookupTimeoutFlag, _ := cmd.Flags().GetInt("lookup-timeout")
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
-			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreFiles, _ := cmd.Flags().GetStringArray("ignore-file")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			extensionRefsFlag, _ := cmd.Flags().GetBool("ext-refs")
@@ -167,7 +167,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 				reportOutput = args[1]
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, stdIn || stdOut, stdOut, false, noStyleFlag)
+			ignoredItems, err := LoadIgnoreFiles(ignoreFiles, stdIn || stdOut, stdOut, false, noStyleFlag)
 			if err != nil {
 				return err
 			}
@@ -217,7 +217,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 			}
 
 			deepGraph := false
-			if ignoreFile != "" {
+			if len(ignoreFiles) > 0 {
 				deepGraph = true
 			}
 
@@ -570,7 +570,7 @@ vacuum report --globbed-files "api/**/*.json" -c`,
 	cmd.Flags().BoolP("compress", "c", false, "Compress results using gzip")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().Int("min-score", 10, "Throw an error return code if the score is below this value")

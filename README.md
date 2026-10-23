@@ -570,7 +570,7 @@ recognizes a compressed report file and will deal with it automatically when rea
 
 ## Ignoring specific linting errors
 
-You can ignore specific linting errors by providing an `--ignore-file` argument to commands that run or replay lint results, including `lint`, `report`, `spectral-report`, `html-report`, `dashboard`, and `docs`.
+You can ignore specific linting errors by providing an `--ignore-file` argument to commands that run or replay lint results, including `lint`, `report`, `spectral-report`, `html-report`, `dashboard`, `docs`, `schema`, and `language-server`.
 
 ```
 ./vacuum lint --ignore-file <path-to-ignore-file.yaml> -d <your-openapi-spec.yaml>
@@ -579,6 +579,14 @@ You can ignore specific linting errors by providing an `--ignore-file` argument 
 ```
 ./vacuum report --ignore-file <path-to-ignore-file.yaml> -c <your-openapi-spec.yaml> <report-prefix>
 ```
+
+Repeat `--ignore-file` to combine waivers from multiple files. Paths for the same rule are appended; an unreadable or invalid file stops the command.
+
+```sh
+./vacuum lint --ignore-file pets-ignore.yaml --ignore-file stores-ignore.yaml api.yaml
+```
+
+In `vacuum.conf.yaml`, `ignore-file` accepts either one path or a YAML list of paths. A scalar value, including `VACUUM_IGNORE_FILE`, is always one path; commas are part of the filename.
 
 The ignore-file should point to a `.yaml` file that contains exact result paths or JSONPath expressions to be ignored by vacuum. The structure of the YAML file is as follows:
 

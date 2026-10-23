@@ -57,7 +57,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().BoolP("no-message", "m", false, "Hide message output when using -d")
 	cmd.Flags().BoolP("all-results", "a", false, "Render all results when using -d")
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code (error, warn, info, hint, none)")
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("no-clip", false, "Do not truncate messages or paths")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
@@ -142,7 +142,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 	fileName := filesToLint[0]
 
 	// ignore file
-	ignoredItems, err := LoadIgnoreFile(flags.IgnoreFile, flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
+	ignoredItems, err := LoadIgnoreFiles(flags.ignoreFiles(), flags.SilentFlag, flags.PipelineOutput, flags.GitHubAnnotations, flags.NoStyleFlag)
 	if err != nil {
 		return err
 	}

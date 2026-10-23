@@ -65,7 +65,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
-			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreFiles, _ := cmd.Flags().GetStringArray("ignore-file")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			changesFlag, _ := cmd.Flags().GetString("changes")
@@ -134,7 +134,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 				reportOutput = args[1]
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false, noStyleFlag)
+			ignoredItems, err := LoadIgnoreFiles(ignoreFiles, silent, false, false, noStyleFlag)
 			if err != nil {
 				return err
 			}
@@ -477,7 +477,7 @@ vacuum html-report --globbed-files "api/**/*.json"`,
 	cmd.Flags().BoolP("disableTimestamp", "d", false, "Disable timestamp in report")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
 	cmd.Flags().BoolP("no-banner", "b", false, "Disable the banner output")
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to process (e.g., 'specs/*.yaml')")

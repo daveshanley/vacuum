@@ -31,7 +31,8 @@ type WatchConfig struct {
 	TimeoutFlag                  int
 	HardModeFlag                 bool
 	RemoteFlag                   bool
-	IgnoreFile                   string
+	IgnoreFile                   string   // Legacy single-file input.
+	IgnoreFiles                  []string // Ignore files reloaded for each lint run.
 	FunctionsFlag                string
 	RulesetFlag                  string
 	CertFile                     string
@@ -219,13 +220,9 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 		}
 	}
 
-	// ignore file if specified
-	var ignoredItems model.IgnoredItems
-	if m.watchConfig.IgnoreFile != "" {
-		raw, ferr := os.ReadFile(m.watchConfig.IgnoreFile)
-		if ferr == nil {
-			_ = yaml.Unmarshal(raw, &ignoredItems)
-		}
+	ignoredItems, err := loadWatchIgnoreFiles(m.watchConfig)
+	if err != nil {
+		return relintErrorMsg{err: err}
 	}
 
 	result := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
@@ -349,4 +346,30 @@ func (m *ViolationResultTableModel) updateWatchedFilesFromRolodex(specIndex *ind
 			newFiles[absPath] = true
 		}
 	}
+}
+
+// loadWatchIgnoreFiles reloads all waivers without returning a partial merge on failure.
+func loadWatchIgnoreFiles(config *WatchConfig) (model.IgnoredItems, error) {
+	paths := config.IgnoreFiles
+	if config.IgnoreFile != "" {
+		paths = append([]string{config.IgnoreFile}, paths...)
+	}
+	merged := model.IgnoredItems{}
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read ignore file %q: %w", path, err)
+		}
+		var items model.IgnoredItems
+		if err := yaml.Unmarshal(raw, &items); err != nil {
+			return nil, fmt.Errorf("parse ignore file %q: %w", path, err)
+		}
+		for rule, entries := range items {
+			merged[rule] = append(merged[rule], entries...)
+		}
+	}
+	return merged, nil
 }

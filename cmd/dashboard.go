@@ -55,7 +55,7 @@ func GetDashboardCommand() *cobra.Command {
 			hardModeFlag, _ := cmd.Flags().GetBool("hard-mode")
 			silent, _ := cmd.Flags().GetBool("silent")
 			remoteFlag, _ := cmd.Flags().GetBool("remote")
-			ignoreFile, _ := cmd.Flags().GetString("ignore-file")
+			ignoreFiles, _ := cmd.Flags().GetStringArray("ignore-file")
 			ignoreArrayCircleRef, _ := cmd.Flags().GetBool("ignore-array-circle-ref")
 			ignorePolymorphCircleRef, _ := cmd.Flags().GetBool("ignore-polymorph-circle-ref")
 			functionsFlag, _ := cmd.Flags().GetString("functions")
@@ -101,7 +101,7 @@ func GetDashboardCommand() *cobra.Command {
 				defer utils.ResetBreakingRulesConfig()
 			}
 
-			ignoredItems, err := LoadIgnoreFile(ignoreFile, silent, false, false, false)
+			ignoredItems, err := LoadIgnoreFiles(ignoreFiles, silent, false, false, false)
 			if err != nil {
 				return err
 			}
@@ -425,6 +425,17 @@ func GetDashboardCommand() *cobra.Command {
 				}
 			}
 
+			// Reuse the resolved paths when the dashboard reloads after a spec change.
+			watchIgnoreFiles := make([]string, 0, len(ignoreFiles))
+			if watchFlag {
+				for _, path := range ignoreFiles {
+					resolved, resolveErr := ResolveConfigPath(path)
+					if resolveErr != nil {
+						return resolveErr
+					}
+					watchIgnoreFiles = append(watchIgnoreFiles, resolved)
+				}
+			}
 			watchConfig := &tui.WatchConfig{
 				Enabled:                      watchFlag,
 				BaseFlag:                     baseFlag,
@@ -432,7 +443,7 @@ func GetDashboardCommand() *cobra.Command {
 				TimeoutFlag:                  timeoutFlag,
 				HardModeFlag:                 hardModeFlag,
 				RemoteFlag:                   remoteFlag,
-				IgnoreFile:                   ignoreFile,
+				IgnoreFiles:                  watchIgnoreFiles,
 				FunctionsFlag:                functionsFlag,
 				RulesetFlag:                  rulesetFlag,
 				CertFile:                     certFile,
@@ -463,7 +474,7 @@ func GetDashboardCommand() *cobra.Command {
 	}
 
 	// dashboard flags
-	cmd.Flags().String("ignore-file", "", "Path to ignore file")
+	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().BoolP("watch", "W", false, "Watch for file changes and automatically re-lint")
