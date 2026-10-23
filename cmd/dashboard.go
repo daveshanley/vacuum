@@ -474,7 +474,7 @@ func GetDashboardCommand() *cobra.Command {
 	}
 
 	// dashboard flags
-	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
+	pathArrayFlag(cmd.Flags(), "ignore-file", "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().BoolP("watch", "W", false, "Watch for file changes and automatically re-lint")

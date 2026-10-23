@@ -6,6 +6,7 @@ package languageserver
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 )
 
 // LSPConfig represents the complete configuration for the vacuum language server.
@@ -49,6 +50,9 @@ type LSPConfig struct {
 	// IgnoreFile specifies a path to the ignore file
 	IgnoreFile string `json:"ignoreFile,omitempty"`
 
+	// IgnoreFiles specifies multiple ignore files. An explicit empty list clears waivers.
+	IgnoreFiles []string `json:"ignoreFiles,omitempty"`
+
 	// TLS configuration for remote references
 	CertFile string `json:"certFile,omitempty"`
 	KeyFile  string `json:"keyFile,omitempty"`
@@ -56,8 +60,8 @@ type LSPConfig struct {
 	Insecure *bool  `json:"insecure,omitempty"`
 }
 
-// MergeConfig merges source into target. Non-nil/non-empty values from source
-// override corresponding values in target.
+// MergeConfig merges source into target. Non-empty strings and non-nil pointers
+// or slices override target values. An empty IgnoreFiles slice clears waivers.
 func MergeConfig(target, source *LSPConfig) {
 	if source == nil {
 		return
@@ -96,9 +100,7 @@ func MergeConfig(target, source *LSPConfig) {
 	if source.ExtensionRefs != nil {
 		target.ExtensionRefs = source.ExtensionRefs
 	}
-	if source.IgnoreFile != "" {
-		target.IgnoreFile = source.IgnoreFile
-	}
+	mergeIgnoreFilesConfig(target, source)
 	if source.CertFile != "" {
 		target.CertFile = source.CertFile
 	}
@@ -158,6 +160,7 @@ func (c *LSPConfig) isEmpty() bool {
 		c.IgnorePolymorphCircleRef == nil &&
 		c.ExtensionRefs == nil &&
 		c.IgnoreFile == "" &&
+		c.IgnoreFiles == nil &&
 		c.CertFile == "" &&
 		c.KeyFile == "" &&
 		c.CAFile == "" &&
@@ -167,3 +170,18 @@ func (c *LSPConfig) isEmpty() bool {
 // Helper functions for creating pointers to primitives
 func boolPtr(b bool) *bool { return &b }
 func intPtr(i int) *int    { return &i }
+
+// ignoreFiles keeps the legacy single-file input usable with the list form.
+func (c *LSPConfig) ignoreFiles() []string {
+	if c.IgnoreFile == "" {
+		return c.IgnoreFiles
+	}
+	return append([]string{c.IgnoreFile}, c.IgnoreFiles...)
+}
+
+func mergeIgnoreFilesConfig(target, source *LSPConfig) {
+	if source != nil && (source.IgnoreFile != "" || source.IgnoreFiles != nil) {
+		target.IgnoreFile = source.IgnoreFile
+		target.IgnoreFiles = slices.Clone(source.IgnoreFiles)
+	}
+}

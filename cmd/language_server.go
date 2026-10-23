@@ -139,11 +139,23 @@ IDE and start linting your OpenAPI documents in real-time.`,
 				HTTPClientConfig:         httpClientConfig,
 			}
 
+			flag := cmd.Flags().Lookup("ignore-file")
+			if _, fromConfig := flag.Annotations[configBoundAnnotation]; flag.Changed && !fromConfig {
+				lfr.IgnoreFiles = make([]string, 0, len(ignoreFiles))
+				for _, path := range ignoreFiles {
+					resolved, err := ResolveConfigPath(path)
+					if err != nil {
+						return err
+					}
+					lfr.IgnoreFiles = append(lfr.IgnoreFiles, resolved)
+				}
+			}
+
 			return runLanguageServer(GetVersion(), &lfr, newMotorExecutionOptions(resolveAllRefsFlag, nestedRefsDocContextFlag))
 		},
 	}
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
+	pathArrayFlag(cmd.Flags(), "ignore-file", "Path to ignore file (can be repeated)")
 	return cmd
 }

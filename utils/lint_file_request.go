@@ -34,6 +34,7 @@ type LintFileRequest struct {
 	IgnorePolymorphCircleRef bool
 	NoClip                   bool
 	IgnoredResults           model.IgnoredItems
+	IgnoreFiles              []string // Explicit CLI ignore paths, overriding language-server file config.
 	DefaultRuleSets          rulesets.RuleSets
 	SelectedRS               *rulesets.RuleSet
 	Functions                map[string]model.RuleFunction

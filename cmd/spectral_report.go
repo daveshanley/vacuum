@@ -479,7 +479,7 @@ vacuum spectral-report --globbed-files "api/**/*.json" -n`,
 	cmd.Flags().BoolP("stdout", "o", false, "Use stdout as output, instead of a file")
 	cmd.Flags().BoolP("no-pretty", "n", false, "Render JSON with no formatting")
 	cmd.Flags().BoolP("no-style", "q", false, "Disable styling and color output, just plain text (useful for CI/CD)")
-	cmd.Flags().StringArray("ignore-file", nil, "Path to ignore file (can be repeated)")
+	pathArrayFlag(cmd.Flags(), "ignore-file", "Path to ignore file (can be repeated)")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
 	cmd.Flags().String("globbed-files", "", "Glob pattern of files to process (e.g., 'specs/*.yaml')")
