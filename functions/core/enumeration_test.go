@@ -337,3 +337,33 @@ func TestEnumeration_RejectsUnsupportedOptionMap(t *testing.T) {
 	require.NotEmpty(t, errs)
 	assert.Contains(t, errs[0], "missing required property: values")
 }
+
+func TestEnumerationScalarTypes(t *testing.T) {
+	for _, tc := range []struct {
+		name, input string
+		allowed     []any
+		findings    int
+	}{
+		{"string is not number", `"1"`, []any{1}, 1},
+		{"number is not string", `1`, []any{"1"}, 1},
+		{"decimal equals integer", `1.0`, []any{1}, 0},
+		{"integer equals decimal", `1`, []any{float64(1)}, 0},
+		{"large integer stays exact", `9007199254740993`, []any{float64(9007199254740992)}, 1},
+		{"string is not boolean", `"true"`, []any{true}, 1},
+		{"boolean is not string", `true`, []any{"true"}, 1},
+		{"null matches null", `null`, []any{nil}, 0},
+		{"string is not null", `"null"`, []any{nil}, 1},
+		{"array strings are exact", `" a "`, []any{"a"}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			nodes, err := utils.FindNodes([]byte("value: "+tc.input), "$.value")
+			require.NoError(t, err)
+			opts := map[string]any{"values": tc.allowed}
+			rule := buildCoreTestRule("$.value", model.SeverityError, "enumeration", "", opts)
+			ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+			ctx.Given = "$.value"
+			results := (Enumeration{}).RunRule(nodes, ctx)
+			require.Len(t, results, tc.findings)
+		})
+	}
+}

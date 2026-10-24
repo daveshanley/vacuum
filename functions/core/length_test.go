@@ -7,8 +7,29 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 	"testing"
 )
+
+func TestLengthUTF16CodeUnits(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		units int
+	}{{"a", 1}, {"é", 1}, {"😀", 2}, {"a😀é", 4}} {
+		t.Run(tc.value, func(t *testing.T) {
+			nodes, err := utils.FindNodes([]byte("value: "+tc.value), "$.value")
+			require.NoError(t, err)
+			for _, min := range []int{tc.units, tc.units + 1} {
+				opts := map[string]any{"min": min}
+				rule := buildCoreTestRule("$.value", model.SeverityError, "length", "", opts)
+				ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+				ctx.Given = "$.value"
+				results := (Length{}).RunRule(nodes, ctx)
+				require.Len(t, results, min-tc.units)
+			}
+		})
+	}
+}
 
 func TestLength_GetSchema(t *testing.T) {
 	def := Length{}
