@@ -128,6 +128,12 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			return results
 		}
 
+		// Prefer a root reference's target in the options. Keep the input index
+		// for existing document-relative and external reference rules.
+		if isRef, _, ref := utils.IsNodeRefValue(&on); isRef && strings.HasPrefix(ref, "#/") &&
+			index.FindComponent(ctx.Background(), &on, ref, "", nil) != nil {
+			schemaIndex = index.NewSpecIndexWithConfig(&on, index.CreateClosedAPIIndexConfig())
+		}
 		// now build out the low level schema.
 		err = buildSchemaLowDocument(&on, &lowSchema, schemaIndex)
 		if err != nil {
@@ -147,25 +153,12 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	schema = cloneSchemaForCoreValidation(schema, schemaIndex)
 	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
 
-	// Auto-enable forceValidationOnCurrentNode when:
-	// 1. The given path is "$" (root)
-	// 2. No field is specified in the rule action
-	// This makes the behavior consistent with Spectral for root-level schema validation
-	autoForce := false
-	if context.RuleAction.Field == "" {
-		// Check if we're at the root level
-		if givenStr, ok := context.Given.(string); ok && givenStr == "$" {
-			autoForce = true
-		} else if givenArr, ok := context.Given.([]string); ok && len(givenArr) > 0 && givenArr[0] == "$" {
-			autoForce = true
+	// Without a field, the selector has already identified the value to validate.
+	if forceBool, _ := forceValidationOnCurrentNode.(bool); forceBool || context.RuleAction.Field == "" {
+		for x, node := range nodes {
+			results = append(results, validateNodeAgainstSchema(&context, schema, nil, node, context, x)...)
 		}
-	}
-
-	if forceBool, ok := forceValidationOnCurrentNode.(bool); (ok && forceBool) || autoForce {
-		if len(nodes) > 0 {
-			results = append(results, validateNodeAgainstSchema(&context, schema, nil, nodes[0], context, 0)...)
-			return results
-		}
+		return results
 	}
 
 	for x, node := range nodes {
@@ -327,6 +320,9 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 		}
 		if p, ok := context.Given.([]string); ok {
 			r.Path = fmt.Sprintf("%s[%d]", p[0], x)
+		}
+		if context.RuleAction.Field == "" {
+			r.Path, r.Paths, locatedObjects = locateNodePaths(&context, fieldNodeValue)
 		}
 
 		banned := false
