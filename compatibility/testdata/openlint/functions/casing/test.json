@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/casing"
+  ],
+  "purpose": "`casing` with `type: kebab` fails on a camel-case string.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "kebab"
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/or"
+  ],
+  "purpose": "A key whose value is null counts as present, so `{a: null}` satisfies `or` and `{}` does not.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "none"
+        ]
+      }
+    ]
+  }
+}

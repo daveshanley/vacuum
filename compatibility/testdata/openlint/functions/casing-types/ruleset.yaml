@@ -1,0 +1,37 @@
+rules:
+  camel:
+    given: $.camel[*]
+    then:
+      function: casing
+      functionOptions:
+        type: camel
+  pascal:
+    given: $.pascal[*]
+    then:
+      function: casing
+      functionOptions:
+        type: pascal
+  snake:
+    given: $.snake[*]
+    then:
+      function: casing
+      functionOptions:
+        type: snake
+  macro:
+    given: $.macro[*]
+    then:
+      function: casing
+      functionOptions:
+        type: macro
+  cobol:
+    given: $.cobol[*]
+    then:
+      function: casing
+      functionOptions:
+        type: cobol
+  flat:
+    given: $.flat[*]
+    then:
+      function: casing
+      functionOptions:
+        type: flat

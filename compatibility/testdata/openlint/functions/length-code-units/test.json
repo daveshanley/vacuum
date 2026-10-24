@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/length"
+  ],
+  "purpose": "A string's length is its number of UTF-16 code units: `\u00e9` is one, an emoji two.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "e"
+        ]
+      }
+    ]
+  }
+}

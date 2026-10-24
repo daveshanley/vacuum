@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/alphabetical"
+  ],
+  "purpose": "`alphabetical` fails on an unsorted array and passes on a sorted one.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "sorted"
+      }
+    ]
+  }
+}

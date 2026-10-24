@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/input-types"
+  ],
+  "purpose": "`pattern` passes on a number and on an absent value, and fails only on the string that does not match; `xor` passes on a string.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "starts-with-a",
+        "path": [
+          "s"
+        ]
+      }
+    ]
+  }
+}

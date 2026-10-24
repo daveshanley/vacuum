@@ -1,0 +1,32 @@
+{
+  "for": [
+    "/req/functions/truthy"
+  ],
+  "purpose": "`truthy` fails on `false`, `\"\"`, `0`, and `null`, and passes on an empty array, an empty object, and a string.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "path": [
+          "a"
+        ]
+      },
+      {
+        "path": [
+          "b"
+        ]
+      },
+      {
+        "path": [
+          "c"
+        ]
+      },
+      {
+        "path": [
+          "d"
+        ]
+      }
+    ]
+  }
+}

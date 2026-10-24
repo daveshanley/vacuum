@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/schema"
+  ],
+  "purpose": "A `$ref` inside the option resolves against the option's own `$defs`.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "v"
+        ]
+      }
+    ]
+  }
+}

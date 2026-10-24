@@ -1,0 +1,7 @@
+rules:
+  tags-sorted:
+    given: $.*
+    then:
+      function: alphabetical
+      functionOptions:
+        keyedBy: name

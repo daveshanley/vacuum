@@ -1,0 +1,5 @@
+rules:
+  sorted:
+    given: $.*
+    then:
+      function: alphabetical

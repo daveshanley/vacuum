@@ -1,0 +1,22 @@
+{
+  "for": [
+    "/req/functions/xor"
+  ],
+  "purpose": "`xor` fails unless exactly one of `properties` is present.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "path": [
+          "both"
+        ]
+      },
+      {
+        "path": [
+          "neither"
+        ]
+      }
+    ]
+  }
+}

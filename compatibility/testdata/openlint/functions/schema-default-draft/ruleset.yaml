@@ -1,0 +1,17 @@
+rules:
+  prefix:
+    given: $.t
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          prefixItems:
+            - type: string
+  needs-a:
+    given: $.o
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          required: [a]

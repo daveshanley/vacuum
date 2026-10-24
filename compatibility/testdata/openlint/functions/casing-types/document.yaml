@@ -1,0 +1,6 @@
+camel: [fooBar, foo_bar]
+pascal: [FooBar, fooBar]
+snake: [foo_bar, foo-bar]
+macro: [FOO_BAR, foo_bar]
+cobol: [FOO-BAR, foo-bar]
+flat: [foobar, fooBar]

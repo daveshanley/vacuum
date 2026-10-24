@@ -503,9 +503,15 @@ func TestAsyncAPITagsUseInfoLocation(t *testing.T) {
 		{"missing description", "[{name: events}]", rulesets.AsyncAPI3TagDescription},
 		{"unordered", "[{name: zebra, description: Z}, {name: alpha, description: A}]", rulesets.AsyncAPI3TagsAlphabetical},
 		{"empty", "[]", rulesets.AsyncAPI3Tags},
+		{"missing", "", rulesets.AsyncAPI3Tags},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			outcome := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: selected, Spec: []byte("asyncapi: 3.1.0\ninfo: {title: Test, version: '1', tags: " + tc.tags + "}\n")})
+			info := "info: {title: Test, version: '1'"
+			if tc.tags != "" {
+				info += ", tags: " + tc.tags
+			}
+			outcome := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: selected, Spec: []byte("asyncapi: 3.1.0\n" + info + "}\n")})
+			defer outcome.Release()
 			require.Empty(t, outcome.Errors)
 			if tc.ruleID == "" {
 				assert.Empty(t, outcome.Results)

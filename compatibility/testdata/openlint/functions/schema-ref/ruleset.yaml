@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: $.v
+    then:
+      function: schema
+      functionOptions:
+        schema: {"$ref": "#/$defs/x", "$defs": {"x": {"type": "integer"}}}

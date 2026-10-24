@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: [$.a, $.b, $.c]
+    then:
+      function: casing
+      functionOptions:
+        type: "camel"

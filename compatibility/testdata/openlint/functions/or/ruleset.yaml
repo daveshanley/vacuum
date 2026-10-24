@@ -1,0 +1,7 @@
+rules:
+  any-of:
+    given: $.*
+    then:
+      function: or
+      functionOptions:
+        properties: [p, q]

@@ -1,0 +1,7 @@
+rules:
+  allowed:
+    given: $.*
+    then:
+      function: enumeration
+      functionOptions:
+        values: [a, b]

@@ -1,0 +1,7 @@
+rules:
+  kebab:
+    given: $.names[*]
+    then:
+      function: casing
+      functionOptions:
+        type: kebab

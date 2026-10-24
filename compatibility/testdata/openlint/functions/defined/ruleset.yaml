@@ -1,0 +1,11 @@
+rules:
+  has-title:
+    given: $.info
+    then:
+      field: title
+      function: defined
+  has-description:
+    given: $.info
+    then:
+      field: description
+      function: defined

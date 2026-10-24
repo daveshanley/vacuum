@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/casing"
+  ],
+  "purpose": "Only ASCII letters count, so `\u00e9clair` is not camel case; the empty string passes.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "a"
+        ]
+      }
+    ]
+  }
+}

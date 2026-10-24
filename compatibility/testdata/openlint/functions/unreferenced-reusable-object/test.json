@@ -1,0 +1,19 @@
+{
+  "for": [
+    "/req/functions/unreferenced-reusable-object"
+  ],
+  "purpose": "`unreferencedReusableObject` reports a member of the container that nothing references.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "path": [
+          "components",
+          "schemas",
+          "Unused"
+        ]
+      }
+    ]
+  }
+}

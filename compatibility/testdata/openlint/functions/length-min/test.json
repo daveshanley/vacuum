@@ -1,0 +1,24 @@
+{
+  "for": [
+    "/req/functions/length"
+  ],
+  "purpose": "`length` with `min: 2` fails on an object with one property and a string of one character, and passes on an object with two.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "at-least-two",
+        "path": [
+          "o"
+        ]
+      },
+      {
+        "code": "at-least-two",
+        "path": [
+          "s"
+        ]
+      }
+    ]
+  }
+}

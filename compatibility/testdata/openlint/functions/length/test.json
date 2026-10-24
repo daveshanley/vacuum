@@ -1,0 +1,22 @@
+{
+  "for": [
+    "/req/functions/length"
+  ],
+  "purpose": "`length` with `max: 4` fails on a string of six characters and an array of five elements, and passes on a number below the bound.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "path": [
+          "long"
+        ]
+      },
+      {
+        "path": [
+          "many"
+        ]
+      }
+    ]
+  }
+}

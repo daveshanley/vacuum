@@ -1,0 +1,27 @@
+{
+  "for": [
+    "/req/functions/falsy"
+  ],
+  "purpose": "`falsy` fails on an empty array, an empty object, and a string, and passes on `false`, `\"\"`, `0`, and `null`.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "path": [
+          "e"
+        ]
+      },
+      {
+        "path": [
+          "f"
+        ]
+      },
+      {
+        "path": [
+          "g"
+        ]
+      }
+    ]
+  }
+}

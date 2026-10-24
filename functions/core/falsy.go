@@ -116,18 +116,7 @@ func (f Falsy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []
 }
 
 // isTruthyNode checks if a YAML node represents a truthy value.
-// A node is truthy if it has content, or has a non-empty/non-false/non-zero value.
+// It uses the same value rules as Truthy.
 func isTruthyNode(node *yaml.Node) bool {
-	if node == nil {
-		return false
-	}
-	// node with content (map or array) is truthy
-	if len(node.Content) > 0 {
-		return true
-	}
-	// scalar values: check for falsy values
-	if node.Value == "" || node.Value == "false" || node.Value == "0" {
-		return false
-	}
-	return true
+	return !isFalsyNode(node)
 }

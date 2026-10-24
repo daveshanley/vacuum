@@ -1,0 +1,7 @@
+rules:
+  bounded:
+    given: $.*
+    then:
+      function: length
+      functionOptions:
+        max: 4

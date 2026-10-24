@@ -1,0 +1,6 @@
+both:
+  p: 1
+  q: 1
+one:
+  p: 1
+neither: {}

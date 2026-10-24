@@ -1,0 +1,13 @@
+rules:
+  must-match:
+    given: $.*
+    then:
+      function: pattern
+      functionOptions:
+        match: "^[a-z]+$"
+  must-not-match:
+    given: $.*
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "^abc$"

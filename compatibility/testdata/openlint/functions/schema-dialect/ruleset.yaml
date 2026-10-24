@@ -1,0 +1,11 @@
+rules:
+  prefix:
+    given: $.t
+    then:
+      function: schema
+      functionOptions:
+        dialect: draft2020-12
+        schema:
+          type: array
+          prefixItems:
+            - type: string

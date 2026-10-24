@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: [$.e, $.emoji]
+    then:
+      function: length
+      functionOptions:
+        min: 2

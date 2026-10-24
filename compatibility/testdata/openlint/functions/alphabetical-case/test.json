@@ -1,0 +1,19 @@
+{
+  "for": [
+    "/req/functions/alphabetical"
+  ],
+  "purpose": "Strings are compared with `localeCompare`, so `a` comes before `B` and `B` after `a`.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "bad",
+          "0"
+        ]
+      }
+    ]
+  }
+}

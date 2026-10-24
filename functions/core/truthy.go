@@ -9,7 +9,6 @@ import (
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"sort"
 )
 
 // Truthy is a rule that will determine if something is seen as 'true' (could be a 1 or "pizza", or actually 'true')
@@ -85,28 +84,6 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				continue
 			}
 
-			if context.Index != nil && context.Arazzo == nil && context.AsyncAPI == nil {
-				origin := context.Index.FindNodeOrigin(node)
-
-				if origin != nil && origin.Line > 1 {
-					nm := context.Index.GetNodeMap()
-					var keys []int
-					for k := range nm {
-						keys = append(keys, k)
-					}
-
-					// Sort the keys slice.
-					sort.Ints(keys)
-
-					if len(keys) > 0 {
-						np := nm[origin.Line-1][keys[0]]
-						if np != nil {
-							node = np
-						}
-					}
-				}
-			}
-
 			var locatedObjects []v3.Foundational
 			var allPaths []string
 			locatedPath := pathValue
@@ -145,10 +122,16 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 }
 
 // isFalsyNode checks if a YAML node represents a falsy value.
-// A node is falsy if it's nil, has no content, or has an empty/false/0 value.
+// Null and missing values are falsy. Collections are truthy, including empty ones.
 func isFalsyNode(node *yaml.Node) bool {
 	if node == nil {
 		return true
+	}
+	if node.Tag == "!!null" {
+		return true
+	}
+	if node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode {
+		return false
 	}
 	// node with content (map or array) is truthy, not falsy
 	if len(node.Content) > 0 {

@@ -1,0 +1,20 @@
+rules:
+  starts-with-a:
+    given: $.*
+    then:
+      function: pattern
+      functionOptions:
+        match: "^a"
+  absent:
+    given: $
+    then:
+      field: missing
+      function: pattern
+      functionOptions:
+        match: "^a"
+  one-of:
+    given: $.s
+    then:
+      function: xor
+      functionOptions:
+        properties: [p, q]

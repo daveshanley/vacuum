@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/undefined"
+  ],
+  "purpose": "`undefined` fails on a present property and passes on an absent one.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "no-title"
+      }
+    ]
+  }
+}

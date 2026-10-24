@@ -1,0 +1,7 @@
+rules:
+  one-of:
+    given: $.*
+    then:
+      function: xor
+      functionOptions:
+        properties: [p, q]

@@ -1,0 +1,15 @@
+paths:
+  /pets:
+    get:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Used"
+components:
+  schemas:
+    Used:
+      type: object
+    Unused:
+      type: object
