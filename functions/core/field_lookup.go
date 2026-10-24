@@ -7,6 +7,7 @@ import (
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	openapiUtils "github.com/pb33f/libopenapi/utils"
+	"slices"
 	"strconv"
 	"sync"
 )
@@ -61,6 +62,11 @@ func locateNodePaths(context *model.RuleFunctionContext, node *yaml.Node) (strin
 		return path, allPaths, objects
 	}
 	exactKey := vacuumUtils.CanonicalResultPath(exactPath)
+	if exactKey != "$" {
+		// Doctor can include the document as an enclosing model. A uniquely
+		// located child node cannot also occur at the document root.
+		allPaths = slices.DeleteFunc(allPaths, func(path string) bool { return path == "$" })
+	}
 	for _, object := range objects {
 		objectPath := object.GenerateJSONPath()
 		if vacuumUtils.CanonicalResultPath(objectPath) != exactKey {

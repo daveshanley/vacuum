@@ -90,10 +90,10 @@ func PrepareWithReader(ctx context.Context, entry string, readFile func(string) 
 			if a.Kind == api.ResolveJSDynamicImport {
 				return api.OnResolveResult{}, fmt.Errorf("dynamic import is unsupported in %s", a.Importer)
 			}
-			if source, ok := compatibilityModules[a.Path]; ok {
+			if source, ok := compatibilityModule(a.Path); ok {
 				return api.OnResolveResult{Path: a.Path, Namespace: "vacuum", PluginData: source}, nil
 			}
-			if strings.HasPrefix(a.Path, "@stoplight/") || (strings.Contains(a.Path, ":") && !filepath.IsAbs(a.Path)) {
+			if strings.HasPrefix(a.Path, "@stoplight/") || strings.HasPrefix(a.Path, "@openlint/") || (strings.Contains(a.Path, ":") && !filepath.IsAbs(a.Path)) {
 				return api.OnResolveResult{}, fmt.Errorf("unsupported module %q imported by %s", a.Path, a.Importer)
 			}
 			return api.OnResolveResult{}, nil

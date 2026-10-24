@@ -2,6 +2,7 @@ package jsruleset
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/dop251/goja"
@@ -18,14 +19,23 @@ var compatibilityModules = map[string]string{
  wrapped.__validateOptions=validate;return wrapped;
 }`,
 
-	"@stoplight/spectral-functions": `export const truthy=__native.truthy, falsy=__native.falsy, defined=__native.defined, undefined=__native.undefined, pattern=__native.pattern, enumeration=__native.enumeration, length=__native.length, alphabetical=__native.alphabetical, casing=__native.casing, xor=__native.xor, schema=__native.schema;`,
+	"@stoplight/spectral-functions": `export const truthy=__native.truthy, falsy=__native.falsy, defined=__native.defined, undefined=__native.undefined, pattern=__native.pattern, enumeration=__native.enumeration, length=__native.length, alphabetical=__native.alphabetical, casing=__native.casing, xor=__native.xor, or=__native.or, schema=__native.schema;`,
 	"@stoplight/spectral-formats":   `export const oas2 = d => !!d && d.swagger === '2.0'; export const oas3 = d => !!d && typeof d.openapi === 'string' && /^3\./.test(d.openapi); export const oas3_0 = d => oas3(d) && /^3\.0\./.test(d.openapi); export const oas3_1 = d => oas3(d) && /^3\.1\./.test(d.openapi); export const asyncapi2 = d => !!d && typeof d.asyncapi === 'string' && /^2\./.test(d.asyncapi); export const asyncapi3 = d => !!d && typeof d.asyncapi === 'string' && /^3\./.test(d.asyncapi);`,
+}
+
+// Both package names use the same supported exports and native behavior.
+func compatibilityModule(name string) (string, bool) {
+	if suffix, ok := strings.CutPrefix(name, "@openlint/openlint-"); ok {
+		name = "@stoplight/spectral-" + suffix
+	}
+	source, ok := compatibilityModules[name]
+	return source, ok
 }
 
 func (s *Scope) registerCompatibility() {
 	s.registerSchemaValidator()
 	native := s.vm.NewObject()
-	for _, name := range []string{"truthy", "falsy", "defined", "undefined", "pattern", "enumeration", "length", "alphabetical", "casing", "xor", "schema"} {
+	for _, name := range []string{"truthy", "falsy", "defined", "undefined", "pattern", "enumeration", "length", "alphabetical", "casing", "xor", "or", "schema"} {
 		_ = native.Set(name, func(call goja.FunctionCall) goja.Value {
 			if s.current == nil {
 				panic(s.vm.NewTypeError("native functions require a rule invocation"))
