@@ -5,7 +5,11 @@
 package motor
 
 import (
+	"fmt"
+	"runtime"
 	"testing"
+
+	"github.com/pb33f/testify/require"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/rulesets"
@@ -114,5 +118,50 @@ func issue938ProtocolRule(id, given, severity string) *model.Rule {
 				"match": `^https:/`,
 			},
 		},
+	}
+}
+
+func TestIssue938MergeKeyExclusiveFilters(t *testing.T) {
+	supplied, err := rulesets.CreateRuleSetFromData([]byte(`rules:
+  must-use-https-protocol-only: &https
+    given: $.servers..[?(@property === "url" && @root.info["x-api-type"] !== "pygeoapi")]
+    severity: error
+    then:
+      function: pattern
+      functionOptions:
+        match: "^https:/"
+  must-use-https-protocol-only-pygeoapi:
+    <<: *https
+    given: $.servers..[?(@property === "url" && @root.info["x-api-type"] === "pygeoapi")]
+    severity: warn
+`))
+	require.NoError(t, err)
+	rs := rulesets.BuildDefaultRuleSets().GenerateRuleSetFromSuppliedRuleSet(supplied)
+	previous := runtime.GOMAXPROCS(0)
+	defer runtime.GOMAXPROCS(previous)
+	for _, procs := range []int{1, 4} {
+		runtime.GOMAXPROCS(procs)
+		for _, tc := range []struct{ apiType, scheme, rule, severity string }{
+			{"pygeoapi", "http", "must-use-https-protocol-only-pygeoapi", model.SeverityWarn},
+			{"other", "http", "must-use-https-protocol-only", model.SeverityError},
+			{"pygeoapi", "https", "", ""},
+			{"other", "https", "", ""},
+		} {
+			t.Run(fmt.Sprintf("%d/%s/%s", procs, tc.apiType, tc.scheme), func(t *testing.T) {
+				for range 5 {
+					spec := []byte(fmt.Sprintf("openapi: 3.0.3\ninfo:\n  title: Example\n  version: 1.0.0\n  x-api-type: %s\nservers:\n  - url: %s://example.com\npaths: {}\n", tc.apiType, tc.scheme))
+					result := ApplyRulesToRuleSet(&RuleSetExecution{Spec: spec, RuleSet: rs, SilenceLogs: true})
+					require.Empty(t, result.Errors)
+					if tc.rule == "" {
+						require.Empty(t, result.Results)
+					} else {
+						require.Len(t, result.Results, 1)
+						require.Equal(t, tc.rule, result.Results[0].Rule.Id)
+						require.Equal(t, tc.severity, result.Results[0].Rule.Severity)
+					}
+					result.ReleaseOwnedResources()
+				}
+			})
+		}
 	}
 }
