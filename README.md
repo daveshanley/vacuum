@@ -570,7 +570,13 @@ recognizes a compressed report file and will deal with it automatically when rea
 
 ## Selecting property names in custom rules
 
-Use quoted bracket notation for JSONPath property names with special characters, for example `['$ref']` and `['application/json']`. vacuum does not support JSONPath-Plus backtick escapes.
+Use quoted bracket notation for JSONPath property names with special characters, for example `['$ref']` and `['application/json']`. A single leading backtick also escapes a member name in dot notation or an unquoted bracket selector:
+
+~~~text
+$.paths.*.*.requestBody.content.`application/json.schema.`$ref
+~~~
+
+There is no closing backtick; a trailing backtick becomes part of the property name. Use quoted bracket notation for names that contain path separators or whitespace, and for properties inside filters. Quoted names keep literal backticks unchanged.
 
 To inspect a `$ref` property itself, set `resolved: false`. With `resolved: true`, rules inspect the referenced schema after resolution.
 
