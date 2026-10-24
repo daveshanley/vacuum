@@ -125,6 +125,9 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 // Array options retain scalar types. Comma-separated options keep their legacy
 // string comparison. Numeric forms such as 1 and 1.0 describe the same value.
 func enumScalarMatches(node *yaml.Node, allowed []any) bool {
+	if node.Kind != yaml.ScalarNode {
+		return false
+	}
 	var actual any
 	if err := node.Decode(&actual); err != nil {
 		return false
