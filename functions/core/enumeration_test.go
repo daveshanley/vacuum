@@ -354,6 +354,8 @@ func TestEnumerationScalarTypes(t *testing.T) {
 		{"null matches null", `null`, []any{nil}, 0},
 		{"string is not null", `"null"`, []any{nil}, 1},
 		{"array strings are exact", `" a "`, []any{"a"}, 1},
+		{"object is not scalar", `{a: 1}`, []any{"", 1, nil}, 1},
+		{"array is not scalar", `[1]`, []any{"", 1, nil}, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			nodes, err := utils.FindNodes([]byte("value: "+tc.input), "$.value")
