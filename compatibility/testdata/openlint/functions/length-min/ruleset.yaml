@@ -1,0 +1,7 @@
+rules:
+  at-least-two:
+    given: $.*
+    then:
+      function: length
+      functionOptions:
+        min: 2

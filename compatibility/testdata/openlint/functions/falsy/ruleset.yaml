@@ -1,0 +1,5 @@
+rules:
+  all-falsy:
+    given: $.*
+    then:
+      function: falsy

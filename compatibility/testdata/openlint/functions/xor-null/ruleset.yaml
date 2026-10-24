@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: [$.one, $.two]
+    then:
+      function: xor
+      functionOptions:
+        properties: ["a", "b"]

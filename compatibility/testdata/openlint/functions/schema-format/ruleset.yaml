@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: [$.bad, $.ok]
+    then:
+      function: schema
+      functionOptions:
+        schema: {"type": "string", "format": "email"}

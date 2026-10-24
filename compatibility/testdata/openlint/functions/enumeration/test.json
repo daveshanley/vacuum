@@ -1,0 +1,17 @@
+{
+  "for": [
+    "/req/functions/enumeration"
+  ],
+  "purpose": "`enumeration` fails on a value outside `values`.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "path": [
+          "x"
+        ]
+      }
+    ]
+  }
+}

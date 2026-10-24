@@ -1,0 +1,38 @@
+{
+  "alphabetical-case": {
+    "reason": "Vacuum uses bytewise string order and reports the containing array; OpenLint uses localeCompare and reports an element.",
+    "results": [{"code":"r","path":["ok"]}]
+  },
+  "alphabetical-numbers": {
+    "reason": "Both detect the unordered array. Vacuum reports the array; OpenLint reports its first unordered element.",
+    "results": [{"code":"r","path":["bad"]}]
+  },
+  "schema-absent": {
+    "reason": "Vacuum requires forceValidation to report a missing field.",
+    "results": []
+  },
+  "schema-all-errors": {
+    "reason": "The Spectral allErrors option is not supported; Vacuum reports all validation failures by default.",
+    "errors": ["rule \"r\" function \"schema\": [`schema` function needs a `schema` property to be supplied at a minimum: property 'allErrors' is not a valid property for 'schema']"]
+  },
+  "schema-default-draft": {
+    "reason": "Vacuum validates prefixItems by default; OpenLint defaults to draft 7.",
+    "results": [{"code":"needs-a","path":["o"]},{"code":"prefix","path":["t"]}]
+  },
+  "schema-dialect": {
+    "reason": "The Spectral dialect option is not supported.",
+    "errors": ["rule \"prefix\" function \"schema\": [`schema` function needs a `schema` property to be supplied at a minimum: property 'dialect' is not a valid property for 'schema']"]
+  },
+  "schema-first-error": {
+    "reason": "Vacuum reports all validation failures by default; OpenLint stops at the first.",
+    "results": [{"code":"r","path":["v"]},{"code":"r","path":["v"]}]
+  },
+  "schema-format": {
+    "reason": "Vacuum's core schema validator does not assert email format by default.",
+    "results": []
+  },
+  "unreferenced-reusable-object": {
+    "reason": "Vacuum does not expose Spectral's generic unreferencedReusableObject function.",
+    "errors": ["rule \"no-unused-schemas\" uses unknown function \"unreferencedReusableObject\""]
+  }
+}

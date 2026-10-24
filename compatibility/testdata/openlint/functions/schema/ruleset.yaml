@@ -1,0 +1,8 @@
+rules:
+  strings:
+    given: $.*
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: string

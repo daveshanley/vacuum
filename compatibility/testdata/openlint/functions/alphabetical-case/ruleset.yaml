@@ -1,0 +1,5 @@
+rules:
+  r:
+    given: [$.ok, $.bad]
+    then:
+      function: alphabetical

@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/xor"
+  ],
+  "purpose": "A key whose value is null counts as present, so `{a: null, b: 1}` has two of the properties.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "two"
+        ]
+      }
+    ]
+  }
+}

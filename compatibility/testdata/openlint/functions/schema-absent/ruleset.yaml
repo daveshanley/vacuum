@@ -1,0 +1,9 @@
+rules:
+  contact-shape:
+    given: $.info
+    then:
+      field: contact
+      function: schema
+      functionOptions:
+        schema:
+          type: object

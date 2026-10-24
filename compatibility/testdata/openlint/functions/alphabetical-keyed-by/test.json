@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/alphabetical"
+  ],
+  "purpose": "With `keyedBy`, an array of objects is compared by that property.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "tags-sorted"
+      }
+    ]
+  }
+}

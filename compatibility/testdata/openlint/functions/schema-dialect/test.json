@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/schema"
+  ],
+  "purpose": "With `dialect: draft2020-12`, `prefixItems` applies.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "prefix"
+      }
+    ]
+  }
+}

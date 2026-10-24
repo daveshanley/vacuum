@@ -1,0 +1,8 @@
+rules:
+  no-unused-schemas:
+    resolved: false
+    given: $.components.schemas
+    then:
+      function: unreferencedReusableObject
+      functionOptions:
+        reusableObjectsLocation: "#/components/schemas"

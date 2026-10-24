@@ -1,0 +1,24 @@
+{
+  "for": [
+    "/req/functions/pattern"
+  ],
+  "purpose": "`match` fails on a string that does not match, `notMatch` fails on one that does.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "must-match",
+        "path": [
+          "b"
+        ]
+      },
+      {
+        "code": "must-not-match",
+        "path": [
+          "a"
+        ]
+      }
+    ]
+  }
+}

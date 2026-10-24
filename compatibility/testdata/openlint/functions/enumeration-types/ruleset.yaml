@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: [$.s, $.n]
+    then:
+      function: enumeration
+      functionOptions:
+        values: [1]

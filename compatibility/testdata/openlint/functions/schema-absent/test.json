@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/schema"
+  ],
+  "purpose": "`schema` fails on an absent value.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "contact-shape"
+      }
+    ]
+  }
+}

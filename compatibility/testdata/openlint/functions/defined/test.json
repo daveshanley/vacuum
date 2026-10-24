@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/defined"
+  ],
+  "purpose": "`defined` fails on an absent property and passes on a present one.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "has-description"
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "for": [
+    "/req/functions/alphabetical"
+  ],
+  "purpose": "Numbers are compared by value, so `[2, 10]` is in order and `[10, 9]` is not.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "bad",
+          "0"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/schema"
+  ],
+  "purpose": "Without `allErrors`, a value that fails two keywords gets one problem.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "v"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+rules:
+  r:
+    given: [$.one, $.none]
+    then:
+      function: or
+      functionOptions:
+        properties: ["a", "b"]

@@ -1,0 +1,15 @@
+{
+  "for": [
+    "/req/functions/schema"
+  ],
+  "purpose": "Without `$schema` or `dialect`, the schema is read as draft 7: `prefixItems` is ignored, `required` is not.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "needs-a"
+      }
+    ]
+  }
+}

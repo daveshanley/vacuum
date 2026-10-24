@@ -1,0 +1,8 @@
+rules:
+  r:
+    given: $.v
+    then:
+      function: schema
+      functionOptions:
+        schema: {"type": "string", "minLength": 3, "pattern": "^y"}
+        allErrors: true

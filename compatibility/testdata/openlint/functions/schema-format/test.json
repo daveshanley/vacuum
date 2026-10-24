@@ -1,0 +1,18 @@
+{
+  "for": [
+    "/req/functions/schema"
+  ],
+  "purpose": "The `format` keyword is asserted, so `not-an-email` fails `format: email`.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "bad"
+        ]
+      }
+    ]
+  }
+}

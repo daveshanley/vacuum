@@ -1,0 +1,30 @@
+{
+  "for": [
+    "/req/functions/casing"
+  ],
+  "purpose": "Each case accepts a value written in it and rejects one written in another case.",
+  "ruleset": "ruleset.yaml",
+  "document": "document.yaml",
+  "expect": {
+    "results": [
+      {
+        "code": "camel"
+      },
+      {
+        "code": "pascal"
+      },
+      {
+        "code": "snake"
+      },
+      {
+        "code": "macro"
+      },
+      {
+        "code": "cobol"
+      },
+      {
+        "code": "flat"
+      }
+    ]
+  }
+}

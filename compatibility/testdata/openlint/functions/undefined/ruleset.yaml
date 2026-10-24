@@ -1,0 +1,11 @@
+rules:
+  no-title:
+    given: $.info
+    then:
+      field: title
+      function: undefined
+  no-description:
+    given: $.info
+    then:
+      field: description
+      function: undefined
