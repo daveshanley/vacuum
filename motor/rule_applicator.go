@@ -612,20 +612,18 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	indexConfig.Logger.Debug("applying rules to rule set")
 
 	// Configure custom HTTP client if TLS/certificate options are provided
-	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
-		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
-		if httpErr != nil {
-			return executionErrorResult(
-				execution,
-				control,
-				fmt.Errorf("failed to create custom HTTP client: %w", httpErr),
-			)
-		}
-
-		// Set the custom RemoteURLHandler for libopenapi
-		docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
-		reusableRemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+	httpClient, httpErr := vacuumUtils.CreateHTTPClientIfNeeded(execution.HTTPClientConfig)
+	if httpErr != nil {
+		return executionErrorResult(
+			execution,
+			control,
+			fmt.Errorf("failed to create custom HTTP client: %w", httpErr),
+		)
 	}
+
+	// Set the custom RemoteURLHandler for libopenapi
+	docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
+	reusableRemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
 
 	if execution.Base != "" {
 

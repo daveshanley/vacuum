@@ -27,6 +27,7 @@ func TestRemoteURLHandlerWithContextCancelsRequest(t *testing.T) {
 	started := make(chan struct{})
 	client := &http.Client{Transport: contextTestTransport(func(request *http.Request) (*http.Response, error) {
 		require.Equal(t, "GET", request.Method)
+		require.Equal(t, "vacuum-linter/1.0", request.UserAgent())
 		require.Equal(t, "https://example.test/schema.yaml", request.URL.String())
 		close(started)
 		<-request.Context().Done()
@@ -55,6 +56,7 @@ func TestRemoteURLHandlerWithContextCancelsRequest(t *testing.T) {
 func TestRemoteURLHandlerBackgroundCompatibility(t *testing.T) {
 	client := &http.Client{Transport: contextTestTransport(func(request *http.Request) (*http.Response, error) {
 		require.NoError(t, request.Context().Err())
+		require.Equal(t, "vacuum-linter/1.0", request.UserAgent())
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("type: string"))}, nil
 	})}
 	for _, handler := range []func(string) (*http.Response, error){
