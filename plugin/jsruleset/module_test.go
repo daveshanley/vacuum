@@ -66,6 +66,23 @@ func TestPrepareCancellation(t *testing.T) {
 	require.Error(t, err)
 	require.Less(t, time.Since(started), time.Second)
 }
+
+func TestPrepareRejectsUnsupportedCompatibilityImports(t *testing.T) {
+	for _, prefix := range []string{"@stoplight/spectral-", "@openlint/openlint-"} {
+		for _, tc := range []struct{ module, export string }{
+			{"functions", "unreferencedReusableObject"},
+			{"core", "Document"},
+			{"formats", "missing"},
+			{"runtime", "fetch"},
+		} {
+			t.Run(prefix+tc.module+"/"+tc.export, func(t *testing.T) {
+				entry := writeModule(t, t.TempDir(), "rules.mjs", fmt.Sprintf(`import {%s} from '%s%s';export default {rules:{check:{given:'$',then:{function:%s}}}};`, tc.export, prefix, tc.module, tc.export))
+				_, err := Prepare(context.Background(), entry)
+				require.ErrorContains(t, err, tc.module)
+			})
+		}
+	}
+}
 func TestCreateRulesetFunctionValidatesOptions(t *testing.T) {
 	entry := writeModule(t, t.TempDir(), "rules.mjs", `import {createRulesetFunction} from '@stoplight/spectral-core';const check=createRulesetFunction({input:null,options:{type:'object',required:['prefix']}},()=>[]);export default {rules:{x:{given:'$',then:{function:check,functionOptions:{}}}}}`)
 	_, err := Prepare(context.Background(), entry)

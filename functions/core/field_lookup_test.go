@@ -107,3 +107,23 @@ func TestLocateNodePathsPreservesResolvedReferences(t *testing.T) {
 	require.ElementsMatch(t, []string{"$.components.schemas['Shared']", "$.components.schemas['Ref']"}, paths)
 	require.Equal(t, path, objects[0].GenerateJSONPath())
 }
+
+func TestLocateNodePathsExcludesEnclosingDocument(t *testing.T) {
+	spec := []byte("openapi: 3.0.3\ninfo: {version: '1.0'}\npaths: {}\n")
+	document, err := libopenapi.NewDocument(spec)
+	require.NoError(t, err)
+	high, err := document.BuildV3Model()
+	require.NoError(t, err)
+	doctor := drModel.NewDrDocument(high)
+	ctx := model.RuleFunctionContext{DrDocument: doctor, Index: high.Index, Rule: &model.Rule{Resolved: true}}
+	for _, selector := range []string{"$", "$.info"} {
+		nodes, err := openapiUtils.FindNodesWithoutDeserializing(high.Index.GetRootNode(), selector)
+		require.NoError(t, err)
+		require.Len(t, nodes, 1)
+		path, paths, _ := locateNodePaths(&ctx, nodes[0])
+		require.Equal(t, selector, path)
+		if selector != "$" {
+			require.NotContains(t, paths, "$")
+		}
+	}
+}
