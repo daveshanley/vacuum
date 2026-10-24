@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/daveshanley/vacuum/config"
 )
@@ -23,14 +24,19 @@ func CreateCustomHTTPClient(cfg HTTPClientConfig) (*http.Client, error) {
 }
 
 // CreateRemoteURLHandler creates a RemoteURLHandler function for use with libopenapi
-// that uses the provided HTTP client for all remote requests.
+// that uses the provided HTTP client and identifies vacuum in remote requests.
+// A nil client uses a 120-second timeout, matching the default reference loader.
 func CreateRemoteURLHandler(client *http.Client) func(url string) (*http.Response, error) {
 	return CreateRemoteURLHandlerWithContext(context.Background(), client)
 }
 
 // CreateRemoteURLHandlerWithContext binds remote requests to the supplied context.
 // Cancellation also interrupts response body reads. A nil context uses context.Background.
+// A nil client uses a 120-second timeout, matching the default reference loader.
 func CreateRemoteURLHandlerWithContext(ctx context.Context, client *http.Client) func(url string) (*http.Response, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 120 * time.Second}
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -39,6 +45,7 @@ func CreateRemoteURLHandlerWithContext(ctx context.Context, client *http.Client)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request for %s: %w", url, err)
 		}
+		req.Header.Set("User-Agent", "vacuum-linter/1.0")
 		return client.Do(req)
 	}
 }

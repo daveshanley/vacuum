@@ -122,17 +122,15 @@ func applyAsyncAPIRulesToRuleSet(
 		config.AllowFileReferences = true
 	}
 
-	if vacuumUtils.ShouldUseCustomHTTPClient(execution.HTTPClientConfig) {
-		httpClient, httpErr := vacuumUtils.CreateCustomHTTPClient(execution.HTTPClientConfig)
-		if httpErr != nil {
-			return executionErrorResult(
-				execution,
-				control,
-				fmt.Errorf("failed to create custom HTTP client: %w", httpErr),
-			), true
-		}
-		config.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
+	httpClient, httpErr := vacuumUtils.CreateHTTPClientIfNeeded(execution.HTTPClientConfig)
+	if httpErr != nil {
+		return executionErrorResult(
+			execution,
+			control,
+			fmt.Errorf("failed to create custom HTTP client: %w", httpErr),
+		), true
 	}
+	config.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
 
 	asyncCtx, err := asyncapi_context.NewContext(execution.Spec, execution.SpecFileName, config)
 	if err != nil {
