@@ -9,6 +9,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -93,7 +94,13 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 	}
 
 	for _, node := range nodes {
-		if !e.checkValueAgainstAllowedValues(node.Value, values) {
+		var matches bool
+		if allowed, ok := optValues.([]any); ok {
+			matches = enumScalarMatches(node, allowed)
+		} else {
+			matches = e.checkValueAgainstAllowedValues(node.Value, values)
+		}
+		if !matches {
 
 			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, pathValue)
 
@@ -113,6 +120,49 @@ func (e Enumeration) RunRule(nodes []*yaml.Node, context model.RuleFunctionConte
 		}
 	}
 	return results
+}
+
+// Array options retain scalar types. Comma-separated options keep their legacy
+// string comparison. Numeric forms such as 1 and 1.0 describe the same value.
+func enumScalarMatches(node *yaml.Node, allowed []any) bool {
+	var actual any
+	if err := node.Decode(&actual); err != nil {
+		return false
+	}
+	for _, value := range allowed {
+		switch expected := value.(type) {
+		case string:
+			if got, ok := actual.(string); ok && got == expected {
+				return true
+			}
+		case bool:
+			if got, ok := actual.(bool); ok && got == expected {
+				return true
+			}
+		case nil:
+			if actual == nil {
+				return true
+			}
+		case int, int64, uint64, float64:
+			switch actual.(type) {
+			case int, int64, uint64, float64:
+				if actual == expected {
+					return true
+				}
+				left, lok := new(big.Rat).SetString(fmt.Sprint(actual))
+				right, rok := new(big.Rat).SetString(fmt.Sprint(expected))
+				if lok && rok && left.Cmp(right) == 0 {
+					return true
+				}
+			}
+		default:
+			// Preserve legacy formatting for non-scalar Go options.
+			if strings.TrimSpace(node.Value) == strings.TrimSpace(fmt.Sprint(value)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (e Enumeration) checkValueAgainstAllowedValues(value string, allowed []string) bool {

@@ -4,8 +4,30 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/libopenapi/utils"
 	"github.com/pb33f/testify/assert"
+	"github.com/pb33f/testify/require"
 	"testing"
 )
+
+func TestXorChecksEachObjectIndependently(t *testing.T) {
+	nodes, err := utils.FindNodes([]byte(`items:
+  - {a: null}
+  - {b: 1}
+  - {a: null, b: 1}
+  - {}
+  - text
+  - null
+  - []
+`), "$.items[*]")
+	require.NoError(t, err)
+	opts := map[string]any{"properties": []any{"a", "b"}}
+	rule := buildCoreTestRule("$.items[*]", model.SeverityError, "xor", "", opts)
+	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
+	ctx.Given = "$.items[*]"
+	results := (Xor{}).RunRule(nodes, ctx)
+	require.Len(t, results, 2)
+	require.Same(t, nodes[2], results[0].StartNode)
+	require.Same(t, nodes[3], results[1].StartNode)
+}
 
 func TestXor_RunRule(t *testing.T) {
 	def := Xor{}

@@ -47,14 +47,9 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		return nil
 	}
 
-	// check supplied properties, there can only be two - use cached options
-	props := context.GetOptionsStringMap()
-	var properties []string
-
-	if len(props) <= 0 {
-		properties = utils.ConvertInterfaceToStringArray(context.Options)
-	} else {
-		properties = strings.Split(props["properties"], ",")
+	properties := orProperties(context.Options)
+	if opts, ok := context.Options.(map[string][]string); ok {
+		properties = opts["properties"]
 	}
 
 	if len(properties) != 2 {
@@ -67,12 +62,18 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 	}
 
 	var results []model.RuleFunctionResult
-	seenCount := 0
 
 	ruleMessage := context.Rule.Description
 	message := context.Rule.Message
 
 	for _, node := range nodes {
+		if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+			node = node.Content[0]
+		}
+		if node == nil || node.Kind != yaml.MappingNode {
+			continue
+		}
+		seenCount := 0
 
 		// look through our properties for a match (or no match), the end result needs to be exactly 1.
 		for _, v := range properties {
