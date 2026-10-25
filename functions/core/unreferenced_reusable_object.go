@@ -30,12 +30,15 @@ func (UnreferencedReusableObject) ValidateOptions(options any) error {
 		return fmt.Errorf("reusableObjectsLocation must be a local JSON Pointer")
 	}
 	location, ok := opts["reusableObjectsLocation"].(string)
-	if !ok || !strings.HasPrefix(location, "#/") {
+	if !ok || !strings.HasPrefix(location, "#") {
 		return fmt.Errorf("reusableObjectsLocation must be a local JSON Pointer")
 	}
 	decoded, err := url.PathUnescape(location)
 	if err != nil {
 		return fmt.Errorf("invalid reusableObjectsLocation: %w", err)
+	}
+	if decoded != "#" && !strings.HasPrefix(decoded, "#/") {
+		return fmt.Errorf("reusableObjectsLocation must be a local JSON Pointer")
 	}
 	for i := 0; i < len(decoded); i++ {
 		if decoded[i] == '~' {
@@ -62,7 +65,11 @@ func (u UnreferencedReusableObject) RunRule(nodes []*yaml.Node, context model.Ru
 	location := context.Options.(map[string]any)["reusableObjectsLocation"].(string)
 	location, _ = url.PathUnescape(location)
 	path := "$"
-	for _, segment := range strings.Split(strings.TrimPrefix(location, "#/"), "/") {
+	segments := []string(nil)
+	if location != "#" {
+		segments = strings.Split(strings.TrimPrefix(location, "#/"), "/")
+	}
+	for _, segment := range segments {
 		segment = strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~")
 		path = model.AppendResultPathSegment(path, segment)
 	}
