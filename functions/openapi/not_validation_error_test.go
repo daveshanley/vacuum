@@ -6,10 +6,10 @@ package openapi
 import (
 	"testing"
 
-	"github.com/pb33f/libopenapi-validator/errors"
-	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/jsonschema/v6"
 	"github.com/pb33f/jsonschema/v6/kind"
+	"github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/testify/assert"
 )
 
 func TestIsNotValidationError(t *testing.T) {
@@ -268,4 +268,62 @@ func TestFormatExampleValidationReason_Fallback(t *testing.T) {
 	}
 	msg := formatExampleValidationReason(err)
 	assert.Equal(t, "'not' failed", msg)
+}
+
+func TestFormatExampleValidationReason_EmptyConstCombined(t *testing.T) {
+	refSchema := `
+not:
+  type: string
+  const: ""
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
+}
+
+func TestFormatExampleValidationReason_ObjectConst(t *testing.T) {
+	refSchema := `
+not:
+  const:
+    role: admin
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
+}
+
+func TestFormatExampleValidationReason_AbsentPropertyInstance(t *testing.T) {
+	refSchema := `
+not:
+  properties:
+    status:
+      const: forbidden
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+		ReferenceObject: `{}`,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
+}
+
+func TestFormatExampleValidationReason_IncompatibleTypeInstance(t *testing.T) {
+	refSchema := `
+not:
+  minimum: 10
+`
+	err := &errors.SchemaValidationFailure{
+		Reason:          "'not' failed",
+		ReferenceSchema: refSchema,
+		ReferenceObject: `"hello"`,
+	}
+	msg := formatExampleValidationReason(err)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", msg)
 }

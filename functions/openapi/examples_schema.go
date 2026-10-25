@@ -274,7 +274,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 			if !valid {
 				for _, r := range validationErrors {
 					for _, err := range r.SchemaValidationErrors {
-						reason := formatExampleValidationReason(err)
+						reason := formatExampleValidationReason(err, node)
 						result := buildResult(vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, reason),
 							path, keyNode, node, s)
 
@@ -392,7 +392,7 @@ func (es ExamplesSchema) RunRule(_ []*yaml.Node, ruleContext model.RuleFunctionC
 		var rx []model.RuleFunctionResult
 		for _, r := range validationErrors {
 			for _, err := range r.SchemaValidationErrors {
-				reason := formatExampleValidationReason(err)
+				reason := formatExampleValidationReason(err, valueNode)
 				result := buildResult(
 					vacuumUtils.SuppliedOrDefault(ruleContext.Rule.Message, reason),
 					path, keyNode, valueNode, schema)
