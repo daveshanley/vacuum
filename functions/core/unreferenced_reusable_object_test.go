@@ -52,8 +52,19 @@ func TestUnreferencedReusableObjectOptionsAndMissingIndex(t *testing.T) {
 		require.Error(t, function.ValidateOptions(option))
 	}
 	require.NoError(t, function.ValidateOptions(map[string]any{"reusableObjectsLocation": "#/a~1b"}))
+	require.NoError(t, function.ValidateOptions(map[string]any{"reusableObjectsLocation": "#%2Fdefs"}))
 	var failure error
 	results := function.RunRule([]*yaml.Node{{Kind: yaml.MappingNode}}, model.RuleFunctionContext{Rule: &model.Rule{Id: "unused"}, Options: map[string]any{"reusableObjectsLocation": "#/defs"}, ReportError: func(err error) { failure = err }})
 	require.ErrorContains(t, failure, "requires a document index")
 	require.Len(t, results, 1)
+}
+
+func TestUnreferencedReusableObjectRoot(t *testing.T) {
+	var root yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte("Used: {}\nUnused: {}\nuse: {$ref: '#/Used'}"), &root))
+	idx := index.NewSpecIndexWithConfig(&root, index.CreateClosedAPIIndexConfig())
+	results := (UnreferencedReusableObject{}).RunRule(root.Content, model.RuleFunctionContext{Index: idx, Rule: &model.Rule{Id: "unused"}, Given: "$", Options: map[string]any{"reusableObjectsLocation": "#"}})
+	require.Len(t, results, 2)
+	require.Equal(t, "$.Unused", results[0].Path)
+	require.Equal(t, "$.use", results[1].Path)
 }
