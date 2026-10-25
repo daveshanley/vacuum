@@ -18,7 +18,9 @@ Spectral report model. The test compares the fields named by the upstream case,
 including the exact number of findings. Invalid options and execution errors
 cannot count as expected findings.
 
-All 31 cases must match. Missing, extra or changed findings fail the test.
+All 31 cases run. 23 match upstream. Eight deliberate differences preserve
+Vacuum behavior and are checked against exact results in `differences.json`.
+A changed result fails the test. These differences are not compatibility passes.
 
 This corpus covers core functions only. It does not certify the full ruleset
 specification, source ranges, diagnostic wording, Node APIs or third-party npm
@@ -38,14 +40,16 @@ supported `core`, `functions` and `formats` helpers. The function bridge include
 
 ## Function behavior
 
-- `schema` defaults to draft 7, checks formats and reports the first failure for
-  each selected value. Set `allErrors: true` to report all failures.
+- `schema` reports all failures and retains validation of newer schema keywords
+  by default. Set `allErrors: false` only when one failure per value is wanted.
 - `dialect` accepts `draft4`, `draft6`, `draft7`, `draft2019-09` and `draft2020-12`.
   An explicit `$schema` in the schema takes precedence.
 - Missing schema fields fail by default. Set `forceValidation: false` for an
   optional field.
-- `alphabetical` uses English string collation. Array findings point to the first
-  element that is out of order.
+- `alphabetical` keeps lexical string ordering and reports each array inversion.
+- `truthy` rejects empty collections. `pattern` still checks non-string values,
+  `casing` rejects empty strings, and `length` keeps UTF-8 byte limits.
+- `xor` still rejects inputs with neither required property, including scalars.
 - `unreferencedReusableObject` checks the existing reference index. Set
   `reusableObjectsLocation` to a local JSON Pointer, such as `#/defs`, and select
   that container with `given`. Use `resolved: false` to retain reference nodes.

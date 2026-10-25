@@ -35,6 +35,11 @@ type functionFixture struct {
 	} `json:"expect"`
 }
 
+type deliberateDifference struct {
+	Reason  string        `json:"reason"`
+	Results []resultMatch `json:"results"`
+}
+
 func readJSON(t *testing.T, path string, target any) {
 	t.Helper()
 	data, err := os.ReadFile(path)
@@ -49,8 +54,12 @@ func TestOpenLintFunctions(t *testing.T) {
 	files, err := filepath.Glob("testdata/openlint/functions/*/test.json")
 	require.NoError(t, err)
 	require.Len(t, files, 31, "the pinned corpus must not silently lose cases")
+	var differences map[string]deliberateDifference
+	readJSON(t, "differences.json", &differences)
+	seen := make(map[string]bool)
 	for _, file := range files {
 		name := filepath.Base(filepath.Dir(file))
+		seen[name] = true
 		t.Run(name, func(t *testing.T) {
 			var fixture functionFixture
 			readJSON(t, file, &fixture)
@@ -79,10 +88,21 @@ func TestOpenLintFunctions(t *testing.T) {
 			require.NoError(t, ctx.Err())
 			actual := model.NewRuleResultSet(result.Results).GenerateSpectralReport(doc)
 			matches := matchResults(fixture.Expect.Results, actual)
+			if difference, ok := differences[name]; ok {
+				require.NotEmpty(t, difference.Reason)
+				require.NotNil(t, difference.Results)
+				require.False(t, matches, "difference now matches upstream; review the contract")
+				require.True(t, matchResults(difference.Results, actual), "preserved behavior changed: %+v", actual)
+				t.Logf("DELIBERATE DIFFERENCE: %s", difference.Reason)
+				return
+			}
 			expectedJSON, err := json.Marshal(fixture.Expect.Results)
 			require.NoError(t, err)
 			require.True(t, matches, "%s: expected %s; got %+v", fixture.Purpose, expectedJSON, actual)
 		})
+	}
+	for name := range differences {
+		require.True(t, seen[name], "difference has no fixture: %s", name)
 	}
 }
 
