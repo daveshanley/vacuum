@@ -146,10 +146,6 @@ func (p Pattern) validatePatternOnNode(
 	context model.RuleFunctionContext,
 ) []model.RuleFunctionResult {
 	var results []model.RuleFunctionResult
-	// A pattern checks strings. Invalid expressions still report configuration errors.
-	if node.Tag != "!!str" && matchErr == nil && notMatchErr == nil {
-		return nil
-	}
 
 	if context.Arazzo != nil {
 		locatedPath, allPaths, locatedObjects = locateNodePaths(&context, node)

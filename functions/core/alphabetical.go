@@ -11,11 +11,9 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
-	"golang.org/x/text/collate"
-	"golang.org/x/text/language"
 )
 
-// Alphabetical checks source order. Strings use English collation and numbers
+// Alphabetical checks source order. Strings use lexical order and numbers
 // use numeric order. keyedBy selects a property from each object value.
 type Alphabetical struct{}
 
@@ -39,15 +37,14 @@ func (a Alphabetical) GetCategory() string {
 	return model.FunctionCategoryCore
 }
 
-// RunRule checks adjacent values and reports the first unordered pair per container.
+// RunRule reports unordered adjacent values. Plain maps report their first unordered pair.
 func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 	keyedBy := context.GetOptionsStringMap()["keyedBy"]
-	var order *collate.Collator
 	greater := func(left, right *yaml.Node) bool {
 		if left == nil || right == nil {
 			return false
 		}
-		if isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
+		if keyedBy == "" && isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
 			// Keep integer comparisons exact before using the mixed numeric path.
 			if left.Tag == "!!int" && right.Tag == "!!int" {
 				l, le := strconv.ParseInt(left.Value, 10, 64)
@@ -60,14 +57,10 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 			r, rok := alphabeticalNumber(right)
 			return lok && rok && l > r
 		}
-		if left.Tag != "!!str" || right.Tag != "!!str" {
+		if keyedBy == "" && (left.Tag != "!!str" || right.Tag != "!!str") {
 			return false
 		}
-		if order == nil {
-			// A collator owns mutable scratch buffers, so each invocation owns one.
-			order = collate.New(language.English)
-		}
-		return order.CompareString(left.Value, right.Value) > 0
+		return left.Value > right.Value
 	}
 	var results []model.RuleFunctionResult
 	for _, node := range nodes {
@@ -76,7 +69,14 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 		}
 		values := alphabeticalValues(node, keyedBy)
 		for i := 0; i+1 < len(values); i++ {
-			if !greater(values[i], values[i+1]) {
+			if !alphabeticalComparable(values[i], values[i], keyedBy != "") {
+				continue
+			}
+			j := i + 1
+			for j < len(values) && !alphabeticalComparable(values[i], values[j], keyedBy != "") {
+				j++
+			}
+			if j == len(values) || !greater(values[i], values[j]) {
 				continue
 			}
 			path, paths, objects := locateNodePaths(&context, node)
@@ -88,9 +88,9 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 					paths[p] = model.GetStringTemplates().BuildArrayPath(paths[p], i)
 				}
 			}
-			message := model.GetStringTemplates().BuildAlphabeticalMessage(context.Rule.Description, values[i+1].Value, values[i].Value)
-			if isAlphabeticalNumber(values[i]) && isAlphabeticalNumber(values[i+1]) {
-				message = model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description, values[i+1].Value, values[i].Value)
+			message := model.GetStringTemplates().BuildAlphabeticalMessage(context.Rule.Description, values[j].Value, values[i].Value)
+			if keyedBy == "" && isAlphabeticalNumber(values[i]) && isAlphabeticalNumber(values[j]) {
+				message = model.GetStringTemplates().BuildNumericalOrderingMessage(context.Rule.Description, values[j].Value, values[i].Value)
 			}
 			result := model.RuleFunctionResult{
 				Rule: context.Rule, Path: path, StartNode: start,
@@ -102,7 +102,9 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 			}
 			addResultToLocatedModel(objects, &result)
 			results = append(results, result)
-			break
+			if node.Kind == yaml.MappingNode && keyedBy == "" {
+				break
+			}
 		}
 	}
 	return results
@@ -147,8 +149,18 @@ func alphabeticalValues(node *yaml.Node, keyedBy string) []*yaml.Node {
 				value = nil
 			}
 		}
-		// Missing or unsupported values separate pairs; they do not erase findings.
+		// Preserve source indices while comparisons skip missing values.
 		values = append(values, value)
 	}
 	return values
+}
+
+func alphabeticalComparable(left, right *yaml.Node, keyed bool) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	if keyed {
+		return left.Kind == yaml.ScalarNode && right.Kind == yaml.ScalarNode
+	}
+	return left.Tag == "!!str" && right.Tag == "!!str" || isAlphabeticalNumber(left) && isAlphabeticalNumber(right)
 }

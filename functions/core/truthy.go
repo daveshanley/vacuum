@@ -43,7 +43,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 	}
 
 	isArray := false
-	if len(nodes) == 1 && utils.IsNodeArray(nodes[0]) {
+	if len(nodes) == 1 && utils.IsNodeArray(nodes[0]) && len(nodes[0].Content) > 0 {
 		nodes = nodes[0].Content
 		isArray = true
 	}
@@ -122,7 +122,7 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 }
 
 // isFalsyNode checks if a YAML node represents a falsy value.
-// Null and missing values are falsy. Collections are truthy, including empty ones.
+// Null, missing values and empty collections are falsy.
 func isFalsyNode(node *yaml.Node) bool {
 	if node == nil {
 		return true
@@ -131,7 +131,7 @@ func isFalsyNode(node *yaml.Node) bool {
 		return true
 	}
 	if node.Kind == yaml.MappingNode || node.Kind == yaml.SequenceNode {
-		return false
+		return len(node.Content) == 0
 	}
 	// node with content (map or array) is truthy, not falsy
 	if len(node.Content) > 0 {

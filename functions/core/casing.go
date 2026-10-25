@@ -100,9 +100,6 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 	// From here on out, we are processing a single node
 	node := nodes[0]
-	if node.Kind == yaml.ScalarNode && node.Tag == "!!str" && node.Value == "" {
-		return nil
-	}
 
 	var casingType string
 

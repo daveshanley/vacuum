@@ -10,7 +10,6 @@ import (
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
 	"strconv"
-	"unicode/utf16"
 )
 
 // TODO: come back and reduce the amount of code in here, it's not very efficient.
@@ -119,10 +118,7 @@ func (l Length) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 			var valueCheck int
 			if utils.IsNodeStringValue(p) {
-				// JavaScript string length counts UTF-16 code units, not UTF-8 bytes.
-				for _, r := range p.Value {
-					valueCheck += utf16.RuneLen(r)
-				}
+				valueCheck = len(p.Value)
 			}
 			if utils.IsNodeIntValue(p) {
 				valueCheck, _ = strconv.Atoi(p.Value)

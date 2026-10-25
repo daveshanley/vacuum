@@ -11,11 +11,11 @@ import (
 	"testing"
 )
 
-func TestLengthUTF16CodeUnits(t *testing.T) {
+func TestLengthPreservesUTF8ByteLimits(t *testing.T) {
 	for _, tc := range []struct {
 		value string
 		units int
-	}{{"a", 1}, {"é", 1}, {"😀", 2}, {"a😀é", 4}} {
+	}{{"a", 1}, {"é", 2}, {"😀", 4}, {"a😀é", 7}} {
 		t.Run(tc.value, func(t *testing.T) {
 			nodes, err := utils.FindNodes([]byte("value: "+tc.value), "$.value")
 			require.NoError(t, err)

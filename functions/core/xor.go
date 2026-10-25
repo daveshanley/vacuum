@@ -70,7 +70,7 @@ func (x Xor) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []mo
 		if node != nil && node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
 			node = node.Content[0]
 		}
-		if node == nil || node.Kind != yaml.MappingNode {
+		if node == nil {
 			continue
 		}
 		seenCount := 0
