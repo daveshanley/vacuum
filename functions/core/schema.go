@@ -49,9 +49,9 @@ func (sch Schema) GetSchema() model.RuleFunctionSchema {
 				Description: "A valid JSON Schema object that will be used to validate",
 			},
 			{
-				Name: "allErrors", Description: "Report all schema failures (default is false)",
+				Name: "allErrors", Description: "Report all schema failures (default is true)",
 			},
-			{Name: "dialect", Description: "JSON Schema dialect (default is draft7)"},
+			{Name: "dialect", Description: "Override the JSON Schema dialect when the schema does not declare one"},
 			{
 				Name:        "unpack",
 				Description: "Treat the parent node as a document node and unpack it (default is false)",
@@ -197,7 +197,9 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 	if schema.SchemaTypeRef == "" {
 		dialect, _ := utils.ExtractValueFromInterfaceMap("dialect", context.Options).(string)
 		switch dialect {
-		case "", "draft7":
+		case "":
+			// Keep the validator default when no dialect is selected.
+		case "draft7":
 			schema.SchemaTypeRef = "http://json-schema.org/draft-07/schema#"
 		case "draft4":
 			schema.SchemaTypeRef = "http://json-schema.org/draft-04/schema#"
@@ -413,7 +415,7 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&r))
 				}
 			}
-			if allErrors, _ := utils.ExtractValueFromInterfaceMap("allErrors", context.Options).(bool); !allErrors {
+			if allErrors, specified := utils.ExtractValueFromInterfaceMap("allErrors", context.Options).(bool); specified && !allErrors {
 				break
 			}
 		}
