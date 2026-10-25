@@ -488,3 +488,31 @@ users:
 		assert.True(t, result, "Iteration %d: validation should have passed", i)
 	}
 }
+
+func TestValidateNullAgainstSchema(t *testing.T) {
+	for _, tc := range []struct {
+		name, schema string
+		valid        bool
+	}{
+		{"string rejects null", "type: string", false},
+		{"null accepts null", "type: 'null'", true},
+		{"nullable union", "type: [string, 'null']", true},
+		{"unconstrained accepts null", "{}", true},
+		{"not null rejects null", "not: {type: 'null'}", false},
+		{"invalid schema rejects null", "type: string\npattern: '['", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := ConvertYAMLIntoJSONSchema(tc.schema, nil)
+			assert.NoError(t, err)
+			var node yaml.Node
+			assert.NoError(t, yaml.Unmarshal([]byte("null"), &node))
+			valid, failures := ValidateNodeAgainstSchema(nil, schema, node.Content[0], false)
+			assert.Equal(t, tc.valid, valid)
+			if tc.valid {
+				assert.Empty(t, failures)
+			} else {
+				assert.NotEmpty(t, failures)
+			}
+		})
+	}
+}

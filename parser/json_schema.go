@@ -6,12 +6,17 @@ package parser
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/jsonschema/v6"
+	"github.com/pb33f/libopenapi-validator/config"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/helpers"
 	"github.com/pb33f/libopenapi-validator/schema_validation"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
@@ -117,5 +122,30 @@ func ValidateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 
 	schemaValidationMu.Lock()
 	defer schemaValidationMu.Unlock()
+	// The validator currently treats nil as an omitted payload. Validate JSON
+	// null directly with the same compiler so type and combinator checks run.
+	if decoded == nil {
+		compiled, err := schema_validation.CompileSchemaForValidation(schema, schema_validation.SchemaValidationPurposeGeneric, config.NewValidationOptions(), 3.1)
+		if err == nil && (compiled == nil || compiled.CompiledSchema == nil) {
+			err = fmt.Errorf("schema is empty and cannot be validated")
+		}
+		if err != nil {
+			return false, []*validationErrors.ValidationError{{Message: err.Error()}}
+		}
+		err = compiled.CompiledSchema.Validate(nil)
+		if err == nil {
+			return true, nil
+		}
+		failure := &validationErrors.ValidationError{Message: err.Error()}
+		var validationError *jsonschema.ValidationError
+		if errors.As(err, &validationError) {
+			for _, output := range helpers.FlattenSchemaOutputErrors(validationError.DetailedOutput()) {
+				if output.Error != nil {
+					failure.SchemaValidationErrors = append(failure.SchemaValidationErrors, &validationErrors.SchemaValidationFailure{Reason: output.Error.String()})
+				}
+			}
+		}
+		return false, []*validationErrors.ValidationError{failure}
+	}
 	return validator.ValidateSchemaObject(schema, decoded)
 }
