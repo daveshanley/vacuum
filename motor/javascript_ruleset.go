@@ -26,7 +26,7 @@ func bindExecutableRuleset(source *RuleSetExecution, control *executionControl) 
 	}
 	native := map[string]model.RuleFunction{}
 	builtins := functions.MapBuiltinFunctions()
-	for _, name := range []string{"truthy", "falsy", "defined", "undefined", "pattern", "enumeration", "length", "alphabetical", "casing", "xor", "or", "schema"} {
+	for _, name := range []string{"truthy", "falsy", "defined", "undefined", "pattern", "enumeration", "length", "alphabetical", "casing", "xor", "or", "unreferencedReusableObject", "schema"} {
 		native[name] = builtins.FindFunction(name)
 	}
 	scope.SetNativeFunctions(native)

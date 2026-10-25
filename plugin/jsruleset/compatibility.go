@@ -19,7 +19,7 @@ var compatibilityModules = map[string]string{
  wrapped.__validateOptions=validate;return wrapped;
 }`,
 
-	"@stoplight/spectral-functions": `export const truthy=__native.truthy, falsy=__native.falsy, defined=__native.defined, undefined=__native.undefined, pattern=__native.pattern, enumeration=__native.enumeration, length=__native.length, alphabetical=__native.alphabetical, casing=__native.casing, xor=__native.xor, or=__native.or, schema=__native.schema;`,
+	"@stoplight/spectral-functions": `export const truthy=__native.truthy, falsy=__native.falsy, defined=__native.defined, undefined=__native.undefined, pattern=__native.pattern, enumeration=__native.enumeration, length=__native.length, alphabetical=__native.alphabetical, casing=__native.casing, xor=__native.xor, or=__native.or, unreferencedReusableObject=__native.unreferencedReusableObject, schema=__native.schema;`,
 	"@stoplight/spectral-formats":   `export const oas2 = d => !!d && d.swagger === '2.0'; export const oas3 = d => !!d && typeof d.openapi === 'string' && /^3\./.test(d.openapi); export const oas3_0 = d => oas3(d) && /^3\.0\./.test(d.openapi); export const oas3_1 = d => oas3(d) && /^3\.1\./.test(d.openapi); export const asyncapi2 = d => !!d && typeof d.asyncapi === 'string' && /^2\./.test(d.asyncapi); export const asyncapi3 = d => !!d && typeof d.asyncapi === 'string' && /^3\./.test(d.asyncapi);`,
 }
 
@@ -35,7 +35,7 @@ func compatibilityModule(name string) (string, bool) {
 func (s *Scope) registerCompatibility() {
 	s.registerSchemaValidator()
 	native := s.vm.NewObject()
-	for _, name := range []string{"truthy", "falsy", "defined", "undefined", "pattern", "enumeration", "length", "alphabetical", "casing", "xor", "or", "schema"} {
+	for _, name := range []string{"truthy", "falsy", "defined", "undefined", "pattern", "enumeration", "length", "alphabetical", "casing", "xor", "or", "unreferencedReusableObject", "schema"} {
 		_ = native.Set(name, func(call goja.FunctionCall) goja.Value {
 			if s.current == nil {
 				panic(s.vm.NewTypeError("native functions require a rule invocation"))
@@ -58,6 +58,9 @@ func (s *Scope) registerCompatibility() {
 			action.Function = name
 			rfc.RuleAction = &action
 			rfc.Options = call.Argument(1).Export()
+			if name == "unreferencedReusableObject" {
+				rfc.Index = s.current.Index
+			}
 			function := s.native[name]
 			if function == nil {
 				panic(s.vm.NewTypeError("native function unavailable: %s", name))
@@ -74,6 +77,12 @@ func (s *Scope) registerCompatibility() {
 					relative, err := pathSegments(result.Path)
 					if err != nil {
 						panic(s.vm.NewTypeError("native result path: %s", err))
+					}
+					if name == "unreferencedReusableObject" {
+						// This function returns document paths, not paths relative to its input.
+						finding["path"] = relative
+						out = append(out, finding)
+						continue
 					}
 					ctx := call.Argument(2).ToObject(s.vm)
 					var prefix []any

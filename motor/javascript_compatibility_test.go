@@ -86,3 +86,18 @@ func TestJavaScriptCompatibilityOrRejectsInvalidOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestJavaScriptCompatibilityUnreferenced(t *testing.T) {
+	for _, prefix := range []string{"@stoplight/spectral-", "@openlint/openlint-"} {
+		for _, callable := range []string{"unreferencedReusableObject", "(v,o,c)=>unreferencedReusableObject(v,o,c)"} {
+			t.Run(prefix+callable, func(t *testing.T) {
+				rs := loadJSRules(t, fmt.Sprintf(`import {unreferencedReusableObject} from '%sfunctions';export default {rules:{unused:{resolved:false,given:'$.defs',then:{function:%s,functionOptions:{reusableObjectsLocation:'#/defs'}}}}};`, prefix, callable))
+				result := ApplyRulesToRuleSet(&RuleSetExecution{RuleSet: rs, Spec: []byte("use: {$ref: '#/defs/Used'}\ndefs: {Used: {}, Unused: {}}"), SkipDocumentCheck: true, SilenceLogs: true})
+				defer result.Release()
+				require.Empty(t, result.Errors)
+				require.Len(t, result.Results, 1)
+				require.Equal(t, "$.defs.Unused", result.Results[0].Path)
+			})
+		}
+	}
+}

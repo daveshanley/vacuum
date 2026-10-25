@@ -70,7 +70,7 @@ func TestPrepareCancellation(t *testing.T) {
 func TestPrepareRejectsUnsupportedCompatibilityImports(t *testing.T) {
 	for _, prefix := range []string{"@stoplight/spectral-", "@openlint/openlint-"} {
 		for _, tc := range []struct{ module, export string }{
-			{"functions", "unreferencedReusableObject"},
+			{"functions", "missing"},
 			{"core", "Document"},
 			{"formats", "missing"},
 			{"runtime", "fetch"},
