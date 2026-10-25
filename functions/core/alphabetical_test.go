@@ -140,7 +140,7 @@ func TestAlphabetical_RunRule_SuccessFloatArray(t *testing.T) {
 	assert.Len(t, res, 0)
 }
 
-func TestAlphabetical_RunRule_IgnoreBooleanArray(t *testing.T) {
+func TestAlphabetical_RunRule_CompareNumbersAcrossBoolean(t *testing.T) {
 
 	sampleYaml := "grim:\n - 1.782\n - 2.9981\n - true\n - 1.1"
 
@@ -158,7 +158,7 @@ func TestAlphabetical_RunRule_IgnoreBooleanArray(t *testing.T) {
 	def := &Alphabetical{}
 	res := def.RunRule(nodes, ctx)
 
-	assert.Len(t, res, 0)
+	assert.Len(t, res, 1)
 }
 
 func TestAlphabetical_RunRule_ObjectFail(t *testing.T) {

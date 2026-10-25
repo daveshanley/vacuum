@@ -24,9 +24,10 @@ func TestXorChecksEachObjectIndependently(t *testing.T) {
 	ctx := buildCoreTestContextFromRule(model.CastToRuleAction(rule.Then), rule)
 	ctx.Given = "$.items[*]"
 	results := (Xor{}).RunRule(nodes, ctx)
-	require.Len(t, results, 2)
-	require.Same(t, nodes[2], results[0].StartNode)
-	require.Same(t, nodes[3], results[1].StartNode)
+	require.Len(t, results, 5)
+	for i, result := range results {
+		require.Same(t, nodes[i+2], result.StartNode)
+	}
 }
 
 func TestXor_RunRule(t *testing.T) {
