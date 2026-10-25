@@ -12,7 +12,9 @@ import (
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi-validator/config"
 	validationErrors "github.com/pb33f/libopenapi-validator/errors"
+	"github.com/pb33f/libopenapi-validator/schema_validation"
 	highBase "github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/datamodel/low"
 	lowBase "github.com/pb33f/libopenapi/datamodel/low/base"
@@ -47,12 +49,16 @@ func (sch Schema) GetSchema() model.RuleFunctionSchema {
 				Description: "A valid JSON Schema object that will be used to validate",
 			},
 			{
+				Name: "allErrors", Description: "Report all schema failures (default is false)",
+			},
+			{Name: "dialect", Description: "JSON Schema dialect (default is draft7)"},
+			{
 				Name:        "unpack",
 				Description: "Treat the parent node as a document node and unpack it (default is false)",
 			},
 			{
 				Name:        "forceValidation",
-				Description: "Force a failure if the field is not found (default is false)",
+				Description: "Fail if the field is not found (default is true)",
 			},
 			{
 				Name:        "forceValidationOnCurrentNode",
@@ -72,11 +78,39 @@ func (sch Schema) GetCategory() string {
 	return model.FunctionCategoryCore
 }
 
+// ValidateOptions checks the types and dialect names accepted by schema.
+func (sch Schema) ValidateOptions(options any) error {
+	if value := utils.ExtractValueFromInterfaceMap("allErrors", options); value != nil {
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("schema allErrors must be a boolean")
+		}
+	}
+	if value := utils.ExtractValueFromInterfaceMap("dialect", options); value != nil {
+		dialect, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("schema dialect must be a string")
+		}
+		switch dialect {
+		case "draft4", "draft6", "draft7", "draft2019-09", "draft2020-12":
+		default:
+			return fmt.Errorf("unsupported schema dialect %q", dialect)
+		}
+	}
+	return nil
+}
+
 // RunRule will execute the Schema function
 func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) []model.RuleFunctionResult {
 
 	if len(nodes) <= 0 {
 		return nil
+	}
+
+	if err := sch.ValidateOptions(context.Options); err != nil {
+		if context.ReportError != nil {
+			context.ReportError(err)
+		}
+		return []model.RuleFunctionResult{{Message: err.Error(), Rule: context.Rule, StartNode: nodes[0], EndNode: nodes[0]}}
 	}
 
 	unpack := utils.ExtractValueFromInterfaceMap("unpack", context.Options)
@@ -149,9 +183,38 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 		schema = highBase.NewSchema(&lowSchema)
 	}
 
+	// Each rule owns its validator so format checks do not change other functions.
+	validator := schema_validation.NewSchemaValidatorWithLogger(context.Logger, config.WithFormatAssertions())
+	defer validator.Release()
+	context.SchemaValidator = validator
+
 	// use the current node to validate (field not needed)
+
 	schema = cloneSchemaForCoreValidation(schema, schemaIndex)
-	forceValidationOnCurrentNode := utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
+	// Copy the high-level wrapper before setting the dialect on caller-owned schemas.
+	ownedSchema := *schema
+	schema = &ownedSchema
+	if schema.SchemaTypeRef == "" {
+		dialect, _ := utils.ExtractValueFromInterfaceMap("dialect", context.Options).(string)
+		switch dialect {
+		case "", "draft7":
+			schema.SchemaTypeRef = "http://json-schema.org/draft-07/schema#"
+		case "draft4":
+			schema.SchemaTypeRef = "http://json-schema.org/draft-04/schema#"
+		case "draft6":
+			schema.SchemaTypeRef = "http://json-schema.org/draft-06/schema#"
+		case "draft2019-09":
+			schema.SchemaTypeRef = "https://json-schema.org/draft/2019-09/schema"
+		case "draft2020-12":
+			schema.SchemaTypeRef = "https://json-schema.org/draft/2020-12/schema"
+		default:
+			r := model.BuildFunctionResultString(fmt.Sprintf("unsupported schema dialect %q", dialect))
+			r.Rule = context.Rule
+			return []model.RuleFunctionResult{r}
+		}
+	}
+	forceValidationOnCurrentNode :=
+		utils.ExtractValueFromInterfaceMap("forceValidationOnCurrentNode", context.Options)
 
 	// Without a field, the selector has already identified the value to validate.
 	if forceBool, _ := forceValidationOnCurrentNode.(bool); forceBool || context.RuleAction.Field == "" {
@@ -178,9 +241,9 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 			results = append(results, validateNodeAgainstSchema(&context, schema, fieldNode, fieldNodeValue, context, x)...)
 
 		} else {
-			// If the field is not found, and we're being strict, it's invalid.
+			// Missing values fail unless the rule explicitly makes this field optional.
 			forceValidation := utils.ExtractValueFromInterfaceMap("forceValidation", context.Options)
-			if _, ko := forceValidation.(bool); ko {
+			if enabled, specified := forceValidation.(bool); !specified || enabled {
 
 				var locatedObjects []v3.Foundational
 				var allPaths []string
@@ -213,6 +276,7 @@ func (sch Schema) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext)
 				if p, df := context.Given.(string); df {
 					r.Path = fmt.Sprintf("%s[%d]", p, x)
 				}
+				r.Path, r.Paths, locatedObjects = locateNodePaths(&context, node)
 				results = append(results, r)
 				if len(locatedObjects) > 0 {
 					if arr, kk := locatedObjects[0].(v3.AcceptsRuleResults); kk {
@@ -272,6 +336,15 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 	var schemaErrors []*validationErrors.SchemaValidationFailure
 	for k := range resErrors {
 		schemaErrors = append(schemaErrors, resErrors[k].SchemaValidationErrors...)
+		// Compilation and decoding failures must not become a clean result.
+		if len(resErrors[k].SchemaValidationErrors) == 0 {
+			reason := resErrors[k].Reason
+			if reason == "" {
+				reason = resErrors[k].Message
+			}
+			schemaErrors = append(schemaErrors, &validationErrors.SchemaValidationFailure{Reason: reason})
+		}
+
 	}
 
 	for c := range schemaErrors {
@@ -339,6 +412,9 @@ func validateNodeAgainstSchema(ctx *model.RuleFunctionContext, schema *highBase.
 				if arr, kk := locatedObjects[0].(v3.AcceptsRuleResults); kk {
 					arr.AddRuleFunctionResult(v3.ConvertRuleResult(&r))
 				}
+			}
+			if allErrors, _ := utils.ExtractValueFromInterfaceMap("allErrors", context.Options).(bool); !allErrors {
+				break
 			}
 		}
 
