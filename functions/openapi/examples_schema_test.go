@@ -1528,3 +1528,178 @@ components:
 	assert.Equal(t, "example violates `not`: matches the schema excluded by not", res[0].Message)
 	assert.Equal(t, "$.components.schemas['RestrictedRange'].example", res[0].Path)
 }
+
+func TestIssue976_NotValidationErrorMessage_MixedErrors(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    Mixed:
+      type: object
+      properties:
+        a:
+          type: string
+        b:
+          not:
+            type: integer
+      example:
+        a: 42
+        b: 42`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 2)
+	var notMsg, strMsg string
+	for _, r := range res {
+		if strings.Contains(r.Message, "violates `not`") {
+			notMsg = r.Message
+		} else if strings.Contains(r.Message, "string") {
+			strMsg = r.Message
+		}
+	}
+	assert.Equal(t, "example violates `not`: value must not be of type `integer`", notMsg)
+	assert.Contains(t, strMsg, "string")
+}
+
+func TestIssue976_NotValidationErrorMessage_EmptyConst(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    EmptyConst:
+      not:
+        type: string
+        const: ""
+      example: ""`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", res[0].Message)
+	assert.Equal(t, "$.components.schemas['EmptyConst'].example", res[0].Path)
+}
+
+func TestIssue976_NotValidationErrorMessage_ObjectAndArrayConst(t *testing.T) {
+	ymlObj := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    ObjectConst:
+      not:
+        const:
+          role: admin
+      example:
+        role: admin`
+
+	resObj := runExamplesSchemaRule(t, ymlObj, nil)
+	assert.Len(t, resObj, 1)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", resObj[0].Message)
+
+	ymlArr := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    ArrayConst:
+      not:
+        const:
+          - 1
+          - 2
+      example:
+        - 1
+        - 2`
+
+	resArr := runExamplesSchemaRule(t, ymlArr, nil)
+	assert.Len(t, resArr, 1)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", resArr[0].Message)
+}
+
+func TestIssue976_NotValidationErrorMessage_AbsentProperty(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    CheckStatus:
+      not:
+        properties:
+          status:
+            const: forbidden
+      example: {}`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", res[0].Message)
+	assert.Equal(t, "$.components.schemas['CheckStatus'].example", res[0].Path)
+}
+
+func TestIssue976_NotValidationErrorMessage_PresentProperty(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    CheckStatus:
+      not:
+        properties:
+          status:
+            const: forbidden
+      example:
+        status: forbidden`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: property `status` must not be `forbidden`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['CheckStatus'].example", res[0].Path)
+}
+
+func TestIssue976_NotValidationErrorMessage_IncompatibleType(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    CheckMin:
+      not:
+        minimum: 10
+      example: "hello"`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: matches the schema excluded by not", res[0].Message)
+	assert.Equal(t, "$.components.schemas['CheckMin'].example", res[0].Path)
+}
+
+func TestIssue976_NotValidationErrorMessage_CompatibleType(t *testing.T) {
+	yml := `openapi: 3.1.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    CheckMin:
+      not:
+        minimum: 10
+      example: 15`
+
+	res := runExamplesSchemaRule(t, yml, nil)
+	assert.Len(t, res, 1)
+	assert.Equal(t, "example violates `not`: value must not be >= `10`", res[0].Message)
+	assert.Equal(t, "$.components.schemas['CheckMin'].example", res[0].Path)
+}
