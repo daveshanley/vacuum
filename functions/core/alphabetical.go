@@ -44,6 +44,9 @@ func (a Alphabetical) RunRule(nodes []*yaml.Node, context model.RuleFunctionCont
 	keyedBy := context.GetOptionsStringMap()["keyedBy"]
 	var order *collate.Collator
 	greater := func(left, right *yaml.Node) bool {
+		if left == nil || right == nil {
+			return false
+		}
 		if isAlphabeticalNumber(left) && isAlphabeticalNumber(right) {
 			// Keep integer comparisons exact before using the mixed numeric path.
 			if left.Tag == "!!int" && right.Tag == "!!int" {
@@ -125,11 +128,6 @@ func alphabeticalValues(node *yaml.Node, keyedBy string) []*yaml.Node {
 		return nil
 	}
 	if keyedBy == "" && node.Kind == yaml.SequenceNode {
-		for _, value := range node.Content {
-			if value.Tag != "!!str" && !isAlphabeticalNumber(value) {
-				return nil
-			}
-		}
 		return node.Content
 	}
 	step, first := 1, 0
@@ -143,14 +141,13 @@ func alphabeticalValues(node *yaml.Node, keyedBy string) []*yaml.Node {
 	for i := first; i < len(node.Content); i += step {
 		value := node.Content[i]
 		if keyedBy != "" {
-			if value.Kind != yaml.MappingNode {
-				return nil
+			if value.Kind == yaml.MappingNode {
+				_, value = utils.FindKeyNodeTop(keyedBy, value.Content)
+			} else {
+				value = nil
 			}
-			_, value = utils.FindKeyNodeTop(keyedBy, value.Content)
 		}
-		if value == nil || value.Tag != "!!str" && !isAlphabeticalNumber(value) {
-			return nil
-		}
+		// Missing or unsupported values separate pairs; they do not erase findings.
 		values = append(values, value)
 	}
 	return values
