@@ -1,0 +1,146 @@
+{
+  "alphabetical-case": {
+    "reason": "Vacuum preserves lexical ordering instead of locale ordering.",
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "ok",
+          "0"
+        ]
+      }
+    ]
+  },
+  "casing-non-ascii": {
+    "reason": "Vacuum also rejects empty values for casing checks.",
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "a"
+        ]
+      },
+      {
+        "code": "r",
+        "path": [
+          "b"
+        ]
+      }
+    ]
+  },
+  "falsy": {
+    "reason": "Empty collections remain falsy, consistent with Vacuum truthy checks.",
+    "results": [
+      {
+        "code": "all-falsy",
+        "path": [
+          "g"
+        ]
+      }
+    ]
+  },
+  "input-types": {
+    "reason": "Vacuum retains numeric pattern checks and rejects xor inputs without either required property.",
+    "results": [
+      {
+        "code": "starts-with-a",
+        "path": [
+          "n"
+        ]
+      },
+      {
+        "code": "starts-with-a",
+        "path": [
+          "s"
+        ]
+      },
+      {
+        "code": "one-of",
+        "path": [
+          "s"
+        ]
+      }
+    ]
+  },
+  "length-code-units": {
+    "reason": "Vacuum preserves UTF-8 byte limits instead of JavaScript UTF-16 length.",
+    "results": [
+
+    ]
+  },
+  "schema-default-draft": {
+    "reason": "Vacuum retains validation of newer keywords such as prefixItems by default.",
+    "results": [
+      {
+        "code": "needs-a",
+        "path": [
+          "o"
+        ]
+      },
+      {
+        "code": "prefix",
+        "path": [
+          "t"
+        ]
+      }
+    ]
+  },
+  "schema-first-error": {
+    "reason": "Vacuum reports both failures by default; no finding is suppressed.",
+    "results": [
+      {
+        "code": "r",
+        "path": [
+          "v"
+        ]
+      },
+      {
+        "code": "r",
+        "path": [
+          "v"
+        ]
+      }
+    ]
+  },
+  "truthy": {
+    "reason": "Vacuum rejects empty collections as well as false, empty strings, zero and null.",
+    "results": [
+      {
+        "code": "all-truthy",
+        "path": [
+          "a"
+        ]
+      },
+      {
+        "code": "all-truthy",
+        "path": [
+          "b"
+        ]
+      },
+      {
+        "code": "all-truthy",
+        "path": [
+          "c"
+        ]
+      },
+      {
+        "code": "all-truthy",
+        "path": [
+          "d"
+        ]
+      },
+      {
+        "code": "all-truthy",
+        "path": [
+          "e"
+        ]
+      },
+      {
+        "code": "all-truthy",
+        "path": [
+          "f"
+        ]
+      }
+    ]
+  }
+}
