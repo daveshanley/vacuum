@@ -686,7 +686,7 @@ func TestResultPathCacheDoesNotUseRootPositionForExternalOrigin(t *testing.T) {
 		Column: 11,
 	}
 	root := testResultPathDocumentNode(testResultPathMappingNode("tags", rootValue))
-	cache := newResultPathCache(root, rootLocation)
+	cache := newResultPathCache(root, rootLocation, []model.RuleFunctionResult{{StartNode: rootValue}})
 
 	rootOriginNode := &yaml.Node{
 		Kind:   yaml.ScalarNode,
