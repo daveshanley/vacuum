@@ -140,7 +140,7 @@ func finalizeResultPaths(
 	needsTerminalKeyUpgrade := needsTerminalKeySelectorPathUpgrade(results)
 	needsCollapse := len(results) > 1
 	if cacheRoot != nil && (needsReconciliation || needsTerminalKeyUpgrade || (cacheForMultipleResults && needsCollapse)) {
-		cache = newResultPathCache(cacheRoot, rootLocation)
+		cache = newResultPathCache(cacheRoot, rootLocation, results)
 		if needsReconciliation {
 			for i := range results {
 				cache.reconcile(&results[i])
@@ -158,12 +158,37 @@ func finalizeResultPaths(
 	return results
 }
 
-func newResultPathCache(root *yaml.Node, rootLocation string) *resultPathCache {
+func newResultPathCache(root *yaml.Node, rootLocation string, results []model.RuleFunctionResult) *resultPathCache {
 	cache := &resultPathCache{
 		rootLocation:       rootLocation,
 		nodePaths:          make(map[*yaml.Node]string),
 		positionPaths:      make(map[resultPathPosition]string),
 		precisePositionMap: make(map[resultPathPosition]string),
+	}
+	// Only result locations are queried during reconciliation. Seed those keys
+	// before walking so unrelated document nodes do not occupy the path maps.
+	addPosition := func(line, column int) {
+		if line > 0 && column > 0 {
+			position := resultPathPosition{line: line, column: column}
+			cache.positionPaths[position] = ""
+			cache.precisePositionMap[position] = ""
+		}
+	}
+	addNode := func(node *yaml.Node) {
+		if node != nil {
+			cache.nodePaths[node] = ""
+			addPosition(node.Line, node.Column)
+		}
+	}
+	for i := range results {
+		result := &results[i]
+		addNode(result.StartNode)
+		if origin := result.Origin; origin != nil {
+			addNode(origin.Node)
+			addNode(origin.ValueNode)
+			addPosition(origin.Line, origin.Column)
+			addPosition(origin.LineValue, origin.ColumnValue)
+		}
 	}
 	cache.indexNode(root, "$")
 	return cache
@@ -2520,7 +2545,7 @@ func (c *resultPathCache) lookupNodePath(node *yaml.Node) (string, bool) {
 		return "", false
 	}
 	path, found := c.nodePaths[node]
-	return path, found
+	return path, found && path != ""
 }
 
 func (c *resultPathCache) lookupPositionPathForNode(node *yaml.Node) (string, bool) {
@@ -2535,7 +2560,7 @@ func (c *resultPathCache) lookupPositionPath(line, column int) (string, bool) {
 		return "", false
 	}
 	path, found := c.positionPaths[resultPathPosition{line: line, column: column}]
-	return path, found
+	return path, found && path != ""
 }
 
 func (c *resultPathCache) lookupPrecisePositionPathForNode(node *yaml.Node) (string, bool) {
@@ -2550,7 +2575,7 @@ func (c *resultPathCache) lookupPrecisePositionPath(line, column int) (string, b
 		return "", false
 	}
 	path, found := c.precisePositionMap[resultPathPosition{line: line, column: column}]
-	return path, found
+	return path, found && path != ""
 }
 
 func (c *resultPathCache) indexNode(node *yaml.Node, path string) {
@@ -2590,12 +2615,12 @@ func (c *resultPathCache) storeNodePath(node *yaml.Node, path string) {
 	if node == nil {
 		return
 	}
-	if _, exists := c.nodePaths[node]; !exists {
+	if existing, wanted := c.nodePaths[node]; wanted && existing == "" {
 		c.nodePaths[node] = path
 	}
 	if node.Line > 0 && node.Column > 0 {
 		position := resultPathPosition{line: node.Line, column: node.Column}
-		if _, exists := c.positionPaths[position]; !exists {
+		if existing, wanted := c.positionPaths[position]; wanted && existing == "" {
 			c.positionPaths[position] = path
 		}
 	}
@@ -2606,7 +2631,7 @@ func (c *resultPathCache) storePrecisePositionPath(node *yaml.Node, path string)
 		return
 	}
 	position := resultPathPosition{line: node.Line, column: node.Column}
-	if existing, exists := c.precisePositionMap[position]; !exists || len(path) > len(existing) {
+	if existing, wanted := c.precisePositionMap[position]; wanted && len(path) > len(existing) {
 		c.precisePositionMap[position] = path
 	}
 }
