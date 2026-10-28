@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"strings"
 
 	languageserver "github.com/daveshanley/vacuum/language-server"
 	"github.com/daveshanley/vacuum/logging"
@@ -41,11 +43,25 @@ func GetLanguageServerCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Use:           "language-server",
+		Use:           "language-server [root-spec]",
+		Args:          cobra.MaximumNArgs(1),
 		Short:         "Run a fully compliant LSP server for OpenAPI linting (Language Server Protocol)",
 		Long: `Provides a fully compliant LSP backend for OpenAPI linting and validation. Connect up your favorite
-IDE and start linting your OpenAPI documents in real-time.`,
+IDE and start linting your OpenAPI documents in real-time.
+Pass a root specification path or HTTP(S) URL to lint a multi-file API in context.
+Open editor buffers, including unsaved changes, take precedence over stored files.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var mainSpecPath string
+			if len(args) == 1 {
+				mainSpecPath = args[0]
+				if !strings.HasPrefix(mainSpecPath, "http://") && !strings.HasPrefix(mainSpecPath, "https://") {
+					var err error
+					mainSpecPath, err = filepath.Abs(mainSpecPath)
+					if err != nil {
+						return fmt.Errorf("failed to resolve root specification path: %w", err)
+					}
+				}
+			}
 
 			// setup logging to be discarded, it will invalidate the LSP protocol
 			// use discard logger to prevent memory accumulation
@@ -123,6 +139,7 @@ IDE and start linting your OpenAPI documents in real-time.`,
 			}
 
 			lfr := utils.LintFileRequest{
+				MainSpecPath:             mainSpecPath,
 				BaseFlag:                 baseFlag,
 				Remote:                   remoteFlag,
 				SkipCheckFlag:            skipCheckFlag,

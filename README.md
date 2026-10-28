@@ -354,6 +354,15 @@ bundle. Schema resource IDs are resolved before relocation. Non-JSON schema
 content is preserved; language-specific imports and dynamic JSON Schema references
 are not bundled.
 
+### Multi-file editor diagnostics
+
+For a specification split across files, configure your editor to run
+`vacuum language-server ./openapi.yaml`. The optional root can also be an HTTP(S)
+URL. The server lints the root specification with its references and sends each
+open document its own diagnostics. Unsaved edits in open files take precedence
+over their stored content. Without a root argument, each document is linted
+independently.
+
 See all the documentation at https://quobix.com/vacuum
 
 - [Installing vacuum](https://quobix.com/vacuum/installing/)

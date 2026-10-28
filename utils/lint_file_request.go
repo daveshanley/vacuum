@@ -11,6 +11,9 @@ import (
 )
 
 type LintFileRequest struct {
+	// MainSpecPath selects the root specification for multi-file language-server diagnostics.
+	// An empty value lints each open document independently.
+	MainSpecPath             string
 	FileName                 string
 	BaseFlag                 string
 	MultiFile                bool
