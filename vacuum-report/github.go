@@ -8,14 +8,18 @@ import (
 	"github.com/daveshanley/vacuum/model/reports"
 )
 
+var escapeGitHubPropertyReplacer = strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A", ":", "%3A", ",", "%2C")
+
 // EscapeGitHubProperty escapes a workflow command property.
 func EscapeGitHubProperty(s string) string {
-	return strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A", ":", "%3A", ",", "%2C").Replace(s)
+	return escapeGitHubPropertyReplacer.Replace(s)
 }
+
+var escapeGitHubMessageReplacer = strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A")
 
 // EscapeGitHubMessage escapes a workflow command message.
 func EscapeGitHubMessage(s string) string {
-	return strings.NewReplacer("%", "%25", "\r", "%0D", "\n", "%0A").Replace(s)
+	return escapeGitHubMessageReplacer.Replace(s)
 }
 
 // WriteGitHubAnnotation writes one annotation using one-based coordinates.

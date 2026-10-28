@@ -132,7 +132,7 @@ func BenchmarkReportFormats(b *testing.B) {
 	for i := range records {
 		records[i] = sample
 	}
-	for _, format := range []string{"json", "sarif", "gitlab", "html"} {
+	for _, format := range []string{"json", "sarif", "gitlab", "html", "text", "markdown", "teamcity", "github-actions"} {
 		b.Run(format, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
@@ -142,4 +142,17 @@ func BenchmarkReportFormats(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestReportMarkdownDoesNotPadEveryRowForLongMessage(t *testing.T) {
+	rows := make([]Diagnostic, 1000)
+	for i := range rows {
+		rows[i] = exportFixture()[0]
+		rows[i].Message = "short"
+	}
+	rows[0].Message = strings.Repeat("x", 8192)
+	var b bytes.Buffer
+	require.NoError(t, WriteFormat(&b, "markdown", rows, FormatOptions{}))
+	require.Less(t, b.Len(), 200000, "a single long message must not expand all rows with padding")
+	require.Equal(t, 1002, strings.Count(b.String(), "\n"))
 }

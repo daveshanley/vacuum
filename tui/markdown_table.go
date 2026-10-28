@@ -5,6 +5,7 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -54,4 +55,35 @@ func RenderMarkdownTable(headers []string, rows [][]string) string {
 	}
 
 	return output.String()
+}
+
+// WriteMarkdownTable writes an unpadded table for portable reports. Callers must
+// escape pipes, newlines, and markup in cells before calling it. Unlike the
+// terminal table, a long cell does not add padding to every other row.
+func WriteMarkdownTable(w io.Writer, headers []string, rows [][]string) error {
+	if len(headers) == 0 {
+		return nil
+	}
+	writeRow := func(row []string) error {
+		if _, err := io.WriteString(w, "| "+strings.Join(row, " | ")+" |\n"); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := writeRow(headers); err != nil {
+		return err
+	}
+	separators := make([]string, len(headers))
+	for i := range separators {
+		separators[i] = "---"
+	}
+	if err := writeRow(separators); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if err := writeRow(row); err != nil {
+			return err
+		}
+	}
+	return nil
 }
