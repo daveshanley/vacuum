@@ -475,7 +475,14 @@ func (ctx *schemaBundleContext) bundleExternalSchema(external, currentDir string
 			ctx.rootFormat, external, dialect.Format))
 	}
 	childDir := currentDir
-	if !strings.Contains(canonical, "://") {
+	if strings.Contains(canonical, "://") {
+		childURL, err := url.Parse(canonical)
+		if err != nil {
+			return "", fmt.Errorf("invalid external schema URL %q: %w", canonical, err)
+		}
+		// Nested references are relative to the fetched schema's directory.
+		childDir = childURL.ResolveReference(&url.URL{Path: "."}).String()
+	} else {
 		childDir = filepath.Dir(canonical)
 	}
 	if err := rewriteExternalRefs(ctx, root, root, childDir); err != nil {
