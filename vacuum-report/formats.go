@@ -107,8 +107,7 @@ func WriteFormat(w io.Writer, format string, results []Diagnostic, opts FormatOp
 			}
 			rows = append(rows, row)
 		}
-		_, err := io.WriteString(w, tui.RenderMarkdownTable([]string{"Code", "Path", "Message", "Severity", "Location", "Source"}, rows))
-		return err
+		return tui.WriteMarkdownTable(w, []string{"Code", "Path", "Message", "Severity", "Location", "Source"}, rows)
 	case "text", "stylish", "pretty", "teamcity":
 		return writeText(w, format, results)
 	default:
@@ -128,14 +127,23 @@ func severityName(s int) string {
 	return []string{"error", "warn", "info", "hint"}[s]
 }
 func pathText(p []any) string { b, _ := json.Marshal(p); return string(b) }
+
+var markdownCellReplacer = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\\", "\\\\", "|", "\\|", "\r", "", "\n", "<br>", "`", "\\`", "*", "\\*", "_", "\\_", "[", "\\[", "]", "\\]")
+
 func markdownCell(s string) string {
-	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\\", "\\\\", "|", "\\|", "\r", "", "\n", "<br>", "`", "\\`", "*", "\\*", "_", "\\_", "[", "\\[", "]", "\\]").Replace(s)
+	return markdownCellReplacer.Replace(s)
 }
+
+var singleLineReplacer = strings.NewReplacer("\r", "\\r", "\n", "\\n", "\t", "\\t", "\x1b", "\\x1b")
+
 func singleLine(s string) string {
-	return strings.NewReplacer("\r", "\\r", "\n", "\\n", "\t", "\\t", "\x1b", "\\x1b").Replace(s)
+	return singleLineReplacer.Replace(s)
 }
+
+var escapeTeamCityReplacer = strings.NewReplacer("|", "||", "'", "|'", "\n", "|n", "\r", "|r", "[", "|[", "]", "|]", "\u0085", "|x", "\u2028", "|l", "\u2029", "|p")
+
 func escapeTeamCity(s string) string {
-	return strings.NewReplacer("|", "||", "'", "|'", "\n", "|n", "\r", "|r", "[", "|[", "]", "|]", "\u0085", "|x", "\u2028", "|l", "\u2029", "|p").Replace(s)
+	return escapeTeamCityReplacer.Replace(s)
 }
 func writeText(w io.Writer, format string, results []Diagnostic) error {
 	if format == "teamcity" {
