@@ -174,3 +174,38 @@ func TestReportAtomicFailure(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "previous", string(data))
 }
+
+func TestLintOutputPreservesReferencedFiles(t *testing.T) {
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "api.yaml")
+	reference := filepath.Join(dir, "schemas.yaml")
+	rules := filepath.Join(dir, "rules.yaml")
+	require.NoError(t, os.WriteFile(spec, []byte("openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Thing:\n      $ref: './schemas.yaml#/Thing'\n"), 0600))
+	original := []byte("Thing:\n  type: string\n")
+	require.NoError(t, os.WriteFile(reference, original, 0600))
+	require.NoError(t, os.WriteFile(rules, []byte("rules: {}\n"), 0600))
+	other := filepath.Join(dir, "other.yaml")
+	data, err := os.ReadFile(spec)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(other, data, 0600))
+	for _, inputs := range [][]string{{spec}, {spec, other}} {
+		args := append([]string{"lint"}, inputs...)
+		args = append(args, "-r", rules, "--format", "json", "--output", reference, "--fail-severity", "none")
+		_, stderr, err := exportCommand(t, args...)
+		require.Error(t, err)
+		require.Contains(t, stderr, "overwrite input")
+		data, err := os.ReadFile(reference)
+		require.NoError(t, err)
+		require.Equal(t, original, data)
+	}
+}
+func TestLintOutputPreservesFixDestination(t *testing.T) {
+	spec, rules := exportInputs(t)
+	target := filepath.Join(t.TempDir(), "fixed.yaml")
+	out, stderr, err := exportCommand(t, "lint", spec, "-r", rules, "--fix", "--fix-file", target, "--format", "json", "--output", target)
+	require.Error(t, err)
+	require.Empty(t, out)
+	require.Contains(t, stderr, "overwrite input")
+	_, err = os.Stat(target)
+	require.True(t, os.IsNotExist(err))
+}

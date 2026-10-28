@@ -29,9 +29,11 @@ The supported names match OpenLint 1.0.0:
 
 These are format-compatible exports of vacuum findings. They do not copy OpenLint's rule behavior, branding, terminal styling, or formatting defects. For example, Code Climate line numbers are one-based.
 
-Multiple formats share one lint run. Use `--output format=path` for named destinations. At most one format can use stdout. Use `-` explicitly for stdout. A single format also accepts `--output path`. Output filenames must be distinct and must not overwrite the input document. File reports are replaced only after rendering succeeds. A later destination can still fail after an earlier report has been written.
+Multiple formats share one lint run. Use `--output format=path` for named destinations. At most one format can use stdout. Use `-` explicitly for stdout. A single format also accepts `--output path`. Output filenames must be distinct and must not overwrite the input document, loaded OpenAPI reference documents, or the `--fix-file` destination. File reports are replaced only after rendering succeeds. A later destination can still fail after an earlier report has been written.
 
 `--format` suppresses banners, progress, update notices, and debug logs. It cannot be combined with the existing terminal presentation switches such as `--details`, `--silent`, `--pipeline-output`, or `--github-annotations`. Use `--format github-actions` for annotation exports. `--errors` filters displayed findings; `--category` selects findings before the failure outcome is computed. Existing lint severity and score thresholds still apply. Exit codes remain 0 for success, 1 for violations, and 2 for input/tool errors, including report write errors. Errors go to stderr.
+
+Existing GitHub annotations now count Unicode code points instead of UTF-8 bytes when computing scalar end columns. This corrects the end position for non-ASCII text.
 
 The existing `report`, `spectral-report`, `html-report`, `--pipeline-output`, and `--github-annotations` commands and switches retain their contracts. The existing interactive `html-report` remains available for charts, navigation, and snippets. The new `--format html` is a complete portable table, available even without the `html_report_ui` build tag. JSON Schema's existing `schema --format json` output is unchanged.
 

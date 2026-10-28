@@ -617,6 +617,10 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		SpecFormat:                      specFormat,
 	}, newMotorExecutionOptionsFromLintFlags(config.Flags))
 	defer result.ReleaseOwnedResources()
+	var reportInputs []string
+	if config.Flags.FormattedOutput {
+		reportInputs = indexedReportInputs(result.Index)
+	}
 
 	if len(result.Errors) > 0 {
 		var logs []string
@@ -630,9 +634,10 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 			}
 		}
 		return &FileProcessingResult{
-			FileSize: fileSize,
-			Logs:     logs,
-			Error:    result.Errors[0],
+			FileSize:     fileSize,
+			Logs:         logs,
+			Error:        result.Errors[0],
+			ReportInputs: reportInputs,
 		}
 	}
 
@@ -690,5 +695,6 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		Logs:           logs,
 		Error:          nil,
 		PathsTruncated: result.HasTruncatedPaths(),
+		ReportInputs:   reportInputs,
 	}
 }
