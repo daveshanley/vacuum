@@ -47,6 +47,7 @@ func GetLintCommand() *cobra.Command {
 		},
 	}
 
+	addLintOutputFlags(cmd)
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
@@ -76,7 +77,19 @@ func GetLintCommand() *cobra.Command {
 	return cmd
 }
 
-func runLint(cmd *cobra.Command, args []string) error {
+func runLint(cmd *cobra.Command, args []string) (runErr error) {
+	defer func() {
+		formats, _ := cmd.Flags().GetStringSlice("format")
+		outputs, _ := cmd.Flags().GetStringArray("output")
+		if runErr != nil && (len(formats) > 0 || len(outputs) > 0) {
+			fmt.Fprintln(cmd.ErrOrStderr(), runErr)
+		}
+	}()
+
+	targets, outputErr := lintOutputTargets(cmd)
+	if outputErr != nil {
+		return outputErr
+	}
 	flags := ReadLintFlags(cmd)
 
 	SetupVacuumEnvironment(flags)
@@ -131,6 +144,10 @@ func runLint(cmd *cobra.Command, args []string) error {
 				color.ASCIIBold, color.ASCIIRed, color.ASCIIReset)
 		}
 		return noFileErr
+	}
+
+	if err := validateLintOutputInputs(targets, append(append([]string{}, filesToLint...), flags.RulesetFlag, flags.OriginalFlag)); err != nil {
+		return err
 	}
 
 	// for multiple files, run each one and combine results
@@ -339,16 +356,19 @@ func runLint(cmd *cobra.Command, args []string) error {
 
 		// render out buffered logs (chrome; suppressed in annotation mode so
 		// debug output does not contaminate the annotation stream on stdout)
-		if !flags.GitHubAnnotations {
+		if !flags.GitHubAnnotations && !flags.FormattedOutput {
 			RenderBufferedLogs(bufferedLogger, flags.NoStyleFlag)
 		}
 
 		if len(result.Errors) > 0 {
 			for _, err := range result.Errors {
+				if flags.FormattedOutput {
+					fmt.Fprintf(cmd.ErrOrStderr(), "Unable to process spec %q: %v\n", displayFileName, err)
+				}
 				if flags.GitHubAnnotations {
 					RenderGitHubAnnotationError(err, displayFileName)
 				}
-				if !flags.GitHubAnnotations {
+				if !flags.GitHubAnnotations && !flags.FormattedOutput {
 					fmt.Printf("\033[31mUnable to process spec '%s': %s\033[0m\n", displayFileName, err.Error())
 				}
 			}
@@ -466,7 +486,7 @@ func runLint(cmd *cobra.Command, args []string) error {
 		stats = reportOrSpec.Report.Statistics
 	}
 
-	if flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput && !flags.GitHubAnnotations {
+	if !flags.FormattedOutput && flags.DetailsFlag && len(resultSet.Results) > 0 && !flags.PipelineOutput && !flags.GitHubAnnotations {
 		specStringData = strings.Split(string(specBytes), "\n")
 		renderFixedDetails(RenderDetailsOptions{
 			Results:     resultSet.Results,
@@ -504,6 +524,13 @@ func runLint(cmd *cobra.Command, args []string) error {
 	failErr := CheckFailureSeverity(flags.FailSeverityFlag, errs, warnings, informs, hints)
 	if scoreFailed {
 		failErr = NewViolationError("score threshold failed, overall score is %d, and the threshold is %d", overallScore, flags.MinScore)
+	}
+
+	if flags.FormattedOutput {
+		if err := writeLintOutputs(cmd, []lintOutputFile{{displayFileName, resultSet.Results}}, flags); err != nil {
+			return err
+		}
+		return failErr
 	}
 
 	if !flags.GitHubAnnotations || flags.PipelineOutput {

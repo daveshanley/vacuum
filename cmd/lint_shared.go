@@ -65,6 +65,7 @@ func ResolveSpecPathForExecution(specFilePath string) (string, error) {
 
 // LintFlags holds all the command line flags for lint operations
 type LintFlags struct {
+	FormattedOutput          bool // Suppress terminal chrome when an explicit report format is selected.
 	GlobPattern              string
 	DetailsFlag              bool
 	SnippetsFlag             bool
@@ -245,6 +246,12 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	}
 	flags.OutputAbsPathsFlag, _ = cmd.Flags().GetBool("abs-paths")
 	flags.GitHubAnnotations, _ = cmd.Flags().GetBool("github-annotations")
+	formats, _ := cmd.Flags().GetStringSlice("format")
+	flags.FormattedOutput = len(formats) > 0
+	if flags.FormattedOutput {
+		flags.SilentFlag = true
+		flags.NoBannerFlag = true
+	}
 	return flags
 }
 

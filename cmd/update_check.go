@@ -114,6 +114,10 @@ func ShouldCheckForUpdates(cmd *cobra.Command) bool {
 	case "version", "completion", "help", "language-server", "upgrade":
 		return false
 	}
+	formats, _ := cmd.Flags().GetStringSlice("format")
+	if len(formats) > 0 {
+		return false
+	}
 	if boolFlagValue(cmd, "stdout") || boolFlagValue(cmd, "silent") || boolFlagValue(cmd, "pipeline-output") || boolFlagValue(cmd, "github-annotations") {
 		return false
 	}
