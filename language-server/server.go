@@ -224,8 +224,9 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		state.documentStore.Remove(params.TextDocument.URI)
 		state.clearDocumentRuntimeConfig(params.TextDocument.URI)
 		if state.lintRequest.MainSpecPath != "" {
-			context.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{URI: params.TextDocument.URI, Diagnostics: []protocol.Diagnostic{}})
+			// Invalidate older publications before clearing the closed document.
 			state.scheduleRootDiagnostic(context.Notify)
+			context.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{URI: params.TextDocument.URI, Diagnostics: []protocol.Diagnostic{}})
 		}
 		return nil
 	}
