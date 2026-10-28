@@ -457,3 +457,53 @@ func findYAMLMapValue(node *yaml.Node, key string) *yaml.Node {
 	}
 	return nil
 }
+
+func TestSchemaBundle_NestedRemoteRefsUseParentDirectory(t *testing.T) {
+	for _, absolute := range []bool{false, true} {
+		t.Run(fmt.Sprintf("absolute=%t", absolute), func(t *testing.T) {
+			var parentRequests, leafRequests, wrongRequests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/schemas/nested/parent.json":
+					parentRequests.Add(1)
+					_, _ = w.Write([]byte(`{"$ref":"leaf.json"}`))
+				case "/schemas/nested/leaf.json":
+					leafRequests.Add(1)
+					_, _ = w.Write([]byte(`{"type":"string"}`))
+				case "/schemas/leaf.json":
+					wrongRequests.Add(1)
+					_, _ = w.Write([]byte(`{"type":"integer"}`))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+
+			ref := "nested/parent.json"
+			if absolute {
+				ref = server.URL + "/schemas/" + ref
+			}
+			cmd := GetRootCommand()
+			var out bytes.Buffer
+			cmd.SetIn(strings.NewReader(fmt.Sprintf(`{"$ref":%q}`, ref)))
+			cmd.SetOut(&out)
+			cmd.SetErr(&bytes.Buffer{})
+			cmd.SetArgs([]string{"schema", "bundle", "--stdin", "--stdout", "--base", server.URL + "/schemas", "--remote", "--no-style"})
+			require.NoError(t, cmd.Execute())
+			var bundled struct {
+				Ref  string `json:"$ref"`
+				Defs map[string]struct {
+					Ref  string `json:"$ref"`
+					Type string `json:"type"`
+				} `json:"$defs"`
+			}
+			require.NoError(t, json.Unmarshal(out.Bytes(), &bundled))
+			assert.Equal(t, "#/$defs/parent", bundled.Ref)
+			assert.Equal(t, "#/$defs/leaf", bundled.Defs["parent"].Ref)
+			assert.Equal(t, "string", bundled.Defs["leaf"].Type)
+			assert.Equal(t, int32(1), parentRequests.Load())
+			assert.Equal(t, int32(1), leafRequests.Load())
+			assert.Zero(t, wrongRequests.Load())
+		})
+	}
+}
