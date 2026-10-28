@@ -209,6 +209,53 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		time.Sleep(150 * time.Millisecond) // give spinner time to clear
 	}
 
+	if flags.FormattedOutput {
+		outputFiles := make([]lintOutputFile, 0, len(fileResults))
+		var filteredErrors, filteredWarnings, filteredInfo, filteredHints int
+		for _, fr := range fileResults {
+			if fr.err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s: %v\n", fr.fileName, fr.err)
+				continue
+			}
+			results := fr.results
+			if flags.CategoryFlag != "" {
+				categories, _ := resolveLintCategoryFlag(flags.CategoryFlag)
+				results = nil
+				for _, r := range fr.results {
+					for _, category := range categories {
+						if r.Rule != nil && r.Rule.RuleCategory != nil && r.Rule.RuleCategory.Id == category.Id {
+							results = append(results, r)
+							break
+						}
+					}
+				}
+			}
+			for _, r := range results {
+				if r == nil {
+					continue
+				}
+				switch diagnosticSeverity(r) {
+				case 0:
+					filteredErrors++
+				case 1:
+					filteredWarnings++
+				case 2:
+					filteredInfo++
+				case 3:
+					filteredHints++
+				}
+			}
+			outputFiles = append(outputFiles, lintOutputFile{fr.fileName, results})
+		}
+		if err := writeLintOutputs(cmd, outputFiles, flags); err != nil {
+			return err
+		}
+		if processingErrors > 0 {
+			return NewInputError("linting failed due to %d input/tool errors", processingErrors)
+		}
+		return CheckFailureSeverity(flags.FailSeverityFlag, filteredErrors, filteredWarnings, filteredInfo, filteredHints)
+	}
+
 	// Render results - details and errors are "results" (shown even in silent mode)
 	// Chrome (headers, summaries, logs) are suppressed in silent mode
 	if flags.PipelineOutput {

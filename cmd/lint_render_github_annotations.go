@@ -1,13 +1,15 @@
 package cmd
 
 import (
-	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/model/reports"
+	vacuumreport "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/go-yaml"
 )
 
@@ -37,22 +39,14 @@ func severityToGitHubLevel(severity string) string {
 // allowed inside a GitHub Actions workflow command property value
 // (the key=value section before the final "::" separator).
 func escapeGitHubAnnotationProperty(s string) string {
-	s = strings.ReplaceAll(s, "%", "%25")
-	s = strings.ReplaceAll(s, "\r", "%0D")
-	s = strings.ReplaceAll(s, "\n", "%0A")
-	s = strings.ReplaceAll(s, ":", "%3A")
-	s = strings.ReplaceAll(s, ",", "%2C")
-	return s
+	return vacuumreport.EscapeGitHubProperty(s)
 }
 
 // escapeGitHubAnnotationMessage escapes special characters that are not
 // allowed inside a GitHub Actions workflow command message value
 // (the section after the final "::" separator).
 func escapeGitHubAnnotationMessage(s string) string {
-	s = strings.ReplaceAll(s, "%", "%25")
-	s = strings.ReplaceAll(s, "\r", "%0D")
-	s = strings.ReplaceAll(s, "\n", "%0A")
-	return s
+	return vacuumreport.EscapeGitHubMessage(s)
 }
 
 // toAnnotationFilePath converts a file path to a workspace-relative form
@@ -125,6 +119,10 @@ func RenderGitHubAnnotationsWithOptions(
 	fileName string,
 	options GitHubAnnotationRenderOptions,
 ) {
+	_ = writeGitHubAnnotations(os.Stdout, results, fileName, options)
+}
+
+func writeGitHubAnnotations(w io.Writer, results []*model.RuleFunctionResult, fileName string, options GitHubAnnotationRenderOptions) error {
 	var output strings.Builder
 	printed := 0
 	spanCache := make(map[*yaml.Node]cachedNodeSpan)
@@ -136,58 +134,31 @@ func RenderGitHubAnnotationsWithOptions(
 
 		level := severityToGitHubLevel(r.RuleSeverity)
 
-		var props []string
-
 		title := r.RuleId
 		if title == "" && r.Rule != nil {
 			title = r.Rule.Id
 		}
-		if title != "" {
-			props = append(props, fmt.Sprintf("title=%s", escapeGitHubAnnotationProperty(title)))
-		}
-
 		sourcePath := fileName
 		if r.Origin != nil && r.Origin.AbsoluteLocation != "" {
 			sourcePath = r.Origin.AbsoluteLocation
 		}
-		if relFile := toAnnotationFilePath(sourcePath); relFile != "" {
-			props = append(props, fmt.Sprintf("file=%s", escapeGitHubAnnotationProperty(relFile)))
-		}
-
 		start, end := annotationRange(r, options, spanCache)
-		if start.Char > 0 {
-			props = append(props, fmt.Sprintf("col=%d", start.Char))
-		}
-		if end.Char > 0 {
-			props = append(props, fmt.Sprintf("endColumn=%d", end.Char))
-		}
-		if start.Line > 0 {
-			props = append(props, fmt.Sprintf("line=%d", start.Line))
-		}
-		if end.Line > 0 {
-			props = append(props, fmt.Sprintf("endLine=%d", end.Line))
-		}
-
-		message := escapeGitHubAnnotationMessage(r.Message)
+		message := r.Message
 		if r.Rule != nil && r.Rule.DocumentationURL != "" {
-			message += "%0ADocumentation: " + escapeGitHubAnnotationMessage(r.Rule.DocumentationURL)
+			message += "\nDocumentation: " + r.Rule.DocumentationURL
+		}
+		if err := vacuumreport.WriteGitHubAnnotation(&output, level, title, toAnnotationFilePath(sourcePath), message, start, end); err != nil {
+			return err
 		}
 
-		if printed > 0 {
-			output.WriteByte('\n')
-		}
-		if len(props) > 0 {
-			output.WriteString(fmt.Sprintf("::%s %s::%s", level, strings.Join(props, ","), message))
-		} else {
-			output.WriteString(fmt.Sprintf("::%s::%s", level, message))
-		}
 		printed++
 	}
 
 	if printed > 0 {
-		output.WriteByte('\n')
-		fmt.Print(output.String())
+		_, err := io.WriteString(w, output.String())
+		return err
 	}
+	return nil
 }
 
 func annotationRange(
@@ -280,7 +251,7 @@ func scalarNodeEnd(node *yaml.Node) reports.RangeItem {
 
 	return reports.RangeItem{
 		Line: node.Line,
-		Char: node.Column + len(node.Value) + modifier,
+		Char: node.Column + utf8.RuneCountInString(node.Value) + modifier,
 	}
 }
 
