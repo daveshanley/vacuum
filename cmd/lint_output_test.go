@@ -209,3 +209,18 @@ func TestLintOutputPreservesFixDestination(t *testing.T) {
 	_, err = os.Stat(target)
 	require.True(t, os.IsNotExist(err))
 }
+
+func TestLintOutputPreservesAbsentFixDestinationThroughDirectoryAlias(t *testing.T) {
+	spec, rules := exportInputs(t)
+	dir := t.TempDir()
+	alias := filepath.Join(t.TempDir(), "alias")
+	require.NoError(t, os.Symlink(dir, alias))
+	fixed := filepath.Join(dir, "fixed.yaml")
+	output := filepath.Join(alias, "fixed.yaml")
+	out, stderr, err := exportCommand(t, "lint", spec, "-r", rules, "--fix", "--fix-file", fixed, "--format", "json", "--output", output)
+	require.Error(t, err)
+	require.Empty(t, out)
+	require.Contains(t, stderr, "overwrite input")
+	_, err = os.Stat(fixed)
+	require.True(t, os.IsNotExist(err))
+}
