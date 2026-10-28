@@ -29,6 +29,7 @@ type FileProcessingResult struct {
 	Logs           []string
 	Error          error
 	PathsTruncated bool
+	ReportInputs   []string // Loaded document paths protected from report output writes.
 }
 
 // runMultipleFiles processes multiple files for lint command
@@ -85,6 +86,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	annotationsOnly := flags.GitHubAnnotations && !flags.PipelineOutput
 
 	fileResults := make([]fileResult, len(filesToLint))
+	var reportInputs []string
 	stopSpinner := make(chan bool)
 	currentFile := make(chan string, 1)
 	progressChan := make(chan float64, 1)
@@ -172,6 +174,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 		}
 
 		result := ProcessSingleFileOptimized(fileName, processingConfig)
+		reportInputs = append(reportInputs, result.ReportInputs...)
 
 		if !annotationsOnly {
 			fileResults[i] = fileResult{
@@ -210,6 +213,13 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 	}
 
 	if flags.FormattedOutput {
+		targets, err := lintOutputTargets(cmd)
+		if err != nil {
+			return err
+		}
+		if err := validateLintOutputInputs(targets, reportInputs); err != nil {
+			return err
+		}
 		outputFiles := make([]lintOutputFile, 0, len(fileResults))
 		var filteredErrors, filteredWarnings, filteredInfo, filteredHints int
 		for _, fr := range fileResults {

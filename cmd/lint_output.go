@@ -13,6 +13,7 @@ import (
 	vacuumreport "github.com/daveshanley/vacuum/vacuum-report"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/jsonpath/pkg/jsonpath"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/spf13/cobra"
 )
 
@@ -282,4 +283,20 @@ func reportDestinationPath(path string) (string, error) {
 		return absolute, nil
 	}
 	return filepath.Join(parent, filepath.Base(absolute)), nil
+}
+
+// indexedReportInputs includes loaded external documents even when they produced no findings.
+func indexedReportInputs(idx *index.SpecIndex) []string {
+	if idx == nil {
+		return nil
+	}
+	paths := []string{idx.GetSpecAbsolutePath()}
+	if rolodex := idx.GetRolodex(); rolodex != nil {
+		for _, external := range rolodex.GetIndexes() {
+			if external != nil {
+				paths = append(paths, external.GetSpecAbsolutePath())
+			}
+		}
+	}
+	return paths
 }

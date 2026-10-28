@@ -146,7 +146,7 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		return noFileErr
 	}
 
-	if err := validateLintOutputInputs(targets, append(append([]string{}, filesToLint...), flags.RulesetFlag, flags.OriginalFlag)); err != nil {
+	if err := validateLintOutputInputs(targets, append(append([]string{}, filesToLint...), flags.RulesetFlag, flags.OriginalFlag, flags.FixFileFlag)); err != nil {
 		return err
 	}
 
@@ -353,6 +353,12 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 
 		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)
 		result := motor.ApplyRulesToRuleSetWithOptions(execution, executionOptions)
+		if flags.FormattedOutput {
+			if err := validateLintOutputInputs(targets, indexedReportInputs(result.Index)); err != nil {
+				result.ReleaseOwnedResources()
+				return err
+			}
+		}
 
 		// render out buffered logs (chrome; suppressed in annotation mode so
 		// debug output does not contaminate the annotation stream on stdout)
