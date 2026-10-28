@@ -18,9 +18,9 @@ package languageserver
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -65,6 +65,11 @@ type ServerState struct {
 	lintRequest      *utils.LintFileRequest
 	executionOptions *motor.ExecutionOptions
 	rulesetSelector  RulesetSelector
+
+	rootMu         sync.Mutex
+	rootGeneration uint64
+	rootRunning    bool
+	rootCancel     context.CancelFunc
 
 	// Configuration layers (in order of increasing priority)
 	baseConfig    *LSPConfig // From command-line flags (immutable after init)
@@ -218,6 +223,10 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	handler.TextDocumentDidClose = func(context *lsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 		state.documentStore.Remove(params.TextDocument.URI)
 		state.clearDocumentRuntimeConfig(params.TextDocument.URI)
+		if state.lintRequest.MainSpecPath != "" {
+			context.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{URI: params.TextDocument.URI, Diagnostics: []protocol.Diagnostic{}})
+			state.scheduleRootDiagnostic(context.Notify)
+		}
 		return nil
 	}
 
@@ -343,27 +352,38 @@ func (s *ServerState) Run() error {
 }
 
 func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
-	// Copy document data while holding read lock to avoid data race
-	doc.mu.RLock()
-	content := doc.Content
-	uri := doc.URI
-	doc.mu.RUnlock()
-
-	specFileName := strings.TrimPrefix(uri, "file://")
-
-	runtimeConfig, err := s.runtimeConfigForDocument(uri)
-	if err != nil {
-		s.logger.Warn("failed to build document configuration", "uri", uri, "error", err)
-		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
-			URI:         uri,
-			Diagnostics: []protocol.Diagnostic{ConvertErrorIntoDiagnostic(err)},
-		})
+	if s.lintRequest.MainSpecPath != "" {
+		s.scheduleRootDiagnostic(notify)
 		return
 	}
+	doc.mu.RLock()
+	content, uri := doc.Content, doc.URI
+	doc.mu.RUnlock()
+	go func() {
+		result, runtimeConfig, err := s.lintDocument(content, uri, fileURIToPath(uri), nil, s.executionOptions)
+		if err != nil {
+			notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{URI: uri, Diagnostics: []protocol.Diagnostic{ConvertErrorIntoDiagnostic(err)}})
+			return
+		}
+		defer result.ReleaseOwnedResources()
+		diagnostics := ConvertResultsIntoDiagnostics(result)
+		if !runtimeConfig.skipCheck && onlyUnsupportedDocumentErrors(result.Errors) {
+			if rulesetDiagnostics, ok := diagnosticsForRuleset(content); ok {
+				diagnostics = rulesetDiagnostics
+			}
+		}
+		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{URI: uri, Diagnostics: diagnostics})
+	}()
+}
 
+func (s *ServerState) lintDocument(content, uri, specFileName string, overlay fs.FS, options *motor.ExecutionOptions) (*motor.RuleSetExecutionResult, *documentRuntimeConfig, error) {
+	runtimeConfig, err := s.runtimeConfigForDocument(uri)
+	if err != nil {
+		return nil, nil, err
+	}
 	baseForDoc := runtimeConfig.config.Base
 	if baseForDoc == "" {
-		baseForDoc = filepath.Dir(specFileName)
+		baseForDoc = documentBase(specFileName)
 	}
 
 	deepGraph := len(runtimeConfig.ignoredResults) > 0
@@ -373,6 +393,7 @@ func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
 	// Build the rule execution config with copied values
 	ruleExec := &motor.RuleSetExecution{
 		RuleSet:                         selectedRS,
+		RolodexFS:                       overlay,
 		Spec:                            []byte(content),
 		SpecFileName:                    specFileName,
 		Timeout:                         time.Duration(runtimeConfig.timeoutSeconds()) * time.Second,
@@ -400,30 +421,13 @@ func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
 		ruleExec.RuleSet = s.rulesetSelector(docCtx)
 	}
 
-	go func() {
-		result := motor.ApplyRulesToRuleSetWithOptions(ruleExec, s.executionOptions)
-		defer result.ReleaseOwnedResources()
-
-		ignoreOptions := utils.IgnoreMatcherOptions{
-			SpecBytes: []byte(content),
-		}
-		if result != nil && result.RuleSetExecution != nil {
-			ignoreOptions.RootNode = result.RuleSetExecution.CanonicalDocument
-		}
-		filteredResults := utils.FilterIgnoredResultsWithOptions(result.Results, ignoredResults, ignoreOptions)
-		result.Results = filteredResults
-		diagnostics := ConvertResultsIntoDiagnostics(result)
-		if !runtimeConfig.skipCheck && onlyUnsupportedDocumentErrors(result.Errors) {
-			if rulesetDiagnostics, ok := diagnosticsForRuleset(content); ok {
-				diagnostics = rulesetDiagnostics
-			}
-		}
-
-		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
-			URI:         uri,
-			Diagnostics: diagnostics,
-		})
-	}()
+	result := motor.ApplyRulesToRuleSetWithOptions(ruleExec, options)
+	ignoreOptions := utils.IgnoreMatcherOptions{SpecBytes: []byte(content)}
+	if result != nil && result.RuleSetExecution != nil {
+		ignoreOptions.RootNode = result.RuleSetExecution.CanonicalDocument
+	}
+	result.Results = utils.FilterIgnoredResultsWithOptions(result.Results, ignoredResults, ignoreOptions)
+	return result, runtimeConfig, nil
 }
 
 func (s *ServerState) defaultRuleSetForDocument(runtimeConfig *documentRuntimeConfig, content []byte) (*rulesets.RuleSet, string) {
@@ -800,6 +804,10 @@ func (s *ServerState) loadIgnoreFileIfChanged(cfg *LSPConfig) error {
 
 // relintAllDocuments triggers re-linting of all open documents.
 func (s *ServerState) relintAllDocuments(notify lsp.NotifyFunc) {
+	if s.lintRequest.MainSpecPath != "" {
+		s.scheduleRootDiagnostic(notify)
+		return
+	}
 	s.documentStore.mu.RLock()
 	docs := make([]*Document, 0, len(s.documentStore.documents))
 	for _, doc := range s.documentStore.documents {
