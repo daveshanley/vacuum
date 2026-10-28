@@ -99,10 +99,13 @@ func validateLintOutputInputs(targets []lintOutputTarget, inputs []string) error
 		if t.path == "" || t.path == "-" {
 			continue
 		}
-		out, _ := filepath.Abs(t.path)
+		out, _ := reportDestinationPath(t.path)
 		outInfo, _ := os.Stat(out)
 		for _, input := range inputs {
-			in, _ := filepath.Abs(input)
+			if input == "" || strings.Contains(input, "://") {
+				continue
+			}
+			in, _ := reportDestinationPath(input)
 			inInfo, _ := os.Stat(in)
 			if out == in || outInfo != nil && inInfo != nil && os.SameFile(outInfo, inInfo) {
 				return fmt.Errorf("report destination would overwrite input %s", input)

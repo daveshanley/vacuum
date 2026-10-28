@@ -643,7 +643,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 
 	if config.Flags.FixFlag && result.ModifiedSpec != nil {
 		if err := writeFixedFile(result, fileName, config.Flags.FixFileFlag); err != nil {
-			return &FileProcessingResult{FileSize: fileSize, Error: err}
+			return &FileProcessingResult{FileSize: fileSize, Error: err, ReportInputs: reportInputs}
 		}
 	}
 
