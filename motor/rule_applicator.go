@@ -624,6 +624,10 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	// Set the custom RemoteURLHandler for libopenapi
 	docConfigResolved.RemoteURLHandler = vacuumUtils.CreateRemoteURLHandlerWithContext(control.Context(), httpClient)
 	reusableRemoteURLHandler = vacuumUtils.CreateRemoteURLHandler(httpClient)
+	if execution.RolodexFS != nil {
+		docConfigResolved.RemoteURLHandler = remoteFSHandler(control.Context(), execution.RolodexFS)
+		reusableRemoteURLHandler = remoteFSHandler(context.Background(), execution.RolodexFS)
+	}
 
 	if execution.Base != "" {
 
