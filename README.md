@@ -548,6 +548,31 @@ The options here are:
 - `validation`
 - `owasp`
 
+## Export lint results
+
+Use `--format` to choose a report format and `--output` to save it. Without `--output`, the report goes to stdout.
+
+```bash
+./vacuum lint my-spec.yaml --format sarif --output results.sarif
+```
+
+Supported formats: `json`, `junit`, `sarif`, `gitlab`, `code-climate`, `github-actions`, `teamcity`,
+`html`, `markdown`, `text`, `stylish`, and `pretty`.
+
+Write multiple reports from one lint run:
+
+```bash
+./vacuum lint my-spec.yaml \
+  --format sarif --output sarif=results.sarif \
+  --format junit --output junit=results.xml
+```
+
+The `html` format is a standalone table with every finding. The interactive `html-report` command remains available
+for charts, navigation, and snippets. For JUnit exports, `--fail-severity` sets which findings create test failures.
+
+See the [report formats documentation](https://quobix.com/vacuum/commands/report/#more-report-formats)
+for format details, stdout output, and JUnit examples.
+
 ## Generate a Spectral compatible report
 
 If you're already using Spectral JSON reports, and you want to use vacuum instead, use the `spectral-report` command
