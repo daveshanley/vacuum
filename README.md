@@ -153,7 +153,7 @@ A timeout is an incomplete check, not evidence that the document is clean.
 
 ## Documentation
 
-🔥 **New in** `v0.34` 🔥: **Agent testing in vacuum**
+🔥 **New in** `v0.34` 🔥: **Agent testing and new report formats**
 
 A new `test` command gives agents a way to test rules, check changes and verify repairs using vacuum's existing engine.
 Define a YAML or JSON suite, run `vacuum test suite.yaml`, and get structured results with evidence of what each rule actually did.
@@ -165,6 +165,11 @@ and check that running a fix again makes no further change. A clean result is on
 - [Read the `test` command reference](https://quobix.com/vacuum/commands/test/)
 - [Read more about execution evidence](https://quobix.com/vacuum/testing/evidence/)
 - [Use the test harness from Go](https://quobix.com/vacuum/api/test-harness/)
+
+Export lint results in 12 formats, including SARIF, JUnit, GitLab Code Quality, HTML and Markdown.
+Use `vacuum lint --format` to choose the output, or write multiple reports from one lint run.
+
+- [Explore the report formats and examples](https://quobix.com/vacuum/commands/report/#more-report-formats)
 
 ---
 
@@ -547,31 +552,6 @@ The options here are:
 - `tags`
 - `validation`
 - `owasp`
-
-## Export lint results
-
-Use `--format` to choose a report format and `--output` to save it. Without `--output`, the report goes to stdout.
-
-```bash
-./vacuum lint my-spec.yaml --format sarif --output results.sarif
-```
-
-Supported formats: `json`, `junit`, `sarif`, `gitlab`, `code-climate`, `github-actions`, `teamcity`,
-`html`, `markdown`, `text`, `stylish`, and `pretty`.
-
-Write multiple reports from one lint run:
-
-```bash
-./vacuum lint my-spec.yaml \
-  --format sarif --output sarif=results.sarif \
-  --format junit --output junit=results.xml
-```
-
-The `html` format is a standalone table with every finding. The interactive `html-report` command remains available
-for charts, navigation, and snippets. For JUnit exports, `--fail-severity` sets which findings create test failures.
-
-See the [report formats documentation](https://quobix.com/vacuum/commands/report/#more-report-formats)
-for format details, stdout output, and JUnit examples.
 
 ## Generate a Spectral compatible report
 
