@@ -1726,3 +1726,22 @@ func testResultPathMappingNode(items ...interface{}) *yaml.Node {
 	}
 	return node
 }
+
+func TestMergeAliasedResultPreservesRicherPrimaryLocation(t *testing.T) {
+	primary := model.RuleFunctionResult{
+		RuleId:  "missing-field-path",
+		Message: "Missing x-test.",
+		Path:    "$.info",
+		Paths:   []string{"$.info"},
+	}
+	duplicate := model.RuleFunctionResult{
+		RuleId:  "missing-field-path",
+		Message: "Missing x-test.",
+		Path:    "$",
+	}
+
+	mergeAliasedResult(&primary, &duplicate, nil)
+
+	require.Equal(t, "$.info", primary.Path)
+	require.Contains(t, primary.Paths, "$.info")
+}
