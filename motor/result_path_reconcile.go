@@ -2270,6 +2270,18 @@ func aliasedResultKey(result *model.RuleFunctionResult) (string, bool) {
 	return "", false
 }
 
+func preferredMergedResultPath(paths []string) string {
+	if len(paths) == 0 {
+		return ""
+	}
+	for _, path := range paths {
+		if path != "" && path != "$" && path != "unknown" {
+			return path
+		}
+	}
+	return paths[0]
+}
+
 func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *resultPathCache) {
 	if primary == nil || duplicate == nil {
 		return
@@ -2286,7 +2298,7 @@ func mergeAliasedResult(primary, duplicate *model.RuleFunctionResult, cache *res
 
 	paths := buildMergedResultPaths(canonicalPath, primary, duplicate)
 	if len(paths) > 0 {
-		primary.Path = paths[0]
+		primary.Path = preferredMergedResultPath(paths)
 	}
 
 	if len(paths) > 1 {
