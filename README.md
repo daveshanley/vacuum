@@ -153,7 +153,16 @@ A timeout is an incomplete check, not evidence that the document is clean.
 
 ## Documentation
 
-🔥 **New in** `v0.34` 🔥: **Agent testing and new report formats**
+🔥 **New in** `v0.36` 🔥: **12 report output formats**
+
+Export lint results in 12 formats, including SARIF, JUnit, GitLab Code Quality, HTML and Markdown.
+Use `vacuum lint --format` to choose the output, or write multiple reports from one lint run.
+
+- [Explore the report formats and examples](https://quobix.com/vacuum/commands/report/#more-report-formats)
+
+---
+
+`v0.34`: **Agent testing in vacuum**
 
 A new `test` command gives agents a way to test rules, check changes and verify repairs using vacuum's existing engine.
 Define a YAML or JSON suite, run `vacuum test suite.yaml`, and get structured results with evidence of what each rule actually did.
@@ -165,11 +174,6 @@ and check that running a fix again makes no further change. A clean result is on
 - [Read the `test` command reference](https://quobix.com/vacuum/commands/test/)
 - [Read more about execution evidence](https://quobix.com/vacuum/testing/evidence/)
 - [Use the test harness from Go](https://quobix.com/vacuum/api/test-harness/)
-
-Export lint results in 12 formats, including SARIF, JUnit, GitLab Code Quality, HTML and Markdown.
-Use `vacuum lint --format` to choose the output, or write multiple reports from one lint run.
-
-- [Explore the report formats and examples](https://quobix.com/vacuum/commands/report/#more-report-formats)
 
 ---
 
