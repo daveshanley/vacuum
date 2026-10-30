@@ -23,14 +23,14 @@ require (
 	github.com/pb33f/jsonschema/v6 v6.0.3
 	github.com/pb33f/libasyncapi v0.0.5
 	github.com/pb33f/libopenapi v0.41.8
-	github.com/pb33f/libopenapi-validator v0.16.1
+	github.com/pb33f/libopenapi-validator v0.16.2
 	github.com/pb33f/testify v0.1.1
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/term v0.47.0
 	golang.org/x/text v0.43.0
@@ -57,7 +57,7 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
-	github.com/dlclark/regexp2/v2 v2.9.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.12.0 // indirect
 	github.com/go-openapi/jsonpointer v1.0.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50 // indirect
