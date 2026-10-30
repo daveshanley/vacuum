@@ -103,6 +103,11 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: html-report/ui
 
+      # Compile before the browser tests so a cold Go cache does not consume
+      # the report-generation timeout in their setup hook.
+      - name: Build
+        run: go build -tags html_report_ui -o bin/vacuum
+
       - name: Test HTML report UI
         run: npm test
         working-directory: html-report/ui
@@ -122,6 +127,3 @@ jobs:
 
       - name: Check default source build
         run: go build ./...
-
-      - name: Build
-        run: go build -tags html_report_ui -o bin/vacuum
