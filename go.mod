@@ -1,6 +1,6 @@
 module github.com/daveshanley/vacuum
 
-go 1.27.3
+go 1.26.10
 
 require (
 	charm.land/bubbles/v2 v2.2.1
@@ -17,12 +17,12 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/json-iterator/go v1.1.12
 	github.com/muesli/termenv v0.16.0
-	github.com/pb33f/doctor v0.0.84
+	github.com/pb33f/doctor v0.0.87
 	github.com/pb33f/go-yaml v0.1.1
 	github.com/pb33f/jsonpath v0.8.5
 	github.com/pb33f/jsonschema/v6 v6.0.3
-	github.com/pb33f/libasyncapi v0.0.5
-	github.com/pb33f/libopenapi v0.41.8
+	github.com/pb33f/libasyncapi v0.0.7
+	github.com/pb33f/libopenapi v0.42.3
 	github.com/pb33f/libopenapi-validator v0.16.2
 	github.com/pb33f/testify v0.1.1
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8
@@ -69,7 +69,6 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.31 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
