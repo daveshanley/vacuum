@@ -202,7 +202,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 		state.setNotifyFunc(context.Notify)
 		state.setCallFunc(context.Call)
 
-		doc := state.documentStore.Add(params.TextDocument.URI, params.TextDocument.Text)
+		doc := state.documentStore.addVersioned(params.TextDocument.URI, params.TextDocument.Text, params.TextDocument.Version)
 		state.runDiagnostic(doc, context.Notify)
 		return nil
 	}
@@ -213,7 +213,7 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			return nil
 		}
 
-		if err := applyDocumentChanges(doc, params.ContentChanges); err != nil {
+		if err := applyDocumentChanges(doc, params.ContentChanges, params.TextDocument.Version); err != nil {
 			return err
 		}
 		state.runDiagnostic(doc, context.Notify)
@@ -253,6 +253,9 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 			}
 		}
 
+		if action := state.repairCodeAction(params.TextDocument.URI); action != nil {
+			actions = append(actions, *action)
+		}
 		return actions, nil
 	}
 
@@ -299,10 +302,13 @@ func NewServerWithExecutionOptions(version string, lintRequest *utils.LintFileRe
 	return state
 }
 
-func applyDocumentChanges(doc *Document, changes []any) error {
+func applyDocumentChanges(doc *Document, changes []any, versions ...protocol.Integer) error {
 	doc.mu.Lock()
 	defer doc.mu.Unlock()
 
+	if len(versions) > 0 && versions[0] <= doc.Version {
+		return fmt.Errorf("stale document version")
+	}
 	content := doc.Content
 	for _, change := range changes {
 		switch current := change.(type) {
@@ -322,6 +328,9 @@ func applyDocumentChanges(doc *Document, changes []any) error {
 		}
 	}
 	doc.Content = content
+	if len(versions) > 0 {
+		doc.Version = versions[0]
+	}
 	return nil
 }
 
@@ -378,6 +387,10 @@ func (s *ServerState) runDiagnostic(doc *Document, notify lsp.NotifyFunc) {
 }
 
 func (s *ServerState) lintDocument(content, uri, specFileName string, overlay fs.FS, options *motor.ExecutionOptions) (*motor.RuleSetExecutionResult, *documentRuntimeConfig, error) {
+	return s.lintDocumentMode(content, uri, specFileName, overlay, options, false)
+}
+
+func (s *ServerState) lintDocumentMode(content, uri, specFileName string, overlay fs.FS, options *motor.ExecutionOptions, repairs bool) (*motor.RuleSetExecutionResult, *documentRuntimeConfig, error) {
 	runtimeConfig, err := s.runtimeConfigForDocument(uri)
 	if err != nil {
 		return nil, nil, err
@@ -422,7 +435,13 @@ func (s *ServerState) lintDocument(content, uri, specFileName string, overlay fs
 		ruleExec.RuleSet = s.rulesetSelector(docCtx)
 	}
 
-	result := motor.ApplyRulesToRuleSetWithOptions(ruleExec, options)
+	var result *motor.RuleSetExecutionResult
+	if repairs {
+		ruleExec.RepairIgnores = ignoredResults
+		_, result = motor.RunRepairs(ruleExec, options, nil, true)
+	} else {
+		result = motor.ApplyRulesToRuleSetWithOptions(ruleExec, options)
+	}
 	ignoreOptions := utils.IgnoreMatcherOptions{SpecBytes: []byte(content)}
 	if result != nil && result.RuleSetExecution != nil {
 		ignoreOptions.RootNode = result.RuleSetExecution.CanonicalDocument
