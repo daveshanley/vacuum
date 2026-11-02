@@ -75,7 +75,7 @@ func applyArazzoRulesToRuleSet(execution *RuleSetExecution, opts *ExecutionOptio
 		resolveExecutionAliases(execution.RuleSet, ctx.SpecInfo.SpecFormat, logger), false)
 	populateResultOrigins(result.Results, nil, nil, execution.SpecFileName)
 	var marshalErr error
-	result.ModifiedSpec, marshalErr = marshalFixedDocument(execution.CanonicalDocument, len(result.FixedResults))
+	result.ModifiedSpec, marshalErr = marshalFixedDocument(execution.CanonicalDocument, len(result.FixedResults), execution.Spec)
 	if marshalErr != nil {
 		result.Errors = append(result.Errors, marshalErr)
 	}
