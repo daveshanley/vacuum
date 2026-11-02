@@ -14,7 +14,7 @@ func TestAutoFixTransactionOutcome(t *testing.T) {
 	for _, mode := range []string{"noop", "replacement", "sibling"} {
 		t.Run(mode, func(t *testing.T) {
 			rule := &model.Rule{Id: "repair", Given: "$.info.description", Severity: "warn", AutoFixFunction: "fix", Then: &model.RuleAction{Function: "truthy"}}
-			e := &RuleSetExecution{Spec: []byte(`{"openapi":"3.0.0","info":{"title":"Test","version":"1","description":""},"paths":{}}`), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"repair": rule}}, ApplyAutoFixes: true, AutoFixFunctions: map[string]model.AutoFixFunction{"fix": func(node, doc *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
+			e := &RuleSetExecution{Spec: []byte(`{"openapi":"3.0.0","info":{"title":"Test","version":"1","description":""},"paths":{},"x-big":9007199254740993.0,"x-fraction":0.123456789012345678901,"x-exponent":1.234567890123456789e40}`), SilenceLogs: true, RuleSet: &rulesets.RuleSet{Rules: map[string]*model.Rule{"repair": rule}}, ApplyAutoFixes: true, AutoFixFunctions: map[string]model.AutoFixFunction{"fix": func(node, doc *yaml.Node, _ *model.RuleFunctionContext) (*yaml.Node, error) {
 				if mode == "replacement" {
 					node.Value = "staged"
 					return &yaml.Node{Kind: yaml.ScalarNode, Value: "replacement"}, nil
@@ -29,6 +29,9 @@ func TestAutoFixTransactionOutcome(t *testing.T) {
 			if mode == "sibling" {
 				require.Len(t, r.FixedResults, 1)
 				require.True(t, json.Valid(r.ModifiedSpec))
+				require.Contains(t, string(r.ModifiedSpec), "9007199254740993.0")
+				require.Contains(t, string(r.ModifiedSpec), "0.123456789012345678901")
+				require.Contains(t, string(r.ModifiedSpec), "1.234567890123456789e40")
 				require.Contains(t, string(r.ModifiedSpec), `"x-note": "added"`)
 			} else {
 				if mode == "replacement" {
