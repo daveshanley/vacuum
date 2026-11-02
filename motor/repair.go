@@ -41,8 +41,8 @@ func PlanFixesWithPolicy(execution *RuleSetExecution, options *ExecutionOptions,
 	if execution == nil || execution.RuleSet == nil {
 		return repair.Plan{}, nil, fmt.Errorf("repair execution and ruleset are required")
 	}
-	if _, err := repair.ParseDocument(execution.Spec); err != nil {
-		return repair.Plan{}, nil, err
+	if len(execution.Spec) > 64<<20 {
+		return repair.Plan{}, nil, fmt.Errorf("repair source exceeds 64 MiB")
 	}
 	var checked ExecutionOptions
 	if options != nil {
@@ -245,11 +245,15 @@ func diagnosticIdentity(r model.RuleFunctionResult) string {
 	return r.RuleId + "\x00" + r.Path + "\x00" + message + "\x00" + r.RuleSeverity
 }
 func repairFindings(execution *RuleSetExecution, results []model.RuleFunctionResult) ([]repair.Finding, error) {
-	var doc yaml.Node
-	if err := yaml.Unmarshal(execution.Spec, &doc); err != nil {
-		return nil, err
+	root := execution.CanonicalDocument
+	if root == nil {
+		var err error
+		root, err = repair.ParseDocument(execution.Spec)
+		if err != nil {
+			return nil, err
+		}
 	}
-	locations := repair.IndexLocations(&doc)
+	locations := repair.IndexLocations(root)
 	var findings []repair.Finding
 	for i, r := range results {
 		id := r.RuleId
