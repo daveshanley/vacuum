@@ -72,6 +72,9 @@ func GetSchemaCommand() *cobra.Command {
 }
 
 func addSchemaLintFlags(cmd *cobra.Command) {
+	addRepairFlags(cmd)
+	cmd.Flags().Bool("fix", false, "Apply verified schema repairs")
+	cmd.Flags().String("fix-file", "", "Write repaired schema to a separate file")
 	cmd.Flags().BoolP("details", "d", false, "Show full details of schema linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
@@ -98,6 +101,11 @@ func addSchemaLintFlags(cmd *cobra.Command) {
 
 func readSchemaLintFlags(cmd *cobra.Command) (*schemaLintFlags, error) {
 	flags := &schemaLintFlags{}
+	flags.Fix, _ = cmd.Flags().GetBool("fix")
+	flags.FixFile, _ = cmd.Flags().GetString("fix-file")
+	flags.FixBuiltins, _ = cmd.Flags().GetBool("fix-builtins")
+	flags.FixPolicy, _ = cmd.Flags().GetString("fix-policy")
+	flags.FixPlan, _ = cmd.Flags().GetString("fix-plan")
 	flags.GlobPatterns, _ = cmd.Flags().GetStringArray("globbed-files")
 	flags.Includes, _ = cmd.Flags().GetStringArray("include")
 	flags.Excludes, _ = cmd.Flags().GetStringArray("exclude")
@@ -212,6 +220,15 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 			color.ASCIIBlue, len(inputs), len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 	}
 
+	if (flags.FixFile != "" || flags.FixPlan != "") && len(inputs) > 1 {
+		return fmt.Errorf("repair output requires a single input")
+	}
+	if flags.Fix && (flags.Stdin || flags.Bundle) {
+		return fmt.Errorf("schema repair requires an unbundled file input")
+	}
+	if flags.Fix && !flags.FixBuiltins {
+		return fmt.Errorf("schema --fix requires --fix-builtins")
+	}
 	var runs []schemaLintRun
 	var aggregate []model.RuleFunctionResult
 	var firstSpecInfo *datamodel.SpecInfo
@@ -241,6 +258,9 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 		RenderBufferedLogs(bufferedLogger, flags.NoStyle)
 	}
 	resultSet := model.NewRuleResultSet(aggregate)
+	for _, run := range runs {
+		resultSet.FixedResults = append(resultSet.FixedResults, run.ResultSet.FixedResults...)
+	}
 	resultSet.SortResultsByLineNumber()
 	prepareSchemaResults(resultSet)
 	failErr := CheckFailureSeverity(flags.FailSeverity, resultSet.GetErrorCount(), resultSet.GetWarnCount(), resultSet.GetInfoCount(), resultSet.GetHintCount())
@@ -355,10 +375,19 @@ func lintSchemaInput(
 		FetchConfig:                     fetchConfig,
 		SpecFormat:                      dialect.Format,
 	}
-	result := motor.ApplyRulesToRuleSetWithOptions(execution, &motor.ExecutionOptions{
+	repairFlags := &LintFlags{FixFlag: flags.Fix, FixFileFlag: flags.FixFile, FixBuiltins: flags.FixBuiltins, FixPolicy: flags.FixPolicy, FixPlan: flags.FixPlan}
+	result := executeLintWithRepairs(execution, &motor.ExecutionOptions{
 		ResolveAllRefs:       flags.ResolveAllRefs,
 		NestedRefsDocContext: flags.NestedRefsDocContext,
-	})
+	}, repairFlags, ignoredItems)
+	if flags.Fix && len(result.Errors) == 0 && result.ModifiedSpec != nil {
+		if err := writeFixedFile(result, input.Path, flags.FixFile); err != nil {
+			return run, err
+		}
+	}
+	if len(result.ModifiedSpec) > 0 {
+		input.Bytes = result.ModifiedSpec
+	}
 	result.Results = utils.FilterIgnoredResultsWithOptions(
 		result.Results,
 		ignoredItems,
@@ -367,6 +396,10 @@ func lintSchemaInput(
 	run.Errors = result.Errors
 	run.SpecInfo = result.SpecInfo
 	run.ResultSet = model.NewRuleResultSet(result.Results)
+	run.ResultSet.AddFixedResults(result.FixedResults)
+	if len(result.ModifiedSpec) > 0 {
+		run.Input.Bytes = result.ModifiedSpec
+	}
 	run.ResultSet.SortResultsByLineNumber()
 	prepareSchemaResults(run.ResultSet)
 	return run, nil

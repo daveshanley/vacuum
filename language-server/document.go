@@ -28,6 +28,7 @@ type DocumentStore struct {
 
 // Document contains the current content and URI of an open document.
 type Document struct {
+	Version           protocol.Integer
 	URI               protocol.DocumentUri
 	RunningDiagnostic bool
 	Content           string
@@ -42,6 +43,10 @@ func newDocumentStore() *DocumentStore {
 
 // Add stores or replaces an open document.
 func (s *DocumentStore) Add(uri string, content string) *Document {
+	return s.addVersioned(uri, content, 0)
+}
+
+func (s *DocumentStore) addVersioned(uri string, content string, version protocol.Integer) *Document {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -49,6 +54,7 @@ func (s *DocumentStore) Add(uri string, content string) *Document {
 		URI:     uri,
 		Content: content,
 	}
+	doc.Version = version
 	s.documents[uri] = doc
 	return doc
 }

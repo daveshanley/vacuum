@@ -21,6 +21,8 @@ import (
 // FileProcessingResult contains the results of processing a single file
 type FileProcessingResult struct {
 	Results        []*model.RuleFunctionResult
+	FixedResults   []model.RuleFunctionResult
+	RepairedSpec   []byte
 	Errors         int
 	Warnings       int
 	Informs        int
@@ -36,6 +38,9 @@ type FileProcessingResult struct {
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	flags := ReadLintFlags(cmd)
+	if flags.FixPlan != "" && len(filesToLint) > 1 {
+		return fmt.Errorf("--fix-plan requires a single input file")
+	}
 	if flags.FixFlag && flags.FixFileFlag != "" && len(filesToLint) > 1 {
 		return fmt.Errorf("--fix-file requires a single input file")
 	}
@@ -180,6 +185,8 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			fileResults[i] = fileResult{
 				fileName:       fileName,
 				results:        result.Results,
+				fixedResults:   result.FixedResults,
+				repairedSpec:   result.RepairedSpec,
 				errors:         result.Errors,
 				warnings:       result.Warnings,
 				informs:        result.Informs,
@@ -279,6 +286,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			}
 
 			resultSet := model.NewRuleResultSetPointer(fr.results)
+			resultSet.AddFixedResults(fr.fixedResults)
 			score := statistics.CalculateQualityScore(resultSet)
 
 			// Create minimal stats for pipeline output
@@ -351,7 +359,10 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				// Details are results - show when -d flag is set (independent of silent)
 				if flags.DetailsFlag && len(fr.results) > 0 {
 					// get spec data for snippets
-					specBytes, _ := os.ReadFile(fr.fileName)
+					specBytes := fr.repairedSpec
+					if len(specBytes) == 0 {
+						specBytes, _ = os.ReadFile(fr.fileName)
+					}
 					specStringData := strings.Split(string(specBytes), "\n")
 					renderFixedDetails(RenderDetailsOptions{
 						Results:     fr.results,
@@ -370,6 +381,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 				// Summary is chrome - renderFixedSummary handles silent flag internally
 				resultSet := model.NewRuleResultSetPointer(fr.results)
+				resultSet.AddFixedResults(fr.fixedResults)
 				renderFixedSummary(RenderSummaryOptions{
 					RuleResultSet:  resultSet,
 					RuleCategories: model.RuleCategoriesOrdered,
