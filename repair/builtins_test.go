@@ -1,6 +1,7 @@
 package repair
 
 import (
+	"encoding/json"
 	"github.com/pb33f/testify/require"
 	"testing"
 )
@@ -75,4 +76,19 @@ func TestBuiltinRepairPreservesEnumKeyComment(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, plan.Operations)
 	require.NotEmpty(t, plan.Declined)
+}
+
+func TestBuiltinPlanIsIndependentOfWorkerOrder(t *testing.T) {
+	source := []byte("a: {enum: [1,1]}\nb: {enum: [2,2]}\n")
+	findings := []Finding{{RuleID: "duplicated-entry-in-enum", Pointer: "/a/enum"}, {RuleID: "duplicated-entry-in-enum", Pointer: "/b/enum"}}
+	a, err := BuiltinPlan("s", source, findings)
+	require.NoError(t, err)
+	findings[0], findings[1] = findings[1], findings[0]
+	b, err := BuiltinPlan("s", source, findings)
+	require.NoError(t, err)
+	encodedA, err := json.Marshal(a)
+	require.NoError(t, err)
+	encodedB, err := json.Marshal(b)
+	require.NoError(t, err)
+	require.Equal(t, string(encodedA), string(encodedB))
 }
