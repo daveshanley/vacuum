@@ -6,6 +6,7 @@ package motor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
@@ -85,13 +86,20 @@ func applyAutoFixesToResults(ctx ruleContext, results []model.RuleFunctionResult
 		if ctx.executionContext != nil && ctx.executionContext.Err() != nil {
 			return
 		}
-		// A finding may refer to an external source outside the root graph.
-		privateTarget := state.clone(target)
-		if _, err := callback(privateTarget, state.root, rfc); err != nil {
+		// Only the canonical root is serialized. External or synthetic targets
+		// cannot be persisted by this single-document callback contract.
+		privateTarget := state.clones[target]
+		if privateTarget == nil {
+			*ctx.ruleResults = append(*ctx.ruleResults, result)
+			continue
+		}
+		replacement, err := callback(privateTarget, state.root, rfc)
+		if err == nil && replacement != nil && replacement != privateTarget {
+			err = fmt.Errorf("auto-fix must mutate the supplied node or document; replacement nodes are not supported")
+		}
+		if err != nil {
 			state.failed = true
-			if rfc.ReportError != nil {
-				rfc.ReportError(&RuleExecutionError{Kind: RuleErrorAutoFix, RuleID: ctx.rule.Id, Function: ctx.rule.AutoFixFunction, Err: err})
-			}
+			*ctx.errors = append(*ctx.errors, &RuleExecutionError{Kind: RuleErrorAutoFix, RuleID: ctx.rule.Id, Function: ctx.rule.AutoFixFunction, Err: err})
 			if !ctx.silenceLogs && ctx.logger != nil {
 				ctx.logger.Warn("Auto-fix failed", "ruleId", ctx.rule.Id, "error", err)
 			}
@@ -175,12 +183,28 @@ func commitAutoFixes(ctx ruleContext) {
 		node.Alias = originalNode(node.Alias)
 		return node
 	}
+	reachable := make(map[*yaml.Node]bool)
+	var visit func(*yaml.Node)
+	visit = func(n *yaml.Node) {
+		if n == nil || reachable[n] {
+			return
+		}
+		reachable[n] = true
+		for _, child := range n.Content {
+			visit(child)
+		}
+		visit(n.Alias)
+	}
+	visit(s.root)
 	type update struct {
 		target *yaml.Node
 		value  yaml.Node
 	}
 	var updates []update
 	for private, original := range s.originals {
+		if !reachable[private] {
+			continue
+		}
 		value := *private
 		for i, child := range value.Content {
 			value.Content[i] = originalNode(child)
@@ -189,6 +213,10 @@ func commitAutoFixes(ctx ruleContext) {
 		if !sameAutoFixNode(original, &value) {
 			updates = append(updates, update{original, value})
 		}
+	}
+	if len(updates) == 0 {
+		*ctx.ruleResults = append(*ctx.ruleResults, s.results...)
+		return
 	}
 	for _, update := range updates {
 		*update.target = update.value

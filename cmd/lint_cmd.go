@@ -1007,46 +1007,12 @@ func hasValidExtension(filename string, extensions []string) bool {
 }
 
 func writeFixedFile(result *motor.RuleSetExecutionResult, fileName string, fixFile string) error {
-	if result.ModifiedSpec == nil {
+	if result == nil || result.ModifiedSpec == nil {
 		return fmt.Errorf("no modified spec available")
 	}
-
-	outputFile := fileName
-	if fixFile != "" {
-		outputFile = fixFile
+	if result.RuleSetExecution == nil || result.RuleSetExecution.Spec == nil {
+		return fmt.Errorf("original source is required to write a repair")
 	}
-
-	// Get permissions from original file
-	fileInfo, err := os.Stat(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to get file info for %s: %w", fileName, err)
-	}
-
-	// Create backup only if overwriting original file
-	if outputFile == fileName {
-		originalContent, err := os.ReadFile(fileName)
-		if err != nil {
-			return fmt.Errorf("failed to read original file %s: %w", fileName, err)
-		}
-		backup, err := os.CreateTemp("", "vacuum-"+filepath.Base(fileName)+"-*.bak")
-		if err != nil {
-			return fmt.Errorf("failed to create backup for %s: %w", fileName, err)
-		}
-		_, writeErr := backup.Write(originalContent)
-		closeErr := backup.Close()
-		if writeErr != nil {
-			return fmt.Errorf("failed to write backup %s: %w", backup.Name(), writeErr)
-		}
-		if closeErr != nil {
-			return fmt.Errorf("failed to close backup %s: %w", backup.Name(), closeErr)
-		}
-
-	}
-
-	err = os.WriteFile(outputFile, result.ModifiedSpec, fileInfo.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to write file %s: %w", outputFile, err)
-	}
-
-	return nil
+	expected := result.RuleSetExecution.Spec
+	return writeRepairFile(fileName, fixFile, expected, result.ModifiedSpec)
 }

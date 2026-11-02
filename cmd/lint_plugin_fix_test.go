@@ -51,7 +51,7 @@ func TestRepairBackupsPreserveIdenticalBasenames(t *testing.T) {
 		require.NoError(t, os.Mkdir(dir, 0700))
 		path := filepath.Join(dir, "spec.yaml")
 		require.NoError(t, os.WriteFile(path, []byte(name), 0600))
-		require.NoError(t, writeFixedFile(&motor.RuleSetExecutionResult{ModifiedSpec: []byte("fixed")}, path, ""))
+		require.NoError(t, writeFixedFile(&motor.RuleSetExecutionResult{RuleSetExecution: &motor.RuleSetExecution{Spec: []byte(name)}, ModifiedSpec: []byte("fixed")}, path, ""))
 	}
 	files, err := filepath.Glob(filepath.Join(backups, "vacuum-spec.yaml-*.bak"))
 	require.NoError(t, err)
@@ -63,4 +63,35 @@ func TestRepairBackupsPreserveIdenticalBasenames(t *testing.T) {
 		contents = append(contents, string(data))
 	}
 	require.ElementsMatch(t, []string{"one", "two"}, contents)
+}
+
+func TestRepairWriteRejectsStaleSource(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "spec.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"title":"new"}`), 0600))
+	result := &motor.RuleSetExecutionResult{RuleSetExecution: &motor.RuleSetExecution{Spec: []byte(`{"title":"old"}`)}, ModifiedSpec: []byte(`{"title":"fixed"}`)}
+	require.ErrorContains(t, writeFixedFile(result, path, ""), "changed since lint")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, `{"title":"new"}`, string(data))
+}
+
+func TestRepairWritePreservesModeAndRejectsAliases(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "spec.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("old"), 0640))
+	alias := filepath.Join(dir, "alias.yaml")
+	require.NoError(t, os.Symlink(path, alias))
+	result := &motor.RuleSetExecutionResult{RuleSetExecution: &motor.RuleSetExecution{Spec: []byte("old")}, ModifiedSpec: []byte("fixed")}
+	require.ErrorContains(t, writeFixedFile(result, alias, ""), "regular file")
+	require.ErrorContains(t, writeFixedFile(result, path, alias), "regular file")
+	require.NoError(t, writeFixedFile(result, path, ""))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0640), info.Mode().Perm())
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, "fixed", string(data))
+	staged, err := filepath.Glob(filepath.Join(dir, ".vacuum-repair-*"))
+	require.NoError(t, err)
+	require.Empty(t, staged)
 }
