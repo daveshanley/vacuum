@@ -4,6 +4,8 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
 	"github.com/pb33f/doctor/model/high/v3"
@@ -106,6 +108,22 @@ func (t *Truthy) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) 
 				EndNode:   vacuumUtils.BuildEndNode(node),
 				Path:      locatedPath,
 				Rule:      context.Rule,
+			}
+			// Retain the authored owner for nested missing fields. Display ranges
+			// remain unchanged; repair planners must not infer a target from text.
+			owner := node
+			parts := strings.Split(context.RuleAction.Field, ".")
+			for _, part := range parts[:len(parts)-1] {
+				_, _, owner = utils.FindKeyNodeFullTop(part, owner.Content)
+				if owner == nil {
+					break
+				}
+			}
+			if owner != nil {
+				result.RepairNode = owner
+			}
+			if context.RuleAction.Field != "" {
+				result.DiagnosticCode = parts[len(parts)-1] + "-missing"
 			}
 			if len(allPaths) > 1 {
 				result.Paths = allPaths

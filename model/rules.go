@@ -125,6 +125,10 @@ type ResultSourceContext struct {
 
 // RuleFunctionResult describes a failure with linting after being run through a rule
 type RuleFunctionResult struct {
+	// DiagnosticCode identifies a specific condition without parsing Message.
+	DiagnosticCode string `json:"diagnosticCode,omitempty" yaml:"diagnosticCode,omitempty"`
+	// RepairNode identifies the authored object for a repair when StartNode is a display owner.
+	RepairNode        *yaml.Node           `json:"-" yaml:"-"`
 	Message           string               `json:"message" yaml:"message"`                                   // What failed and why?
 	Range             reports.Range        `json:"range" yaml:"range"`                                       // Where did it happen?
 	Path              string               `json:"path" yaml:"path"`                                         // the JSONPath to where it can be found, the first is extracted if there are multiple.
