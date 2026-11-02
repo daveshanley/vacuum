@@ -1,6 +1,6 @@
 # Built-in autofix: audit and implementation plan
 
-Audit date: 2026-11-02. Source: `6dab7db05afd81b2a6fdb6cd41175abcecabe516` (production v0.36.2). Scope: all exported built-in OpenAPI, OWASP, AsyncAPI, JSON Schema and Arazzo rules, their registered functions, and the current repair execution/output paths. This document proposes work. It does not add production fixers.
+Audit date: 2026-11-02. Source: `6dab7db05afd81b2a6fdb6cd41175abcecabe516` (production v0.36.2). Scope: all exported built-in OpenAPI, OWASP, AsyncAPI, JSON Schema and Arazzo rules, their registered functions, and the current repair execution/output paths. This document records the reviewed plan. The implemented surfaces, limits and verification are tracked in [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 ## Decision
 
@@ -205,7 +205,7 @@ policies:
       url: https://example.com/payments-support
   - id: descriptions-catalog
     rule: operation-description
-    diagnostic: operation-description-missing
+    diagnostic: description-missing
     scope:
       source: "./specs/payments.yaml"
       pointer: "/paths/~1payments/get"
