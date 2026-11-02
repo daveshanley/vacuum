@@ -108,6 +108,7 @@ type RuleSetExecution struct {
 	BuildDeepGraph                  bool                             // Build a deep graph of the document, all paths in the graph will be followed, no caching on schemas. (default is false). Required when using ignore files as an object can be referenced in multiple places.
 	ExtractReferencesSequentially   bool                             // Extract references sequentially, defaults to false, can be slow.
 	ExtractReferencesFromExtensions bool                             // Extract references from extension objects (x-), this may pull in all kinds of non-parsable files in.
+	RepairIgnores                   model.IgnoredItems               // Ignore-file selections used by the explicit repair API.
 	ApplyAutoFixes                  bool                             // Apply auto-fixes for rules that support it
 	CanonicalDocument               *yaml.Node                       // The single source of truth for all modifications
 
