@@ -181,6 +181,8 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 				if pathParam.Value.Required != nil && !*pathParam.Value.Required {
 					err := fmt.Sprintf("path parameter named `%s` at `%s` must have `required` set to `true`", pathParam.Value.Name, pathKey)
 					res := model.BuildFunctionResultString(err)
+					res.DiagnosticCode = "path-required"
+					res.RepairNode = pathParam.Value.GoLow().RootNode
 					res.StartNode = pathParam.KeyNode
 					res.EndNode = vacuumUtils.BuildEndNode(pathParam.KeyNode)
 					res.Path = pathParam.GenerateJSONPath()
@@ -241,6 +243,8 @@ func (pp PathParameters) RunRule(nodes []*yaml.Node, context model.RuleFunctionC
 					err := fmt.Sprintf("`%s` `%s` parameter named `%s` must have `required` set to `true`", pathKey,
 						strings.ToUpper(verb), param.Value.Name)
 					res := model.BuildFunctionResultString(err)
+					res.DiagnosticCode = "path-required"
+					res.RepairNode = param.Value.GoLow().RootNode
 					res.StartNode = param.KeyNode
 					res.EndNode = vacuumUtils.BuildEndNode(param.KeyNode)
 					res.Path = param.GenerateJSONPath()
