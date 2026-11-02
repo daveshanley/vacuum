@@ -198,7 +198,7 @@ func applyAsyncAPIRulesToRuleSet(
 	)
 	errs = appendContextErrorToErrors(errs, control.Err())
 
-	modified, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults))
+	modified, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults), execution.Spec)
 	if marshalErr != nil {
 		errs = append(errs, marshalErr)
 	}

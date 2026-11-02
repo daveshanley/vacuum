@@ -1520,7 +1520,7 @@ func ApplyRulesToRuleSetWithOptions(execution *RuleSetExecution, executionOption
 	then = time.Since(now).Milliseconds()
 	indexConfig.Logger.Debug("applied all rules and completed", "ms", then)
 
-	modifiedSpec, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults))
+	modifiedSpec, marshalErr := marshalFixedDocument(execution.CanonicalDocument, len(fixedResults), execution.Spec)
 	if marshalErr != nil {
 		errs = append(errs, marshalErr)
 	}
