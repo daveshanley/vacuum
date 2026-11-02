@@ -1,13 +1,15 @@
 package motor
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/pb33f/go-yaml"
+	libopenapijson "github.com/pb33f/libopenapi/json"
 )
 
 // marshalFixedDocument preserves the distinction between no repair and a repair
 // whose output cannot be serialized. All document execution paths use it.
-func marshalFixedDocument(root *yaml.Node, fixed int) (data []byte, err error) {
+func marshalFixedDocument(root *yaml.Node, fixed int, original ...[]byte) (data []byte, err error) {
 	if fixed == 0 {
 		return nil, nil
 	}
@@ -22,6 +24,9 @@ func marshalFixedDocument(root *yaml.Node, fixed int) (data []byte, err error) {
 	}()
 	if root == nil {
 		return nil, fmt.Errorf("repaired document is unavailable")
+	}
+	if len(original) > 0 && json.Valid(original[0]) {
+		return libopenapijson.YAMLNodeToJSON(root, "  ")
 	}
 	data, err = yaml.Marshal(root)
 	return data, err
