@@ -108,6 +108,9 @@ type LintFlags struct {
 	FetchTimeout             int
 	DebugFlag                bool
 	LookupTimeoutFlag        int
+	FixBuiltins              bool
+	FixPolicy                string
+	FixPlan                  string
 	FixFlag                  bool
 	FixFileFlag              string
 	ChangesFlag              string // --changes: path to JSON change report
@@ -229,6 +232,9 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
+	flags.FixBuiltins, _ = cmd.Flags().GetBool("fix-builtins")
+	flags.FixPolicy, _ = cmd.Flags().GetString("fix-policy")
+	flags.FixPlan, _ = cmd.Flags().GetString("fix-plan")
 	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
 	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
 	flags.ChangesFlag, _ = cmd.Flags().GetString("changes")
@@ -605,7 +611,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
-	result := motor.ApplyRulesToRuleSetWithOptions(&motor.RuleSetExecution{
+	result := executeLintWithRepairs(&motor.RuleSetExecution{
 		RuleSet:                         selectedRuleset,
 		Spec:                            specBytes,
 		SpecFileName:                    resolvedSpecPath,
@@ -627,7 +633,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		FetchConfig:                     config.FetchConfig,
 		TurboMode:                       config.Flags.TurboMode,
 		SpecFormat:                      specFormat,
-	}, newMotorExecutionOptionsFromLintFlags(config.Flags))
+	}, newMotorExecutionOptionsFromLintFlags(config.Flags), config.Flags, config.IgnoredItems)
 	defer result.ReleaseOwnedResources()
 	var reportInputs []string
 	if config.Flags.FormattedOutput {
@@ -659,6 +665,9 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
+	if len(result.ModifiedSpec) > 0 {
+		specBytes = result.ModifiedSpec
+	}
 	var results []*model.RuleFunctionResult
 	var errors, warnings, informs, hints int
 	ignoreMatcher := utils.NewIgnoreMatcher(
@@ -699,6 +708,8 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 
 	return &FileProcessingResult{
 		Results:        results,
+		FixedResults:   result.FixedResults,
+		RepairedSpec:   result.ModifiedSpec,
 		Errors:         errors,
 		Warnings:       warnings,
 		Informs:        informs,

@@ -33,7 +33,7 @@ func TestServerWireContractPreservesVacuumBehavior(t *testing.T) {
 		LookupTimeoutFlag: 500,
 		Logger:            logger,
 	})
-	selectorContexts := make(chan DocumentContext, 4)
+	selectorContexts := make(chan DocumentContext, 8)
 	state.rulesetSelector = func(document *DocumentContext) *rulesets.RuleSet {
 		selectorContexts <- *document
 		if strings.Contains(string(document.Content), "asyncapi:") {

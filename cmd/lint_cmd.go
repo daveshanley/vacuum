@@ -48,6 +48,7 @@ func GetLintCommand() *cobra.Command {
 	}
 
 	addLintOutputFlags(cmd)
+	addRepairFlags(cmd)
 	cmd.Flags().BoolP("details", "d", false, "Show full details of linting report")
 	cmd.Flags().BoolP("snippets", "s", false, "Show code snippets where issues are found")
 	cmd.Flags().BoolP("errors", "e", false, "Show errors only")
@@ -352,7 +353,10 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		}
 
 		executionOptions := newMotorExecutionOptionsFromLintFlags(flags)
-		result := motor.ApplyRulesToRuleSetWithOptions(execution, executionOptions)
+		result := executeLintWithRepairs(execution, executionOptions, flags, ignoredItems)
+		if len(result.ModifiedSpec) > 0 {
+			specBytes = result.ModifiedSpec
+		}
 		if flags.FormattedOutput {
 			if err := validateLintOutputInputs(targets, indexedReportInputs(result.Index)); err != nil {
 				result.ReleaseOwnedResources()
@@ -430,6 +434,9 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			}
 		}
 
+		if len(result.ModifiedSpec) > 0 {
+			specBytes = result.ModifiedSpec
+		}
 		if result.HasTruncatedPaths() {
 			renderResultPathsTruncatedWarning(flags, "")
 		}
@@ -659,6 +666,8 @@ func renderResultPathsTruncatedWarning(flags *LintFlags, fileName string) {
 
 // fileResult holds the results and logs for a single file
 type fileResult struct {
+	fixedResults   []model.RuleFunctionResult
+	repairedSpec   []byte
 	fileName       string
 	results        []*model.RuleFunctionResult
 	errors         int
