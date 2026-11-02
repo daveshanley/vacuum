@@ -145,6 +145,7 @@ func ApplyPolicy(plan Plan, data []byte, findings []Finding, policy *Policy) (Pl
 	if policy == nil {
 		return plan, nil
 	}
+	findings = orderedFindings(findings)
 	plan.PolicyHash = policy.hash
 	parsed, err := ParseDocument(data)
 	if err != nil {

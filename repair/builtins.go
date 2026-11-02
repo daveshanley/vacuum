@@ -23,6 +23,7 @@ type Finding struct {
 // BuiltinPlan proposes guarded edits for reported built-in findings. Unhandled
 // or ambiguous findings remain explicit declines; no rule is disabled or ignored.
 func BuiltinPlan(source string, data []byte, findings []Finding) (Plan, error) {
+	findings = orderedFindings(findings)
 	plan := NewPlan(source, data)
 	parsed, err := ParseDocument(data)
 	if err != nil {
@@ -402,4 +403,22 @@ func parameterAt(nodes map[string]*yaml.Node, path string) (*yaml.Node, string) 
 func mappingKeyUncommented(owner *yaml.Node, name string) bool {
 	i, ok := mapIndex(owner, name)
 	return ok && uncommented(owner.Content[i])
+}
+
+func orderedFindings(findings []Finding) []Finding {
+	ordered := append([]Finding(nil), findings...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		a, b := ordered[i], ordered[j]
+		if a.Pointer != b.Pointer {
+			return a.Pointer < b.Pointer
+		}
+		if a.RuleID != b.RuleID {
+			return a.RuleID < b.RuleID
+		}
+		if a.Code != b.Code {
+			return a.Code < b.Code
+		}
+		return a.Unavailable < b.Unavailable
+	})
+	return ordered
 }
