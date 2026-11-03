@@ -8,6 +8,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/tui"
 )
 
@@ -20,7 +21,15 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 	if strings.Contains(source, "://") {
 		disabled = "Download the specification and open its local file to review fixes."
 	}
+	var template motor.RuleSetExecution
+	if execution != nil {
+		template = *execution
+	}
 	return &tui.RepairConfig{
+		Reload: func(rules *rulesets.RuleSet, currentIgnores model.IgnoredItems) {
+			template.RuleSet = rules.CopyForExecution()
+			ignored = currentIgnores
+		},
 		Open: func(snapshot []byte) (*motor.FixReview, error) {
 			if disabled != "" {
 				return nil, fmt.Errorf("%s", disabled)
@@ -39,7 +48,7 @@ func dashboardRepairConfig(source string, execution *motor.RuleSetExecution, opt
 			if !bytes.Equal(current, snapshot) {
 				return nil, fmt.Errorf("source changed; refresh the dashboard before reviewing fixes")
 			}
-			copy := *execution
+			copy := template
 			copy.Spec = append([]byte(nil), snapshot...)
 			copy.SpecFileName = source
 			copy.RepairIgnores = ignored

@@ -56,3 +56,25 @@ func TestDashboardRepairReadOnlyInputs(t *testing.T) {
 		require.Error(t, config.Write(nil, []byte("changed")))
 	}
 }
+
+func TestDashboardRepairReloadUsesCurrentRulesAndIgnores(t *testing.T) {
+	source := []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["a","a"]}}}}`)
+	path := filepath.Join(t.TempDir(), "api.json")
+	require.NoError(t, os.WriteFile(path, source, 0600))
+	rules := &rulesets.RuleSet{Rules: map[string]*model.Rule{"duplicated-entry-in-enum": rulesets.GetAllBuiltInRules()["duplicated-entry-in-enum"]}}
+	config := dashboardRepairConfig(path, &motor.RuleSetExecution{RuleSet: rules, Spec: source, SpecFileName: path, SilenceLogs: true}, nil, nil, "")
+	review, err := config.Open(source)
+	require.NoError(t, err)
+	require.Len(t, review.Options(), 1)
+	review.Close()
+	config.Reload(&rulesets.RuleSet{Rules: map[string]*model.Rule{}}, nil)
+	review, err = config.Open(source)
+	require.NoError(t, err)
+	require.Empty(t, review.Options())
+	review.Close()
+	config.Reload(rules, model.IgnoredItems{"duplicated-entry-in-enum": []string{"$.components.schemas.Pet.enum"}})
+	review, err = config.Open(source)
+	require.NoError(t, err)
+	require.Empty(t, review.Options())
+	review.Close()
+}
