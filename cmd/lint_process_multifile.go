@@ -20,6 +20,7 @@ import (
 
 // FileProcessingResult contains the results of processing a single file
 type FileProcessingResult struct {
+	RepairSummary  string
 	Results        []*model.RuleFunctionResult
 	FixedResults   []model.RuleFunctionResult
 	RepairedSpec   []byte
@@ -38,9 +39,10 @@ type FileProcessingResult struct {
 func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 
 	flags := ReadLintFlags(cmd)
-	if flags.FixPlan != "" && len(filesToLint) > 1 {
-		return fmt.Errorf("--fix-plan requires a single input file")
+	if err := validateRepairFlags(flags.FixFlag, flags.DryRun, flags.FixPolicy); err != nil {
+		return err
 	}
+
 	if flags.FixFlag && flags.FixFileFlag != "" && len(filesToLint) > 1 {
 		return fmt.Errorf("--fix-file requires a single input file")
 	}
@@ -185,6 +187,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			fileResults[i] = fileResult{
 				fileName:       fileName,
 				results:        result.Results,
+				repairSummary:  result.RepairSummary,
 				fixedResults:   result.FixedResults,
 				repairedSpec:   result.RepairedSpec,
 				errors:         result.Errors,
@@ -300,6 +303,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 			// Add file header for multi-file pipeline output
 			fmt.Printf("# 📄 `%s`\n\n", fr.fileName)
 
+			fmt.Print(fr.repairSummary)
 			RenderMarkdownSummary(RenderSummaryOptions{
 				RuleResultSet:  resultSet,
 				RuleCategories: model.RuleCategoriesOrdered,
@@ -346,6 +350,7 @@ func runMultipleFiles(cmd *cobra.Command, filesToLint []string) error {
 				if fr.pathsTruncated {
 					renderResultPathsTruncatedWarning(flags, fr.fileName)
 				}
+				fmt.Print(fr.repairSummary)
 				// Details are results - show when -d flag is set (independent of silent)
 				if flags.DetailsFlag && len(fr.results) > 0 {
 					// get spec data for snippets
