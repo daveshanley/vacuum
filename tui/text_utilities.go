@@ -184,7 +184,7 @@ func wrapText(text string, width int) string {
 	return strings.Join(lines, "\n")
 }
 
-func renderEmptyState(width, height int) string {
+func renderEmptyState(width, height int, clean ...bool) string {
 	art := []string{
 		"",
 		" _|      _|     _|_|     _|_|_|_|_|   _|    _|   _|_|_|   _|      _|     _|_|_|  ",
@@ -209,6 +209,9 @@ func renderEmptyState(width, height int) string {
 		" > esc - clear all filters",
 	}
 
+	if len(clean) > 0 && clean[0] {
+		art = append(art[:13], " No findings remain. The document is clean.", "", " > q - quit")
+	}
 	artStr := strings.Join(art, "\n")
 
 	maxLineWidth := 82 // width of the longest line in the art

@@ -43,6 +43,12 @@ func (m *ViolationResultTableModel) PrepareCodeViewport() {
 
 	m.codeViewport = viewport.New(viewport.WithWidth(modalWidth-4), viewport.WithHeight(modalHeight-4))
 
+	if diff := m.repairDiff(); diff != "" {
+		m.codeViewport.SetContent(diff)
+		m.codeViewport.GotoTop()
+		return
+	}
+
 	// get the line number from the result
 	targetLine := 0
 	if m.modalContent.StartNode != nil {
@@ -121,6 +127,9 @@ func (m *ViolationResultTableModel) BuildCodeView() string {
 	}
 
 	title := fmt.Sprintf("📄 %s - line %d", m.fileName, targetLine)
+	if m.repairDiff() != "" {
+		title = "Preview changes — no files written"
+	}
 	content.WriteString(titleStyle.Render(title))
 	content.WriteString("\n")
 
@@ -202,6 +211,10 @@ func (m *ViolationResultTableModel) FormatCodeWithHighlight(targetLine int, maxW
 
 // ReCenterCodeView re-centers the viewport on the highlighted error line
 func (m *ViolationResultTableModel) ReCenterCodeView() {
+	if m.repairDiff() != "" {
+		m.codeViewport.GotoTop()
+		return
+	}
 	if m.modalContent == nil {
 		return
 	}
