@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/daveshanley/vacuum/motor"
@@ -18,11 +19,15 @@ import (
 )
 
 type sample struct {
-	Milliseconds   float64 `json:"milliseconds"`
-	AllocatedBytes uint64  `json:"allocatedBytes"`
-	Allocations    uint64  `json:"allocations"`
-	Fixed          int     `json:"fixed"`
-	Errors         int     `json:"errors"`
+	Milliseconds   float64        `json:"milliseconds"`
+	AllocatedBytes uint64         `json:"allocatedBytes"`
+	Allocations    uint64         `json:"allocations"`
+	Fixed          int            `json:"fixed"`
+	Errors         int            `json:"errors"`
+	Findings       int            `json:"findings"`
+	CandidateBytes int            `json:"candidateBytes"`
+	Changed        bool           `json:"changed"`
+	FixedByRule    map[string]int `json:"fixedByRule,omitempty"`
 }
 type record struct {
 	File    string   `json:"file"`
@@ -47,7 +52,7 @@ func main() {
 		}
 	}
 	sort.Strings(paths)
-	paths = append(paths, "")
+	paths = append(paths, "", ":duplicate-heavy", ":shared-alias")
 	encoder := json.NewEncoder(os.Stdout)
 	for _, path := range paths {
 		var data []byte
@@ -55,6 +60,21 @@ func main() {
 		if path == "" {
 			name = "synthetic-repair"
 			data = []byte(`{"openapi":"3.1.0","info":{"title":"Synthetic","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["a","a","b"]}}}}`)
+		} else if path == ":duplicate-heavy" {
+			name = "synthetic-1000-repairs"
+			var text strings.Builder
+			text.WriteString(`{"openapi":"3.1.0","info":{"title":"Synthetic","version":"1"},"paths":{},"components":{"schemas":{`)
+			for i := 0; i < 1000; i++ {
+				if i > 0 {
+					text.WriteByte(',')
+				}
+				fmt.Fprintf(&text, `"S%d":{"type":"string","enum":["a","a"]}`, i)
+			}
+			text.WriteString("}}}")
+			data = []byte(text.String())
+		} else if path == ":shared-alias" {
+			name = "synthetic-shared-alias"
+			data = []byte("openapi: 3.1.0\ninfo: {title: Synthetic, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Pet: &pet {type: string, enum: [a,a]}\n    Shared: *pet\n    Ref: {$ref: '#/components/schemas/Pet'}\n")
 		} else {
 			var err error
 			data, err = os.ReadFile(path)
@@ -84,7 +104,15 @@ func main() {
 				}
 				elapsed := time.Since(start)
 				runtime.ReadMemStats(&after)
-				row.Samples = append(row.Samples, sample{float64(elapsed.Microseconds()) / 1000, after.TotalAlloc - before.TotalAlloc, after.Mallocs - before.Mallocs, len(result.FixedResults), len(result.Errors)})
+				fixedByRule := make(map[string]int)
+				for _, fixed := range result.FixedResults {
+					fixedByRule[fixed.RuleId]++
+				}
+				candidateBytes := len(source)
+				if len(result.ModifiedSpec) > 0 {
+					candidateBytes = len(result.ModifiedSpec)
+				}
+				row.Samples = append(row.Samples, sample{Milliseconds: float64(elapsed.Microseconds()) / 1000, AllocatedBytes: after.TotalAlloc - before.TotalAlloc, Allocations: after.Mallocs - before.Mallocs, Fixed: len(result.FixedResults), Errors: len(result.Errors), Findings: len(result.Results), CandidateBytes: candidateBytes, Changed: len(result.ModifiedSpec) > 0, FixedByRule: fixedByRule})
 				if phase == "repair" && len(result.ModifiedSpec) > 0 {
 					candidate = append([]byte(nil), result.ModifiedSpec...)
 				}
