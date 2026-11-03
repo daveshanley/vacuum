@@ -416,7 +416,7 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			}
 		} else if documentChanges != nil {
 			// --changes JSON report mode: keep existing ChangeFilter (no original bytes available)
-			changeFilter := utils.NewChangeFilter(documentChanges, execution.DrDocument)
+			changeFilter := repairChangeFilter(documentChanges, result)
 			result.Results, changeFilterStats = changeFilter.FilterResultsValues(result.Results)
 		}
 
