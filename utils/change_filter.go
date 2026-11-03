@@ -282,3 +282,14 @@ func (cf *ChangeFilter) FilterResultsValues(results []model.RuleFunctionResult) 
 
 	return filtered, stats
 }
+
+// NewChangeFilterFromLines builds model-based filtering from source lines that
+// have already been mapped to the current document, such as verified repairs.
+func NewChangeFilterFromLines(lines []int, drDoc *drModel.DrDocument) *ChangeFilter {
+	filter := NewChangeFilter(nil, drDoc)
+	for _, line := range lines {
+		filter.changedLines[line] = true
+	}
+	filter.buildChangedModels()
+	return filter
+}
