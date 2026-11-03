@@ -1,3 +1,5 @@
+<!-- Current UX requirements: DASHBOARD.md supersedes earlier CLI and dashboard assumptions. -->
+
 # Built-in autofix: audit and implementation plan
 
 Audit date: 2026-11-02. Source: `6dab7db05afd81b2a6fdb6cd41175abcecabe516` (production v0.36.2). Scope: all exported built-in OpenAPI, OWASP, AsyncAPI, JSON Schema and Arazzo rules, their registered functions, and the current repair execution/output paths. This document records the reviewed plan. The implemented surfaces, limits and verification are tracked in [IMPLEMENTATION.md](IMPLEMENTATION.md).
@@ -224,7 +226,7 @@ Rules for the format:
 
 1. **Engine hardening (standalone bug fix).** Detect no-op document transactions and report them as not fixed; define the callback return-value contract; preserve JSON output; source hash check and atomic root writes. Carry timeout/panic guards forward. No new public types; ships without the rest of this plan.
 2. **First diagnostic identities and plan contract.** Add codes only for the first target cases, a versioned plan envelope, standard sequential JSON Patch and the concrete source-presentation edits those cases need. Use the existing rule/function registration ownership with a direct built-in planner lookup; no second capability registry. Derive available repairs from that lookup. Preserve existing result fields and plugin interfaces.
-3. **Plan verification.** Separate planning and application from lint workers; add conflict detection, reparsing and relinting. Expose `ValidateFixPlan` for externally produced plans and a dry-run that emits plans, diffs and dispositions.
+3. **Plan verification.** Separate planning and application from lint workers; add conflict detection, reparsing and relinting. Expose `ValidateFixPlan` for externally produced plans and a dry-run that displays verified diffs and results without writing files.
 4. **First automatic providers.** Ship typed enum deduplication, tag ordering/deduplication, scheme deduplication, response-key quoting and required-path flags in focused commits, behind the built-in opt-in. Each provider gets positive, refusal, preservation and idempotence fixtures.
 5. **Policy providers and their file schema.** Start with one local, exact-scope policy file for contact/license/documentation catalogs and ID naming. Add confirmed responses, endpoints, schema limits and security declarations after scoped policy and provenance tests.
 6. **Remaining guarded providers.** Exact duplicate definitions, self-dependencies and supported const/enum redundancy. Singleton combinator rewrites only after reference/scope equivalence tests pass.
