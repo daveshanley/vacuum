@@ -17,6 +17,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
 	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
 )
@@ -146,6 +147,8 @@ type fileChangeMsg struct {
 }
 
 type relintCompleteMsg struct {
+	repairRules       *rulesets.RuleSet
+	repairIgnores     model.IgnoredItems
 	results           []*model.RuleFunctionResult
 	specContent       []byte
 	selectedRow       int                      // Preserve selected row position
@@ -414,6 +417,9 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case relintCompleteMsg:
+		if m.repair != nil && m.repair.config.Reload != nil && msg.repairRules != nil {
+			m.repair.config.Reload(msg.repairRules, msg.repairIgnores)
+		}
 		// update results immediately but keep processing state for 700ms
 		m.allResults = msg.results
 		m.specContent = msg.specContent

@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
 	"github.com/daveshanley/vacuum/utils"
 )
 
@@ -19,6 +20,8 @@ import (
 type RepairConfig struct {
 	Open  func(source []byte) (*motor.FixReview, error)
 	Write func(original, candidate []byte) error
+	// Reload accepts the effective rules and ignores after a successful watcher lint.
+	Reload func(*rulesets.RuleSet, model.IgnoredItems)
 }
 
 type dashboardRepair struct {
