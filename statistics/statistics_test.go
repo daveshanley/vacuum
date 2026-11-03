@@ -1,4 +1,4 @@
-package statistics
+package statistics_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/daveshanley/vacuum/statistics"
 	"github.com/pb33f/libasyncapi"
 	"github.com/pb33f/testify/assert"
 	"github.com/pb33f/testify/require"
@@ -26,7 +27,7 @@ func TestCreateReportStatistics(t *testing.T) {
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
-	stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
 	assert.Equal(t, 30, stats.FilesizeKB)
 	assert.Equal(t, 7, stats.References)
@@ -45,7 +46,7 @@ func TestCreateReportStatistics_AlmostPerfect(t *testing.T) {
 	})
 
 	resultSet := model.NewRuleResultSet(ruleset.Results)
-	stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+	stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
 	//assert.Equal(t, 100, stats.OverallScore)
 	// new missing examples function is now strict / correct
@@ -70,7 +71,7 @@ func TestCreateReportStatistics_BigLoadOfIssues(t *testing.T) {
 			AllowLookup: true,
 		})
 		resultSet := model.NewRuleResultSet(ruleset.Results)
-		stats := CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
+		stats := statistics.CreateReportStatistics(ruleset.Index, ruleset.SpecInfo, resultSet)
 
 		assert.Equal(t, 10, stats.OverallScore)
 		f <- true
@@ -134,7 +135,7 @@ components:
 	asyncCtx, err := asyncapi_context.NewContext(specBytes, "asyncapi.yaml", libasyncapi.NewDocumentConfiguration())
 	require.NoError(t, err)
 
-	stats := CreateReportStatistics(asyncCtx.Index, asyncCtx.SpecInfo, model.NewRuleResultSet(nil))
+	stats := statistics.CreateReportStatistics(asyncCtx.Index, asyncCtx.SpecInfo, model.NewRuleResultSet(nil))
 
 	require.NotNil(t, stats)
 	assert.Equal(t, "asyncapi", stats.SpecType)
