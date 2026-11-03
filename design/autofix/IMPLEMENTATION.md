@@ -19,11 +19,11 @@ is not a claim that every diagnostic can be changed without owner input.
   candidate and final findings are available without filesystem writes. The
   returned plan describes built-in/policy edits; legacy callback effects are
   represented by the candidate bytes and verified result records.
-- `lint --fix-plan NEW_FILE` exports proposals and dispositions. It is a preview;
-  it does not assert that candidate verification succeeded. Patch operations
-  describe the proposed changes. `--fix --fix-builtins` applies eligible edits.
-  `--fix-file OUTPUT` keeps the original file. Multi-input runs cannot share one
-  plan or repaired output file. Report stdout remains in its requested format.
+- `lint --fix` applies supported built-in and configured plugin repairs. No
+  separate built-in opt-in or public plan file is required. `--fix --dry-run`
+  verifies the candidate and reports changes without writing source, backup or
+  output files. `--fix-file OUTPUT` keeps the original file on an applied run.
+  Report stdout remains in its requested format.
 - Both `schema` and `schema lint` use the same repair coordinator. Schema stdin
   and bundle mode cannot overwrite inputs.
 - LSP code actions return a versioned `documentChanges` edit. They never write
@@ -36,6 +36,34 @@ identifies the authored owner independently of the displayed range and is not
 serialized. Plan target `code` identifies the guarded repair case, or an actual
 producer diagnostic code. External targets without a producer/provider code
 must use `reviewed-edit`; arbitrary invented codes are rejected.
+
+## Dashboard review
+
+Open a local specification with `vacuum dashboard api.yaml`. Press `f` to
+review fixes in the existing table. No extra repair lint runs until review is
+requested. The table marks selected, skipped, value-required and unavailable
+findings. Space selects or skips; `e` edits supported metadata in the existing
+how-to-fix panel; Enter saves that pending value; Escape cancels the edit.
+Descriptions, summaries and operation IDs accept plain text. Contact and
+license accept a JSON object with supported string fields.
+
+`v` performs a real dry run: apply selected fixes privately and lint the
+candidate. `x` opens its diff in the existing code view. The header shows
+verified fixes, before/after severities and the existing quality score. Any
+selection or value change invalidates the preview. `a` writes only the current
+verified candidate, through the shared source-checked writer. Remaining findings
+replace the table after apply; the completion header reports actual results.
+Escape outside an edit/modal cancels review without writing.
+
+No new dashboard layout is introduced. Rules, ignore settings, reference access
+and timeouts come from the original command. Reports and URLs are read-only;
+comparison-filtered dashboards direct the user to the full lint view. Dashboard
+editing supports built-in mechanical and metadata fixes; configured plugin
+callbacks remain available through CLI `--fix`. Review setup is synchronous;
+verification runs asynchronously. Canceled verification cannot queue additional
+runs; its result is discarded when it completes. Diff rendering is bounded and
+marks omitted content. Large source changes can reformat YAML through the
+existing serializer, and the preview shows those changes.
 
 ## Local policy
 
@@ -73,7 +101,7 @@ api.yaml:
   listPets: List the pets visible to the authenticated caller.
 ```
 
-Invoke with `--fix --fix-builtins --fix-policy policy.yaml`. Enable optional
+Invoke with `--fix --fix-policy policy.yaml`. Enable optional
 rules explicitly in the ruleset or with `--hard-mode`; `info-contact`, for
 example, is not in the recommended OpenAPI ruleset.
 
