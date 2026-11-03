@@ -262,4 +262,4 @@ GOWORK=off GOTOOLCHAIN=go1.26.10 GOCACHE=/tmp/vacuum-benchmark-go-cache go test 
 git diff --check
 ```
 
-The inventory check passed for all 157 IDs. Focused existing tests passed in motor, cmd and plugin. The behavior probe confirmed the three cases above. The test selection is narrow; it is not the full suite, race coverage, performance evidence or proof that the proposed fixers work. This branch changes audit documents and audit utilities only. No dependency, Go version, production rule, WASM or website changes are made.
+The inventory check passed for all 157 IDs. Focused existing tests passed in motor, cmd and plugin. The behavior probe confirmed the three cases above. The test selection is narrow; it is not the full suite, race coverage, performance evidence or proof that the proposed fixers work. That audit stage changed documents and audit utilities only. The implementation and its current validation are documented in [IMPLEMENTATION.md](IMPLEMENTATION.md). Dependency, Go version, WASM and website changes remain outside scope.
