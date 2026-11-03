@@ -92,6 +92,9 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		return outputErr
 	}
 	flags := ReadLintFlags(cmd)
+	if err := validateRepairFlags(flags.FixFlag, flags.DryRun, flags.FixPolicy); err != nil {
+		return err
+	}
 
 	SetupVacuumEnvironment(flags)
 
@@ -446,7 +449,7 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 		fixesApplied = len(result.FixedResults)
 
 		// Write back to file if fixes were applied
-		if fixesApplied > 0 && flags.FixFlag {
+		if fixesApplied > 0 && flags.FixFlag && !flags.DryRun {
 			err := writeFixedFile(result, fileName, flags.FixFileFlag)
 			if err != nil {
 				wrapped := fmt.Errorf("failed to write fixed file: %w", err)
@@ -456,6 +459,8 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 				return wrapped
 			}
 		}
+
+		fmt.Print(repairSummary(result, flags))
 
 		if result.Index != nil && result.SpecInfo != nil {
 			stats = statistics.CreateReportStatistics(result.Index, result.SpecInfo, resultSet)
@@ -556,7 +561,7 @@ func runLint(cmd *cobra.Command, args []string) (runErr error) {
 			NoStyle:        flags.NoStyleFlag,
 			PipelineOutput: flags.PipelineOutput,
 			ShowRules:      flags.ShowRules,
-			FixesApplied:   fixesApplied,
+			FixesApplied:   writtenFixCount(flags, fixesApplied),
 			Failed:         failErr != nil,
 			Severity:       flags.FailSeverityFlag,
 		})
@@ -626,7 +631,7 @@ func renderNoFixesAppliedWarning(flags *LintFlags, resultSet *model.RuleResultSe
 	if flags == nil || resultSet == nil {
 		return
 	}
-	if !flags.FixFlag || fixesApplied > 0 || len(resultSet.Results) == 0 {
+	if !flags.FixFlag || flags.DryRun || fixesApplied > 0 || len(resultSet.Results) == 0 {
 		return
 	}
 	messagePrefix := "No fixes were applied"
@@ -637,7 +642,7 @@ func renderNoFixesAppliedWarning(flags *LintFlags, resultSet *model.RuleResultSe
 		renderLintWarning(flags, "%s; no auto-fixes were applied.", messagePrefix)
 		return
 	}
-	renderLintWarning(flags, "%s; none of the reported violations support auto-fix.", messagePrefix)
+	renderLintWarning(flags, "%s; no eligible repairs passed verification. Review the remaining findings.", messagePrefix)
 }
 
 func hasAutoFixableResults(results []*model.RuleFunctionResult) bool {
@@ -666,6 +671,7 @@ func renderResultPathsTruncatedWarning(flags *LintFlags, fileName string) {
 
 // fileResult holds the results and logs for a single file
 type fileResult struct {
+	repairSummary  string
 	fixedResults   []model.RuleFunctionResult
 	repairedSpec   []byte
 	fileName       string

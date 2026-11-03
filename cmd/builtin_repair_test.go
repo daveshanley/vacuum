@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"encoding/json"
+	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/daveshanley/vacuum/repair"
 	wcModel "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/pb33f/testify/require"
 )
@@ -16,18 +16,16 @@ func TestBuiltinRepairCLIAndPreview(t *testing.T) {
 	spec := filepath.Join(dir, "api.json")
 	original := []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["cat","cat","dog"]}}}}`)
 	require.NoError(t, os.WriteFile(spec, original, 0600))
-	planPath := filepath.Join(dir, "plan.json")
-	_, _, err := exportCommand(t, "lint", spec, "--fix-plan", planPath, "--format", "json", "--fail-severity", "none")
+	output := filepath.Join(dir, "fixed.json")
+	preview, _, err := exportCommand(t, "lint", spec, "--fix", "--dry-run", "--fix-file", output, "--format", "json", "--fail-severity", "none")
 	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(preview)))
 	saved, err := os.ReadFile(spec)
 	require.NoError(t, err)
 	require.Equal(t, original, saved)
-	encoded, err := os.ReadFile(planPath)
-	require.NoError(t, err)
-	var plan repair.Plan
-	require.NoError(t, json.Unmarshal(encoded, &plan))
-	require.NotEmpty(t, plan.Targets)
-	_, _, err = exportCommand(t, "lint", spec, "--fix", "--fix-builtins", "--format", "json", "--fail-severity", "none")
+	require.NoFileExists(t, output)
+	require.NotContains(t, preview, "duplicated-entry-in-enum")
+	_, _, err = exportCommand(t, "lint", spec, "--fix", "--format", "json", "--fail-severity", "none")
 	require.NoError(t, err)
 	saved, err = os.ReadFile(spec)
 	require.NoError(t, err)
@@ -37,7 +35,7 @@ func TestBuiltinRepairCLIAndPreview(t *testing.T) {
 	require.NoError(t, json.Unmarshal(saved, &document))
 	enum := document["components"].(map[string]any)["schemas"].(map[string]any)["Pet"].(map[string]any)["enum"].([]any)
 	require.Equal(t, []any{"cat", "dog"}, enum)
-	_, _, err = exportCommand(t, "lint", spec, "--fix", "--fix-builtins", "--format", "json", "--fail-severity", "none")
+	_, _, err = exportCommand(t, "lint", spec, "--fix", "--format", "json", "--fail-severity", "none")
 	require.NoError(t, err)
 	again, err := os.ReadFile(spec)
 	require.NoError(t, err)
@@ -51,7 +49,7 @@ func TestBuiltinRepairRespectsIgnoreFile(t *testing.T) {
 	original := []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Pet: {type: string, enum: [cat, cat]}\n")
 	require.NoError(t, os.WriteFile(spec, original, 0600))
 	require.NoError(t, os.WriteFile(ignore, []byte("duplicated-entry-in-enum:\n  - $.components.schemas.Pet.enum\n"), 0600))
-	_, _, err := exportCommand(t, "lint", spec, "--fix", "--fix-builtins", "--ignore-file", ignore, "--format", "json", "--fail-severity", "none")
+	_, _, err := exportCommand(t, "lint", spec, "--fix", "--ignore-file", ignore, "--format", "json", "--fail-severity", "none")
 	require.NoError(t, err)
 	saved, err := os.ReadFile(spec)
 	require.NoError(t, err)
@@ -64,7 +62,7 @@ func TestPolicyRepairCLI(t *testing.T) {
 	policy := filepath.Join(dir, "policy.yaml")
 	require.NoError(t, os.WriteFile(spec, []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"), 0600))
 	require.NoError(t, os.WriteFile(policy, []byte("version: 1\npolicies:\n  - id: contact\n    rule: info-contact\n    diagnostic: contact-missing\n    scope: {source: api.yaml, pointer: /info}\n    value: {name: Team, email: api@example.com, url: https://example.com}\n"), 0600))
-	_, _, err := exportCommand(t, "lint", spec, "--fix", "--fix-builtins", "--fix-policy", policy, "--hard-mode", "--format", "json", "--fail-severity", "none")
+	_, _, err := exportCommand(t, "lint", spec, "--fix", "--fix-policy", policy, "--hard-mode", "--format", "json", "--fail-severity", "none")
 	require.NoError(t, err)
 	saved, err := os.ReadFile(spec)
 	require.NoError(t, err)
@@ -75,17 +73,23 @@ func TestBuiltinRepairRejectsDocumentStream(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "stream.yaml")
 	original := []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Pet: {enum: [a, a]}\n---\nx-keep: true\n")
 	require.NoError(t, os.WriteFile(path, original, 0600))
-	_, _, err := exportCommand(t, "lint", path, "--fix", "--fix-builtins", "--format", "json", "--fail-severity", "none")
-	require.Error(t, err)
-	saved, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.Equal(t, original, saved)
+	for _, dry := range []bool{false, true} {
+		args := []string{"lint", path, "--fix", "--format", "json", "--fail-severity", "none"}
+		if dry {
+			args = append(args, "--dry-run")
+		}
+		_, _, err := exportCommand(t, args...)
+		require.Error(t, err)
+		saved, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.Equal(t, original, saved)
+	}
 }
 
 func TestBuiltinRepairSchemaCLI(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "schema.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"string","enum":["a","a"]}`), 0600))
-	_, _, err := exportCommand(t, "schema", path, "--fix", "--fix-builtins", "--format", "json", "--fail-severity", "none")
+	_, _, err := exportCommand(t, "schema", path, "--fix", "--format", "json", "--fail-severity", "none")
 	require.NoError(t, err)
 	saved, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -109,16 +113,83 @@ func TestRepairPreservesChangesModelFiltering(t *testing.T) {
 	baseline, _, err := exportCommand(t, args...)
 	require.NoError(t, err)
 	require.Contains(t, baseline, "operation-description", "changed response must retain the finding on its containing operation model")
-	preview, _, err := exportCommand(t, append(append([]string(nil), args...), "--fix-plan", filepath.Join(dir, "plan.json"))...)
+	preview, _, err := exportCommand(t, append(append([]string(nil), args...), "--fix", "--dry-run")...)
 	require.NoError(t, err)
-	require.JSONEq(t, baseline, preview)
+	require.Contains(t, preview, "operation-description")
 	saved, err := os.ReadFile(spec)
 	require.NoError(t, err)
 	require.Equal(t, original, saved)
-	applied, _, err := exportCommand(t, append(append([]string(nil), args...), "--fix", "--fix-builtins")...)
+	applied, _, err := exportCommand(t, append(append([]string(nil), args...), "--fix")...)
 	require.NoError(t, err)
 	require.Contains(t, applied, "operation-description", "verified output must retain the changed parent model after lines move")
 	saved, err = os.ReadFile(spec)
 	require.NoError(t, err)
 	require.NotEqual(t, original, saved)
+}
+
+func TestDryRunShowsVerifiedChangesWithoutWrites(t *testing.T) {
+	dir := t.TempDir()
+	backups := t.TempDir()
+	t.Setenv("TMPDIR", backups)
+	path := filepath.Join(dir, "api.yaml")
+	original := []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Pet: {type: string, enum: [cat, cat]}\n")
+	require.NoError(t, os.WriteFile(path, original, 0600))
+	root := GetRootCommand()
+	root.SetArgs([]string{"lint", path, "--fix", "--dry-run", "--no-style", "--fail-severity", "none", "--no-update-check"})
+	var err error
+	output, _ := captureOSStreams(t, func() { err = root.Execute() })
+	require.NoError(t, err)
+	require.Contains(t, output, "PREVIEW — no files written")
+	require.Contains(t, output, "1 verified fixes")
+	require.Contains(t, output, "duplicated-entry-in-enum")
+	require.Contains(t, output, "--- original")
+	require.NotContains(t, output, "1 fixes applied")
+	saved, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, saved)
+	entries, err := os.ReadDir(backups)
+	require.NoError(t, err)
+	require.Empty(t, entries, "preview must not create backups")
+}
+
+func TestDryRunSchemaAndMultipleFilesLeaveSourcesUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	schema := filepath.Join(dir, "schema.json")
+	originalSchema := []byte(`{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"string","enum":["a","a"]}`)
+	require.NoError(t, os.WriteFile(schema, originalSchema, 0600))
+	output, _, err := exportCommand(t, "schema", "lint", schema, "--fix", "--dry-run", "--format", "json", "--fail-severity", "none")
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(output)))
+	saved, err := os.ReadFile(schema)
+	require.NoError(t, err)
+	require.Equal(t, originalSchema, saved)
+	original := []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{},"components":{"schemas":{"Pet":{"type":"string","enum":["a","a"]}}}}`)
+	paths := []string{filepath.Join(dir, "one.json"), filepath.Join(dir, "two.json")}
+	for _, p := range paths {
+		require.NoError(t, os.WriteFile(p, original, 0600))
+	}
+	args := append([]string{"lint"}, paths...)
+	args = append(args, "--fix", "--dry-run", "--format", "json", "--fail-severity", "none")
+	output, _, err = exportCommand(t, args...)
+	require.NoError(t, err)
+	require.True(t, json.Valid([]byte(output)))
+	require.NotContains(t, output, "duplicated-entry-in-enum")
+	for _, p := range paths {
+		saved, err := os.ReadFile(p)
+		require.NoError(t, err)
+		require.Equal(t, original, saved)
+	}
+}
+
+func TestRepairFlagsHideInternalMechanism(t *testing.T) {
+	for _, command := range []*cobra.Command{GetLintCommand(), GetSchemaCommand()} {
+		require.Nil(t, command.Flags().Lookup("fix-builtins"))
+		require.Nil(t, command.Flags().Lookup("fix-plan"))
+		require.NotNil(t, command.Flags().Lookup("fix"))
+		require.NotNil(t, command.Flags().Lookup("dry-run"))
+	}
+	path := filepath.Join(t.TempDir(), "api.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("openapi: 3.1.0\ninfo: {title: Test, version: '1'}\npaths: {}\n"), 0600))
+	_, _, err := exportCommand(t, "lint", path, "--dry-run", "--format", "json")
+	require.ErrorContains(t, err, "require --fix")
 }
