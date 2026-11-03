@@ -109,9 +109,8 @@ type LintFlags struct {
 	FetchTimeout             int
 	DebugFlag                bool
 	LookupTimeoutFlag        int
-	FixBuiltins              bool
 	FixPolicy                string
-	FixPlan                  string
+	DryRun                   bool
 	FixFlag                  bool
 	FixFileFlag              string
 	ChangesFlag              string // --changes: path to JSON change report
@@ -234,9 +233,8 @@ func ReadLintFlags(cmd *cobra.Command) *LintFlags {
 	if !cmd.Flags().Changed("debug") && viper.IsSet("lint.debug") {
 		flags.DebugFlag = viper.GetBool("lint.debug")
 	}
-	flags.FixBuiltins, _ = cmd.Flags().GetBool("fix-builtins")
 	flags.FixPolicy, _ = cmd.Flags().GetString("fix-policy")
-	flags.FixPlan, _ = cmd.Flags().GetString("fix-plan")
+	flags.DryRun, _ = cmd.Flags().GetBool("dry-run")
 	flags.FixFlag, _ = cmd.Flags().GetBool("fix")
 	flags.FixFileFlag, _ = cmd.Flags().GetString("fix-file")
 	flags.ChangesFlag, _ = cmd.Flags().GetString("changes")
@@ -661,7 +659,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 		}
 	}
 
-	if config.Flags.FixFlag && result.ModifiedSpec != nil {
+	if config.Flags.FixFlag && !config.Flags.DryRun && result.ModifiedSpec != nil {
 		if err := writeFixedFile(result, fileName, config.Flags.FixFileFlag); err != nil {
 			return &FileProcessingResult{FileSize: fileSize, Error: err, ReportInputs: reportInputs}
 		}
@@ -710,6 +708,7 @@ func ProcessSingleFileOptimized(fileName string, config *FileProcessingConfig) *
 
 	return &FileProcessingResult{
 		Results:        results,
+		RepairSummary:  repairSummary(result, config.Flags),
 		FixedResults:   result.FixedResults,
 		RepairedSpec:   result.ModifiedSpec,
 		Errors:         errors,

@@ -15,9 +15,8 @@ import (
 type schemaLintFlags struct {
 	Fix                  bool
 	FixFile              string
-	FixBuiltins          bool
 	FixPolicy            string
-	FixPlan              string
+	DryRun               bool
 	GlobPatterns         []string
 	Includes             []string
 	Excludes             []string
