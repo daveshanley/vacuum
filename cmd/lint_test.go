@@ -185,7 +185,7 @@ func TestGetLintCommand_FixFileWarnsWhenNoReportedViolationsSupportAutoFix(t *te
 	output := stdout + stderr + b.String()
 	assert.Contains(t, output, "▲ No fixes were written to")
 	assert.Contains(t, output, fixPath)
-	assert.Contains(t, output, "none of the reported violations support auto-fix")
+	assert.Contains(t, output, "no eligible repairs passed verification")
 
 	_, statErr := os.Stat(fixPath)
 	assert.True(t, os.IsNotExist(statErr))
@@ -211,7 +211,7 @@ func TestGetLintCommand_FixWarnsWhenNoReportedViolationsSupportAutoFix(t *testin
 	require.NoError(t, err)
 	output := stdout + stderr + b.String()
 	assert.Contains(t, output, "▲ No fixes were applied")
-	assert.Contains(t, output, "none of the reported violations support auto-fix")
+	assert.Contains(t, output, "no eligible repairs passed verification")
 }
 
 func TestRenderNoFixesAppliedWarningRespectsOutputMode(t *testing.T) {

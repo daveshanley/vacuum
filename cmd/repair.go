@@ -1,42 +1,39 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/motor"
 	"github.com/daveshanley/vacuum/repair"
+	"github.com/daveshanley/vacuum/utils"
 	"github.com/spf13/cobra"
 )
 
 func addRepairFlags(command *cobra.Command) {
-	command.Flags().Bool("fix-builtins", false, "Enable verified built-in repairs with --fix")
-	command.Flags().String("fix-policy", "", "Local exact-scope repair policy (requires --fix-builtins)")
-	command.Flags().String("fix-plan", "", "Write a repair plan as JSON without changing the input (new file)")
+	command.Flags().Bool("dry-run", false, "Verify fixes and show changes without writing files (requires --fix)")
+	command.Flags().String("fix-policy", "", "Local exact-scope repair values (requires --fix)")
+}
+
+func validateRepairFlags(fix, dryRun bool, policy string) error {
+	if !fix && (dryRun || policy != "") {
+		return fmt.Errorf("--dry-run and --fix-policy require --fix")
+	}
+	return nil
 }
 
 func executeLintWithRepairs(execution *motor.RuleSetExecution, options *motor.ExecutionOptions, flags *LintFlags, ignored model.IgnoredItems) *motor.RuleSetExecutionResult {
-	if !flags.FixBuiltins && flags.FixPolicy == "" && flags.FixPlan == "" {
-		if flags.FixFlag && len(execution.AutoFixFunctions) > 0 {
-			execution.RepairIgnores = ignored
-			return motor.RunPluginRepairs(execution, options)
-		}
-		return motor.ApplyRulesToRuleSetWithOptions(execution, options)
-	}
 	fail := func(err error) *motor.RuleSetExecutionResult {
 		return &motor.RuleSetExecutionResult{RuleSetExecution: execution, Errors: []error{err}}
 	}
-	if flags.FixPolicy != "" && !flags.FixBuiltins {
-		return fail(fmt.Errorf("--fix-policy requires --fix-builtins"))
-	}
-	if !flags.FixFlag && flags.FixPlan == "" {
-		return fail(fmt.Errorf("--fix-builtins requires --fix or --fix-plan"))
-	}
-	if flags.FixFlag && flags.FixPlan != "" {
-		return fail(fmt.Errorf("--fix-plan is a preview and cannot be combined with --fix"))
+	if !flags.FixFlag {
+		if err := validateRepairFlags(flags.FixFlag, flags.DryRun, flags.FixPolicy); err != nil {
+			return fail(err)
+		}
+		return motor.ApplyRulesToRuleSetWithOptions(execution, options)
 	}
 	var policy *repair.Policy
 	if flags.FixPolicy != "" {
@@ -63,29 +60,47 @@ func executeLintWithRepairs(execution *motor.RuleSetExecution, options *motor.Ex
 		}
 	}
 	execution.RepairIgnores = ignored
-	plan, result := motor.RunRepairs(execution, options, policy, flags.FixFlag)
-	if len(result.Errors) > 0 {
-		return result
-	}
-	if flags.FixPlan != "" {
-		data, err := json.MarshalIndent(plan, "", "  ")
-		if err != nil {
-			result.Errors = append(result.Errors, err)
-			return result
-		}
-		// Exclusive creation cannot overwrite a source, policy, catalog or symlink.
-		output, err := os.OpenFile(flags.FixPlan, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-		if err != nil {
-			result.Errors = append(result.Errors, fmt.Errorf("create repair plan: %w", err))
-			return result
-		}
-		_, writeErr := output.Write(append(data, '\n'))
-		closeErr := output.Close()
-		if writeErr != nil {
-			result.Errors = append(result.Errors, writeErr)
-		} else if closeErr != nil {
-			result.Errors = append(result.Errors, closeErr)
-		}
-	}
+	_, result := motor.RunRepairs(execution, options, policy, true)
 	return result
+}
+
+// repairSummary describes only verified repairs. Dry-run results are projected,
+// and must not be described as persisted changes.
+func repairSummary(result *motor.RuleSetExecutionResult, flags *LintFlags) string {
+	if result == nil || !flags.FixFlag || flags.SilentFlag || flags.FormattedOutput || flags.GitHubAnnotations || len(result.Errors) > 0 {
+		return ""
+	}
+	if flags.PipelineOutput {
+		if flags.DryRun {
+			return fmt.Sprintf("\n> Preview only — no files written. %d verified fixes; %d findings remain.\n\n", len(result.FixedResults), len(result.Results))
+		}
+		return ""
+	}
+	var text strings.Builder
+	name := "document"
+	if result.RuleSetExecution != nil && result.RuleSetExecution.SpecFileName != "" {
+		name = result.RuleSetExecution.SpecFileName
+	}
+	if flags.DryRun {
+		fmt.Fprintf(&text, "\nPREVIEW — no files written: %s\n", name)
+	} else {
+		fmt.Fprintf(&text, "\nREPAIRS: %s\n", name)
+	}
+	fmt.Fprintf(&text, "%d verified fixes; %d findings remain\n", len(result.FixedResults), len(result.Results))
+	counts := model.NewRuleResultSet(result.Results)
+	fmt.Fprintf(&text, "Remaining: %d errors, %d warnings, %d info, %d hints\n", counts.GetErrorCount(), counts.GetWarnCount(), counts.GetInfoCount(), counts.GetHintCount())
+	for _, fixed := range result.FixedResults {
+		fmt.Fprintf(&text, "  %s at %s: %s\n", fixed.RuleId, fixed.Path, fixed.Message)
+	}
+	if flags.DryRun && len(result.ModifiedSpec) > 0 && result.RuleSetExecution != nil {
+		text.WriteString(utils.RepairDiff(result.RuleSetExecution.Spec, result.ModifiedSpec))
+	}
+	return text.String()
+}
+
+func writtenFixCount(flags *LintFlags, verified int) int {
+	if flags.DryRun {
+		return 0
+	}
+	return verified
 }

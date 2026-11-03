@@ -103,9 +103,11 @@ func readSchemaLintFlags(cmd *cobra.Command) (*schemaLintFlags, error) {
 	flags := &schemaLintFlags{}
 	flags.Fix, _ = cmd.Flags().GetBool("fix")
 	flags.FixFile, _ = cmd.Flags().GetString("fix-file")
-	flags.FixBuiltins, _ = cmd.Flags().GetBool("fix-builtins")
 	flags.FixPolicy, _ = cmd.Flags().GetString("fix-policy")
-	flags.FixPlan, _ = cmd.Flags().GetString("fix-plan")
+	flags.DryRun, _ = cmd.Flags().GetBool("dry-run")
+	if err := validateRepairFlags(flags.Fix, flags.DryRun, flags.FixPolicy); err != nil {
+		return nil, err
+	}
 	flags.GlobPatterns, _ = cmd.Flags().GetStringArray("globbed-files")
 	flags.Includes, _ = cmd.Flags().GetStringArray("include")
 	flags.Excludes, _ = cmd.Flags().GetStringArray("exclude")
@@ -220,15 +222,13 @@ func runSchemaLint(cmd *cobra.Command, args []string) error {
 			color.ASCIIBlue, len(inputs), len(selectedRS.Rules), selectedRS.DocumentationURI, color.ASCIIReset)
 	}
 
-	if (flags.FixFile != "" || flags.FixPlan != "") && len(inputs) > 1 {
+	if flags.FixFile != "" && len(inputs) > 1 {
 		return fmt.Errorf("repair output requires a single input")
 	}
 	if flags.Fix && (flags.Stdin || flags.Bundle) {
 		return fmt.Errorf("schema repair requires an unbundled file input")
 	}
-	if flags.Fix && !flags.FixBuiltins {
-		return fmt.Errorf("schema --fix requires --fix-builtins")
-	}
+
 	var runs []schemaLintRun
 	var aggregate []model.RuleFunctionResult
 	var firstSpecInfo *datamodel.SpecInfo
@@ -375,16 +375,17 @@ func lintSchemaInput(
 		FetchConfig:                     fetchConfig,
 		SpecFormat:                      dialect.Format,
 	}
-	repairFlags := &LintFlags{FixFlag: flags.Fix, FixFileFlag: flags.FixFile, FixBuiltins: flags.FixBuiltins, FixPolicy: flags.FixPolicy, FixPlan: flags.FixPlan}
+	repairFlags := &LintFlags{FixFlag: flags.Fix, FixFileFlag: flags.FixFile, FixPolicy: flags.FixPolicy, DryRun: flags.DryRun, SilentFlag: flags.Silent, FormattedOutput: flags.Format != schemaOutputText}
 	result := executeLintWithRepairs(execution, &motor.ExecutionOptions{
 		ResolveAllRefs:       flags.ResolveAllRefs,
 		NestedRefsDocContext: flags.NestedRefsDocContext,
 	}, repairFlags, ignoredItems)
-	if flags.Fix && len(result.Errors) == 0 && result.ModifiedSpec != nil {
+	if flags.Fix && !flags.DryRun && len(result.Errors) == 0 && result.ModifiedSpec != nil {
 		if err := writeFixedFile(result, input.Path, flags.FixFile); err != nil {
 			return run, err
 		}
 	}
+	fmt.Print(repairSummary(result, repairFlags))
 	if len(result.ModifiedSpec) > 0 {
 		input.Bytes = result.ModifiedSpec
 	}

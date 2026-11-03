@@ -95,3 +95,29 @@ func TestRepairWritePreservesModeAndRejectsAliases(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, staged)
 }
+
+func TestFileProcessorDryRunVerifiesRegisteredRepairWithoutWriting(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "spec.yaml")
+	original := []byte("openapi: 3.0.3\ninfo: {title: Bad, version: '1'}\npaths: {}\n")
+	require.NoError(t, os.WriteFile(path, original, 0600))
+	rs, err := rulesets.CreateRuleSetFromData([]byte("rules:\n  title:\n    given: $.info.title\n    severity: error\n    autoFixFunction: clearTitle\n    then: {function: falsy}\n"))
+	require.NoError(t, err)
+	calls := 0
+	result := ProcessSingleFileOptimized(path, &FileProcessingConfig{
+		Flags:           &LintFlags{FixFlag: true, DryRun: true, TimeoutFlag: 5, LookupTimeoutFlag: 500, SilentFlag: true},
+		SelectedRuleset: rs,
+		AutoFixFunctions: map[string]model.AutoFixFunction{"clearTitle": func(n, doc *yaml.Node, ctx *model.RuleFunctionContext) (*yaml.Node, error) {
+			calls++
+			n.Value = ""
+			return n, nil
+		}},
+	})
+	require.NoError(t, result.Error)
+	require.Equal(t, 1, calls)
+	require.Len(t, result.FixedResults, 1)
+	require.Empty(t, result.Results)
+	require.Contains(t, string(result.RepairedSpec), "title: \"\"")
+	saved, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, saved)
+}
