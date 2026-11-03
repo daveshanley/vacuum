@@ -43,6 +43,16 @@ func (m *ViolationResultTableModel) buildNavBar() string {
 
 	baseNavText := fmt.Sprintf("%s | pgup/pgdn/↑↓/jk: nav | tab: severity | c: category | r: rule | p: path | enter: details | d: docs | x: code | q: quit", rowText)
 
+	if m.repair != nil && m.repair.review == nil {
+		baseNavText += " | f: fixes"
+	}
+	if m.repair != nil && m.repair.review != nil {
+		baseNavText = "↑↓: nav | enter: details | f: fixes | space: select | e: edit | v: preview | a: apply | x: code/diff | esc: cancel | q: quit"
+		if m.repair.editing {
+			baseNavText = "enter: save value | esc: cancel edit"
+		}
+	}
+
 	if watchIndicator != "" {
 		var indicatorColor string
 		if m.watchState == WatchStateProcessing {

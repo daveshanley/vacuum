@@ -73,5 +73,14 @@ func (m *ViolationResultTableModel) filterResults() {
 		filtered = ruleFiltered
 	}
 
+	if m.repair != nil && m.repair.onlyFixes {
+		var fixes []*model.RuleFunctionResult
+		for _, result := range filtered {
+			if o := m.repairOption(result); o != nil && (o.Reason == "" || o.Editable) {
+				fixes = append(fixes, result)
+			}
+		}
+		filtered = fixes
+	}
 	m.filteredResults = filtered
 }
