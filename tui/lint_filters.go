@@ -58,13 +58,18 @@ func (m *ViolationResultTableModel) ApplyFilter() {
 		}
 
 		// all filters passed, add to results
+		if m.repair != nil && m.repair.onlyFixes {
+			if o := m.repairOption(r); o == nil || (o.Reason != "" && !o.Editable) {
+				continue
+			}
+		}
 		filtered = append(filtered, r)
 	}
 
 	m.filteredResults = filtered
 
 	// rebuild table data with filtered results - recalculate column widths
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
+	columns, rows := m.buildRepairTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 	m.rows = rows
 	m.table.SetRows(rows)
 	m.table.SetColumns(columns)

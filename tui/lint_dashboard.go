@@ -164,6 +164,7 @@ type clearProcessingStateMsg struct{} // Message to clear processing state after
 
 // ViolationResultTableModel holds the state for the interactive table view
 type ViolationResultTableModel struct {
+	repair          *dashboardRepair
 	table           table.Model
 	allResults      []*model.RuleFunctionResult
 	filteredResults []*model.RuleFunctionResult
@@ -209,7 +210,7 @@ type ViolationResultTableModel struct {
 
 // ShowViolationTableView displays results in an interactive console table (legacy)
 // If changeStats is non-nil, the dashboard will display "what-changed mode" indicator
-func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string, specContent []byte, watchConfig *WatchConfig, changeStats *utils.ChangeStats, filterStats *utils.ChangeFilterStats) error {
+func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string, specContent []byte, watchConfig *WatchConfig, changeStats *utils.ChangeStats, filterStats *utils.ChangeFilterStats, repairConfig ...*RepairConfig) error {
 	defer func() {
 		if r := recover(); r != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "\n\033[31mDashboard panic recovered: %v\033[0m\n", r)
@@ -299,6 +300,11 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		changeFilterStats: filterStats,
 	}
 
+	if len(repairConfig) > 0 && repairConfig[0] != nil {
+		m.repair = &dashboardRepair{config: repairConfig[0], status: "f: review fixes"}
+		defer m.repair.close()
+	}
+
 	p := tea.NewProgram(m)
 
 	finalModel, err := p.Run()
@@ -354,8 +360,16 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}()
 
+	handled, repairCmd := m.handleRepairMessage(msg)
+	if handled {
+		return m, repairCmd
+	}
+
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+	if repairCmd != nil {
+		cmds = append(cmds, repairCmd)
+	}
 
 	// viewport updates when modal is open and loaded
 	if m.uiState.ActiveModal == ModalDocs && m.docsState == DocsStateLoaded {
@@ -384,6 +398,12 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	// file watcher messages
 	case fileChangeMsg:
+		if m.repair != nil {
+			m.repair.close()
+			m.repair.options = nil
+			m.repair.editing = false
+			m.repair.status = "Source changed · f to review again"
+		}
 		if m.watchConfig != nil && m.watchConfig.Enabled {
 			cmd := m.handleFileChange(msg.fileName)
 			if cmd != nil {
@@ -397,6 +417,12 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// update results immediately but keep processing state for 700ms
 		m.allResults = msg.results
 		m.specContent = msg.specContent
+		if m.repair != nil {
+			m.repair.close()
+			m.repair.options = nil
+			m.repair.onlyFixes = false
+			m.repair.status = "Source reloaded · f to review fixes"
+		}
 
 		// update change stats if provided (for what-changed mode)
 		if msg.changeStats != nil {
@@ -408,7 +434,7 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.filterResults()
 
-		columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
+		columns, rows := m.buildRepairTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 		m.table.SetColumns(columns)
 		m.table.SetRows(rows)
 		m.rows = rows
@@ -487,6 +513,9 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch key {
 		case "q", "ctrl+c":
+			if m.repair != nil {
+				m.repair.close()
+			}
 			m.quitting = true
 			return m, tea.Quit
 		case "esc":
@@ -613,6 +642,13 @@ func (m *ViolationResultTableModel) buildTableView() string {
 		}
 	}
 
+	if m.repair != nil && (strings.HasPrefix(m.repair.status, "PREVIEW:") || strings.HasPrefix(m.repair.status, "APPLIED:")) {
+		builder.Reset()
+		builder.WriteString(strings.TrimPrefix(m.repairStatus(), " | "))
+	} else {
+		builder.WriteString(m.repairStatus())
+	}
+
 	// Now add filters if any are active
 	if m.uiState.FilterState != FilterAll {
 		builder.WriteString(" | ")
@@ -662,7 +698,7 @@ func (m *ViolationResultTableModel) buildTableView() string {
 
 	if len(m.filteredResults) == 0 {
 		// empty state.
-		emptyView := renderEmptyState(m.width-2, contentHeight)
+		emptyView := renderEmptyState(m.width-2, contentHeight, len(m.allResults) == 0)
 		borderedEmpty := addTableBorders(emptyView)
 		builder.WriteString(borderedEmpty)
 	} else {
@@ -891,7 +927,7 @@ func (m *ViolationResultTableModel) TogglePathColumn() {
 	}
 	cursorOffsetInViewport := currentCursor - viewportStart
 
-	columns, rows := BuildResultTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
+	columns, rows := m.buildRepairTableData(m.filteredResults, m.fileName, m.width, m.uiState.ShowPath)
 	m.rows = rows
 
 	// clear and update table

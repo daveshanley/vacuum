@@ -135,7 +135,9 @@ func (m *ViolationResultTableModel) buildHowToFixPanel(howToFixWidth, contentHei
 
 	var howToFixContent strings.Builder
 
-	if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
+	if details := m.repairDetails(); details != "" {
+		howToFixContent.WriteString(wrapText(details, howToFixWidth-4))
+	} else if m.modalContent.Rule != nil && m.modalContent.Rule.HowToFix != "" {
 		fixLines := strings.Split(m.modalContent.Rule.HowToFix, "\n")
 		for i, line := range fixLines {
 			if i > 0 {
@@ -154,6 +156,13 @@ func (m *ViolationResultTableModel) buildHowToFixPanel(howToFixWidth, contentHei
 
 // buildCodePanel builds the code panel with syntax highlighted snippet
 func (m *ViolationResultTableModel) buildCodePanel(codeWidth, contentHeight int) string {
+	if diff := m.repairDiff(); diff != "" {
+		lines := strings.Split(diff, "\n")
+		if len(lines) > contentHeight {
+			lines = lines[:contentHeight]
+		}
+		return lipgloss.NewStyle().Width(codeWidth).Height(contentHeight).MaxHeight(contentHeight).Padding(0, 1).Render(strings.Join(lines, "\n"))
+	}
 	codeSnippet, startLine := m.ExtractCodeSnippet(m.modalContent, 4)
 
 	codeStyle := lipgloss.NewStyle().
