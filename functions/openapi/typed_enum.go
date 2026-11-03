@@ -10,6 +10,7 @@ import (
 
 	"github.com/daveshanley/vacuum/model"
 	"github.com/pb33f/go-yaml"
+	"github.com/pb33f/libopenapi/index"
 	"github.com/pb33f/libopenapi/utils"
 )
 
@@ -36,9 +37,19 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 
 	var results []model.RuleFunctionResult
 
-	enums := context.Index.GetAllEnums()
+	// the root index only holds enums from the root document, enums defined in files reached
+	// through a $ref live in the rolodex indexes.
+	results = te.checkIndex(context.Index, context, results)
+	if rolodex := context.Index.GetRolodex(); rolodex != nil {
+		for _, idx := range rolodex.GetIndexes() {
+			results = te.checkIndex(idx, context, results)
+		}
+	}
+	return results
+}
 
-	for _, enum := range enums {
+func (te TypedEnum) checkIndex(idx *index.SpecIndex, context model.RuleFunctionContext, results []model.RuleFunctionResult) []model.RuleFunctionResult {
+	for _, enum := range idx.GetAllEnums() {
 		var enumType string
 		if enum.Type.Value != "" {
 			enumType = enum.Type.Value
@@ -78,6 +89,10 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 		endNode := vacuumUtils.BuildEndNode(enum.Node)
 
 		// iterate through type results and add to rule output.
+		var origin *index.NodeOrigin
+		if idx != context.Index && len(typeResults) > 0 {
+			origin = idx.FindNodeOrigin(startNode)
+		}
 		for _, res := range typeResults {
 			results = append(results, model.RuleFunctionResult{
 				Message:   fmt.Sprintf("enum type mismatch: %s", res),
@@ -85,6 +100,7 @@ func (te TypedEnum) RunRule(nodes []*yaml.Node, context model.RuleFunctionContex
 				EndNode:   endNode,
 				Path:      fmt.Sprintf("%v", context.Given),
 				Rule:      context.Rule,
+				Origin:    origin,
 			})
 		}
 
