@@ -291,6 +291,8 @@ func (m *ViolationResultTableModel) performRelint() tea.Msg {
 	tempResultSet.SortResultsByLineNumber()
 
 	return relintCompleteMsg{
+		repairRules:       selectedRS,
+		repairIgnores:     ignoredItems,
 		results:           tempResultSet.Results,
 		specContent:       specBytes,
 		selectedRow:       currentRow,

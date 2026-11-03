@@ -197,3 +197,18 @@ func TestDashboardFixCleanStateDoesNotBlameFilters(t *testing.T) {
 	require.NotContains(t, view, "filters are too strict")
 	require.Contains(t, view, "APPLIED: 3 fixes")
 }
+
+func TestDashboardFixReloadPassesCurrentSettings(t *testing.T) {
+	m, _ := repairTestModel(t)
+	called := false
+	rules := &rulesets.RuleSet{Rules: map[string]*model.Rule{}}
+	ignores := model.IgnoredItems{"rule": []string{"$.info"}}
+	m.repair.config.Reload = func(got *rulesets.RuleSet, items model.IgnoredItems) {
+		require.Same(t, rules, got)
+		require.Equal(t, ignores, items)
+		called = true
+	}
+	m.Update(relintCompleteMsg{results: m.allResults, specContent: m.specContent, repairRules: rules, repairIgnores: ignores})
+	require.True(t, called)
+	require.Nil(t, m.repair.review)
+}
