@@ -28,7 +28,8 @@ is not a claim that every diagnostic can be changed without owner input.
   and bundle mode cannot overwrite inputs.
 - LSP code actions return a versioned `documentChanges` edit. They never write
   files or mutate the open buffer. Changed/closed documents and changed config
-  discard pending proposals. Root-mode multi-file LSP repairs are declined.
+  discard pending proposals. Root-mode multi-file LSP repairs are declined. Equal or lower `didChange`
+  versions are now rejected rather than applied.
 
 `RuleFunctionResult.DiagnosticCode` is additive report metadata. `RepairNode`
 identifies the authored owner independently of the displayed range and is not
@@ -97,7 +98,9 @@ so another provider cannot apply stale positional pointers.
 One built-in/policy batch performs baseline lint and candidate lint. Trusted
 plugin callbacks need an additional execution pass, then the same final
 verification. A callback must mutate in place, return the supplied node or nil,
-and leave its original diagnostic resolved. No-op callbacks do not count.
+and leave its original diagnostic resolved. No-op callbacks do not count. Callback failures are always returned in
+`Errors`, including the low-level API with optional function-error reporting
+disabled.
 
 Verification preserves rules, severities, ignore files, reference options and
 timeout/cancellation controls. It requires complete lint, checks original
@@ -124,7 +127,13 @@ not a hard process RSS guarantee.
 CLI writing checks original bytes and source identity, rejects symlink/non-file
 inputs and hardlink aliases, preserves permissions, stages in the destination
 directory, and renames. Hash-check plus rename is not filesystem compare-and-swap
-against an uncooperative writer. Versioned LSP edits are the editor boundary.
+against an uncooperative writer. Atomic replacement changes only the named
+path: other hardlinks keep the original inode and bytes. Versioned LSP edits
+are the editor boundary.
+
+`--changes` uses the returned model for preview. Applied repairs map report
+lines to the candidate through source pointers. Unknown lines or changed array
+positions retain findings rather than risk silently dropping them.
 
 ## Validation
 

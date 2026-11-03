@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/daveshanley/vacuum/repair"
+	wcModel "github.com/pb33f/libopenapi/what-changed/model"
 	"github.com/pb33f/testify/require"
 )
 
@@ -91,4 +92,33 @@ func TestBuiltinRepairSchemaCLI(t *testing.T) {
 	var doc map[string]any
 	require.NoError(t, json.Unmarshal(saved, &doc))
 	require.Len(t, doc["enum"], 1)
+}
+
+func TestRepairPreservesChangesModelFiltering(t *testing.T) {
+	dir := t.TempDir()
+	spec := filepath.Join(dir, "api.yaml")
+	changesPath := filepath.Join(dir, "changes.json")
+	original := []byte("openapi: 3.1.0\n\ninfo: {title: Test, version: '1'}\npaths:\n  /pets:\n    get:\n      responses:\n        '200':\n          description: ok\ncomponents:\n  schemas:\n    Pet: {type: string, enum: [a,a]}\n")
+	line := 9
+	changes := wcModel.DocumentChanges{PropertyChanges: &wcModel.PropertyChanges{Changes: []*wcModel.Change{{ChangeType: wcModel.Modified, Context: &wcModel.ChangeContext{NewLine: &line}}}}}
+	encoded, err := json.Marshal(changes)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(changesPath, encoded, 0600))
+	require.NoError(t, os.WriteFile(spec, original, 0600))
+	args := []string{"lint", spec, "--changes", changesPath, "--format", "json", "--fail-severity", "none"}
+	baseline, _, err := exportCommand(t, args...)
+	require.NoError(t, err)
+	require.Contains(t, baseline, "operation-description", "changed response must retain the finding on its containing operation model")
+	preview, _, err := exportCommand(t, append(append([]string(nil), args...), "--fix-plan", filepath.Join(dir, "plan.json"))...)
+	require.NoError(t, err)
+	require.JSONEq(t, baseline, preview)
+	saved, err := os.ReadFile(spec)
+	require.NoError(t, err)
+	require.Equal(t, original, saved)
+	applied, _, err := exportCommand(t, append(append([]string(nil), args...), "--fix", "--fix-builtins")...)
+	require.NoError(t, err)
+	require.Contains(t, applied, "operation-description", "verified output must retain the changed parent model after lines move")
+	saved, err = os.ReadFile(spec)
+	require.NoError(t, err)
+	require.NotEqual(t, original, saved)
 }
