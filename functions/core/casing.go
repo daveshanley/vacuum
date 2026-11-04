@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/daveshanley/vacuum/model"
 	vacuumUtils "github.com/daveshanley/vacuum/utils"
+	v3 "github.com/pb33f/doctor/model/high/v3"
 	"github.com/pb33f/go-yaml"
 	"github.com/pb33f/libopenapi/utils"
 	"regexp"
@@ -100,6 +101,25 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 
 	// From here on out, we are processing a single node
 	node := nodes[0]
+
+	// when 'field' is set, the casing applies to the value of that field, not to the matched node.
+	// '@key' is the spectral idiom for checking the keys of the matched node, which is the default.
+	var fieldContainer *yaml.Node
+	var fieldResult vacuumUtils.FieldPathResult
+	if context.RuleAction != nil && context.RuleAction.Field != "" && context.RuleAction.Field != "@key" {
+		fieldContainer = node
+		if fieldContainer.Kind == yaml.DocumentNode && len(fieldContainer.Content) > 0 {
+			fieldContainer = fieldContainer.Content[0]
+		}
+		if !utils.IsNodeMap(fieldContainer) {
+			return nil
+		}
+		fieldResult = vacuumUtils.FindFieldPath(context.RuleAction.Field, fieldContainer.Content, fieldLookupOptions(context, false))
+		if !fieldResult.Found || fieldResult.ValueNode == nil {
+			return nil
+		}
+		node = fieldResult.ValueNode
+	}
 
 	var casingType string
 
@@ -194,7 +214,14 @@ func (c Casing) RunRule(nodes []*yaml.Node, context model.RuleFunctionContext) [
 	// Go through each node and check if the casing is correct
 	for _, n := range nodesToMatch {
 		if !rx.MatchString(n.Value) {
-			locatedPath, allPaths, locatedObjects := locateModelPaths(context, node, pathValue)
+			var locatedPath string
+			var allPaths []string
+			var locatedObjects []v3.Foundational
+			if fieldContainer != nil {
+				locatedPath, allPaths, locatedObjects = locateExistingFieldPaths(&context, fieldContainer, context.RuleAction.Field, fieldResult)
+			} else {
+				locatedPath, allPaths, locatedObjects = locateModelPaths(context, node, pathValue)
+			}
 			result := model.RuleFunctionResult{
 				Message:   vacuumUtils.SuppliedOrDefault(message, fmt.Sprintf("%s: `%s` is not `%s` case", ruleMessage, n.Value, casingType)),
 				StartNode: n,

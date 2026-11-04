@@ -753,3 +753,103 @@ func TestCasing_RunRule_SpectralNestedSeparator_MapInterfaceInterface(t *testing
 
 	assert.Len(t, res, 0, "nested separator with map[interface{}]interface{} should work")
 }
+
+// https://github.com/daveshanley/vacuum/issues/1031
+func TestCasing_RunRule_ThenField_ChecksFieldValue(t *testing.T) {
+	sampleYaml := `get:
+  operationId: Get things
+  summary: ok`
+
+	path := "$.get"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+	opts["type"] = "camel"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "operationId", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "`Get things` is not `camel` case")
+	assert.Equal(t, "Get things", res[0].StartNode.Value)
+	assert.Equal(t, "$.get.operationId", res[0].Path)
+}
+
+func TestCasing_RunRule_ThenField_Success(t *testing.T) {
+	sampleYaml := `get:
+  operationId: getThings
+  Not_Camel: ignored`
+
+	path := "$.get"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+	opts["type"] = "camel"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "operationId", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCasing_RunRule_ThenField_MissingField(t *testing.T) {
+	sampleYaml := `get:
+  summary: ok`
+
+	path := "$.get"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+	opts["type"] = "camel"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "operationId", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 0)
+}
+
+func TestCasing_RunRule_ThenField_AtKeyChecksKeys(t *testing.T) {
+	sampleYaml := `schemas:
+  GoodName: {}
+  bad_name: {}`
+
+	path := "$.schemas"
+
+	nodes, _ := gen_utils.FindNodes([]byte(sampleYaml), path)
+	assert.Len(t, nodes, 1)
+
+	opts := make(map[string]any)
+	opts["type"] = "pascal"
+
+	rule := buildCoreTestRule(path, model.SeverityError, "casing", "@key", nil)
+	ctx := buildCoreTestContext(model.CastToRuleAction(rule.Then), opts)
+	ctx.Given = path
+	ctx.Rule = &rule
+
+	def := &Casing{}
+	res := def.RunRule(nodes, ctx)
+
+	assert.Len(t, res, 1)
+	assert.Contains(t, res[0].Message, "`bad_name` is not `pascal` case")
+}
