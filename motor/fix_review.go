@@ -123,16 +123,6 @@ func NewFixReview(execution *RuleSetExecution, options *ExecutionOptions) (*FixR
 			break
 		}
 	}
-	proposedIDs := make(map[string]bool)
-	for _, finding := range r.findings {
-		if r.fields[finding.Index] == "operationId" {
-			id := suggestedOperationID(finding.Pointer)
-			if proposedIDs[id] {
-				usedIDs[id] = true
-			}
-			proposedIDs[id] = true
-		}
-	}
 	for _, finding := range r.findings {
 		result := r.baseline.Results[finding.Index]
 		option := FixOption{Index: finding.Index, Result: &result, Reason: declined[fixKey(finding.RuleID, finding.Pointer)]}
@@ -565,8 +555,17 @@ func fixOperationIDs(root *yaml.Node) map[string]bool {
 }
 
 func suggestedFixValue(field, pointer string, owner *yaml.Node, usedIDs map[string]bool) string {
-	if field == "contact" || field == "license" {
-		return ""
+	if field == "contact" {
+		name := fixScalar(owner, "title")
+		if name == "" {
+			name = "API"
+		}
+		value, _ := json.Marshal(map[string]string{"name": name + " support"})
+		return string(value)
+	}
+	if field == "license" {
+		// Do not infer a legal grant from the API's metadata.
+		return `{"name":"Unspecified"}`
 	}
 	parts := strings.Split(strings.TrimPrefix(pointer, "/"), "/")
 	for i := range parts {
@@ -575,10 +574,11 @@ func suggestedFixValue(field, pointer string, owner *yaml.Node, usedIDs map[stri
 	if field == "operationId" {
 		id := suggestedOperationID(pointer)
 		if id == "" {
-			return ""
+			id = "operation"
 		}
-		if usedIDs[id] {
-			return ""
+		base := id
+		for suffix := 2; usedIDs[id]; suffix++ {
+			id = base + strconv.Itoa(suffix)
 		}
 		usedIDs[id] = true
 		return id
@@ -586,8 +586,22 @@ func suggestedFixValue(field, pointer string, owner *yaml.Node, usedIDs map[stri
 	if field != "description" && field != "summary" {
 		return ""
 	}
-	if len(parts) == 3 && parts[0] == "paths" {
-		return strings.ToUpper(parts[2]) + " " + parts[1] + "."
+	if len(parts) >= 3 && parts[0] == "paths" {
+		operation := strings.ToUpper(parts[2]) + " " + parts[1]
+		if len(parts) == 3 {
+			return operation + "."
+		}
+		if parts[len(parts)-1] == "requestBody" {
+			if content := fixNodeAt(owner, "/content"); content != nil && content.Kind == yaml.MappingNode && len(content.Content) == 2 {
+				if schema := fixNodeAt(content.Content[1], "/schema"); fixScalar(schema, "format") == "binary" {
+					return "Binary request body for " + operation + "."
+				}
+			}
+			return "Request body for " + operation + "."
+		}
+		if len(parts) == 5 && parts[3] == "responses" {
+			return "Response " + parts[4] + " for " + operation + "."
+		}
 	}
 	if len(parts) > 0 && parts[len(parts)-1] == "info" {
 		if title := fixScalar(owner, "title"); title != "" {
@@ -608,12 +622,18 @@ func suggestedFixValue(field, pointer string, owner *yaml.Node, usedIDs map[stri
 		if len(parts) > 1 && parts[len(parts)-2] == "tags" {
 			return "Operations tagged " + name + "."
 		}
+		if location := fixScalar(owner, "in"); location != "" {
+			return name + " " + location + " parameter."
+		}
 		return name + "."
 	}
 	if len(parts) == 2 && (parts[0] == "operations" || parts[0] == "channels") {
 		return parts[1] + " " + strings.TrimSuffix(parts[0], "s") + "."
 	}
-	return ""
+	if len(parts) > 0 && parts[len(parts)-1] != "" {
+		return strings.ToUpper(field[:1]) + field[1:] + " for " + strings.Join(parts, " / ") + "."
+	}
+	return "API " + field + "."
 }
 
 // Locate the changed range without a line slice for every line in a large spec.
