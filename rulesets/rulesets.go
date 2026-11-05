@@ -567,11 +567,15 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 
 			// let's check to see if this rule exists
 			if rs.Rules[k] == nil {
+				// a severity enables a built-in rule that extends turned off, like `true` does.
+				if builtIn := rsm.findBuiltInRule(k, extends); builtIn != nil && isSeverityRuleDefinition(evalStr) {
+					rs.Rules[k] = builtIn
+				} else {
+					rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
 
-				rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
-
-				// we don't know anything about this rule, so skip it.
-				continue
+					// we don't know anything about this rule, so skip it.
+					continue
+				}
 			}
 
 			switch evalStr {
@@ -592,32 +596,12 @@ func (rsm ruleSetsModel) GenerateRuleSetFromSuppliedRuleSetWithHTTPClient(rulese
 				if rs.Rules[k] != nil {
 					continue
 				}
-				// First check if it's in the OpenAPI ruleset
-				if rsm.openAPIRuleSet.Rules[k] != nil {
-					rs.Rules[k] = rsm.openAPIRuleSet.Rules[k]
-				} else if rsm.jsonSchemaSet.Rules[k] != nil {
-					rs.Rules[k] = rsm.jsonSchemaSet.Rules[k]
-				} else if rsm.asyncAPISet.Rules[k] != nil {
-					rs.Rules[k] = rsm.asyncAPISet.Rules[k]
-				} else if rsm.arazzoSet.Rules[k] != nil {
-					rs.Rules[k] = rsm.arazzoSet.Rules[k]
-				} else {
-					// Check if it's an OWASP rule when vacuum:all or vacuum:owasp is used
-					if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
-						extends[VacuumOwasp] == VacuumOff || extends[VacuumOwasp] == VacuumAll || extends[VacuumOwasp] == VacuumRecommended ||
-						extends[SpectralOwasp] == VacuumOff || extends[SpectralOwasp] == VacuumAll || extends[SpectralOwasp] == VacuumRecommended {
-						allOWASPRules := GetAllOWASPRules()
-						if allOWASPRules[k] != nil {
-							rs.Rules[k] = allOWASPRules[k]
-						} else {
-							rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
-							continue
-						}
-					} else {
-						rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
-						continue
-					}
+				builtIn := rsm.findBuiltInRule(k, extends)
+				if builtIn == nil {
+					rsm.logger.Warn("Rule does not exist, ignoring it", "rule", k)
+					continue
 				}
+				rs.Rules[k] = builtIn
 			} else {
 				delete(rs.Rules, k) // remove it completely
 			}
@@ -879,6 +863,29 @@ func cloneRuleDefinition(value interface{}) interface{} {
 	default:
 		return value
 	}
+}
+
+// findBuiltInRule looks up a built-in rule by name, so a rule set can enable it after extends
+// turned it off. OWASP rules are only found when an OWASP or vacuum:all ruleset is extended.
+func (rsm ruleSetsModel) findBuiltInRule(name string, extends map[string]string) *model.Rule {
+	if r := rsm.openAPIRuleSet.Rules[name]; r != nil {
+		return r
+	}
+	if r := rsm.jsonSchemaSet.Rules[name]; r != nil {
+		return r
+	}
+	if r := rsm.asyncAPISet.Rules[name]; r != nil {
+		return r
+	}
+	if r := rsm.arazzoSet.Rules[name]; r != nil {
+		return r
+	}
+	if extends[VacuumAllRulesets] == VacuumOff || extends[VacuumAllRulesets] == VacuumAll || extends[VacuumAllRulesets] == VacuumAllRulesets ||
+		extends[VacuumOwasp] == VacuumOff || extends[VacuumOwasp] == VacuumAll || extends[VacuumOwasp] == VacuumRecommended ||
+		extends[SpectralOwasp] == VacuumOff || extends[SpectralOwasp] == VacuumAll || extends[SpectralOwasp] == VacuumRecommended {
+		return GetAllOWASPRules()[name]
+	}
+	return nil
 }
 
 func applySeverityOverrideToRuleDefinition(value interface{}, severity string) interface{} {

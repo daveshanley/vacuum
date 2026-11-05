@@ -1018,6 +1018,39 @@ rules:
 	assert.Greater(t, len(repl.Rules), 1, "should have OpenAPI rules plus the one OWASP rule")
 }
 
+func TestRuleSetsModel_GenerateRuleSetFromConfig_OffSeverityShorthandEnablesRule(t *testing.T) {
+	// a severity string enables a built-in rule that extends turned off, like `true` does,
+	// and runs it at that severity (https://github.com/daveshanley/vacuum/issues/1033).
+	yaml := `extends:
+  - [spectral:oas, off]
+  - [vacuum:owasp, off]
+rules:
+  operation-operationId: warn
+  owasp-integer-format: info
+  operation-tags: "off"
+  no-such-rule: error`
+
+	def := BuildDefaultRuleSets()
+	builtInSeverity := def.GenerateOpenAPIDefaultRuleSet().Rules[OperationOperationId].Severity
+	rs, err := CreateRuleSetFromData([]byte(yaml))
+	assert.NoError(t, err)
+
+	repl := def.GenerateRuleSetFromSuppliedRuleSet(rs)
+
+	assert.Len(t, repl.Rules, 2)
+	if assert.NotNil(t, repl.Rules[OperationOperationId]) {
+		assert.Equal(t, model.SeverityWarn, repl.Rules[OperationOperationId].Severity)
+	}
+	if assert.NotNil(t, repl.Rules["owasp-integer-format"]) {
+		assert.Equal(t, model.SeverityInfo, repl.Rules["owasp-integer-format"].Severity)
+	}
+	assert.Nil(t, repl.Rules["operation-tags"])
+	assert.Nil(t, repl.Rules["no-such-rule"])
+
+	// the built-in rule itself keeps its severity.
+	assert.Equal(t, builtInSeverity, def.GenerateOpenAPIDefaultRuleSet().Rules[OperationOperationId].Severity)
+}
+
 func TestRuleSetsModel_GenerateRuleSetFromConfig_ExtendsSeverityShorthandPreservesInheritedCustomRule(t *testing.T) {
 	dir := t.TempDir()
 
