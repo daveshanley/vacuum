@@ -29,7 +29,6 @@ import (
 	highoverlay "github.com/pb33f/libopenapi/datamodel/high/overlay"
 	"github.com/pb33f/libopenapi/overlay"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 // WarningsExitCode is the exit code when warnings are present with --fail-on-warnings
@@ -524,7 +523,7 @@ func fetchOverlay(urlOrPath string, httpClientConfig utils.HTTPClientConfig) ([]
 // renderOverlayActionsTable renders a table showing all overlay actions and their status
 func renderOverlayActionsTable(actions []*highoverlay.Action, warnings []*overlay.Warning, overlayPath string, noStyle bool) {
 	// Get terminal width
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	width, _, err := tui.TerminalSize()
 	if err != nil || width == 0 {
 		width = 120 // default
 	}

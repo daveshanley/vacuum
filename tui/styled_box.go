@@ -5,11 +5,9 @@ package tui
 
 import (
 	"fmt"
-	"os"
 
 	"charm.land/lipgloss/v2"
 	"github.com/daveshanley/vacuum/color"
-	"golang.org/x/term"
 )
 
 type BoxType string
@@ -24,7 +22,7 @@ const (
 )
 
 func getTerminalWidth() int {
-	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	width, _, _ := TerminalSize()
 	if width == 0 {
 		width = 120
 	}
