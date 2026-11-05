@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/daveshanley/vacuum/model"
@@ -77,4 +78,36 @@ func TestDashboardRepairReloadUsesCurrentRulesAndIgnores(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, review.Options())
 	review.Close()
+}
+
+func TestDashboardRepairOpenDuringConfigurationReload(t *testing.T) {
+	source := []byte(`{"openapi":"3.1.0","info":{"title":"Test","version":"1"},"paths":{}}`)
+	path := filepath.Join(t.TempDir(), "api.json")
+	require.NoError(t, os.WriteFile(path, source, 0600))
+	rules := &rulesets.RuleSet{Rules: map[string]*model.Rule{"info-description": rulesets.GetAllBuiltInRules()["info-description"]}}
+	config := dashboardRepairConfig(path, &motor.RuleSetExecution{RuleSet: rules, Spec: source, SpecFileName: path, SilenceLogs: true}, nil, nil, "")
+	var workers sync.WaitGroup
+	start := make(chan struct{})
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		<-start
+		for i := 0; i < 500; i++ {
+			config.Reload(rules, model.IgnoredItems{"info-description": []string{"$.info"}})
+			config.Reload(rules, nil)
+		}
+	}()
+	close(start)
+	for i := 0; i < 20; i++ {
+		review, err := config.Open(source)
+		require.NoError(t, err)
+		require.LessOrEqual(t, len(review.Options()), 1)
+		review.Close()
+	}
+	workers.Wait()
+	config.Reload(rules, model.IgnoredItems{"info-description": []string{"$.info"}})
+	review, err := config.Open(source)
+	require.NoError(t, err)
+	defer review.Close()
+	require.Empty(t, review.Options())
 }
