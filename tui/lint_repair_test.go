@@ -105,6 +105,7 @@ func TestDashboardFixReviewEditPreviewApply(t *testing.T) {
 
 func TestDashboardFixEditInvalidatesPreviewAndCancel(t *testing.T) {
 	m, disk := repairTestModel(t)
+	repairKey(m, 'f', "f")
 	original := append([]byte(nil), (*disk)...)
 	cmd := repairKey(m, 'v', "v")
 	m.Update(cmd())
