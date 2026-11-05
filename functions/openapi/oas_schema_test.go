@@ -675,3 +675,16 @@ func TestErrorKindToString_Format(t *testing.T) {
 	assert.Contains(t, result, "invalid format")
 	assert.Contains(t, result, "email")
 }
+
+func TestExtractLeafValidationErrors_StableAcrossCauseOrder(t *testing.T) {
+	for _, errorKind := range []jsonschema.ErrorKind{&kind.MinLength{Want: 1}, &kind.Enum{}} {
+		first := &jsonschema.ValidationError{InstanceLocation: []string{"alpha"}, ErrorKind: errorKind}
+		second := &jsonschema.ValidationError{InstanceLocation: []string{"beta"}, ErrorKind: errorKind}
+		forward := extractLeafValidationErrors(&jsonschema.ValidationError{Causes: []*jsonschema.ValidationError{first, second}})
+		reverse := extractLeafValidationErrors(&jsonschema.ValidationError{Causes: []*jsonschema.ValidationError{second, first}})
+		assert.Len(t, forward, 2)
+		assert.Equal(t, forward, reverse, "cause traversal order must not change diagnostic messages")
+		assert.Contains(t, forward[0], "/alpha")
+		assert.Contains(t, forward[1], "/beta")
+	}
+}
