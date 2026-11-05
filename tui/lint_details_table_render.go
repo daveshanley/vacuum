@@ -78,6 +78,7 @@ func (m *ViolationResultTableModel) HandleWindowResize(msg tea.WindowSizeMsg) te
 	}
 
 	color.ApplyLintDetailsTableStyles(&m.table)
+	m.resizeRepairModal()
 
 	return nil
 }

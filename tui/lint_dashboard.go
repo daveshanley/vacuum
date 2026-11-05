@@ -86,6 +86,8 @@ const (
 	ModalNone ModalType = iota
 	ModalDocs
 	ModalCode
+	ModalRepair
+	ModalRepairEdit
 )
 
 var (
@@ -337,6 +339,9 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 func (m *ViolationResultTableModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	cmds = append(cmds, m.docsSpinner.Tick)
+	if cmd := m.discoverRepairs(); cmd != nil {
+		cmds = append(cmds, cmd)
+	}
 
 	// initialize file watcher if enabled
 	if m.watchConfig != nil && m.watchConfig.Enabled {
@@ -405,6 +410,9 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.repair.close()
 			m.repair.options = nil
 			m.repair.editing = false
+			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit {
+				m.CloseActiveModal()
+			}
 			m.repair.status = "Source changed · f to review again"
 		}
 		if m.watchConfig != nil && m.watchConfig.Enabled {
@@ -427,7 +435,11 @@ func (m *ViolationResultTableModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.repair.close()
 			m.repair.options = nil
 			m.repair.onlyFixes = false
-			m.repair.status = "Source reloaded · f to review fixes"
+			m.repair.status = "Source reloaded · checking fixes"
+			if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit {
+				m.CloseActiveModal()
+			}
+			cmds = append(cmds, m.discoverRepairs())
 		}
 
 		// update change stats if provided (for what-changed mode)
@@ -832,6 +844,10 @@ func (m *ViolationResultTableModel) buildModalView() string {
 func (m *ViolationResultTableModel) calculateModalPosition() (int, int) {
 	modalWidth := int(float64(m.width) - 40)
 	modalHeight := m.height - ModalHeightMargin
+	if m.uiState.ActiveModal == ModalRepair || m.uiState.ActiveModal == ModalRepairEdit {
+		w, h := m.repairModalSize()
+		return max(0, (m.width-w)/2), max(0, (m.height-h)/2)
+	}
 
 	// position on the right side with padding from the edge
 	rightPadding := 6
@@ -894,6 +910,8 @@ func (m *ViolationResultTableModel) renderActiveModal() string {
 		return m.buildModalView()
 	case ModalCode:
 		return m.BuildCodeView()
+	case ModalRepair, ModalRepairEdit:
+		return m.buildRepairModal()
 	default:
 		return ""
 	}

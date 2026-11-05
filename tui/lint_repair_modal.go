@@ -1,0 +1,286 @@
+package tui
+
+import (
+	"strings"
+	"sync"
+	"time"
+
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
+	"github.com/daveshanley/vacuum/motor"
+)
+
+// Discovery owns its review until the dashboard accepts it. A reload or quit
+// cancels ownership, including results which arrive after their source changed.
+type repairDiscoveryJob struct {
+	mu       sync.Mutex
+	review   *motor.FixReview
+	err      error
+	canceled bool
+}
+type repairDiscoveryMsg struct{ job *repairDiscoveryJob }
+type repairPulseMsg struct{ generation int }
+
+func (j *repairDiscoveryJob) cancel() {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.canceled = true
+	if j.review != nil {
+		j.review.Close()
+		j.review = nil
+	}
+}
+func (j *repairDiscoveryJob) finish(review *motor.FixReview, err error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if j.canceled {
+		if review != nil {
+			review.Close()
+		}
+		return
+	}
+	j.review, j.err = review, err
+}
+func (j *repairDiscoveryJob) take() (*motor.FixReview, error) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	review := j.review
+	j.review = nil
+	return review, j.err
+}
+func (m *ViolationResultTableModel) discoverRepairs() tea.Cmd {
+	r := m.repair
+	if r == nil || r.config == nil || r.config.Open == nil || r.discovery != nil || r.review != nil {
+		return nil
+	}
+	r.source = append([]byte(nil), m.specContent...)
+	source := r.source
+	open := r.config.Open
+	job := &repairDiscoveryJob{}
+	r.discovery = job
+	r.status = "Checking available fixes"
+	return func() tea.Msg { review, err := open(source); job.finish(review, err); return repairDiscoveryMsg{job} }
+}
+func repairPulse(generation int) tea.Cmd {
+	return tea.Tick(650*time.Millisecond, func(time.Time) tea.Msg { return repairPulseMsg{generation} })
+}
+func (m *ViolationResultTableModel) repairModalSize() (int, int) {
+	width := max(4, min(140, m.width-8))
+	height := max(4, m.height-6)
+	if m.uiState.ActiveModal == ModalRepairEdit {
+		height = min(height, 12)
+	}
+	return min(max(1, m.width), width), min(max(1, m.height), height)
+}
+func (m *ViolationResultTableModel) resizeRepairModal() {
+	if m.repair == nil {
+		return
+	}
+	width, height := m.repairModalSize()
+	m.repair.input.SetWidth(max(1, width-8))
+	m.repair.draftView.SetWidth(max(1, width-6))
+	m.repair.draftView.SetHeight(max(1, height-10))
+	m.setRepairDraftContent()
+}
+func (m *ViolationResultTableModel) openRepairDetail() {
+	r := m.repair
+	if r != nil && r.pending != nil {
+		r.status = "Verification running · wait before reviewing another fix"
+		return
+	}
+	o := m.currentRepairOption()
+	if r == nil || r.review == nil || o == nil {
+		return
+	}
+	choice := motor.FixChoice{Index: o.Index}
+	if o.Editable {
+		value := r.values[o.Index]
+		choice.Value = &value
+	}
+	r.draft, r.draftError = nil, ""
+	draft, err := r.review.Draft(choice)
+	if err != nil {
+		r.draftError = err.Error()
+	} else {
+		r.draft = draft
+	}
+	m.OpenModal(ModalRepair)
+	width, height := m.repairModalSize()
+	r.draftView = viewport.New(viewport.WithWidth(max(1, width-6)), viewport.WithHeight(max(1, height-10)))
+	m.setRepairDraftContent()
+}
+func (m *ViolationResultTableModel) setRepairDraftContent() {
+	r := m.repair
+	if r == nil || r.draft == nil {
+		return
+	}
+	width := max(1, r.draftView.Width())
+	beforeLabel := "BEFORE · original, problem present"
+	afterLabel := "AFTER · proposed fix, not yet applied"
+	afterStyle := lipgloss.NewStyle().Foreground(color.RGBBlue)
+	if r.draft.Generated {
+		afterLabel = "AFTER · GENERATED SUGGESTION"
+		afterStyle = afterStyle.Foreground(color.RGBYellow)
+	}
+	afterText := r.draft.After
+	if r.draft.NeedsValue {
+		afterLabel = "AFTER · VALUE REQUIRED"
+		instruction := "Enter the required value."
+		if o := m.currentRepairOption(); o != nil {
+			instruction = o.Description + "."
+		}
+		afterText = "No value has been proposed.\n" + instruction + "\nPress E to edit.\nYour input stays local until you verify and apply."
+	}
+	heading := lipgloss.NewStyle().Bold(true)
+	beforeLines, afterLines := strings.Split(r.draft.Before, "\n"), strings.Split(afterText, "\n")
+	changed := 0
+	for changed < len(beforeLines) && changed < len(afterLines) && beforeLines[changed] == afterLines[changed] {
+		changed++
+	}
+	changed = min(changed, len(afterLines)-1)
+	prefix := strings.Join(afterLines[:changed], "\n")
+	target := 0
+	var content string
+	if width >= 90 {
+		leftWidth := (width - 3) / 2
+		rightWidth := width - 3 - leftWidth
+		left := lipgloss.NewStyle().Width(leftWidth).MaxWidth(leftWidth)
+		right := lipgloss.NewStyle().Width(rightWidth).MaxWidth(rightWidth)
+		r.draftHeading = lipgloss.JoinHorizontal(lipgloss.Top, left.Render(heading.Render(beforeLabel)), " │ ", right.Render(afterStyle.Render(heading.Render(afterLabel))))
+		content = lipgloss.JoinHorizontal(lipgloss.Top, left.Render(r.draft.Before), " │ ", right.Render(afterStyle.Render(afterText)))
+		if changed > 0 {
+			target = lipgloss.Height(right.Render(prefix))
+		}
+	} else {
+		r.draftHeading = heading.Render("BEFORE / AFTER · scroll to compare")
+		style := lipgloss.NewStyle().Width(width).MaxWidth(width)
+		before := heading.Render(beforeLabel) + "\n\n" + r.draft.Before + "\n\n" + afterStyle.Render(heading.Render(afterLabel)) + "\n\n"
+		content = style.Render(before + afterStyle.Render(afterText))
+		target = lipgloss.Height(style.Render(before+prefix)) - 1
+	}
+	r.draftView.SetContent(content)
+	// Show the first proposed change immediately, including additions at the
+	// bottom of an owner. Excerpts are bounded; resize recomputes wrapped rows.
+	r.draftView.SetYOffset(max(0, target-r.draftView.Height()/2))
+}
+func (m *ViolationResultTableModel) finishRepairEdit() {
+	if m.repair.pending != nil {
+		m.CloseActiveModal()
+		m.repair.status = "Verification running · wait before reviewing another fix"
+		return
+	}
+	if m.repair.editReturn {
+		m.openRepairDetail()
+	} else {
+		m.CloseActiveModal()
+	}
+}
+func (m *ViolationResultTableModel) buildRepairModal() string {
+	r := m.repair
+	if r == nil {
+		return ""
+	}
+	width, height := m.repairModalSize()
+	inner := max(1, width-4)
+	heading := lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true)
+	subdued := lipgloss.NewStyle().Foreground(color.RGBGrey)
+	generated := lipgloss.NewStyle().Foreground(color.RGBYellow)
+	o := m.currentRepairOption()
+	name := "Fix"
+	if o != nil && o.Result.Rule != nil {
+		name = o.Result.Rule.Id
+	}
+	var lines []string
+	if r.editing {
+		lines = append(lines, heading.Render("Edit proposed value · "+name))
+		hint := "Your edit changes this proposal only. Preview before applying."
+		if o != nil && o.Generated && r.values[o.Index] == o.Value {
+			hint = generated.Render("Generated suggestion, review and edit before use.")
+		}
+		lines = append(lines, lipgloss.NewStyle().Width(inner).MaxHeight(2).Render(hint), "")
+		lines = append(lines, lipgloss.NewStyle().Width(inner).Height(1).MaxHeight(1).Render(r.input.View()))
+		lines = append(lines, "", subdued.Render("Enter: save value   Esc: cancel"))
+	} else {
+		lines = append(lines, heading.Render("Review fix · "+name))
+		state := "Not selected"
+		if o != nil && r.selected[o.Index] {
+			state = "Selected"
+		}
+		hint := state + " · Proposal only, V verifies selected fixes before A applies."
+		if o != nil && o.Generated && r.values[o.Index] == o.Value {
+			hint = generated.Render(state + " · Generated suggestion, review before use")
+		}
+		lines = append(lines, lipgloss.NewStyle().Width(inner).MaxHeight(2).Render(hint))
+		pointer := ""
+		if r.draft != nil {
+			pointer = r.draft.Pointer
+		} else if o != nil {
+			pointer = o.Result.Path
+		}
+		lines = append(lines, subdued.Width(inner).Height(1).MaxHeight(1).Render("Target: "+pointer))
+		if r.draftError != "" {
+			lines = append(lines, lipgloss.NewStyle().Width(inner).Height(max(1, height-7)).MaxHeight(max(1, height-7)).Render("Cannot preview proposal\n\n"+r.draftError+repairEditHint(o)))
+		} else {
+			lines = append(lines, r.draftHeading, r.draftView.View())
+		}
+		lines = append(lines, subdued.Render("Enter/Space: select or skip   E: edit   V: verify selection"), subdued.Render("↑↓: scroll   Esc: back   No files written"))
+	}
+	content := strings.Join(lines, "\n")
+	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(color.RGBPink).Padding(0, 1).Width(max(1, width-2)).Height(max(1, height-2)).MaxWidth(width).MaxHeight(height).Render(content)
+}
+
+func (m *ViolationResultTableModel) handleRepairDiscovery(msg tea.Msg) (bool, tea.Cmd) {
+	r := m.repair
+	switch msg := msg.(type) {
+	case repairDiscoveryMsg:
+		if r.discovery != msg.job {
+			msg.job.cancel()
+			return true, nil
+		}
+		r.discovery = nil
+		review, err := msg.job.take()
+		if err != nil {
+			r.status = "Fix review: " + err.Error()
+			return true, nil
+		}
+		if review == nil {
+			return true, nil
+		}
+		r.selected = make(map[int]bool)
+		r.values = make(map[int]string)
+		m.adoptRepairReview(review)
+		count := 0
+		for _, o := range r.options {
+			if o.Reason == "" || o.Editable {
+				count++
+			}
+		}
+		if count == 0 {
+			r.status = "No supported fixes for these findings"
+			return true, nil
+		}
+		r.status = "Fixes available · F to review"
+		r.pulseID++
+		r.pulse = 4
+		return true, repairPulse(r.pulseID)
+	case repairPulseMsg:
+		if msg.generation != r.pulseID || r.pulse <= 0 {
+			return true, nil
+		}
+		r.pulse--
+		if r.pulse > 0 {
+			return true, repairPulse(r.pulseID)
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+func repairEditHint(o *motor.FixOption) string {
+	if o != nil && o.Editable {
+		return "\n\nPress E to supply or correct the value."
+	}
+	return ""
+}
