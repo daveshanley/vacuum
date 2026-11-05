@@ -836,9 +836,11 @@ writes the verified result to a separate file. In-place repairs create a backup.
 A rule must be enabled before it can supply a repair.
 
 To review and edit fixes interactively, run `vacuum dashboard api.yaml` and
-press `f`. Use Space to select or skip, `e` to edit supported metadata, `v` to
-preview, and `a` to apply the verified result. The existing code view (`x`)
-shows the preview diff. Editing or reloading the source invalidates the preview.
+press `f`, then Enter to compare the current source with a proposed fix.
+Use Space to select or skip, `e` to edit a value in a modal, `v` to verify the
+selection, and `a` to apply the verified result. Generated text suggestions are
+labelled and require selection or confirmation. The code view (`x`) shows the
+verified preview diff. Editing or reloading the source invalidates the preview.
 
 Repairs reparse and relint the candidate before writing, and check that the
 source has not changed. Unsupported or ambiguous findings remain for review.
