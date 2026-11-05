@@ -18,6 +18,14 @@ type schemaPathResult struct {
 	allPaths    []string
 }
 
+// A schema's different property nodes can locate different owning models.
+// Include both lookup nodes so concurrent rules cannot reuse another property's paths.
+type schemaPathCacheKey struct {
+	schema *v3.Schema
+	key    *yaml.Node
+	value  *yaml.Node
+}
+
 // LocateSchemaPropertyPaths finds all paths where a schema property appears in the document.
 // It uses DrDocument.LocateModelsByKeyAndValue to find all locations where the schema
 // is referenced, not just its definition location.
@@ -30,9 +38,10 @@ func LocateSchemaPropertyPaths(
 	keyNode *yaml.Node,
 	valueNode *yaml.Node,
 ) (primaryPath string, allPaths []string) {
+	cacheKey := schemaPathCacheKey{schema: schema, key: keyNode, value: valueNode}
 	// Check cache first
 	if context.SchemaPathCache != nil {
-		if cached, ok := context.SchemaPathCache.Load(schema); ok {
+		if cached, ok := context.SchemaPathCache.Load(cacheKey); ok {
 			r := cached.(*schemaPathResult)
 			return r.primaryPath, r.allPaths
 		}
@@ -64,7 +73,7 @@ func LocateSchemaPropertyPaths(
 
 		// Store in cache
 		if context.SchemaPathCache != nil {
-			context.SchemaPathCache.Store(schema, &schemaPathResult{
+			context.SchemaPathCache.Store(cacheKey, &schemaPathResult{
 				primaryPath: primaryPath,
 				allPaths:    allPaths,
 			})
@@ -79,7 +88,7 @@ func LocateSchemaPropertyPaths(
 	// Only cache fallback results when a full lookup actually ran.
 	// This prevents nil-node calls from poisoning the cache with incomplete paths.
 	if context.SchemaPathCache != nil && lookupCompleted {
-		context.SchemaPathCache.Store(schema, &schemaPathResult{
+		context.SchemaPathCache.Store(cacheKey, &schemaPathResult{
 			primaryPath: primaryPath,
 			allPaths:    allPaths,
 		})

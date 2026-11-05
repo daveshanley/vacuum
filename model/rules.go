@@ -102,8 +102,8 @@ type RuleFunctionContext struct {
 	RuleTimeout time.Duration `json:"-" yaml:"-"`
 
 	// SchemaPathCache is a shared cache for LocateSchemaPropertyPaths results,
-	// keyed by schema pointer. Avoids redundant LocateModelsByKeyAndValue calls
-	// when multiple OWASP rules check the same schema. May be nil.
+	// keyed internally by schema and lookup nodes. Avoids redundant model lookups
+	// when multiple rules check the same schema property. May be nil.
 	SchemaPathCache *sync.Map `json:"-" yaml:"-"`
 
 	// SchemaValidator reuses compiled schemas during one rule action. The owner
