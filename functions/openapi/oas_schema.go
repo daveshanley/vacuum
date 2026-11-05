@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"hash/fnv"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -695,9 +696,13 @@ func extractLeafValidationErrors(err *jsonschema.ValidationError) []string {
 
 	extract(err, 0)
 
+	// Validator traversal can follow map iteration order. Stabilize the selected
+	// messages before callers truncate or join them into a diagnostic.
 	if len(highPriority) > 0 {
+		sort.Strings(highPriority)
 		return highPriority
 	}
+	sort.Strings(lowPriority)
 	return lowPriority
 }
 
