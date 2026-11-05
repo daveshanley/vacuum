@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -69,7 +70,9 @@ func ResolveSpecPathForExecution(specFilePath string) (string, error) {
 
 // LintFlags holds all the command line flags for lint operations
 type LintFlags struct {
-	FormattedOutput          bool // Suppress terminal chrome when an explicit report format is selected.
+	repairWarningsSilenced   bool
+	RepairWarningWriter      io.Writer // Destination for repair warnings; defaults to standard error.
+	FormattedOutput          bool      // Suppress terminal chrome when an explicit report format is selected.
 	GlobPattern              string
 	DetailsFlag              bool
 	SnippetsFlag             bool
@@ -138,13 +141,14 @@ type FileProcessingConfig struct {
 
 // ReadLintFlags reads all lint-related flags from the command
 func ReadLintFlags(cmd *cobra.Command) *LintFlags {
-	flags := &LintFlags{}
+	flags := &LintFlags{RepairWarningWriter: cmd.ErrOrStderr()}
 	flags.GlobPattern, _ = cmd.Flags().GetString("globbed-files")
 	flags.DetailsFlag, _ = cmd.Flags().GetBool("details")
 	flags.SnippetsFlag, _ = cmd.Flags().GetBool("snippets")
 	flags.ErrorsFlag, _ = cmd.Flags().GetBool("errors")
 	flags.CategoryFlag, _ = cmd.Flags().GetString("category")
 	flags.SilentFlag, _ = cmd.Flags().GetBool("silent")
+	flags.repairWarningsSilenced = flags.SilentFlag
 	flags.NoStyleFlag, _ = cmd.Flags().GetBool("no-style")
 	flags.NoBannerFlag, _ = cmd.Flags().GetBool("no-banner")
 	flags.NoMessageFlag, _ = cmd.Flags().GetBool("no-message")
