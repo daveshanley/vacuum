@@ -1,0 +1,95 @@
+package tui
+
+import (
+	"strings"
+
+	"charm.land/lipgloss/v2"
+	"github.com/daveshanley/vacuum/color"
+)
+
+// repairSourceRows aligns the bounded draft excerpts by unchanged lines. Only
+// changed lines receive diff colors; context uses the normal source highlighter.
+func repairSourceRows(before, after string, width int, isYAML bool) ([]string, int) {
+	lines := func(source string) []string {
+		if source == "" {
+			return nil
+		}
+		return strings.Split(source, "\n")
+	}
+	left, right := lines(before), lines(after)
+	// Draft excerpts contain at most 40 source lines plus an omission notice.
+	lcs := make([][]int, len(left)+1)
+	for i := range lcs {
+		lcs[i] = make([]int, len(right)+1)
+	}
+	for i := len(left) - 1; i >= 0; i-- {
+		for j := len(right) - 1; j >= 0; j-- {
+			if left[i] == right[j] {
+				lcs[i][j] = 1 + lcs[i+1][j+1]
+			} else {
+				lcs[i][j] = max(lcs[i+1][j], lcs[i][j+1])
+			}
+		}
+	}
+	lw, rw := repairColumns(width)
+	var rows []string
+	firstChange := -1
+	appendLine := func(a, b string, changed bool) {
+		if changed {
+			if firstChange < 0 {
+				firstChange = len(rows)
+			}
+			if a != "" {
+				a = lipgloss.NewStyle().Foreground(color.RGBBlue).Render(a)
+			}
+			if b != "" {
+				b = lipgloss.NewStyle().Foreground(color.RGBYellow).Render(b)
+			}
+		} else {
+			a = ApplySyntaxHighlightingToLine(a, isYAML)
+			b = ApplySyntaxHighlightingToLine(b, isYAML)
+		}
+		aLines := strings.Split(lipgloss.NewStyle().Width(max(1, lw-2)).MaxWidth(max(1, lw-2)).Render(a), "\n")
+		bLines := strings.Split(lipgloss.NewStyle().Width(max(1, rw-2)).MaxWidth(max(1, rw-2)).Render(b), "\n")
+		for n := 0; n < max(len(aLines), len(bLines)); n++ {
+			a, b := "", ""
+			if n < len(aLines) {
+				a = aLines[n]
+			}
+			if n < len(bLines) {
+				b = bLines[n]
+			}
+			rows = append(rows, repairColumnRow(a, b, width))
+		}
+	}
+	for i, j := 0, 0; i < len(left) || j < len(right); {
+		if i < len(left) && j < len(right) && left[i] == right[j] {
+			appendLine(left[i], right[j], false)
+			i++
+			j++
+			continue
+		}
+		startI, startJ := i, j
+		for i < len(left) || j < len(right) {
+			if i < len(left) && j < len(right) && left[i] == right[j] {
+				break
+			}
+			if j == len(right) || (i < len(left) && lcs[i+1][j] >= lcs[i][j+1]) {
+				i++
+			} else {
+				j++
+			}
+		}
+		for n := 0; n < max(i-startI, j-startJ); n++ {
+			a, b := "", ""
+			if startI+n < i {
+				a = left[startI+n]
+			}
+			if startJ+n < j {
+				b = right[startJ+n]
+			}
+			appendLine(a, b, true)
+		}
+	}
+	return rows, max(0, firstChange)
+}
