@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"encoding/json"
 	"strings"
 	"sync"
 	"time"
@@ -121,69 +122,24 @@ func repairColumns(width int) (int, int) {
 
 func repairColumnRow(left, right string, width int) string {
 	lw, rw := repairColumns(width)
-	cell := func(text string, width int, style lipgloss.Style) string {
-		return style.Width(width).MaxWidth(width).Height(1).MaxHeight(1).Padding(0, 1).Render(text)
+	cell := func(text string, width int) string {
+		return lipgloss.NewStyle().Width(width).MaxWidth(width).Height(1).MaxHeight(1).Padding(0, 1).Render(text)
 	}
-	return cell(left, lw, lipgloss.NewStyle().Foreground(color.RGBBlue)) +
-		lipgloss.NewStyle().Foreground(color.RGBPink).Render("│") +
-		cell(right, rw, lipgloss.NewStyle().Foreground(color.RGBYellow))
+	return cell(left, lw) + lipgloss.NewStyle().Foreground(color.RGBPink).Render("│") + cell(right, rw)
 }
 
-// The header is bounded independently of document text and spans both columns.
-func (m *ViolationResultTableModel) repairIssueHeader(width, height int) []string {
-	r, o := m.repair, m.currentRepairOption()
-	name, issue, why, location, pointer := "Fix", "", "", "", ""
-	if o != nil && o.Result != nil {
-		issue = o.Result.Message
-		location = formatFileLocation(o.Result, m.fileName)
-		pointer = o.Result.Path
-		if o.Result.Rule != nil {
-			name = o.Result.Rule.Id
-			why = o.Result.Rule.Description
-			if why == "" {
-				why = o.Result.Rule.HowToFix
-			}
-		}
+// The selected finding is the entire header; table metadata remains in the table.
+func (m *ViolationResultTableModel) repairIssueHeader(width, _ int) []string {
+	message := "Fix"
+	if o := m.currentRepairOption(); o != nil && o.Result != nil {
+		message = o.Result.Message
 	}
-	if r.draft != nil {
-		pointer = r.draft.Pointer
-	}
-	state := "Not selected"
-	if o != nil && r.selected[o.Index] {
-		state = "Selected"
-	}
-	if o != nil && o.Generated && r.values[o.Index] == o.Value {
-		state += " · Generated suggestion, review before use"
-	} else {
-		state += " · Proposal only; V verifies before A applies"
-	}
-	maxLines := 1
-	if height >= 30 {
-		maxLines = 2
-	}
-	var rows []string
-	add := func(text string, limit int, style lipgloss.Style) {
-		wrapped := strings.Split(style.Width(max(1, width-4)).MaxWidth(max(1, width-4)).Render(text), "\n")
-		if len(wrapped) > limit {
-			wrapped = wrapped[:limit]
-			wrapped[limit-1] = ansi.Truncate(wrapped[limit-1], max(1, width-5), "") + "…"
-		}
-		rows = append(rows, wrapped...)
-	}
-	add("Review fix · "+name, 1, lipgloss.NewStyle().Foreground(color.RGBBlue).Bold(true))
-	add("Issue: "+issue, maxLines, lipgloss.NewStyle())
-	if why != "" {
-		add("Why: "+why, maxLines, lipgloss.NewStyle())
-	}
-	add("Found: "+location, 1, lipgloss.NewStyle().Foreground(color.RGBGrey))
-	add("Target: "+pointer, 1, lipgloss.NewStyle().Foreground(color.RGBGrey))
-	add(state, 1, lipgloss.NewStyle().Foreground(color.RGBGrey))
-	return rows
+	message = strings.Join(strings.Fields(message), " ")
+	return []string{ansi.Truncate(color.ColorizeMessage(message), max(1, width-4), "…")}
 }
 
 func (m *ViolationResultTableModel) repairBodyHeight(width, height int) int {
-	// Outer edges, two column separators, labels, footer separator and two controls.
-	return max(1, height-len(m.repairIssueHeader(width, height))-8)
+	return max(1, height-len(m.repairIssueHeader(width, height))-7)
 }
 
 func (m *ViolationResultTableModel) setRepairDraftContent() {
@@ -194,45 +150,14 @@ func (m *ViolationResultTableModel) setRepairDraftContent() {
 	width, height := m.repairModalSize()
 	r.draftView.SetWidth(max(1, width-2))
 	r.draftView.SetHeight(m.repairBodyHeight(width, height))
-	afterLabel := "AFTER · fixed version"
-	if r.draft.Generated {
-		afterLabel = "AFTER · GENERATED SUGGESTION"
-	}
+	r.draftHeading = repairColumnRow("Currently", "Autofixed", width)
 	afterText := r.draft.After
 	if r.draft.NeedsValue {
-		afterLabel = "AFTER · VALUE REQUIRED"
-		instruction := "Enter the required value."
-		if o := m.currentRepairOption(); o != nil {
-			instruction = o.Description + "."
-		}
-		afterText = "No value has been proposed.\n" + instruction + "\nPress E to edit.\nVerify the proposal before applying."
+		afterText = "Value cleared. Press e to edit."
 	}
-	r.draftHeading = repairColumnRow("BEFORE · current source", afterLabel, width)
-	lw, rw := repairColumns(width)
-	leftStyle := lipgloss.NewStyle().Width(max(1, lw-2)).MaxWidth(max(1, lw-2))
-	rightStyle := lipgloss.NewStyle().Width(max(1, rw-2)).MaxWidth(max(1, rw-2))
-	left := strings.Split(leftStyle.Render(r.draft.Before), "\n")
-	right := strings.Split(rightStyle.Render(afterText), "\n")
-	rows := make([]string, max(len(left), len(right), r.draftView.Height()))
-	for i := range rows {
-		a, b := "", ""
-		if i < len(left) {
-			a = left[i]
-		}
-		if i < len(right) {
-			b = right[i]
-		}
-		rows[i] = repairColumnRow(a, b, width)
-	}
-	beforeLines, afterLines := strings.Split(r.draft.Before, "\n"), strings.Split(afterText, "\n")
-	changed := 0
-	for changed < len(beforeLines) && changed < len(afterLines) && beforeLines[changed] == afterLines[changed] {
-		changed++
-	}
-	changed = min(changed, len(afterLines)-1)
-	target := 0
-	if changed > 0 {
-		target = lipgloss.Height(rightStyle.Render(strings.Join(afterLines[:changed], "\n")))
+	rows, target := repairSourceRows(r.draft.Before, afterText, width, !json.Valid(m.specContent))
+	for len(rows) < r.draftView.Height() {
+		rows = append(rows, repairColumnRow("", "", width))
 	}
 	r.draftView.SetContent(strings.Join(rows, "\n"))
 	r.draftView.SetYOffset(max(0, target-r.draftView.Height()/2))
@@ -244,7 +169,7 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 	lw, rw := repairColumns(width)
 	pink := lipgloss.NewStyle().Foreground(color.RGBPink)
 	header := m.repairIssueHeader(width, height)
-	bodyHeight := height - len(header) - 8
+	bodyHeight := height - len(header) - 7
 	if width < 40 || bodyHeight < 1 {
 		return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(color.RGBPink).Width(max(1, width-2)).Height(max(1, height-2)).MaxWidth(width).MaxHeight(height).Render("Enlarge terminal to review fixes")
 	}
@@ -263,7 +188,7 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 	heading := r.draftHeading
 	body := strings.Split(r.draftView.View(), "\n")
 	if r.draftError != "" {
-		heading = repairColumnRow("BEFORE · current source", "AFTER · proposal unavailable", width)
+		heading = repairColumnRow("Currently", "Autofixed", width)
 		body = strings.Split(lipgloss.NewStyle().Width(max(1, rw-2)).Render("Cannot preview proposal\n"+r.draftError+repairEditHint(m.currentRepairOption())), "\n")
 		for i := range body {
 			body[i] = repairColumnRow("", body[i], width)
@@ -277,15 +202,15 @@ func (m *ViolationResultTableModel) buildRepairSplit() string {
 		}
 		lines = append(lines, pink.Render("│")+row+pink.Render("│"))
 	}
-	accept := "Enter: accept fix"
+	accept := "enter: accept"
 	if o := m.currentRepairOption(); o != nil {
 		if o.Editable && strings.TrimSpace(r.values[o.Index]) == "" {
-			accept = "Enter: edit value"
+			accept = "enter: edit"
 		} else if r.selected[o.Index] {
-			accept = "Enter: deselect fix"
+			accept = "enter: deselect"
 		}
 	}
-	lines = append(lines, edge("├", "┴", "┤"), full(accept+"   E: edit   V: verify selection"), full("↑↓: scroll   Esc: back   No files written"), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
+	lines = append(lines, edge("├", "┴", "┤"), full(lipgloss.NewStyle().Foreground(color.RGBGrey).Render(accept+" | e: edit | v: verify | ↑↓: scroll | esc: back")), pink.Render("└"+strings.Repeat("─", max(1, width-2))+"┘"))
 	return lipgloss.NewStyle().MaxWidth(width).MaxHeight(height).Render(strings.Join(lines, "\n"))
 }
 func (m *ViolationResultTableModel) finishRepairEdit() {

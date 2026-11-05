@@ -42,10 +42,12 @@ Descriptions, summaries and operation IDs accept plain text. Contact and
 license values accept JSON objects with supported string fields. Mechanical
 repairs support selection, not arbitrary patch editing.
 
-The fix modal has a full-width issue header with the rule, explanation, file
-location and source path. Solid pink borders separate the blue current-source
-column from the yellow proposed-result column. This
-proposal uses formatted excerpts of the selected source location. It is not yet
+The fix modal shows the selected issue above two source panes: Currently and
+Autofixed. Both use the dashboard's syntax highlighting. Removed or changed
+lines are blue on the left; added or changed lines are yellow on the right.
+Unchanged lines keep their normal syntax colors. Solid pink borders frame the
+comparison, with one pipe-separated control row. The proposal uses formatted
+excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` to verify the selected batch; the
 preview diff shows the actual candidate edits, with omitted sections marked.
 
