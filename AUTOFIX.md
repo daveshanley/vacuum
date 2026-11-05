@@ -31,7 +31,7 @@ indicator calls attention to supported repairs after discovery finishes:
 | --- | --- |
 | `f` | Open review and filter supported fixes |
 | Space | Select or skip a fix |
-| Enter | Compare before/after for the highlighted fix; save a value in the editor |
+| Enter | Open before/after; select or skip the displayed proposal; save a value in the editor |
 | `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
 | `x` | Open the code view or preview diff |
@@ -49,11 +49,15 @@ proposal uses formatted excerpts of the selected source location. It is not yet
 verified and does not write a file. Use `v` to verify the selected batch; the
 preview diff shows the actual candidate edits, with omitted sections marked.
 
-The dashboard can draft descriptions, summaries and operation IDs from existing
-source context. These values have a distinct color and a “Generated suggestion”
-label. They start unselected; select one or save an edited value to include it.
-Review the wording for accuracy. Contact and license details still require
-input. These dashboard suggestions do not change CLI `--fix` behavior.
+Supported editable fixes open with proposed content already inserted in the
+right-hand source pane. The dashboard drafts descriptions, summaries and unique
+operation IDs from source context. Contact proposals contain a name, without
+invented email addresses or URLs. License proposals use `Unspecified`, without
+asserting a license grant. Generated values are labelled and start unselected.
+Press Enter to select the displayed proposal, or `e` to change its prefilled
+value. Review generated wording and metadata before applying. These dashboard
+suggestions do not change CLI `--fix` behavior. Verification rejects a proposal
+if the active rules require more information or it introduces another finding.
 
 Editing uses a separate modal. Enter saves the value for review; Escape keeps
 the prior value. Cursor blinking does not resize the surrounding content.
