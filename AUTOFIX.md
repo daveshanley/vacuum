@@ -24,14 +24,15 @@ format. No source, output or backup file is written by dry run.
 ## Review in the dashboard
 
 Run `vacuum dashboard api.yaml`. The existing findings table, detail panels,
-code view and command bar provide the review controls:
+code view and command bar provide the review controls. A brief fix-available
+indicator calls attention to supported repairs after discovery finishes:
 
 | Key | Action |
 | --- | --- |
 | `f` | Open review and filter supported fixes |
 | Space | Select or skip a fix |
-| `e` | Edit a supported metadata value |
-| Enter | Save a pending value while editing |
+| Enter | Compare before/after for the highlighted fix; save a value in the editor |
+| `e` | Open the value editor modal |
 | `v` | Apply selected edits in memory and verify the candidate |
 | `x` | Open the code view or preview diff |
 | `a` | Write the current verified candidate |
@@ -40,6 +41,20 @@ code view and command bar provide the review controls:
 Descriptions, summaries and operation IDs accept plain text. Contact and
 license values accept JSON objects with supported string fields. Mechanical
 repairs support selection, not arbitrary patch editing.
+
+The fix modal labels the current source and proposed result separately. This
+proposal uses formatted excerpts of the selected source location. It is not yet
+verified and does not write a file. Use `v` to verify the selected batch; the
+preview diff shows the actual candidate edits, with omitted sections marked.
+
+The dashboard can draft descriptions, summaries and operation IDs from existing
+source context. These values have a distinct color and a “Generated suggestion”
+label. They start unselected; select one or save an edited value to include it.
+Review the wording for accuracy. Contact and license details still require
+input. These dashboard suggestions do not change CLI `--fix` behavior.
+
+Editing uses a separate modal. Enter saves the value for review; Escape keeps
+the prior value. Cursor blinking does not resize the surrounding content.
 
 The preview header shows verified repairs, severity counts and the existing
 quality score before and after. Apply refreshes the table with remaining
