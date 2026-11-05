@@ -25,7 +25,6 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 func GetOpenCollectionCommand() *cobra.Command {
@@ -231,7 +230,7 @@ func runOpenCollection(cmd *cobra.Command, args []string) error {
 // renderCollectionTable renders a table showing all generated requests
 func renderCollectionTable(result *frank.FrankResult, noStyle bool) {
 	// Get terminal width
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	width, _, err := tui.TerminalSize()
 	if err != nil || width == 0 {
 		width = 120
 	}

@@ -6,7 +6,6 @@ package cmd
 import (
 	"fmt"
 	"image/color"
-	"os"
 	"strings"
 
 	"charm.land/bubbles/v2/progress"
@@ -16,7 +15,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/dustin/go-humanize"
-	"golang.org/x/term"
 )
 
 // column widths configuration
@@ -51,7 +49,7 @@ type summaryTotals struct {
 
 // get terminal width with fallback
 func getTerminalWidth() int {
-	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	width, _, _ := tui.TerminalSize()
 	if width == 0 {
 		width = 120
 	}

@@ -3,6 +3,7 @@ project_name: vacuum
 before:
   hooks:
     - ./scripts/build-ui-assets.sh
+    - ./browser/package.sh
 builds:
   - id: default
     env:
@@ -36,6 +37,13 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
 checksum:
   name_template: 'checksums.txt'
+  extra_files:
+    - glob: ./browser/dist/vacuum-online-engine.tar
+
+release:
+  # the browser build of vacuum (browser/package.sh)
+  extra_files:
+    - glob: ./browser/dist/vacuum-online-engine.tar
 
 signs:
   - artifacts: checksum

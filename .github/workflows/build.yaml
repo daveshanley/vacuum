@@ -127,3 +127,7 @@ jobs:
 
       - name: Check default source build
         run: go build ./...
+
+      # Releases attach the browser build, so catch js/wasm breaks here.
+      - name: Check browser build
+        run: SKIP_COMPRESS=1 browser/build.sh "$RUNNER_TEMP/vacuum-online"

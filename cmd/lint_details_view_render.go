@@ -13,7 +13,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/tui"
 	"github.com/dustin/go-humanize"
-	"golang.org/x/term"
 )
 
 // Constants for summary table widths at different terminal sizes
@@ -93,7 +92,7 @@ func calculateMaxColumnWidths(results []*model.RuleFunctionResult, fileName stri
 
 // calculateTableConfig determines the table layout based on terminal width
 func calculateTableConfig(results []*model.RuleFunctionResult, fileName string, errors, noMessage, noClip, noStyle bool, showAbsPaths bool) *TableConfig {
-	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	width, _, _ := tui.TerminalSize()
 	if width == 0 {
 		width = 120
 	}

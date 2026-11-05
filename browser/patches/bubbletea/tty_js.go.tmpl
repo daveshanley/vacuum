@@ -1,0 +1,10 @@
+//go:build js
+
+package tea
+
+// initInput has no terminal to put into raw mode; the host page feeds input.
+func (p *Program) initInput() error { return nil }
+
+const suspendSupported = false
+
+func suspendProcess() {}

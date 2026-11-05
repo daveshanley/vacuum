@@ -19,7 +19,6 @@ import (
 	"github.com/daveshanley/vacuum/model"
 	"github.com/daveshanley/vacuum/utils"
 	"github.com/fsnotify/fsnotify"
-	"golang.org/x/term"
 )
 
 type WatchState int
@@ -225,7 +224,7 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		return nil
 	}
 
-	width, height, err := term.GetSize(int(os.Stdout.Fd()))
+	width, height, err := TerminalSize()
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Warning: Could not get terminal size: %v\n", err)
 		width = DefaultTerminalWidth
@@ -299,7 +298,8 @@ func ShowViolationTableView(results []*model.RuleFunctionResult, fileName string
 		changeFilterStats: filterStats,
 	}
 
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, programOptions()...)
+	defer attachProgram(p)()
 
 	finalModel, err := p.Run()
 	if err != nil {
